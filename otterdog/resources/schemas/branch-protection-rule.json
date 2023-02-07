@@ -1,0 +1,37 @@
+{
+  "$id": "branch-protection-rule.json",
+
+  "type": "object",
+  "properties": {
+    "pattern": { "type": "string" },
+    "allowsDeletions": { "type": "boolean" },
+    "allowsForcePushes": { "type": "boolean" },
+    "dismissesStaleReviews": { "type": "boolean" },
+    "isAdminEnforced": { "type": "boolean" },
+    "lockAllowsFetchAndMerge": { "type": "boolean" },
+    "lockBranch": { "type": "boolean" },
+    "requireLastPushApproval": { "type": "boolean" },
+    "requiredApprovingReviewCount": { "$ref": "#/definitions/integer_or_null" },
+    "requiresApprovingReviews": { "type": "boolean" },
+    "requiresCodeOwnerReviews": { "type": "boolean" },
+    "requiresCommitSignatures": { "type": "boolean" },
+    "requiresConversationResolution": { "type": "boolean" },
+    "requiresLinearHistory": { "type": "boolean" },
+    "requiresStatusChecks": { "type": "boolean" },
+    "requiresStrictStatusChecks": { "type": "boolean" },
+    "restrictsPushes": { "type": "boolean" },
+    "restrictsReviewDismissals": { "type": "boolean" }
+  },
+
+  "required": [ "pattern" ],
+  "additionalProperties": false,
+
+  "definitions": {
+    "integer_or_null": {
+      "anyOf": [
+          { "type": "integer" },
+          { "type": "null" }
+        ]
+    }
+  }
+}

@@ -1,0 +1,33 @@
+query($endCursor: String, $organization: String!, $repository: String!) {
+  repository(owner: $organization, name: $repository) {
+    branchProtectionRules(first: 100, after: $endCursor) {
+      nodes {
+        id
+        pattern
+        allowsDeletions
+        allowsForcePushes
+        blocksCreations
+        dismissesStaleReviews
+        isAdminEnforced
+        lockAllowsFetchAndMerge
+        lockBranch
+        requireLastPushApproval
+        requiredApprovingReviewCount
+        requiresApprovingReviews
+        requiresCodeOwnerReviews
+        requiresCommitSignatures
+        requiresConversationResolution
+        requiresLinearHistory
+        requiresStatusChecks
+        requiresStrictStatusChecks
+        restrictsPushes
+        restrictsReviewDismissals
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
