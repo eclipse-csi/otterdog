@@ -15,6 +15,7 @@ import utils
 from fetch import FetchOperation
 from verify import VerifyOperation
 from update import UpdateOperation
+from validate import ValidateOperation
 from config import OtterdogConfig
 
 CONFIG_FILE = "otterdog.json"
@@ -35,8 +36,9 @@ if __name__ == '__main__':
     verify_parser = subparsers.add_parser("verify")
     sync_parser = subparsers.add_parser("fetch")
     update_parser = subparsers.add_parser("update")
+    validate_parser = subparsers.add_parser("validate")
 
-    for subparser in [verify_parser, sync_parser, update_parser]:
+    for subparser in [verify_parser, sync_parser, update_parser, validate_parser]:
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
@@ -51,7 +53,13 @@ if __name__ == '__main__':
         jsonnet_config = config.jsonnet_config
 
         exit_code = 0
-        for organization in args.organization:
+
+        # if no organization has been specified as argument, process all configured ones.
+        organizations = args.organization
+        if len(organizations) == 0:
+            organizations = [k for k, _ in config.organization_configs.items()]
+
+        for organization in organizations:
             org_config = config.organization_config(organization)
 
             # execute the requested action with the credential data and config.
@@ -67,6 +75,10 @@ if __name__ == '__main__':
                 case "update":
                     utils.print_info("update configuration for organization '{}'".format(organization))
                     exit_code = max(exit_code, UpdateOperation(config).execute(org_config))
+
+                case "validate":
+                    utils.print_info("validate configuration for organization '{}'".format(organization))
+                    exit_code = max(exit_code, ValidateOperation(config).execute(org_config))
 
                 case _:
                     utils.print_err(f"unexpected action {args.action}")
