@@ -18,8 +18,8 @@ from importlib_resources import files, as_file
 
 import schemas
 import utils
+from config import JsonnetConfig
 from github import Github
-from jsonnet_config import JsonnetConfig
 
 
 class Organization:

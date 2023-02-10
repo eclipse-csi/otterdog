@@ -26,6 +26,10 @@ def init(verbose: int) -> None:
     colorama_init()
 
 
+def is_debug_enabled() -> bool:
+    return _verbose_level >= 2
+
+
 def print_info(msg: str) -> None:
     if _verbose_level >= 1:
         print(f"{Fore.GREEN}[INFO]{Style.RESET_ALL} " + msg)

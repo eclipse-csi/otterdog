@@ -5,17 +5,18 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
+
 import json
 from typing import Any
 
 import utils
-from credentials import Credentials
+from config import OtterdogConfig
 from diff import DiffOperation
 
 
 class VerifyOperation(DiffOperation):
-    def __init__(self, credentials: Credentials):
-        super().__init__(credentials)
+    def __init__(self, config: OtterdogConfig):
+        super().__init__(config)
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         for key, (expected_value, current_value) in modified_settings.items():

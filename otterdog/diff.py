@@ -12,28 +12,33 @@ from typing import Any
 
 import organization as org
 import utils
-from credentials import Credentials
+from config import OtterdogConfig, OrganizationConfig
 from github import Github
-from jsonnet_config import JsonnetConfig
-from operations import Operation
+from operation import Operation
 
 
 class DiffOperation(Operation):
-    def __init__(self, credentials: Credentials):
-        self.gh = Github(credentials)
+    def __init__(self, config: OtterdogConfig):
+        self.config = config
+        self.jsonnet_config = config.jsonnet_config
+        self.gh_client = None
 
-    def execute(self, org_id: str, config: JsonnetConfig) -> int:
-        org_file_name = config.get_org_config_file(org_id)
+    def execute(self, org_config: OrganizationConfig) -> int:
+        github_id = org_config.github_id
+        credentials = self.config.get_credentials(org_config)
+        self.gh_client = Github(credentials)
+
+        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
         if not os.path.exists(org_file_name):
             msg = f"configuration file '{org_file_name}' for organization '{org_file_name}' does not exist"
             utils.exit_with_message(msg, 1)
 
-        expected_org = org.load_from_file(org_id, config.get_org_config_file(org_id))
+        expected_org = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
         expected_settings = expected_org.get_settings()
 
         # determine differences for settings.
-        current_org_settings = self.gh.get_org_settings(org_id)
+        current_org_settings = self.gh_client.get_org_settings(github_id)
 
         differences = 0
         modified_settings = {}
@@ -48,11 +53,11 @@ class DiffOperation(Operation):
                 differences += 1
                 modified_settings[key] = (expected_value, current_value)
 
-        self.handle_modified_settings(org_id, modified_settings)
+        self.handle_modified_settings(github_id, modified_settings)
 
         # determine differences for webhooks.
         expected_webhooks_by_url = utils.associate_by_key(expected_org.get_webhooks(), lambda x: x["config"]["url"])
-        current_webhooks = self.gh.get_webhooks(org_id)
+        current_webhooks = self.gh_client.get_webhooks(github_id)
 
         for webhook in current_webhooks:
             webhook_id = str(webhook["id"])
@@ -75,15 +80,15 @@ class DiffOperation(Operation):
 
             expected_webhooks_by_url.pop(webhook_url)
 
-            self.handle_modified_webhook(org_id, webhook_id, modified_webhook)
+            self.handle_modified_webhook(github_id, webhook_id, modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
             differences += 1
-            self.handle_new_webhook(org_id, webhook)
+            self.handle_new_webhook(github_id, webhook)
 
         # determine differences for repositories
         expected_repos_by_name = utils.associate_by_key(expected_org.get_repos(), lambda x: x["name"])
-        current_repos = self.gh.get_repos(org_id)
+        current_repos = self.gh_client.get_repos(github_id)
 
         for current_repo in current_repos:
             repo_id = current_repo["node_id"]
@@ -99,19 +104,19 @@ class DiffOperation(Operation):
                 current_value = current_repo.get(key)
 
                 if key == "branch_protection_rules":
-                    differences += self._process_branch_protection_rules(org_id, repo_name, repo_id, expected_repo)
+                    differences += self._process_branch_protection_rules(github_id, repo_name, repo_id, expected_repo)
                 else:
                     if expected_value != current_value:
                         differences += 1
                         modified_repo[key] = (expected_value, current_value)
 
             expected_repos_by_name.pop(repo_name)
-            self.handle_modified_repo(org_id, repo_name, modified_repo)
+            self.handle_modified_repo(github_id, repo_name, modified_repo)
 
         for repo_name, repo in expected_repos_by_name.items():
             differences += 1
             # TODO: process branch protection rules for new repo's as well
-            self.handle_new_repo(org_id, repo)
+            self.handle_new_repo(github_id, repo)
 
         self.handle_finish(differences)
         return differences
@@ -126,7 +131,7 @@ class DiffOperation(Operation):
         expected_branch_protection_rules_by_pattern = \
             utils.associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
 
-        current_rules = self.gh.get_branch_protection_rules(org_id, repo_name)
+        current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
         for current_rule in current_rules:
             rule_id = current_rule["id"]
             rule_pattern = current_rule["pattern"]

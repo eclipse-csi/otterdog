@@ -18,7 +18,9 @@ class BitwardenVault(CredentialProvider):
     A class to provide convenient access to a bitwarden vault.
     """
 
-    def __init__(self):
+    def __init__(self, api_token_key: str):
+        self._api_token_key = api_token_key
+
         utils.print_debug("unlocking bitwarden vault")
         self._status, _ = subprocess.getstatusoutput("bw unlock --check")
         utils.print_trace(f"result = {self._status}")
@@ -41,9 +43,8 @@ class BitwardenVault(CredentialProvider):
             utils.exit_with_message(msg, 1)
 
         api_token_key = data.get("api_token_key")
-        if item_id is None:
-            msg = f"required key 'api_token_key' not found in authorization data for organization '{organization}'"
-            utils.exit_with_message(msg, 1)
+        if api_token_key is None:
+            api_token_key = self._api_token_key
 
         status, item_json = subprocess.getstatusoutput("bw get item {}".format(item_id))
         utils.print_trace(f"result = ({status}, {item_json})")

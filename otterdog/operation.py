@@ -9,9 +9,9 @@
 from abc import abstractmethod
 from typing import Protocol
 
-from jsonnet_config import JsonnetConfig
+from config import OrganizationConfig
 
 
 class Operation(Protocol):
     @abstractmethod
-    def execute(self, org_id: str, config: JsonnetConfig) -> int: raise NotImplementedError
+    def execute(self, org_config: OrganizationConfig) -> int: raise NotImplementedError

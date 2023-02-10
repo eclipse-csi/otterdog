@@ -9,26 +9,30 @@
 import os
 
 import utils
-from credentials import Credentials
 from github import Github
-from jsonnet_config import JsonnetConfig
-from operations import Operation
+from config import OtterdogConfig, OrganizationConfig
+from operation import Operation
 from organization import load_from_github
 
 
 class FetchOperation(Operation):
-    def __init__(self, credentials: Credentials):
-        self.gh = Github(credentials)
+    def __init__(self, config: OtterdogConfig):
+        self.config = config
+        self.jsonnet_config = self.config.jsonnet_config
 
-    def execute(self, org_id: str, config: JsonnetConfig) -> int:
-        organization = load_from_github(org_id, self.gh)
-        output = organization.write_jsonnet_config(config)
+    def execute(self, org_config: OrganizationConfig) -> int:
+        github_id = org_config.github_id
+        credentials = self.config.get_credentials(org_config)
+        gh_client = Github(credentials)
 
-        output_dir = config.get_orgs_config_dir()
+        organization = load_from_github(github_id, gh_client)
+        output = organization.write_jsonnet_config(self.jsonnet_config)
+
+        output_dir = self.jsonnet_config.orgs_dir
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        output_file_name = config.get_org_config_file(org_id)
+        output_file_name = self.jsonnet_config.get_org_config_file(github_id)
         utils.print_info(f"writing configuration to file '{output_file_name}'")
 
         with open(output_file_name, "w") as file:

@@ -3,6 +3,7 @@
 
   "type": "object",
   "properties": {
+    "github_id": { "type": "string" },
     "settings": { "$ref": "settings.json" },
     "webhooks": {
       "type": "array",
@@ -15,5 +16,5 @@
   },
 
   "required": [ "settings" ],
-  "additionalProperties": true
+  "additionalProperties": false
 }

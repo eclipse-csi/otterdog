@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "bitwarden": {
+      "api_token_key": "api_token_admin"
+    },
+    "jsonnet": {
+      "base_template": "default.org.jsonnet",
+      "create_org": "newOrg",
+      "create_webhook": "newWebhook",
+      "create_repo": "newRepo",
+      "create_branch_protection_rule": "newBranchProtectionRule"
+    }
+  },
+  "organizations": [
+    {
+      "name": "tinygears",
+      "github_id": "TinyGearsOrg",
+      "credentials": {
+        "provider": "bitwarden",
+        "item_id" : "118276ad-158c-4720-b68d-af8c00fe3481"
+      }
+    }
+  ]
+}

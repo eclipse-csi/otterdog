@@ -7,18 +7,17 @@
 # *******************************************************************************
 
 import argparse
-import json
 import os
 import sys
+import traceback
 
 import utils
-from bitwarden import BitwardenVault
 from fetch import FetchOperation
 from verify import VerifyOperation
 from update import UpdateOperation
-from jsonnet_config import JsonnetConfig
+from config import OtterdogConfig
 
-AUTH_JSON_FILE = "auth.json"
+CONFIG_FILE = "otterdog.json"
 
 # main entry point
 if __name__ == '__main__':
@@ -38,63 +37,46 @@ if __name__ == '__main__':
     update_parser = subparsers.add_parser("update")
 
     for subparser in [verify_parser, sync_parser, update_parser]:
-        subparser.add_argument("organization", help="the github id of the organization")
-        subparser.add_argument("--auth", "-a", help=f"authorization config file, defaults to '{AUTH_JSON_FILE}'",
-                               action="store", default=AUTH_JSON_FILE)
-        subparser.add_argument("--data", "-d", help="data directory", action="store", default=parent_dir)
+        subparser.add_argument("organization", nargs="*", help="the github id of the organization")
+        subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
+                               action="store", default=CONFIG_FILE)
         subparser.add_argument("--verbose", "-v", action="count", default=0)
 
     args = parser.parse_args()
 
     utils.init(args.verbose)
-    config = JsonnetConfig(args.data)
 
-    organization = args.organization
+    try:
+        config = OtterdogConfig.from_file(args.config)
+        jsonnet_config = config.jsonnet_config
 
-    # load and parse the authorization file.
-    auth_file = args.auth
-    if not os.path.exists(auth_file):
-        msg = f"authorization file '{auth_file}' not found"
-        utils.exit_with_message(msg, 1)
+        exit_code = 0
+        for organization in args.organization:
+            org_config = config.organization_config(organization)
 
-    with open(auth_file) as f:
-        auth_configs = json.load(f)
+            # execute the requested action with the credential data and config.
+            match args.action:
+                case "verify":
+                    utils.print_info("verify configuration for organization '{}'".format(organization))
+                    exit_code = max(exit_code, VerifyOperation(config).execute(org_config))
 
-    # find a config matching the organization we are processing.
-    auth_config = next((c for c in auth_configs["organizations"] if c.get("github_id") == organization), None)
-    if auth_config is None:
-        utils.exit_with_message(f"no authorization config found for organization '{organization}'", 1)
+                case "fetch":
+                    utils.print_info("fetch configuration for organization '{}'".format(organization))
+                    exit_code = max(exit_code, FetchOperation(config).execute(org_config))
 
-    provider_data = auth_config.get("provider")
-    if provider_data is None:
-        utils.exit_with_message(f"no credential provider data specified for organization '{organization}'", 1)
+                case "update":
+                    utils.print_info("update configuration for organization '{}'".format(organization))
+                    exit_code = max(exit_code, UpdateOperation(config).execute(org_config))
 
-    provider_type = provider_data.get("type")
-    match provider_type:
-        case "bitwarden":
-            bitwarden_vault = BitwardenVault()
-            credentials = bitwarden_vault.get_credentials(organization, provider_data)
+                case _:
+                    utils.print_err(f"unexpected action {args.action}")
+                    sys.exit(2)
 
-        case _:
-            credentials = None
-            utils.exit_with_message(f"unsupported credential provider '{provider_type}'", 1)
+        sys.exit(exit_code)
 
-    # execute the requested action with the credential data and config.
-    match args.action:
-        case "verify":
-            utils.print_info("verify configuration for organization '{}'".format(organization))
-            exit_code = VerifyOperation(credentials).execute(organization, config)
+    except Exception as e:
+        if utils.is_debug_enabled():
+            exc_info = sys.exc_info()
+            traceback.print_exc(exc_info)
 
-        case "fetch":
-            utils.print_info("fetch configuration for organization '{}'".format(organization))
-            exit_code = FetchOperation(credentials).execute(organization, config)
-
-        case "update":
-            utils.print_info("update configuration for organization '{}'".format(organization))
-            exit_code = UpdateOperation(credentials).execute(organization, config)
-
-        case _:
-            exit_code = 1
-            utils.print_err(f"unexpected action {args.action}")
-
-    sys.exit(exit_code)
+        utils.exit_with_message(str(e), 1)

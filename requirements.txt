@@ -6,4 +6,4 @@ mintotp~=0.3.0
 requests~=2.28.2
 jsonschema~=4.17.3
 importlib_resources
-pytest
+pytest~=7.2.1
