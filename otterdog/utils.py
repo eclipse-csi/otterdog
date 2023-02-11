@@ -111,11 +111,11 @@ def dump_json_object(obj: Any, fp, offset=0, indent=2, embedded_object: bool = F
 def associate_by_key(input_list: list[dict[str, Any]], key_func: Callable[[Any], str]) -> dict[str, dict[str, Any]]:
     result = {}
     for item in input_list:
-        value = key_func(item)
+        key = key_func(item)
 
-        if value in result:
-            exit_with_message(f"duplicate item found with key '{value}'", 1)
+        if key in result:
+            raise RuntimeError(f"duplicate item found with key '{key}'")
 
-        result[value] = item
+        result[key] = item
 
     return result

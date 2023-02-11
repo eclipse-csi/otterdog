@@ -190,7 +190,7 @@ class OtterdogConfig:
             raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
 
         provider = self._get_credential_provider(provider_type)
-        return provider.get_credentials(org_config.name, org_config.credential_data)
+        return provider.get_credentials(org_config.credential_data)
 
     def __repr__(self):
         return f"OtterdogConfig('{self.data_dir}')"

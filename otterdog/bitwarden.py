@@ -26,21 +26,17 @@ class BitwardenVault(CredentialProvider):
         utils.print_trace(f"result = {self._status}")
 
         if not self.is_unlocked():
-            msg = "bitwarden vault is locked, run 'bw unlock' and follow instructions first"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError("bitwarden vault is locked, run 'bw unlock' and follow instructions first")
 
     def is_unlocked(self) -> bool:
         return self._status == 0
 
-    def get_credentials(self, organization: str, data: dict[str, str]) -> Credentials:
+    def get_credentials(self, data: dict[str, str]) -> Credentials:
         assert self.is_unlocked()
-
-        utils.print_debug(f"retrieving credentials with provider 'bitwarden' for organization '{organization}'")
 
         item_id = data.get("item_id")
         if item_id is None:
-            msg = f"required key 'item_id' not found in authorization data for organization '{organization}'"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(f"required key 'item_id' not found in authorization data")
 
         api_token_key = data.get("api_token_key")
         if api_token_key is None:
@@ -50,29 +46,29 @@ class BitwardenVault(CredentialProvider):
         utils.print_trace(f"result = ({status}, {item_json})")
 
         if status != 0:
-            utils.exit_with_message(f"item with id '{item_id}' not found in your bitwarden vault", 1)
+            raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault")
 
         # load the item json string and access the field containing the GitHub token
         item = json.loads(item_json)
         token_field = next(filter(lambda k: k["name"] == api_token_key, item["fields"]), None)
         if token_field is None:
-            utils.exit_with_message(f"field with key '{api_token_key}' not found in item with id '{item_id}'", 1)
+            raise RuntimeError(f"field with key '{api_token_key}' not found in item with id '{item_id}'")
 
         github_token = token_field.get("value")
         if github_token is None:
-            utils.exit_with_message(f"field with key '{api_token_key}' is empty in item with id '{item_id}'", 1)
+            raise RuntimeError(f"field with key '{api_token_key}' is empty in item with id '{item_id}'")
 
         username = item["login"]["username"]
         if username is None:
-            utils.exit_with_message(f"no username specified in item with id '{item_id}'", 1)
+            raise RuntimeError(f"no username specified in item with id '{item_id}'")
 
         password = item["login"]["password"]
         if password is None:
-            utils.exit_with_message(f"no password specified in item with id '{item_id}'", 1)
+            raise RuntimeError(f"no password specified in item with id '{item_id}'")
 
         totp_secret = item["login"]["totp"]
         if totp_secret is None:
-            utils.exit_with_message(f"totp is empty in item with id '{item_id}'", 1)
+            raise RuntimeError(f"totp is empty in item with id '{item_id}'")
 
         return Credentials(username, password, github_token, totp_secret)
 
