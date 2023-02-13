@@ -20,24 +20,22 @@ class ShowOperation(Operation):
         self.jsonnet_config = config.jsonnet_config
 
     def execute(self, org_config: OrganizationConfig) -> int:
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]", end='')
+        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]")
 
         github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
         if not os.path.exists(org_file_name):
-            print(f" {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
+            print(f"  {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
             return 1
 
         try:
             organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
         except RuntimeError as ex:
-            print(f" {Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
+            print(f"  {Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
             return 1
 
-        print()
-
         for repo in organization.get_repos():
-            print(f"  Repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
+            print(f"  repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
 
         return 0

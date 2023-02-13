@@ -8,9 +8,8 @@
 
 import os
 
-from colorama import Style
+from colorama import Fore, Style
 
-import utils
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
@@ -24,10 +23,16 @@ class FetchOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
-        credentials = self.config.get_credentials(org_config)
-        gh_client = Github(credentials)
 
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]")
+        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+
+        try:
+            credentials = self.config.get_credentials(org_config)
+        except RuntimeError as e:
+            print(f"  {Fore.RED}failed:{Style.RESET_ALL} {str(e)}")
+            return 1
+
+        gh_client = Github(credentials)
 
         organization = load_from_github(github_id, gh_client)
         output = organization.write_jsonnet_config(self.jsonnet_config)

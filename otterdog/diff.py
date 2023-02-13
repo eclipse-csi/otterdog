@@ -10,6 +10,8 @@ import os
 from abc import abstractmethod
 from typing import Any
 
+from colorama import Fore, Style
+
 import organization as org
 import utils
 from config import OtterdogConfig, OrganizationConfig
@@ -25,14 +27,22 @@ class DiffOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
-        credentials = self.config.get_credentials(org_config)
+
+        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+
+        try:
+            credentials = self.config.get_credentials(org_config)
+        except RuntimeError as e:
+            print(f"  {Fore.RED}failed:{Style.RESET_ALL} {str(e)}")
+            return 1
+
         self.gh_client = Github(credentials)
 
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
         if not os.path.exists(org_file_name):
-            msg = f"configuration file '{org_file_name}' for organization '{org_file_name}' does not exist"
-            utils.exit_with_message(msg, 1)
+            print(f"  {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
+            return 1
 
         expected_org = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
         expected_settings = expected_org.get_settings()
