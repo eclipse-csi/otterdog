@@ -100,7 +100,7 @@ class GithubRest:
 
         utils.print_debug(f"added webhook with url '{url}' via rest api")
 
-    def get_repos(self, org_id: str) -> list[dict[str, Any]]:
+    def get_repos(self, org_id: str) -> list[str]:
         utils.print_debug("retrieving org repos via rest API")
 
         repos = []
@@ -120,24 +120,25 @@ class GithubRest:
                 current_page = -1
             else:
                 for repo in response_json:
-                    repo_name = repo["name"]
-                    utils.print_debug(f"getting data for repo {repo_name}")
-
-                    response_repo = requests.get(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}",
-                                                 headers=self._headers)
-                    utils.print_trace(f"rest result = ({response_repo.status_code})")
-
-                    if not response_repo.ok:
-                        msg = f"failed retrieving data for repo '{repo_name}' of organization '{org_id}' via rest API"
-                        utils.exit_with_message(msg, 1)
-
-                    result = response_repo.json()
-                    utils.print_trace(json.dumps(result))
-                    repos.append(result)
+                    repos.append(repo["name"])
 
                 current_page += 1
 
         return repos
+
+    def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        utils.print_debug(f"retrieving org repo data for '{repo_name}' via rest API")
+
+        response_repo = requests.get(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}",
+                                     headers=self._headers)
+        utils.print_trace(f"rest result = ({response_repo.status_code}, {json.dumps(response_repo.json())})")
+
+        if not response_repo.ok:
+            msg = f"failed retrieving data for repo '{repo_name}' of organization '{org_id}' via rest API"
+            utils.exit_with_message(msg, 1)
+
+        result = response_repo.json()
+        return result
 
     def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         utils.print_debug("updating repo settings via rest API")

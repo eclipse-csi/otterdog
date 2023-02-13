@@ -23,7 +23,7 @@ class PlanOperation(DiffOperation):
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         print(f"  {Fore.YELLOW}~ {Style.RESET_ALL}settings {{")
         for key, (expected_value, current_value) in modified_settings.items():
-            print(f"    {Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(20, ' ')} ="
+            print(f"    {Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
                   f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
         print(f"  }}")
 
@@ -35,17 +35,25 @@ class PlanOperation(DiffOperation):
     def handle_new_webhook(self,
                            org_id: str,
                            data: dict[str, Any]) -> None:
-        utils.print_info(f"  new webhook with data:\n{json.dumps(data, indent=2)}")
+        print(f"  {Fore.GREEN}+{Style.RESET_ALL} new webhook {{")
+        for key, value in data.items():
+            print(f"    {Fore.GREEN}+ {Style.RESET_ALL}{key.ljust(30, ' ')} = \"{value}\"")
+        print(f"  }}")
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, (Any, Any)]) -> None:
+        print(f"  {Fore.YELLOW}~ {Style.RESET_ALL}repo[name=\"{repo_name}\"] {{")
         for key, (expected_value, current_value) in modified_repo.items():
-            msg = f"  repo['{repo_name}'].{key}: expected '{expected_value}' but was '{current_value}'"
-            utils.print_info(msg)
+            print(f"    {Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
+                  f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
+        print(f"  }}")
 
     def handle_new_repo(self,
                         org_id: str,
                         data: dict[str, Any]) -> None:
-        utils.print_info(f"  new repo with data:\n{json.dumps(data, indent=2)}")
+        print(f"  {Fore.GREEN}+{Style.RESET_ALL} new repo {{")
+        for key, value in data.items():
+            print(f"    {Fore.GREEN}+ {Style.RESET_ALL}{key.ljust(30, ' ')} = \"{value}\"")
+        print(f"  }}")
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -62,5 +70,5 @@ class PlanOperation(DiffOperation):
         utils.print_info(f"  new branch_protection_rule for repo '{repo_name}'"
                          f"with data:\n{json.dumps(data, indent=2)}")
 
-    def handle_finish(self, differences: int) -> None:
-        utils.print_info(f"found {differences} difference(s)")
+    def handle_finish(self, additions: int, differences: int) -> None:
+        print(f"  {Style.BRIGHT}Plan:{Style.RESET_ALL} {additions} to add, {differences} to change.")

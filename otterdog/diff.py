@@ -50,7 +50,9 @@ class DiffOperation(Operation):
         # determine differences for settings.
         current_org_settings = self.gh_client.get_org_settings(github_id)
 
+        additions = 0
         differences = 0
+
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
             if key not in current_org_settings:
@@ -93,42 +95,48 @@ class DiffOperation(Operation):
             self.handle_modified_webhook(github_id, webhook_id, modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            differences += 1
+            additions += 1
             self.handle_new_webhook(github_id, webhook)
 
         # determine differences for repositories
         expected_repos_by_name = utils.associate_by_key(expected_org.get_repos(), lambda x: x["name"])
         current_repos = self.gh_client.get_repos(github_id)
 
-        for current_repo in current_repos:
-            repo_id = current_repo["node_id"]
-            repo_name = current_repo["name"]
-            expected_repo = expected_repos_by_name.get(repo_name)
+        for current_repo_name in current_repos:
+            expected_repo = expected_repos_by_name.get(current_repo_name)
             if expected_repo is None:
-                utils.print_warn(f"no configuration found for repo with name '{repo_name}'")
+                utils.print_warn(f"no configuration found for repo with name '{current_repo_name}'")
                 differences += 1
                 continue
 
+            current_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
+            current_repo_id = current_repo_data["node_id"]
+
             modified_repo = {}
             for key, expected_value in expected_repo.items():
-                current_value = current_repo.get(key)
+                current_value = current_repo_data.get(key)
 
                 if key == "branch_protection_rules":
-                    differences += self._process_branch_protection_rules(github_id, repo_name, repo_id, expected_repo)
+                    differences +=\
+                        self._process_branch_protection_rules(github_id,
+                                                              current_repo_name,
+                                                              current_repo_id,
+                                                              expected_repo)
                 else:
                     if expected_value != current_value:
                         differences += 1
                         modified_repo[key] = (expected_value, current_value)
 
-            expected_repos_by_name.pop(repo_name)
-            self.handle_modified_repo(github_id, repo_name, modified_repo)
+            expected_repos_by_name.pop(current_repo_name)
+            if len(modified_repo) > 0:
+                self.handle_modified_repo(github_id, current_repo_name, modified_repo)
 
         for repo_name, repo in expected_repos_by_name.items():
-            differences += 1
+            additions += 1
             # TODO: process branch protection rules for new repo's as well
             self.handle_new_repo(github_id, repo)
 
-        self.handle_finish(differences)
+        self.handle_finish(additions, differences)
         return differences
 
     def _process_branch_protection_rules(self,
@@ -215,5 +223,5 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_finish(self, differences: int) -> None:
+    def handle_finish(self, additions: int, differences: int) -> None:
         raise NotImplementedError

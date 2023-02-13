@@ -72,5 +72,5 @@ class ApplyOperation(DiffOperation):
                          f"with data:\n{json.dumps(data, indent=2)}")
         self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
 
-    def handle_finish(self, differences: int) -> None:
+    def handle_finish(self, additions: int, differences: int) -> None:
         utils.print_info(f"updated {differences} setting(s)")

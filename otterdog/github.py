@@ -80,8 +80,11 @@ class Github:
     def add_webhook(self, org_id: str, data: dict[str, str]) -> None:
         self.rest_client.add_webhook(org_id, data)
 
-    def get_repos(self, org_id: str) -> list[dict[str, Any]]:
+    def get_repos(self, org_id: str) -> list[str]:
         return self.rest_client.get_repos(org_id)
+
+    def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        return self.rest_client.get_repo_data(org_id, repo_name)
 
     def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         if len(data) > 0:
