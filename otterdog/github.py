@@ -45,7 +45,7 @@ class Github:
 
         # merge the settings.
         merged_settings.update(web_settings)
-        utils.print_trace(f"merged settings = {merged_settings}")
+        utils.print_trace(f"merged org settings = {merged_settings}")
         return merged_settings
 
     def update_org_settings(self, org_id: str, settings: dict[str, str]) -> None:

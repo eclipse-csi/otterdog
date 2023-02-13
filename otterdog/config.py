@@ -172,7 +172,7 @@ class OtterdogConfig:
         return org_config
 
     def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider:
-        provider = self._credential_providers.get(type)
+        provider = self._credential_providers.get(provider_type)
         if provider is None:
             match provider_type:
                 case "bitwarden":

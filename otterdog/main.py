@@ -38,11 +38,14 @@ if __name__ == '__main__':
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
-        subparser.add_argument("--verbose", "-v", action="count", default=0)
+        subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
     args = parser.parse_args()
 
     utils.init(args.verbose)
+
+    printer = utils.IndentingPrinter()
+    printer.print()
 
     try:
         config = OtterdogConfig.from_file(args.config)
@@ -52,28 +55,28 @@ if __name__ == '__main__':
 
         match args.action:
             case "plan":
-                print(f"\nPlanning execution for configuration at '{config.config_file}'\n")
+                printer.print(f"Planning execution for configuration at '{config.config_file}'")
                 operation = PlanOperation(config)
 
             case "fetch":
-                print(f"\nFetching resources for configuration at '{config.config_file}'\n")
+                printer.print(f"Fetching resources for configuration at '{config.config_file}'")
                 operation = FetchOperation(config)
 
             case "apply":
-                print(f"\nExecute changes for configuration at '{config.config_file}'\n")
+                printer.print(f"Execute changes for configuration at '{config.config_file}'")
                 operation = ApplyOperation(config)
 
             case "validate":
-                print(f"\nValidating configuration at '{config.config_file}'\n")
+                printer.print(f"Validating configuration at '{config.config_file}'")
                 operation = ValidateOperation(config)
 
             case "show":
-                print(f"\nShowing resources defined in configuration '{config.config_file}'\n")
+                printer.print(f"Showing resources defined in configuration '{config.config_file}'")
                 operation = ShowOperation(config)
 
             case _:
                 operation = None
-                utils.exit_with_message(f"unexpected action {args.action}", 2)
+                raise RuntimeError(f"unexpected action '{args.action}'")
 
         # if no organization has been specified as argument, process all configured ones.
         organizations = args.organization
@@ -81,18 +84,17 @@ if __name__ == '__main__':
             organizations = [k for k, _ in config.organization_configs.items()]
 
         for organization in organizations:
+            printer.print()
             org_config = config.organization_config(organization)
 
             # execute the requested action with the credential data and config.
-            exit_code = max(exit_code, operation.execute(org_config))
-
-            print()
+            exit_code = max(exit_code, operation.execute(org_config, printer))
 
         sys.exit(exit_code)
 
     except Exception as e:
         if utils.is_debug_enabled():
-            exc_info = sys.exc_info()
-            traceback.print_exc(exc_info)
+            traceback.print_exception(e)
 
-        utils.exit_with_message(str(e), 1)
+        utils.print_error(str(e))
+        sys.exit(2)

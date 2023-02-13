@@ -7,11 +7,13 @@
 # *******************************************************************************
 
 import os
-from colorama import Fore, Style
 
-from operation import Operation
-from config import OtterdogConfig, OrganizationConfig
+from colorama import Style
+
 import organization as org
+from config import OtterdogConfig, OrganizationConfig
+from operation import Operation
+from utils import IndentingPrinter
 
 
 class ShowOperation(Operation):
@@ -19,23 +21,29 @@ class ShowOperation(Operation):
         self.config = config
         self.jsonnet_config = config.jsonnet_config
 
-    def execute(self, org_config: OrganizationConfig) -> int:
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]")
-
+    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int:
         github_id = org_config.github_id
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        if not os.path.exists(org_file_name):
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
-            return 1
+        printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        printer.level_up()
 
         try:
-            organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
-        except RuntimeError as ex:
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
-            return 1
+            org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        for repo in organization.get_repos():
-            print(f"  repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
+            if not os.path.exists(org_file_name):
+                printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+                return 1
 
-        return 0
+            try:
+                organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+            except RuntimeError as ex:
+                printer.print_warn(f"failed to load configuration: {str(ex)}")
+                return 1
+
+            for repo in organization.get_repos():
+                printer.print(f"repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
+
+            return 0
+
+        finally:
+            printer.level_down()

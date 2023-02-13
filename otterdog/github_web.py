@@ -16,6 +16,9 @@ from credentials import Credentials
 
 
 class GithubWeb:
+    # use 10s as default timeout
+    _DEFAULT_TIMEOUT = 10000
+
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
 
@@ -32,6 +35,7 @@ class GithubWeb:
             browser = playwright.chromium.launch()
 
             page = browser.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
 
             self._login_if_required(page)
             settings = self._retrieve_settings(org_id, page)
@@ -49,7 +53,7 @@ class GithubWeb:
             utils.print_trace(f"loading page '{page_url}'")
             response = page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
             if not response.ok:
-                utils.exit_with_message(f"unable to access github page '{page_url}': {response.status}", 1)
+                raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_def.items():
                 value = page.eval_on_selector(setting_def['selector'],
@@ -93,7 +97,7 @@ class GithubWeb:
             utils.print_trace(f"loading page '{page_url}'")
             response = page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
             if not response.ok:
-                utils.exit_with_message(f"unable to access github page '{page_url}': {response.status}", 1)
+                raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_dict.items():
                 new_value = settings[setting]
@@ -103,7 +107,7 @@ class GithubWeb:
                 elif isinstance(new_value, str):
                     page.fill(setting_def['selector'], new_value)
                 else:
-                    utils.exit_with_message(f"not yet supported value type '{type(new_value)}'", 1)
+                    raise RuntimeError(f"not yet supported value type '{type(new_value)}'")
 
                 # do a trial run first as this will wait till the button is enabled
                 # this might be needed for some text input forms that perform input validation.
@@ -118,14 +122,13 @@ class GithubWeb:
         if actor is None:
             self._login(page)
         elif actor != self.credentials.username:
-            utils.exit_with_message(f"logged in with unexpected user {actor}", 1)
+            raise RuntimeError(f"logged in with unexpected user {actor}")
 
-    @staticmethod
-    def _logged_in_as(page: Page) -> str:
+    def _logged_in_as(self, page: Page) -> str:
         response = page.goto("https://github.com/settings/profile")
 
         if not response.ok:
-            utils.exit_with_message(f"unable to access github web interface: {response.status}", 1)
+            raise RuntimeError(f"unable to load github profile page: {response.status}")
 
         try:
             actor = page.eval_on_selector('meta[name="octolytics-actor-login"]',
@@ -137,8 +140,9 @@ class GithubWeb:
 
     def _login(self, page: Page) -> None:
         response = page.goto("https://github.com/login")
+
         if not response.ok:
-            utils.exit_with_message(f"unable to access github login page: {response.status}", 1)
+            raise RuntimeError(f"unable to load github login page: {response.status}")
 
         page.type("#login_field", self.credentials.username)
         page.type("#password", self.credentials.password)
@@ -149,7 +153,10 @@ class GithubWeb:
 
     def _logout(self, page: Page) -> None:
         actor = self._logged_in_as(page)
-        page.goto("https://github.com/settings/profile")
+        response = page.goto("https://github.com/settings/profile")
+
+        if not response.ok:
+            raise RuntimeError("unable to load github logout page")
 
         selector = 'div.Header-item > details.details-overlay > summary.Header-link > img[alt = "@{}"]'.format(actor)
         page.eval_on_selector(selector, "el => el.click()")

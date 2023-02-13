@@ -34,8 +34,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            msg = f"failed retrieving settings for organization '{org_id}' via rest API"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(f"failed retrieving settings for organization '{org_id}' via rest API")
 
         json_output = response.json()
         result = {}
@@ -55,7 +54,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            utils.exit_with_message(f"failed to update settings for organization '{org_id}'", 1)
+            raise RuntimeError(f"failed to update settings for organization '{org_id}'")
 
         utils.print_debug(f"updated {len(data)} setting(s) via rest api")
 
@@ -65,8 +64,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            msg = f"failed retrieving webhooks for organization '{org_id}' via rest API"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(f"failed retrieving webhooks for organization '{org_id}' via rest API")
 
         return response.json()
 
@@ -79,7 +77,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            utils.exit_with_message(f"failed to update config for webhook '{webhook_id}'", 1)
+            raise RuntimeError(f"failed to update config for webhook '{webhook_id}'")
 
         utils.print_debug(f"updated {len(config)} webhook setting(s) via rest api")
 
@@ -96,7 +94,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            utils.exit_with_message(f"failed to add webhook with url '{url}'", 1)
+            raise RuntimeError(f"failed to add webhook with url '{url}'")
 
         utils.print_debug(f"added webhook with url '{url}' via rest api")
 
@@ -112,8 +110,7 @@ class GithubRest:
             utils.print_trace(f"rest result = ({response.status_code})")
 
             if not response.ok:
-                msg = f"failed retrieving repos for organization '{org_id}' via rest API"
-                utils.exit_with_message(msg, 1)
+                raise RuntimeError(f"failed retrieving repos for organization '{org_id}' via rest API")
 
             response_json = response.json()
             if len(response_json) == 0:
@@ -135,7 +132,7 @@ class GithubRest:
 
         if not response_repo.ok:
             msg = f"failed retrieving data for repo '{repo_name}' of organization '{org_id}' via rest API"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(msg)
 
         result = response_repo.json()
         return result
@@ -149,7 +146,7 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            utils.exit_with_message(f"failed to update settings for repo '{repo_name}'", 1)
+            raise RuntimeError(f"failed to update settings for repo '{repo_name}'")
 
         utils.print_debug(f"updated {len(data)} repo setting(s) via rest api")
 
@@ -163,6 +160,6 @@ class GithubRest:
         utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
         if not response.ok:
-            utils.exit_with_message(f"failed to add repo with name '{repo_name}'", 1)
+            raise RuntimeError(f"failed to add repo with name '{repo_name}'")
 
         utils.print_debug(f"added webhook with url '{repo_name}' via rest api")

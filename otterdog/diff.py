@@ -1,22 +1,22 @@
-#  *******************************************************************************
-#  Copyright (c) 2023 Eclipse Foundation and others.
-#  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
-#  *******************************************************************************
+# *******************************************************************************
+# Copyright (c) 2023 Eclipse Foundation and others.
+# This program and the accompanying materials are made available
+# under the terms of the MIT License
+# which is available at https://spdx.org/licenses/MIT.html
+# SPDX-License-Identifier: MIT
+# *******************************************************************************
 
 import os
 from abc import abstractmethod
 from typing import Any
 
-from colorama import Fore, Style
+from colorama import Style
 
 import organization as org
-import utils
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
+from utils import IndentingPrinter, associate_by_key
 
 
 class DiffOperation(Operation):
@@ -24,27 +24,43 @@ class DiffOperation(Operation):
         self.config = config
         self.jsonnet_config = config.jsonnet_config
         self.gh_client = None
+        self.printer = None
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int:
+        self.printer = printer
+
         github_id = org_config.github_id
 
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.level_up()
 
+        try:
+            return self._generate_diff(org_config)
+        finally:
+            self.printer.level_down()
+
+    def _generate_diff(self, org_config: OrganizationConfig) -> int:
         try:
             credentials = self.config.get_credentials(org_config)
         except RuntimeError as e:
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} {str(e)}")
+            self.printer.print_error(f"invalid credentials\n{str(e)}")
             return 1
 
         self.gh_client = Github(credentials)
 
+        github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
         if not os.path.exists(org_file_name):
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
+            self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
             return 1
 
-        expected_org = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+        try:
+            expected_org = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+        except RuntimeError as e:
+            self.printer.print_error(f"failed to load configuration\n{str(e)}")
+            return 1
+
         expected_settings = expected_org.get_settings()
 
         # determine differences for settings.
@@ -56,7 +72,7 @@ class DiffOperation(Operation):
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
             if key not in current_org_settings:
-                utils.print_warn(f"  unexpected key '{key}' found in configuration, skipping")
+                self.printer.print_warn(f"unexpected key '{key}' found in configuration, skipping")
                 continue
 
             current_value = current_org_settings.get(key)
@@ -65,10 +81,11 @@ class DiffOperation(Operation):
                 differences += 1
                 modified_settings[key] = (expected_value, current_value)
 
-        self.handle_modified_settings(github_id, modified_settings)
+        if len(modified_settings) > 0:
+            self.handle_modified_settings(github_id, modified_settings)
 
         # determine differences for webhooks.
-        expected_webhooks_by_url = utils.associate_by_key(expected_org.get_webhooks(), lambda x: x["config"]["url"])
+        expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["config"]["url"])
         current_webhooks = self.gh_client.get_webhooks(github_id)
 
         for webhook in current_webhooks:
@@ -76,7 +93,7 @@ class DiffOperation(Operation):
             webhook_url = webhook["config"]["url"]
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                utils.print_warn(f"no configuration found for webhook with url '{webhook_url}'")
+                self.printer.print_warn(f"no configuration found for webhook with url '{webhook_url}'")
                 differences += 1
                 continue
 
@@ -99,13 +116,13 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
 
         # determine differences for repositories
-        expected_repos_by_name = utils.associate_by_key(expected_org.get_repos(), lambda x: x["name"])
+        expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
         current_repos = self.gh_client.get_repos(github_id)
 
         for current_repo_name in current_repos:
             expected_repo = expected_repos_by_name.get(current_repo_name)
             if expected_repo is None:
-                utils.print_warn(f"no configuration found for repo with name '{current_repo_name}'")
+                self.printer.print_warn(f"no configuration found for repo with name '{current_repo_name}'")
                 differences += 1
                 continue
 
@@ -147,7 +164,7 @@ class DiffOperation(Operation):
         differences = 0
 
         expected_branch_protection_rules_by_pattern = \
-            utils.associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
+            associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
 
         current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
         for current_rule in current_rules:
@@ -156,7 +173,7 @@ class DiffOperation(Operation):
             expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
             if expected_rule is None:
                 msg = f"no configuration found for branch protection rule with pattern '{rule_pattern}'"
-                utils.print_warn(msg)
+                self.printer.print_warn(msg)
                 differences += 1
                 continue
 

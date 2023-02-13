@@ -7,16 +7,14 @@
 # *******************************************************************************
 
 import json
-import sys
 from typing import Any, Callable
 
 from colorama import init as colorama_init, Fore, Style
 
 # verbose levels
 # 0: off
-# 1: info
-# 2: debug
-# 3: trace
+# 1: debug
+# 2: trace
 _verbose_level = 0
 
 
@@ -27,35 +25,41 @@ def init(verbose: int) -> None:
 
 
 def is_debug_enabled() -> bool:
-    return _verbose_level >= 2
-
-
-def print_info(msg: str) -> None:
-    if _verbose_level >= 1:
-        print(f"{Fore.GREEN}[INFO]{Style.RESET_ALL} " + msg)
+    return _verbose_level >= 1
 
 
 def print_debug(msg: str) -> None:
-    if _verbose_level >= 2:
+    if _verbose_level >= 1:
         print(f"{Fore.CYAN}[DEBUG]{Style.RESET_ALL} " + msg)
 
 
 def print_trace(msg: str) -> None:
-    if _verbose_level >= 3:
+    if _verbose_level >= 2:
         print(f"{Fore.MAGENTA}[TRACE]{Style.RESET_ALL} " + msg)
 
 
 def print_warn(msg: str) -> None:
-    print(f"{Fore.YELLOW}[WARN]{Style.RESET_ALL} " + msg)
+    _print_message(msg, Fore.YELLOW, "Warning")
 
 
-def print_err(msg: str) -> None:
-    print(f"{Fore.RED}[ERR]{Style.RESET_ALL} " + msg)
+def print_error(msg: str) -> None:
+    _print_message(msg, Fore.RED, "Error")
 
 
-def exit_with_message(msg: str, code: int) -> None:
-    print_err(msg)
-    sys.exit(code)
+def _print_message(msg: str, color: str, level: str) -> None:
+    print(f"{color}╷")
+
+    lines = msg.splitlines()
+
+    if len(lines) > 1:
+        print(f"│ {level}:{Style.RESET_ALL} {Style.BRIGHT}{lines[0]}{Style.RESET_ALL}")
+        print(f"{color}│{Style.RESET_ALL}")
+        for line in lines[1:]:
+            print(f"{color}│{Style.RESET_ALL}    {line}")
+    else:
+        print(f"│ {level}:{Style.RESET_ALL} {msg}")
+
+    print(f"{color}╵{Style.RESET_ALL}")
 
 
 def get_diff_from_defaults(obj: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
@@ -119,3 +123,30 @@ def associate_by_key(input_list: list[dict[str, Any]], key_func: Callable[[Any],
         result[key] = item
 
     return result
+
+
+class IndentingPrinter:
+    def __init__(self, spaces_per_level: int = 2):
+        self._level = 0
+        self._spaces_per_level = spaces_per_level
+
+    def print(self, text: str = '') -> None:
+        lines = text.splitlines()
+        if len(lines) > 0:
+            for line in lines:
+                print(" " * (self._level * self._spaces_per_level) + line)
+        else:
+            print()
+
+    def print_warn(self, text: str) -> None:
+        print_warn(text)
+
+    def print_error(self, text: str) -> None:
+        print_error(text)
+
+    def level_up(self) -> None:
+        self._level += 1
+
+    def level_down(self) -> None:
+        self._level -= 1
+        assert self._level >= 0

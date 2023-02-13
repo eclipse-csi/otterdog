@@ -89,7 +89,7 @@ class Organization:
         default_org_settings = default_config["settings"]
         for key, default_value in sorted(default_org_settings.items()):
             if key not in settings:
-                utils.print_warn(f"  unexpected key '{key}' found in default configuration, skipping")
+                utils.print_warn(f"unexpected key '{key}' found in default configuration, skipping")
                 continue
 
             current_value = settings[key]

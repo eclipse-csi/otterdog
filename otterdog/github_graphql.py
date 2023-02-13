@@ -5,6 +5,7 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
+
 import json
 from typing import Any
 
@@ -57,13 +58,13 @@ class GithubGraphQL:
 
         if not response.ok:
             msg = f"failed updating branch protection rule '{rule_pattern}' for repo '{repo_name}' via graphql"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(msg)
 
         json_data = response.json()
         if "data" in json_data:
             utils.print_debug(f"successfully updated branch protection rule '{rule_pattern}' via graphql")
         else:
-            utils.exit_with_message(f"failed to update branch protection rule '{rule_pattern}' via graphql", 1)
+            raise RuntimeError(f"failed to update branch protection rule '{rule_pattern}' via graphql")
 
     def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         rule_pattern = data["pattern"]
@@ -92,13 +93,13 @@ class GithubGraphQL:
 
         if not response.ok:
             msg = f"failed creating branch protection rule '{rule_pattern}' for repo '{repo_name}' via graphql"
-            utils.exit_with_message(msg, 1)
+            raise RuntimeError(msg)
 
         json_data = response.json()
         if "data" in json_data:
             utils.print_debug(f"successfully created branch protection rule '{rule_pattern}' via graphql")
         else:
-            utils.exit_with_message(f"failed to create branch protection rule '{rule_pattern}' via graphql", 1)
+            raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}' via graphql")
 
     def _run_paged_query(self,
                          org_id: str,
@@ -122,8 +123,7 @@ class GithubGraphQL:
             utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
             if not response.ok:
-                msg = f"failed running query '{query_file}' for repo '{repo_name}' via graphql"
-                utils.exit_with_message(msg, 1)
+                raise RuntimeError(f"failed running query '{query_file}' for repo '{repo_name}' via graphql")
 
             json_data = response.json()
             if "data" in json_data:
@@ -145,7 +145,6 @@ class GithubGraphQL:
                 else:
                     finished = True
             else:
-                msg = f"failed running graphql query '{query_file}' for repo '{repo_name}'"
-                utils.exit_with_message(msg, 1)
+                raise RuntimeError(f"failed running graphql query '{query_file}' for repo '{repo_name}'")
 
         return result

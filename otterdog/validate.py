@@ -7,11 +7,13 @@
 # *******************************************************************************
 
 import os
+
 from colorama import Fore, Style
 
-from operation import Operation
-from config import OtterdogConfig, OrganizationConfig
 import organization as org
+from config import OtterdogConfig, OrganizationConfig
+from operation import Operation
+from utils import IndentingPrinter
 
 
 class ValidateOperation(Operation):
@@ -19,21 +21,27 @@ class ValidateOperation(Operation):
         self.config = config
         self.jsonnet_config = config.jsonnet_config
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int:
         github_id = org_config.github_id
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]:")
-
-        if not os.path.exists(org_file_name):
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
-            return 1
+        printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        printer.level_up()
 
         try:
-            org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
-        except RuntimeError as ex:
-            print(f"  {Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
-            return 1
+            org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        print(f"{Fore.GREEN}success")
-        return 0
+            if not os.path.exists(org_file_name):
+                printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+                return 1
+
+            try:
+                org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+            except RuntimeError as ex:
+                printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
+                return 1
+
+            printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+            return 0
+
+        finally:
+            printer.level_down()
