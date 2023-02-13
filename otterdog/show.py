@@ -14,26 +14,30 @@ from config import OtterdogConfig, OrganizationConfig
 import organization as org
 
 
-class ValidateOperation(Operation):
+class ShowOperation(Operation):
     def __init__(self, config: OtterdogConfig):
         self.config = config
         self.jsonnet_config = config.jsonnet_config
 
     def execute(self, org_config: OrganizationConfig) -> int:
+        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]", end='')
+
         github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]: ", end='')
-
         if not os.path.exists(org_file_name):
-            print(f"{Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
+            print(f" {Fore.RED}failed:{Style.RESET_ALL} configuration file '{org_file_name}' does not exist")
             return 1
 
         try:
-            org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+            organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
         except RuntimeError as ex:
-            print(f"{Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
+            print(f" {Fore.RED}failed:{Style.RESET_ALL} failed to load configuration: {str(ex)}")
             return 1
 
-        print(f"{Fore.GREEN}success")
+        print()
+
+        for repo in organization.get_repos():
+            print(f"  Repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
+
         return 0

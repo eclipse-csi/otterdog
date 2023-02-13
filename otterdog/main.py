@@ -7,38 +7,34 @@
 # *******************************************************************************
 
 import argparse
-import os
 import sys
 import traceback
 
 import utils
 from fetch import FetchOperation
-from verify import VerifyOperation
-from update import UpdateOperation
+from plan import PlanOperation
+from apply import ApplyOperation
 from validate import ValidateOperation
+from show import ShowOperation
 from config import OtterdogConfig
 
 CONFIG_FILE = "otterdog.json"
 
 # main entry point
 if __name__ == '__main__':
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    # get the parent dir of the script root as the source files
-    # are contained inside the otterdog directory.
-    parent_dir = os.path.dirname(script_dir)
-
     # command line parsing.
     parser = argparse.ArgumentParser(prog="otterdog.sh",
                                      description="sync / modify github settings for an organization.")
 
     subparsers = parser.add_subparsers(dest="action", required=True)
 
-    verify_parser = subparsers.add_parser("verify")
+    plan_parser = subparsers.add_parser("plan")
     sync_parser = subparsers.add_parser("fetch")
-    update_parser = subparsers.add_parser("update")
+    apply_parser = subparsers.add_parser("apply")
     validate_parser = subparsers.add_parser("validate")
+    show_parser = subparsers.add_parser("show")
 
-    for subparser in [verify_parser, sync_parser, update_parser, validate_parser]:
+    for subparser in [plan_parser, sync_parser, apply_parser, validate_parser, show_parser]:
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
@@ -54,6 +50,31 @@ if __name__ == '__main__':
 
         exit_code = 0
 
+        match args.action:
+            case "plan":
+                print(f"\nPlanning execution for configuration at '{config.config_file}'\n")
+                operation = PlanOperation(config)
+
+            case "fetch":
+                print(f"\nFetching resources for configuration at '{config.config_file}'\n")
+                operation = FetchOperation(config)
+
+            case "apply":
+                print(f"\nExecute changes for configuration at '{config.config_file}'\n")
+                operation = ApplyOperation(config)
+
+            case "validate":
+                print(f"\nValidating configuration at '{config.config_file}'\n")
+                operation = ValidateOperation(config)
+
+            case "show":
+                print(f"\nShowing resources defined in configuration '{config.config_file}'\n")
+                operation = ShowOperation(config)
+
+            case _:
+                operation = None
+                utils.exit_with_message(f"unexpected action {args.action}", 2)
+
         # if no organization has been specified as argument, process all configured ones.
         organizations = args.organization
         if len(organizations) == 0:
@@ -63,26 +84,7 @@ if __name__ == '__main__':
             org_config = config.organization_config(organization)
 
             # execute the requested action with the credential data and config.
-            match args.action:
-                case "verify":
-                    utils.print_info("verify configuration for organization '{}'".format(organization))
-                    exit_code = max(exit_code, VerifyOperation(config).execute(org_config))
-
-                case "fetch":
-                    utils.print_info("fetch configuration for organization '{}'".format(organization))
-                    exit_code = max(exit_code, FetchOperation(config).execute(org_config))
-
-                case "update":
-                    utils.print_info("update configuration for organization '{}'".format(organization))
-                    exit_code = max(exit_code, UpdateOperation(config).execute(org_config))
-
-                case "validate":
-                    utils.print_info("validate configuration for organization '{}'".format(organization))
-                    exit_code = max(exit_code, ValidateOperation(config).execute(org_config))
-
-                case _:
-                    utils.print_err(f"unexpected action {args.action}")
-                    sys.exit(2)
+            exit_code = max(exit_code, operation.execute(org_config))
 
         sys.exit(exit_code)
 

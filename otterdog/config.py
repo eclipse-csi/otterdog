@@ -133,7 +133,8 @@ class OtterdogConfig:
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
-        self._data_dir = os.path.dirname(os.path.realpath(config_file))
+        self._config_file = os.path.realpath(config_file)
+        self._data_dir = os.path.dirname(self._config_file)
         self._credential_providers = {}
 
         with open(config_file) as f:
@@ -147,6 +148,10 @@ class OtterdogConfig:
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org)
             self._organizations[org_config.name] = org_config
+
+    @property
+    def config_file(self) -> str:
+        return self._config_file
 
     @property
     def data_dir(self) -> str:

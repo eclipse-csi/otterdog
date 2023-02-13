@@ -14,7 +14,7 @@ from config import OtterdogConfig
 from diff import DiffOperation
 
 
-class VerifyOperation(DiffOperation):
+class PlanOperation(DiffOperation):
     def __init__(self, config: OtterdogConfig):
         super().__init__(config)
 

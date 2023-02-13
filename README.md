@@ -4,24 +4,24 @@ Create virtual environment and install dependencies:
 $ make init
 ```
 
-Run the fetch operation to retrieve the current live configuration for an organization:
+Run the **fetch** operation to retrieve the current live configuration for an organization:
 
 ```console
-$ otterdog.sh fetch <organization> -v
+$ otterdog.sh fetch <organization>
 ```
 
 The created configuration file for the organization can be found at `<data-directory>/orgs/<organization>.jsonnet`
 
-Run verify operation to highlight differences between the live configuration and the written configuration:
+Run the **plan** operation to highlight differences between the live configuration and the written configuration:
 
 ```console
-$ otterdog.sh verify <organization> -v
+$ otterdog.sh plan <organization>
 ```
 
-Run update operation to reflect the written configuration on github itself:
+Run **apply** operation to reflect the written configuration on github itself:
 
 ```console
-$ otterdog.sh update <organization> -v
+$ otterdog.sh apply <organization>
 ```
 
 ## Known issues

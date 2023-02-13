@@ -14,7 +14,7 @@ from diff import DiffOperation
 import utils
 
 
-class UpdateOperation(DiffOperation):
+class ApplyOperation(DiffOperation):
     def __init__(self, config: OtterdogConfig):
         super().__init__(config)
 
