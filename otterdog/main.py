@@ -86,6 +86,8 @@ if __name__ == '__main__':
             # execute the requested action with the credential data and config.
             exit_code = max(exit_code, operation.execute(org_config))
 
+            print()
+
         sys.exit(exit_code)
 
     except Exception as e:

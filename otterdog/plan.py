@@ -9,6 +9,8 @@
 import json
 from typing import Any
 
+from colorama import Fore, Style
+
 import utils
 from config import OtterdogConfig
 from diff import DiffOperation
@@ -19,8 +21,11 @@ class PlanOperation(DiffOperation):
         super().__init__(config)
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
+        print(f"  {Fore.YELLOW}~ {Style.RESET_ALL}settings {{")
         for key, (expected_value, current_value) in modified_settings.items():
-            utils.print_info(f"  {key}: expected '{expected_value}' but was '{current_value}'")
+            print(f"    {Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(20, ' ')} ="
+                  f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
+        print(f"  }}")
 
     def handle_modified_webhook(self, org_id: str, webhook_id: str, modified_webhook: dict[str, (Any, Any)]) -> None:
         for key, (expected_value, current_value) in modified_webhook.items():
