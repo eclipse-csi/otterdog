@@ -32,7 +32,7 @@ class FetchOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                printer.print(f"{Fore.RED}failed:{Style.RESET_ALL} {str(e)}")
+                printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             gh_client = Github(credentials)
@@ -49,7 +49,7 @@ class FetchOperation(Operation):
             with open(output_file_name, "w") as file:
                 file.write(output)
 
-            printer.print(f"resource definition written to '{output_file_name}'")
+            printer.print(f"organization definition written to '{output_file_name}'")
 
             return 0
         finally:
