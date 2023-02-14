@@ -5,7 +5,7 @@
   "properties": {
     "name": {
       "provider": "restapi",
-      "type": "string"
+      "$ref": "#/definitions/string_or_null"
     },
     "billing_email": {
       "provider": "restapi",
@@ -17,7 +17,7 @@
     },
     "email": {
       "provider": "restapi",
-      "type": "string"
+      "$ref": "#/definitions/string_or_null"
     },
     "twitter_username": {
       "provider": "restapi",
@@ -29,11 +29,11 @@
     },
     "description": {
       "provider": "restapi",
-      "type": "string"
+      "$ref": "#/definitions/string_or_null"
     },
     "blog": {
       "provider": "restapi",
-      "type": "string"
+      "$ref": "#/definitions/string_or_null"
     },
     "has_organization_projects": {
       "provider": "restapi",
@@ -97,7 +97,7 @@
     },
     "readers_can_create_discussions": {
       "provider": "web",
-      "type": "boolean"
+      "$ref": "#/definitions/boolean_or_null"
     },
     "members_can_create_teams": {
       "provider": "web",
@@ -133,13 +133,18 @@
     }
   },
 
-  "required": [ "name" ],
   "additionalProperties": false,
 
   "definitions": {
     "string_or_null": {
       "anyOf": [
           { "type": "string" },
+          { "type": "null" }
+        ]
+      },
+    "boolean_or_null": {
+      "anyOf": [
+          { "type": "boolean" },
           { "type": "null" }
         ]
       }
