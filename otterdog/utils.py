@@ -130,13 +130,13 @@ class IndentingPrinter:
         self._level = 0
         self._spaces_per_level = spaces_per_level
 
-    def print(self, text: str = '') -> None:
+    def print(self, text: str = '', end: str = '\n') -> None:
         lines = text.splitlines()
         if len(lines) > 0:
             for line in lines:
-                print(" " * (self._level * self._spaces_per_level) + line)
+                print(" " * (self._level * self._spaces_per_level) + line, end=end)
         else:
-            print()
+            print(end=end)
 
     def print_warn(self, text: str) -> None:
         print_warn(text)

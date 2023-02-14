@@ -9,10 +9,13 @@
 from abc import abstractmethod
 from typing import Protocol
 
-from config import OrganizationConfig
+from config import OtterdogConfig, OrganizationConfig
 from utils import IndentingPrinter
 
 
 class Operation(Protocol):
     @abstractmethod
-    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int: raise NotImplementedError
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None: raise NotImplementedError
+
+    @abstractmethod
+    def execute(self, org_config: OrganizationConfig) -> int: raise NotImplementedError

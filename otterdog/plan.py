@@ -13,11 +13,19 @@ from colorama import Fore, Style
 
 from config import OtterdogConfig
 from diff import DiffOperation
+from utils import IndentingPrinter
 
 
 class PlanOperation(DiffOperation):
-    def __init__(self, config: OtterdogConfig):
-        super().__init__(config)
+    def __init__(self):
+        super().__init__()
+
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+        super().init(config, printer)
+        self.printer.print(f"Planning execution for configuration at '{config.config_file}'")
+        self.printer.print(f"\nActions are indicted with the following symbols:")
+        self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
+        self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}settings {{")

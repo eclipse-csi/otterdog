@@ -55,28 +55,25 @@ if __name__ == '__main__':
 
         match args.action:
             case "plan":
-                printer.print(f"Planning execution for configuration at '{config.config_file}'")
-                operation = PlanOperation(config)
+                operation = PlanOperation()
 
             case "fetch":
-                printer.print(f"Fetching resources for configuration at '{config.config_file}'")
-                operation = FetchOperation(config)
+                operation = FetchOperation()
 
             case "apply":
-                printer.print(f"Execute changes for configuration at '{config.config_file}'")
-                operation = ApplyOperation(config)
+                operation = ApplyOperation()
 
             case "validate":
-                printer.print(f"Validating configuration at '{config.config_file}'")
-                operation = ValidateOperation(config)
+                operation = ValidateOperation()
 
             case "show":
-                printer.print(f"Showing resources defined in configuration '{config.config_file}'")
-                operation = ShowOperation(config)
+                operation = ShowOperation()
 
             case _:
                 operation = None
                 raise RuntimeError(f"unexpected action '{args.action}'")
+
+        operation.init(config, printer)
 
         # if no organization has been specified as argument, process all configured ones.
         organizations = args.organization
@@ -88,7 +85,7 @@ if __name__ == '__main__':
             org_config = config.organization_config(organization)
 
             # execute the requested action with the credential data and config.
-            exit_code = max(exit_code, operation.execute(org_config, printer))
+            exit_code = max(exit_code, operation.execute(org_config))
 
         sys.exit(exit_code)
 

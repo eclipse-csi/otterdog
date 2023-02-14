@@ -13,11 +13,16 @@ from colorama import Style
 
 from config import OtterdogConfig
 from diff import DiffOperation
+from utils import IndentingPrinter
 
 
 class ApplyOperation(DiffOperation):
-    def __init__(self, config: OtterdogConfig):
-        super().__init__(config)
+    def __init__(self):
+        super().__init__()
+
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+        super().init(config, printer)
+        self.printer.print(f"Execute changes for configuration at '{config.config_file}'")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         settings = {}

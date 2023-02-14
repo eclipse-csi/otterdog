@@ -20,15 +20,18 @@ from utils import IndentingPrinter, associate_by_key
 
 
 class DiffOperation(Operation):
-    def __init__(self, config: OtterdogConfig):
-        self.config = config
-        self.jsonnet_config = config.jsonnet_config
+    def __init__(self):
+        self.config = None
+        self.jsonnet_config = None
         self.gh_client = None
         self.printer = None
 
-    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int:
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+        self.config = config
+        self.jsonnet_config = self.config.jsonnet_config
         self.printer = printer
 
+    def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")

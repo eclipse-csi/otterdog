@@ -8,7 +8,7 @@
 
 import os
 
-from colorama import Fore, Style
+from colorama import Style
 
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
@@ -18,21 +18,45 @@ from utils import IndentingPrinter
 
 
 class FetchOperation(Operation):
-    def __init__(self, config: OtterdogConfig):
+    def __init__(self):
+        self.config = None
+        self.jsonnet_config = None
+        self.printer = None
+
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self.config = config
         self.jsonnet_config = self.config.jsonnet_config
+        self.printer = printer
 
-    def execute(self, org_config: OrganizationConfig, printer: IndentingPrinter) -> int:
+        self.printer.print(f"Fetching resources for configuration at '{config.config_file}'")
+
+    def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
-        printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
-        printer.level_up()
+        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+
+        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+
+        if os.path.exists(org_file_name):
+            self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
+                               f"'{org_file_name}'.\n"
+                               f"  Performing this action will overwrite its contents.\n"
+                               f"  Do you want to continue?\n"
+                               f"  Only 'yes' will be accepted to approve.\n\n")
+
+            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
+            answer = input()
+            if answer != "yes":
+                self.printer.print("\nFetch cancelled.")
+                return 1
+
+        self.printer.level_up()
 
         try:
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             gh_client = Github(credentials)
@@ -49,8 +73,8 @@ class FetchOperation(Operation):
             with open(output_file_name, "w") as file:
                 file.write(output)
 
-            printer.print(f"organization definition written to '{output_file_name}'")
+            self.printer.print(f"organization definition written to '{output_file_name}'")
 
             return 0
         finally:
-            printer.level_down()
+            self.printer.level_down()
