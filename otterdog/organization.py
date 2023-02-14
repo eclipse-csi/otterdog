@@ -77,11 +77,12 @@ class Organization:
     def write_jsonnet_config(self, config: JsonnetConfig) -> str:
         default_config = config.default_org_config
 
+        config.create_org
         output = StringIO()
         output.write(textwrap.dedent(f"""
             local orgs = {config.get_import_statement()};
 
-            orgs.newOrg('{self.github_id}') {{
+            orgs.{config.create_org}('{self.github_id}') {{
                 settings+: {{
         """))
 
@@ -104,7 +105,7 @@ class Organization:
             output.write("    webhooks+: [\n")
             for webhook in webhooks:
                 diff_obj = utils.get_diff_from_defaults(webhook, default_org_webhook)
-                output.write("      orgs.newWebhook() ")
+                output.write(f"      orgs.{config.create_webhook}() ")
                 utils.dump_json_object(diff_obj, output, offset=6, indent=2, embedded_object=True)
 
             output.write("    ],\n")
@@ -120,7 +121,7 @@ class Organization:
                 name = repo["name"]
                 diff_obj.pop("name")
 
-                output.write(f"      orgs.newRepo('{name}') ")
+                output.write(f"      orgs.{config.create_repo}('{name}') ")
 
                 def is_branch_protection_rule_key(k):
                     return k == "branch_protection_rules"
@@ -136,7 +137,7 @@ class Organization:
                         rule_diff.pop("pattern")
 
                         output.write(" " * o)
-                        output.write(f"orgs.newBranchProtectionRule('{pattern}') ")
+                        output.write(f"orgs.{config.create_branch_protection_rule}('{pattern}') ")
                         utils.dump_json_object(rule_diff, output, offset=o, indent=2, embedded_object=True)
 
                     o -= 2
