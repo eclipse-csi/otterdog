@@ -19,6 +19,14 @@
         "provider": "bitwarden",
         "item_id" : "118276ad-158c-4720-b68d-af8c00fe3481"
       }
+    },
+    {
+      "name": "otterdogtest",
+      "github_id": "OtterdogTest",
+      "credentials": {
+        "provider": "bitwarden",
+        "item_id" : "118276ad-158c-4720-b68d-af8c00fe3481"
+      }
     }
   ]
 }
