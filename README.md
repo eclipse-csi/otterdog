@@ -26,8 +26,5 @@ $ otterdog.sh apply <organization>
 
 ## Known issues
 
-### Rest API
-* organization setting `dependency_graph_enabled_for_new_repositories` gets automatically enabled when either enabling `dependabot_alerts_enabled_for_new_repositories` or `dependabot_security_updates_enabled_for_new_repositories`
-
 ### GraphQL
 * branch protection rule property `blocksCreations` can not be updated via an update or create mutation, always seem to be `false`

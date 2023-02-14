@@ -43,9 +43,27 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+                organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
+                return 1
+
+            settings = organization.get_settings()
+
+            # enabling dependabot implicitly enables the dependency graph,
+            # disabling the dependency graph in the configuration will result in inconsistencies after
+            # applying the configuration, warn the user about it.
+            dependabot_alerts_enabled = \
+                settings.get("dependabot_alerts_enabled_for_new_repositories") is True
+            dependabot_security_updates_enabled = \
+                settings.get("dependabot_security_updates_enabled_for_new_repositories") is True
+
+            dependency_graph_disabled = \
+                settings.get("dependency_graph_enabled_for_new_repositories") is False
+
+            if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
+                self.printer.print_error(f"Validation failed\n"
+                                         f"enabling dependabot also enables dependency graph")
                 return 1
 
             self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
