@@ -12,7 +12,7 @@ from typing import Any
 from colorama import Fore, Style
 
 from config import OtterdogConfig
-from diff import DiffOperation
+from diff import DiffOperation, DiffStatus
 from utils import IndentingPrinter
 
 
@@ -70,9 +70,10 @@ class PlanOperation(DiffOperation):
         self.printer.print_info(f"new branch_protection_rule for repo '{repo_name}'"
                                 f"with data:\n{json.dumps(data, indent=2)}")
 
-    def handle_finish(self, additions: int, differences: int, extras: int) -> None:
-        self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {additions} to add, {differences} to change, "
-                           f"{extras} are missing in definition.")
+    def handle_finish(self, diff_status: DiffStatus) -> None:
+        self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
+                           f"{diff_status.differences} to change, "
+                           f"{diff_status.extras} are missing in definition.")
 
 
 def print_dict(data: dict[str, Any], item_header: str, action: str, color: str, printer: IndentingPrinter) -> None:

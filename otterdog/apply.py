@@ -12,7 +12,7 @@ from typing import Any
 from colorama import Style
 
 from config import OtterdogConfig
-from diff import DiffOperation
+from diff import DiffOperation, DiffStatus
 from utils import IndentingPrinter
 
 
@@ -84,6 +84,7 @@ class ApplyOperation(DiffOperation):
                            f"with data:\n{json.dumps(data, indent=2)}")
         self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
 
-    def handle_finish(self, additions: int, differences: int, extras: int) -> None:
-        self.printer.print(f"\n{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {additions} added, {differences} changed, "
-                           f"{extras} ignored.")
+    def handle_finish(self, diff_status: DiffStatus) -> None:
+        self.printer.print(f"\n{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
+                           f"{diff_status.differences} changed, "
+                           f"{diff_status.extras} ignored.")

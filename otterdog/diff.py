@@ -21,6 +21,16 @@ from operation import Operation
 from utils import IndentingPrinter, associate_by_key
 
 
+class DiffStatus:
+    def __init__(self):
+        self.additions = 0
+        self.differences = 0
+        self.extras = 0
+
+    def total_changes(self) -> int:
+        return self.additions + self.differences
+
+
 class DiffOperation(Operation):
     def __init__(self):
         self.config = None
@@ -66,6 +76,16 @@ class DiffOperation(Operation):
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
 
+        diff_status = DiffStatus()
+
+        self._process_settings(github_id, expected_org, diff_status)
+        self._process_webhooks(github_id, expected_org, diff_status)
+        self._process_repositories(github_id, expected_org, diff_status)
+
+        self.handle_finish(diff_status)
+        return diff_status.total_changes()
+
+    def _process_settings(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         expected_settings = expected_org.get_settings()
 
         start = datetime.now()
@@ -77,10 +97,6 @@ class DiffOperation(Operation):
         end = datetime.now()
         self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
-        additions = 0
-        differences = 0
-        extras = 0
-
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
             if key not in current_org_settings:
@@ -90,13 +106,13 @@ class DiffOperation(Operation):
             current_value = current_org_settings.get(key)
 
             if current_value != expected_value:
-                differences += 1
+                diff_status.differences += 1
                 modified_settings[key] = (expected_value, current_value)
 
         if len(modified_settings) > 0:
             self.handle_modified_settings(github_id, modified_settings)
 
-        # determine differences for webhooks.
+    def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         self.printer.print(f"\nwebhooks: Reading...")
 
@@ -113,7 +129,7 @@ class DiffOperation(Operation):
             if expected_webhook is None:
                 self.handle_extra_webhook(github_id,
                                           schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA))
-                extras += 1
+                diff_status.extras += 1
                 continue
 
             modified_webhook = {}
@@ -123,17 +139,17 @@ class DiffOperation(Operation):
                 current_value = current_webhook_config.get(key)
 
                 if expected_value != current_value:
-                    differences += 1
+                    diff_status.differences += 1
                     modified_webhook[key] = (expected_value, current_value)
 
             expected_webhooks_by_url.pop(webhook_url)
             self.handle_modified_webhook(github_id, webhook_id, modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            additions += 1
+            diff_status.additions += 1
             self.handle_new_webhook(github_id, webhook)
 
-        # determine differences for repositories
+    def _process_repositories(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         self.printer.print(f"\nrepositories: Reading...")
 
@@ -150,7 +166,7 @@ class DiffOperation(Operation):
             if expected_repo is None:
                 self.handle_extra_repo(github_id, schemas.get_items_contained_in_schema(current_repo_data,
                                                                                         schemas.REPOSITORY_SCHEMA))
-                extras += 1
+                diff_status.extras += 1
                 continue
 
             current_repo_id = current_repo_data["node_id"]
@@ -160,14 +176,14 @@ class DiffOperation(Operation):
                 current_value = current_repo_data.get(key)
 
                 if key == "branch_protection_rules":
-                    differences +=\
+                    diff_status.differences +=\
                         self._process_branch_protection_rules(github_id,
                                                               current_repo_name,
                                                               current_repo_id,
                                                               expected_repo)
                 else:
                     if expected_value != current_value:
-                        differences += 1
+                        diff_status.differences += 1
                         modified_repo[key] = (expected_value, current_value)
 
             expected_repos_by_name.pop(current_repo_name)
@@ -175,12 +191,9 @@ class DiffOperation(Operation):
                 self.handle_modified_repo(github_id, current_repo_name, modified_repo)
 
         for repo_name, repo in expected_repos_by_name.items():
-            additions += 1
+            diff_status.additions += 1
             # TODO: process branch protection rules for new repo's as well
             self.handle_new_repo(github_id, repo)
-
-        self.handle_finish(additions, differences, extras)
-        return differences
 
     def _process_branch_protection_rules(self,
                                          org_id: str,
@@ -270,5 +283,5 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_finish(self, additions: int, differences: int, extras: int) -> None:
+    def handle_finish(self, diff_status: DiffStatus) -> None:
         raise NotImplementedError
