@@ -56,11 +56,18 @@ class GithubWeb:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_def.items():
-                value = page.eval_on_selector(setting_def['selector'],
-                                              "(el, property) => el[property]",
-                                              setting_def['valueSelector'])
+                try:
+                    value = page.eval_on_selector(setting_def['selector'],
+                                                  "(el, property) => el[property]",
+                                                  setting_def['valueSelector'])
+
+                    utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
+
+                except Error as e:
+                    utils.print_error(f"failed to retrieve setting '{setting}' via web ui: {str(e)}")
+                    value = None
+
                 settings[setting] = value
-                utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
 
         return settings
 
