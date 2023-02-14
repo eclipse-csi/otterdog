@@ -29,15 +29,7 @@ class PlanOperation(DiffOperation):
         self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
-        self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}settings {{")
-        self.printer.level_up()
-
-        for key, (expected_value, current_value) in modified_settings.items():
-            self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
-                               f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
-
-        self.printer.level_down()
-        self.printer.print(f"  }}")
+        print_modified_dict(modified_settings, "settings", self.printer)
 
     def handle_modified_webhook(self, org_id: str, webhook_id: str, modified_webhook: dict[str, (Any, Any)]) -> None:
         for key, (expected_value, current_value) in modified_webhook.items():
@@ -53,19 +45,15 @@ class PlanOperation(DiffOperation):
         print_dict(webhook, "new webhook", "+", Fore.GREEN, self.printer)
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, (Any, Any)]) -> None:
-        print(f"  {Fore.YELLOW}~ {Style.RESET_ALL}repo[name=\"{repo_name}\"] {{")
-        for key, (expected_value, current_value) in modified_repo.items():
-            print(f"    {Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
-                  f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
-        print(f"    }}")
+        print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]", self.printer)
 
-    def handle_new_repo(self,
-                        org_id: str,
-                        data: dict[str, Any]) -> None:
-        print(f"  {Fore.GREEN}+{Style.RESET_ALL} new repo {{")
-        for key, value in data.items():
-            print(f"    {Fore.GREEN}+ {Style.RESET_ALL}{key.ljust(30, ' ')} = \"{value}\"")
-        print(f"    }}")
+    def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
+        self.printer.print()
+        print_dict(repo, "extra repo", "-", Fore.RED, self.printer)
+
+    def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
+        self.printer.print()
+        print_dict(data, "new repo", "+", Fore.GREEN, self.printer)
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -103,6 +91,18 @@ def print_dict(data: dict[str, Any], item_header: str, action: str, color: str, 
             printer.print(f"{color}{action} {Style.RESET_ALL}{key.ljust(30, ' ')} = {value}")
         else:
             printer.print(f"{color}{action} {Style.RESET_ALL}{key.ljust(30, ' ')} = \"{value}\"")
+
+    printer.level_down()
+    printer.print(f"  }}")
+
+
+def print_modified_dict(data: dict[str, Any], item_header: str, printer: IndentingPrinter) -> None:
+    printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
+    printer.level_up()
+
+    for key, (expected_value, current_value) in data.items():
+        printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
+                      f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
 
     printer.level_down()
     printer.print(f"  }}")

@@ -58,6 +58,9 @@ class ApplyOperation(DiffOperation):
 
         self.gh_client.update_repo(org_id, repo_name, data)
 
+    def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
+        pass
+
     def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
         self.printer.print(f"  creating new repo with data:\n{json.dumps(data, indent=2)}")
         self.gh_client.add_repo(org_id, data)

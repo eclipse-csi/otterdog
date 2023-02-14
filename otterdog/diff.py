@@ -144,13 +144,15 @@ class DiffOperation(Operation):
         self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
         for current_repo_name in current_repos:
+            current_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
             expected_repo = expected_repos_by_name.get(current_repo_name)
+
             if expected_repo is None:
-                self.printer.print_warn(f"no configuration found for repo with name '{current_repo_name}'")
-                differences += 1
+                self.handle_extra_repo(github_id, schemas.get_items_contained_in_schema(current_repo_data,
+                                                                                        schemas.REPOSITORY_SCHEMA))
+                extras += 1
                 continue
 
-            current_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
             current_repo_id = current_repo_data["node_id"]
 
             modified_repo = {}
@@ -236,9 +238,7 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_webhook(self,
-                           org_id: str,
-                           data: dict[str, Any]) -> None:
+    def handle_new_webhook(self, org_id: str, data: dict[str, Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -249,9 +249,11 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_repo(self,
-                        org_id: str,
-                        data: dict[str, Any]) -> None:
+    def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod
