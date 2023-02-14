@@ -78,6 +78,7 @@ class GithubWeb:
             browser = playwright.chromium.launch()
 
             page = browser.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
 
             self._login_if_required(page)
             self._update_settings(org_id, data, page)
