@@ -77,7 +77,6 @@ class Organization:
     def write_jsonnet_config(self, config: JsonnetConfig) -> str:
         default_config = config.default_org_config
 
-        config.create_org
         output = StringIO()
         output.write(textwrap.dedent(f"""
             local orgs = {config.get_import_statement()};
