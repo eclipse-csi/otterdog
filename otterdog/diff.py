@@ -8,17 +8,18 @@
 
 import os
 from abc import abstractmethod
-from typing import Any
 from datetime import datetime
+from typing import Any
 
 from colorama import Style
 
 import organization as org
+import schemas
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
 from utils import IndentingPrinter, associate_by_key
-import schemas
+
 
 class DiffOperation(Operation):
     def __init__(self):
