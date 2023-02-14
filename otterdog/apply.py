@@ -42,6 +42,9 @@ class ApplyOperation(DiffOperation):
 
         self.gh_client.update_webhook_config(org_id, webhook_id, config)
 
+    def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
+        pass
+
     def handle_new_webhook(self, org_id: str, data: dict[str, Any]) -> None:
         self.printer.print(f"  creating new webhook with data:\n{json.dumps(data, indent=2)}")
         self.gh_client.add_webhook(org_id, data)
@@ -78,5 +81,6 @@ class ApplyOperation(DiffOperation):
                            f"with data:\n{json.dumps(data, indent=2)}")
         self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
 
-    def handle_finish(self, additions: int, differences: int) -> None:
-        self.printer.print(f"\n{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {additions} added, {differences} changed.")
+    def handle_finish(self, additions: int, differences: int, extras: int) -> None:
+        self.printer.print(f"\n{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {additions} added, {differences} changed, "
+                           f"{extras} ignored.")

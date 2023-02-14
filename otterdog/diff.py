@@ -9,6 +9,7 @@
 import os
 from abc import abstractmethod
 from typing import Any
+from datetime import datetime
 
 from colorama import Style
 
@@ -17,7 +18,7 @@ from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
 from utils import IndentingPrinter, associate_by_key
-
+import schemas
 
 class DiffOperation(Operation):
     def __init__(self):
@@ -66,11 +67,18 @@ class DiffOperation(Operation):
 
         expected_settings = expected_org.get_settings()
 
+        start = datetime.now()
+        self.printer.print(f"organization settings: Reading...")
+
         # determine differences for settings.
         current_org_settings = self.gh_client.get_org_settings(github_id)
 
+        end = datetime.now()
+        self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+
         additions = 0
         differences = 0
+        extras = 0
 
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
@@ -88,16 +96,23 @@ class DiffOperation(Operation):
             self.handle_modified_settings(github_id, modified_settings)
 
         # determine differences for webhooks.
+        start = datetime.now()
+        self.printer.print(f"\nwebhooks: Reading...")
+
         expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["config"]["url"])
         current_webhooks = self.gh_client.get_webhooks(github_id)
+
+        end = datetime.now()
+        self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
         for webhook in current_webhooks:
             webhook_id = str(webhook["id"])
             webhook_url = webhook["config"]["url"]
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.printer.print_warn(f"no configuration found for webhook with url '{webhook_url}'")
-                differences += 1
+                self.handle_extra_webhook(github_id,
+                                          schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA))
+                extras += 1
                 continue
 
             modified_webhook = {}
@@ -111,7 +126,6 @@ class DiffOperation(Operation):
                     modified_webhook[key] = (expected_value, current_value)
 
             expected_webhooks_by_url.pop(webhook_url)
-
             self.handle_modified_webhook(github_id, webhook_id, modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
@@ -119,8 +133,14 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
 
         # determine differences for repositories
+        start = datetime.now()
+        self.printer.print(f"\nrepositories: Reading...")
+
         expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
         current_repos = self.gh_client.get_repos(github_id)
+
+        end = datetime.now()
+        self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
         for current_repo_name in current_repos:
             expected_repo = expected_repos_by_name.get(current_repo_name)
@@ -156,7 +176,7 @@ class DiffOperation(Operation):
             # TODO: process branch protection rules for new repo's as well
             self.handle_new_repo(github_id, repo)
 
-        self.handle_finish(additions, differences)
+        self.handle_finish(additions, differences, extras)
         return differences
 
     def _process_branch_protection_rules(self,
@@ -211,6 +231,10 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
+    def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def handle_new_webhook(self,
                            org_id: str,
                            data: dict[str, Any]) -> None:
@@ -243,5 +267,5 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_finish(self, additions: int, differences: int) -> None:
+    def handle_finish(self, additions: int, differences: int, extras: int) -> None:
         raise NotImplementedError
