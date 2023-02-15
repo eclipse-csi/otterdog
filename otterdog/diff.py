@@ -20,6 +20,8 @@ from github import Github
 from operation import Operation
 from utils import IndentingPrinter, associate_by_key
 
+from validate import ValidateOperation
+
 
 class DiffStatus:
     def __init__(self):
@@ -37,6 +39,7 @@ class DiffOperation(Operation):
         self.jsonnet_config = None
         self.gh_client = None
         self._printer = None
+        self._validator = ValidateOperation()
 
     @property
     def printer(self) -> IndentingPrinter:
@@ -46,6 +49,7 @@ class DiffOperation(Operation):
         self.config = config
         self.jsonnet_config = self.config.jsonnet_config
         self._printer = printer
+        self._validator.init(config, printer)
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -79,6 +83,13 @@ class DiffOperation(Operation):
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
+
+        # We validate the configuration first and only calculate a plan if
+        # there are no validation errors.
+        validation_errors = self._validator.validate(expected_org)
+        if validation_errors > 0:
+            self.printer.print("Planning aborted due to validation errors.")
+            return validation_errors
 
         diff_status = DiffStatus()
 

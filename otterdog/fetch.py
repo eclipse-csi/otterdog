@@ -32,7 +32,8 @@ class FetchOperation(Operation):
         self.jsonnet_config = self.config.jsonnet_config
         self._printer = printer
 
-        self.printer.print(f"Fetching resources for configuration at '{config.config_file}'")
+    def pre_execute(self) -> None:
+        self.printer.print(f"Fetching resources for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id

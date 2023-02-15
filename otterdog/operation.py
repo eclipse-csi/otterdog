@@ -27,6 +27,9 @@ class Operation(Protocol):
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None: raise NotImplementedError
 
     @abstractmethod
+    def pre_execute(self) -> None: raise NotImplementedError
+
+    @abstractmethod
     def execute(self, org_config: OrganizationConfig) -> int: raise NotImplementedError
 
     def print_dict(self, data: dict[str, Any], item_header: str, action: str, color: str) -> None:

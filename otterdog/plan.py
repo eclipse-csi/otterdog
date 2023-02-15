@@ -21,7 +21,9 @@ class PlanOperation(DiffOperation):
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
-        self.printer.print(f"Planning execution for configuration at '{config.config_file}'")
+
+    def pre_execute(self) -> None:
+        self.printer.print(f"Planning execution for configuration at '{self.config.config_file}'")
         self.printer.print(f"\nActions are indicted with the following symbols:")
         self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")

@@ -32,7 +32,8 @@ class ValidateOperation(Operation):
         self.jsonnet_config = self.config.jsonnet_config
         self._printer = printer
 
-        self.printer.print(f"Validating configuration at '{config.config_file}'")
+    def pre_execute(self) -> None:
+        self.printer.print(f"Validating configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -53,37 +54,7 @@ class ValidateOperation(Operation):
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
-            validation_errors = 0
-
-            settings = organization.get_settings()
-
-            # enabling dependabot implicitly enables the dependency graph,
-            # disabling the dependency graph in the configuration will result in inconsistencies after
-            # applying the configuration, warn the user about it.
-            dependabot_alerts_enabled = \
-                settings.get("dependabot_alerts_enabled_for_new_repositories") is True
-            dependabot_security_updates_enabled = \
-                settings.get("dependabot_security_updates_enabled_for_new_repositories") is True
-
-            dependency_graph_disabled = \
-                settings.get("dependency_graph_enabled_for_new_repositories") is False
-
-            if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
-                self.printer.print_error(f"enabling dependabot also enables dependency graph")
-                validation_errors += 1
-
-            if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
-                self.printer.print_error(f"enabling dependabot_security_updates also enables dependabot_alerts")
-                validation_errors += 1
-
-            webhooks = organization.get_webhooks()
-
-            for webhook in webhooks:
-                secret = jq.compile('.config.secret // ""').input(webhook).first()
-                if secret and all(ch == '*' for ch in secret):
-                    url = jq.compile('.config.url // ""').input(webhook).first()
-                    self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}'")
-                    validation_errors += 1
+            validation_errors = self.validate(organization)
 
             if validation_errors == 0:
                 self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
@@ -91,6 +62,41 @@ class ValidateOperation(Operation):
                 self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}")
 
             return validation_errors
-
         finally:
             self.printer.level_down()
+
+    def validate(self, organization: org.Organization) -> int:
+        validation_errors = 0
+
+        settings = organization.get_settings()
+
+        # enabling dependabot implicitly enables the dependency graph,
+        # disabling the dependency graph in the configuration will result in inconsistencies after
+        # applying the configuration, warn the user about it.
+        dependabot_alerts_enabled = \
+            settings.get("dependabot_alerts_enabled_for_new_repositories") is True
+        dependabot_security_updates_enabled = \
+            settings.get("dependabot_security_updates_enabled_for_new_repositories") is True
+
+        dependency_graph_disabled = \
+            settings.get("dependency_graph_enabled_for_new_repositories") is False
+
+        if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
+            self.printer.print_error(f"enabling dependabot_alerts or dependabot_security_updates implicitly"
+                                     f" enables dependency_graph_enabled_for_new_repositories")
+            validation_errors += 1
+
+        if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
+            self.printer.print_error(f"enabling dependabot_security_updates also enables dependabot_alerts")
+            validation_errors += 1
+
+        webhooks = organization.get_webhooks()
+
+        for webhook in webhooks:
+            secret = jq.compile('.config.secret // ""').input(webhook).first()
+            if secret and all(ch == '*' for ch in secret):
+                url = jq.compile('.config.url // ""').input(webhook).first()
+                self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}'")
+                validation_errors += 1
+
+        return validation_errors

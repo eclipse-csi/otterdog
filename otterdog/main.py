@@ -74,8 +74,10 @@ if __name__ == '__main__':
                 raise RuntimeError(f"unexpected action '{args.action}'")
 
         operation.init(config, printer)
+        operation.pre_execute()
 
-        # if no organization has been specified as argument, process all configured ones.
+        # if no organization has been specified as argument, process all organizations
+        # found in the configuration.
         organizations = args.organization
         if len(organizations) == 0:
             organizations = [k for k, _ in config.organization_configs.items()]
@@ -83,8 +85,6 @@ if __name__ == '__main__':
         for organization in organizations:
             printer.print()
             org_config = config.organization_config(organization)
-
-            # execute the requested action with the credential data and config.
             exit_code = max(exit_code, operation.execute(org_config))
 
         sys.exit(exit_code)

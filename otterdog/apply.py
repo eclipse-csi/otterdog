@@ -22,7 +22,9 @@ class ApplyOperation(DiffOperation):
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
-        self.printer.print(f"Execute changes for configuration at '{config.config_file}'")
+
+    def pre_execute(self) -> None:
+        self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         settings = {}

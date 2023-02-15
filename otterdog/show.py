@@ -31,7 +31,8 @@ class ShowOperation(Operation):
         self.jsonnet_config = self.config.jsonnet_config
         self._printer = printer
 
-        printer.print(f"Showing resources defined in configuration '{config.config_file}'")
+    def pre_execute(self) -> None:
+        self.printer.print(f"Showing resources defined in configuration '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
