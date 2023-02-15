@@ -79,6 +79,9 @@ class ApplyOperation(DiffOperation):
 
         self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, data)
 
+    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
+        pass
+
     def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         self.printer.print(f"  creating new branch_protection_rule for repo '{repo_name}'"
                            f"with data:\n{json.dumps(data, indent=2)}")

@@ -173,66 +173,75 @@ class DiffOperation(Operation):
 
             modified_repo = {}
             for key, expected_value in expected_repo.items():
-                current_value = current_repo_data.get(key)
-
+                # branch protection rules are treated separately.
                 if key == "branch_protection_rules":
-                    diff_status.differences +=\
-                        self._process_branch_protection_rules(github_id,
-                                                              current_repo_name,
-                                                              current_repo_id,
-                                                              expected_repo)
-                else:
-                    if expected_value != current_value:
-                        diff_status.differences += 1
-                        modified_repo[key] = (expected_value, current_value)
+                    continue
 
-            expected_repos_by_name.pop(current_repo_name)
+                current_value = current_repo_data.get(key)
+                if expected_value != current_value:
+                    diff_status.differences += 1
+                    modified_repo[key] = (expected_value, current_value)
 
             if len(modified_repo) > 0:
                 self.handle_modified_repo(github_id, current_repo_name, modified_repo)
 
+            self._process_branch_protection_rules(github_id,
+                                                  current_repo_name,
+                                                  current_repo_id,
+                                                  expected_repo,
+                                                  diff_status)
+
+            expected_repos_by_name.pop(current_repo_name)
+
         for repo_name, repo in expected_repos_by_name.items():
+            new_repo = repo.copy()
+            branch_protection_rules = new_repo.pop("branch_protection_rules")
+            self.handle_new_repo(github_id, new_repo)
+
             diff_status.additions += 1
-            # TODO: process branch protection rules for new repo's as well
-            self.handle_new_repo(github_id, repo)
+
+            if len(branch_protection_rules) > 0:
+                self._process_branch_protection_rules(github_id, repo_name, "", repo, diff_status)
 
     def _process_branch_protection_rules(self,
                                          org_id: str,
                                          repo_name: str,
-                                         repo_id,
-                                         expected_repo: dict[str, Any]) -> int:
-        differences = 0
+                                         repo_id: str,
+                                         expected_repo: dict[str, Any],
+                                         diff_status: DiffStatus) -> None:
 
         expected_branch_protection_rules_by_pattern = \
             associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
 
-        current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
-        for current_rule in current_rules:
-            rule_id = current_rule["id"]
-            rule_pattern = current_rule["pattern"]
-            expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
-            if expected_rule is None:
-                msg = f"no configuration found for branch protection rule with pattern '{rule_pattern}'"
-                self.printer.print_warn(msg)
-                differences += 1
-                continue
+        # only retrieve current rules if the repo_id is available, otherwise its a new repo
+        if repo_id:
+            current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
+            for current_rule in current_rules:
+                rule_id = current_rule["id"]
+                rule_pattern = current_rule["pattern"]
+                expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
+                if expected_rule is None:
+                    self.handle_extra_rule(org_id, repo_name, repo_id,
+                                           schemas.get_items_contained_in_schema(current_rule,
+                                                                                 schemas.BRANCH_PROTECTION_RULE_SCHEMA))
+                    diff_status.extras += 1
+                    continue
 
-            modified_rule = {}
-            for key, expected_value in expected_rule.items():
-                current_value = current_rule.get(key)
+                modified_rule = {}
+                for key, expected_value in expected_rule.items():
+                    current_value = current_rule.get(key)
+                    if expected_value != current_value:
+                        diff_status.differences += 1
+                        modified_rule[key] = (expected_value, current_value)
 
-                if expected_value != current_value:
-                    differences += 1
-                    modified_rule[key] = (expected_value, current_value)
+                if len(modified_rule) > 0:
+                    self.handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
 
-            expected_branch_protection_rules_by_pattern.pop(rule_pattern)
-            self.handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
+                expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
-            differences += 1
             self.handle_new_rule(org_id, repo_name, repo_id, rule)
-
-        return differences
+            diff_status.additions += 1
 
     @abstractmethod
     def handle_modified_settings(self,
@@ -277,6 +286,10 @@ class DiffOperation(Operation):
                              rule_pattern: str,
                              rule_id: str,
                              data: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod

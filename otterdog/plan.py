@@ -61,14 +61,17 @@ class PlanOperation(DiffOperation):
                              rule_pattern: str,
                              rule_id: str,
                              modified_rule: dict[str, Any]) -> None:
-        for key, (expected_value, current_value) in modified_rule.items():
-            msg = f"  branch_protection_rule['{rule_pattern}'].{key}: " \
-                  f"expected '{expected_value}' but was '{current_value}'"
-            self.printer.print_info(msg)
 
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
-        self.printer.print_info(f"new branch_protection_rule for repo '{repo_name}'"
-                                f"with data:\n{json.dumps(data, indent=2)}")
+        print_modified_dict(modified_rule, f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]",
+                            self.printer)
+
+    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
+        self.printer.print()
+        print_dict(rule_data, f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED, self.printer)
+
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
+        self.printer.print()
+        print_dict(rule_data, f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN, self.printer)
 
     def handle_finish(self, diff_status: DiffStatus) -> None:
         self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
