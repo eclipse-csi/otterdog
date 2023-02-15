@@ -107,7 +107,6 @@ class ApplyOperation(PlanOperation):
             return
 
         self.printer.print(f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                           f"  Do you want to continue?\n"
                            f"  Only 'yes' will be accepted to approve.\n\n")
 
         self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
