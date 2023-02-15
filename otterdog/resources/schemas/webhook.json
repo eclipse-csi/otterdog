@@ -13,7 +13,8 @@
       "properties": {
         "url": { "type": "string" },
         "content_type": { "type": "string" },
-        "insecure_ssl": { "type": "string" }
+        "insecure_ssl": { "type": "string" },
+        "secret": { "type": "string" }
       },
       "required": [ "url" ]
     }

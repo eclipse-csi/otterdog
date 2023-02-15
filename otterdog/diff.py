@@ -136,22 +136,24 @@ class DiffOperation(Operation):
                 diff_status.extras += 1
                 continue
 
+            # TODO: improve handling of config.secret
+
             modified_webhook = {}
-            current_webhook_config = webhook["config"]
-            # only config settings are supported to be verified for now.
-            for key, expected_value in expected_webhook["config"].items():
-                current_value = current_webhook_config.get(key)
+            for key, expected_value in expected_webhook.items():
+                current_value = webhook.get(key)
 
                 if expected_value != current_value:
-                    diff_status.differences += 1
                     modified_webhook[key] = (expected_value, current_value)
+                    diff_status.differences += 1
+
+            if len(modified_webhook) > 0:
+                self.handle_modified_webhook(github_id, webhook_id, webhook_url, modified_webhook, expected_webhook)
 
             expected_webhooks_by_url.pop(webhook_url)
-            self.handle_modified_webhook(github_id, webhook_id, modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            diff_status.additions += 1
             self.handle_new_webhook(github_id, webhook)
+            diff_status.additions += 1
 
     def _process_repositories(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
@@ -257,7 +259,9 @@ class DiffOperation(Operation):
     def handle_modified_webhook(self,
                                 org_id: str,
                                 webhook_id: str,
-                                modified_webhook: dict[str, (Any, Any)]) -> None:
+                                webhook_url: str,
+                                modified_webhook: dict[str, (Any, Any)],
+                                webhook: dict[str, Any]) -> None:
         raise NotImplementedError
 
     @abstractmethod

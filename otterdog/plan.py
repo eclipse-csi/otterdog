@@ -30,9 +30,14 @@ class PlanOperation(DiffOperation):
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
         self.print_modified_dict(modified_settings, "settings")
 
-    def handle_modified_webhook(self, org_id: str, webhook_id: str, modified_webhook: dict[str, (Any, Any)]) -> None:
+    def handle_modified_webhook(self,
+                                org_id: str,
+                                webhook_id: str,
+                                webhook_url: str,
+                                modified_webhook: dict[str, (Any, Any)],
+                                webhook: dict[str, Any]) -> None:
         self.printer.print()
-        self.print_modified_dict(modified_webhook, f"webhook['{webhook_id}'].config")
+        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']")
 
     def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
         self.printer.print()

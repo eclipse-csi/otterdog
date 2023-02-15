@@ -79,6 +79,10 @@ class Github:
         if len(config) > 0:
             self.rest_client.update_webhook_config(org_id, webhook_id, config)
 
+    def update_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+        if len(webhook) > 0:
+            self.rest_client.update_webhook(org_id, webhook_id, webhook)
+
     def add_webhook(self, org_id: str, data: dict[str, str]) -> None:
         self.rest_client.add_webhook(org_id, data)
 

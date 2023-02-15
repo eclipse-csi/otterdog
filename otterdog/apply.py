@@ -32,15 +32,19 @@ class ApplyOperation(DiffOperation):
 
         self.gh_client.update_org_settings(org_id, settings)
 
-    def handle_modified_webhook(self, org_id: str, webhook_id: str,
-                                modified_webhook: dict[str, (Any, Any)]) -> None:
+    def handle_modified_webhook(self,
+                                org_id: str,
+                                webhook_id: str,
+                                webhook_url: str,
+                                modified_webhook: dict[str, (Any, Any)],
+                                webhook: dict[str, Any]) -> None:
         config = {}
         for key, (expected_value, current_value) in modified_webhook.items():
             config[key] = expected_value
-            msg = f"  updating value for webhook['{webhook_id}'].config.{key} to '{expected_value}'"
+            msg = f"  updating value for webhook['{webhook_id}'].{key} to '{expected_value}'"
             self.printer.print(msg)
 
-        self.gh_client.update_webhook_config(org_id, webhook_id, config)
+        self.gh_client.update_webhook(org_id, webhook_id, webhook)
 
     def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
         pass

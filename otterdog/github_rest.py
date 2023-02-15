@@ -68,6 +68,19 @@ class GithubRest:
 
         return response.json()
 
+    def update_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+        utils.print_debug("updating webhook via rest API")
+
+        response = requests.patch(url=f"{self._GH_API_URL_ROOT}/orgs/{org_id}/hooks/{webhook_id}",
+                                  headers=self._headers,
+                                  data=json.dumps(webhook))
+        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            raise RuntimeError(f"failed to update webhook '{webhook_id}'")
+
+        utils.print_debug("updated webhook via rest api")
+
     def update_webhook_config(self, org_id: str, webhook_id: str, config: dict[str, str]) -> None:
         utils.print_debug("updating webhook configuration via rest API")
 

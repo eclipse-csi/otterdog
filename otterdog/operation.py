@@ -57,8 +57,30 @@ class Operation(Protocol):
         self.printer.level_up()
 
         for key, (expected_value, current_value) in data.items():
-            self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                               f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
+            if isinstance(expected_value, dict):
+                self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.level_up()
+
+                processed_keys = set()
+                for k, v in expected_value.items():
+                    c_v = current_value.get(k)
+
+                    if v != c_v:
+                        self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                           f" \"{c_v}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{v}\"")
+
+                    processed_keys.add(k)
+
+                for k, v in current_value.items():
+                    if k not in processed_keys:
+                        self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                           f" \"{v}\"")
+
+                self.printer.level_down()
+                self.printer.print(f"  }}")
+            else:
+                self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                   f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
 
         self.printer.level_down()
         self.printer.print(f"  }}")

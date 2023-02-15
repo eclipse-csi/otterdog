@@ -8,6 +8,7 @@
 
 import os
 
+import jq
 from colorama import Fore, Style
 
 import organization as org
@@ -52,6 +53,8 @@ class ValidateOperation(Operation):
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
+            validation_errors = 0
+
             settings = organization.get_settings()
 
             # enabling dependabot implicitly enables the dependency graph,
@@ -66,12 +69,28 @@ class ValidateOperation(Operation):
                 settings.get("dependency_graph_enabled_for_new_repositories") is False
 
             if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
-                self.printer.print_error(f"Validation failed\n"
-                                         f"enabling dependabot also enables dependency graph")
-                return 1
+                self.printer.print_error(f"enabling dependabot also enables dependency graph")
+                validation_errors += 1
 
-            self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
-            return 0
+            if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
+                self.printer.print_error(f"enabling dependabot_security_updates also enables dependabot_alerts")
+                validation_errors += 1
+
+            webhooks = organization.get_webhooks()
+
+            for webhook in webhooks:
+                secret = jq.compile('.config.secret // ""').input(webhook).first()
+                if secret and all(ch == '*' for ch in secret):
+                    url = jq.compile('.config.url // ""').input(webhook).first()
+                    self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}'")
+                    validation_errors += 1
+
+            if validation_errors == 0:
+                self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+            else:
+                self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}")
+
+            return validation_errors
 
         finally:
             self.printer.level_down()
