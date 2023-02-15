@@ -99,4 +99,22 @@ class ValidateOperation(Operation):
                 self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}'")
                 validation_errors += 1
 
+        repos = organization.get_repos()
+
+        for repo in repos:
+            repo_name = repo["name"]
+            branch_protection_rules = repo.get("branch_protection_rules")
+            if branch_protection_rules is not None:
+                for rule in branch_protection_rules:
+                    rule_pattern = rule["pattern"]
+                    requiresApprovingReviews = rule.get("requiresApprovingReviews")
+                    requiredApprovingReviewCount = rule.get("requiredApprovingReviewCount")
+
+                    if (requiresApprovingReviews is True) and \
+                            (requiredApprovingReviewCount is None or requiredApprovingReviewCount < 1):
+                        self.printer.print_error(
+                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
+                            f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' is not set.")
+                        validation_errors += 1
+
         return validation_errors

@@ -79,7 +79,7 @@ class PlanOperation(DiffOperation):
         self.printer.print()
         self.print_dict(rule_data, f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
 
-    def handle_finish(self, diff_status: DiffStatus) -> None:
+    def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.print()
         self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
                            f"{diff_status.differences} to change, "

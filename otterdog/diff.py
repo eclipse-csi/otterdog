@@ -97,7 +97,7 @@ class DiffOperation(Operation):
         self._process_webhooks(github_id, expected_org, diff_status)
         self._process_repositories(github_id, expected_org, diff_status)
 
-        self.handle_finish(diff_status)
+        self.handle_finish(github_id, diff_status)
         return diff_status.total_changes()
 
     def _process_settings(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
@@ -148,6 +148,7 @@ class DiffOperation(Operation):
                 continue
 
             # TODO: improve handling of config.secret
+            webhook = schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA)
 
             modified_webhook = {}
             for key, expected_value in expected_webhook.items():
@@ -316,5 +317,5 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_finish(self, diff_status: DiffStatus) -> None:
+    def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         raise NotImplementedError
