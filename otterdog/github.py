@@ -35,16 +35,18 @@ class Github:
         self.web_client = GithubWeb(self.credentials)
         self.graphql_client = GithubGraphQL(credentials.github_token)
 
-    def get_org_settings(self, org_id: str) -> dict[str, str]:
+    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         # first, get supported settings via the rest api.
-        merged_settings = self.rest_client.get_org_settings(org_id, self.settings_restapi_keys)
+        required_rest_keys = {x for x in included_keys if x in self.settings_restapi_keys}
+        merged_settings = self.rest_client.get_org_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings.
-        web_settings = self.web_client.get_org_settings(org_id)
+        required_web_keys = {x for x in included_keys if x in self.settings_web_keys}
+        if len(required_web_keys) > 0:
+            web_settings = self.web_client.get_org_settings(org_id, required_web_keys)
+            merged_settings.update(web_settings)
 
-        # merge the settings.
-        merged_settings.update(web_settings)
         utils.print_trace(f"merged org settings = {merged_settings}")
         return merged_settings
 

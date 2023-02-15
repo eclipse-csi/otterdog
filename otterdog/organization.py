@@ -167,10 +167,11 @@ def load_from_file(github_id: str, config_file: str) -> Organization:
     return org
 
 
-def load_from_github(github_id: str, client: Github) -> Organization:
+def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Github) -> Organization:
     org = Organization(github_id)
 
-    settings = client.get_org_settings(github_id)
+    default_settings = jsonnet_config.default_org_config["settings"]
+    settings = client.get_org_settings(github_id, set(default_settings.keys()))
     org.update_settings(settings)
 
     webhooks = client.get_webhooks(github_id)

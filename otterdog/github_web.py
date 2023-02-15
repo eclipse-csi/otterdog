@@ -28,7 +28,7 @@ class GithubWeb:
         web_settings = _jsonnet.evaluate_snippet("snippet", web_settings_source)
         self.web_settings_definition = json.loads(web_settings)
 
-    def get_org_settings(self, org_id: str) -> dict[str, str]:
+    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         utils.print_debug("retrieving settings via web interface")
 
         with sync_playwright() as playwright:
@@ -38,7 +38,7 @@ class GithubWeb:
             page.set_default_timeout(self._DEFAULT_TIMEOUT)
 
             self._login_if_required(page)
-            settings = self._retrieve_settings(org_id, page)
+            settings = self._retrieve_settings(org_id, included_keys, page)
             self._logout(page)
 
             page.close()
@@ -46,16 +46,23 @@ class GithubWeb:
 
             return settings
 
-    def _retrieve_settings(self, org_id: str, page: Page) -> dict[str, str]:
+    def _retrieve_settings(self, org_id: str, included_keys: set[str], page: Page) -> dict[str, str]:
         settings = {}
 
         for page_url, page_def in self.web_settings_definition.items():
+            # check if the page contains any setting that is requested
+            if not any(x in included_keys for x in page_def.keys()):
+                continue
+
             utils.print_trace(f"loading page '{page_url}'")
             response = page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_def.items():
+                if setting not in included_keys:
+                    continue
+
                 try:
                     value = page.eval_on_selector(setting_def['selector'],
                                                   "(el, property) => el[property]",

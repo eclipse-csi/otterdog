@@ -92,7 +92,7 @@ class DiffOperation(Operation):
         self.printer.print(f"organization settings: Reading...")
 
         # determine differences for settings.
-        current_org_settings = self.gh_client.get_org_settings(github_id)
+        current_org_settings = self.gh_client.get_org_settings(github_id, expected_settings.keys())
 
         end = datetime.now()
         self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
@@ -187,6 +187,7 @@ class DiffOperation(Operation):
                         modified_repo[key] = (expected_value, current_value)
 
             expected_repos_by_name.pop(current_repo_name)
+
             if len(modified_repo) > 0:
                 self.handle_modified_repo(github_id, current_repo_name, modified_repo)
 

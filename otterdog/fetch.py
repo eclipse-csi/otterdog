@@ -61,7 +61,7 @@ class FetchOperation(Operation):
 
             gh_client = Github(credentials)
 
-            organization = load_from_github(github_id, gh_client)
+            organization = load_from_github(github_id, self.jsonnet_config, gh_client)
             output = organization.write_jsonnet_config(self.jsonnet_config)
 
             output_dir = self.jsonnet_config.orgs_dir
