@@ -8,7 +8,7 @@
 
 import os
 
-from colorama import Style
+from colorama import Style, Fore
 
 import organization as org
 from config import OtterdogConfig, OrganizationConfig
@@ -19,13 +19,17 @@ from utils import IndentingPrinter
 class ShowOperation(Operation):
     def __init__(self):
         self.config = None
-        self.printer = None
         self.jsonnet_config = None
+        self._printer = None
+
+    @property
+    def printer(self) -> IndentingPrinter:
+        return self._printer
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self.config = config
         self.jsonnet_config = self.config.jsonnet_config
-        self.printer = printer
+        self._printer = printer
 
         printer.print(f"Showing resources defined in configuration '{config.config_file}'")
 
@@ -48,8 +52,27 @@ class ShowOperation(Operation):
                 self.printer.print_warn(f"failed to load configuration: {str(ex)}")
                 return 1
 
+            self.print_dict(organization.get_settings(), f"{Style.BRIGHT}settings{Style.RESET_ALL}", "", Fore.BLACK)
+
+            for webhook in organization.get_webhooks():
+                self.printer.print()
+                self.print_dict(webhook, f"{Style.BRIGHT}webhook{Style.RESET_ALL}", "", Fore.BLACK)
+
             for repo in organization.get_repos():
-                self.printer.print(f"repository {Style.BRIGHT}{repo['name']}{Style.RESET_ALL}")
+                repo_name = repo["name"]
+                repo_data = repo.copy()
+                branch_protection_rules = repo_data.pop("branch_protection_rules")
+
+                self.printer.print()
+                self.print_dict(repo_data,
+                                f"{Style.BRIGHT}repository[\"{repo['name']}\"]{Style.RESET_ALL}",
+                                "", Fore.BLACK)
+
+                for rule in branch_protection_rules:
+                    self.printer.print()
+                    self.print_dict(rule,
+                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo_name}\"]{Style.RESET_ALL}",
+                                    "", Fore.BLACK)
 
             return 0
 

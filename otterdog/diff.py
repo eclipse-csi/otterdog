@@ -36,12 +36,16 @@ class DiffOperation(Operation):
         self.config = None
         self.jsonnet_config = None
         self.gh_client = None
-        self.printer = None
+        self._printer = None
+
+    @property
+    def printer(self) -> IndentingPrinter:
+        return self._printer
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self.config = config
         self.jsonnet_config = self.config.jsonnet_config
-        self.printer = printer
+        self._printer = printer
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -213,7 +217,7 @@ class DiffOperation(Operation):
         expected_branch_protection_rules_by_pattern = \
             associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
 
-        # only retrieve current rules if the repo_id is available, otherwise its a new repo
+        # only retrieve current rules if the repo_id is available, otherwise it's a new repo
         if repo_id:
             current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
             for current_rule in current_rules:

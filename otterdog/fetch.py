@@ -21,12 +21,16 @@ class FetchOperation(Operation):
     def __init__(self):
         self.config = None
         self.jsonnet_config = None
-        self.printer = None
+        self._printer = None
+
+    @property
+    def printer(self) -> IndentingPrinter:
+        return self._printer
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self.config = config
         self.jsonnet_config = self.config.jsonnet_config
-        self.printer = printer
+        self._printer = printer
 
         self.printer.print(f"Fetching resources for configuration at '{config.config_file}'")
 

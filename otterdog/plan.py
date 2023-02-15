@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import json
 from typing import Any
 
 from colorama import Fore, Style
@@ -29,31 +28,30 @@ class PlanOperation(DiffOperation):
         self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
-        print_modified_dict(modified_settings, "settings", self.printer)
+        self.print_modified_dict(modified_settings, "settings")
 
     def handle_modified_webhook(self, org_id: str, webhook_id: str, modified_webhook: dict[str, (Any, Any)]) -> None:
-        for key, (expected_value, current_value) in modified_webhook.items():
-            msg = f"  webhook['{webhook_id}'].config.{key}: expected '{expected_value}' but was '{current_value}'"
-            self.printer.print_info(msg)
+        self.printer.print()
+        self.print_modified_dict(modified_webhook, f"webhook['{webhook_id}'].config")
 
     def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(webhook, "extra webhook", "-", Fore.RED, self.printer)
+        self.print_dict(webhook, "extra webhook", "-", Fore.RED)
 
     def handle_new_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(webhook, "new webhook", "+", Fore.GREEN, self.printer)
+        self.print_dict(webhook, "new webhook", "+", Fore.GREEN)
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, (Any, Any)]) -> None:
-        print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]", self.printer)
+        self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
 
     def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(repo, "extra repo", "-", Fore.RED, self.printer)
+        self.print_dict(repo, "extra repo", "-", Fore.RED)
 
     def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(data, "new repo", "+", Fore.GREEN, self.printer)
+        self.print_dict(data, "new repo", "+", Fore.GREEN)
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -62,51 +60,20 @@ class PlanOperation(DiffOperation):
                              rule_id: str,
                              modified_rule: dict[str, Any]) -> None:
 
-        print_modified_dict(modified_rule, f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]",
-                            self.printer)
+        self.printer.print()
+        self.print_modified_dict(modified_rule,
+                                 f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]")
 
     def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(rule_data, f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED, self.printer)
+        self.print_dict(rule_data, f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED)
 
     def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
         self.printer.print()
-        print_dict(rule_data, f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN, self.printer)
+        self.print_dict(rule_data, f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
 
     def handle_finish(self, diff_status: DiffStatus) -> None:
+        self.printer.print()
         self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
                            f"{diff_status.differences} to change, "
                            f"{diff_status.extras} are missing in definition.")
-
-
-def print_dict(data: dict[str, Any], item_header: str, action: str, color: str, printer: IndentingPrinter) -> None:
-    printer.print(f"{color}{action}{Style.RESET_ALL} {item_header} {{")
-    printer.level_up()
-
-    for key, value in data.items():
-        if isinstance(value, dict):
-            printer.print(f"{color}{action} {Style.RESET_ALL}{key.ljust(30, ' ')} = {{")
-            printer.level_up()
-            for k, v in value.items():
-                printer.print(f"{color}{action} {Style.RESET_ALL}{k.ljust(30, ' ')} = \"{v}\"")
-            printer.level_down()
-            printer.print(f"  }}")
-        elif isinstance(value, list):
-            printer.print(f"{color}{action} {Style.RESET_ALL}{key.ljust(30, ' ')} = {value}")
-        else:
-            printer.print(f"{color}{action} {Style.RESET_ALL}{key.ljust(30, ' ')} = \"{value}\"")
-
-    printer.level_down()
-    printer.print(f"  }}")
-
-
-def print_modified_dict(data: dict[str, Any], item_header: str, printer: IndentingPrinter) -> None:
-    printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
-    printer.level_up()
-
-    for key, (expected_value, current_value) in data.items():
-        printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(30, ' ')} ="
-                      f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
-
-    printer.level_down()
-    printer.print(f"  }}")
