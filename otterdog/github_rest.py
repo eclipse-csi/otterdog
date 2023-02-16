@@ -130,10 +130,11 @@ class GithubRest:
         repos = []
         current_page = 1
         while current_page > 0:
-            query_params = {"per_page": "100", "page": current_page}
+            query_params = {"per_page": "100", "page": current_page, "type": "all"}
             response = requests.get(url=f"{self._GH_API_URL_ROOT}/orgs/{org_id}/repos",
+                                    headers=self._headers,
                                     params=query_params)
-            utils.print_trace(f"rest result = ({response.status_code})")
+            utils.print_trace(f"rest result = ({response.status_code}, {json.dumps(response.json())})")
 
             if not response.ok:
                 raise RuntimeError(f"failed retrieving repos for organization '{org_id}' via rest API")
