@@ -11,7 +11,7 @@ from typing import Any
 from colorama import Fore, Style
 
 from config import OtterdogConfig
-from diff import DiffOperation, DiffStatus
+from diff_operation import DiffOperation, DiffStatus
 from utils import IndentingPrinter
 
 

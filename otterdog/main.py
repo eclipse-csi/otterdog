@@ -11,12 +11,13 @@ import sys
 import traceback
 
 import utils
-from fetch import FetchOperation
-from plan import PlanOperation
-from apply import ApplyOperation
-from validate import ValidateOperation
-from show import ShowOperation
+from apply_operation import ApplyOperation
 from config import OtterdogConfig
+from fetch_operation import FetchOperation
+from import_operation import ImportOperation
+from plan_operation import PlanOperation
+from show_operation import ShowOperation
+from validate_operation import ValidateOperation
 
 CONFIG_FILE = "otterdog.json"
 
@@ -29,15 +30,17 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(dest="action", required=True)
 
     plan_parser = subparsers.add_parser("plan")
-    sync_parser = subparsers.add_parser("fetch")
+    fetch_parser = subparsers.add_parser("fetch")
+    import_parser = subparsers.add_parser("import")
     apply_parser = subparsers.add_parser("apply")
     validate_parser = subparsers.add_parser("validate")
     show_parser = subparsers.add_parser("show")
 
-    for subparser in [plan_parser, sync_parser, apply_parser, validate_parser, show_parser]:
+    for subparser in [plan_parser, fetch_parser, import_parser, apply_parser, validate_parser, show_parser]:
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
+        subparser.add_argument("--force", "-f", action="store_true", default=0, help="enable more verbose output")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
     args = parser.parse_args()
@@ -48,7 +51,7 @@ if __name__ == '__main__':
     printer.print()
 
     try:
-        config = OtterdogConfig.from_file(args.config)
+        config = OtterdogConfig.from_file(args.config, args.force)
         jsonnet_config = config.jsonnet_config
 
         exit_code = 0
@@ -59,6 +62,9 @@ if __name__ == '__main__':
 
             case "fetch":
                 operation = FetchOperation()
+
+            case "import":
+                operation = ImportOperation()
 
             case "apply":
                 operation = ApplyOperation()

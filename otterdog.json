@@ -1,5 +1,8 @@
 {
   "defaults": {
+    "github": {
+      "config_repo": "meta-data"
+    },
     "bitwarden": {
       "api_token_key": "api_token_admin"
     },

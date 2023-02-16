@@ -20,7 +20,7 @@ from github import Github
 from operation import Operation
 from utils import IndentingPrinter, associate_by_key
 
-from validate import ValidateOperation
+from validate_operation import ValidateOperation
 
 
 class DiffStatus:

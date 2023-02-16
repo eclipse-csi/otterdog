@@ -129,19 +129,22 @@ class OrganizationConfig:
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str):
+    def __init__(self, config_file: str, force_processing: bool):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
         self._config_file = os.path.realpath(config_file)
         self._data_dir = os.path.dirname(self._config_file)
         self._credential_providers = {}
+        self._force_processing = force_processing
 
         with open(config_file) as f:
             self._configuration = json.load(f)
 
         jsonnet_settings = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
         self._jsonnet_config = JsonnetConfig(self.data_dir, jsonnet_settings)
+
+        self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
 
         organizations = jq.compile(".organizations // []").input(self._configuration).first()
         self._organizations = {}
@@ -154,12 +157,20 @@ class OtterdogConfig:
         return self._config_file
 
     @property
+    def force_processing(self) -> bool:
+        return self._force_processing
+
+    @property
     def data_dir(self) -> str:
         return self._data_dir
 
     @property
     def jsonnet_config(self) -> JsonnetConfig:
         return self._jsonnet_config
+
+    @property
+    def config_repo(self) -> str:
+        return self._github_config.get("config_repo", "meta-data")
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:
@@ -201,5 +212,5 @@ class OtterdogConfig:
         return f"OtterdogConfig('{self.data_dir}')"
 
     @classmethod
-    def from_file(cls, config_file: str):
-        return cls(config_file)
+    def from_file(cls, config_file: str, force_processing: bool):
+        return cls(config_file, force_processing)

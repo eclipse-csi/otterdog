@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import base64
 import json
 from typing import Any
 
@@ -27,6 +28,18 @@ class GithubRest:
             "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": self._GH_API_VERSION
         }
+
+    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
+        utils.print_debug(f"retrieving content '{path}' at repo '{repo_name}' via rest API")
+        response = requests.get(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/contents/{path}",
+                                headers=self._headers)
+        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            raise RuntimeError(f"failed retrieving content '{path}' for organization '{org_id}' via rest API")
+
+        json_response = response.json()
+        return base64.b64decode(json_response["content"]).decode('utf-8')
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         utils.print_debug("retrieving settings via rest API")

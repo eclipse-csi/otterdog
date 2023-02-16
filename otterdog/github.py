@@ -35,6 +35,9 @@ class Github:
         self.web_client = GithubWeb(self.credentials)
         self.graphql_client = GithubGraphQL(credentials.github_token)
 
+    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
+        return self.rest_client.get_content(org_id, repo_name, path)
+
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         # first, get supported settings via the rest api.
         required_rest_keys = {x for x in included_keys if x in self.settings_restapi_keys}

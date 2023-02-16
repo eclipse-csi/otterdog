@@ -17,7 +17,7 @@ from organization import load_from_github
 from utils import IndentingPrinter
 
 
-class FetchOperation(Operation):
+class ImportOperation(Operation):
     def __init__(self):
         self.config = None
         self.jsonnet_config = None
@@ -33,7 +33,7 @@ class FetchOperation(Operation):
         self._printer = printer
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Fetching resources for configuration at '{self.config.config_file}'")
+        self.printer.print(f"Importing resources for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -42,7 +42,7 @@ class FetchOperation(Operation):
 
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        if os.path.exists(org_file_name):
+        if os.path.exists(org_file_name) and not self.config.force_processing:
             self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
                                f"'{org_file_name}'.\n"
                                f"  Performing this action will overwrite its contents.\n"
@@ -52,7 +52,7 @@ class FetchOperation(Operation):
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
             answer = input()
             if answer != "yes":
-                self.printer.print("\nFetch cancelled.")
+                self.printer.print("\nImport cancelled.")
                 return 1
 
         self.printer.level_up()
@@ -73,12 +73,10 @@ class FetchOperation(Operation):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-            output_file_name = self.jsonnet_config.get_org_config_file(github_id)
-
-            with open(output_file_name, "w") as file:
+            with open(org_file_name, "w") as file:
                 file.write(output)
 
-            self.printer.print(f"organization definition written to '{output_file_name}'")
+            self.printer.print(f"organization definition written to '{org_file_name}'")
 
             return 0
         finally:

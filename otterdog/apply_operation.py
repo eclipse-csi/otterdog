@@ -11,8 +11,8 @@ from typing import Any
 from colorama import Style
 
 from config import OtterdogConfig
-from diff import DiffStatus
-from plan import PlanOperation
+from diff_operation import DiffStatus
+from plan_operation import PlanOperation
 from utils import IndentingPrinter
 
 
@@ -106,14 +106,15 @@ class ApplyOperation(PlanOperation):
             self.printer.print(f"No changes required ({diff_status.extras} missing definitions ignored).")
             return
 
-        self.printer.print(f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                           f"  Only 'yes' will be accepted to approve.\n\n")
+        if not self.config.force_processing:
+            self.printer.print(f"{Style.BRIGHT}Do you want to perform these actions?\n"
+                               f"  Only 'yes' will be accepted to approve.\n\n")
 
-        self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
-        answer = input()
-        if answer != "yes":
-            self.printer.print("\nApply cancelled.")
-            return
+            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
+            answer = input()
+            if answer != "yes":
+                self.printer.print("\nApply cancelled.")
+                return
 
         if self._modified_settings is not None:
             self.gh_client.update_org_settings(org_id, self._modified_settings)
