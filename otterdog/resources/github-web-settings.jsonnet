@@ -30,9 +30,6 @@ local newTextInput(otterdogName, inputName = otterdogName) =
   'settings/repository-defaults':
     newTextInput('default_branch_name'),
 
-  'settings/discussions':
-    newCheckbox('discussions_enabled'),
-
   'settings/packages':
     newCheckbox('packages_containers_public', 'packages[containers][public]') +
     newCheckbox('packages_containers_internal', 'packages[containers][internal]'),

@@ -1,0 +1,44 @@
+{
+  "$id": "repository.json",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "$ref": "#/definitions/string_or_null" },
+    "homepage": { "$ref": "#/definitions/string_or_null" },
+    "private": { "type": "boolean" },
+    "has_issues": { "type": "boolean" },
+    "has_projects": { "type": "boolean" },
+    "has_wiki": { "type": "boolean" },
+    "default_branch": { "type": "string" },
+    "allow_rebase_merge": { "type": "boolean" },
+    "allow_merge_commit": { "type": "boolean" },
+    "allow_squash_merge": { "type": "boolean" },
+    "allow_auto_merge": { "type": "boolean" },
+    "delete_branch_on_merge": { "type": "boolean" },
+    "allow_update_branch": { "type": "boolean" },
+    "squash_merge_commit_title": { "type": "string" },
+    "squash_merge_commit_message": { "type": "string" },
+    "merge_commit_title": { "type": "string" },
+    "merge_commit_message": { "type": "string" },
+    "archived": { "type": "boolean" },
+    "allow_forking": { "type": "boolean" },
+    "web_commit_signoff_required": { "type": "boolean" },
+    "branch_protection_rules": {
+      "type": "array",
+      "items": { "$ref": "branch-protection-rule.json" }
+    }
+  },
+
+  "required": [ "name" ],
+  "additionalProperties": false,
+
+  "definitions": {
+    "string_or_null": {
+      "anyOf": [
+          { "type": "string" },
+          { "type": "null" }
+        ]
+      }
+  }
+}

@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+minversion = "7.2"
+testpaths = ["tests"]
+pythonpath = [".", "otterdog"]

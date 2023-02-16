@@ -1,0 +1,24 @@
+{
+  "$id": "webhook.json",
+
+  "type": "object",
+  "properties": {
+    "active": { "type": "boolean" },
+    "events": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "content_type": { "type": "string" },
+        "insecure_ssl": { "type": "string" }
+      },
+      "required": [ "url" ]
+    }
+  },
+
+  "required": [ "active" ],
+  "additionalProperties": false
+}

@@ -1,0 +1,152 @@
+{
+  "$id": "settings.json",
+
+  "type": "object",
+  "properties": {
+    "name": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "billing_email": {
+      "provider": "restapi",
+      "type": "string"
+    },
+    "company": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "email": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "twitter_username": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "location": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "description": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "blog": {
+      "provider": "restapi",
+      "$ref": "#/definitions/string_or_null"
+    },
+    "has_organization_projects": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "has_repository_projects": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "default_repository_permission": {
+      "provider": "restapi",
+      "type": "string"
+    },
+    "members_can_create_private_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "members_can_create_public_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "members_can_fork_private_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "web_commit_signoff_required": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "members_can_create_pages": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "members_can_create_public_pages": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "dependabot_alerts_enabled_for_new_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "dependabot_security_updates_enabled_for_new_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "dependency_graph_enabled_for_new_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
+    "members_can_change_repo_visibility": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "members_can_delete_repositories": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "members_can_delete_issues": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "readers_can_create_discussions": {
+      "provider": "web",
+      "$ref": "#/definitions/boolean_or_null"
+    },
+    "members_can_create_teams": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "two_factor_requirement": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "team_discussions_allowed": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "default_branch_name": {
+      "provider": "web",
+      "type": "string"
+    },
+    "packages_containers_public": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "packages_containers_internal": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "organization_organization_projects_enabled": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "organization_members_can_change_project_visibility": {
+      "provider": "web",
+      "type": "boolean"
+    }
+  },
+
+  "additionalProperties": false,
+
+  "definitions": {
+    "string_or_null": {
+      "anyOf": [
+          { "type": "string" },
+          { "type": "null" }
+        ]
+      },
+    "boolean_or_null": {
+      "anyOf": [
+          { "type": "boolean" },
+          { "type": "null" }
+        ]
+      }
+  }
+}

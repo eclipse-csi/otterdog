@@ -1,0 +1,20 @@
+{
+  "$id": "organization.json",
+
+  "type": "object",
+  "properties": {
+    "github_id": { "type": "string" },
+    "settings": { "$ref": "settings.json" },
+    "webhooks": {
+      "type": "array",
+      "items": { "$ref": "webhook.json" }
+    },
+    "repositories": {
+      "type": "array",
+      "items": { "$ref": "repository.json" }
+    }
+  },
+
+  "required": [ "settings" ],
+  "additionalProperties": false
+}
