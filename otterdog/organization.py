@@ -141,7 +141,7 @@ class Organization:
 
                     o -= 2
                     output.write(" " * o)
-                    output.write("]\n")
+                    output.write("],\n")
 
                 utils.dump_json_object(diff_obj, output, offset=6, indent=2, embedded_object=True,
                                        predicate=is_branch_protection_rule_key,
