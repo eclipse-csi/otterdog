@@ -6,6 +6,10 @@ init:
        playwright install chromium \
     )
 
+  	ifeq (, $(shell which bw1))
+ 		$(error "No bitwarden cli tool in your PATH, consider doing 'snap install bw'")
+ 	endif
+
 test:
 	( \
        . venv/bin/activate; \
