@@ -4,10 +4,10 @@ Create virtual environment and install dependencies:
 $ make init
 ```
 
-Run the **fetch** operation to retrieve the current live configuration for an organization:
+Run the **import** operation to retrieve the current live configuration for an organization:
 
 ```console
-$ otterdog.sh fetch <organization>
+$ otterdog.sh import <organization>
 ```
 
 The created configuration file for the organization can be found at `<data-directory>/orgs/<organization>.jsonnet`
