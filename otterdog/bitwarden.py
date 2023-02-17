@@ -50,7 +50,8 @@ class BitwardenVault(CredentialProvider):
 
         # load the item json string and access the field containing the GitHub token
         item = json.loads(item_json)
-        token_field = next(filter(lambda k: k["name"] == api_token_key, item["fields"]), None)
+
+        token_field = next(filter(lambda k: k["name"] == api_token_key, item.get("fields", [])), None)
         if token_field is None:
             raise RuntimeError(f"field with key '{api_token_key}' not found in item with id '{item_id}'")
 
