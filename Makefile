@@ -6,7 +6,7 @@ init:
        playwright install chromium \
     )
 
-  	ifeq (, $(shell which bw1))
+  	ifeq (, $(shell which bw))
  		$(error "No bitwarden cli tool in your PATH, consider doing 'snap install bw'")
  	endif
 
