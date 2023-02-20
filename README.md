@@ -4,6 +4,63 @@ Create virtual environment and install dependencies:
 $ make init
 ```
 
+## Setup
+
+The general configuration for supported organizations and their corresponding credentials in order
+to access their GitHub settings has to be placed in a json file (default: __otterdog.json__, can be changed
+with the __-c__ flag):
+
+```json
+{ 
+  ...
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
+        "provider": "bitwarden",
+        "item_id" : "<bitwarden item id>"
+      }
+    }
+  ]
+  ...
+}
+```
+
+When using **bitwarden** to store the credentials, you need to enter a valid __item id__. This item needs to
+contain the following information (a sample json output of such an item):
+
+```json
+{
+  "object": "item",
+  "id": "<bitwarden item id>",
+  "name": "<item name>",
+  "fields": [
+    {
+      "name": "api_token_admin",
+      "value": "<github API token>"
+    }
+  ],
+  "login": {
+    "username": "<github username>",
+    "password": "<github password>",
+    "totp": "<github TOTP text code>"
+  }
+}
+```
+
+Mandatory items:
+
+* Field with name "api_token_admin" and as value the GitHub token to access the organization
+* __login.username__ of a user that can access the organization with enabled 2FA
+* __login.password__ the password of that user
+* __login.totp__ the TOTP text code
+
+The login / username / totp are required to access the web interface of GitHub in order to retrieve certain
+settings that are not accessible via its rest / graphql API.
+
+## Usage
+
 Run the **import** operation to retrieve the current live configuration for an organization:
 
 ```console
