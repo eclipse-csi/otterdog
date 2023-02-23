@@ -7,7 +7,11 @@ init:
     )
 
   	ifeq (, $(shell which bw))
- 		$(error "No bitwarden cli tool in your PATH, consider doing 'snap install bw'")
+ 		$(error "No bitwarden cli tool in your PATH, install it using 'snap install bw'")
+ 	endif
+
+  	ifeq (, $(shell which jb))
+ 		$(error "No jsonnet-bundler tool in your PATH, install it using 'go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest'")
  	endif
 
 test:

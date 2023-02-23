@@ -29,7 +29,7 @@ class GithubRest:
             "X-GitHub-Api-Version": self._GH_API_VERSION
         }
 
-    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
+    def get_content_object(self, org_id: str, repo_name: str, path: str) -> dict[str, Any]:
         utils.print_debug(f"retrieving content '{path}' at repo '{repo_name}' via rest API")
         response = requests.get(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/contents/{path}",
                                 headers=self._headers)
@@ -38,8 +38,40 @@ class GithubRest:
         if not response.ok:
             raise RuntimeError(f"failed retrieving content '{path}' for organization '{org_id}' via rest API")
 
-        json_response = response.json()
+        return response.json()
+
+    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
+        json_response = self.get_content_object(org_id, repo_name, path)
         return base64.b64decode(json_response["content"]).decode('utf-8')
+
+    def update_content(self, org_id: str, repo_name: str, path: str, content: str) -> None:
+        utils.print_debug(f"pushing content '{path}' at repo '{repo_name}' via rest API")
+
+        try:
+            json_response = self.get_content_object(org_id, repo_name, path)
+            old_sha = json_response["sha"]
+        except RuntimeError:
+            old_sha = None
+
+        base64_encoded_data = base64.b64encode(content.encode("utf-8"))
+        base64_content = base64_encoded_data.decode("utf-8")
+
+        data = {
+            "message": "Updating content using otterdog.",
+            "content": base64_content,
+        }
+
+        if old_sha is not None:
+            data["sha"] = old_sha
+
+        response = requests.put(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/contents/{path}",
+                                headers=self._headers,
+                                data=json.dumps(data))
+
+        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            raise RuntimeError(f"failed pushing content '{path}' for organization '{org_id}' via rest API")
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         utils.print_debug("retrieving settings via rest API")

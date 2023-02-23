@@ -7,7 +7,12 @@
       "api_token_key": "api_token_admin"
     },
     "jsonnet": {
-      "base_template": "default.org.jsonnet",
+      "base_template": {
+        "repo": "https://github.com/OtterdogTest/otterdog-defaults",
+        "branch": "main",
+        "file": "otterdog-defaults.libsonnet"
+      },
+      "config_dir": "orgs",
       "create_org": "newOrg",
       "create_webhook": "newWebhook",
       "create_repo": "newRepo",

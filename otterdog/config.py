@@ -8,6 +8,7 @@
 
 import json
 import os
+import subprocess
 from typing import Any
 
 import jq
@@ -17,7 +18,7 @@ import bitwarden
 import utils
 import credentials
 
-_DEFAULT_TEMPLATE_FILE = "default.org.jsonnet"
+_DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
 
 
 class JsonnetConfig:
@@ -27,7 +28,26 @@ class JsonnetConfig:
                  import_prefix: str = "../"):
 
         self._data_dir = data_dir
-        self._base_template = jq.compile(f'.base_template // "{_DEFAULT_TEMPLATE_FILE}"').input(settings).first()
+        self._orgs_dir = jq.compile(f'.config_dir // "orgs"').input(settings).first()
+
+        self._use_jsonnet_bundler = False
+        base_template = settings.get("base_template")
+        if base_template is None:
+            self._base_template_file = _DEFAULT_TEMPLATE_FILE
+        else:
+            repo = base_template.get("repo")
+            if repo is not None:
+                self._base_template_repo_url = repo.strip("/")
+                self._base_template_repo_name = os.path.basename(self._base_template_repo_url)
+                self._base_template_branch = jq.compile(f'.branch // "main"').input(base_template).first()
+                self._use_jsonnet_bundler = True
+
+            self._base_template_file = \
+                jq.compile(f'.file // "{_DEFAULT_TEMPLATE_FILE}"')\
+                  .input(base_template).first()
+
+        self._init_base_template()
+
         self._import_prefix = import_prefix
 
         self.create_org = \
@@ -74,20 +94,69 @@ class JsonnetConfig:
 
     @property
     def template_file(self) -> str:
-        return os.path.join(self._data_dir, self._base_template)
+        if self._use_jsonnet_bundler:
+            return os.path.join(self._data_dir,
+                                self.orgs_dir,
+                                "vendor",
+                                self._base_template_repo_name,
+                                self._base_template_file)
+        else:
+            return os.path.join(self._data_dir, self._base_template_file)
 
     @property
     def orgs_dir(self) -> str:
-        return f"{self._data_dir}/orgs"
+        return f"{self._data_dir}/{self._orgs_dir}"
 
     def get_org_config_file(self, org_id: str) -> str:
         return f"{self.orgs_dir}/{org_id}.jsonnet"
 
     def get_import_statement(self) -> str:
-        return f"import '{self._import_prefix}{self._base_template}'"
+        if self._use_jsonnet_bundler:
+            return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
+        else:
+            return f"import '{self._import_prefix}{self._base_template_file}'"
+
+    def get_jsonnet_bundle_file(self) -> str:
+        return f"{self.orgs_dir}/jsonnetfile.json"
+
+    def _init_base_template(self) -> None:
+        if self._use_jsonnet_bundler:
+            content =\
+                {
+                    "version": 1,
+                    "dependencies": [
+                        {
+                            "source": {
+                                "git": {
+                                    "remote": f"{self._base_template_repo_url}.git",
+                                    "subdir": ""
+                                }
+                            },
+                            "version": f"{self._base_template_branch}"
+                        }
+                    ],
+                    "legacyImports": True
+                }
+
+            with open(self.get_jsonnet_bundle_file(), "w") as file:
+                file.write(json.dumps(content, indent=2))
+
+            utils.print_debug("running jsonnet-bundler update")
+            cwd = os.getcwd()
+
+            try:
+                os.chdir(self.orgs_dir)
+                status, result = subprocess.getstatusoutput("jb update")
+                utils.print_trace(f"result = ({status}, {result})")
+
+                if status != 0:
+                    raise RuntimeError()
+
+            finally:
+                os.chdir(cwd)
 
     def __repr__(self) -> str:
-        return f"JsonnetConfig('{self._data_dir},'{self._base_template}')"
+        return f"JsonnetConfig('{self._data_dir},'{self._base_template_file}')"
 
 
 class OrganizationConfig:
