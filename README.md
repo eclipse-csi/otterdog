@@ -1,8 +1,13 @@
 ## Build instructions
-Create virtual environment and install dependencies:
+Create a virtual python environment and install necessary dependencies:
 ```console
 $ make init
 ```
+
+Additional system requirements:
+
+* bitwarden cli tool: install using `snap install bw`
+* jsonnet-bundler: install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
 
 ## Setup
 
