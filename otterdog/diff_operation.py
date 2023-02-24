@@ -14,6 +14,7 @@ from typing import Any
 from colorama import Style
 
 import organization as org
+import mapping
 import schemas
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
@@ -178,16 +179,18 @@ class DiffOperation(Operation):
         self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
         for current_repo_name in current_repos:
-            current_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
+            current_github_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
+            current_repo_id = current_github_repo_data["node_id"]
+            is_private = current_github_repo_data["private"]
+
+            current_otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(current_github_repo_data)
+
             expected_repo = expected_repos_by_name.get(current_repo_name)
 
             if expected_repo is None:
-                self.handle_extra_repo(github_id, schemas.get_items_contained_in_schema(current_repo_data,
-                                                                                        schemas.REPOSITORY_SCHEMA))
+                self.handle_extra_repo(github_id, current_otterdog_repo_data)
                 diff_status.extras += 1
                 continue
-
-            current_repo_id = current_repo_data["node_id"]
 
             modified_repo = {}
             for key, expected_value in expected_repo.items():
@@ -195,7 +198,12 @@ class DiffOperation(Operation):
                 if key == "branch_protection_rules":
                     continue
 
-                current_value = current_repo_data.get(key)
+                # private repos dont support security analysis.
+                # TODO: make this cleaner
+                if is_private and (key == "secret_scanning"):
+                    continue
+
+                current_value = current_otterdog_repo_data.get(key)
                 if expected_value != current_value:
                     diff_status.differences += 1
                     modified_repo[key] = (expected_value, current_value)

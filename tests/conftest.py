@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+import json
 import os
 
 import pytest
@@ -19,3 +20,17 @@ def testorg_jsonnet():
 @pytest.fixture()
 def test_resource_dir():
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources")
+
+
+@pytest.fixture()
+def github_repo_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/github-repo.json")
+    with open(filename, "r") as file:
+        return json.load(file)
+
+
+@pytest.fixture()
+def otterdog_repo_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/otterdog-repo.json")
+    with open(filename, "r") as file:
+        return json.load(file)

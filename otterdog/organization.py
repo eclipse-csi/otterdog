@@ -16,6 +16,7 @@ import _jsonnet
 import jsonschema
 from importlib_resources import files, as_file
 
+import mapping
 import schemas
 import utils
 from config import JsonnetConfig
@@ -180,7 +181,8 @@ def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Gith
     repos = []
     repo_names = client.get_repos(github_id)
     for repo_name in repo_names:
-        repo_data = client.get_repo_data(github_id, repo_name)
+        github_repo_data = client.get_repo_data(github_id, repo_name)
+        otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(github_repo_data)
         rules = client.get_branch_protection_rules(github_id, repo_name)
 
         if len(rules) > 0:
@@ -188,9 +190,9 @@ def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Gith
             for rule in rules:
                 rule_list.append(schemas.get_items_contained_in_schema(rule, schemas.BRANCH_PROTECTION_RULE_SCHEMA))
 
-            repo_data["branch_protection_rules"] = rule_list
+            otterdog_repo_data["branch_protection_rules"] = rule_list
 
-        repos.append(repo_data)
+        repos.append(otterdog_repo_data)
 
     org.update_repos(repos)
 

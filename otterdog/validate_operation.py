@@ -101,8 +101,20 @@ class ValidateOperation(Operation):
 
         repos = organization.get_repos()
 
+        members_can_fork_private_repositories = settings.get("members_can_fork_private_repositories", None)
+
         for repo in repos:
             repo_name = repo["name"]
+            is_private = repo["private"]
+
+            allow_forking = repo.get("allow_forking", False)
+
+            if is_private and members_can_fork_private_repositories is False and allow_forking is True:
+                self.printer.print_error(
+                    f"private repo[name=\"{repo_name}\"] has 'allow_forking' enabled while the organization setting"
+                    f" 'members_can_fork_private_repositories' is disabled.")
+                validation_errors += 1
+
             branch_protection_rules = repo.get("branch_protection_rules")
             if branch_protection_rules is not None:
                 for rule in branch_protection_rules:

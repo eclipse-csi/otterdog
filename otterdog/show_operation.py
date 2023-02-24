@@ -61,8 +61,15 @@ class ShowOperation(Operation):
 
             for repo in organization.get_repos():
                 repo_name = repo["name"]
+                is_private = repo["private"]
                 repo_data = repo.copy()
                 branch_protection_rules = repo_data.pop("branch_protection_rules")
+
+                # private repos dont support security analysis.
+                # TODO: make this cleaner
+                if is_private:
+                    if "secret_scanning" in repo_data:
+                        repo_data.pop("secret_scanning")
 
                 self.printer.print()
                 self.print_dict(repo_data,

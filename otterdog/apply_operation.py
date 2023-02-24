@@ -14,6 +14,7 @@ from config import OtterdogConfig
 from diff_operation import DiffStatus
 from plan_operation import PlanOperation
 from utils import IndentingPrinter
+import mapping
 
 
 class ApplyOperation(PlanOperation):
@@ -126,10 +127,12 @@ class ApplyOperation(PlanOperation):
             self.gh_client.add_webhook(org_id, webhook)
 
         for repo_name, repo in self._modified_repos.items():
-            self.gh_client.update_repo(org_id, repo_name, repo)
+            github_repo = mapping.map_otterdog_repo_data_to_github(repo)
+            self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._new_repos:
-            self.gh_client.add_repo(org_id, repo)
+            github_repo = mapping.map_otterdog_repo_data_to_github(repo)
+            self.gh_client.add_repo(org_id, github_repo)
 
         for (repo_name, rule_pattern, rule_id, rule) in self._modified_rules:
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, rule)

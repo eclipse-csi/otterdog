@@ -127,6 +127,9 @@ local newRepo(name) = {
 
   web_commit_signoff_required: false,
 
+  # security analysis
+  secret_scanning: "enabled",
+
   branch_protection_rules: []
 };
 

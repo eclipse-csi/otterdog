@@ -50,14 +50,21 @@ class GithubRest:
         try:
             json_response = self.get_content_object(org_id, repo_name, path)
             old_sha = json_response["sha"]
+            old_content = base64.b64decode(json_response["content"]).decode('utf-8')
         except RuntimeError:
             old_sha = None
+            old_content = None
+
+        # check if the content has changed, otherwise do not update
+        if old_content is not None and content == old_content:
+            utils.print_debug(f"not updating content, no changes")
+            return
 
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
         base64_content = base64_encoded_data.decode("utf-8")
 
         data = {
-            "message": "Updating content using otterdog.",
+            "message": f"Updating file '{path}' with otterdog.",
             "content": base64_content,
         }
 

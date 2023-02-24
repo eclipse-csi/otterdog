@@ -24,13 +24,14 @@
     "archived": { "type": "boolean" },
     "allow_forking": { "type": "boolean" },
     "web_commit_signoff_required": { "type": "boolean" },
+    "secret_scanning": { "type": "string" },
     "branch_protection_rules": {
       "type": "array",
       "items": { "$ref": "branch-protection-rule.json" }
     }
   },
 
-  "required": [ "name" ],
+  "required": [ "name", "private" ],
   "additionalProperties": false,
 
   "definitions": {

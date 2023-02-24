@@ -25,7 +25,6 @@ def add_items_if_contained_in_schema(data: dict[str, Any], schema: dict[str, Any
                 nested_result = {}
                 add_items_if_contained_in_schema(v, properties[k], nested_result)
                 result[k] = nested_result
-
             else:
                 result[k] = v
 
@@ -34,3 +33,10 @@ def get_items_contained_in_schema(data: dict[str, Any], schema: dict[str, Any]) 
     result = {}
     add_items_if_contained_in_schema(data, schema, result)
     return result
+
+
+def get_properties_of_schema(schema: dict[str, Any]) -> set[str]:
+    properties = set()
+    for k, v in schema["properties"].items():
+        properties.add(k)
+    return properties
