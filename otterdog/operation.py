@@ -39,7 +39,7 @@ class Operation(Protocol):
         self.printer.print(f"{prefix}{item_header} {{")
         self.printer.level_up()
 
-        for key, value in data.items():
+        for key, value in sorted(data.items()):
             if isinstance(value, dict):
                 self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
@@ -59,13 +59,13 @@ class Operation(Protocol):
         self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
-        for key, (expected_value, current_value) in data.items():
+        for key, (expected_value, current_value) in sorted(data.items()):
             if isinstance(expected_value, dict):
                 self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
 
                 processed_keys = set()
-                for k, v in expected_value.items():
+                for k, v in sorted(expected_value.items()):
                     c_v = current_value.get(k)
 
                     if v != c_v:
@@ -74,7 +74,7 @@ class Operation(Protocol):
 
                     processed_keys.add(k)
 
-                for k, v in current_value.items():
+                for k, v in sorted(current_value.items()):
                     if k not in processed_keys:
                         self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                            f" \"{v}\"")

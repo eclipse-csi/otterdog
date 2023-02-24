@@ -201,24 +201,51 @@ class GithubRest:
             raise RuntimeError(msg)
 
         result = response_repo.json()
+
+        utils.print_debug(f"retrieving repo vulnerability report status for '{repo_name}' via rest API")
+
+        response_vulnerability = \
+            requests.get(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/vulnerability-alerts",
+                         headers=self._headers)
+        utils.print_trace(f"rest result = ({response_vulnerability.status_code})")
+
+        if response_vulnerability.status_code == 204:
+            result["dependabot_alerts_enabled"] = True
+        else:
+            result["dependabot_alerts_enabled"] = False
+
         return result
 
     def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         utils.print_debug("updating repo settings via rest API")
 
-        response = requests.patch(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}",
-                                  headers=self._headers,
-                                  data=json.dumps(data))
-        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+        if "dependabot_alerts_enabled" in data:
+            vulnerability_reports = bool(data.pop("dependabot_alerts_enabled"))
+        else:
+            vulnerability_reports = None
 
-        if not response.ok:
-            raise RuntimeError(f"failed to update settings for repo '{repo_name}'")
+        if len(data) > 0:
+            response = requests.patch(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}",
+                                      headers=self._headers,
+                                      data=json.dumps(data))
+            utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
-        utils.print_debug(f"updated {len(data)} repo setting(s) via rest api")
+            if not response.ok:
+                raise RuntimeError(f"failed to update settings for repo '{repo_name}'")
 
-    def add_repo(self, org_id: str, data: dict[str, str]) -> None:
+            utils.print_debug(f"updated {len(data)} repo setting(s) via rest api")
+
+        if vulnerability_reports is not None:
+            self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
+
+    def add_repo(self, org_id: str, data: dict[str, Any]) -> None:
         repo_name = data["name"]
         utils.print_debug(f"creating repo '{repo_name}' via rest API")
+
+        if "dependabot_alerts_enabled" in data:
+            vulnerability_reports = bool(data.pop("dependabot_alerts_enabled"))
+        else:
+            vulnerability_reports = None
 
         response = requests.post(url=f"{self._GH_API_URL_ROOT}/orgs/{org_id}/repos",
                                  headers=self._headers,
@@ -228,4 +255,26 @@ class GithubRest:
         if not response.ok:
             raise RuntimeError(f"failed to add repo with name '{repo_name}'")
 
-        utils.print_debug(f"added webhook with url '{repo_name}' via rest api")
+        utils.print_debug(f"added repo with name '{repo_name}' via rest api")
+
+        if vulnerability_reports is not None:
+            self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
+
+    def _update_vulnerability_report_for_repo(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
+        utils.print_debug(f"updating repo vulnerability report status for '{repo_name}' via rest API")
+
+        if vulnerability_reports is True:
+            response_vulnerability = \
+                requests.put(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/vulnerability-alerts",
+                             headers=self._headers)
+        else:
+            response_vulnerability = \
+                requests.delete(url=f"{self._GH_API_URL_ROOT}/repos/{org_id}/{repo_name}/vulnerability-alerts",
+                                headers=self._headers)
+
+        utils.print_trace(f"rest result = ({response_vulnerability.status_code})")
+
+        if response_vulnerability.status_code != 204:
+            raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}'")
+        else:
+            utils.print_debug(f"updated vulnerability_reports for repo via rest api")
