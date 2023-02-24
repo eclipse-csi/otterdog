@@ -123,7 +123,7 @@ class ValidateOperation(Operation):
                     requiredApprovingReviewCount = rule.get("requiredApprovingReviewCount")
 
                     if (requiresApprovingReviews is True) and \
-                            (requiredApprovingReviewCount is None or requiredApprovingReviewCount < 1):
+                            (requiredApprovingReviewCount is None or requiredApprovingReviewCount < 0):
                         self.printer.print_error(
                             f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
                             f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' is not set.")
