@@ -6,8 +6,9 @@ $ make init
 
 Additional system requirements:
 
-* bitwarden cli tool: install using `snap install bw`
-* jsonnet-bundler: install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
+* bitwarden cli tool (optional): install using `snap install bw`
+* pass cli tool (optional): install using `apt install pass`
+* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
 
 ## Setup
 

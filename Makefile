@@ -7,11 +7,11 @@ init:
     )
 
   	ifeq (, $(shell which bw))
- 		$(error "No bitwarden cli tool in your PATH, install it using 'snap install bw'")
+ 		$(warning "No bitwarden cli tool found in your PATH, install it using 'snap install bw'")
  	endif
 
   	ifeq (, $(shell which pass))
- 		$(error "No pass cli tool in your PATH, install it using 'apt install pass'")
+ 		$(warning "No pass cli tool found in your PATH, install it using 'apt install pass'")
  	endif
 
   	ifeq (, $(shell which jb))
