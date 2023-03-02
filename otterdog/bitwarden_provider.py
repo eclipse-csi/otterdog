@@ -42,7 +42,7 @@ class BitwardenVault(CredentialProvider):
         if api_token_key is None:
             api_token_key = self._api_token_key
 
-        status, item_json = subprocess.getstatusoutput("bw get item {}".format(item_id))
+        status, item_json = subprocess.getstatusoutput(f"bw get item {item_id}")
         utils.print_trace(f"result = ({status}, {item_json})")
 
         if status != 0:
@@ -74,4 +74,4 @@ class BitwardenVault(CredentialProvider):
         return Credentials(username, password, github_token, totp_secret)
 
     def __str__(self):
-        return "BitWardenVault(unlocked={})".format(self.is_unlocked())
+        return f"BitWardenVault(unlocked={self.is_unlocked()})"

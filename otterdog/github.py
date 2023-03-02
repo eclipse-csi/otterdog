@@ -11,7 +11,7 @@ from typing import Any
 
 import schemas
 import utils
-from bitwarden import Credentials
+from bitwarden_provider import Credentials
 from github_graphql import GithubGraphQL
 from github_rest import GithubRest
 from github_web import GithubWeb

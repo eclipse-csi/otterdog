@@ -14,9 +14,10 @@ from typing import Any
 import jq
 import _jsonnet
 
-import bitwarden
+import bitwarden_provider
 import utils
 import credentials
+import pass_provider
 
 _DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
 
@@ -261,7 +262,11 @@ class OtterdogConfig:
                           .input(self._configuration)\
                           .first()
 
-                    provider = bitwarden.BitwardenVault(api_token_key)
+                    provider = bitwarden_provider.BitwardenVault(api_token_key)
+                    self._credential_providers[provider_type] = provider
+
+                case "pass":
+                    provider = pass_provider.PassVault()
                     self._credential_providers[provider_type] = provider
 
                 case _:

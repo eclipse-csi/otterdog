@@ -10,6 +10,10 @@ init:
  		$(error "No bitwarden cli tool in your PATH, install it using 'snap install bw'")
  	endif
 
+  	ifeq (, $(shell which pass))
+ 		$(error "No pass cli tool in your PATH, install it using 'apt install pass'")
+ 	endif
+
   	ifeq (, $(shell which jb))
  		$(error "No jsonnet-bundler tool in your PATH, install it using 'go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest'")
  	endif

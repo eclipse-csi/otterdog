@@ -23,6 +23,46 @@ with the __-c__ flag):
       "name": "<org name>",
       "github_id": "<github org id>",
       "credentials": {
+        "provider": "<bitwarden | pass>",
+        ... // provider specific data
+      }
+    }
+  ]
+  ...
+}
+```
+
+## Credentials
+
+Otterdog needs certain credentials to access information from an organization and its repositories on GitHub:
+
+* username / password / 2FA seed 
+* API token
+
+The login / username / 2FA seed are required to access the web interface of GitHub in order to retrieve certain
+settings that are not accessible via its rest / graphql API.
+
+The GitHub api token needs to have the following scopes enabled:
+
+* repo
+* workflow
+* admin:org
+* admin:org_hook
+
+The credentials can be stored in different providers (bitwarden, pass).
+
+### Bitwarden
+
+When using **bitwarden** to store the credentials, you need to enter a valid __item id__ as additional credential data:
+
+```json
+{ 
+  ...
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
         "provider": "bitwarden",
         "item_id" : "<bitwarden item id>"
       }
@@ -32,8 +72,7 @@ with the __-c__ flag):
 }
 ```
 
-When using **bitwarden** to store the credentials, you need to enter a valid __item id__. This item needs to
-contain the following information (a sample json output of such an item):
+The item stored in bitwarden needs to contain the following information (a sample json output of such an item):
 
 ```json
 {
@@ -61,15 +100,30 @@ Mandatory items:
 * __login.password__ the password of that user
 * __login.totp__ the TOTP text code
 
-The login / username / totp are required to access the web interface of GitHub in order to retrieve certain
-settings that are not accessible via its rest / graphql API.
+### Pass
 
-The GitHub api token needs to have the following scopes enabled:
+When using **pass** to store the credentials, you need to enter fully qualified pass names to access the various
+required credential data:
 
-* repo
-* workflow
-* admin:org
-* admin:org_hook
+```json
+{ 
+  ...
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
+        "provider": "pass",
+        "api_token": "<path/to/api_token>",
+        "username": "<path/to/username>",
+        "password": "<path/to/password>",
+        "2fa_seed": "<path/to/2fa_seed>"
+      }
+    }
+  ]
+  ...
+}
+```
 
 ## Usage
 
