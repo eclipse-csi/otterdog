@@ -64,6 +64,13 @@ Mandatory items:
 The login / username / totp are required to access the web interface of GitHub in order to retrieve certain
 settings that are not accessible via its rest / graphql API.
 
+The GitHub api token needs to have the following scopes enabled:
+
+* repo
+* workflow
+* admin:org
+* admin:org_hook
+
 ## Usage
 
 Run the **import** operation to retrieve the current live configuration for an organization:
