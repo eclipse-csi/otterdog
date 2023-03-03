@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+import os
 import subprocess
 
 from credentials import Credentials, CredentialProvider
@@ -17,10 +18,14 @@ class PassVault(CredentialProvider):
     A class to provide convenient access to a pass vault.
     """
 
-    def __init__(self):
+    def __init__(self, password_store_dir: str):
         utils.print_debug("accessing pass vault")
         status, _ = subprocess.getstatusoutput("pass ls")
         utils.print_trace(f"result = {status}")
+
+        if password_store_dir:
+            utils.print_debug(f"setting password store dir to {password_store_dir}")
+            os.environ["PASSWORD_STORE_DIR"] = password_store_dir
 
         if status > 0:
             raise RuntimeError("pass vault is not accessible")

@@ -266,7 +266,12 @@ class OtterdogConfig:
                     self._credential_providers[provider_type] = provider
 
                 case "pass":
-                    provider = pass_provider.PassVault()
+                    password_store_dir =\
+                        jq.compile('.defaults.pass.password_store_dir // ""')\
+                          .input(self._configuration)\
+                          .first()
+
+                    provider = pass_provider.PassVault(password_store_dir)
                     self._credential_providers[provider_type] = provider
 
                 case _:
