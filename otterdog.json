@@ -6,6 +6,9 @@
     "bitwarden": {
       "api_token_key": "api_token_admin"
     },
+    "pass": {
+      "password_store_dir": "/home/tn/workspace/eclipse/pass/cbi-pass"
+    },
     "jsonnet": {
       "base_template": {
         "repo": "https://github.com/OtterdogTest/otterdog-defaults",
@@ -34,6 +37,17 @@
       "credentials": {
         "provider": "bitwarden",
         "item_id" : "118276ad-158c-4720-b68d-af8c00fe3481"
+      }
+    },
+    {
+      "name": "cbi",
+      "github_id": "eclipse-cbi",
+      "credentials": {
+        "provider": "pass",
+        "api_token": "bots/technology.cbi/github.com/otterdog-token",
+        "username": "bots/technology.cbi/github.com/username",
+        "password": "bots/technology.cbi/github.com/password",
+        "2fa_seed": "bots/technology.cbi/github.com/2FA-seed"
       }
     }
   ]
