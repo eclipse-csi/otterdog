@@ -13,6 +13,32 @@ from jsonbender import bend, S
 import schemas
 
 
+_FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS =\
+    {
+        "allow_auto_merge",
+        "allow_merge_commit",
+        "allow_rebase_merge",
+        "allow_squash_merge",
+        "allow_update_branch",
+        "delete_branch_on_merge",
+        "merge_commit_message",
+        "merge_commit_title",
+        "squash_merge_commit_message",
+        "squash_merge_commit_title"
+    }
+
+
+def shall_repo_key_be_included(key: str, is_private: bool, is_archived: bool) -> bool:
+    if is_private and (key == "secret_scanning"):
+        return False
+
+    if is_archived:
+        if key in _FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS:
+            return False
+
+    return True
+
+
 def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[str, Any]:
     allowed_repo_properties = schemas.get_properties_of_schema(schemas.REPOSITORY_SCHEMA)
 

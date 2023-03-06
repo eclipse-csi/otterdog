@@ -19,7 +19,7 @@ import schemas
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
-from utils import IndentingPrinter, associate_by_key
+from utils import IndentingPrinter, associate_by_key, print_warn
 
 from validate_operation import ValidateOperation
 
@@ -182,6 +182,7 @@ class DiffOperation(Operation):
             current_github_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
             current_repo_id = current_github_repo_data["node_id"]
             is_private = current_github_repo_data["private"]
+            is_archived = current_github_repo_data["archived"]
 
             current_otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(current_github_repo_data)
 
@@ -198,9 +199,7 @@ class DiffOperation(Operation):
                 if key == "branch_protection_rules":
                     continue
 
-                # private repos dont support security analysis.
-                # TODO: make this cleaner
-                if is_private and (key == "secret_scanning"):
+                if not mapping.shall_repo_key_be_included(key, is_private, is_archived):
                     continue
 
                 current_value = current_otterdog_repo_data.get(key)
@@ -238,6 +237,12 @@ class DiffOperation(Operation):
 
         expected_branch_protection_rules_by_pattern = \
             associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
+
+        is_archived = expected_repo["archived"]
+        if is_archived:
+            if len(expected_branch_protection_rules_by_pattern) > 0:
+                print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
+            return
 
         # only retrieve current rules if the repo_id is available, otherwise it's a new repo
         if repo_id:
