@@ -107,8 +107,14 @@ class ValidateOperation(Operation):
             repo_name = repo["name"]
             is_private = repo["private"]
 
-            allow_forking = repo.get("allow_forking", False)
+            has_wiki = repo.get("has_wiki", False)
+            if is_private and has_wiki is True:
+                self.printer.print_warn(
+                    f"private repo[name=\"{repo_name}\"] has 'has_wiki' enabled which is requires at least"
+                    f"GitHub Team billing.")
+                validation_errors += 1
 
+            allow_forking = repo.get("allow_forking", False)
             if is_private and members_can_fork_private_repositories is False and allow_forking is True:
                 self.printer.print_error(
                     f"private repo[name=\"{repo_name}\"] has 'allow_forking' enabled while the organization setting"
