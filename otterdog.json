@@ -11,7 +11,7 @@
     },
     "jsonnet": {
       "base_template": {
-        "repo": "https://github.com/OtterdogTest/otterdog-defaults",
+        "repo": "https://github.com/EclipseFdn/otterdog-defaults",
         "branch": "main",
         "file": "otterdog-defaults.libsonnet"
       },
