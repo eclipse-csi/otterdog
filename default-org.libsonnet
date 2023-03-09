@@ -27,7 +27,7 @@ local newOrg(id) = {
     members_can_fork_private_repositories: false,
 
     # Repository defaults: Commit signoff
-    web_commit_signoff_required: false,
+    web_commit_signoff_required: true,
 
     # GitHub Pages
     members_can_create_pages: true,
@@ -62,7 +62,7 @@ local newOrg(id) = {
     # If disabled, only organization owners can create new teams.
     members_can_create_teams: false,
 
-    two_factor_requirement: false,
+    two_factor_requirement: true,
 
     team_discussions_allowed: true,
 
@@ -125,10 +125,11 @@ local newRepo(name) = {
   # about private forks
   allow_forking: true,
 
-  web_commit_signoff_required: false,
+  web_commit_signoff_required: true,
 
   # security analysis
   secret_scanning: "enabled",
+  dependabot_alerts_enabled: true,
 
   branch_protection_rules: []
 };
@@ -148,8 +149,8 @@ local newBranchProtectionRule(pattern) = {
   #pushActorIds: [],
   #requiredStatusCheckContexts: [],
   #requiredStatusChecks: [],
-  requiredApprovingReviewCount: null,
-  requiresApprovingReviews: false,
+  requiredApprovingReviewCount: 2,
+  requiresApprovingReviews: true,
   requiresCodeOwnerReviews: false,
   requiresCommitSignatures: false,
   requiresConversationResolution: false,
