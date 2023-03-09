@@ -101,6 +101,7 @@ class ValidateOperation(Operation):
 
         repos = organization.get_repos()
 
+        web_commit_signoff_required = settings.get("web_commit_signoff_required", False)
         members_can_fork_private_repositories = settings.get("members_can_fork_private_repositories", None)
 
         for repo in repos:
@@ -119,6 +120,13 @@ class ValidateOperation(Operation):
                 self.printer.print_error(
                     f"private repo[name=\"{repo_name}\"] has 'allow_forking' enabled while the organization setting"
                     f" 'members_can_fork_private_repositories' is disabled.")
+                validation_errors += 1
+
+            repo_web_commit_signoff_required = repo.get("web_commit_signoff_required", False)
+            if repo_web_commit_signoff_required is False and web_commit_signoff_required is True:
+                self.printer.print_error(
+                    f"repo[name=\"{repo_name}\"] has 'web_commit_signoff_required' disabled while "
+                    f"the organization requires it.")
                 validation_errors += 1
 
             branch_protection_rules = repo.get("branch_protection_rules")
