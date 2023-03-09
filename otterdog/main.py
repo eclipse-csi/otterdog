@@ -55,7 +55,7 @@ if __name__ == '__main__':
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
-        subparser.add_argument("--force", "-f", action="store_true", default=0, help="enable more verbose output")
+        subparser.add_argument("--force", "-f", action="store_true", default=0, help="skips interactive approvals")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
     args = parser.parse_args()
