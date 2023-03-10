@@ -62,7 +62,7 @@ local newOrg(id) = {
     # If disabled, only organization owners can create new teams.
     members_can_create_teams: false,
 
-    two_factor_requirement: false,
+    two_factor_requirement: true,
 
     team_discussions_allowed: true,
 
