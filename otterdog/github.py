@@ -20,20 +20,23 @@ from github_web import GithubWeb
 class Github:
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
-        os.environ["GH_TOKEN"] = credentials.github_token
 
-        settings_schema = schemas.SETTINGS_SCHEMA
+        self.settings_schema = schemas.SETTINGS_SCHEMA
         # collect supported rest api keys
         self.settings_restapi_keys =\
-            {k for k, v in settings_schema["properties"].items() if v.get("provider") == "restapi"}
+            {k for k, v in self.settings_schema["properties"].items() if v.get("provider") == "restapi"}
 
         # collect supported web interface keys
         self.settings_web_keys =\
-            {k for k, v in settings_schema["properties"].items() if v.get("provider") == "web"}
+            {k for k, v in self.settings_schema["properties"].items() if v.get("provider") == "web"}
 
         self.rest_client = GithubRest(credentials.github_token)
         self.web_client = GithubWeb(self.credentials)
         self.graphql_client = GithubGraphQL(credentials.github_token)
+
+    def is_readonly_org_setting(self, setting_key: str) -> bool:
+        setting_entry = self.settings_schema["properties"].get(setting_key)
+        return setting_entry.get("readonly", False)
 
     def get_content(self, org_id: str, repo_name: str, path: str) -> str:
         return self.rest_client.get_content(org_id, repo_name, path)

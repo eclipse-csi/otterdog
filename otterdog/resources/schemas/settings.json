@@ -105,6 +105,7 @@
     },
     "two_factor_requirement": {
       "provider": "web",
+      "readonly": true,
       "type": "boolean"
     },
     "team_discussions_allowed": {

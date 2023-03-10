@@ -35,14 +35,16 @@ class ApplyOperation(PlanOperation):
     def pre_execute(self) -> None:
         self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
 
-    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
+    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> int:
         super().handle_modified_settings(org_id, modified_settings)
 
         settings = {}
         for key, (expected_value, current_value) in modified_settings.items():
-            settings[key] = expected_value
+            if not self.gh_client.is_readonly_org_setting(key):
+                settings[key] = expected_value
 
         self._modified_settings = settings
+        return len(settings)
 
     def handle_modified_webhook(self,
                                 org_id: str,

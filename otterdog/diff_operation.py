@@ -122,11 +122,13 @@ class DiffOperation(Operation):
             current_value = current_org_settings.get(key)
 
             if current_value != expected_value:
-                diff_status.differences += 1
                 modified_settings[key] = (expected_value, current_value)
 
         if len(modified_settings) > 0:
-            self.handle_modified_settings(github_id, modified_settings)
+            # some settings might be read-only, collect the correct number of changes
+            # to be executed based on the operation to be performed.
+            differences = self.handle_modified_settings(github_id, modified_settings)
+            diff_status.differences += differences
 
     def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
@@ -277,7 +279,7 @@ class DiffOperation(Operation):
     @abstractmethod
     def handle_modified_settings(self,
                                  org_id: str,
-                                 modified_settings: dict[str, (Any, Any)]) -> None:
+                                 modified_settings: dict[str, (Any, Any)]) -> int:
         raise NotImplementedError
 
     @abstractmethod

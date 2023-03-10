@@ -29,8 +29,18 @@ class PlanOperation(DiffOperation):
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
         self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
 
-    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> None:
+    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> int:
         self.print_modified_dict(modified_settings, "settings")
+
+        settings_to_change = 0
+        for k, v in modified_settings.items():
+            if self.gh_client.is_readonly_org_setting(k):
+                self.printer.print(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
+                                   f"can only be changed manually via the Web UI.")
+            else:
+                settings_to_change += 1
+
+        return settings_to_change
 
     def handle_modified_webhook(self,
                                 org_id: str,
