@@ -52,7 +52,8 @@ def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[s
     # the "security_and_analysis is not present for private repos.
     if "security_and_analysis" in github_repo_data:
         mapping.update({
-            "secret_scanning": S("security_and_analysis", "secret_scanning", "status")
+            "secret_scanning": S("security_and_analysis", "secret_scanning", "status"),
+            "secret_scanning_push_protection": S("security_and_analysis", "secret_scanning_push_protection", "status")
         })
 
     return bend(mapping, github_repo_data)
@@ -72,12 +73,12 @@ def map_otterdog_repo_data_to_github(otterdog_repo_data: dict[str, Any]) -> dict
 
     # private repos don't support a security_and_analysis block.
     if is_private:
-        for security_prop in ["secret_scanning"]:
+        for security_prop in ["secret_scanning", "secret_scanning_push_protection"]:
             if security_prop in mapping:
                 mapping.pop(security_prop)
     else:
         security_mapping = {}
-        for security_prop in ["secret_scanning"]:
+        for security_prop in ["secret_scanning", "secret_scanning_push_protection"]:
             if security_prop in mapping:
                 mapping.pop(security_prop)
             if security_prop in otterdog_repo_data:
