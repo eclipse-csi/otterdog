@@ -108,18 +108,19 @@ class DiffOperation(Operation):
         self.printer.print(f"organization settings: Reading...")
 
         # determine differences for settings.
-        current_org_settings = self.gh_client.get_org_settings(github_id, expected_settings.keys())
+        current_github_org_settings = self.gh_client.get_org_settings(github_id, expected_settings.keys())
+        current_otterdog_org_settings = mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
 
         end = datetime.now()
         self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
-            if key not in current_org_settings:
+            if key not in current_otterdog_org_settings:
                 self.printer.print_warn(f"unexpected key '{key}' found in configuration, skipping")
                 continue
 
-            current_value = current_org_settings.get(key)
+            current_value = current_otterdog_org_settings.get(key)
 
             if current_value != expected_value:
                 modified_settings[key] = (expected_value, current_value)

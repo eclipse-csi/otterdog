@@ -39,6 +39,24 @@ def shall_repo_key_be_included(key: str, is_private: bool, is_archived: bool) ->
     return True
 
 
+def map_github_org_settings_data_to_otterdog(github_org_data: dict[str, Any]) -> dict[str, Any]:
+    allowed_repo_properties = schemas.get_properties_of_schema(schemas.SETTINGS_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_repo_properties:
+        if k in github_org_data:
+            mapping[k] = S(k)
+
+    # add mapping for specific properties if they are present.
+    if "plan" in github_org_data:
+        mapping.update({
+            "plan": S("plan", "name")
+        })
+
+    return bend(mapping, github_org_data)
+
+
 def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[str, Any]:
     allowed_repo_properties = schemas.get_properties_of_schema(schemas.REPOSITORY_SCHEMA)
 
@@ -57,6 +75,21 @@ def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[s
         })
 
     return bend(mapping, github_repo_data)
+
+
+def map_otterdog_org_settings_data_to_github(otterdog_org_data: dict[str, Any]) -> dict[str, Any]:
+    allowed_repo_properties = schemas.get_properties_of_schema(schemas.SETTINGS_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_repo_properties:
+        if k in otterdog_org_data:
+            mapping[k] = S(k)
+
+    # plan is a readonly feature only needed for validation.
+    mapping.pop("plan")
+
+    return bend(mapping, otterdog_org_data)
 
 
 def map_otterdog_repo_data_to_github(otterdog_repo_data: dict[str, Any]) -> dict[str, Any]:

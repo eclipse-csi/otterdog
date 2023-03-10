@@ -26,6 +26,7 @@ class JsonnetConfig:
     def __init__(self,
                  data_dir: str,
                  settings: dict[str, Any],
+                 local_only: bool,
                  import_prefix: str = "../"):
 
         self._data_dir = data_dir
@@ -47,7 +48,8 @@ class JsonnetConfig:
                 jq.compile(f'.file // "{_DEFAULT_TEMPLATE_FILE}"')\
                   .input(base_template).first()
 
-        self._init_base_template()
+        if not local_only:
+            self._init_base_template()
 
         self._import_prefix = import_prefix
 
@@ -199,7 +201,7 @@ class OrganizationConfig:
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, force_processing: bool):
+    def __init__(self, config_file: str, force_processing: bool, local_only: bool):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -212,7 +214,7 @@ class OtterdogConfig:
             self._configuration = json.load(f)
 
         jsonnet_settings = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
-        self._jsonnet_config = JsonnetConfig(self.data_dir, jsonnet_settings)
+        self._jsonnet_config = JsonnetConfig(self.data_dir, jsonnet_settings, local_only)
 
         self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
 
@@ -291,5 +293,5 @@ class OtterdogConfig:
         return f"OtterdogConfig('{self.data_dir}')"
 
     @classmethod
-    def from_file(cls, config_file: str, force_processing: bool):
-        return cls(config_file, force_processing)
+    def from_file(cls, config_file: str, force_processing: bool, local_only: bool):
+        return cls(config_file, force_processing, local_only)

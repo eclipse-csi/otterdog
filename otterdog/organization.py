@@ -172,8 +172,9 @@ def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Gith
     org = Organization(github_id)
 
     default_settings = jsonnet_config.default_org_config["settings"]
-    settings = client.get_org_settings(github_id, set(default_settings.keys()))
-    org.update_settings(settings)
+    github_settings = client.get_org_settings(github_id, set(default_settings.keys()))
+    otterdog_settings = mapping.map_github_org_settings_data_to_otterdog(github_settings)
+    org.update_settings(otterdog_settings)
 
     webhooks = client.get_webhooks(github_id)
     org.update_webhooks(webhooks)

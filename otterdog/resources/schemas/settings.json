@@ -7,6 +7,11 @@
       "provider": "restapi",
       "$ref": "#/definitions/string_or_null"
     },
+    "plan": {
+      "provider": "restapi",
+      "readonly": true,
+      "type": "string"
+    },
     "billing_email": {
       "provider": "restapi",
       "type": "string"
