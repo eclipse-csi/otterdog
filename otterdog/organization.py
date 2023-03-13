@@ -12,7 +12,6 @@ import textwrap
 from io import StringIO
 from typing import Any
 
-import _jsonnet
 import jsonschema
 from importlib_resources import files, as_file
 
@@ -162,7 +161,9 @@ def load_from_file(github_id: str, config_file: str) -> Organization:
         msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
         raise RuntimeError(msg)
 
-    config = json.loads(_jsonnet.evaluate_file(config_file))
+    utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
+    config = utils.jsonnet_evaluate_file(config_file)
+
     org = Organization(github_id)
     org.load_config(config)
     return org

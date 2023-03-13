@@ -12,7 +12,6 @@ import subprocess
 from typing import Any
 
 import jq
-import _jsonnet
 
 import bitwarden_provider
 import utils
@@ -69,29 +68,29 @@ class JsonnetConfig:
 
         try:
             # load the default settings for the organization
-            jsonnet_snippet = f"(import '{template_file}').newOrg('default')"
-            self.default_org_config = json.loads(_jsonnet.evaluate_snippet("snippet", jsonnet_snippet))
+            snippet = f"(import '{template_file}').newOrg('default')"
+            self.default_org_config = utils.jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config: {ex}")
 
         try:
             # load the default webhook config
             webhook_snippet = f"(import '{template_file}').newWebhook()"
-            self.default_org_webhook_config = json.loads(_jsonnet.evaluate_snippet("snippet", webhook_snippet))
+            self.default_org_webhook_config = utils.jsonnet_evaluate_snippet(webhook_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default webhook config: {ex}")
 
         try:
             # load the default repo config
             repo_snippet = f"(import '{template_file}').newRepo('default')"
-            self.default_org_repo_config = json.loads(_jsonnet.evaluate_snippet("snippet", repo_snippet))
+            self.default_org_repo_config = utils.jsonnet_evaluate_snippet(repo_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default repo config: {ex}")
 
         try:
             # load the default branch protection rule config
-            repo_snippet = f"(import '{template_file}').newBranchProtectionRule('default')"
-            self.default_org_branch_config = json.loads(_jsonnet.evaluate_snippet("snippet", repo_snippet))
+            branch_protection_snippet = f"(import '{template_file}').newBranchProtectionRule('default')"
+            self.default_org_branch_config = utils.jsonnet_evaluate_snippet(branch_protection_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default branch protection rule config: {ex}")
 
