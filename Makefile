@@ -14,6 +14,10 @@ init:
  		$(warning "No pass cli tool found in your PATH, install it using 'apt install pass'")
  	endif
 
+  	ifeq (, $(shell which jsonnet))
+ 		$(error "No jsonnet cli tool found in your PATH, install it using 'apt install jsonnet'")
+ 	endif
+
   	ifeq (, $(shell which jb))
  		$(error "No jsonnet-bundler tool in your PATH, install it using 'go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest'")
  	endif
