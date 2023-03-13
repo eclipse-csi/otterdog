@@ -122,6 +122,9 @@ class JsonnetConfig:
     def get_jsonnet_bundle_file(self) -> str:
         return f"{self.orgs_dir}/jsonnetfile.json"
 
+    def get_jsonnet_bundle_lock_file(self) -> str:
+        return f"{self.orgs_dir}/jsonnetfile.lock.json"
+
     def _init_base_template(self) -> None:
         if self._use_jsonnet_bundler:
             content =\
@@ -143,6 +146,12 @@ class JsonnetConfig:
 
             with open(self.get_jsonnet_bundle_file(), "w") as file:
                 file.write(json.dumps(content, indent=2))
+
+            # create an empty lock file if it does not exist yet
+            lock_file = self.get_jsonnet_bundle_lock_file()
+            if not os.path.exists(lock_file):
+                with open(lock_file, "w") as file:
+                    file.write("")
 
             utils.print_debug("running jsonnet-bundler update")
             cwd = os.getcwd()
