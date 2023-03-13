@@ -153,7 +153,7 @@ class JsonnetConfig:
                 utils.print_trace(f"result = ({status}, {result})")
 
                 if status != 0:
-                    raise RuntimeError()
+                    raise RuntimeError(result)
 
             finally:
                 os.chdir(cwd)
