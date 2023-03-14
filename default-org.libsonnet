@@ -143,7 +143,7 @@ local newBranchProtectionRule(pattern) = {
   # slug for team, app and login for user
   #bypassPullRequestAllowances: [],
   dismissesStaleReviews: false,
-  isAdminEnforced: true,
+  isAdminEnforced: false,
   lockAllowsFetchAndMerge: false,
   lockBranch: false,
   #pushActorIds: [],
