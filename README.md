@@ -1,4 +1,4 @@
-## Build instructions
+## Build instructions (WIP)
 Create a virtual python environment and install necessary dependencies:
 ```console
 $ make init
@@ -250,6 +250,53 @@ Run **apply** operation to reflect the written configuration on github itself:
 
 ```console
 $ otterdog.sh apply <organization>
+```
+
+# Docker Container (Linux/MacOS)
+
+## Requirements
+* An otterdog.json already in your current directory
+* (Recommended) a directory orgs
+
+
+## Bulding docker image
+Please use macro below
+```console
+make docker_build
+```
+
+## Running otterdog in a container 
+
+### Using Bitwarden client
+* Firstly you need to login and unlock your Bitwarden session by executing the command below
+```console
+bw login
+bw unlock
+```
+* As result, you will get a token session. Please follow example below to make available in your terminal (Linux/MacOS)
+```console
+export BW_SESSION="ffdsajklloremipsumfxs000f000r0loremipsum"
+```
+* (Optional) Create an alias
+```console
+alias otterdog='docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base'
+``` 
+* Please use the bash snippet below with alas, for instance to get otterdog help
+```console
+otterdog -h
+```
+* Please use the bash snippet below, for instance to get otterdog help
+```console
+docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base -h
+```
+
+### Using pass client (WIP)
+TBD
+
+## Cleaning docker environment
+* Please use the macro below
+```console
+make docker_clean
 ```
 
 ## Known issues
