@@ -29,7 +29,6 @@ COPY otterdog /app/otterdog
 COPY otterdog.* /app/
 COPY *.md /app/
 COPY requirements.txt /app/
-COPY default-org.libsonnet /app/
 COPY --from=builder-go /go/bin/jb /usr/bin/jb
 RUN python3 -m venv /app/venv \ 
     && /app/venv/bin/pip3 install -r /app/requirements.txt \
