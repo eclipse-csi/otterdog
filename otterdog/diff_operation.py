@@ -9,18 +9,18 @@
 import os
 from abc import abstractmethod
 from datetime import datetime
+from multiprocessing import Pool
 from typing import Any
 
 from colorama import Style
 
-import organization as org
 import mapping
+import organization as org
 import schemas
 from config import OtterdogConfig, OrganizationConfig
 from github import Github
 from operation import Operation
 from utils import IndentingPrinter, associate_by_key, print_warn
-
 from validate_operation import ValidateOperation
 
 
@@ -35,6 +35,8 @@ class DiffStatus:
 
 
 class DiffOperation(Operation):
+    _DEFAULT_POOL_SIZE = 12
+
     def __init__(self):
         self.config = None
         self.jsonnet_config = None
@@ -171,6 +173,14 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
             diff_status.additions += 1
 
+    def _process_single_repo(self, params: (str, str)) -> (str, dict[str, Any]):
+        github_id, repo_name = params
+        repo_data = \
+            self.gh_client.get_repo_data(github_id, repo_name)
+        repo_data["branch_protection_rules"] = \
+            self.gh_client.get_branch_protection_rules(github_id, repo_name)
+        return repo_name, repo_data
+
     def _process_repositories(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         self.printer.print(f"\nrepositories: Reading...")
@@ -178,11 +188,20 @@ class DiffOperation(Operation):
         expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
         current_repos = self.gh_client.get_repos(github_id)
 
+        # retrieve repo_data and branch_protection_rules in parallel using a pool.
+        current_github_repos = {}
+        with Pool(self._DEFAULT_POOL_SIZE) as pool:
+            data = pool.map(self._process_single_repo, [(github_id, repo_name) for repo_name in current_repos])
+            for (repo_name, repo_data) in data:
+                current_github_repos[repo_name] = repo_data
+
         end = datetime.now()
         self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
         for current_repo_name in current_repos:
-            current_github_repo_data = self.gh_client.get_repo_data(github_id, current_repo_name)
+            current_github_repo_data = current_github_repos[current_repo_name]
+            current_branch_protection_rules = current_github_repo_data.pop("branch_protection_rules")
+
             current_repo_id = current_github_repo_data["node_id"]
             is_private = current_github_repo_data["private"]
             is_archived = current_github_repo_data["archived"]
@@ -216,6 +235,7 @@ class DiffOperation(Operation):
             self._process_branch_protection_rules(github_id,
                                                   current_repo_name,
                                                   current_repo_id,
+                                                  current_branch_protection_rules,
                                                   expected_repo,
                                                   diff_status)
 
@@ -229,12 +249,13 @@ class DiffOperation(Operation):
             diff_status.additions += 1
 
             if len(branch_protection_rules) > 0:
-                self._process_branch_protection_rules(github_id, repo_name, "", repo, diff_status)
+                self._process_branch_protection_rules(github_id, repo_name, "", [], repo, diff_status)
 
     def _process_branch_protection_rules(self,
                                          org_id: str,
                                          repo_name: str,
                                          repo_id: str,
+                                         current_rules: list[dict[str, Any]],
                                          expected_repo: dict[str, Any],
                                          diff_status: DiffStatus) -> None:
 
@@ -249,7 +270,6 @@ class DiffOperation(Operation):
 
         # only retrieve current rules if the repo_id is available, otherwise it's a new repo
         if repo_id:
-            current_rules = self.gh_client.get_branch_protection_rules(org_id, repo_name)
             for current_rule in current_rules:
                 rule_id = current_rule["id"]
                 rule_pattern = current_rule["pattern"]
