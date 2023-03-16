@@ -8,8 +8,9 @@
 
 import os
 from abc import abstractmethod
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from multiprocessing import Pool
+from functools import partial
 from typing import Any
 
 from colorama import Style
@@ -173,8 +174,7 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
             diff_status.additions += 1
 
-    def _process_single_repo(self, params: (str, str)) -> (str, dict[str, Any]):
-        github_id, repo_name = params
+    def _process_single_repo(self, github_id: str, repo_name: str) -> (str, dict[str, Any]):
         repo_data = \
             self.gh_client.get_repo_data(github_id, repo_name)
         repo_data["branch_protection_rules"] = \
@@ -190,8 +190,12 @@ class DiffOperation(Operation):
 
         # retrieve repo_data and branch_protection_rules in parallel using a pool.
         current_github_repos = {}
-        with Pool(self._DEFAULT_POOL_SIZE) as pool:
-            data = pool.map(self._process_single_repo, [(github_id, repo_name) for repo_name in current_repos])
+        # partially apply the github_id to get a function that only takes one parameter
+        process_repo = partial(self._process_single_repo, github_id)
+        # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
+        # due to the global interpreter lock.
+        with ProcessPoolExecutor() as pool:
+            data = pool.map(process_repo, current_repos)
             for (repo_name, repo_data) in data:
                 current_github_repos[repo_name] = repo_data
 
