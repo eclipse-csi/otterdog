@@ -32,7 +32,7 @@ COPY requirements.txt /app/
 COPY --from=builder-go /go/bin/jb /usr/bin/jb
 RUN python3 -m venv /app/venv \ 
     && /app/venv/bin/pip3 install -r /app/requirements.txt \
-    && /app/venv/bin/playwright install-deps
+    && /app/venv/bin/playwright install-deps chromium
 RUN cd /tmp/ && curl -k -L -O https://github.com/bitwarden/clients/releases/download/${BW_RELEASE}/${BW_VERSION} \ 
     && unzip /tmp/${BW_VERSION} -d /usr/bin/ && rm -rf /tmp/${BW_VERSION}
 
