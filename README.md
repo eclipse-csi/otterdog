@@ -281,7 +281,7 @@ export BW_SESSION="ffdsajklloremipsumfxs000f000r0loremipsum"
 ```
 * (Optional) Create an alias
 ```console
-alias otterdog='docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base'
+alias otterdog='docker run --rm -it --name otterdog-ubuntu --hostname otterdog-ubuntu -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-ubuntu'
 ``` 
 * Please use the bash snippet below with alas, for instance to get otterdog help
 ```console
@@ -289,7 +289,7 @@ otterdog -h
 ```
 * Please use the bash snippet below, for instance to get otterdog help
 ```console
-docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base -h
+docker run --rm -it --name otterdog-ubuntu --hostname otterdog-ubuntu -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-ubuntu -h
 ```
 
 ### Using pass client (WIP)

@@ -1,10 +1,10 @@
-.PHONY: init test clean
+.PHONY: init test clean docker_build docker_clean
 
 bw_version = "bw-linux-2023.2.0.zip"
 bw_release = "cli-v2023.2.0"
 dockerfile = "Dockerfile"
 image_base = "ubuntu"
-image_version = "dev"
+image_version = "latest"
 container_name = "otterdog"
 
 POETRY := $(shell command -v dot 2> /dev/null)
