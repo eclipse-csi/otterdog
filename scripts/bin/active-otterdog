@@ -1,0 +1,14 @@
+#!/bin/bash
+
+alias otterdog='
+    docker run --rm -it --name otterdog-ubuntu --hostname otterdog-ubuntu -e BW_SESSION="${BW_SESSION}" \
+    -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json \
+    -v $PWD/otterdog.json:/app/otterdog.json \
+    -v $PWD/orgs:/app/orgs \
+    -v $HOME/.gnupg:/root/.gnupg \
+    -v $HOME/.password-store:/root/.password-store \
+    eclipse/otterdog:latest-ubuntu'
+
+deactivate-otterdog(){
+    unalias otterdog
+}
