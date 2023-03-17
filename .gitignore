@@ -9,8 +9,8 @@ __pycache__/
 dist
 .venv/
 
-### Avoding otterdog out directory orgs
+### Ignoring otterdog out directory orgs
 orgs*
 
-### Avoidgin lock files
+### Ignoring lock files
 *.lock
