@@ -11,6 +11,3 @@ dist
 
 ### Ignoring otterdog out directory orgs
 orgs*
-
-### Ignoring lock files
-*.lock
