@@ -11,8 +11,8 @@ from typing import Protocol, Any
 
 from colorama import Fore, Style
 
-from config import OtterdogConfig, OrganizationConfig
-from utils import IndentingPrinter
+from .config import OtterdogConfig, OrganizationConfig
+from .utils import IndentingPrinter
 
 
 class Operation(Protocol):

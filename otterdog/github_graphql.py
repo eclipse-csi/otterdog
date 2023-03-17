@@ -14,7 +14,8 @@ from importlib_resources import files
 
 import requests
 
-import utils
+from . import resources
+from . import utils
 
 
 class GithubGraphQL:
@@ -108,7 +109,7 @@ class GithubGraphQL:
                          prefix_selector: str = ".data.repository.branchProtectionRules") -> list[dict[str, Any]]:
         utils.print_debug(f"running graphql query '{query_file}' for repo '{repo_name}'")
 
-        query = files("resources").joinpath(query_file).read_text()
+        query = files(resources).joinpath(query_file).read_text()
 
         finished = False
         end_cursor = None

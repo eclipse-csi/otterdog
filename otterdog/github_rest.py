@@ -12,7 +12,7 @@ from typing import Any
 
 import requests
 
-import utils
+from . import utils
 
 
 class GithubRest:

@@ -10,20 +10,24 @@ import argparse
 import sys
 import traceback
 
-import utils
-from apply_operation import ApplyOperation
-from config import OtterdogConfig
-from fetch_operation import FetchOperation
-from push_operation import PushOperation
-from import_operation import ImportOperation
-from plan_operation import PlanOperation
-from show_operation import ShowOperation
-from validate_operation import ValidateOperation
+from . import utils
+from .apply_operation import ApplyOperation
+from .config import OtterdogConfig
+from .fetch_operation import FetchOperation
+from .push_operation import PushOperation
+from .import_operation import ImportOperation
+from .plan_operation import PlanOperation
+from .show_operation import ShowOperation
+from .validate_operation import ValidateOperation
 
 CONFIG_FILE = "otterdog.json"
 
+
 # main entry point
-if __name__ == '__main__':
+def main(arguments=None):
+    if not arguments:
+        arguments = sys.argv[1:]
+
     # command line parsing.
     parser = argparse.ArgumentParser(prog="otterdog.sh",
                                      description="Manages GitHub organizations and repositories.")
@@ -59,7 +63,7 @@ if __name__ == '__main__':
         subparser.add_argument("--force", "-f", action="store_true", default=0, help="skips interactive approvals")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
-    args = parser.parse_args()
+    args = parser.parse_args(arguments)
 
     utils.init(args.verbose)
 
@@ -120,3 +124,8 @@ if __name__ == '__main__':
 
         utils.print_error(str(e))
         sys.exit(2)
+
+
+if __name__ == '__main__':
+    print("Hello World")
+    main(sys.argv[1:])

@@ -10,11 +10,11 @@ from typing import Any
 
 from colorama import Style
 
-from config import OtterdogConfig
-from diff_operation import DiffStatus
-from plan_operation import PlanOperation
-from utils import IndentingPrinter
-import mapping
+from .config import OtterdogConfig
+from .diff_operation import DiffStatus
+from .plan_operation import PlanOperation
+from .utils import IndentingPrinter
+from . import mapping
 
 
 class ApplyOperation(PlanOperation):

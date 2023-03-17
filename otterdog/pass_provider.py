@@ -9,8 +9,8 @@
 import os
 import subprocess
 
-from credentials import Credentials, CredentialProvider
-import utils
+from .credentials import Credentials, CredentialProvider
+from . import utils
 
 
 class PassVault(CredentialProvider):

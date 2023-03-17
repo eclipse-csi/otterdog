@@ -15,14 +15,14 @@ from typing import Any
 
 from colorama import Style
 
-import mapping
-import organization as org
-import schemas
-from config import OtterdogConfig, OrganizationConfig
-from github import Github
-from operation import Operation
-from utils import IndentingPrinter, associate_by_key, print_warn
-from validate_operation import ValidateOperation
+from . import mapping
+from . import organization as org
+from . import schemas
+from .config import OtterdogConfig, OrganizationConfig
+from .github import Github
+from .operation import Operation
+from .utils import IndentingPrinter, associate_by_key, print_warn
+from .validate_operation import ValidateOperation
 
 
 class DiffStatus:

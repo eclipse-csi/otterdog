@@ -9,8 +9,8 @@
 import json
 import subprocess
 
-from credentials import Credentials, CredentialProvider
-import utils
+from .credentials import Credentials, CredentialProvider
+from . import utils
 
 
 class BitwardenVault(CredentialProvider):

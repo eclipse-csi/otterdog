@@ -9,8 +9,9 @@
 from importlib_resources import files
 from playwright.sync_api import sync_playwright, Page, Error
 
-import utils
-from credentials import Credentials
+from . import resources
+from . import utils
+from .credentials import Credentials
 
 
 class GithubWeb:
@@ -24,14 +25,14 @@ class GithubWeb:
         # can be retrieved / modified.
         utils.print_trace(f"getting web_settings config using jsonnet")
 
-        web_settings_config = files("resources").joinpath("github-web-settings.jsonnet")
+        web_settings_config = files(resources).joinpath("github-web-settings.jsonnet")
         self.web_settings_definition = utils.jsonnet_evaluate_file(str(web_settings_config))
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         utils.print_debug("retrieving settings via web interface")
 
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.firefox.launch()
 
             page = browser.new_page()
             page.set_default_timeout(self._DEFAULT_TIMEOUT)

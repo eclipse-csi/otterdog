@@ -1,48 +1,55 @@
+# build jsonnet-bundler using a go environment
 FROM docker.io/library/golang:1.18 AS builder-go
 RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest
 
+# build otterdog using a python environment
+FROM docker.io/library/python:3.10.10-slim as builder-python3
 
-FROM docker.io/library/ubuntu:22.04 as builder-runtime
+WORKDIR /app
+
+ENV PIP_DEFAULT_TIMEOUT=100 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VERSION=1.4.0
+
+COPY otterdog ./otterdog
+COPY otterdog.* ./
+COPY pyproject.toml poetry.lock README.md ./
+
+RUN pip install "poetry==$POETRY_VERSION"
+
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --only=main --no-root && \
+    poetry build && \
+    poetry install --only-root
+
+# create the final image having python3.10 as base
+FROM python:3.10.10-slim
+
+RUN apt-get update \
+    && apt-get install -y \
+        jq \
+        pass \
+        curl \
+        unzip \
+        jsonnet
 
 ARG BW_VERSION
 ARG BW_RELEASE
 ENV BW_VERSION=${BW_VERSION}
 ENV BW_RELEASE=${BW_RELEASE}
 
-
-RUN apt-get update \
-    && apt-get install -y \
-        jq \
-        pass \
-        curl \ 
-        unzip \
-        build-essential \
-        git \
-        python3 \
-        python3-setuptools \
-        python3.10-venv \
-        python3.10-dev \
-        jsonnet
-
-WORKDIR /app
-COPY otterdog /app/otterdog
-COPY otterdog.* /app/
-COPY *.md /app/
-COPY requirements.txt /app/
-COPY --from=builder-go /go/bin/jb /usr/bin/jb
-RUN python3 -m venv /app/venv \ 
-    && /app/venv/bin/pip3 install -r /app/requirements.txt \
-    && /app/venv/bin/playwright install-deps chromium
-RUN cd /tmp/ && curl -k -L -O https://github.com/bitwarden/clients/releases/download/${BW_RELEASE}/${BW_VERSION} \ 
+RUN cd /tmp/ && curl -k -L -O https://github.com/bitwarden/clients/releases/download/${BW_RELEASE}/${BW_VERSION} \
     && unzip /tmp/${BW_VERSION} -d /usr/bin/ && rm -rf /tmp/${BW_VERSION}
 
+COPY --from=builder-go /go/bin/jb /usr/bin/jb
+COPY --from=builder-python3 /app/.venv /app/.venv
+COPY --from=builder-python3 /app/otterdog /app/otterdog
+COPY --from=builder-python3 /app/otterdog.sh /app/otterdog.sh
 
-FROM ubuntu:22.04
-COPY --from=builder-runtime /usr /usr
-COPY --from=builder-runtime /etc /etc
-COPY --from=builder-runtime /app /app
-RUN /app/venv/bin/playwright install chromium 
 WORKDIR /app
 
+RUN ./.venv/bin/playwright install-deps firefox && \
+    ./.venv/bin/playwright install firefox
 
 ENTRYPOINT ["/app/otterdog.sh"]

@@ -11,10 +11,10 @@ import os
 import jq
 from colorama import Fore, Style
 
-import organization as org
-from config import OtterdogConfig, OrganizationConfig
-from operation import Operation
-from utils import IndentingPrinter
+from . import organization as org
+from .config import OtterdogConfig, OrganizationConfig
+from .operation import Operation
+from .utils import IndentingPrinter
 
 
 class ValidateOperation(Operation):

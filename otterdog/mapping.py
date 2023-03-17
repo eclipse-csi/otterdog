@@ -10,7 +10,7 @@ from typing import Any
 
 from jsonbender import bend, S
 
-import schemas
+from . import schemas
 
 
 _FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS =\

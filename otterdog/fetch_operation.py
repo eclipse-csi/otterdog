@@ -10,10 +10,10 @@ import os
 
 from colorama import Style
 
-from config import OtterdogConfig, OrganizationConfig
-from github import Github
-from operation import Operation
-from utils import IndentingPrinter
+from .config import OtterdogConfig, OrganizationConfig
+from .github import Github
+from .operation import Operation
+from .utils import IndentingPrinter
 
 
 class FetchOperation(Operation):

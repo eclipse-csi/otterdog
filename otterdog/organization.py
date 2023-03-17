@@ -15,11 +15,12 @@ from typing import Any
 import jsonschema
 from importlib_resources import files, as_file
 
-import mapping
-import schemas
-import utils
-from config import JsonnetConfig
-from github import Github
+from . import resources
+from . import mapping
+from . import schemas
+from . import utils
+from .config import JsonnetConfig
+from .github import Github
 
 
 class Organization:
@@ -69,7 +70,7 @@ class Organization:
 
     @staticmethod
     def _validate_org_config(data: dict[str, Any]) -> None:
-        with as_file(files("resources").joinpath("schemas")) as resource_dir:
+        with as_file(files(resources).joinpath("schemas")) as resource_dir:
             schema_root = resource_dir.as_uri()
             resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
             jsonschema.validate(instance=data, schema=schemas.ORG_SCHEMA, resolver=resolver)

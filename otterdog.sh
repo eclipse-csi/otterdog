@@ -7,7 +7,11 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-# activate virtual environment
-. venv/bin/activate
-
-python3 otterdog/main.py "$@"
+if ! command -v poetry
+then
+    # activate virtual environment
+    . .venv/bin/activate
+    otterdog "$@"
+else
+    poetry run otterdog "$@"
+fi

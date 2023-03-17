@@ -7,14 +7,17 @@
 # *******************************************************************************
 
 import json
+
 from importlib_resources import files
 from typing import Any
 
-ORG_SCHEMA = json.loads(files("resources").joinpath("schemas/organization.json").read_text())
-SETTINGS_SCHEMA = json.loads(files("resources").joinpath("schemas/settings.json").read_text())
-WEBHOOK_SCHEMA = json.loads(files("resources").joinpath("schemas/webhook.json").read_text())
-REPOSITORY_SCHEMA = json.loads(files("resources").joinpath("schemas/repository.json").read_text())
-BRANCH_PROTECTION_RULE_SCHEMA = json.loads(files("resources").joinpath("schemas/branch-protection-rule.json").read_text())
+from . import resources
+
+ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
+SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
+WEBHOOK_SCHEMA = json.loads(files(resources).joinpath("schemas/webhook.json").read_text())
+REPOSITORY_SCHEMA = json.loads(files(resources).joinpath("schemas/repository.json").read_text())
+BRANCH_PROTECTION_RULE_SCHEMA = json.loads(files(resources).joinpath("schemas/branch-protection-rule.json").read_text())
 
 
 def add_items_if_contained_in_schema(data: dict[str, Any], schema: dict[str, Any], result: dict[str, Any]) -> None:

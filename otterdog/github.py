@@ -6,15 +6,14 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import os
 from typing import Any
 
-import schemas
-import utils
-from bitwarden_provider import Credentials
-from github_graphql import GithubGraphQL
-from github_rest import GithubRest
-from github_web import GithubWeb
+from . import schemas
+from . import utils
+from .bitwarden_provider import Credentials
+from .github_graphql import GithubGraphQL
+from .github_rest import GithubRest
+from .github_web import GithubWeb
 
 
 class Github:

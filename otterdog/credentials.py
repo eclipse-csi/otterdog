@@ -11,7 +11,7 @@ from typing import Protocol
 
 import mintotp
 
-import utils
+from . import utils
 
 
 class Credentials:

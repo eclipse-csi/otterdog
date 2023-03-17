@@ -10,9 +10,9 @@ from typing import Any
 
 from colorama import Fore, Style
 
-from config import OtterdogConfig
-from diff_operation import DiffOperation, DiffStatus
-from utils import IndentingPrinter
+from .config import OtterdogConfig
+from .diff_operation import DiffOperation, DiffStatus
+from .utils import IndentingPrinter
 
 
 class PlanOperation(DiffOperation):
