@@ -16,7 +16,7 @@ endif
 	poetry config virtualenvs.in-project true
 	poetry install --only=main --no-root
 	poetry run playwright install firefox
-	$(call LOCAL_INSTALLATION)
+
 
 test:
 	poetry run py.test
@@ -43,30 +43,4 @@ endef
 define DOCKER_CLEANER
 	docker rm -f $(container_name)-$(image_base)
 	docker rmi -f eclipse/$(container_name):$(1)-$(image_base)
-endef
-
-define LOCAL_INSTALLATION
-	test -d venv || python3 -m venv venv
-	( \
-       . venv/bin/activate; \
-       pip3 install -r requirements.txt; \
-       playwright install chromium \
-    )
-
-  	ifeq (, $(shell which bw))
- 		$(warning "No bitwarden cli tool found in your PATH, install it using 'snap install bw'")
- 	endif
-
-  	ifeq (, $(shell which pass))
- 		$(warning "No pass cli tool found in your PATH, install it using 'apt install pass'")
- 	endif
-
-  	ifeq (, $(shell which jsonnet))
- 		$(error "No jsonnet cli tool found in your PATH, install it using 'apt install jsonnet'")
- 	endif
-
-  	ifeq (, $(shell which jb))
- 		$(error "No jsonnet-bundler tool in your PATH, install it using 'go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest'")
- 	endif
-
 endef
