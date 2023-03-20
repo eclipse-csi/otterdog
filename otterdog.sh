@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-if ! command -v poetry
+if ! command -v poetry &> /dev/null
 then
     # activate virtual environment
     . .venv/bin/activate
