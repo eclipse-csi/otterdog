@@ -20,15 +20,21 @@ fi
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 __og_setting-alias(){
-    alias otterdog='
-        docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="${BW_SESSION}" \
-        -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json \
-        -v $PWD/otterdog.json:/app/otterdog.json \
-        -v $PWD/orgs:/app/orgs \
-        -v $HOME/.gnupg:/root/.gnupg \
-        -v $HOME/.password-store:/root/.password-store \
-        eclipse/otterdog:${OTTERDOG_IMAGE_VERSION}'
-
+    cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="${BW_SESSION}"
+        -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json
+        -v $PWD/otterdog.json:/app/otterdog.json
+        -v $PWD/orgs:/app/orgs
+        -v $HOME/.gnupg:/root/.gnupg
+        -v $HOME/.password-store:/root/.password-store
+        eclipse/otterdog:'
+    if [ ! -z $OTTERDOG_DEV ]
+    then
+        local __OG_IMAGE_VERSION=dev
+        cmd_dev="$(echo ${cmd}${__OG_IMAGE_VERSION} /bin/bash)"
+        alias otterdog-dev="$(echo $cmd_dev)"
+    fi
+    local __OG_IMAGE_VERSION=latest
+    alias otterdog=$(echo $cmd${__OG_IMAGE_VERSION})
     export PATH=$PATH:$SCRIPT_DIR
     export PS1="[${OG_WORKING_ENV}] ${__OG_OLD_PROMPT}"
 }
@@ -81,7 +87,10 @@ reload-otterdog(){
 }
 
 deactivate-otterdog(){
-    unalias otterdog
+    for i in $(alias | awk -F'[ =]' '{print $2}' | grep 'otterdog')
+    do
+        unalias $i
+    done
     export PS1=$__OG_OLD_PROMPT
     export PATH=$__OG_OLD_PATH
     __og_unset-environment

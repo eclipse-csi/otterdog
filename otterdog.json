@@ -21,6 +21,14 @@
   },
   "organizations": [
     {
+      "name": "otterdogtest",
+      "github_id": "OtterdogTest",
+      "credentials": {
+        "provider": "bitwarden",
+        "item_id" : "48c450c8-3ab1-4881-8aff-afc4009d6e83"
+      }
+    },
+    {
       "name": "cbi",
       "github_id": "eclipse-cbi",
       "credentials": {
