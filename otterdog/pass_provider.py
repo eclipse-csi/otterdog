@@ -49,7 +49,9 @@ class PassVault(CredentialProvider):
         utils.print_trace(f"result = ({status}, {secret})")
 
         if status != 0:
-            raise RuntimeError(f"{key} could not be retrieved from your pass vault")
+            # run the process again, capturing any error output for debugging.
+            _, output = subprocess.getstatusoutput(f"pass {resolved_key}")
+            raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")
 
         return secret
 
