@@ -22,6 +22,8 @@ test:
 
 clean:
 	rm -rf .venv
+	rm -rf dist
+	rm -rf .pytest_cache
 	find -iname "*.pyc" -delete
 
 
