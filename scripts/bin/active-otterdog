@@ -19,6 +19,15 @@ fi
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+__og_get_password_store_dir(){
+    ### Checking path in otterdog.json
+    local password_store_path=$(grep password_store_dir otterdog.json | awk -F: '{print $2}')
+    if [ -z $password_store_path ]
+    then
+        export PASS_STORE_PATH=$HOME/.password-store
+    fi
+}
+
 __og_setting-alias(){
     cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="${BW_SESSION}"
         -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json

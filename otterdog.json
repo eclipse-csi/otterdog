@@ -21,7 +21,7 @@
   },
   "organizations": [
     {
-      "name": "otterdogtest",
+      "name": "otterdogtest-bw",
       "github_id": "OtterdogTest",
       "credentials": {
         "provider": "bitwarden",
@@ -29,8 +29,8 @@
       }
     },
     {
-      "name": "cbi",
-      "github_id": "eclipse-cbi",
+      "name": "otterdogtest-pass",
+      "github_id": "OtterdogTest",
       "credentials": {
         "provider": "pass",
         "api_token": "bots/technology.cbi/github.com/api_token",

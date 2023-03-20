@@ -293,7 +293,8 @@ deactivate-otterdog
 ```
 
 ### Using pass client (WIP)
-TBD
+* Firstly, you need to have already installed pass as well as configured with all data needed in [otterdog.json](./otterdog.json) by executing ```pass``` in your profile
+
 
 ## Cleaning docker environment
 * Please use the macro below
