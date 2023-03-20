@@ -45,7 +45,7 @@ class PassVault(CredentialProvider):
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in authorization data")
 
-        status, secret = subprocess.getstatusoutput(f"pass {resolved_key}")
+        status, secret = subprocess.getstatusoutput(f"pass {resolved_key} 2>/dev/null")
         utils.print_trace(f"result = ({status}, {secret})")
 
         if status != 0:
