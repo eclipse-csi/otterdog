@@ -3,7 +3,6 @@
 bw_version = "bw-linux-2023.2.0.zip"
 bw_release = "cli-v2023.2.0"
 dockerfile = "Dockerfile"
-image_base = "ubuntu"
 image_version = "latest"
 container_name = "otterdog"
 
@@ -31,16 +30,27 @@ clean:
 docker_build:
 	$(call DOCKER_BUILDER,$(image_version))
 
+docker_build_dev:
+	echo "Freezing $(dockerfile) and commenting ENTRYPOINT line"
+	git update-index --assume-unchanged $(dockerfile)
+	sed -i '/^ENTRYPOINT/ s/./#&/' Dockerfile
+	$(call DOCKER_BUILDER,"dev")
+	echo "Unfreezing $(dockerfile) and commenting ENTRYPOINT line"
+	sed -i '/^#ENTRYPOINT/ s/#//' Dockerfile
+	git update-index --no-assume-unchanged Dockerfile
+
+
 docker_clean:
 	$(call DOCKER_CLEANER,$(image_version))
 
-
+docker_clean_dev: 
+	$(call DOCKER_CLEANER,"dev")
 
 define DOCKER_BUILDER
-	docker build  --no-cache --build-arg BW_VERSION=$(bw_version) --build-arg BW_RELEASE=$(bw_release) -t eclipse/otterdog:$(1)-$(image_base) -f $(dockerfile) .
+	docker build  --no-cache --build-arg BW_VERSION=$(bw_version) --build-arg BW_RELEASE=$(bw_release) -t eclipse/otterdog:$(1) -f $(dockerfile) .
 endef
 
 define DOCKER_CLEANER
-	docker rm -f $(container_name)-$(image_base)
-	docker rmi -f eclipse/$(container_name):$(1)-$(image_base)
+	docker rm -f $(container_name)
+	docker rmi -f eclipse/$(container_name):$(1)
 endef
