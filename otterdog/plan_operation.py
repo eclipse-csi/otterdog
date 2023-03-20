@@ -24,7 +24,7 @@ class PlanOperation(DiffOperation):
 
     def pre_execute(self) -> None:
         self.printer.print(f"Planning execution for configuration at '{self.config.config_file}'")
-        self.printer.print(f"\nActions are indicted with the following symbols:")
+        self.printer.print(f"\nActions are indicated with the following symbols:")
         self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
         self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
