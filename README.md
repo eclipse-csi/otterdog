@@ -6,9 +6,11 @@ $ make init
 
 Additional system requirements:
 
+* python3 (mandatory): install using `apt install python3`
+* jsonnet (mandatory): install using `apt install jsonnet`
+* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
-* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
 
 ## Setup
 
