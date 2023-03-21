@@ -1,17 +1,17 @@
 #!/bin/bash
 
-export OG_WORKING_ENV="otterdog"
+export __OG_WORKING_ENV="otterdog"
 
 if [ ! -z $OTTERDOG_DEV ]
 then
     export OTTERDOG_IMAGE_VERSION=dev
-    export OG_WORKING_ENV=${OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
+    export __OG_WORKING_ENV=${__OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
 else
     export OTTERDOG_IMAGE_VERSION=latest
-    export OG_WORKING_ENV=${OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
+    export __OG_WORKING_ENV=${__OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
 fi
 
-if [[ ! "$PS1" =~ "$OG_WORKING_ENV" ]]
+if [[ ! "$PS1" =~ "$__OG_WORKING_ENV" ]]
 then
     export __OG_OLD_PATH="$PATH"
     export __OG_OLD_PROMPT="$PS1"
@@ -19,16 +19,8 @@ fi
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-__og_get_password_store_dir(){
-    ### Checking path in otterdog.json
-    local password_store_path=$(grep password_store_dir otterdog.json | awk -F: '{print $2}')
-    if [ -z $password_store_path ]
-    then
-        export PASS_STORE_PATH=$HOME/.password-store
-    fi
-}
 
-__og_setting-alias(){
+__og_set_alias(){
     cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="${BW_SESSION}"
         -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json
         -v $PWD/otterdog.json:/app/otterdog.json
@@ -45,15 +37,13 @@ __og_setting-alias(){
     local __OG_IMAGE_VERSION=latest
     alias otterdog=$(echo $cmd${__OG_IMAGE_VERSION})
     export PATH=$PATH:$SCRIPT_DIR
-    export PS1="[${OG_WORKING_ENV}] ${__OG_OLD_PROMPT}"
+    export PS1="[${__OG_WORKING_ENV}] ${__OG_OLD_PROMPT}"
 }
 
 __og_isdocker-image-present(){
     __otterdog_image=$(docker images --filter=reference=eclipse/otterdog:${OTTERDOG_IMAGE_VERSION} --format '{{.ID}}')
-    if [ ${#__otterdog_image} -gt 0 ]
+    if [ ${#__otterdog_image} -eq 0 ]
     then
-        __og_setting-alias
-    else
         echo "ERROR!!!: No docker image eclipse/otterdog:${OTTERDOG_IMAGE_VERSION} located"
         echo "Please, execute make docker_build"
         __og_unset-environment
@@ -62,13 +52,9 @@ __og_isdocker-image-present(){
 
 }
 
+
 __og_unset-environment(){
-    unset __OG_OLD_PATH
-    unset __OG_OLD_PROMPT
-    unset OG_WORKING_ENV
-    unset OTTERDOG_DEV
-    unset OTTERDOG_IMAGE_VERSION
-    for i in $(declare -x | grep -E 'OTTERDOG|_OG_')
+    for i in $(declare -x | grep -E 'OTTERDOG|_OG_' | awk -F '[ |=]' '{print $3}')
     do
         unset $i
     done
@@ -86,9 +72,9 @@ __og_isdocker-installed(){
     fi
 }
 
-__og_check-environment(){
-    __og_isdocker-installed; [[ $? -gt 0 ]] && return 1
-    __og_isdocker-image-present; [[ $? -gt 0 ]] && return 1
+__og_check_environment(){
+    __og_isdocker-installed
+    __og_isdocker-image-present
 }
 
 reload-otterdog(){
@@ -106,10 +92,10 @@ deactivate-otterdog(){
 }
 
 __og_main(){
-    __og_check-environment
-    if [ "$?" -eq 0 ]
+    __og_check_environment
+    if [ $? -eq 0 ]
     then
-        __og_setting-alias
+        __og_set_alias
     fi
 }
 
