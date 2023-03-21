@@ -269,20 +269,20 @@ Run **apply** operation to reflect the written configuration on github itself:
 $ otterdog.sh apply <organization>
 ```
 
-# Docker Container (Linux/MacOS)
+# Container Runtime (Linux/MacOS)
 
 ## Requirements
 * An otterdog.json already in your current directory
 * (Recommended) a directory orgs
 
 
-## Bulding Docker Image
-* Creating a docker local image
+## Bulding Container Image
+* Creating a container local image
 ```console
 make docker_build
 ```
-## Building a Development Docker Image
-* Creating a docker development local image
+## Building a Development Container Image
+* Creating a container development local image
 ```console
 make docker_build_dev
 ```
@@ -336,7 +336,7 @@ otterdog-dev
 ### Usage Development Otterdog Container Runtime
 * Please follow the section [Usage](#usage)
 
-## Cleaning docker environment
+## Cleaning container environment
 * Please use the macro below
 ```console
 make docker_clean
