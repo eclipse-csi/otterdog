@@ -1,16 +1,28 @@
-## Build instructions (WIP)
-Create a virtual python environment and install necessary dependencies:
-```console
-$ make init
-```
+## Build instructions
 
-Additional system requirements:
+### System requirements:
 
-* python3 (mandatory): install using `apt install python3`
+* python3.10 (mandatory): install using `apt install python3`
 * jsonnet (mandatory): install using `apt install jsonnet`
 * jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
+* Installing poetry 
+```console
+curl -sSL https://install.python-poetry.org | python3 -
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Building Steps
+
+* Create a virtual python environment and install necessary dependencies:
+```console
+$ make init
+```
+* Testing build
+```console
+./otterdog.sh -h
+```
 
 ## Setup
 
@@ -140,6 +152,9 @@ configurate that in the `defaults`:
   }
 }
 ```
+#### Caveats
+* Running otterdog in a container is not needed to define password_store_dir however is needed to have already setup in your user a password store in path ```$HOME/.password-store```
+* Besides, gpg private key should be stored in ```$HOME/.gnupg```
 
 ## Supported settings
 
@@ -232,7 +247,7 @@ configurate that in the `defaults`:
 | restrictsPushes              | boolean         | TBD                                                                |
 | restrictsReviewDismissals    | boolean         | TBD                                                                |
 
-## Usage
+## <a name="usage"></a>Usage
 
 Run the **import** operation to retrieve the current live configuration for an organization:
 
@@ -261,10 +276,15 @@ $ otterdog.sh apply <organization>
 * (Recommended) a directory orgs
 
 
-## Bulding docker image
-Please use macro below
+## Bulding Docker Image
+* Creating a docker local image
 ```console
 make docker_build
+```
+## Building a Development Docker Image
+* Creating a docker development local image
+```console
+make docker_build_dev
 ```
 
 ## Running otterdog in a container 
@@ -279,21 +299,42 @@ bw unlock
 ```console
 export BW_SESSION="ffdsajklloremipsumfxs000f000r0loremipsum"
 ```
-* (Optional) Create an alias
+
+### Using pass client
+* Pass needs to be already installed as well as configured with all data needed in [otterdog.json](./otterdog.json) by executing ```pass``` in your profile
+
+### Activating Otterdog Container Runtime
+* Activate otterdog environment will create an alias ```otterdog```
 ```console
-alias otterdog='docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base'
+source scripts/bin/active-otterdog
 ``` 
-* Please use the bash snippet below with alas, for instance to get otterdog help
+* Checking otterdog alias
 ```console
 otterdog -h
 ```
-* Please use the bash snippet below, for instance to get otterdog help
+* Deactivating otterdog environment
 ```console
-docker run --rm -it --name $container_name-$image_base --hostname $container_name-$image_base -e BW_SESSION="${BW_SESSION}" -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json -v $PWD/otterdog.json:/app/otterdog.json -v $PWD/orgs:/app/orgs eclipse/otterdog:latest-$image_base -h
+deactivate-otterdog
 ```
 
-### Using pass client (WIP)
-TBD
+### Usage Otterdog Container Runtime
+* Please follow the section [Usage](#usage)
+* Please bear in mind that all command need to drop **.sh**
+
+### Activating Development Otterdog Container Runtime
+* Activating developemnt otterdog environment will create a alias ```otterdog-dev``` to run a container shell with otterdog
+```console
+export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
+otterdog-dev
+``` 
+* Checking otterdog environment
+```console
+/app/otterdog.sh -h
+```
+* Deactivating development otterdog runtime type ```exit``` then ```deactivate-otterdog```
+
+### Usage Development Otterdog Container Runtime
+* Please follow the section [Usage](#usage)
 
 ## Cleaning docker environment
 * Please use the macro below

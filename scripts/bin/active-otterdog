@@ -1,0 +1,102 @@
+#!/bin/bash
+
+export __OG_WORKING_ENV="otterdog"
+
+if [ ! -z $OTTERDOG_DEV ]
+then
+    export OTTERDOG_IMAGE_VERSION=dev
+    export __OG_WORKING_ENV=${__OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
+else
+    export OTTERDOG_IMAGE_VERSION=latest
+    export __OG_WORKING_ENV=${__OG_WORKING_ENV}-${OTTERDOG_IMAGE_VERSION}
+fi
+
+if [[ ! "$PS1" =~ "$__OG_WORKING_ENV" ]]
+then
+    export __OG_OLD_PATH="$PATH"
+    export __OG_OLD_PROMPT="$PS1"
+fi
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+
+__og_set_alias(){
+    cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="${BW_SESSION}"
+        -v $HOME/.config/Bitwarden\ CLI/data.json:/root/.config/Bitwarden\ CLI/data.json
+        -v $PWD/otterdog.json:/app/otterdog.json
+        -v $PWD/orgs:/app/orgs
+        -v $HOME/.gnupg:/root/.gnupg
+        -v $HOME/.password-store:/root/.password-store
+        eclipse/otterdog:'
+    if [ ! -z $OTTERDOG_DEV ]
+    then
+        local __OG_IMAGE_VERSION=dev
+        cmd_dev="$(echo ${cmd}${__OG_IMAGE_VERSION} /bin/bash)"
+        alias otterdog-dev="$(echo $cmd_dev)"
+    fi
+    local __OG_IMAGE_VERSION=latest
+    alias otterdog=$(echo $cmd${__OG_IMAGE_VERSION})
+    export PATH=$PATH:$SCRIPT_DIR
+    export PS1="[${__OG_WORKING_ENV}] ${__OG_OLD_PROMPT}"
+}
+
+__og_isdocker-image-present(){
+    __otterdog_image=$(docker images --filter=reference=eclipse/otterdog:${OTTERDOG_IMAGE_VERSION} --format '{{.ID}}')
+    if [ ${#__otterdog_image} -eq 0 ]
+    then
+        echo "ERROR!!!: No docker image eclipse/otterdog:${OTTERDOG_IMAGE_VERSION} located"
+        echo "Please, execute make docker_build"
+        __og_unset-environment
+        return 1
+    fi
+
+}
+
+
+__og_unset-environment(){
+    for i in $(declare -x | grep -E 'OTTERDOG|_OG_' | awk -F '[ |=]' '{print $3}')
+    do
+        unset $i
+    done
+    for i in $(declare -F | grep -iE 'otterdog|_og_' | awk '{print $3}')
+    do 
+        unset -f $i
+    done
+}
+
+__og_isdocker-installed(){
+    if ! command -v docker &> /dev/null
+    then
+        echo "ERROR!!! docker could not be found"
+        return 1
+    fi
+}
+
+__og_check_environment(){
+    __og_isdocker-installed
+    __og_isdocker-image-present
+}
+
+reload-otterdog(){
+    source ${SCRIPT_DIR}/$( basename -- "${BASH_SOURCE[0]}" )
+}
+
+deactivate-otterdog(){
+    for i in $(alias | awk -F'[ =]' '{print $2}' | grep 'otterdog')
+    do
+        unalias $i
+    done
+    export PS1=$__OG_OLD_PROMPT
+    export PATH=$__OG_OLD_PATH
+    __og_unset-environment
+}
+
+__og_main(){
+    __og_check_environment
+    if [ $? -eq 0 ]
+    then
+        __og_set_alias
+    fi
+}
+
+__og_main
