@@ -72,35 +72,26 @@ def main(arguments=None):
 
     try:
         config = OtterdogConfig.from_file(args.config, args.force, args.local)
-        jsonnet_config = config.jsonnet_config
 
         exit_code = 0
 
-        match args.subcommand:
-            case "plan":
-                operation = PlanOperation()
-
-            case "fetch-config":
-                operation = FetchOperation()
-
-            case "push-config":
-                operation = PushOperation()
-
-            case "import":
-                operation = ImportOperation()
-
-            case "apply":
-                operation = ApplyOperation()
-
-            case "validate":
-                operation = ValidateOperation()
-
-            case "show":
-                operation = ShowOperation()
-
-            case _:
-                operation = None
-                raise RuntimeError(f"unexpected action '{args.action}'")
+        subcommand = args.subcommand
+        if subcommand == "plan":
+            operation = PlanOperation()
+        elif subcommand == "fetch-config":
+            operation = FetchOperation()
+        elif subcommand == "push-config":
+            operation = PushOperation()
+        elif subcommand == "import":
+            operation = ImportOperation()
+        elif subcommand == "apply":
+            operation = ApplyOperation()
+        elif subcommand == "validate":
+            operation = ValidateOperation()
+        elif subcommand == "show":
+            operation = ShowOperation()
+        else:
+            raise RuntimeError(f"unexpected action '{args.action}'")
 
         operation.init(config, printer)
         operation.pre_execute()
