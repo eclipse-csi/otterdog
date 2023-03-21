@@ -9,8 +9,8 @@
 * pass cli tool (optional): install using `apt install pass`
 * Installing poetry 
 ```console
-curl -sSL https://install.python-poetry.org | python3 -
-export PATH="$HOME/.local/bin:$PATH"
+$ curl -sSL https://install.python-poetry.org | python3 -
+$ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### Building Steps
@@ -21,7 +21,7 @@ $ make init
 ```
 * Testing build
 ```console
-./otterdog.sh -h
+$ ./otterdog.sh -h
 ```
 
 ## Setup
@@ -152,9 +152,6 @@ configurate that in the `defaults`:
   }
 }
 ```
-#### Caveats
-* Running otterdog in a container is not needed to define password_store_dir however is needed to have already setup in your user a password store in path ```$HOME/.password-store```
-* Besides, gpg private key should be stored in ```$HOME/.gnupg```
 
 ## Supported settings
 
@@ -247,7 +244,7 @@ configurate that in the `defaults`:
 | restrictsPushes              | boolean         | TBD                                                                |
 | restrictsReviewDismissals    | boolean         | TBD                                                                |
 
-## <a name="usage"></a>Usage
+## Usage
 
 Run the **import** operation to retrieve the current live configuration for an organization:
 
