@@ -276,12 +276,12 @@ $ otterdog.sh apply <organization>
 ## Bulding Container Image
 * Creating a container local image
 ```console
-make docker_build
+make container_build
 ```
 ## Building a Development Container Image
 * Creating a container development local image
 ```console
-make docker_build_dev
+make container_build_dev
 ```
 
 ## Running otterdog in a container 
@@ -336,7 +336,7 @@ otterdog-dev
 ## Cleaning container environment
 * Please use the macro below
 ```console
-make docker_clean
+make container_clean
 ```
 
 ## Known issues

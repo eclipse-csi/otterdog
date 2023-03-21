@@ -45,7 +45,7 @@ __og_isdocker-image-present(){
     if [ ${#__otterdog_image} -eq 0 ]
     then
         echo "ERROR!!!: No docker image eclipse/otterdog:${OTTERDOG_IMAGE_VERSION} located"
-        echo "Please, execute make docker_build"
+        echo "Please, execute make container_build"
         __og_unset-environment
         return 1
     fi
