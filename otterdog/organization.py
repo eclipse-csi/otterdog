@@ -10,6 +10,7 @@ import json
 import os
 import textwrap
 from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
 from functools import partial
 from io import StringIO
 from typing import Any
@@ -187,16 +188,43 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> (
     return repo_name, otterdog_repo_data
 
 
-def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Github) -> Organization:
+def load_from_github(github_id: str,
+                     jsonnet_config: JsonnetConfig,
+                     client: Github,
+                     printer: utils.IndentingPrinter = None) -> Organization:
+
     org = Organization(github_id)
 
     default_settings = jsonnet_config.default_org_config["settings"]
+
+    start = datetime.now()
+    if printer is not None:
+        printer.print(f"\norganization settings: Reading...")
+
     github_settings = client.get_org_settings(github_id, set(default_settings.keys()))
     otterdog_settings = mapping.map_github_org_settings_data_to_otterdog(github_settings)
+
+    if printer is not None:
+        end = datetime.now()
+        printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+
     org.update_settings(otterdog_settings)
 
+    start = datetime.now()
+    if printer is not None:
+        printer.print(f"\nwebhooks: Reading...")
+
     webhooks = client.get_webhooks(github_id)
+
+    if printer is not None:
+        end = datetime.now()
+        printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+
     org.update_webhooks(webhooks)
+
+    start = datetime.now()
+    if printer is not None:
+        printer.print(f"\nrepositories: Reading...")
 
     repos = []
     repo_names = client.get_repos(github_id)
@@ -211,6 +239,10 @@ def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Gith
         data = pool.map(process_repo, repo_names)
         for (repo_name, repo_data) in data:
             github_repos[repo_name] = repo_data
+
+    if printer is not None:
+        end = datetime.now()
+        printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
     for repo_name, repo_data in github_repos.items():
         repos.append(repo_data)
