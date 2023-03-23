@@ -9,14 +9,16 @@
 import json
 import os
 import textwrap
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from io import StringIO
 from typing import Any
 
 import jsonschema
 from importlib_resources import files, as_file
 
-from . import resources
 from . import mapping
+from . import resources
 from . import schemas
 from . import utils
 from .config import JsonnetConfig
@@ -170,6 +172,21 @@ def load_from_file(github_id: str, config_file: str) -> Organization:
     return org
 
 
+def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> (str, dict[str, Any]):
+    github_repo_data = gh_client.get_repo_data(github_id, repo_name)
+    otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(github_repo_data)
+
+    rules = gh_client.get_branch_protection_rules(github_id, repo_name)
+    if len(rules) > 0:
+        rule_list = []
+        for rule in rules:
+            rule_list.append(schemas.get_items_contained_in_schema(rule, schemas.BRANCH_PROTECTION_RULE_SCHEMA))
+
+        otterdog_repo_data["branch_protection_rules"] = rule_list
+
+    return repo_name, otterdog_repo_data
+
+
 def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Github) -> Organization:
     org = Organization(github_id)
 
@@ -183,21 +200,21 @@ def load_from_github(github_id: str, jsonnet_config: JsonnetConfig, client: Gith
 
     repos = []
     repo_names = client.get_repos(github_id)
-    for repo_name in repo_names:
-        github_repo_data = client.get_repo_data(github_id, repo_name)
-        otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(github_repo_data)
-        rules = client.get_branch_protection_rules(github_id, repo_name)
 
-        if len(rules) > 0:
-            rule_list = []
-            for rule in rules:
-                rule_list.append(schemas.get_items_contained_in_schema(rule, schemas.BRANCH_PROTECTION_RULE_SCHEMA))
+    # retrieve repo_data and branch_protection_rules in parallel using a pool.
+    github_repos = {}
+    # partially apply the github_client and the github_id to get a function that only takes one parameter
+    process_repo = partial(_process_single_repo, client, github_id)
+    # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
+    # due to the global interpreter lock.
+    with ProcessPoolExecutor() as pool:
+        data = pool.map(process_repo, repo_names)
+        for (repo_name, repo_data) in data:
+            github_repos[repo_name] = repo_data
 
-            otterdog_repo_data["branch_protection_rules"] = rule_list
-
-        repos.append(otterdog_repo_data)
+    for repo_name, repo_data in github_repos.items():
+        repos.append(repo_data)
 
     org.update_repos(repos)
-
     org.validate()
     return org
