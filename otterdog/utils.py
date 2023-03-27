@@ -105,7 +105,7 @@ def dump_json_object(obj: Any, fp, offset=0, indent=2, embedded_object: bool = F
                     fp.write(f"{json.dumps(item)},\n")
                 offset -= indent
                 fp.write(" " * offset)
-                fp.write("]\n")
+                fp.write("],\n")
             else:
                 fp.write(f"{k}: {json.dumps(v)},\n")
 

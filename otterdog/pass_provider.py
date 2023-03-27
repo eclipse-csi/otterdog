@@ -38,8 +38,8 @@ class PassVault(CredentialProvider):
 
         return Credentials(username, password, github_token, totp_secret)
 
-    def get_secret(self, data: str) -> str:
-        return self._retrieve_key(data)
+    def get_secret(self, key_data: str) -> str:
+        return self._retrieve_resolved_key(key_data)
 
     @staticmethod
     def _retrieve_key(key: str, data: dict[str, str]) -> str:
@@ -48,12 +48,16 @@ class PassVault(CredentialProvider):
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in authorization data")
 
-        status, secret = subprocess.getstatusoutput(f"pass {resolved_key} 2>/dev/null")
+        return PassVault._retrieve_resolved_key(resolved_key)
+
+    @staticmethod
+    def _retrieve_resolved_key(key: str) -> str:
+        status, secret = subprocess.getstatusoutput(f"pass {key} 2>/dev/null")
         utils.print_trace(f"result = ({status}, {secret})")
 
         if status != 0:
             # run the process again, capturing any error output for debugging.
-            _, output = subprocess.getstatusoutput(f"pass {resolved_key}")
+            _, output = subprocess.getstatusoutput(f"pass {key}")
             raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")
 
         return secret

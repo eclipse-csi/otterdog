@@ -68,7 +68,7 @@ class FetchOperation(Operation):
             try:
                 definition = gh_client.get_content(org_config.github_id,
                                                    self.config.config_repo,
-                                                   f"{github_id}.jsonnet")
+                                                   f"otterdog/{github_id}.jsonnet")
             except RuntimeError as e:
                 self.printer.print_error(f"failed to fetch definition from repo '{self.config.config_repo}'")
                 return 1

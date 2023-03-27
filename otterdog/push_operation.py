@@ -59,12 +59,12 @@ class PushOperation(Operation):
             try:
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
-                                         f"{github_id}.jsonnet",
+                                         f"otterdog/{github_id}.jsonnet",
                                          content)
 
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
-                                         f"jsonnetfile.json",
+                                         f"otterdog/jsonnetfile.json",
                                          bundle_content)
 
             except RuntimeError as e:
