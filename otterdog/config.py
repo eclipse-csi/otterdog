@@ -299,7 +299,7 @@ class OtterdogConfig:
         return provider.get_credentials(org_config.credential_data)
 
     def get_secret(self, secret_data: str) -> str:
-        if ":" in secret_data:
+        if secret_data and ":" in secret_data:
             provider_type, data = re.split(":", secret_data)
             provider = self._get_credential_provider(provider_type)
             return provider.get_secret(data)
