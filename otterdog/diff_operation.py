@@ -83,7 +83,9 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            expected_org = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+            expected_org = org.load_from_file(github_id,
+                                              self.jsonnet_config.get_org_config_file(github_id),
+                                              self.config)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -138,28 +140,31 @@ class DiffOperation(Operation):
         start = datetime.now()
         self.printer.print(f"\nwebhooks: Reading...")
 
-        expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["config"]["url"])
-        current_webhooks = self.gh_client.get_webhooks(github_id)
+        expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["url"])
+        github_webhooks = self.gh_client.get_webhooks(github_id)
 
         end = datetime.now()
         self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-        for webhook in current_webhooks:
-            webhook_id = str(webhook["id"])
-            webhook_url = webhook["config"]["url"]
+        for github_webhook in github_webhooks:
+            current_otterdog_webhook = mapping.map_github_org_webhook_data_to_otterdog(github_webhook)
+
+            webhook_id = str(github_webhook["id"])
+            webhook_url = current_otterdog_webhook["url"]
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.handle_extra_webhook(github_id,
-                                          schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA))
+                self.handle_extra_webhook(github_id, current_otterdog_webhook)
                 diff_status.extras += 1
                 continue
 
-            # TODO: improve handling of config.secret
-            webhook = schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA)
-
             modified_webhook = {}
             for key, expected_value in expected_webhook.items():
-                current_value = webhook.get(key)
+                current_value = current_otterdog_webhook.get(key)
+
+                if key == "secret":
+                    if not ((expected_value is not None and current_value is None) or
+                            (expected_value is None and current_value is not None)):
+                        continue
 
                 if expected_value != current_value:
                     modified_webhook[key] = (expected_value, current_value)

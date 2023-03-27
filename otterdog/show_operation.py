@@ -48,7 +48,9 @@ class ShowOperation(Operation):
                 return 1
 
             try:
-                organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+                organization = org.load_from_file(github_id,
+                                                  self.jsonnet_config.get_org_config_file(github_id),
+                                                  self.config)
             except RuntimeError as ex:
                 self.printer.print_warn(f"failed to load configuration: {str(ex)}")
                 return 1

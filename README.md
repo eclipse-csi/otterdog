@@ -192,6 +192,41 @@ configurate that in the `defaults`:
 | organization_organization_projects_enabled               | boolean         | If members can create organization projects               |           |
 | organization_members_can_change_project_visibility       | boolean         | If members can change visibility of organization projects |           |
 
+### Webhooks
+
+| Field        | Type             | Description                                                     |
+|--------------|------------------|-----------------------------------------------------------------|
+| active       | boolean          | If the webhook is active                                        |
+| events       | array of strings | List of events that trigger the webhook                         |
+| url          | string           | Url the webhook should access                                   |
+| content_type | string           | The content type the webhook shall use                          |
+| insecure_ssl | string           | If the webhook uses insecure ssl connections, either "0" or "1" |
+| secret       | string or null   | The secret the webhook shall use if any                         |
+
+The secret value can be resolved using a credential provider. The supported format is 
+`<credential_provider>:<provider specific data>`:
+
+* Bitwarden: `bitwarden:<bitwarden item id>@<custom_field_key>`
+* Pass: `pass:<path/to/secret>`
+
+Examples:
+
+```json
+{
+  "secret": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@webhook_secret"
+}
+```
+
+```json
+{
+  "secret": "pass:myorg/mywebhook_secret"
+}
+```
+
+Note: After executing an `import` operation, the secret will be set to `******` as GitHub will only send redacted
+secrets. You will need to update the definition file with the real secret values, either by entering the secret
+value (not adivsed), or referencing it via a credential provider.
+
 ### Repository Settings
 
 | Field                           | Type           | Description                                                                         |

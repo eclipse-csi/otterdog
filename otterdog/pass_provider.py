@@ -38,6 +38,9 @@ class PassVault(CredentialProvider):
 
         return Credentials(username, password, github_token, totp_secret)
 
+    def get_secret(self, data: str) -> str:
+        return self._retrieve_key(data)
+
     @staticmethod
     def _retrieve_key(key: str, data: dict[str, str]) -> str:
         resolved_key = data.get(key)

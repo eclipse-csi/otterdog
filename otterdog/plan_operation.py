@@ -49,7 +49,13 @@ class PlanOperation(DiffOperation):
                                 modified_webhook: dict[str, (Any, Any)],
                                 webhook: dict[str, Any]) -> None:
         self.printer.print()
-        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']")
+        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"})
+
+        if "secret" in modified_webhook:
+            (new_secret, current_secret) = modified_webhook["secret"]
+            if not new_secret:
+                self.printer.print(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
+                                   f"with url '{webhook_url}'")
 
     def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
         self.printer.print()

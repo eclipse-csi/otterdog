@@ -8,7 +8,6 @@
 
 import os
 
-import jq
 from colorama import Fore, Style
 
 from . import organization as org
@@ -49,7 +48,9 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = org.load_from_file(github_id, self.jsonnet_config.get_org_config_file(github_id))
+                organization = org.load_from_file(github_id,
+                                                  self.jsonnet_config.get_org_config_file(github_id),
+                                                  self.config)
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
@@ -93,10 +94,11 @@ class ValidateOperation(Operation):
         webhooks = organization.get_webhooks()
 
         for webhook in webhooks:
-            secret = jq.compile('.config.secret // ""').input(webhook).first()
+            secret = webhook.get("secret")
             if secret and all(ch == '*' for ch in secret):
-                url = jq.compile('.config.url // ""').input(webhook).first()
-                self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}'")
+                url = webhook["url"]
+                self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}', "
+                                         f"provide a real secret using a credential provider.")
                 validation_errors += 1
 
         repos = organization.get_repos()

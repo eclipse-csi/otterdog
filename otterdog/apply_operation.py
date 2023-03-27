@@ -53,11 +53,6 @@ class ApplyOperation(PlanOperation):
                                 modified_webhook: dict[str, (Any, Any)],
                                 webhook: dict[str, Any]) -> None:
         super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook)
-
-        config = {}
-        for key, (expected_value, current_value) in modified_webhook.items():
-            config[key] = expected_value
-
         self._modified_webhooks[webhook_id] = webhook
 
     def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
@@ -123,10 +118,12 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_org_settings(org_id, self._modified_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():
-            self.gh_client.update_webhook(org_id, webhook_id, webhook)
+            github_webhook = mapping.map_otterdog_org_webhook_data_to_github(webhook)
+            self.gh_client.update_webhook(org_id, webhook_id, github_webhook)
 
         for webhook in self._new_webhooks:
-            self.gh_client.add_webhook(org_id, webhook)
+            github_webhook = mapping.map_otterdog_org_webhook_data_to_github(webhook)
+            self.gh_client.add_webhook(org_id, github_webhook)
 
         for repo_name, repo in self._modified_repos.items():
             github_repo = mapping.map_otterdog_repo_data_to_github(repo)

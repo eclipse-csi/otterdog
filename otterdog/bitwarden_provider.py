@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import json
+import re
 import subprocess
 
 from .credentials import Credentials, CredentialProvider
@@ -72,6 +73,31 @@ class BitwardenVault(CredentialProvider):
             raise RuntimeError(f"totp is empty in item with id '{item_id}'")
 
         return Credentials(username, password, github_token, totp_secret)
+
+    def get_secret(self, data: str) -> str:
+        try:
+            item_id, secret_key = re.split("@", data)
+
+            status, item_json = subprocess.getstatusoutput(f"bw get item {item_id}")
+            utils.print_trace(f"result = ({status}, {item_json})")
+
+            if status != 0:
+                raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault")
+
+            # load the item json string and access the field containing the GitHub token
+            item = json.loads(item_json)
+
+            secret_field = next(filter(lambda k: k["name"] == secret_key, item.get("fields", [])), None)
+            if secret_field is None:
+                raise RuntimeError(f"field with key '{secret_key}' not found in item with id '{item_id}'")
+
+            secret = secret_field.get("value")
+            if secret is None:
+                raise RuntimeError(f"field with key '{secret_key}' is empty in item with id '{item_id}'")
+
+            return secret
+        except ValueError:
+            raise RuntimeError(f"failed to parse secret data '{data}'")
 
     def __str__(self):
         return f"BitWardenVault(unlocked={self.is_unlocked()})"

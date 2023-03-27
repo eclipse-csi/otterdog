@@ -37,3 +37,6 @@ class Credentials:
 class CredentialProvider(Protocol):
     @abstractmethod
     def get_credentials(self, data: dict[str, str]) -> Credentials: raise NotImplementedError
+
+    @abstractmethod
+    def get_secret(self, data: str) -> str: raise NotImplementedError

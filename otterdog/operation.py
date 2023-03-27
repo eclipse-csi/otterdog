@@ -55,7 +55,7 @@ class Operation(Protocol):
         self.printer.level_down()
         self.printer.print(f"{closing_prefix}}}")
 
-    def print_modified_dict(self, data: dict[str, Any], item_header: str) -> None:
+    def print_modified_dict(self, data: dict[str, Any], item_header: str, redacted_keys: set[str] = None) -> None:
         self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
@@ -82,8 +82,10 @@ class Operation(Protocol):
                 self.printer.level_down()
                 self.printer.print(f"  }}")
             else:
+                e_v = expected_value if not key or key not in redacted_keys or expected_value is None else "<redacted>"
+
                 self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                   f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{expected_value}\"")
+                                   f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{e_v}\"")
 
         self.printer.level_down()
         self.printer.print(f"  }}")

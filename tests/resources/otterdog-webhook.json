@@ -1,0 +1,10 @@
+{
+  "active": true,
+  "content_type": "form",
+  "events": [
+    "push"
+  ],
+  "insecure_ssl": "0",
+  "secret": "blabla",
+  "url": "https://www.example.org"
+}

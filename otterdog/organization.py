@@ -22,7 +22,7 @@ from . import mapping
 from . import resources
 from . import schemas
 from . import utils
-from .config import JsonnetConfig
+from .config import JsonnetConfig, OtterdogConfig
 from .github import Github
 
 
@@ -40,33 +40,22 @@ class Organization:
         return self._dict.get("settings")
 
     def update_settings(self, data: dict[str, Any]) -> None:
-        values = schemas.get_items_contained_in_schema(data, schemas.SETTINGS_SCHEMA)
-        utils.print_debug("updating settings to " + json.dumps(values, indent=2))
-        self._dict["settings"] = values
+        utils.print_debug("updating settings to " + json.dumps(data, indent=2))
+        self._dict["settings"] = data
 
     def get_webhooks(self) -> list[dict[str, Any]]:
         return self._dict.get("webhooks", [])
 
     def update_webhooks(self, webhooks: list[dict[str, Any]]) -> None:
-        clean_webhooks = []
-        for webhook in webhooks:
-            clean_webhooks.append(schemas.get_items_contained_in_schema(webhook, schemas.WEBHOOK_SCHEMA))
-
-        utils.print_debug("updating webhooks to " + json.dumps(clean_webhooks, indent=2))
-
-        self._dict["webhooks"] = clean_webhooks
+        utils.print_debug("updating webhooks to " + json.dumps(webhooks, indent=2))
+        self._dict["webhooks"] = webhooks
 
     def get_repos(self) -> list[dict[str, Any]]:
         return self._dict.get("repositories", [])
 
     def update_repos(self, repos: list[dict[str, Any]]) -> None:
-        clean_repos = []
-        for repo in repos:
-            clean_repos.append(schemas.get_items_contained_in_schema(repo, schemas.REPOSITORY_SCHEMA))
-
-        utils.print_debug("updating repos to " + json.dumps(clean_repos, indent=2))
-
-        self._dict["repositories"] = clean_repos
+        utils.print_debug("updating repos to " + json.dumps(repos, indent=2))
+        self._dict["repositories"] = repos
 
     def validate(self) -> None:
         self._validate_org_config(self._dict)
@@ -160,16 +149,21 @@ class Organization:
         return f"Organization(id={self.github_id})"
 
 
-def load_from_file(github_id: str, config_file: str) -> Organization:
+def load_from_file(github_id: str, config_file: str, config: OtterdogConfig) -> Organization:
     if not os.path.exists(config_file):
         msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
         raise RuntimeError(msg)
 
     utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
-    config = utils.jsonnet_evaluate_file(config_file)
+    org_data = utils.jsonnet_evaluate_file(config_file)
+
+    # resolve webhook secrets
+    for webhook in org_data["webhooks"]:
+        if "secret" in webhook:
+            webhook["secret"] = config.get_secret(webhook["secret"])
 
     org = Organization(github_id)
-    org.load_config(config)
+    org.load_config(org_data)
     return org
 
 
@@ -220,7 +214,11 @@ def load_from_github(github_id: str,
         end = datetime.now()
         printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-    org.update_webhooks(webhooks)
+    otterdog_webhooks = []
+    for webhook in webhooks:
+        otterdog_webhooks.append(mapping.map_github_org_webhook_data_to_otterdog(webhook))
+
+    org.update_webhooks(otterdog_webhooks)
 
     start = datetime.now()
     if printer is not None:

@@ -8,17 +8,21 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "config": {
-      "type": "object",
-      "properties": {
-        "url": { "type": "string" },
-        "content_type": { "type": "string" },
-        "insecure_ssl": { "type": "string" }
-      },
-      "required": [ "url" ]
-    }
+    "url": { "type": "string" },
+    "content_type": { "type": "string" },
+    "insecure_ssl": { "type": "string" },
+    "secret": { "$ref": "#/definitions/string_or_null" }
   },
 
   "required": [ "active" ],
-  "additionalProperties": false
+  "additionalProperties": false,
+
+  "definitions": {
+    "string_or_null": {
+      "anyOf": [
+          { "type": "string" },
+          { "type": "null" }
+      ]
+    }
+  }
 }

@@ -23,6 +23,20 @@ def test_resource_dir():
 
 
 @pytest.fixture()
+def github_webhook_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/github-webhook.json")
+    with open(filename, "r") as file:
+        return json.load(file)
+
+
+@pytest.fixture()
+def otterdog_webhook_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/otterdog-webhook.json")
+    with open(filename, "r") as file:
+        return json.load(file)
+
+
+@pytest.fixture()
 def github_repo_data():
     filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/github-repo.json")
     with open(filename, "r") as file:

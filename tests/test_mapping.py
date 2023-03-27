@@ -11,6 +11,26 @@ import jq
 import otterdog.mapping as mapping
 
 
+def test_github_webhook_to_otterdog_mapping(github_webhook_data):
+    otterdog_data = mapping.map_github_org_webhook_data_to_otterdog(github_webhook_data)
+
+    assert otterdog_data["secret"] == "******"
+    assert otterdog_data["url"] == "https://www.example.org"
+    assert otterdog_data["insecure_ssl"] == "0"
+    assert otterdog_data["content_type"] == "form"
+
+
+def test_otterdog_webhook_to_github_mapping(otterdog_webhook_data):
+    github_data = mapping.map_otterdog_org_webhook_data_to_github(otterdog_webhook_data)
+
+    assert jq.compile(".config.secret").input(github_data).first() == "blabla"
+    assert jq.compile(".config.url").input(github_data).first() == "https://www.example.org"
+    assert jq.compile(".config.insecure_ssl").input(github_data).first() == "0"
+    assert jq.compile(".config.content_type").input(github_data).first() == "form"
+
+    assert "url" not in github_data
+
+
 def test_github_repo_to_otterdog_mapping(github_repo_data):
     otterdog_data = mapping.map_github_repo_data_to_otterdog(github_repo_data)
 

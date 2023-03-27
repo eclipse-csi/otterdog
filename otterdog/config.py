@@ -8,6 +8,7 @@
 
 import json
 import os
+import re
 import subprocess
 from typing import Any
 
@@ -296,6 +297,14 @@ class OtterdogConfig:
 
         provider = self._get_credential_provider(provider_type)
         return provider.get_credentials(org_config.credential_data)
+
+    def get_secret(self, secret_data: str) -> str:
+        if ":" in secret_data:
+            provider_type, data = re.split(":", secret_data)
+            provider = self._get_credential_provider(provider_type)
+            return provider.get_secret(data)
+        else:
+            return secret_data
 
     def __repr__(self):
         return f"OtterdogConfig('{self.data_dir}')"

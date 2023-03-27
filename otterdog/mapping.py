@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from jsonbender import bend, S
+from jsonbender import bend, S, OptionalS
 
 from . import schemas
 
@@ -57,6 +57,27 @@ def map_github_org_settings_data_to_otterdog(github_org_data: dict[str, Any]) ->
     return bend(mapping, github_org_data)
 
 
+def map_github_org_webhook_data_to_otterdog(github_org_webhook_data: dict[str, Any]) -> dict[str, Any]:
+    allowed_webhook_properties = schemas.get_properties_of_schema(schemas.WEBHOOK_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_webhook_properties:
+        if k in github_org_webhook_data:
+            mapping[k] = S(k)
+
+    # add mapping for specific properties if they are present.
+    if "config" in github_org_webhook_data:
+        mapping.update({
+            "url": S("config", "url"),
+            "content_type": S("config", "content_type"),
+            "insecure_ssl": S("config", "insecure_ssl"),
+            "secret": OptionalS("config", "secret"),
+        })
+
+    return bend(mapping, github_org_webhook_data)
+
+
 def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[str, Any]:
     allowed_repo_properties = schemas.get_properties_of_schema(schemas.REPOSITORY_SCHEMA)
 
@@ -90,6 +111,28 @@ def map_otterdog_org_settings_data_to_github(otterdog_org_data: dict[str, Any]) 
     mapping.pop("plan")
 
     return bend(mapping, otterdog_org_data)
+
+
+def map_otterdog_org_webhook_data_to_github(otterdog_webhook_data: dict[str, Any]) -> dict[str, Any]:
+    allowed_webhook_properties = schemas.get_properties_of_schema(schemas.WEBHOOK_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_webhook_properties:
+        if k in otterdog_webhook_data:
+            mapping[k] = S(k)
+
+    config_mapping = {}
+    for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:
+        if config_prop in mapping:
+            mapping.pop(config_prop)
+        if config_prop in otterdog_webhook_data:
+            config_mapping[config_prop] = S(config_prop)
+
+    if len(config_mapping) > 0:
+        mapping.update({"config": config_mapping})
+
+    return bend(mapping, otterdog_webhook_data)
 
 
 def map_otterdog_repo_data_to_github(otterdog_repo_data: dict[str, Any]) -> dict[str, Any]:
