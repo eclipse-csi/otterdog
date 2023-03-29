@@ -259,25 +259,25 @@ value (not adivsed), or referencing it via a credential provider.
 
 ### Branch Protection Rules
 
-| Field                        | Type            | Description                                                                                                                               |
-|------------------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| pattern                      | string          | Pattern to match branches                                                                                                                 |
-| allowsDeletions              | boolean         | If the branch can be deleted                                                                                                              |
-| allowsForcePushes            | boolean         | If branch allows force pushes                                                                                                             |
-| dismissesStaleReviews        | boolean         | Dismiss approved reviews automatically when a new commit is pushed                                                                        |
-| isAdminEnforced              | boolean         | Enforces status checks for admin                                                                                                          |
-| lockAllowsFetchAndMerge      | boolean         | If the repo has dependabot alerts enabled                                                                                                 |
-| lockBranch                   | boolean         | If the branch is read-only                                                                                                                |
-| pushRestrictions             | list[string]    | List of actors that are permitted to push to the branch, Format "/<login>" or "<org>/<team-slug>", an empty list does not restrict pushes |
-| requireLastPushApproval      | boolean         | TBD                                                                                                                                       |
-| requiredApprovingReviewCount | integer or null | TBD                                                                                                                                       |
-| requiresApprovingReviews     | boolean         | TBD                                                                                                                                       |
-| requiresCodeOwnerReviews     | boolean         | TBD                                                                                                                                       |
-| requiresCommitSignatures     | boolean         | TBD                                                                                                                                       |
-| requiresLinearHistory        | boolean         | TBD                                                                                                                                       |
-| requiresStatusChecks         | boolean         | TBD                                                                                                                                       |
-| requiresStrictStatusChecks   | boolean         | TBD                                                                                                                                       |
-| restrictsReviewDismissals    | boolean         | TBD                                                                                                                                       |
+| Field                        | Type            | Description                                                                                                                                             |
+|------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| pattern                      | string          | Pattern to match branches                                                                                                                               |
+| allowsDeletions              | boolean         | If the branch can be deleted                                                                                                                            |
+| allowsForcePushes            | boolean         | If branch allows force pushes                                                                                                                           |
+| dismissesStaleReviews        | boolean         | Dismiss approved reviews automatically when a new commit is pushed                                                                                      |
+| isAdminEnforced              | boolean         | Enforces status checks for admin                                                                                                                        |
+| lockAllowsFetchAndMerge      | boolean         | If the repo has dependabot alerts enabled                                                                                                               |
+| lockBranch                   | boolean         | If the branch is read-only                                                                                                                              |
+| pushRestrictions             | list[string]    | List of actors that are permitted to push to the branch, Format /&lt;login&gt; or &lt;org&gt;/&lt;team-slug&gt;, an empty list does not restrict pushes |
+| requireLastPushApproval      | boolean         | TBD                                                                                                                                                     |
+| requiredApprovingReviewCount | integer or null | TBD                                                                                                                                                     |
+| requiresApprovingReviews     | boolean         | TBD                                                                                                                                                     |
+| requiresCodeOwnerReviews     | boolean         | TBD                                                                                                                                                     |
+| requiresCommitSignatures     | boolean         | TBD                                                                                                                                                     |
+| requiresLinearHistory        | boolean         | TBD                                                                                                                                                     |
+| requiresStatusChecks         | boolean         | TBD                                                                                                                                                     |
+| requiresStrictStatusChecks   | boolean         | TBD                                                                                                                                                     |
+| restrictsReviewDismissals    | boolean         | TBD                                                                                                                                                     |
 
 ## Usage
 
