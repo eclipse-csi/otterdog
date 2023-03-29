@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.1.0-SNAPSHOT] - unreleased
+## [0.1.0] - unreleased
 
 ### Added
 
