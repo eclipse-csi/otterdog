@@ -50,7 +50,8 @@ class ValidateOperation(Operation):
             try:
                 organization = org.load_from_file(github_id,
                                                   self.jsonnet_config.get_org_config_file(github_id),
-                                                  self.config)
+                                                  self.config,
+                                                  False)
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1

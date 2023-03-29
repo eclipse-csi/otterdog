@@ -149,7 +149,10 @@ class Organization:
         return f"Organization(id={self.github_id})"
 
 
-def load_from_file(github_id: str, config_file: str, config: OtterdogConfig) -> Organization:
+def load_from_file(github_id: str,
+                   config_file: str,
+                   config: OtterdogConfig,
+                   resolve_secrets: bool = True) -> Organization:
     if not os.path.exists(config_file):
         msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
         raise RuntimeError(msg)
@@ -158,9 +161,10 @@ def load_from_file(github_id: str, config_file: str, config: OtterdogConfig) -> 
     org_data = utils.jsonnet_evaluate_file(config_file)
 
     # resolve webhook secrets
-    for webhook in org_data["webhooks"]:
-        if "secret" in webhook:
-            webhook["secret"] = config.get_secret(webhook["secret"])
+    if resolve_secrets:
+        for webhook in org_data["webhooks"]:
+            if "secret" in webhook:
+                webhook["secret"] = config.get_secret(webhook["secret"])
 
     org = Organization(github_id)
     org.load_config(org_data)

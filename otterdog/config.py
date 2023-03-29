@@ -210,7 +210,7 @@ class OrganizationConfig:
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, force_processing: bool, local_only: bool):
+    def __init__(self, config_file: str, force_processing: bool, local_only: bool, no_web_ui: bool):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -218,6 +218,7 @@ class OtterdogConfig:
         self._data_dir = os.path.dirname(self._config_file)
         self._credential_providers = {}
         self._force_processing = force_processing
+        self._no_web_ui = no_web_ui
 
         with open(config_file) as f:
             self._configuration = json.load(f)
@@ -240,6 +241,10 @@ class OtterdogConfig:
     @property
     def force_processing(self) -> bool:
         return self._force_processing
+
+    @property
+    def no_web_ui(self) -> bool:
+        return self._no_web_ui
 
     @property
     def data_dir(self) -> str:
@@ -310,5 +315,5 @@ class OtterdogConfig:
         return f"OtterdogConfig('{self.data_dir}')"
 
     @classmethod
-    def from_file(cls, config_file: str, force_processing: bool, local_only: bool):
-        return cls(config_file, force_processing, local_only)
+    def from_file(cls, config_file: str, force_processing: bool, local_only: bool, no_web_ui: bool):
+        return cls(config_file, force_processing, local_only, no_web_ui)

@@ -59,8 +59,10 @@ def main(arguments=None):
         subparser.add_argument("organization", nargs="*", help="the github id of the organization")
         subparser.add_argument("--config", "-c", help=f"configuration file, defaults to '{CONFIG_FILE}'",
                                action="store", default=CONFIG_FILE)
-        subparser.add_argument("--local", action="store_true", default=0, help="does not update the default config")
-        subparser.add_argument("--force", "-f", action="store_true", default=0, help="skips interactive approvals")
+        subparser.add_argument("--local", action="store_true", default=False, help="does not update the default config")
+        subparser.add_argument("--force", "-f", action="store_true", default=False, help="skips interactive approvals")
+        subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
+                               help="skip settings retrieved via web ui")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
     args = parser.parse_args(arguments)
@@ -71,7 +73,7 @@ def main(arguments=None):
     printer.print()
 
     try:
-        config = OtterdogConfig.from_file(args.config, args.force, args.local)
+        config = OtterdogConfig.from_file(args.config, args.force, args.local, args.no_web_ui)
 
         exit_code = 0
 

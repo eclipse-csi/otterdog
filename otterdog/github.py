@@ -33,6 +33,9 @@ class Github:
         self.web_client = GithubWeb(self.credentials)
         self.graphql_client = GithubGraphQL(credentials.github_token)
 
+    def is_web_setting(self, setting_key: str) -> bool:
+        return setting_key in self.settings_web_keys
+
     def is_readonly_org_setting(self, setting_key: str) -> bool:
         setting_entry = self.settings_schema["properties"].get(setting_key)
         return setting_entry.get("readonly", False)

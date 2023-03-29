@@ -112,8 +112,13 @@ class DiffOperation(Operation):
         start = datetime.now()
         self.printer.print(f"organization settings: Reading...")
 
+        # filter out web settings if --no-web-ui is used
+        expected_settings_keys = expected_settings.keys()
+        if self.config.no_web_ui:
+            expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_setting(x)}
+
         # determine differences for settings.
-        current_github_org_settings = self.gh_client.get_org_settings(github_id, expected_settings.keys())
+        current_github_org_settings = self.gh_client.get_org_settings(github_id, expected_settings_keys)
         current_otterdog_org_settings = mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
 
         end = datetime.now()
@@ -121,6 +126,9 @@ class DiffOperation(Operation):
 
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
+            if key not in expected_settings_keys:
+                continue
+
             if key not in current_otterdog_org_settings:
                 self.printer.print_warn(f"unexpected key '{key}' found in configuration, skipping")
                 continue
