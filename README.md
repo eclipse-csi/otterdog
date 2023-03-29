@@ -349,16 +349,40 @@ otterdog -h
 deactivate-otterdog
 ```
 
+### otterdog container Arguments
+
+* An table arguments
+
+| Argument                     | Description                                                                                |
+|------------------------------|--------------------------------------------------------------------------------------------|
+| -g                           | .gnupg directory PATH by default $HOME/.gnupg if it is not provided                        |
+| -o                           | Output ORGS directory path by default $PWD/orgs if it is not provided                      |
+| -c                           | otterdog json file path by default $PWD/otterdog.json if it is not provided                |
+| -p                           | .password-store directory PATH by default $HOME/.password-store if it is not provided      |
+| -h                           | Help about container arguments and otterdog                                                |
+
+* Please find below an example to show configuration
+```console
+otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs apply -f
+```
+
+
 ### Usage Otterdog Container Runtime
 * Please follow the section [Usage](#usage)
 * Please bear in mind that all command need to drop **.sh**
 
 ### Activating Development Otterdog Container Runtime
-* Activating developemnt otterdog environment will create a alias ```otterdog-dev``` to run a container shell with otterdog
+* Activating developemnt otterdog environment will run eclipse/otterdog:dev. Thus it can be used container shell. Please find below an example
 ```console
 export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
-otterdog-dev
+otterdog /bin/bash
 ``` 
+* To activate development otterdog environment with arbument
+```console
+export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
+otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs /bin/bash
+``` 
+
 * Checking otterdog environment
 ```console
 /app/otterdog.sh -h

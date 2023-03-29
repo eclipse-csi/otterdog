@@ -11,3 +11,10 @@ dist
 
 ### Ignoring otterdog out directory orgs
 orgs*
+
+### Ignoring data to test
+data
+
+
+#### Ignoring swp files
+*.swp
