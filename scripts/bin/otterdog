@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# *******************************************************************************
+# Copyright (c) 2023 Eclipse Foundation and others.
+# This program and the accompanying materials are made available
+# under the terms of the MIT License
+# which is available at https://spdx.org/licenses/MIT.html
+# SPDX-License-Identifier: MIT
+# *******************************************************************************
+
+__SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+### Loading lib
+for lib in ${__SCRIPT_DIR}/lib/*
+do
+    source ${lib}
+done
+
+# Default values
+export __OG_PASSWORD_STORE_PATH="${HOME}/.password-store"
+export __OG_GNUPG_PATH="${HOME}/.gnupg"
+export __OG_OTTERDOG_JSON_FILE="$PWD/otterdog.json"
+export __OG_OTTERDOG_ORGS_PATH="$PWD/orgs"
+export __OG_OTTERDOG_BW_DATA_FILE="$HOME/.config/Bitwarden\ CLI/data.json"
+export __OG_ACTIONS=""
+
+
+__og_arguments-path.exists(){
+  # Check if directories exist
+  if [ ! -d "$__OG_PASSWORD_STORE_PATH" ]; then
+    echo "ERROR!!!: Password Store Directory $__OG_PASSWORD_STORE_PATH does not exist." >&2
+    __og_help
+    exit 1
+  fi
+
+  if [ ! -d "$__OG_GNUPG_PATH" ]; then
+    echo "ERROR:!!! gpg Directory $gpg_path does not exist." >&2
+    __og_help
+    exit 1
+  fi
+
+  if [ ! -f "$__OG_OTTERDOG_JSON_FILE" ]; then
+    echo "ERROR:!!! OTTERDOG JSON file $__OG_OTTERDOG_JSON_FILE does not exist." >&2
+    __og_help
+    exit 1
+  fi
+}
+
+__og_help(){
+  echo "Usage: $0 [-c OTTERDOG JSON FILE] [-o ORGS DIRECTORY PATH] [-p PASSWORD-STORE-PATH] [-g GNUPG-PATH]" >&2
+  __og_container.gethelp
+}
+
+__og_container.gethelp(){
+  cmd='docker run --rm -it --name otterdog --hostname otterdog \
+      eclipse/otterdog:latest -h'
+
+  if [ "$__OG_VERBOSE" = true ]
+  then
+    echo "$cmd $@"
+  fi
+  eval "$cmd $@"
+}
+
+
+__og_container.run(){
+  if [ ! -z $OTTERDOG_DEV ]
+  then
+      export OTTERDOG_IMAGE_VERSION=dev
+  else
+      export OTTERDOG_IMAGE_VERSION=latest
+  fi
+
+  cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="'${BW_SESSION}'" \
+      -v '$__OG_OTTERDOG_BW_DATA_FILE':/root/.config/Bitwarden\ CLI/data.json \
+      -v '$__OG_OTTERDOG_JSON_FILE':/app/otterdog.json \
+      -v '$__OG_OTTERDOG_ORGS_PATH':/app/orgs \
+      -v '$__OG_GNUPG_PATH':/root/.gnupg \
+      -v '$__OG_PASSWORD_STORE_PATH':/root/.password-store \
+      eclipse/otterdog:'$OTTERDOG_IMAGE_VERSION
+
+
+  if [ "$__OG_VERBOSE" = true ]
+  then
+    echo "$cmd $@"
+  fi
+  eval "$cmd $@"
+}
+
+__og_arguments.read(){
+# Parse command line options
+  local __og_num_parameters=0
+  while getopts ":p:o:g:c:h" opt; do
+    case ${opt} in
+      p )
+        export __OG_PASSWORD_STORE_PATH=$(dirname $OPTARG)
+        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value 
+        ;;
+      g )
+        export __OG_GNUPG_PATH=$(readlink -f $OPTARG)
+        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value
+        ;;
+      o )
+        export __OG_OTTERDOG_ORGS_PATH=$(readlink -f $OPTARG)
+        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value
+        ;;
+      c )
+        export __OG_OTTERDOG_JSON_FILE=$(readlink -f $OPTARG)
+        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value
+        ;;
+      h )
+        __og_help
+        exit 0
+        ;;
+      \? ) # Invalid option
+        __og_help
+        exit 1
+        ;;
+      : ) # Missing argument
+        echo "Error: -$OPTARG requires an argument." >&2
+        __og_help
+        exit 1
+        ;;
+    esac
+  done
+  local __og_arguments=("$@")
+  if [ $__og_num_parameters -ge 2 ]
+  then
+    export __og_actions="${__og_arguments[@]:$__og_num_parameters}"
+  else
+    export __og_actions="${__og_arguments[@]}"
+  fi
+  if [ "$__OG_VERBOSE" = true ]
+  then
+    echo "All __og_arguments: ${__og_arguments[@]}"
+    echo "Password store path: $__OG_PASSWORD_STORE_PATH"
+    echo "GPG path: $__OG_GNUPG_PATH"
+    echo "OTTERDOG JSON FILE: $__OG_OTTERDOG_JSON_FILE"
+    echo "__og_num_parameters: $__og_num_parameters"
+    for arg in ${__og_arguments[@]}
+    do
+      echo "Arg: $arg"
+    done
+    echo "__og_actions: ${__og_actions}"
+    echo "#num __og_arguments ${#__og_arguments[@]}"
+  fi
+}
+
+
+__og_main(){
+  __og_arguments.read $@
+  __og_arguments-path.exists
+  __og_container.run $__og_actions
+}
+
+__og_main $@
