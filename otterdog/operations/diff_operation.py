@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import os
 from abc import abstractmethod
@@ -15,13 +15,14 @@ from typing import Any
 
 from colorama import Style
 
-from . import mapping
-from . import organization as org
-from . import schemas
-from .config import OtterdogConfig, OrganizationConfig
-from .github import Github
-from .operation import Operation
-from .utils import IndentingPrinter, associate_by_key, print_warn
+from otterdog import mapping
+from otterdog import organization as org
+from otterdog import schemas
+from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.github import Github
+from otterdog.operation import Operation
+from otterdog.utils import IndentingPrinter, associate_by_key, print_warn
+
 from .validate_operation import ValidateOperation
 
 
@@ -140,7 +141,7 @@ class DiffOperation(Operation):
 
         if len(modified_settings) > 0:
             # some settings might be read-only, collect the correct number of changes
-            # to be executed based on the operation to be performed.
+            # to be executed based on the operations to be performed.
             differences = self.handle_modified_settings(github_id, modified_settings)
             diff_status.differences += differences
 

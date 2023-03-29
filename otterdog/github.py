@@ -10,7 +10,7 @@ from typing import Any
 
 from . import schemas
 from . import utils
-from .bitwarden_provider import Credentials
+from .credentials import Credentials
 from .github_graphql import GithubGraphQL
 from .github_rest import GithubRest
 from .github_web import GithubWeb

@@ -9,8 +9,8 @@
 import os
 import subprocess
 
-from .credentials import Credentials, CredentialProvider
-from . import utils
+from otterdog.credentials import Credentials, CredentialProvider
+from otterdog import utils
 
 
 class PassVault(CredentialProvider):

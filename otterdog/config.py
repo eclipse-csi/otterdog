@@ -14,10 +14,9 @@ from typing import Any
 
 import jq
 
-from . import bitwarden_provider
 from . import utils
 from . import credentials
-from . import pass_provider
+from .credential_providers import bitwarden_provider, pass_provider
 
 _DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
 

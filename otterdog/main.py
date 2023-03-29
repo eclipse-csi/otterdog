@@ -11,14 +11,14 @@ import sys
 import traceback
 
 from . import utils
-from .apply_operation import ApplyOperation
 from .config import OtterdogConfig
-from .fetch_operation import FetchOperation
-from .push_operation import PushOperation
-from .import_operation import ImportOperation
-from .plan_operation import PlanOperation
-from .show_operation import ShowOperation
-from .validate_operation import ValidateOperation
+from .operations.apply_operation import ApplyOperation
+from .operations.fetch_operation import FetchOperation
+from .operations.push_operation import PushOperation
+from .operations.import_operation import ImportOperation
+from .operations.plan_operation import PlanOperation
+from .operations.show_operation import ShowOperation
+from .operations.validate_operation import ValidateOperation
 
 CONFIG_FILE = "otterdog.json"
 

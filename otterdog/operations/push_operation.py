@@ -1,17 +1,17 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from colorama import Style
 
-from .config import OtterdogConfig, OrganizationConfig
-from .github import Github
-from .operation import Operation
-from .utils import IndentingPrinter
+from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.github import Github
+from otterdog.operation import Operation
+from otterdog.utils import IndentingPrinter
 
 
 class PushOperation(Operation):

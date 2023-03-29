@@ -1,19 +1,19 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import os
 
 from colorama import Fore, Style
 
-from . import organization as org
-from .config import OtterdogConfig, OrganizationConfig
-from .operation import Operation
-from .utils import IndentingPrinter
+from otterdog import organization as org
+from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.operation import Operation
+from otterdog.utils import IndentingPrinter
 
 
 class ValidateOperation(Operation):

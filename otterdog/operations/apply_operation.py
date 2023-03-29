@@ -1,20 +1,21 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from typing import Any
 
 from colorama import Style
 
-from .config import OtterdogConfig
+from otterdog.config import OtterdogConfig
+from otterdog.utils import IndentingPrinter
+from otterdog import mapping
+
 from .diff_operation import DiffStatus
 from .plan_operation import PlanOperation
-from .utils import IndentingPrinter
-from . import mapping
 
 
 class ApplyOperation(PlanOperation):
