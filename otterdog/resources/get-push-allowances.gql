@@ -1,0 +1,30 @@
+query($endCursor: String, $branchProtectionRuleId: ID!) {
+  node(id: $branchProtectionRuleId) {
+    ... on BranchProtectionRule {
+      id
+      pushAllowances(first: 100, after: $endCursor) {
+        nodes {
+          actor {
+            __typename
+            ... on App {
+              id
+              slug
+            }
+            ... on Team {
+              id
+              combinedSlug
+            }
+            ... on User {
+              id
+              login
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}

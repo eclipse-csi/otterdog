@@ -8,6 +8,7 @@
 
 import base64
 import json
+import re
 from typing import Any
 
 import requests
@@ -278,3 +279,24 @@ class GithubRest:
             raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}'")
         else:
             utils.print_debug(f"updated vulnerability_reports for repo via rest api")
+
+    def get_user_node_id(self, login: str):
+        utils.print_debug("retrieving user node id via rest API")
+        response = requests.get(url=f"{self._GH_API_URL_ROOT}/users/{login}", headers=self._headers)
+        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            raise RuntimeError(f"failed retrieving user node id via rest API")
+
+        return response.json()["node_id"]
+
+    def get_team_node_id(self, combined_slug: str) -> str:
+        utils.print_debug("retrieving team node id via rest API")
+        org_id, team_slug = re.split("/", combined_slug)
+        response = requests.get(url=f"{self._GH_API_URL_ROOT}/orgs/{org_id}/teams/{team_slug}", headers=self._headers)
+        utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            raise RuntimeError(f"failed retrieving team node id via rest API")
+
+        return response.json()["node_id"]

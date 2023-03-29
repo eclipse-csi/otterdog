@@ -128,3 +128,13 @@ class Github:
             repo_id = repo_data["node_id"]
 
         self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
+
+    def get_actor_ids(self, actor_names: list[str]) -> list[str]:
+        result = []
+        for actor in actor_names:
+            if actor.startswith("/"):
+                result.append(self.rest_client.get_user_node_id(actor[1:]))
+            else:
+                result.append(self.rest_client.get_team_node_id(actor))
+
+        return result

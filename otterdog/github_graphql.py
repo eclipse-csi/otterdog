@@ -30,7 +30,18 @@ class GithubGraphQL:
 
     def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         utils.print_debug(f"retrieving branch protection rules for repo '{repo_name}' via graphql API")
-        branch_protection_rules = self._run_paged_query(org_id, repo_name, "get-branch-protection-rules.gql")
+
+        variables = {"organization": org_id, "repository": repo_name}
+        branch_protection_rules = self._run_paged_query(variables, "get-branch-protection-rules.gql")
+
+        for branch_protection_rule in branch_protection_rules:
+            variables = {"branchProtectionRuleId": branch_protection_rule["id"]}
+            actors = self._run_paged_query(variables, "get-push-allowances.gql", ".data.node.pushAllowances")
+            branch_protection_rule["pushRestrictions"] = self._transform_actors(actors)
+
+            pushRestrictions = branch_protection_rule["pushRestrictions"]
+
+
         return branch_protection_rules
 
     def update_branch_protection_rule(self,
@@ -103,11 +114,10 @@ class GithubGraphQL:
             raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}' via graphql")
 
     def _run_paged_query(self,
-                         org_id: str,
-                         repo_name: str,
+                         input_variables: dict[str, str],
                          query_file: str,
                          prefix_selector: str = ".data.repository.branchProtectionRules") -> list[dict[str, Any]]:
-        utils.print_debug(f"running graphql query '{query_file}' for repo '{repo_name}'")
+        utils.print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = files(resources).joinpath(query_file).read_text()
 
@@ -116,7 +126,8 @@ class GithubGraphQL:
         result = []
 
         while not finished:
-            variables = {"organization": org_id, "repository": repo_name, "endCursor": end_cursor}
+            variables = {"endCursor": end_cursor}
+            variables.update(input_variables)
 
             response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
                                      headers=self._headers,
@@ -124,7 +135,7 @@ class GithubGraphQL:
             utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
 
             if not response.ok:
-                raise RuntimeError(f"failed running query '{query_file}' for repo '{repo_name}' via graphql")
+                raise RuntimeError(f"failed running query '{query_file}' via graphql")
 
             json_data = response.json()
             if "data" in json_data:
@@ -146,6 +157,23 @@ class GithubGraphQL:
                 else:
                     finished = True
             else:
-                raise RuntimeError(f"failed running graphql query '{query_file}' for repo '{repo_name}'")
+                raise RuntimeError(f"failed running graphql query '{query_file}'")
+
+        return result
+
+    @staticmethod
+    def _transform_actors(actors: list[dict[str, Any]]) -> list[str]:
+        result = []
+        for actor_wrapper in actors:
+            actor = actor_wrapper["actor"]
+            typename = actor["__typename"]
+            if typename == "User":
+                login = actor["login"]
+                result.append(f"/{login}")
+            elif typename == "Team":
+                slug = actor["combinedSlug"]
+                result.append(slug)
+            else:
+                raise RuntimeError(f"unsupported actor '{actor}'")
 
         return result

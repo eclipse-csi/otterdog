@@ -10,6 +10,10 @@
     "isAdminEnforced": { "type": "boolean" },
     "lockAllowsFetchAndMerge": { "type": "boolean" },
     "lockBranch": { "type": "boolean" },
+    "pushRestrictions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "requireLastPushApproval": { "type": "boolean" },
     "requiredApprovingReviewCount": { "$ref": "#/definitions/integer_or_null" },
     "requiresApprovingReviews": { "type": "boolean" },
@@ -19,7 +23,6 @@
     "requiresLinearHistory": { "type": "boolean" },
     "requiresStatusChecks": { "type": "boolean" },
     "requiresStrictStatusChecks": { "type": "boolean" },
-    "restrictsPushes": { "type": "boolean" },
     "restrictsReviewDismissals": { "type": "boolean" }
   },
 

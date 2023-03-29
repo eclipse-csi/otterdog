@@ -82,7 +82,10 @@ class Operation(Protocol):
                 self.printer.level_down()
                 self.printer.print(f"  }}")
             else:
-                e_v = expected_value if not key or key not in redacted_keys or expected_value is None else "<redacted>"
+                e_v = expected_value if not key or \
+                                        redacted_keys is None or \
+                                        key not in redacted_keys or \
+                                        expected_value is None else "<redacted>"
 
                 self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                    f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{e_v}\"")

@@ -85,6 +85,8 @@ class ApplyOperation(PlanOperation):
                              rule_pattern: str,
                              rule_id: str,
                              modified_rule: dict[str, Any]) -> None:
+        super().handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
+
         data = {}
         for key, (expected_value, current_value) in modified_rule.items():
             data[key] = expected_value
@@ -135,6 +137,12 @@ class ApplyOperation(PlanOperation):
             self.gh_client.add_repo(org_id, github_repo)
 
         for (repo_name, rule_pattern, rule_id, rule) in self._modified_rules:
+            restricts_pushes = rule.pop("pushRestrictions")
+            if restricts_pushes is not None:
+                actor_ids = self.gh_client.get_actor_ids(restricts_pushes)
+                rule["pushActorIds"] = actor_ids
+                rule["restrictsPushes"] = True if len(actor_ids) > 0 else False
+
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, rule)
 
         for (repo_name, repo_id, rule) in self._new_rules:
