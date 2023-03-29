@@ -145,7 +145,7 @@ local newBranchProtectionRule(pattern) = {
   isAdminEnforced: false,
   lockAllowsFetchAndMerge: false,
   lockBranch: false,
-  #pushActorIds: [],
+  pushRestrictions: [],
   #requiredStatusCheckContexts: [],
   #requiredStatusChecks: [],
   requiredApprovingReviewCount: 2,
@@ -156,7 +156,6 @@ local newBranchProtectionRule(pattern) = {
   requiresLinearHistory: false,
   requiresStatusChecks: true,
   requiresStrictStatusChecks: false,
-  restrictsPushes: false,
   restrictsReviewDismissals: false
   #reviewDismissalAllowances: [],
 };
