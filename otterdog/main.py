@@ -61,19 +61,25 @@ def main(arguments=None):
                                action="store", default=CONFIG_FILE)
         subparser.add_argument("--local", action="store_true", default=False, help="does not update the default config")
         subparser.add_argument("--force", "-f", action="store_true", default=False, help="skips interactive approvals")
-        subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
-                               help="skip settings retrieved via web ui")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
-    args = parser.parse_args(arguments)
+    for subparser in [plan_parser, apply_parser]:
+        subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
+                               help="skip settings retrieved via web ui")
 
+    args = parser.parse_args(arguments)
     utils.init(args.verbose)
 
     printer = utils.IndentingPrinter()
     printer.print()
 
     try:
-        config = OtterdogConfig.from_file(args.config, args.force, args.local, args.no_web_ui)
+        if args.__contains__("no_web_ui"):
+            no_web_ui = args.no_web_ui
+        else:
+            no_web_ui = False
+
+        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui)
 
         exit_code = 0
 
