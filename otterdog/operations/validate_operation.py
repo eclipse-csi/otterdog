@@ -156,4 +156,14 @@ class ValidateOperation(Operation):
                             f" 'restrictsReviewDismissals' disabled but 'reviewDismissalAllowances' is set.")
                         validation_errors += 1
 
+                    allowsForcePushes = rule.get("allowsForcePushes")
+                    bypassForcePushAllowances = rule.get("bypassForcePushAllowances")
+
+                    if (allowsForcePushes is True) and \
+                            len(bypassForcePushAllowances) > 0:
+                        self.printer.print_error(
+                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
+                            f" 'allowsForcePushes' enabled but 'bypassForcePushAllowances' is not empty.")
+                        validation_errors += 1
+
         return validation_errors
