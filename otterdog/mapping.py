@@ -121,7 +121,8 @@ def map_otterdog_org_settings_data_to_github(otterdog_org_data: dict[str, Any]) 
             mapping[k] = S(k)
 
     # plan is a readonly feature only needed for validation.
-    mapping.pop("plan")
+    if "plan" in otterdog_org_data:
+        mapping.pop("plan")
 
     return bend(mapping, otterdog_org_data)
 
@@ -191,7 +192,7 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
 
     if "pushRestrictions" in otterdog_bpr_data:
         mapping.pop("pushRestrictions")
-        restricts_pushes = otterdog_bpr_data.pop("pushRestrictions")
+        restricts_pushes = otterdog_bpr_data["pushRestrictions"]
         if restricts_pushes is not None:
             actor_ids = gh_client.get_actor_ids(restricts_pushes)
             mapping["pushActorIds"] = K(actor_ids)
@@ -199,7 +200,7 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
 
     if "reviewDismissalAllowances" in otterdog_bpr_data:
         mapping.pop("reviewDismissalAllowances")
-        review_dismissal_allowances = otterdog_bpr_data.pop("reviewDismissalAllowances")
+        review_dismissal_allowances = otterdog_bpr_data["reviewDismissalAllowances"]
         if review_dismissal_allowances is not None:
             actor_ids = gh_client.get_actor_ids(review_dismissal_allowances)
             mapping["reviewDismissalActorIds"] = K(actor_ids)

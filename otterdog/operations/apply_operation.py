@@ -118,7 +118,8 @@ class ApplyOperation(PlanOperation):
                 return
 
         if self._modified_settings is not None:
-            self.gh_client.update_org_settings(org_id, self._modified_settings)
+            github_settings = mapping.map_otterdog_org_settings_data_to_github(self._modified_settings)
+            self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():
             github_webhook = mapping.map_otterdog_org_webhook_data_to_github(webhook)
@@ -141,7 +142,8 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for (repo_name, repo_id, rule) in self._new_rules:
-            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule)
+            github_rule = mapping.map_otterdog_branch_protection_rule_data_to_github(rule, self.gh_client)
+            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, github_rule)
 
         self.printer.print(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
                            f"{diff_status.differences} changed, "
