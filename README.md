@@ -288,8 +288,8 @@ Note:
 
 ### Actor Format
 
-* User: /login, e.g. `/netomi`
-* Team: <organization>/<team-slug>, e.g. `OtterdogTest/committers`
+* User: `/login`, e.g. `/netomi`
+* Team: `<organization>/<team-slug>`, e.g. `OtterdogTest/committers`
 
 ## Usage
 
