@@ -205,4 +205,11 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
             actor_ids = gh_client.get_actor_ids(review_dismissal_allowances)
             mapping["reviewDismissalActorIds"] = K(actor_ids)
 
+    if "bypassPullRequestAllowances" in otterdog_bpr_data:
+        mapping.pop("bypassPullRequestAllowances")
+        bypass_pull_request_allowances = otterdog_bpr_data["bypassPullRequestAllowances"]
+        if bypass_pull_request_allowances is not None:
+            actor_ids = gh_client.get_actor_ids(bypass_pull_request_allowances)
+            mapping["bypassPullRequestActorIds"] = K(actor_ids)
+
     return bend(mapping, otterdog_bpr_data)

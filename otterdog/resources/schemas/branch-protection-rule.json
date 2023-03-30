@@ -10,6 +10,10 @@
     "isAdminEnforced": { "type": "boolean" },
     "lockAllowsFetchAndMerge": { "type": "boolean" },
     "lockBranch": { "type": "boolean" },
+    "bypassPullRequestAllowances": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "pushRestrictions": {
       "type": "array",
       "items": { "type": "string" }

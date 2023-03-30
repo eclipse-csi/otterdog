@@ -47,6 +47,13 @@ class GithubGraphQL:
             branch_protection_rule["reviewDismissalAllowances"] = \
                 self._transform_actors(reviewDismissalAllowanceActors)
 
+            bypassPullRequestAllowanceActors = \
+                self._run_paged_query(variables,
+                                      "get-bypass-pull-request-allowances.gql",
+                                      ".data.node.bypassPullRequestAllowances")
+            branch_protection_rule["bypassPullRequestAllowances"] = \
+                self._transform_actors(bypassPullRequestAllowanceActors)
+
         return branch_protection_rules
 
     def update_branch_protection_rule(self,

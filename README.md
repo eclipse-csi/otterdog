@@ -264,6 +264,7 @@ value (not adivsed), or referencing it via a credential provider.
 | pattern                      | string          | Pattern to match branches                                                                    |
 | allowsDeletions              | boolean         | If the branch can be deleted                                                                 |
 | allowsForcePushes            | boolean         | If branch allows force pushes                                                                |
+| bypassPullRequestAllowances  | list[actor]     | List of actors able to force push for this branch protection rule                            |
 | dismissesStaleReviews        | boolean         | Dismiss approved reviews automatically when a new commit is pushed                           |
 | isAdminEnforced              | boolean         | Enforces status checks for admin                                                             |
 | lockAllowsFetchAndMerge      | boolean         | If the repo has dependabot alerts enabled                                                    |
