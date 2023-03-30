@@ -273,7 +273,7 @@ class DiffOperation(Operation):
                                          org_id: str,
                                          repo_name: str,
                                          repo_id: str,
-                                         current_rules: list[dict[str, Any]],
+                                         current_github_rules: list[dict[str, Any]],
                                          expected_repo: dict[str, Any],
                                          diff_status: DiffStatus) -> None:
 
@@ -288,20 +288,22 @@ class DiffOperation(Operation):
 
         # only retrieve current rules if the repo_id is available, otherwise it's a new repo
         if repo_id:
-            for current_rule in current_rules:
-                rule_id = current_rule["id"]
-                rule_pattern = current_rule["pattern"]
+            for current_github_rule in current_github_rules:
+                rule_id = current_github_rule["id"]
+                rule_pattern = current_github_rule["pattern"]
+
+                current_otterdog_rule = \
+                    mapping.map_github_branch_protection_rule_data_to_otterdog(current_github_rule)
+
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_extra_rule(org_id, repo_name, repo_id,
-                                           schemas.get_items_contained_in_schema(current_rule,
-                                                                                 schemas.BRANCH_PROTECTION_RULE_SCHEMA))
+                    self.handle_extra_rule(org_id, repo_name, repo_id, current_otterdog_rule)
                     diff_status.extras += 1
                     continue
 
                 modified_rule = {}
                 for key, expected_value in expected_rule.items():
-                    current_value = current_rule.get(key)
+                    current_value = current_otterdog_rule.get(key)
                     if expected_value != current_value:
                         diff_status.differences += 1
                         modified_rule[key] = (expected_value, current_value)

@@ -46,3 +46,10 @@ def test_otterdog_repo_to_github_mapping(otterdog_repo_data):
     assert github_data["name"] == "otterdog-defaults"
 
     assert "secret_scanning" not in github_data
+
+
+def test_github_bpr_to_otterdog_mapping(github_bpr_data):
+    otterdog_data = mapping.map_github_branch_protection_rule_data_to_otterdog(github_bpr_data)
+
+    assert otterdog_data["pattern"] == "main"
+    assert otterdog_data["allowsForcePushes"] is False

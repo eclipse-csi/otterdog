@@ -259,25 +259,36 @@ value (not adivsed), or referencing it via a credential provider.
 
 ### Branch Protection Rules
 
-| Field                        | Type            | Description                                                                                                                                             |
-|------------------------------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| pattern                      | string          | Pattern to match branches                                                                                                                               |
-| allowsDeletions              | boolean         | If the branch can be deleted                                                                                                                            |
-| allowsForcePushes            | boolean         | If branch allows force pushes                                                                                                                           |
-| dismissesStaleReviews        | boolean         | Dismiss approved reviews automatically when a new commit is pushed                                                                                      |
-| isAdminEnforced              | boolean         | Enforces status checks for admin                                                                                                                        |
-| lockAllowsFetchAndMerge      | boolean         | If the repo has dependabot alerts enabled                                                                                                               |
-| lockBranch                   | boolean         | If the branch is read-only                                                                                                                              |
-| pushRestrictions             | list[string]    | List of actors that are permitted to push to the branch, Format /&lt;login&gt; or &lt;org&gt;/&lt;team-slug&gt;, an empty list does not restrict pushes |
-| requireLastPushApproval      | boolean         | TBD                                                                                                                                                     |
-| requiredApprovingReviewCount | integer or null | TBD                                                                                                                                                     |
-| requiresApprovingReviews     | boolean         | TBD                                                                                                                                                     |
-| requiresCodeOwnerReviews     | boolean         | TBD                                                                                                                                                     |
-| requiresCommitSignatures     | boolean         | TBD                                                                                                                                                     |
-| requiresLinearHistory        | boolean         | TBD                                                                                                                                                     |
-| requiresStatusChecks         | boolean         | TBD                                                                                                                                                     |
-| requiresStrictStatusChecks   | boolean         | TBD                                                                                                                                                     |
-| restrictsReviewDismissals    | boolean         | TBD                                                                                                                                                     |
+| Field                        | Type            | Description                                                                                  |
+|------------------------------|-----------------|----------------------------------------------------------------------------------------------|
+| pattern                      | string          | Pattern to match branches                                                                    |
+| allowsDeletions              | boolean         | If the branch can be deleted                                                                 |
+| allowsForcePushes            | boolean         | If branch allows force pushes                                                                |
+| dismissesStaleReviews        | boolean         | Dismiss approved reviews automatically when a new commit is pushed                           |
+| isAdminEnforced              | boolean         | Enforces status checks for admin                                                             |
+| lockAllowsFetchAndMerge      | boolean         | If the repo has dependabot alerts enabled                                                    |
+| lockBranch                   | boolean         | If the branch is read-only                                                                   |
+| pushRestrictions             | list[actor]     | List of actors that are permitted to push to the branch                                      |
+| requireLastPushApproval      | boolean         | Whether the most recent push must be approved by someone other than the person who pushed it |
+| requiredApprovingReviewCount | integer or null | TBD                                                                                          |
+| requiresApprovingReviews     | boolean         | TBD                                                                                          |
+| requiresCodeOwnerReviews     | boolean         | If reviews from code owners are required to update matching branches                         |
+| requiresCommitSignatures     | boolean         | If commits are required to be signed                                                         |
+| requiresLinearHistory        | boolean         | If merge commits are prohibited from being pushed to this branch                             |
+| requiresStatusChecks         | boolean         | TBD                                                                                          |
+| requiresStrictStatusChecks   | boolean         | TBD                                                                                          |
+| restrictsReviewDismissals    | boolean         | If only allowed actors can dismiss reviews on pull requests                                  |
+| reviewDismissalAllowances    | list[actor]     | List of actors that are permitted to dismiss reviews on pull requests                        |
+
+Note:
+
+* `pushRestrictions`: the contents of the actor list controls whether push restriction is enabled or disabled, i.e. an empty list disables it
+* `reviewDismissalAllowances`: if the actor list is non-empty but `restrictsReviewDismissals` is set to False, a validation error will be issued
+
+### Actor Format
+
+* User: /login, e.g. `/netomi`
+* Team: <organization>/<team-slug>, e.g. `OtterdogTest/committers`
 
 ## Usage
 

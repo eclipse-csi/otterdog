@@ -23,7 +23,11 @@
     "requiresLinearHistory": { "type": "boolean" },
     "requiresStatusChecks": { "type": "boolean" },
     "requiresStrictStatusChecks": { "type": "boolean" },
-    "restrictsReviewDismissals": { "type": "boolean" }
+    "restrictsReviewDismissals": { "type": "boolean" },
+    "reviewDismissalAllowances": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
   },
 
   "required": [ "pattern" ],

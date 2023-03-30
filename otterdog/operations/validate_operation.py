@@ -146,4 +146,14 @@ class ValidateOperation(Operation):
                             f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' is not set.")
                         validation_errors += 1
 
+                    restrictsReviewDismissals = rule.get("restrictsReviewDismissals")
+                    reviewDismissalAllowances = rule.get("reviewDismissalAllowances")
+
+                    if (restrictsReviewDismissals is False) and \
+                            len(reviewDismissalAllowances) > 0:
+                        self.printer.print_error(
+                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
+                            f" 'restrictsReviewDismissals' disabled but 'reviewDismissalAllowances' is set.")
+                        validation_errors += 1
+
         return validation_errors

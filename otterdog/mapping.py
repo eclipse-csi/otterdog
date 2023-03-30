@@ -8,9 +8,10 @@
 
 from typing import Any
 
-from jsonbender import bend, S, OptionalS
+from jsonbender import bend, K, S, OptionalS
 
 from . import schemas
+from .github import Github
 
 
 _FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS =\
@@ -98,6 +99,18 @@ def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[s
     return bend(mapping, github_repo_data)
 
 
+def map_github_branch_protection_rule_data_to_otterdog(github_bpr_data: dict[str, Any]) -> dict[str, Any]:
+    allowed_bpr_properties = schemas.get_properties_of_schema(schemas.BRANCH_PROTECTION_RULE_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_bpr_properties:
+        if k in github_bpr_data:
+            mapping[k] = S(k)
+
+    return bend(mapping, github_bpr_data)
+
+
 def map_otterdog_org_settings_data_to_github(otterdog_org_data: dict[str, Any]) -> dict[str, Any]:
     allowed_repo_properties = schemas.get_properties_of_schema(schemas.SETTINGS_SCHEMA)
 
@@ -164,3 +177,31 @@ def map_otterdog_repo_data_to_github(otterdog_repo_data: dict[str, Any]) -> dict
             mapping.update({"security_and_analysis": security_mapping})
 
     return bend(mapping, otterdog_repo_data)
+
+
+def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[str, Any],
+                                                       gh_client: Github) -> dict[str, Any]:
+    allowed_bpr_properties = schemas.get_properties_of_schema(schemas.BRANCH_PROTECTION_RULE_SCHEMA)
+
+    # first create an identity mapping for all properties contained in the schema.
+    mapping = {}
+    for k in allowed_bpr_properties:
+        if k in otterdog_bpr_data:
+            mapping[k] = S(k)
+
+    if "pushRestrictions" in otterdog_bpr_data:
+        mapping.pop("pushRestrictions")
+        restricts_pushes = otterdog_bpr_data.pop("pushRestrictions")
+        if restricts_pushes is not None:
+            actor_ids = gh_client.get_actor_ids(restricts_pushes)
+            mapping["pushActorIds"] = K(actor_ids)
+            mapping["restrictsPushes"] = K(True if len(actor_ids) > 0 else False)
+
+    if "reviewDismissalAllowances" in otterdog_bpr_data:
+        mapping.pop("reviewDismissalAllowances")
+        review_dismissal_allowances = otterdog_bpr_data.pop("reviewDismissalAllowances")
+        if review_dismissal_allowances is not None:
+            actor_ids = gh_client.get_actor_ids(review_dismissal_allowances)
+            mapping["reviewDismissalActorIds"] = K(actor_ids)
+
+    return bend(mapping, otterdog_bpr_data)

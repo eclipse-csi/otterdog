@@ -48,3 +48,10 @@ def otterdog_repo_data():
     filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/otterdog-repo.json")
     with open(filename, "r") as file:
         return json.load(file)
+
+
+@pytest.fixture()
+def github_bpr_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/github-bpr.json")
+    with open(filename, "r") as file:
+        return json.load(file)

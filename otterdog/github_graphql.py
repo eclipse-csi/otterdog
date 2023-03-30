@@ -36,11 +36,16 @@ class GithubGraphQL:
 
         for branch_protection_rule in branch_protection_rules:
             variables = {"branchProtectionRuleId": branch_protection_rule["id"]}
-            actors = self._run_paged_query(variables, "get-push-allowances.gql", ".data.node.pushAllowances")
-            branch_protection_rule["pushRestrictions"] = self._transform_actors(actors)
+            pushAllowanceActors = \
+                self._run_paged_query(variables, "get-push-allowances.gql", ".data.node.pushAllowances")
+            branch_protection_rule["pushRestrictions"] = self._transform_actors(pushAllowanceActors)
 
-            pushRestrictions = branch_protection_rule["pushRestrictions"]
-
+            reviewDismissalAllowanceActors = \
+                self._run_paged_query(variables,
+                                      "get-review-dismissal-allowances.gql",
+                                      ".data.node.reviewDismissalAllowances")
+            branch_protection_rule["reviewDismissalAllowances"] = \
+                self._transform_actors(reviewDismissalAllowanceActors)
 
         return branch_protection_rules
 
