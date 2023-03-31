@@ -12,4 +12,5 @@
 
 ### Changed
 
+- Added special handling for `web_commit_signoff_required`: if changed organization wide, it will implicitly change the same setting on repo level.
 - Removed `restrictsPushes` setting from branch protection rules as it is implicitly set based on setting `pushRestrictions`.

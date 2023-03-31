@@ -100,14 +100,17 @@ class DiffOperation(Operation):
 
         diff_status = DiffStatus()
 
-        self._process_settings(github_id, expected_org, diff_status)
+        modified_org_settings = self._process_settings(github_id, expected_org, diff_status)
         self._process_webhooks(github_id, expected_org, diff_status)
-        self._process_repositories(github_id, expected_org, diff_status)
+        self._process_repositories(github_id, expected_org, modified_org_settings, diff_status)
 
         self.handle_finish(github_id, diff_status)
         return diff_status.total_changes()
 
-    def _process_settings(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
+    def _process_settings(self,
+                          github_id: str,
+                          expected_org: org.Organization,
+                          diff_status: DiffStatus) -> dict[str, Any]:
         expected_settings = expected_org.get_settings()
 
         start = datetime.now()
@@ -144,6 +147,8 @@ class DiffOperation(Operation):
             # to be executed based on the operations to be performed.
             differences = self.handle_modified_settings(github_id, modified_settings)
             diff_status.differences += differences
+
+        return modified_settings
 
     def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
@@ -195,7 +200,11 @@ class DiffOperation(Operation):
             self.gh_client.get_branch_protection_rules(github_id, repo_name)
         return repo_name, repo_data
 
-    def _process_repositories(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
+    def _process_repositories(self,
+                              github_id: str,
+                              expected_org: org.Organization,
+                              modified_org_settings: dict[str, Any],
+                              diff_status: DiffStatus) -> None:
         start = datetime.now()
         self.printer.print(f"\nrepositories: Reading...")
 
@@ -243,6 +252,12 @@ class DiffOperation(Operation):
                     continue
 
                 current_value = current_otterdog_repo_data.get(key)
+                # special handling for some keys that can be set organization wide
+                if key == "web_commit_signoff_required":
+                    if key in modified_org_settings:
+                        org_value, _ = modified_org_settings.get(key)
+                        current_value = org_value
+
                 if expected_value != current_value:
                     diff_status.differences += 1
                     modified_repo[key] = (expected_value, current_value)
