@@ -29,9 +29,19 @@ class Github:
         self.settings_web_keys =\
             {k for k, v in self.settings_schema["properties"].items() if v.get("provider") == "web"}
 
-        self.rest_client = GithubRest(credentials.github_token)
+        self._init_clients()
+
+    def _init_clients(self):
+        self.rest_client = GithubRest(self.credentials.github_token)
         self.web_client = GithubWeb(self.credentials)
-        self.graphql_client = GithubGraphQL(credentials.github_token)
+        self.graphql_client = GithubGraphQL(self.credentials.github_token)
+
+    def __getstate__(self):
+        return self.credentials, self.settings_schema, self.settings_restapi_keys, self.settings_web_keys
+
+    def __setstate__(self, state):
+        self.credentials, self.settings_schema, self.settings_restapi_keys, self.settings_web_keys = state
+        self._init_clients()
 
     def is_web_setting(self, setting_key: str) -> bool:
         return setting_key in self.settings_web_keys
