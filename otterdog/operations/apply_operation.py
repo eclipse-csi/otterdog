@@ -22,7 +22,7 @@ class ApplyOperation(PlanOperation):
     def __init__(self):
         super().__init__()
 
-        self._modified_settings = None
+        self._org_settings_to_update = None
         self._modified_webhooks = {}
         self._new_webhooks = []
         self._modified_repos = {}
@@ -36,16 +36,28 @@ class ApplyOperation(PlanOperation):
     def pre_execute(self) -> None:
         self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
 
-    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, (Any, Any)]) -> int:
-        super().handle_modified_settings(org_id, modified_settings)
+    def handle_modified_settings(self,
+                                 org_id: str,
+                                 modified_settings: dict[str, (Any, Any)],
+                                 full_settings: dict[str, Any]) -> int:
+        super().handle_modified_settings(org_id, modified_settings, full_settings)
 
         settings = {}
-        for key, (expected_value, current_value) in modified_settings.items():
+        for key, expected_value in full_settings.items():
+            # do not consider read-only settings
             if not self.gh_client.is_readonly_org_setting(key):
-                settings[key] = expected_value
+                # only consider changed web settings
+                if self.gh_client.is_web_setting(key):
+                    if key in modified_settings:
+                        settings[key] = expected_value
+                # for rest settings, include all settings in the update
+                # as the update operation defines some defaults if
+                # a setting is not provided.
+                else:
+                    settings[key] = expected_value
 
-        self._modified_settings = settings
-        return len(settings)
+        self._org_settings_to_update = settings
+        return len(modified_settings)
 
     def handle_modified_webhook(self,
                                 org_id: str,
@@ -117,8 +129,8 @@ class ApplyOperation(PlanOperation):
                 self.printer.print("\nApply cancelled.")
                 return
 
-        if self._modified_settings is not None:
-            github_settings = mapping.map_otterdog_org_settings_data_to_github(self._modified_settings)
+        if self._org_settings_to_update is not None:
+            github_settings = mapping.map_otterdog_org_settings_data_to_github(self._org_settings_to_update)
             self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():

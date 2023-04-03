@@ -12,5 +12,6 @@
 
 ### Changed
 
+- Include all organization settings when doing a rest call to update specific settings to ensure consistency. ([#14](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/14))
 - Added special handling for `web_commit_signoff_required`: if changed organization wide, it will implicitly change the same setting on repo level.
 - Removed `restrictsPushes` setting from branch protection rules as it is implicitly set based on setting `pushRestrictions`.

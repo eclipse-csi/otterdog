@@ -145,7 +145,7 @@ class DiffOperation(Operation):
         if len(modified_settings) > 0:
             # some settings might be read-only, collect the correct number of changes
             # to be executed based on the operations to be performed.
-            differences = self.handle_modified_settings(github_id, modified_settings)
+            differences = self.handle_modified_settings(github_id, modified_settings, expected_settings)
             diff_status.differences += differences
 
         return modified_settings
@@ -335,7 +335,8 @@ class DiffOperation(Operation):
     @abstractmethod
     def handle_modified_settings(self,
                                  org_id: str,
-                                 modified_settings: dict[str, (Any, Any)]) -> int:
+                                 modified_settings: dict[str, (Any, Any)],
+                                 full_settings: dict[str, Any]) -> int:
         raise NotImplementedError
 
     @abstractmethod
