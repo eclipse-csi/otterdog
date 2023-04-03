@@ -10,8 +10,8 @@ from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.github import Github
-from otterdog.operation import Operation
 from otterdog.utils import IndentingPrinter
+from . import Operation
 
 
 class PushOperation(Operation):

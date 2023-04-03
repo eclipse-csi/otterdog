@@ -12,8 +12,8 @@ from colorama import Style, Fore
 
 from otterdog import organization as org
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.operation import Operation
 from otterdog.utils import IndentingPrinter
+from . import Operation
 
 
 class ShowOperation(Operation):

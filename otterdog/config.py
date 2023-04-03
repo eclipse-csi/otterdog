@@ -16,7 +16,7 @@ import jq
 
 from . import utils
 from . import credentials
-from .credential_providers import bitwarden_provider, pass_provider
+from .credentials import bitwarden_provider, pass_provider
 
 _DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
 
