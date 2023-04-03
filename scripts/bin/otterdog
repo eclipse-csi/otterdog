@@ -20,7 +20,7 @@ export __OG_PASSWORD_STORE_PATH="${HOME}/.password-store"
 export __OG_GNUPG_PATH="${HOME}/.gnupg"
 export __OG_OTTERDOG_JSON_FILE="$PWD/otterdog.json"
 export __OG_OTTERDOG_ORGS_PATH="$PWD/orgs"
-export __OG_OTTERDOG_BW_DATA_FILE="$HOME/.config/Bitwarden\ CLI/data.json"
+export __OG_OTTERDOG_BW_DATA_PATH="$HOME/.config/Bitwarden\ CLI"
 export __OG_ACTIONS=""
 
 
@@ -70,14 +70,22 @@ __og_container.run(){
       export OTTERDOG_IMAGE_VERSION=latest
   fi
 
-  cmd='docker run --rm -it --name otterdog --hostname otterdog -e BW_SESSION="'${BW_SESSION}'" \
-      -v '$__OG_OTTERDOG_BW_DATA_FILE':/root/.config/Bitwarden\ CLI/data.json \
-      -v '$__OG_OTTERDOG_JSON_FILE':/app/otterdog.json \
+  cmd='docker run --rm -it --name otterdog --hostname otterdog \
+      -e BW_SESSION="'${BW_SESSION}'" \
+      -u '$(id -u ${USER})':'$(id -g ${USER})' \
       -v '$__OG_OTTERDOG_ORGS_PATH':/app/orgs \
-      -v '$__OG_GNUPG_PATH':/root/.gnupg \
-      -v '$__OG_PASSWORD_STORE_PATH':/root/.password-store \
+      -v '$__OG_OTTERDOG_BW_DATA_PATH':'$__OG_OTTERDOG_BW_DATA_PATH' \
+      -v '$__OG_OTTERDOG_JSON_FILE':/app/otterdog.json \
+      -v /etc/passwd:/etc/passwd \
+      -v /etc/group:/etc/group \
+      -v '$__OG_GNUPG_PATH':'$__OG_GNUPG_PATH' \
+      -v '$__OG_PASSWORD_STORE_PATH':'$__OG_PASSWORD_STORE_PATH' \
       eclipse/otterdog:'$OTTERDOG_IMAGE_VERSION
 
+  if [ ! -d $__OG_OTTERDOG_ORGS_PATH ]
+  then
+    mkdir -p $__OG_OTTERDOG_ORGS_PATH
+  fi
 
   if [ "$__OG_VERBOSE" = true ]
   then
