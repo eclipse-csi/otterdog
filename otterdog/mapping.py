@@ -11,7 +11,7 @@ from typing import Any
 from jsonbender import bend, K, S, OptionalS
 
 from . import schemas
-from .github import Github
+from .providers.github import Github
 
 
 _FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS =\

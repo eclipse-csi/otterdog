@@ -23,7 +23,7 @@ from . import resources
 from . import schemas
 from . import utils
 from .config import JsonnetConfig, OtterdogConfig
-from .github import Github
+from .providers.github import Github
 
 
 class Organization:

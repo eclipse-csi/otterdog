@@ -9,8 +9,9 @@
 from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.github import Github
+from otterdog.providers.github import Github
 from otterdog.utils import IndentingPrinter
+
 from . import Operation
 
 

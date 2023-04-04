@@ -1,17 +1,17 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from importlib_resources import files
 from playwright.sync_api import sync_playwright, Page, Error
 
-from . import resources
-from . import utils
-from .credentials import Credentials
+from otterdog import resources
+from otterdog import utils
+from otterdog.credentials import Credentials
 
 
 class GithubWeb:

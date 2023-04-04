@@ -18,8 +18,9 @@ from colorama import Style
 from otterdog import mapping
 from otterdog import organization as org
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.github import Github
+from otterdog.providers.github import Github
 from otterdog.utils import IndentingPrinter, associate_by_key, print_warn
+
 from . import Operation
 from .validate_operation import ValidateOperation
 
