@@ -11,9 +11,9 @@ from typing import Any
 from otterdog import schemas
 from otterdog import utils
 from otterdog.credentials import Credentials
-from .github_graphql import GithubGraphQL
-from .github_rest import GithubRest
-from .github_web import GithubWeb
+from .graphql import GraphQLClient
+from .rest import RestClient
+from .web import WebClient
 
 
 class Github:
@@ -32,9 +32,9 @@ class Github:
         self._init_clients()
 
     def _init_clients(self):
-        self.rest_client = GithubRest(self.credentials.github_token)
-        self.web_client = GithubWeb(self.credentials)
-        self.graphql_client = GithubGraphQL(self.credentials.github_token)
+        self.rest_client = RestClient(self.credentials.github_token)
+        self.web_client = WebClient(self.credentials)
+        self.graphql_client = GraphQLClient(self.credentials.github_token)
 
     def __getstate__(self):
         return self.credentials, self.settings_schema, self.settings_restapi_keys, self.settings_web_keys
@@ -95,10 +95,6 @@ class Github:
 
     def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         return self.rest_client.get_webhooks(org_id)
-
-    def update_webhook_config(self, org_id: str, webhook_id: str, config: dict[str, str]) -> None:
-        if len(config) > 0:
-            self.rest_client.update_webhook_config(org_id, webhook_id, config)
 
     def update_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:

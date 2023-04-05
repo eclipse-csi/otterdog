@@ -14,7 +14,7 @@ from . import schemas
 from .providers.github import Github
 
 
-_FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS =\
+_FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS =\
     {
         "allow_auto_merge",
         "allow_merge_commit",
@@ -34,7 +34,7 @@ def shall_repo_key_be_included(key: str, is_private: bool, is_archived: bool) ->
         return False
 
     if is_archived:
-        if key in _FIELDS_NOT_AVAILABE_FOR_ARCHIVED_PROJECTS:
+        if key in _FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS:
             return False
 
     return True

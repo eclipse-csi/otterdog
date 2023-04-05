@@ -14,7 +14,7 @@ from otterdog import utils
 from otterdog.credentials import Credentials
 
 
-class GithubWeb:
+class WebClient:
     # use 10s as default timeout
     _DEFAULT_TIMEOUT = 10000
 

@@ -18,7 +18,7 @@ from otterdog import resources
 from otterdog import utils
 
 
-class GithubGraphQL:
+class GraphQLClient:
     _GH_GRAPHQL_URL_ROOT = "https://api.github.com/graphql"
 
     def __init__(self, token: str):
@@ -151,7 +151,7 @@ class GithubGraphQL:
             response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
                                      headers=self._headers,
                                      json={"query": query, "variables": variables})
-            utils.print_trace(f"rest result = ({response.status_code}, {response.text})")
+            utils.print_trace(f"rest result = ({response.status_code}, {response.text}, {response.headers})")
 
             if not response.ok:
                 raise RuntimeError(f"failed running query '{query_file}' via graphql")
