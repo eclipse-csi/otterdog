@@ -22,6 +22,18 @@ query($endCursor: String, $organization: String!, $repository: String!) {
         requiresStrictStatusChecks
         restrictsPushes
         restrictsReviewDismissals
+        bypassPullRequestAllowances {
+          totalCount
+        }
+        bypassForcePushAllowances {
+          totalCount
+        }
+        pushAllowances {
+          totalCount
+        }
+        reviewDismissalAllowances {
+          totalCount
+        }
       }
       pageInfo {
         hasNextPage
