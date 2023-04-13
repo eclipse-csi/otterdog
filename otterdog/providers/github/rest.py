@@ -184,16 +184,19 @@ class RestClient:
         repo_name = data["name"]
         utils.print_debug(f"creating repo '{repo_name}'")
 
-        if "dependabot_alerts_enabled" in data:
-            vulnerability_reports = bool(data.pop("dependabot_alerts_enabled"))
-        else:
-            vulnerability_reports = None
+        # some settings do not seem to be set correctly during creation
+        # collect them and update the repo after creation.
+        update_keys = ['dependabot_alerts_enabled', 'web_commit_signoff_required', 'security_and_analysis']
+        update_data = {}
+
+        for update_key in update_keys:
+            if update_key in data:
+                update_data[update_key] = data.pop(update_key)
 
         try:
             self._requester.request_json("POST", f"/orgs/{org_id}/repos", data)
             utils.print_debug(f"added repo with name '{repo_name}'")
-            if vulnerability_reports is not None:
-                self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
+            self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo with name '{repo_name}':\n{ex}").with_traceback(tb)
