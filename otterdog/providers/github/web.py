@@ -70,9 +70,14 @@ class WebClient:
 
                     utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
 
-                except Error as e:
-                    utils.print_error(f"failed to retrieve setting '{setting}' via web ui: {str(e)}")
-                    value = None
+                except Exception as e:
+                    if utils.is_debug_enabled():
+                        page_name = page_url.split("/")[-1]
+                        screenshot_file = f"screenshot_{page_name}.png"
+                        page.screenshot(path=screenshot_file)
+                        utils.print_warn(f"saved page screenshot to file '{screenshot_file}'")
+
+                    raise RuntimeError(f"failed to retrieve setting '{setting}' via web ui: {str(e)}")
 
                 settings[setting] = value
 
