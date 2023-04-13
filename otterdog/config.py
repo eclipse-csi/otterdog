@@ -31,6 +31,10 @@ class JsonnetConfig:
         self._data_dir = data_dir
         self._orgs_dir = jq.compile(f'.config_dir // "orgs"').input(settings).first()
 
+        # create orgs dir if it does not exist yet
+        if not os.path.exists(self._orgs_dir):
+            os.makedirs(self._orgs_dir)
+
         self._use_jsonnet_bundler = False
         base_template = settings.get("base_template")
         if base_template is None:
