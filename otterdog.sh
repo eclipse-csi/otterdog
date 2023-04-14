@@ -7,11 +7,24 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+# resolve the program directory
+PRG="$0"
+while [ -h "$PRG" ] ; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=`dirname "$PRG"`/"$link"
+  fi
+done
+PRGDIR=`dirname "$PRG"`
+
 if ! command -v poetry &> /dev/null
 then
     # activate virtual environment
-    . .venv/bin/activate
-    otterdog "$@"
+    source $PRGDIR/.venv/bin/activate
+    PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog.main "$@"
 else
-    poetry run otterdog "$@"
+    poetry -C $PRGDIR run otterdog "$@"
 fi
