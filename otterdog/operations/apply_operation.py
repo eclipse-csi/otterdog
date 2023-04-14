@@ -47,7 +47,7 @@ class ApplyOperation(PlanOperation):
             # do not consider read-only settings
             if not self.gh_client.is_readonly_org_setting(key):
                 # only consider changed web settings
-                if self.gh_client.is_web_setting(key):
+                if self.gh_client.is_web_org_setting(key):
                     if key in modified_settings:
                         settings[key] = expected_value
                 # for rest settings, include all settings in the update

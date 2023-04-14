@@ -63,7 +63,7 @@ def main(arguments=None):
         subparser.add_argument("--force", "-f", action="store_true", default=False, help="skips interactive approvals")
         subparser.add_argument("--verbose", "-v", action="count", default=0, help="enable more verbose output")
 
-    for subparser in [plan_parser, apply_parser]:
+    for subparser in [plan_parser, apply_parser, import_parser]:
         subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
                                help="skip settings retrieved via web ui")
 

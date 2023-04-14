@@ -18,36 +18,40 @@ from .web import WebClient
 
 class Github:
     def __init__(self, credentials: Credentials):
-        self.credentials = credentials
+        self._credentials = credentials
 
-        self.settings_schema = schemas.SETTINGS_SCHEMA
+        self._settings_schema = schemas.SETTINGS_SCHEMA
         # collect supported rest api keys
-        self.settings_restapi_keys =\
-            {k for k, v in self.settings_schema["properties"].items() if v.get("provider") == "restapi"}
+        self._settings_restapi_keys =\
+            {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "restapi"}
 
         # collect supported web interface keys
-        self.settings_web_keys =\
-            {k for k, v in self.settings_schema["properties"].items() if v.get("provider") == "web"}
+        self._settings_web_keys =\
+            {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"}
 
         self._init_clients()
 
     def _init_clients(self):
-        self.rest_client = RestClient(self.credentials.github_token)
-        self.web_client = WebClient(self.credentials)
-        self.graphql_client = GraphQLClient(self.credentials.github_token)
+        self.rest_client = RestClient(self._credentials.github_token)
+        self.web_client = WebClient(self._credentials)
+        self.graphql_client = GraphQLClient(self._credentials.github_token)
 
     def __getstate__(self):
-        return self.credentials, self.settings_schema, self.settings_restapi_keys, self.settings_web_keys
+        return self._credentials, self._settings_schema, self._settings_restapi_keys, self._settings_web_keys
 
     def __setstate__(self, state):
-        self.credentials, self.settings_schema, self.settings_restapi_keys, self.settings_web_keys = state
+        self._credentials, self._settings_schema, self._settings_restapi_keys, self._settings_web_keys = state
         self._init_clients()
 
-    def is_web_setting(self, setting_key: str) -> bool:
-        return setting_key in self.settings_web_keys
+    @property
+    def web_org_settings(self) -> set[str]:
+        return self._settings_web_keys
+
+    def is_web_org_setting(self, setting_key: str) -> bool:
+        return setting_key in self._settings_web_keys
 
     def is_readonly_org_setting(self, setting_key: str) -> bool:
-        setting_entry = self.settings_schema["properties"].get(setting_key)
+        setting_entry = self._settings_schema["properties"].get(setting_key)
         return setting_entry.get("readonly", False)
 
     def get_content(self, org_id: str, repo_name: str, path: str) -> str:
@@ -58,12 +62,12 @@ class Github:
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         # first, get supported settings via the rest api.
-        required_rest_keys = {x for x in included_keys if x in self.settings_restapi_keys}
+        required_rest_keys = {x for x in included_keys if x in self._settings_restapi_keys}
         merged_settings = self.rest_client.get_org_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings.
-        required_web_keys = {x for x in included_keys if x in self.settings_web_keys}
+        required_web_keys = {x for x in included_keys if x in self._settings_web_keys}
         if len(required_web_keys) > 0:
             web_settings = self.web_client.get_org_settings(org_id, required_web_keys)
             merged_settings.update(web_settings)
@@ -78,9 +82,9 @@ class Github:
         # split up settings to be updated whether they need be updated
         # via rest api or web interface.
         for k, v in sorted(settings.items()):
-            if k in self.settings_restapi_keys:
+            if k in self._settings_restapi_keys:
                 rest_fields[k] = v
-            elif k in self.settings_web_keys:
+            elif k in self._settings_web_keys:
                 web_fields[k] = v
             else:
                 utils.print_warn(f"encountered unknown field '{k}' during update, ignoring")

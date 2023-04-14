@@ -67,7 +67,7 @@ class Organization:
             resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
             jsonschema.validate(instance=data, schema=schemas.ORG_SCHEMA, resolver=resolver)
 
-    def write_jsonnet_config(self, config: JsonnetConfig) -> str:
+    def write_jsonnet_config(self, config: JsonnetConfig, ignored_keys: set[str]) -> str:
         default_config = config.default_org_config
 
         output = StringIO()
@@ -82,7 +82,9 @@ class Organization:
         default_org_settings = default_config["settings"]
         for key, default_value in sorted(default_org_settings.items()):
             if key not in settings:
-                utils.print_warn(f"unexpected key '{key}' found in default configuration, skipping")
+                if key not in ignored_keys:
+                    utils.print_warn(f"key '{key}' defined in default configuration not present in "
+                                     f"organization config, skipping")
                 continue
 
             current_value = settings[key]
@@ -189,6 +191,7 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> (
 def load_from_github(github_id: str,
                      jsonnet_config: JsonnetConfig,
                      client: Github,
+                     no_web_ui: bool = False,
                      printer: utils.IndentingPrinter = None) -> Organization:
 
     org = Organization(github_id)
@@ -199,7 +202,12 @@ def load_from_github(github_id: str,
     if printer is not None:
         printer.print(f"\norganization settings: Reading...")
 
-    github_settings = client.get_org_settings(github_id, set(default_settings.keys()))
+    included_keys = set(default_settings.keys())
+    # if no_web_ui is set, filter out any web settings
+    if no_web_ui is True:
+        included_keys = {x for x in included_keys if not client.is_web_org_setting(x)}
+
+    github_settings = client.get_org_settings(github_id, included_keys)
     otterdog_settings = mapping.map_github_org_settings_data_to_otterdog(github_settings)
 
     if printer is not None:

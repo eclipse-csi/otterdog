@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added option `--no-web-ui` for import operation as well. ([#20](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/20))
 - Added request caching for REST api calls. ([#18](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/18))
 - Added support for `bypassForcePushAllowances` setting for branch protection rules. ([#5](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/5))
 - Added support for `bypassPullRequestAllowances` setting for branch protection rules. ([#5](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/5))

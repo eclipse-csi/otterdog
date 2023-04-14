@@ -118,7 +118,7 @@ class DiffOperation(Operation):
         # filter out web settings if --no-web-ui is used
         expected_settings_keys = expected_settings.keys()
         if self.config.no_web_ui:
-            expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_setting(x)}
+            expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
 
         # determine differences for settings.
         current_github_org_settings = self.gh_client.get_org_settings(github_id, expected_settings_keys)
