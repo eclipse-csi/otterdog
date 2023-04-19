@@ -106,16 +106,39 @@ class Organization:
 
         repos = self.get_repos()
         if len(repos) > 0:
+            repos_by_name = utils.associate_by_key(repos, lambda x: x["name"])
+
+            default_repos = config.default_org_config.get("repositories")
+            default_repos_by_name = utils.associate_by_key(default_repos, lambda x: x["name"])
+
+            # add all default repos which are not yet contained in repos
+            for default_repo_name, default_repo in default_repos_by_name.items():
+                if repos_by_name.get(default_repo_name) is None:
+                    repos_by_name[default_repo_name] = default_repo
+
             default_org_repo = config.default_org_repo_config
-            output.write("    repositories+: [\n")
-            for repo in repos:
-                diff_obj = utils.get_diff_from_defaults(repo, default_org_repo)
+            output.write("    _repositories+:: [\n")
+            for repo_name, repo in repos_by_name.items():
+                if repo_name in default_repos_by_name:
+                    other_repo = default_repos_by_name[repo_name]
+                    function = f"orgs.{config.extend_repo}"
+                    extend = True
+                else:
+                    other_repo = default_org_repo
+                    function = f"orgs.{config.create_repo}"
+                    extend = False
+
+                diff_obj = utils.get_diff_from_defaults(repo, other_repo)
+                has_diff = len(diff_obj) > 0
+
+                if extend and has_diff is False:
+                    continue
 
                 # remove the name key from the diff_obj to avoid serializing it to json
-                name = repo["name"]
-                diff_obj.pop("name")
+                if "name" in diff_obj:
+                    diff_obj.pop("name")
 
-                output.write(f"      orgs.{config.create_repo}('{name}') ")
+                output.write(f"      {function}('{repo_name}') ")
 
                 def is_branch_protection_rule_key(k):
                     return k == "branch_protection_rules"
@@ -138,9 +161,12 @@ class Organization:
                     output.write(" " * o)
                     output.write("],\n")
 
-                utils.dump_json_object(diff_obj, output, offset=6, indent=2, embedded_object=True,
-                                       predicate=is_branch_protection_rule_key,
-                                       func=dump_branch_protection_rule)
+                if has_diff:
+                    utils.dump_json_object(diff_obj, output, offset=6, indent=2, embedded_object=True,
+                                           predicate=is_branch_protection_rule_key,
+                                           func=dump_branch_protection_rule)
+                else:
+                    output.write(",\n")
 
             output.write("    ]\n")
 

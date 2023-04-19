@@ -117,8 +117,8 @@ class Github:
         if len(data) > 0:
             self.rest_client.update_repo(org_id, repo_name, data)
 
-    def add_repo(self, org_id: str, data: dict[str, str]) -> None:
-        self.rest_client.add_repo(org_id, data)
+    def add_repo(self, org_id: str, data: dict[str, str], auto_init_repo: bool) -> None:
+        self.rest_client.add_repo(org_id, data, auto_init_repo)
 
     def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
         return self.graphql_client.get_branch_protection_rules(org_id, repo)

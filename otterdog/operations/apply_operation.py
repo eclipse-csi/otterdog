@@ -147,7 +147,7 @@ class ApplyOperation(PlanOperation):
 
         for repo in self._new_repos:
             github_repo = mapping.map_otterdog_repo_data_to_github(repo)
-            self.gh_client.add_repo(org_id, github_repo)
+            self.gh_client.add_repo(org_id, github_repo, self.config.auto_init_repo)
 
         for (repo_name, rule_pattern, rule_id, rule) in self._modified_rules:
             github_rule = mapping.map_otterdog_branch_protection_rule_data_to_github(rule, self.gh_client)

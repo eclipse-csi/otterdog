@@ -115,7 +115,7 @@ class ValidateOperation(Operation):
             has_wiki = repo.get("has_wiki", False)
             if is_private and has_wiki is True:
                 self.printer.print_warn(
-                    f"private repo[name=\"{repo_name}\"] has 'has_wiki' enabled which is requires at least"
+                    f"private repo[name=\"{repo_name}\"] has 'has_wiki' enabled which requires at least "
                     f"GitHub Team billing.")
                 validation_errors += 1
 

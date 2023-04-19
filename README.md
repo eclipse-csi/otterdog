@@ -248,9 +248,9 @@ value (not adivsed), or referencing it via a credential provider.
 | squash_merge_commit_title       | string         | Can be PR_TITLE or COMMIT_OR_PR_TITLE for a default squash merge commit title       |
 | squash_merge_commit_message     | string         | Can be PR_BODY, COMMIT_MESSAGES, or BLANK for a default squash merge commit message |
 | merge_commit_title              | string         | Can be PR_TITLE or MERGE_MESSAGE for a default merge commit title                   |
-| merge_commit_message            | string         | Can be PR_BODY, PR_TITLE, or BLANK for a default merge commit message.              |
+| merge_commit_message            | string         | Can be PR_BODY, PR_TITLE, or BLANK for a default merge commit message               |
 | archived                        | boolean        | If the repo is archived                                                             |
-| allow_forking                   | boolean        | If the repo allows forking                                                          |
+| allow_forking                   | boolean        | If the repo allows private forking                                                  |
 | web_commit_signoff_required     | boolean        | If the repo requires web commit signoff                                             |
 | secret_scanning                 | string         | If secret scanning is "enabled" or "disabled"                                       |
 | secret_scanning_push_protection | string         | If secret scanning push protection is "enabled" or "disabled"                       |

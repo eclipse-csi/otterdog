@@ -180,7 +180,7 @@ class RestClient:
                 tb = ex.__traceback__
                 raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def add_repo(self, org_id: str, data: dict[str, Any]) -> None:
+    def add_repo(self, org_id: str, data: dict[str, Any], auto_init_repo: bool) -> None:
         repo_name = data["name"]
         utils.print_debug(f"creating repo '{repo_name}'")
 
@@ -192,6 +192,9 @@ class RestClient:
         for update_key in update_keys:
             if update_key in data:
                 update_data[update_key] = data.pop(update_key)
+
+        # whether the repo should be initialized with an empty README
+        data["auto_init"] = auto_init_repo
 
         try:
             self._requester.request_json("POST", f"/orgs/{org_id}/repos", data)
