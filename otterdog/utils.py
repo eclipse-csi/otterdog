@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import subprocess
 import json
 from typing import Any, Callable
 
@@ -154,22 +153,22 @@ class IndentingPrinter:
 
 
 def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
+    import _gojsonnet
+
     print_trace(f"evaluating jsonnet file {file}")
-    status, result = subprocess.getstatusoutput(f"jsonnet {file}")
-    print_trace(f"result = ({status}, {result})")
 
-    if status != 0:
-        raise RuntimeError(f"failed to evaluate jsonnet file {file}: {result}")
-
-    return json.loads(result)
+    try:
+        return json.loads(_gojsonnet.evaluate_file(file))
+    except Exception as ex:
+        raise RuntimeError(f"failed to evaluate jsonnet file: {str(ex)}")
 
 
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
+    import _gojsonnet
+
     print_trace(f"evaluating jsonnet snippet {snippet}")
-    status, result = subprocess.getstatusoutput(f'jsonnet -e "{snippet}"')
-    print_trace(f"result = ({status}, {result})")
 
-    if status != 0:
-        raise RuntimeError(f"failed to evaluate jsonnet snippet {snippet}: {result}")
-
-    return json.loads(result)
+    try:
+        return json.loads(_gojsonnet.evaluate_snippet("", snippet))
+    except Exception as ex:
+        raise RuntimeError(f"failed to evaluate snippet: {str(ex)}")

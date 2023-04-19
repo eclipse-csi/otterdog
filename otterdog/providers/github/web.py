@@ -6,6 +6,9 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+from functools import cached_property
+from typing import Any
+
 from importlib_resources import files
 from playwright.sync_api import sync_playwright, Page, Error
 
@@ -21,12 +24,14 @@ class WebClient:
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
 
+    @cached_property
+    def web_settings_definition(self) -> dict[str, Any]:
         # load the definition file which describes how the web settings
         # can be retrieved / modified.
         utils.print_trace(f"getting web_settings config using jsonnet")
 
         web_settings_config = files(resources).joinpath("github-web-settings.jsonnet")
-        self.web_settings_definition = utils.jsonnet_evaluate_file(str(web_settings_config))
+        return utils.jsonnet_evaluate_file(str(web_settings_config))
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         utils.print_debug("retrieving settings via web interface")
