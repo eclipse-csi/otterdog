@@ -177,6 +177,7 @@ local newOrg(id) = {
   repositories: mergeByKey(self._repositories, "name"),
 };
 
+# Function to create a new organization webhook with default settings.
 local newWebhook() = {
   active: true,
   events: [ "push" ],
