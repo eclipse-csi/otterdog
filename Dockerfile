@@ -1,6 +1,7 @@
-# build jsonnet-bundler using a go environment
+# build go-jsonnet and jsonnet-bundler using a go environment
 FROM docker.io/library/golang:1.18 AS builder-go
-RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest
+RUN go install -a github.com/google/go-jsonnet/cmd/jsonnet@v0.20.0
+RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
 
 # build otterdog using a python environment
 FROM docker.io/library/python:3.10.10-slim as builder-python3
@@ -31,8 +32,7 @@ RUN apt-get update \
         jq \
         pass \
         curl \
-        unzip \
-        jsonnet
+        unzip
 
 ARG BW_VERSION
 ARG BW_RELEASE
@@ -42,6 +42,7 @@ ENV BW_RELEASE=${BW_RELEASE}
 RUN cd /tmp/ && curl -k -L -O https://github.com/bitwarden/clients/releases/download/${BW_RELEASE}/${BW_VERSION} \
     && unzip /tmp/${BW_VERSION} -d /usr/bin/ && rm -rf /tmp/${BW_VERSION}
 
+COPY --from=builder-go /go/bin/jsonnet /usr/bin/jsonnet
 COPY --from=builder-go /go/bin/jb /usr/bin/jb
 COPY --from=builder-python3 /app/.venv /app/.venv
 COPY --from=builder-python3 /app/otterdog /app/otterdog

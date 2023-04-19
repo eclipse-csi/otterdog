@@ -3,8 +3,8 @@
 ### System requirements:
 
 * python3.10 (mandatory): install using `apt install python3`
-* jsonnet (mandatory): install using `apt install jsonnet`
-* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest`
+* jsonnet (mandatory): install using `go install -a github.com/google/go-jsonnet/cmd/jsonnet@v0.20.0`
+* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
 * Installing poetry 
