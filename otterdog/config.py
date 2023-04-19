@@ -62,6 +62,8 @@ class JsonnetConfig:
             jq.compile(f'.create_webhook // "newWebhook"').input(settings).first()
         self.create_repo = \
             jq.compile(f'.create_repo // "newRepo"').input(settings).first()
+        self.extend_repo = \
+            jq.compile(f'.extend_repo // "extendRepo"').input(settings).first()
         self.create_branch_protection_rule =\
             jq.compile(f'.create_branch_protection_rule // "newBranchProtectionRule"').input(settings).first()
 
@@ -260,6 +262,10 @@ class OtterdogConfig:
     @property
     def config_repo(self) -> str:
         return self._github_config.get("config_repo", "meta-data")
+
+    @property
+    def auto_init_repo(self) -> bool:
+        return self._github_config.get("auto_init_repo", True)
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:

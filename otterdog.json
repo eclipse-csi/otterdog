@@ -1,7 +1,8 @@
 {
   "defaults": {
     "github": {
-      "config_repo": "meta-data"
+      "config_repo": ".eclipsefdn-private",
+      "auto_init_repo": true
     },
     "bitwarden": {
       "api_token_key": "api_token_admin"
@@ -12,11 +13,7 @@
         "branch": "main",
         "file": "otterdog-defaults.libsonnet"
       },
-      "config_dir": "orgs",
-      "create_org": "newOrg",
-      "create_webhook": "newWebhook",
-      "create_repo": "newRepo",
-      "create_branch_protection_rule": "newBranchProtectionRule"
+      "config_dir": "orgs"
     }
   },
   "organizations": [
