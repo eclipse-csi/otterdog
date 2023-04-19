@@ -112,6 +112,12 @@ class ValidateOperation(Operation):
             repo_name = repo["name"]
             is_private = repo["private"]
 
+            allow_forking = repo.get("allow_forking", True)
+            if is_private is False and allow_forking is False:
+                self.printer.print_warn(
+                    f"public repo[name=\"{repo_name}\"] has 'allow_forking' disabled which is not permitted.")
+                validation_errors += 1
+
             has_wiki = repo.get("has_wiki", False)
             if is_private and has_wiki is True:
                 self.printer.print_warn(
