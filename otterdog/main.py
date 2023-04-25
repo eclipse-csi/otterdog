@@ -67,6 +67,10 @@ def main(arguments=None):
         subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
                                help="skip settings retrieved via web ui")
 
+    for subparser in [push_parser]:
+        subparser.add_argument("--message", "-m", action="store", default=None,
+                               help="commit message")
+
     args = parser.parse_args(arguments)
     utils.init(args.verbose)
 
@@ -79,7 +83,12 @@ def main(arguments=None):
         else:
             no_web_ui = False
 
-        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui)
+        if args.__contains__("message"):
+            push_message = args.message
+        else:
+            push_message = None
+
+        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui, push_message)
 
         exit_code = 0
 

@@ -57,8 +57,8 @@ class Github:
     def get_content(self, org_id: str, repo_name: str, path: str) -> str:
         return self.rest_client.get_content(org_id, repo_name, path)
 
-    def update_content(self, org_id: str, repo_name: str, path: str, content: str) -> None:
-        return self.rest_client.update_content(org_id, repo_name, path, content)
+    def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
+        return self.rest_client.update_content(org_id, repo_name, path, content, message)
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
         # first, get supported settings via the rest api.

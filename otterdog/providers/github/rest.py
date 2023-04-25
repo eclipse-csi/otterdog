@@ -40,7 +40,7 @@ class RestClient:
         json_response = self.get_content_object(org_id, repo_name, path)
         return base64.b64decode(json_response["content"]).decode('utf-8')
 
-    def update_content(self, org_id: str, repo_name: str, path: str, content: str) -> None:
+    def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
         utils.print_debug(f"putting content '{path}' to repo '{repo_name}'")
 
         try:
@@ -59,8 +59,13 @@ class RestClient:
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
         base64_content = base64_encoded_data.decode("utf-8")
 
+        if message is None:
+            push_message = f"Updating file '{path}' with otterdog."
+        else:
+            push_message = message
+
         data = {
-            "message": f"Updating file '{path}' with otterdog.",
+            "message": push_message,
             "content": base64_content,
         }
 
@@ -324,6 +329,7 @@ class Requester:
             self._session.request(method,
                                   url=self._build_url(url_path),
                                   headers=self._headers,
+                                  refresh=True,
                                   params=params,
                                   data=data)
 
