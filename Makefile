@@ -13,7 +13,7 @@ ifndef POETRY
 	pip3 install "poetry==1.4.0"
 endif
 	poetry config virtualenvs.in-project true
-	poetry install --only=main --no-root
+	poetry install --only=main
 	poetry run playwright install firefox
 
 
