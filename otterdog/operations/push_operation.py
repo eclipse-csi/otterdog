@@ -72,6 +72,12 @@ class PushOperation(Operation):
                                          bundle_content,
                                          message)
 
+                gh_client.update_content(org_config.github_id,
+                                         self.config.config_repo,
+                                         f"otterdog/jsonnetfile.lock.json",
+                                         "",
+                                         message)
+
             except RuntimeError as e:
                 self.printer.print_error(f"failed to push definition to repo '{self.config.config_repo}': {str(e)}")
                 return 1
