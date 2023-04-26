@@ -74,6 +74,7 @@ class DiffOperation(Operation):
             return 1
 
         self.gh_client = Github(credentials)
+        return 0
 
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
         result = self.setup_github_client(org_config)
