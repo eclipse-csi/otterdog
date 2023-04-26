@@ -21,7 +21,7 @@ _verbose_level = 0
 def init(verbose: int) -> None:
     global _verbose_level
     _verbose_level = verbose
-    colorama_init(strip=False)
+    colorama_init()
 
 
 def is_debug_enabled() -> bool:
