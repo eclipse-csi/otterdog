@@ -38,6 +38,9 @@ class LocalPlanOperation(PlanOperation):
 
         return super().execute(org_config)
 
+    def verbose_output(self):
+        return False
+
     def resolve_secrets(self) -> bool:
         return False
 

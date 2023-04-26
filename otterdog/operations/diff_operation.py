@@ -76,6 +76,9 @@ class DiffOperation(Operation):
         self.gh_client = Github(credentials)
         return 0
 
+    def verbose_output(self):
+        return True
+
     def resolve_secrets(self) -> bool:
         return True
 
@@ -120,7 +123,8 @@ class DiffOperation(Operation):
         expected_settings = expected_org.get_settings()
 
         start = datetime.now()
-        self.printer.print(f"organization settings: Reading...")
+        if self.verbose_output():
+            self.printer.print(f"organization settings: Reading...")
 
         # filter out web settings if --no-web-ui is used
         expected_settings_keys = expected_settings.keys()
@@ -130,8 +134,9 @@ class DiffOperation(Operation):
         # determine differences for settings.
         current_otterdog_org_settings = self.get_current_org_settings(github_id, expected_settings_keys)
 
-        end = datetime.now()
-        self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+        if self.verbose_output():
+            end = datetime.now()
+            self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
         modified_settings = {}
         for key, expected_value in sorted(expected_settings.items()):
@@ -162,13 +167,15 @@ class DiffOperation(Operation):
 
     def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
-        self.printer.print(f"\nwebhooks: Reading...")
+        if self.verbose_output():
+            self.printer.print(f"\nwebhooks: Reading...")
 
         expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["url"])
         current_webhooks = self.get_current_webhooks(github_id)
 
-        end = datetime.now()
-        self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+        if self.verbose_output():
+            end = datetime.now()
+            self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
         for webhook_id, current_otterdog_webhook in current_webhooks:
             webhook_url = current_otterdog_webhook["url"]
@@ -217,13 +224,15 @@ class DiffOperation(Operation):
                               modified_org_settings: dict[str, Any],
                               diff_status: DiffStatus) -> None:
         start = datetime.now()
-        self.printer.print(f"\nrepositories: Reading...")
+        if self.verbose_output():
+            self.printer.print(f"\nrepositories: Reading...")
 
         expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
         current_repos = self.get_current_repos(github_id)
 
-        end = datetime.now()
-        self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
+        if self.verbose_output():
+            end = datetime.now()
+            self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
         for current_repo_id, current_otterdog_repo_data, current_branch_protection_rules in current_repos:
             current_repo_name = current_otterdog_repo_data["name"]
@@ -335,7 +344,8 @@ class DiffOperation(Operation):
         is_archived = expected_repo["archived"]
         if is_archived:
             if len(expected_branch_protection_rules_by_pattern) > 0:
-                print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
+                if self.verbose_output():
+                    print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
             return
 
         # only retrieve current rules if the repo_id is available, otherwise it's a new repo
