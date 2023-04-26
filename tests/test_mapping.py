@@ -53,3 +53,4 @@ def test_github_bpr_to_otterdog_mapping(github_bpr_data):
 
     assert otterdog_data["pattern"] == "main"
     assert otterdog_data["allowsForcePushes"] is False
+    assert otterdog_data["requiredStatusChecks"] == ["any/Run CI"]

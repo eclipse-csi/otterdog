@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `requiredStatusChecks` setting for branch protection rules. ([#5](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/5))
 - Added flag `--message` for push-config operation to specify the commit message.
 - Added support for pre-defined repositories in the default configuration. ([#23](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/23))
 - Added option `--no-web-ui` for import operation as well. ([#20](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/20))

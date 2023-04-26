@@ -148,3 +148,6 @@ class Github:
                 result.append(self.rest_client.get_team_node_id(actor))
 
         return result
+
+    def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
+        return {app_name: self.rest_client.get_app_id(app_name) for app_name in app_names}

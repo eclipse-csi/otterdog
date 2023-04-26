@@ -35,6 +35,10 @@
     "reviewDismissalAllowances": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "requiredStatusChecks": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   },
 

@@ -205,10 +205,7 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> (
 
     rules = gh_client.get_branch_protection_rules(github_id, repo_name)
     if len(rules) > 0:
-        rule_list = []
-        for rule in rules:
-            rule_list.append(schemas.get_items_contained_in_schema(rule, schemas.BRANCH_PROTECTION_RULE_SCHEMA))
-
+        rule_list = [mapping.map_github_branch_protection_rule_data_to_otterdog(x) for x in rules]
         otterdog_repo_data["branch_protection_rules"] = rule_list
 
     return repo_name, otterdog_repo_data

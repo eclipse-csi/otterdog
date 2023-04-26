@@ -20,5 +20,6 @@
   "restrictsPushes": false,
   "pushRestriction": ["/netomi"],
   "restrictsReviewDismissals": false,
-  "reviewDismissalAllowances": ["/netomi"]
+  "reviewDismissalAllowances": ["/netomi"],
+  "requiredStatusChecks":[{"app":null,"context":"Run CI"}]
 }

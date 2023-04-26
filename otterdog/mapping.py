@@ -6,13 +6,13 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import re
 from typing import Any
 
-from jsonbender import bend, K, S, OptionalS
+from jsonbender import bend, K, S, OptionalS, Forall
 
 from . import schemas
 from .providers.github import Github
-
 
 _FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS =\
     {
@@ -107,6 +107,23 @@ def map_github_branch_protection_rule_data_to_otterdog(github_bpr_data: dict[str
     for k in allowed_bpr_properties:
         if k in github_bpr_data:
             mapping[k] = S(k)
+
+    def transform_app(x):
+        app = x["app"]
+        context = x["context"]
+
+        if app is None:
+            app_prefix = "any/"
+        else:
+            app_slug = app["slug"]
+            if app_slug == "github-actions":
+                app_prefix = ""
+            else:
+                app_prefix = f"{app_slug}/"
+
+        return f"{app_prefix}{context}"
+
+    mapping.update({"requiredStatusChecks": S("requiredStatusChecks") >> Forall(lambda x: transform_app(x))})
 
     return bend(mapping, github_bpr_data)
 
@@ -218,5 +235,37 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
         if bypass_force_push_allowances is not None:
             actor_ids = gh_client.get_actor_ids(bypass_force_push_allowances)
             mapping["bypassForcePushActorIds"] = K(actor_ids)
+
+    if "requiredStatusChecks" in otterdog_bpr_data:
+        mapping.pop("requiredStatusChecks")
+        required_status_checks = otterdog_bpr_data["requiredStatusChecks"]
+        if required_status_checks is not None:
+            app_slugs = set()
+
+            for check in required_status_checks:
+                if "/" in check:
+                    app_slug, context = re.split("/", check)
+
+                    if app_slug != "any":
+                        app_slugs.add(app_slug)
+                else:
+                    app_slugs.add("github-actions")
+
+            app_ids = gh_client.get_app_ids(app_slugs)
+
+            transformed_checks = []
+            for check in required_status_checks:
+                if "/" in check:
+                    app_slug, context = re.split("/", check)
+                else:
+                    app_slug = "github-actions"
+                    context = check
+
+                if app_slug == "any":
+                    transformed_checks.append({"appId": "any", "context": context})
+                else:
+                    transformed_checks.append({"appId": app_ids[app_slug], "context": context})
+
+            mapping["requiredStatusChecks"] = K(transformed_checks)
 
     return bend(mapping, otterdog_bpr_data)

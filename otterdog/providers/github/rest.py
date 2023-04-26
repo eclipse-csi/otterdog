@@ -256,6 +256,16 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving team node id:\n{ex}").with_traceback(tb)
 
+    def get_app_id(self, app_slug: str) -> str:
+        utils.print_debug("retrieving app node id via rest API")
+
+        try:
+            response = self._requester.request_json("GET", f"/apps/{app_slug}")
+            return response["node_id"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving app node id:\n{ex}").with_traceback(tb)
+
 
 class Requester:
     def __init__(self, token: str, base_url: str, api_version: str):

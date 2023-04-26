@@ -63,16 +63,15 @@ local newBranchProtectionRule(pattern) = {
   allowsDeletions: false,
   allowsForcePushes: false,
   # slug for team, app and login for user
-  #bypassForcePushAllowances: [],
+  bypassForcePushAllowances: [],
   # slug for team, app and login for user
-  #bypassPullRequestAllowances: [],
+  bypassPullRequestAllowances: [],
   dismissesStaleReviews: false,
   isAdminEnforced: false,
   lockAllowsFetchAndMerge: false,
   lockBranch: false,
   pushRestrictions: [],
-  #requiredStatusCheckContexts: [],
-  #requiredStatusChecks: [],
+  requiredStatusChecks: [],
   requiredApprovingReviewCount: 2,
   requiresApprovingReviews: true,
   requiresCodeOwnerReviews: false,
@@ -82,7 +81,7 @@ local newBranchProtectionRule(pattern) = {
   requiresStatusChecks: true,
   requiresStrictStatusChecks: false,
   restrictsReviewDismissals: false
-  #reviewDismissalAllowances: [],
+  reviewDismissalAllowances: [],
 };
 
 # Function to create a new organization with default settings.
