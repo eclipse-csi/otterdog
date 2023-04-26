@@ -66,7 +66,7 @@ class DiffOperation(Operation):
         finally:
             self.printer.level_down()
 
-    def _generate_diff(self, org_config: OrganizationConfig) -> int:
+    def setup_github_client(self, org_config: OrganizationConfig) -> int:
         try:
             credentials = self.config.get_credentials(org_config)
         except RuntimeError as e:
@@ -74,6 +74,11 @@ class DiffOperation(Operation):
             return 1
 
         self.gh_client = Github(credentials)
+
+    def _generate_diff(self, org_config: OrganizationConfig) -> int:
+        result = self.setup_github_client(org_config)
+        if result != 0:
+            return result
 
         github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)

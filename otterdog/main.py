@@ -122,7 +122,7 @@ def main(arguments=None):
         subcommand = args.subcommand
         if subcommand == "plan":
             operation = PlanOperation()
-        if subcommand == "local-plan":
+        elif subcommand == "local-plan":
             operation = LocalPlanOperation(suffix)
         elif subcommand == "fetch-config":
             operation = FetchOperation()

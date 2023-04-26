@@ -12,6 +12,7 @@ from typing import Any
 from otterdog import organization as org
 from otterdog.config import OrganizationConfig
 from .plan_operation import PlanOperation
+from otterdog.providers.github import Github
 
 
 class LocalPlanOperation(PlanOperation):
@@ -30,12 +31,16 @@ class LocalPlanOperation(PlanOperation):
             return 1
 
         try:
-            self.other_org = org.load_from_file(github_id, other_org_file_name, self.config)
+            self.other_org = org.load_from_file(github_id, other_org_file_name, self.config, False)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
 
         return super().execute(org_config)
+
+    def setup_github_client(self, org_config: OrganizationConfig) -> int:
+        self.gh_client = Github(None)
+        return 0
 
     def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> dict[str, Any]:
         return self.other_org.get_settings()

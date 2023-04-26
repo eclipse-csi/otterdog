@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any
+from typing import Any, Union
 
 from otterdog import schemas
 from otterdog import utils
@@ -17,7 +17,7 @@ from .web import WebClient
 
 
 class Github:
-    def __init__(self, credentials: Credentials):
+    def __init__(self, credentials: Union[Credentials, None]):
         self._credentials = credentials
 
         self._settings_schema = schemas.SETTINGS_SCHEMA
@@ -29,7 +29,8 @@ class Github:
         self._settings_web_keys =\
             {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"}
 
-        self._init_clients()
+        if credentials is not None:
+            self._init_clients()
 
     def _init_clients(self):
         self.rest_client = RestClient(self._credentials.github_token)
