@@ -107,7 +107,7 @@ class DiffOperation(Operation):
         self._process_repositories(github_id, expected_org, modified_org_settings, diff_status)
 
         self.handle_finish(github_id, diff_status)
-        return diff_status.total_changes()
+        return 0
 
     def _process_settings(self,
                           github_id: str,
