@@ -274,7 +274,7 @@ class RestClient:
 
         try:
             response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_number}")
-            return response["head"]["ref"]
+            return response["head"]["sha"]
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
