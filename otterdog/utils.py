@@ -21,7 +21,14 @@ _verbose_level = 0
 def init(verbose: int) -> None:
     global _verbose_level
     _verbose_level = verbose
-    colorama_init()
+
+    import os
+    if os.environ == "GITHUB_ACTIONS":
+        strip = False
+    else:
+        strip = None
+
+    colorama_init(strip=strip)
 
 
 def is_debug_enabled() -> bool:
