@@ -38,6 +38,9 @@ class LocalPlanOperation(PlanOperation):
 
         return super().execute(org_config)
 
+    def resolve_secrets(self) -> bool:
+        return False
+
     def setup_github_client(self, org_config: OrganizationConfig) -> int:
         self.gh_client = Github(None)
         return 0

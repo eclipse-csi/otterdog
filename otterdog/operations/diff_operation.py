@@ -76,6 +76,9 @@ class DiffOperation(Operation):
         self.gh_client = Github(credentials)
         return 0
 
+    def resolve_secrets(self) -> bool:
+        return True
+
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
         result = self.setup_github_client(org_config)
         if result != 0:
@@ -89,7 +92,7 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            expected_org = org.load_from_file(github_id, org_file_name, self.config)
+            expected_org = org.load_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
