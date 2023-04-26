@@ -83,9 +83,7 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            expected_org = org.load_from_file(github_id,
-                                              self.jsonnet_config.get_org_config_file(github_id),
-                                              self.config)
+            expected_org = org.load_from_file(github_id, org_file_name, self.config)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -121,8 +119,7 @@ class DiffOperation(Operation):
             expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
 
         # determine differences for settings.
-        current_github_org_settings = self.gh_client.get_org_settings(github_id, expected_settings_keys)
-        current_otterdog_org_settings = mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
+        current_otterdog_org_settings = self.get_current_org_settings(github_id, expected_settings_keys)
 
         end = datetime.now()
         self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
@@ -149,20 +146,22 @@ class DiffOperation(Operation):
 
         return modified_settings
 
+    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> dict[str, Any]:
+        # determine differences for settings.
+        current_github_org_settings = self.gh_client.get_org_settings(github_id, settings_keys)
+        return mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
+
     def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         self.printer.print(f"\nwebhooks: Reading...")
 
         expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["url"])
-        github_webhooks = self.gh_client.get_webhooks(github_id)
+        current_webhooks = self.get_current_webhooks(github_id)
 
         end = datetime.now()
         self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-        for github_webhook in github_webhooks:
-            current_otterdog_webhook = mapping.map_github_org_webhook_data_to_otterdog(github_webhook)
-
-            webhook_id = str(github_webhook["id"])
+        for webhook_id, current_otterdog_webhook in current_webhooks:
             webhook_url = current_otterdog_webhook["url"]
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
@@ -192,12 +191,16 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
             diff_status.additions += 1
 
-    def _process_single_repo(self, github_id: str, repo_name: str) -> (str, dict[str, Any]):
-        repo_data = \
-            self.gh_client.get_repo_data(github_id, repo_name)
-        repo_data["branch_protection_rules"] = \
-            self.gh_client.get_branch_protection_rules(github_id, repo_name)
-        return repo_name, repo_data
+    def get_current_webhooks(self, github_id: str) -> list[tuple[str, dict[str, Any]]]:
+        github_webhooks = self.gh_client.get_webhooks(github_id)
+
+        result = []
+        for github_webhook in github_webhooks:
+            webhook_id = str(github_webhook["id"])
+            current_otterdog_webhook = mapping.map_github_org_webhook_data_to_otterdog(github_webhook)
+            result.append((webhook_id, current_otterdog_webhook))
+
+        return result
 
     def _process_repositories(self,
                               github_id: str,
@@ -208,31 +211,15 @@ class DiffOperation(Operation):
         self.printer.print(f"\nrepositories: Reading...")
 
         expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
-        current_repos = self.gh_client.get_repos(github_id)
-
-        # retrieve repo_data and branch_protection_rules in parallel using a pool.
-        current_github_repos = {}
-        # partially apply the github_id to get a function that only takes one parameter
-        process_repo = partial(self._process_single_repo, github_id)
-        # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
-        # due to the global interpreter lock.
-        with ProcessPoolExecutor() as pool:
-            data = pool.map(process_repo, current_repos)
-            for (repo_name, repo_data) in data:
-                current_github_repos[repo_name] = repo_data
+        current_repos = self.get_current_repos(github_id)
 
         end = datetime.now()
         self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
-        for current_repo_name in current_repos:
-            current_github_repo_data = current_github_repos[current_repo_name]
-            current_branch_protection_rules = current_github_repo_data.pop("branch_protection_rules")
-
-            current_repo_id = current_github_repo_data["node_id"]
-            is_private = current_github_repo_data["private"]
-            is_archived = current_github_repo_data["archived"]
-
-            current_otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(current_github_repo_data)
+        for current_repo_id, current_otterdog_repo_data, current_branch_protection_rules in current_repos:
+            current_repo_name = current_otterdog_repo_data["name"]
+            is_private = current_otterdog_repo_data["private"]
+            is_archived = current_otterdog_repo_data["archived"]
 
             expected_repo = expected_repos_by_name.get(current_repo_name)
 
@@ -283,11 +270,53 @@ class DiffOperation(Operation):
             if len(branch_protection_rules) > 0:
                 self._process_branch_protection_rules(github_id, repo_name, "", [], repo, diff_status)
 
+    def _process_single_repo(self, github_id: str, repo_name: str) -> (str, dict[str, Any]):
+        repo_data = \
+            self.gh_client.get_repo_data(github_id, repo_name)
+        repo_data["branch_protection_rules"] = \
+            self.gh_client.get_branch_protection_rules(github_id, repo_name)
+        return repo_name, repo_data
+
+    def get_current_repos(self, github_id: str) -> list[(str, dict[str, Any], list[(str, dict[str, Any])])]:
+        current_repos = self.gh_client.get_repos(github_id)
+
+        # retrieve repo_data and branch_protection_rules in parallel using a pool.
+        current_github_repos = {}
+        # partially apply the github_id to get a function that only takes one parameter
+        process_repo = partial(self._process_single_repo, github_id)
+        # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
+        # due to the global interpreter lock.
+        with ProcessPoolExecutor() as pool:
+            data = pool.map(process_repo, current_repos)
+            for (repo_name, repo_data) in data:
+                current_github_repos[repo_name] = repo_data
+
+        result = []
+
+        for repo_name, current_github_repo_data in current_github_repos.items():
+            current_repo_id = current_github_repo_data["node_id"]
+
+            current_github_rules = current_github_repo_data.pop("branch_protection_rules")
+
+            otterdog_rules = []
+            for current_github_rule in current_github_rules:
+                rule_id = current_github_rule["id"]
+
+                current_otterdog_rule = \
+                    mapping.map_github_branch_protection_rule_data_to_otterdog(current_github_rule)
+
+                otterdog_rules.append((rule_id, current_otterdog_rule))
+
+            current_otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(current_github_repo_data)
+            result.append((current_repo_id, current_otterdog_repo_data, otterdog_rules))
+
+        return result
+
     def _process_branch_protection_rules(self,
                                          org_id: str,
                                          repo_name: str,
                                          repo_id: str,
-                                         current_github_rules: list[dict[str, Any]],
+                                         current_otterdog_rules: list[(str, dict[str, Any])],
                                          expected_repo: dict[str, Any],
                                          diff_status: DiffStatus) -> None:
 
@@ -302,12 +331,8 @@ class DiffOperation(Operation):
 
         # only retrieve current rules if the repo_id is available, otherwise it's a new repo
         if repo_id:
-            for current_github_rule in current_github_rules:
-                rule_id = current_github_rule["id"]
-                rule_pattern = current_github_rule["pattern"]
-
-                current_otterdog_rule = \
-                    mapping.map_github_branch_protection_rule_data_to_otterdog(current_github_rule)
+            for rule_id, current_otterdog_rule in current_otterdog_rules:
+                rule_pattern = current_otterdog_rule["pattern"]
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:

@@ -16,6 +16,7 @@ from .operations.apply_operation import ApplyOperation
 from .operations.fetch_operation import FetchOperation
 from .operations.push_operation import PushOperation
 from .operations.import_operation import ImportOperation
+from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
 from .operations.show_operation import ShowOperation
 from .operations.validate_operation import ValidateOperation
@@ -38,6 +39,8 @@ def main(arguments=None):
                                        description="valid subcommands")
 
     plan_parser = subparsers.add_parser("plan", help="Show changes required by the current configuration")
+    local_plan_parser = subparsers.add_parser("local-plan", help="Show changes required by the current configuration "
+                                                                 "compared to another local configuration")
     fetch_parser = subparsers.add_parser("fetch-config",
                                          help="Fetches the configuration from the corresponding config "
                                               "repo of an organization")
@@ -50,6 +53,7 @@ def main(arguments=None):
     show_parser = subparsers.add_parser("show")
 
     for subparser in [plan_parser,
+                      local_plan_parser,
                       fetch_parser,
                       push_parser,
                       import_parser,
@@ -66,6 +70,10 @@ def main(arguments=None):
     for subparser in [plan_parser, apply_parser, import_parser]:
         subparser.add_argument("--no-web-ui", "-n", action="store_true", default=False,
                                help="skip settings retrieved via web ui")
+
+    for subparser in [local_plan_parser]:
+        subparser.add_argument("--suffix", "-s", action="store", default="-HEAD",
+                               help="suffix to append for comparison configuration")
 
     for subparser in [push_parser]:
         subparser.add_argument("--message", "-m", action="store", default=None,
@@ -97,13 +105,25 @@ def main(arguments=None):
         else:
             pull_request = None
 
-        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui, push_message, pull_request)
+        if args.__contains__("suffix"):
+            suffix = args.suffix
+        else:
+            suffix = "-HEAD"
+
+        config = OtterdogConfig.from_file(args.config,
+                                          args.force,
+                                          args.local,
+                                          no_web_ui,
+                                          push_message,
+                                          pull_request)
 
         exit_code = 0
 
         subcommand = args.subcommand
         if subcommand == "plan":
             operation = PlanOperation()
+        if subcommand == "local-plan":
+            operation = LocalPlanOperation(suffix)
         elif subcommand == "fetch-config":
             operation = FetchOperation()
         elif subcommand == "push-config":

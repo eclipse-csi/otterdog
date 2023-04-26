@@ -151,11 +151,7 @@ class RestClient:
         params = {"type": "all"}
         try:
             repos = self._requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params)
-
-            def get_name(data: dict[str, str]) -> str:
-                return data["name"]
-
-            return list(map(get_name, repos))
+            return [repo["name"] for repo in repos]
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to retrieve repos for organization '{org_id}':\n{ex}").with_traceback(tb)
