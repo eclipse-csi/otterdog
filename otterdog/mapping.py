@@ -113,13 +113,13 @@ def map_github_branch_protection_rule_data_to_otterdog(github_bpr_data: dict[str
         context = x["context"]
 
         if app is None:
-            app_prefix = "any/"
+            app_prefix = "any:"
         else:
             app_slug = app["slug"]
             if app_slug == "github-actions":
                 app_prefix = ""
             else:
-                app_prefix = f"{app_slug}/"
+                app_prefix = f"{app_slug}:"
 
         return f"{app_prefix}{context}"
 
@@ -243,8 +243,8 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
             app_slugs = set()
 
             for check in required_status_checks:
-                if "/" in check:
-                    app_slug, context = re.split("/", check)
+                if ":" in check:
+                    app_slug, context = re.split(":", check, 1)
 
                     if app_slug != "any":
                         app_slugs.add(app_slug)
@@ -255,8 +255,8 @@ def map_otterdog_branch_protection_rule_data_to_github(otterdog_bpr_data: dict[s
 
             transformed_checks = []
             for check in required_status_checks:
-                if "/" in check:
-                    app_slug, context = re.split("/", check)
+                if ":" in check:
+                    app_slug, context = re.split(":", check, 1)
                 else:
                     app_slug = "github-actions"
                     context = check

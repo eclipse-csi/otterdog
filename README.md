@@ -298,8 +298,8 @@ Note:
 ### Status Check Format
 
 * GitHub Action Status: `<status-name>`, e.g. `Run CI`
-* Status from an app: `<app-slug>/<status-name>`, e.g. `eclipsefdn/eca`
-* Status from any source: `any/<status-name`, e.g. `any/Run CI`
+* Status from an app: `<app-slug>:<status-name>`, e.g. `eclipsefdn:eca`
+* Status from any source: `any:<status-name`, e.g. `any:Run CI`
 
 ## Usage
 
