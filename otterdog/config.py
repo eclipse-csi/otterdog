@@ -215,7 +215,13 @@ class OrganizationConfig:
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, force_processing: bool, local_only: bool, no_web_ui: bool, push_message: str):
+    def __init__(self,
+                 config_file: str,
+                 force_processing: bool,
+                 local_only: bool,
+                 no_web_ui: bool,
+                 push_message: str,
+                 pull_request: str):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -225,6 +231,7 @@ class OtterdogConfig:
         self._force_processing = force_processing
         self._no_web_ui = no_web_ui
         self._push_message = push_message
+        self._pull_request = pull_request
 
         with open(config_file) as f:
             self._configuration = json.load(f)
@@ -255,6 +262,10 @@ class OtterdogConfig:
     @property
     def push_message(self) -> str:
         return self._push_message
+
+    @property
+    def pull_request(self) -> str:
+        return self._pull_request
 
     @property
     def data_dir(self) -> str:
@@ -329,5 +340,11 @@ class OtterdogConfig:
         return f"OtterdogConfig('{self.data_dir}')"
 
     @classmethod
-    def from_file(cls, config_file: str, force_processing: bool, local_only: bool, no_web_ui: bool, push_message: str):
-        return cls(config_file, force_processing, local_only, no_web_ui, push_message)
+    def from_file(cls,
+                  config_file: str,
+                  force_processing: bool,
+                  local_only: bool,
+                  no_web_ui: bool,
+                  push_message: str,
+                  pull_request: str):
+        return cls(config_file, force_processing, local_only, no_web_ui, push_message, pull_request)

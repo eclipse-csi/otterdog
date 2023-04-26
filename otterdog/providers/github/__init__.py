@@ -54,8 +54,8 @@ class Github:
         setting_entry = self._settings_schema["properties"].get(setting_key)
         return setting_entry.get("readonly", False)
 
-    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
-        return self.rest_client.get_content(org_id, repo_name, path)
+    def get_content(self, org_id: str, repo_name: str, path: str, ref: str = None) -> str:
+        return self.rest_client.get_content(org_id, repo_name, path, ref)
 
     def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
         return self.rest_client.update_content(org_id, repo_name, path, content, message)
@@ -151,3 +151,6 @@ class Github:
 
     def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
         return {app_name: self.rest_client.get_app_id(app_name) for app_name in app_names}
+
+    def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
+        return self.rest_client.get_ref_for_pull_request(org_id, repo_name, pull_number)

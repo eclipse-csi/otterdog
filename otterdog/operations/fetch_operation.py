@@ -67,9 +67,17 @@ class FetchOperation(Operation):
             gh_client = Github(credentials)
 
             try:
+                if self.config.pull_request is not None:
+                    ref = gh_client.get_ref_for_pull_request(org_config.github_id,
+                                                             self.config.config_repo,
+                                                             self.config.pull_request)
+                else:
+                    ref = None
+
                 definition = gh_client.get_content(org_config.github_id,
                                                    self.config.config_repo,
-                                                   f"otterdog/{github_id}.jsonnet")
+                                                   f"otterdog/{github_id}.jsonnet",
+                                                   ref)
             except RuntimeError as e:
                 self.printer.print_error(f"failed to fetch definition from repo '{self.config.config_repo}'")
                 return 1
@@ -81,7 +89,11 @@ class FetchOperation(Operation):
             with open(org_file_name, "w") as file:
                 file.write(definition)
 
-            self.printer.print(f"organization definition fetched to '{org_file_name}'")
+            if ref is not None:
+                self.printer.print(f"organization definition fetched from pull request "
+                                   f"#{self.config.pull_request} to '{org_file_name}'")
+            else:
+                self.printer.print(f"organization definition fetched from default branch to '{org_file_name}'")
 
             return 0
         finally:

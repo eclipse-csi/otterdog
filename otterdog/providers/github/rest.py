@@ -27,17 +27,24 @@ class RestClient:
     def __init__(self, token: str):
         self._requester = Requester(token, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
-    def get_content_object(self, org_id: str, repo_name: str, path: str) -> dict[str, Any]:
+    def get_content_object(self, org_id: str, repo_name: str, path: str, ref: str = None) -> dict[str, Any]:
         utils.print_debug(f"retrieving content '{path}' from repo '{repo_name}'")
 
         try:
-            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/contents/{path}")
+            if ref is not None:
+                params = {"ref": ref}
+            else:
+                params = None
+
+            return self._requester.request_json("GET",
+                                                f"/repos/{org_id}/{repo_name}/contents/{path}",
+                                                params=params)
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def get_content(self, org_id: str, repo_name: str, path: str) -> str:
-        json_response = self.get_content_object(org_id, repo_name, path)
+    def get_content(self, org_id: str, repo_name: str, path: str, ref: str) -> str:
+        json_response = self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode('utf-8')
 
     def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
@@ -246,7 +253,7 @@ class RestClient:
             raise RuntimeError(f"failed retrieving user node id:\n{ex}").with_traceback(tb)
 
     def get_team_node_id(self, combined_slug: str) -> str:
-        utils.print_debug("retrieving team node id via rest API")
+        utils.print_debug("retrieving team node id")
         org_id, team_slug = re.split("/", combined_slug)
 
         try:
@@ -257,7 +264,7 @@ class RestClient:
             raise RuntimeError(f"failed retrieving team node id:\n{ex}").with_traceback(tb)
 
     def get_app_id(self, app_slug: str) -> str:
-        utils.print_debug("retrieving app node id via rest API")
+        utils.print_debug("retrieving app node id")
 
         try:
             response = self._requester.request_json("GET", f"/apps/{app_slug}")
@@ -265,6 +272,16 @@ class RestClient:
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving app node id:\n{ex}").with_traceback(tb)
+
+    def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
+        utils.print_debug("retrieving ref for pull request")
+
+        try:
+            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_number}")
+            return response["head"]["ref"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
 
 
 class Requester:

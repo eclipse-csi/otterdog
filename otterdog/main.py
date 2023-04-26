@@ -71,6 +71,10 @@ def main(arguments=None):
         subparser.add_argument("--message", "-m", action="store", default=None,
                                help="commit message")
 
+    for subparser in [fetch_parser]:
+        subparser.add_argument("--pull-request", "-p", action="store", default=None,
+                               help="fetch from pull request number instead of default branch")
+
     args = parser.parse_args(arguments)
     utils.init(args.verbose)
 
@@ -88,7 +92,12 @@ def main(arguments=None):
         else:
             push_message = None
 
-        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui, push_message)
+        if args.__contains__("pull_request"):
+            pull_request = args.pull_request
+        else:
+            pull_request = None
+
+        config = OtterdogConfig.from_file(args.config, args.force, args.local, no_web_ui, push_message, pull_request)
 
         exit_code = 0
 
