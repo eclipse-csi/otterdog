@@ -9,6 +9,8 @@
 import os
 from typing import Any
 
+from colorama import Fore, Style
+
 from otterdog import organization as org
 from otterdog.config import OrganizationConfig
 from .plan_operation import PlanOperation
@@ -21,6 +23,14 @@ class LocalPlanOperation(PlanOperation):
 
         self.suffix = suffix
         self.other_org = None
+
+    def pre_execute(self) -> None:
+        self.printer.print(f"Printing local diff for configuration at '{self.config.config_file}'")
+        self.printer.print(f"\nActions are indicated with the following symbols:")
+        self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
+        self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
+        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available "
+                           f"in other config)")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
