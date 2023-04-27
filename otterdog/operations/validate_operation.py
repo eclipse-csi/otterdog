@@ -177,8 +177,9 @@ class ValidateOperation(Operation):
                     requiredStatusChecks = rule.get("requiredStatusChecks")
 
                     if requiresStatusChecks is False and len(requiredStatusChecks) > 0:
-                        self.printer.print_warn(
+                        self.printer.print_error(
                             f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
                             f" 'requiresStatusChecks' disabled but 'requiredStatusChecks' is not empty.")
+                        validation_errors += 1
 
         return validation_errors
