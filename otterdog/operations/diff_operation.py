@@ -194,7 +194,7 @@ class DiffOperation(Operation):
                             (expected_value is None and current_value is not None)):
                         continue
 
-                if expected_value != current_value:
+                if self._is_different(current_value, expected_value):
                     modified_webhook[key] = (expected_value, current_value)
                     diff_status.differences += 1
 
@@ -362,7 +362,7 @@ class DiffOperation(Operation):
                 modified_rule = {}
                 for key, expected_value in expected_rule.items():
                     current_value = current_otterdog_rule.get(key)
-                    if expected_value != current_value:
+                    if self._is_different(current_value, expected_value):
                         diff_status.differences += 1
                         modified_rule[key] = (expected_value, current_value)
 
@@ -374,6 +374,19 @@ class DiffOperation(Operation):
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
             self.handle_new_rule(org_id, repo_name, repo_id, rule)
             diff_status.additions += 1
+
+    @staticmethod
+    def _is_different(current_value, expected_value) -> bool:
+        if isinstance(current_value, list):
+            combined_list = current_value + expected_value
+            # if the two lists contains strings, sort them before comparison
+            if len(combined_list) > 0 and isinstance(combined_list[0], str):
+                sorted_current_list = current_value.sort()
+                sorted_expected_list = expected_value.sort()
+
+                return sorted_current_list != sorted_expected_list
+
+        return current_value != expected_value
 
     @abstractmethod
     def handle_modified_settings(self,
