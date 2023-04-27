@@ -8,6 +8,7 @@
 
 import json
 from typing import Any, Callable
+from argparse import Namespace
 
 from colorama import init as colorama_init, Fore, Style
 
@@ -172,3 +173,10 @@ def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
         return json.loads(_gojsonnet.evaluate_snippet("", snippet))
     except Exception as ex:
         raise RuntimeError(f"failed to evaluate snippet: {str(ex)}")
+
+
+def get_or_default(namespace: Namespace, key: str, default: Any) -> Any:
+    if namespace.__contains__(key):
+        return namespace[key]
+    else:
+        return default

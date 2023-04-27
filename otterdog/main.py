@@ -14,10 +14,10 @@ from . import utils
 from .config import OtterdogConfig
 from .operations.apply_operation import ApplyOperation
 from .operations.fetch_operation import FetchOperation
-from .operations.push_operation import PushOperation
 from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
+from .operations.push_operation import PushOperation
 from .operations.show_operation import ShowOperation
 from .operations.validate_operation import ValidateOperation
 
@@ -90,25 +90,11 @@ def main(arguments=None):
     printer.print()
 
     try:
-        if args.__contains__("no_web_ui"):
-            no_web_ui = args.no_web_ui
-        else:
-            no_web_ui = False
-
-        if args.__contains__("message"):
-            push_message = args.message
-        else:
-            push_message = None
-
-        if args.__contains__("pull_request"):
-            pull_request = args.pull_request
-        else:
-            pull_request = None
-
-        if args.__contains__("suffix"):
-            suffix = args.suffix
-        else:
-            suffix = "-HEAD"
+        # get operation dependent arguments with default values
+        no_web_ui = utils.get_or_default(args, "no_web_ui", False)
+        push_message = utils.get_or_default(args, "message", None)
+        pull_request = utils.get_or_default(args, "pull_request", None)
+        suffix = utils.get_or_default(args, "suffix", "-HEAD")
 
         config = OtterdogConfig.from_file(args.config,
                                           args.force,
@@ -119,25 +105,25 @@ def main(arguments=None):
 
         exit_code = 0
 
-        subcommand = args.subcommand
-        if subcommand == "plan":
-            operation = PlanOperation()
-        elif subcommand == "local-plan":
-            operation = LocalPlanOperation(suffix)
-        elif subcommand == "fetch-config":
-            operation = FetchOperation()
-        elif subcommand == "push-config":
-            operation = PushOperation()
-        elif subcommand == "import":
-            operation = ImportOperation()
-        elif subcommand == "apply":
-            operation = ApplyOperation()
-        elif subcommand == "validate":
-            operation = ValidateOperation()
-        elif subcommand == "show":
-            operation = ShowOperation()
-        else:
-            raise RuntimeError(f"unexpected action '{args.action}'")
+        match args.subcommand:
+            case "plan":
+                operation = PlanOperation()
+            case "local-plan":
+                operation = LocalPlanOperation(suffix)
+            case "fetch-config":
+                operation = FetchOperation()
+            case "push-config":
+                operation = PushOperation()
+            case "import":
+                operation = ImportOperation()
+            case "apply":
+                operation = ApplyOperation()
+            case "validate":
+                operation = ValidateOperation()
+            case "show":
+                operation = ShowOperation()
+            case _:
+                raise RuntimeError(f"unexpected action '{args.action}'")
 
         operation.init(config, printer)
         operation.pre_execute()
