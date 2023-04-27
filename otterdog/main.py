@@ -123,7 +123,7 @@ def main(arguments=None):
             case "show":
                 operation = ShowOperation()
             case _:
-                raise RuntimeError(f"unexpected action '{args.action}'")
+                raise RuntimeError(f"unexpected command '{args.subcommand}'")
 
         operation.init(config, printer)
         operation.pre_execute()
