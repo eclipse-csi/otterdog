@@ -75,10 +75,24 @@ def get_diff_from_defaults(obj: dict[str, Any], defaults: dict[str, Any]) -> dic
             if isinstance(current_value, dict):
                 nested_result = get_diff_from_defaults(current_value, default_value)
                 result[key] = nested_result
+            elif isinstance(current_value, list):
+                combined_list = current_value + default_value
+                if len(combined_list) == 0:
+                    result[key] = current_value
+                elif isinstance(combined_list[0], str):
+                    diff = diff_list(current_value, default_value)
+                    result[key] = diff
+                else:
+                    result[key] = current_value
             else:
                 result[key] = current_value
 
     return result
+
+
+def diff_list(list1: list[Any], list2: list[Any]) -> list[Any]:
+    s = set(list2)
+    return [x for x in list1 if x not in s]
 
 
 def dump_json_object(obj: Any, fp, offset=0, indent=2, embedded_object: bool = False,
@@ -98,7 +112,7 @@ def dump_json_object(obj: Any, fp, offset=0, indent=2, embedded_object: bool = F
                 fp.write(f"{k}+: ")
                 dump_json_object(v, fp, offset, indent, True)
             elif isinstance(v, list):
-                fp.write(f"{k}: [\n")
+                fp.write(f"{k}+: [\n")
                 offset += indent
                 for item in v:
                     fp.write(" " * offset)
