@@ -25,7 +25,8 @@ _FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS =\
         "merge_commit_message",
         "merge_commit_title",
         "squash_merge_commit_message",
-        "squash_merge_commit_title"
+        "squash_merge_commit_title",
+        "dependabot_alerts_enabled"
     }
 
 
