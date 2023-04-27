@@ -177,6 +177,6 @@ def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
 
 def get_or_default(namespace: Namespace, key: str, default: Any) -> Any:
     if namespace.__contains__(key):
-        return namespace[key]
+        return namespace.__getattribute__(key)
     else:
         return default
