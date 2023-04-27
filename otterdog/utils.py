@@ -81,7 +81,8 @@ def get_diff_from_defaults(obj: dict[str, Any], defaults: dict[str, Any]) -> dic
                     result[key] = current_value
                 elif isinstance(combined_list[0], str):
                     diff = diff_list(current_value, default_value)
-                    result[key] = diff
+                    if len(diff) > 0:
+                        result[key] = diff
                 else:
                     result[key] = current_value
             else:

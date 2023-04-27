@@ -381,8 +381,8 @@ class DiffOperation(Operation):
             combined_list = current_value + expected_value
             # if the two lists contains strings, sort them before comparison
             if len(combined_list) > 0 and isinstance(combined_list[0], str):
-                sorted_current_list = current_value.sort()
-                sorted_expected_list = expected_value.sort()
+                sorted_current_list = sorted(current_value)
+                sorted_expected_list = sorted(expected_value)
 
                 return sorted_current_list != sorted_expected_list
 
