@@ -6,7 +6,7 @@ dockerfile = "Dockerfile"
 image_version = "latest"
 container_name = "otterdog"
 
-POETRY := $(shell command -v dot 2> /dev/null)
+POETRY := $(shell command -v poetry 2> /dev/null)
 
 init:
 ifndef POETRY
