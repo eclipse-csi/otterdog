@@ -10,7 +10,7 @@ POETRY := $(shell command -v dot 2> /dev/null)
 
 init:
 ifndef POETRY
-	pip3 install "poetry==1.4.0"
+	pip3 install "poetry==1.4.2"
 endif
 	poetry config virtualenvs.in-project true
 	poetry install --only=main

@@ -6,15 +6,10 @@
 * jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
-* Installing poetry 
-```console
-$ curl -sSL https://install.python-poetry.org | python3 -
-$ export PATH="$HOME/.local/bin:$PATH"
-```
 
 ### Building Steps
 
-* Create a virtual python environment and install necessary dependencies:
+* Create a virtual python environment and install necessary python dependencies using poetry:
 ```console
 $ make init
 ```
