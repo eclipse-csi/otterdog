@@ -9,7 +9,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from jsonbender import bend, S, OptionalS
+from jsonbender import bend, S, OptionalS, K
 
 from . import ModelObject, UNSET
 
@@ -40,6 +40,7 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
+    branch_protection_rules: list[str]
 
     @classmethod
     def from_model(cls, data: dict[str, Any]):
@@ -51,6 +52,7 @@ class Repository(ModelObject):
         mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
+            "branch_protection_rules": K([]),
             "secret_scanning":
                 OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
             "secret_scanning_push_protection":

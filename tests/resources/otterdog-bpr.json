@@ -1,5 +1,4 @@
 {
-  "id": "BPR_kwDOI9xAhM4CC77t",
   "pattern": "main",
   "allowsDeletions": false,
   "allowsForcePushes": false,
@@ -23,5 +22,5 @@
   "bypassPullRequestAllowances": ["/netomi"],
   "restrictsReviewDismissals": false,
   "reviewDismissalAllowances": ["/netomi"],
-  "requiredStatusChecks":[{"app":null,"context":"Run CI"}]
+  "requiredStatusChecks":["any:Run CI"]
 }
