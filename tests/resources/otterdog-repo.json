@@ -20,5 +20,6 @@
   "allow_merge_commit": true,
   "allow_auto_merge": false,
   "merge_commit_message": "PR_TITLE",
-  "secret_scanning": "enabled"
+  "secret_scanning": "enabled",
+  "dependabot_alerts_enabled": true
 }

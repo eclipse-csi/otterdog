@@ -14,10 +14,10 @@ import otterdog.mapping as mapping
 def test_github_webhook_to_otterdog_mapping(github_webhook_data):
     otterdog_data = mapping.map_github_org_webhook_data_to_otterdog(github_webhook_data)
 
-    assert otterdog_data["secret"] == "******"
+    assert otterdog_data["secret"] == None
     assert otterdog_data["url"] == "https://www.example.org"
     assert otterdog_data["insecure_ssl"] == "0"
-    assert otterdog_data["content_type"] == "form"
+    assert otterdog_data["content_type"] == "json"
 
 
 def test_otterdog_webhook_to_github_mapping(otterdog_webhook_data):

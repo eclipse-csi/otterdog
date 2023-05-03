@@ -136,6 +136,7 @@
     "type": "Organization",
     "site_admin": false
   },
+  "dependabot_alerts_enabled": true,
   "security_and_analysis": {
     "secret_scanning": {
       "status": "enabled"
