@@ -7,14 +7,17 @@
 # *******************************************************************************
 
 import os
-
 from dataclasses import dataclass, field
 from typing import Any
 
+import jsonschema
+from importlib_resources import files, as_file
 from jsonbender import bend, S, F, Forall
 
+from otterdog import resources
+from otterdog import schemas
+from otterdog import utils
 from otterdog.config import OtterdogConfig
-import otterdog.utils as utils
 
 from . import is_unset, ValidationContext
 from .organization_settings import OrganizationSettings
@@ -53,8 +56,18 @@ class GitHubOrganization:
 
         return context
 
+    @staticmethod
+    def _validate_org_config(data: dict[str, Any]) -> None:
+        with as_file(files(resources).joinpath("schemas")) as resource_dir:
+            schema_root = resource_dir.as_uri()
+            resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
+            jsonschema.validate(instance=data, schema=schemas.ORG_SCHEMA, resolver=resolver)
+
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "GitHubOrganization":
+        # validate the input data with the json schema.
+        cls._validate_org_config(data)
+
         mapping = {
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model(x)),
