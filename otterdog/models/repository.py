@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field, Field
 from typing import Any
 
 from jsonbender import bend, S, OptionalS, K, Forall
@@ -18,7 +18,7 @@ from .branch_protection_rule import BranchProtectionRule
 
 @dataclass
 class Repository(ModelObject):
-    name: str = field(metadata={"key": True})
+    name: str = dataclass_field(metadata={"key": True})
     description: str
     homepage: str
     private: bool
@@ -42,7 +42,8 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
-    branch_protection_rules: list[BranchProtectionRule] = field(default_factory=list)
+    branch_protection_rules: list[BranchProtectionRule] = dataclass_field(metadata={"model": True},
+                                                                          default_factory=list)
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         org_settings: OrganizationSettings = parent_object.settings
@@ -83,6 +84,13 @@ class Repository(ModelObject):
 
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
+
+    def include_field(self, field: Field) -> bool:
+        # private repos don't support security analysis.
+        if field.name == "secret_scanning":
+            if self.private is True:
+                return False
+        return True
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "Repository":

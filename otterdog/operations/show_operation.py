@@ -10,9 +10,9 @@ import os
 
 from colorama import Style, Fore
 
-from otterdog import organization as org
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.utils import IndentingPrinter
+from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
 
 from . import Operation
 
@@ -49,42 +49,42 @@ class ShowOperation(Operation):
                 return 1
 
             try:
-                organization = org.load_from_file(github_id,
-                                                  self.jsonnet_config.get_org_config_file(github_id),
-                                                  self.config,
-                                                  False)
+                organization = \
+                    load_github_organization_from_file(github_id,
+                                                       self.jsonnet_config.get_org_config_file(github_id),
+                                                       self.config,
+                                                       False)
             except RuntimeError as ex:
                 self.printer.print_warn(f"failed to load configuration: {str(ex)}")
                 return 1
 
-            self.print_dict(organization.get_settings(), f"{Style.BRIGHT}settings{Style.RESET_ALL}", "", Fore.BLACK)
+            self.print_dict(organization.settings.to_model_dict(),
+                            f"{Style.BRIGHT}settings{Style.RESET_ALL}",
+                            "",
+                            Fore.BLACK)
 
-            for webhook in organization.get_webhooks():
+            for webhook in organization.webhooks:
                 self.printer.print()
-                self.print_dict(webhook, f"{Style.BRIGHT}webhook{Style.RESET_ALL}", "", Fore.BLACK)
+                self.print_dict(webhook.to_model_dict(),
+                                f"{Style.BRIGHT}webhook{Style.RESET_ALL}",
+                                "",
+                                Fore.BLACK)
 
-            for repo in organization.get_repos():
-                repo_name = repo["name"]
-                is_private = repo["private"]
-                repo_data = repo.copy()
-                branch_protection_rules = repo_data.pop("branch_protection_rules")
-
-                # private repos dont support security analysis.
-                # TODO: make this cleaner
-                if is_private:
-                    if "secret_scanning" in repo_data:
-                        repo_data.pop("secret_scanning")
+            for repo in organization.repositories:
+                repo_data = repo.to_model_dict(False)
 
                 self.printer.print()
                 self.print_dict(repo_data,
-                                f"{Style.BRIGHT}repository[\"{repo['name']}\"]{Style.RESET_ALL}",
-                                "", Fore.BLACK)
+                                f"{Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}",
+                                "",
+                                Fore.BLACK)
 
-                for rule in branch_protection_rules:
+                for rule in repo.branch_protection_rules:
                     self.printer.print()
-                    self.print_dict(rule,
-                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo_name}\"]{Style.RESET_ALL}",
-                                    "", Fore.BLACK)
+                    self.print_dict(rule.to_model_dict(),
+                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo.name}\"]{Style.RESET_ALL}",
+                                    "",
+                                    Fore.BLACK)
 
             return 0
 

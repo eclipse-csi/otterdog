@@ -61,6 +61,10 @@ class ModelObject(ABC):
     def is_read_only(field: Field) -> bool:
         return field.metadata.get("readonly", False) is True
 
+    @staticmethod
+    def is_nested_model(field: Field) -> bool:
+        return field.metadata.get("model", False) is True
+
     @classmethod
     @abstractmethod
     def from_model(cls, data: dict[str, Any]):
@@ -70,6 +74,25 @@ class ModelObject(ABC):
     @abstractmethod
     def from_provider(cls, data: dict[str, Any]):
         pass
+
+    def include_field(self, field: Field) -> bool:
+        return True
+
+    def to_model_dict(self, include_nested_models: bool = False) -> dict[str, Any]:
+        result = {}
+
+        for field in self.model_fields():
+            if not self.include_field(field):
+                continue
+
+            if include_nested_models is False and self.is_nested_model(field):
+                continue
+
+            value = self.__getattribute__(field.name)
+            if not is_unset(value):
+                result[field.name] = value
+
+        return result
 
 
 class Unset:
