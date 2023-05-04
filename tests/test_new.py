@@ -187,16 +187,9 @@ class Team(ModelObject1):
         return cls(**mapped_dict)
 
 
-def test_webhook(otterdog_webhook_data):
-    org = GitHubOrganization()
-    webhook = OrganizationWebhook.from_model(otterdog_webhook_data)
-    webhook2 = OrganizationWebhook.from_model(otterdog_webhook_data)
-    webhook2.active = False
-
-    print(webhook.diff(webhook2))
-
-    webhook = OrganizationWebhook.from_provider(json.loads(test_webhook1))
-    print(webhook.secret is UNSET)
+def test_full(otterdogtest_json):
+    org = GitHubOrganization.from_model(otterdogtest_json)
+    print(org)
 
 
 def test():

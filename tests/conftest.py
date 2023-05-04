@@ -18,8 +18,29 @@ def testorg_jsonnet():
 
 
 @pytest.fixture
+def otterdogtest_json():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/otterdogtest.json")
+    with open(filename, "r") as file:
+        return json.load(file)
+
+
+@pytest.fixture
 def test_resource_dir():
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources")
+
+
+@pytest.fixture
+def github_org_settings_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/github-org-settings.json")
+    with open(filename, "r") as file:
+        return json.load(file)
+
+
+@pytest.fixture
+def otterdog_org_settings_data():
+    filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources/otterdog-org-settings.json")
+    with open(filename, "r") as file:
+        return json.load(file)
 
 
 @pytest.fixture

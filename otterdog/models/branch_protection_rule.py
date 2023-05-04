@@ -41,12 +41,12 @@ class BranchProtectionRule(ModelObject):
     requiredStatusChecks: list[str]
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]):
+    def from_model(cls, data: dict[str, Any]) -> "BranchProtectionRule":
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]):
+    def from_provider(cls, data: dict[str, Any]) -> "BranchProtectionRule":
         mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_app(x):

@@ -39,6 +39,10 @@ class ModelObject(ABC):
     def model_fields(cls) -> list[Field]:
         return [field for field in fields(cls) if field.metadata.get("external_only", False) is False]
 
+    @staticmethod
+    def is_read_only(field: Field) -> bool:
+        return field.metadata.get("readonly", False) is True
+
     @classmethod
     @abstractmethod
     def from_model(cls, data: dict[str, Any]):

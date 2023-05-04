@@ -25,16 +25,12 @@ class OrganizationWebhook(ModelObject):
     secret: str
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]):
+    def from_model(cls, data: dict[str, Any]) -> "OrganizationWebhook":
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]):
+    def from_provider(cls, data: dict[str, Any]) -> "OrganizationWebhook":
         mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
-
-        mapping.update({
-            "secret": OptionalS("config", "secret", default=UNSET)
-        })
-
+        mapping.update({"secret": OptionalS("config", "secret", default=UNSET)})
         return cls(**bend(mapping, data))
