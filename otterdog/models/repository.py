@@ -9,9 +9,11 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from jsonbender import bend, S, OptionalS, K
+from jsonbender import bend, S, OptionalS, K, Forall
 
-from . import ModelObject, UNSET
+from . import ModelObject, UNSET, ValidationContext, FailureType
+from .organization_settings import OrganizationSettings
+from .branch_protection_rule import BranchProtectionRule
 
 
 @dataclass
@@ -40,11 +42,60 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
-    branch_protection_rules: list[str]
+    branch_protection_rules: list[BranchProtectionRule] = field(default_factory=list)
+
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        org_settings: OrganizationSettings = parent_object.settings
+
+        free_plan = org_settings.plan == "free"
+
+        org_web_commit_signoff_required = org_settings.web_commit_signoff_required is True
+        org_members_cannot_fork_private_repositories = org_settings.members_can_fork_private_repositories is False
+
+        is_private = self.private is True
+        is_public = self.private is False
+
+        allow_forking = self.allow_forking is True
+        disallow_forking = self.allow_forking is False
+
+        if is_public and disallow_forking:
+            context.add_failure(FailureType.WARNING,
+                                f"public repo[name=\"{self.name}\"] has 'allow_forking' disabled "
+                                f"which is not permitted.")
+
+        has_wiki = self.has_wiki is True
+        if is_private and has_wiki and free_plan:
+            context.add_failure(FailureType.WARNING,
+                                f"private repo[name=\"{self.name}\"] has 'has_wiki' enabled which"
+                                f"requires at least GitHub Team billing, "
+                                f"currently using \"{org_settings.plan}\" plan.")
+
+        if is_private and org_members_cannot_fork_private_repositories and allow_forking:
+            context.add_failure(FailureType.ERROR,
+                                f"private repo[name=\"{self.name}\"] has 'allow_forking' enabled "
+                                f"while the organization disables 'members_can_fork_private_repositories'.")
+
+        repo_web_commit_signoff_not_required = self.web_commit_signoff_required is False
+        if repo_web_commit_signoff_not_required and org_web_commit_signoff_required:
+            context.add_failure(FailureType.ERROR,
+                                f"repo[name=\"{self.name}\"] has 'web_commit_signoff_required' disabled while "
+                                f"the organization requires it.")
+
+        for bpr in self.branch_protection_rules:
+            bpr.validate(context, self)
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "Repository":
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+
+        mapping.update(
+            {
+                "branch_protection_rules":
+                    OptionalS("branch_protection_rules", default=[]) >>
+                    Forall(lambda x: BranchProtectionRule.from_model(x))
+            }
+        )
+
         return cls(**bend(mapping, data))
 
     @classmethod

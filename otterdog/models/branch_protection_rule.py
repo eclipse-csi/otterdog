@@ -9,9 +9,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from jsonbender import bend, S, OptionalS, K, Forall
+from jsonbender import bend, S, OptionalS, Forall
 
-from . import ModelObject, UNSET
+from . import ModelObject, UNSET, ValidationContext, FailureType, is_unset, is_set_and_valid
 
 
 @dataclass
@@ -39,6 +39,49 @@ class BranchProtectionRule(ModelObject):
     restrictsReviewDismissals: bool
     reviewDismissalAllowances: list[str]
     requiredStatusChecks: list[str]
+
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        repo_name: str = parent_object.name
+
+        requiresApprovingReviews = self.requiresApprovingReviews is True
+        requiredApprovingReviewCount = self.requiredApprovingReviewCount
+
+        if requiresApprovingReviews and not is_unset(requiredApprovingReviewCount):
+            if requiredApprovingReviewCount is None or requiredApprovingReviewCount < 0:
+                context.add_failure(FailureType.ERROR,
+                                    f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                    f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' "
+                                    f"is not set.")
+
+        permitsReviewDismissals = self.restrictsReviewDismissals is False
+        reviewDismissalAllowances = self.reviewDismissalAllowances
+
+        if permitsReviewDismissals and \
+                is_set_and_valid(reviewDismissalAllowances) and \
+                len(reviewDismissalAllowances) > 0:
+            context.add_failure(FailureType.ERROR,
+                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f" 'restrictsReviewDismissals' disabled but 'reviewDismissalAllowances' is set.")
+
+        allowsForcePushes = self.allowsForcePushes is True
+        bypassForcePushAllowances = self.bypassForcePushAllowances
+
+        if allowsForcePushes and \
+                is_set_and_valid(bypassForcePushAllowances) and \
+                len(bypassForcePushAllowances) > 0:
+            context.add_failure(FailureType.ERROR,
+                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f" 'allowsForcePushes' enabled but 'bypassForcePushAllowances' is not empty.")
+
+        ignoresStatusChecks = self.requiresStatusChecks is False
+        requiredStatusChecks = self.requiredStatusChecks
+
+        if ignoresStatusChecks and \
+                is_set_and_valid(requiredStatusChecks) and \
+                len(requiredStatusChecks) > 0:
+            context.add_failure(FailureType.ERROR,
+                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f" 'requiresStatusChecks' disabled but 'requiredStatusChecks' is not empty.")
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "BranchProtectionRule":

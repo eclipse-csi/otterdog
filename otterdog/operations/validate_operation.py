@@ -1,18 +1,19 @@
-#  *******************************************************************************
-#  Copyright (c) 2023 Eclipse Foundation and others.
-#  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
-#  *******************************************************************************
+# *******************************************************************************
+# Copyright (c) 2023 Eclipse Foundation and others.
+# This program and the accompanying materials are made available
+# under the terms of the MIT License
+# which is available at https://spdx.org/licenses/MIT.html
+# SPDX-License-Identifier: MIT
+# *******************************************************************************
 
 import os
 
 from colorama import Fore, Style
 
-from otterdog import organization as org
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.utils import IndentingPrinter
+from otterdog.models import FailureType
+from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
 
 from . import Operation
 
@@ -49,137 +50,41 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = org.load_from_file(github_id,
-                                                  self.jsonnet_config.get_org_config_file(github_id),
-                                                  self.config,
-                                                  False)
+                organization = \
+                    load_github_organization_from_file(github_id,
+                                                       self.jsonnet_config.get_org_config_file(github_id),
+                                                       self.config,
+                                                       False)
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
-            validation_errors = self.validate(organization)
-
-            if validation_errors == 0:
-                self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
-            else:
-                self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}")
-
-            return validation_errors
+            return self.validate(organization)
         finally:
             self.printer.level_down()
 
-    def validate(self, organization: org.Organization) -> int:
+    def validate(self, organization: GitHubOrganization) -> int:
+        context = organization.validate()
+
+        validation_warnings = 0
         validation_errors = 0
 
-        settings = organization.get_settings()
+        for failure_type, message in context.validation_failures:
+            match failure_type:
+                case FailureType.WARNING:
+                    self.printer.print_warn(message)
+                    validation_warnings += 1
 
-        # enabling dependabot implicitly enables the dependency graph,
-        # disabling the dependency graph in the configuration will result in inconsistencies after
-        # applying the configuration, warn the user about it.
-        dependabot_alerts_enabled = \
-            settings.get("dependabot_alerts_enabled_for_new_repositories") is True
-        dependabot_security_updates_enabled = \
-            settings.get("dependabot_security_updates_enabled_for_new_repositories") is True
+                case FailureType.ERROR:
+                    self.printer.print_error(message)
+                    validation_errors += 1
 
-        dependency_graph_disabled = \
-            settings.get("dependency_graph_enabled_for_new_repositories") is False
+        validation_failures = validation_warnings + validation_errors
 
-        if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
-            self.printer.print_error(f"enabling dependabot_alerts or dependabot_security_updates implicitly"
-                                     f" enables dependency_graph_enabled_for_new_repositories")
-            validation_errors += 1
+        if validation_failures == 0:
+            self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+        else:
+            self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                               f"{validation_warnings} warning(s), {validation_errors} error(s)")
 
-        if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
-            self.printer.print_error(f"enabling dependabot_security_updates also enables dependabot_alerts")
-            validation_errors += 1
-
-        webhooks = organization.get_webhooks()
-
-        for webhook in webhooks:
-            secret = webhook.get("secret")
-            if secret and all(ch == '*' for ch in secret):
-                url = webhook["url"]
-                self.printer.print_error(f"webhook with url '{url}' uses a dummy secret '{secret}', "
-                                         f"provide a real secret using a credential provider.")
-                validation_errors += 1
-
-        repos = organization.get_repos()
-
-        web_commit_signoff_required = settings.get("web_commit_signoff_required", False)
-        members_can_fork_private_repositories = settings.get("members_can_fork_private_repositories", None)
-
-        for repo in repos:
-            repo_name = repo["name"]
-            is_private = repo["private"]
-
-            allow_forking = repo.get("allow_forking", True)
-            if is_private is False and allow_forking is False:
-                self.printer.print_warn(
-                    f"public repo[name=\"{repo_name}\"] has 'allow_forking' disabled which is not permitted.")
-                validation_errors += 1
-
-            has_wiki = repo.get("has_wiki", False)
-            if is_private and has_wiki is True:
-                self.printer.print_warn(
-                    f"private repo[name=\"{repo_name}\"] has 'has_wiki' enabled which requires at least "
-                    f"GitHub Team billing.")
-                validation_errors += 1
-
-            allow_forking = repo.get("allow_forking", False)
-            if is_private and members_can_fork_private_repositories is False and allow_forking is True:
-                self.printer.print_error(
-                    f"private repo[name=\"{repo_name}\"] has 'allow_forking' enabled while the organization setting"
-                    f" 'members_can_fork_private_repositories' is disabled.")
-                validation_errors += 1
-
-            repo_web_commit_signoff_required = repo.get("web_commit_signoff_required", False)
-            if repo_web_commit_signoff_required is False and web_commit_signoff_required is True:
-                self.printer.print_error(
-                    f"repo[name=\"{repo_name}\"] has 'web_commit_signoff_required' disabled while "
-                    f"the organization requires it.")
-                validation_errors += 1
-
-            branch_protection_rules = repo.get("branch_protection_rules")
-            if branch_protection_rules is not None:
-                for rule in branch_protection_rules:
-                    rule_pattern = rule["pattern"]
-                    requiresApprovingReviews = rule.get("requiresApprovingReviews")
-                    requiredApprovingReviewCount = rule.get("requiredApprovingReviewCount")
-
-                    if (requiresApprovingReviews is True) and \
-                            (requiredApprovingReviewCount is None or requiredApprovingReviewCount < 0):
-                        self.printer.print_error(
-                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
-                            f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' is not set.")
-                        validation_errors += 1
-
-                    restrictsReviewDismissals = rule.get("restrictsReviewDismissals")
-                    reviewDismissalAllowances = rule.get("reviewDismissalAllowances")
-
-                    if (restrictsReviewDismissals is False) and \
-                            len(reviewDismissalAllowances) > 0:
-                        self.printer.print_error(
-                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
-                            f" 'restrictsReviewDismissals' disabled but 'reviewDismissalAllowances' is set.")
-                        validation_errors += 1
-
-                    allowsForcePushes = rule.get("allowsForcePushes")
-                    bypassForcePushAllowances = rule.get("bypassForcePushAllowances")
-
-                    if (allowsForcePushes is True) and \
-                            len(bypassForcePushAllowances) > 0:
-                        self.printer.print_error(
-                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
-                            f" 'allowsForcePushes' enabled but 'bypassForcePushAllowances' is not empty.")
-                        validation_errors += 1
-
-                    requiresStatusChecks = rule.get("requiresStatusChecks")
-                    requiredStatusChecks = rule.get("requiredStatusChecks")
-
-                    if requiresStatusChecks is False and len(requiredStatusChecks) > 0:
-                        self.printer.print_error(
-                            f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{rule_pattern}\"] has"
-                            f" 'requiresStatusChecks' disabled but 'requiredStatusChecks' is not empty.")
-                        validation_errors += 1
-
-        return validation_errors
+        return validation_failures

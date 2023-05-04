@@ -11,7 +11,7 @@ from typing import Any
 
 from jsonbender import bend, S, OptionalS
 
-from . import ModelObject, UNSET
+from . import ModelObject, UNSET, is_set_and_valid, ValidationContext, FailureType
 
 
 @dataclass
@@ -23,6 +23,12 @@ class OrganizationWebhook(ModelObject):
     content_type: str
     insecure_ssl: str
     secret: str
+
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):
+            context.add_failure(FailureType.ERROR,
+                                f"webhook with url '{self.url}' uses a dummy secret '{self.secret}', "
+                                f"provide a real secret using a credential provider.")
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "OrganizationWebhook":

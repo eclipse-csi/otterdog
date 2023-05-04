@@ -6,11 +6,17 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import os
+
 from dataclasses import dataclass, field
 from typing import Any
 
 from jsonbender import bend, S, F, Forall
 
+from otterdog.config import OtterdogConfig
+import otterdog.utils as utils
+
+from . import is_unset, ValidationContext
 from .organization_settings import OrganizationSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
@@ -35,6 +41,18 @@ class GitHubOrganization:
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
+    def validate(self) -> ValidationContext:
+        context = ValidationContext()
+        self.settings.validate(context, self)
+
+        for webhook in self.webhooks:
+            webhook.validate(context, self)
+
+        for repo in self.repositories:
+            repo.validate(context, self)
+
+        return context
+
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "GitHubOrganization":
         mapping = {
@@ -45,3 +63,26 @@ class GitHubOrganization:
         }
 
         return cls(**bend(mapping, data))
+
+
+def load_github_organization_from_file(github_id: str,
+                                       config_file: str,
+                                       config: OtterdogConfig,
+                                       resolve_secrets: bool = True) -> GitHubOrganization:
+    if not os.path.exists(config_file):
+        msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
+        raise RuntimeError(msg)
+
+    utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
+    data = utils.jsonnet_evaluate_file(config_file)
+
+    org = GitHubOrganization.from_model(data)
+
+    # resolve webhook secrets
+    if resolve_secrets:
+        for webhook in org.webhooks:
+            secret = webhook.secret
+            if not is_unset(secret) and secret is not None:
+                webhook.secret = config.get_secret(secret)
+
+    return org

@@ -7,8 +7,22 @@
 # *******************************************************************************
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, Field, fields
+from dataclasses import dataclass, Field, fields, field as dataclasses_field
 from typing import Literal, Any
+from enum import Enum
+
+
+class FailureType(Enum):
+    WARNING = 1
+    ERROR = 2
+
+
+@dataclass
+class ValidationContext(object):
+    validation_failures: list[tuple[FailureType, str]] = dataclasses_field(default_factory=list)
+
+    def add_failure(self, failure_type: FailureType, message: str):
+        self.validation_failures.append((failure_type, message))
 
 
 @dataclass
@@ -22,6 +36,10 @@ class ModelObject(ABC):
 
     def get_key(self) -> str:
         return next(filter(lambda field: field.metadata.get("key", False) is True, self.all_fields())).name
+
+    @abstractmethod
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        pass
 
     def diff(self, other: "ModelObject") -> bool:
         if type(self) != type(other):
@@ -80,3 +98,7 @@ def is_unset(value: Any) -> bool:
     Returns whether the given value is an instance of Unset.
     """
     return value is UNSET
+
+
+def is_set_and_valid(value: Any) -> bool:
+    return not is_unset(value) and value is not None

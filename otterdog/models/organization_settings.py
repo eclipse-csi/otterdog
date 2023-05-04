@@ -11,7 +11,7 @@ from typing import Any
 
 from jsonbender import bend, S, OptionalS, K
 
-from . import ModelObject, UNSET
+from . import ModelObject, UNSET, ValidationContext, FailureType
 
 
 @dataclass
@@ -49,6 +49,23 @@ class OrganizationSettings(ModelObject):
     packages_containers_internal: bool
     organization_organization_projects_enabled: bool
     organization_members_can_change_project_visibility: bool
+
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        # enabling dependabot implicitly enables the dependency graph,
+        # disabling the dependency graph in the configuration will result in inconsistencies after
+        # applying the configuration, warn the user about it.
+        dependabot_alerts_enabled = self.dependabot_alerts_enabled_for_new_repositories is True
+        dependabot_security_updates_enabled = self.dependabot_security_updates_enabled_for_new_repositories is True
+        dependency_graph_disabled = self.dependency_graph_enabled_for_new_repositories is False
+
+        if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
+            context.add_failure(FailureType.ERROR,
+                                f"enabling dependabot_alerts or dependabot_security_updates implicitly"
+                                f" enables dependency_graph_enabled_for_new_repositories")
+
+        if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
+            context.add_failure(FailureType.ERROR,
+                                f"enabling dependabot_security_updates implicitly enables dependabot_alerts")
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "OrganizationSettings":
