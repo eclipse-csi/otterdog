@@ -24,7 +24,7 @@ from otterdog import schemas
 from otterdog import utils
 from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
-from otterdog.utils import is_unset
+from otterdog.utils import is_unset, is_set_and_valid
 
 from . import ValidationContext
 from .branch_protection_rule import BranchProtectionRule
@@ -116,6 +116,12 @@ class GitHubOrganization:
 
             for webhook in self.webhooks:
                 webhook_diff = webhook.diff_to(default_org_webhook)
+
+                # FIXME: the secret is ignored for the diff generation
+                #        if the webhook has a secret, explicitly add it
+                #        to the dict. This should be made cleaner.
+                if is_set_and_valid(webhook.secret):
+                    webhook_diff["secret"] = webhook.secret
 
                 output.write(" " * offset + f"orgs.{config.create_webhook}()")
                 utils.dump_diff_object_as_json(webhook_diff, output, offset=offset, indent=indent)
