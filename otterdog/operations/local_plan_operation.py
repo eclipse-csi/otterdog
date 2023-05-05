@@ -11,8 +11,9 @@ from typing import Any
 
 from colorama import Fore, Style
 
-from otterdog import organization as org
 from otterdog.config import OrganizationConfig
+from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+
 from .plan_operation import PlanOperation
 from otterdog.providers.github import Github
 
@@ -22,7 +23,7 @@ class LocalPlanOperation(PlanOperation):
         super().__init__()
 
         self.suffix = suffix
-        self.other_org = None
+        self.other_org: GitHubOrganization | None = None
 
     def pre_execute(self) -> None:
         self.printer.print(f"Printing local diff for configuration at '{self.config.config_file}'")
@@ -41,7 +42,7 @@ class LocalPlanOperation(PlanOperation):
             return 1
 
         try:
-            self.other_org = org.load_from_file(github_id, other_org_file_name, self.config, False)
+            self.other_org = load_github_organization_from_file(github_id, other_org_file_name, self.config, False)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -59,15 +60,14 @@ class LocalPlanOperation(PlanOperation):
         return 0
 
     def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> dict[str, Any]:
-        return self.other_org.get_settings()
+        return self.other_org.settings.to_model_dict()
 
     def get_current_webhooks(self, github_id: str) -> list[tuple[str, dict[str, Any]]]:
-        return [("0", hook) for hook in self.other_org.get_webhooks()]
+        return [("0", hook.to_model_dict()) for hook in self.other_org.webhooks]
 
     def get_current_repos(self, github_id: str) -> list[(str, dict[str, Any], list[(str, dict[str, Any])])]:
-        repos = self.other_org.get_repos()
         result = []
-        for repo in repos:
-            rules = repo.pop("branch_protection_rules")
-            result.append(("0", repo, [("0", rule) for rule in rules]))
+        for repo in self.other_org.repositories:
+            repo_data = repo.to_model_dict()
+            result.append(("0", repo_data, [("0", rule.to_model_dict()) for rule in repo.branch_protection_rules]))
         return result

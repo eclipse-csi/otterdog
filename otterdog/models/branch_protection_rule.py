@@ -11,7 +11,8 @@ from typing import Any
 
 from jsonbender import bend, S, OptionalS, Forall
 
-from . import ModelObject, UNSET, ValidationContext, FailureType, is_unset, is_set_and_valid
+from otterdog.utils import UNSET, is_unset, is_set_and_valid
+from . import ModelObject, ValidationContext, FailureType
 
 
 @dataclass

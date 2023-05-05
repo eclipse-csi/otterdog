@@ -12,7 +12,7 @@ from colorama import Style, Fore
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.utils import IndentingPrinter
-from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+from otterdog.models.github_organization import load_github_organization_from_file
 
 from . import Operation
 

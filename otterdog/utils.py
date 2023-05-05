@@ -7,10 +7,15 @@
 # *******************************************************************************
 
 import json
-from typing import Any, Callable
 from argparse import Namespace
+from io import TextIOBase
+from typing import Any, Callable, Literal, TypeVar
 
 from colorama import init as colorama_init, Fore, Style
+
+
+T = TypeVar("T")
+
 
 # verbose levels
 # 0: off
@@ -63,32 +68,63 @@ def _print_message(msg: str, color: str, level: str) -> None:
     print(f"{color}╵{Style.RESET_ALL}")
 
 
-def get_diff_from_defaults(obj: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
-    result = {}
+class Unset:
+    """
+    A marker class to indicate that a value is unset and thus should
+    not be considered. This is different to None.
+    """
+    def __repr__(self) -> str:
+        return "<UNSET>"
 
-    for key, default_value in sorted(defaults.items()):
-        if key not in obj:
-            continue
+    def __bool__(self) -> Literal[False]:
+        return False
 
-        current_value = obj[key]
-        if current_value != default_value:
-            if isinstance(current_value, dict):
-                nested_result = get_diff_from_defaults(current_value, default_value)
-                result[key] = nested_result
-            elif isinstance(current_value, list):
-                combined_list = current_value + default_value
-                if len(combined_list) == 0:
-                    result[key] = current_value
-                elif isinstance(combined_list[0], str):
-                    diff = diff_list(current_value, default_value)
-                    if len(diff) > 0:
-                        result[key] = diff
+    def __copy__(self):
+        return UNSET
+
+    def __deepcopy__(self, memo: dict[int, Any]):
+        return UNSET
+
+
+UNSET = Unset()
+
+
+def is_unset(value: Any) -> bool:
+    """
+    Returns whether the given value is an instance of Unset.
+    """
+    return value is UNSET
+
+
+def is_set_and_valid(value: Any) -> bool:
+    return not is_unset(value) and value is not None
+
+
+def diff_to_expected(current: Any, expected: Any) -> tuple[bool, Any]:
+    if isinstance(current, dict):
+        raise ValueError(f"dictionary values not supported")
+    elif isinstance(current, list):
+        combined_list = current + expected
+        # if the two lists contains strings, sort them before comparison
+        if len(combined_list) > 0:
+            if isinstance(combined_list[0], str):
+                sorted_current_list = sorted(current)
+                sorted_expected_list = sorted(expected)
+
+                if sorted_current_list != sorted_expected_list:
+                    diff = diff_list(sorted_current_list, sorted_expected_list)
+                    return True, diff
                 else:
-                    result[key] = current_value
+                    return False, None
             else:
-                result[key] = current_value
-
-    return result
+                raise ValueError(f"only string lists are supported: {combined_list} -> {type(combined_list[0])}")
+        else:
+            return False, None
+    else:
+        if current != expected:
+            return True, current
+        else:
+            return False, None
 
 
 def diff_list(list1: list[Any], list2: list[Any]) -> list[Any]:
@@ -96,39 +132,45 @@ def diff_list(list1: list[Any], list2: list[Any]) -> list[Any]:
     return [x for x in list1 if x not in s]
 
 
-def dump_json_object(obj: Any, fp, offset=0, indent=2, embedded_object: bool = False,
-                     predicate: Callable[[str], bool] = lambda x: False,
-                     func: Callable[[str, Any, int], None] = lambda x, y: False):
-    if not embedded_object:
-        fp.write(" " * offset)
-    fp.write("{\n")
+def dump_diff_object_as_json(diff_object: dict[str, Any],
+                             fp: TextIOBase,
+                             offset=0,
+                             indent=2,
+                             close_object: bool = True) -> int:
+    if close_object is True and len(diff_object) == 0:
+        fp.write(",\n")
+        return offset
 
+    fp.write(" {\n")
     offset += indent
-    for k, v in sorted(obj.items()):
+
+    for key, value in sorted(diff_object.items()):
+        if is_unset(value):
+            print_warn(f"key '{key}' defined in default configuration not present in config, skipping")
+            continue
+
         fp.write(" " * offset)
-        if predicate(k):
-            func(k, v, offset)
-        else:
-            if isinstance(v, dict):
-                fp.write(f"{k}+: ")
-                dump_json_object(v, fp, offset, indent, True)
-            elif isinstance(v, list):
-                fp.write(f"{k}+: [\n")
-                offset += indent
-                for item in v:
-                    fp.write(" " * offset)
-                    fp.write(f"{json.dumps(item)},\n")
-                offset -= indent
+        if isinstance(value, list):
+            fp.write(f"{key}+: [\n")
+            offset += indent
+            for item in value:
                 fp.write(" " * offset)
-                fp.write("],\n")
-            else:
-                fp.write(f"{k}: {json.dumps(v)},\n")
+                fp.write(f"{json.dumps(item)},\n")
+            offset -= indent
+            fp.write(" " * offset)
+            fp.write("],\n")
+        else:
+            fp.write(f"{key}: {json.dumps(value)},\n")
 
-    offset -= indent
-    fp.write(" " * offset + "},\n")
+    if close_object is True:
+        offset -= indent
+        fp.write(" " * offset + "},\n")
+        return offset
+    else:
+        return offset
 
 
-def associate_by_key(input_list: list[dict[str, Any]], key_func: Callable[[Any], str]) -> dict[str, dict[str, Any]]:
+def associate_by_key(input_list: list[T], key_func: Callable[[T], str]) -> dict[str, T]:
     result = {}
     for item in input_list:
         key = key_func(item)

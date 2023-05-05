@@ -11,8 +11,8 @@ import os
 from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.models.github_organization import load_github_organization_from_provider
 from otterdog.providers.github import Github
-from otterdog.organization import load_from_github
 from otterdog.utils import IndentingPrinter
 
 from . import Operation
@@ -71,14 +71,15 @@ class ImportOperation(Operation):
                 self.printer.print_warn(f"The Web UI will not be queried as '--no-web-ui' has been specified, "
                                         f"the resulting config will be incomplete")
 
-            organization = load_from_github(github_id,
-                                            self.jsonnet_config,
-                                            gh_client,
-                                            self.config.no_web_ui,
-                                            self.printer)
+            organization = \
+                load_github_organization_from_provider(github_id,
+                                                       self.jsonnet_config,
+                                                       gh_client,
+                                                       self.config.no_web_ui,
+                                                       self.printer)
 
             ignored_keys = gh_client.web_org_settings if self.config.no_web_ui else {}
-            output = organization.write_jsonnet_config(self.jsonnet_config, ignored_keys)
+            output = organization.to_jsonnet(self.jsonnet_config, ignored_keys)
 
             output_dir = self.jsonnet_config.orgs_dir
             if not os.path.exists(output_dir):

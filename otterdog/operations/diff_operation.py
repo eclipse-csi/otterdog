@@ -16,10 +16,11 @@ from typing import Any
 from colorama import Style
 
 from otterdog import mapping
-from otterdog import organization as org
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.providers.github import Github
 from otterdog.utils import IndentingPrinter, associate_by_key, print_warn
+from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+from otterdog.models.repository import Repository
 
 from . import Operation
 from .validate_operation import ValidateOperation
@@ -95,17 +96,19 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            expected_org = org.load_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
+            expected_org = \
+                load_github_organization_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
 
         # We validate the configuration first and only calculate a plan if
         # there are no validation errors.
-        validation_errors = self._validator.validate(expected_org)
-        if validation_errors > 0:
-            self.printer.print("Planning aborted due to validation errors.")
-            return validation_errors
+        validation_warnings, validation_errors = self._validator.validate(expected_org)
+        validation_failures = validation_warnings + validation_errors
+        if validation_failures > 0:
+            self.printer.print("Planning aborted due to validation failures.")
+            return validation_failures
 
         diff_status = DiffStatus()
 
@@ -118,9 +121,9 @@ class DiffOperation(Operation):
 
     def _process_settings(self,
                           github_id: str,
-                          expected_org: org.Organization,
+                          expected_org: GitHubOrganization,
                           diff_status: DiffStatus) -> dict[str, Any]:
-        expected_settings = expected_org.get_settings()
+        expected_settings = expected_org.settings.to_model_dict()
 
         start = datetime.now()
         if self.verbose_output():
@@ -165,12 +168,12 @@ class DiffOperation(Operation):
         current_github_org_settings = self.gh_client.get_org_settings(github_id, settings_keys)
         return mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
 
-    def _process_webhooks(self, github_id: str, expected_org: org.Organization, diff_status: DiffStatus) -> None:
+    def _process_webhooks(self, github_id: str, expected_org: GitHubOrganization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         if self.verbose_output():
             self.printer.print(f"\nwebhooks: Reading...")
 
-        expected_webhooks_by_url = associate_by_key(expected_org.get_webhooks(), lambda x: x["url"])
+        expected_webhooks_by_url = associate_by_key(expected_org.webhooks, lambda x: x.url)
         current_webhooks = self.get_current_webhooks(github_id)
 
         if self.verbose_output():
@@ -186,7 +189,8 @@ class DiffOperation(Operation):
                 continue
 
             modified_webhook = {}
-            for key, expected_value in expected_webhook.items():
+            expected_webhook_data = expected_webhook.to_model_dict()
+            for key, expected_value in expected_webhook_data.items():
                 current_value = current_otterdog_webhook.get(key)
 
                 if key == "secret":
@@ -199,12 +203,16 @@ class DiffOperation(Operation):
                     diff_status.differences += 1
 
             if len(modified_webhook) > 0:
-                self.handle_modified_webhook(github_id, webhook_id, webhook_url, modified_webhook, expected_webhook)
+                self.handle_modified_webhook(github_id,
+                                             webhook_id,
+                                             webhook_url,
+                                             modified_webhook,
+                                             expected_webhook_data)
 
             expected_webhooks_by_url.pop(webhook_url)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            self.handle_new_webhook(github_id, webhook)
+            self.handle_new_webhook(github_id, webhook.to_model_dict())
             diff_status.additions += 1
 
     def get_current_webhooks(self, github_id: str) -> list[tuple[str, dict[str, Any]]]:
@@ -220,14 +228,14 @@ class DiffOperation(Operation):
 
     def _process_repositories(self,
                               github_id: str,
-                              expected_org: org.Organization,
+                              expected_org: GitHubOrganization,
                               modified_org_settings: dict[str, Any],
                               diff_status: DiffStatus) -> None:
         start = datetime.now()
         if self.verbose_output():
             self.printer.print(f"\nrepositories: Reading...")
 
-        expected_repos_by_name = associate_by_key(expected_org.get_repos(), lambda x: x["name"])
+        expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
         current_repos = self.get_current_repos(github_id)
 
         if self.verbose_output():
@@ -246,12 +254,9 @@ class DiffOperation(Operation):
                 diff_status.extras += 1
                 continue
 
+            expected_repo_data = expected_repo.to_model_dict()
             modified_repo = {}
-            for key, expected_value in expected_repo.items():
-                # branch protection rules are treated separately.
-                if key == "branch_protection_rules":
-                    continue
-
+            for key, expected_value in expected_repo_data.items():
                 if not mapping.shall_repo_key_be_included(key, is_private, is_archived):
                     continue
 
@@ -279,13 +284,12 @@ class DiffOperation(Operation):
             expected_repos_by_name.pop(current_repo_name)
 
         for repo_name, repo in expected_repos_by_name.items():
-            new_repo = repo.copy()
-            branch_protection_rules = new_repo.pop("branch_protection_rules")
+            new_repo = repo.to_model_dict()
             self.handle_new_repo(github_id, new_repo)
 
             diff_status.additions += 1
 
-            if len(branch_protection_rules) > 0:
+            if len(repo.branch_protection_rules) > 0:
                 self._process_branch_protection_rules(github_id, repo_name, "", [], repo, diff_status)
 
     def _process_single_repo(self, github_id: str, repo_name: str) -> (str, dict[str, Any]):
@@ -335,14 +339,14 @@ class DiffOperation(Operation):
                                          repo_name: str,
                                          repo_id: str,
                                          current_otterdog_rules: list[(str, dict[str, Any])],
-                                         expected_repo: dict[str, Any],
+                                         expected_repo: Repository,
                                          diff_status: DiffStatus) -> None:
 
         expected_branch_protection_rules_by_pattern = \
-            associate_by_key(expected_repo.get("branch_protection_rules"), lambda x: x["pattern"])
+            associate_by_key(expected_repo.branch_protection_rules, lambda x: x.pattern)
 
-        is_archived = expected_repo["archived"]
-        if is_archived:
+        is_archived = expected_repo.archived
+        if is_archived is True:
             if len(expected_branch_protection_rules_by_pattern) > 0:
                 if self.verbose_output():
                     print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
@@ -359,8 +363,9 @@ class DiffOperation(Operation):
                     diff_status.extras += 1
                     continue
 
+                expected_rule_data = expected_rule.to_model_dict()
                 modified_rule = {}
-                for key, expected_value in expected_rule.items():
+                for key, expected_value in expected_rule_data.items():
                     current_value = current_otterdog_rule.get(key)
                     if self._is_different(current_value, expected_value):
                         diff_status.differences += 1
@@ -372,7 +377,7 @@ class DiffOperation(Operation):
                 expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
-            self.handle_new_rule(org_id, repo_name, repo_id, rule)
+            self.handle_new_rule(org_id, repo_name, repo_id, rule.to_model_dict())
             diff_status.additions += 1
 
     @staticmethod

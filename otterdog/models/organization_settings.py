@@ -9,9 +9,11 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from jsonbender import bend, S, OptionalS, K
+from jsonbender import bend, S, OptionalS
 
-from . import ModelObject, UNSET, ValidationContext, FailureType
+from otterdog.utils import UNSET
+
+from . import ModelObject, ValidationContext, FailureType
 
 
 @dataclass

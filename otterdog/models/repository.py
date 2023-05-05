@@ -9,9 +9,11 @@
 from dataclasses import dataclass, field as dataclass_field, Field
 from typing import Any
 
-from jsonbender import bend, S, OptionalS, K, Forall
+from jsonbender import bend, OptionalS, K, Forall
 
-from . import ModelObject, UNSET, ValidationContext, FailureType
+from otterdog.utils import UNSET
+
+from . import ModelObject, ValidationContext, FailureType
 from .organization_settings import OrganizationSettings
 from .branch_protection_rule import BranchProtectionRule
 
@@ -44,6 +46,12 @@ class Repository(ModelObject):
     dependabot_alerts_enabled: bool
     branch_protection_rules: list[BranchProtectionRule] = dataclass_field(metadata={"model": True},
                                                                           default_factory=list)
+
+    def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
+        self.branch_protection_rules.append(rule)
+
+    def set_branch_protection_rules(self, rules: list[BranchProtectionRule]) -> None:
+        self.branch_protection_rules = rules
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         org_settings: OrganizationSettings = parent_object.settings
@@ -108,7 +116,7 @@ class Repository(ModelObject):
 
     @classmethod
     def from_provider(cls, data: dict[str, Any]) -> "Repository":
-        mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
             "branch_protection_rules": K([]),

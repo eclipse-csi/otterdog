@@ -59,11 +59,20 @@ class ValidateOperation(Operation):
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
-            return self.validate(organization)
+            validation_warnings, validation_errors = self.validate(organization)
+            validation_failures = validation_warnings + validation_errors
+
+            if validation_failures == 0:
+                self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+            else:
+                self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                                   f"{validation_warnings} warning(s), {validation_errors} error(s)")
+
+            return validation_failures
         finally:
             self.printer.level_down()
 
-    def validate(self, organization: GitHubOrganization) -> int:
+    def validate(self, organization: GitHubOrganization) -> tuple[int, int]:
         context = organization.validate()
 
         validation_warnings = 0
@@ -79,12 +88,4 @@ class ValidateOperation(Operation):
                     self.printer.print_error(message)
                     validation_errors += 1
 
-        validation_failures = validation_warnings + validation_errors
-
-        if validation_failures == 0:
-            self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
-        else:
-            self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
-                               f"{validation_warnings} warning(s), {validation_errors} error(s)")
-
-        return validation_failures
+        return validation_warnings, validation_errors

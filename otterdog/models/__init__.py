@@ -8,8 +8,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, Field, fields, field as dataclasses_field
-from typing import Literal, Any
+from typing import Any
 from enum import Enum
+
+from otterdog.utils import diff_to_expected, is_unset
 
 
 class FailureType(Enum):
@@ -41,13 +43,32 @@ class ModelObject(ABC):
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         pass
 
-    def diff(self, other: "ModelObject") -> bool:
+    def diff_to(self, other: "ModelObject") -> dict[str, Any]:
         if type(self) != type(other):
-            raise RuntimeError("not matching")
+            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
+        diff_result = {}
         for field in self.model_fields():
+            if not self.include_field(field):
+                continue
+
+            if self.is_nested_model(field):
+                continue
+
             value = self.__getattribute__(field.name)
-            print(value)
+            other_value = other.__getattribute__(field.name)
+
+            if is_unset(other_value):
+                continue
+
+            if is_unset(value):
+                diff_result[field.name] = value
+            else:
+                values_different, diff = diff_to_expected(value, other_value)
+                if values_different is True:
+                    diff_result[field.name] = diff
+
+        return diff_result
 
     @classmethod
     def all_fields(cls) -> list[Field]:
@@ -93,35 +114,3 @@ class ModelObject(ABC):
                 result[field.name] = value
 
         return result
-
-
-class Unset:
-    """
-    A marker class to indicate that a value is unset and thus should
-    not be considered. This is different to None.
-    """
-    def __repr__(self) -> str:
-        return "<UNSET>"
-
-    def __bool__(self) -> Literal[False]:
-        return False
-
-    def __copy__(self):
-        return UNSET
-
-    def __deepcopy__(self, memo: dict[int, Any]):
-        return UNSET
-
-
-UNSET = Unset()
-
-
-def is_unset(value: Any) -> bool:
-    """
-    Returns whether the given value is an instance of Unset.
-    """
-    return value is UNSET
-
-
-def is_set_and_valid(value: Any) -> bool:
-    return not is_unset(value) and value is not None

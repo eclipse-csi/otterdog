@@ -6,23 +6,30 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field, Field
 from typing import Any
 
 from jsonbender import bend, S, OptionalS
 
-from . import ModelObject, UNSET, is_set_and_valid, ValidationContext, FailureType
+from otterdog.utils import UNSET, is_set_and_valid
+from . import ModelObject, ValidationContext, FailureType
 
 
 @dataclass
 class OrganizationWebhook(ModelObject):
-    id: str = field(metadata={"external_only": True})
+    id: str = dataclass_field(metadata={"external_only": True})
     events: list[str]
     active: bool
-    url: str = field(metadata={"key": True})
+    url: str = dataclass_field(metadata={"key": True})
     content_type: str
     insecure_ssl: str
     secret: str
+
+    def include_field(self, field: Field) -> bool:
+        if field.name == "secret":
+            return False
+        else:
+            return True
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):
@@ -38,5 +45,12 @@ class OrganizationWebhook(ModelObject):
     @classmethod
     def from_provider(cls, data: dict[str, Any]) -> "OrganizationWebhook":
         mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
-        mapping.update({"secret": OptionalS("config", "secret", default=UNSET)})
+        mapping.update(
+            {
+                "url": OptionalS("config", "url", default=UNSET),
+                "content_type": OptionalS("config", "content_type", default=UNSET),
+                "insecure_ssl": OptionalS("config", "insecure_ssl", default=UNSET),
+                "secret": OptionalS("config", "secret", default=UNSET)
+            }
+        )
         return cls(**bend(mapping, data))
