@@ -68,11 +68,18 @@ def _print_message(msg: str, color: str, level: str) -> None:
     print(f"{color}╵{Style.RESET_ALL}")
 
 
-class Unset:
+class _Unset:
     """
     A marker class to indicate that a value is unset and thus should
     not be considered. This is different to None.
     """
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(_Unset, cls).__new__(cls)
+        return cls._instance
+
     def __repr__(self) -> str:
         return "<UNSET>"
 
@@ -86,7 +93,7 @@ class Unset:
         return UNSET
 
 
-UNSET = Unset()
+UNSET = _Unset()
 
 
 def is_unset(value: Any) -> bool:

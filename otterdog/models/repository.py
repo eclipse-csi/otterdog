@@ -7,7 +7,7 @@
 # *******************************************************************************
 
 from dataclasses import dataclass, field as dataclass_field, Field
-from typing import Any
+from typing import Any, ClassVar
 
 from jsonbender import bend, OptionalS, K, Forall
 
@@ -46,6 +46,21 @@ class Repository(ModelObject):
     dependabot_alerts_enabled: bool
     branch_protection_rules: list[BranchProtectionRule] = dataclass_field(metadata={"model": True},
                                                                           default_factory=list)
+
+    _unavailable_fields_in_archived_repos: ClassVar[set[str]] = \
+        {
+            "allow_auto_merge",
+            "allow_merge_commit",
+            "allow_rebase_merge",
+            "allow_squash_merge",
+            "allow_update_branch",
+            "delete_branch_on_merge",
+            "merge_commit_message",
+            "merge_commit_title",
+            "squash_merge_commit_message",
+            "squash_merge_commit_title",
+            "dependabot_alerts_enabled"
+         }
 
     def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
         self.branch_protection_rules.append(rule)
@@ -98,6 +113,13 @@ class Repository(ModelObject):
         if field.name == "secret_scanning":
             if self.private is True:
                 return False
+
+        if self.archived is True:
+            if field.name in self._unavailable_fields_in_archived_repos:
+                return False
+            else:
+                return True
+
         return True
 
     @classmethod
