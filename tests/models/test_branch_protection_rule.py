@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from otterdog.models import UNSET
+from otterdog.utils import UNSET
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 
 
