@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+from otterdog.models import Diff
 from otterdog.models.organization_settings import OrganizationSettings
 
 from . import ModelTest
@@ -107,3 +108,17 @@ class OrganizationSettingsTest(ModelTest):
         assert len(patch) == 2
         assert patch["billing_email"] == current.billing_email
         assert patch["web_commit_signoff_required"] is current.web_commit_signoff_required
+
+    def test_difference(self):
+        current = OrganizationSettings.from_model(self.model_data)
+        other = OrganizationSettings.from_model(self.model_data)
+
+        other.billing_email = "mikael_barbero@eclipse-foundation.org"
+        other.default_repository_permission = "none"
+
+        diff = current.get_difference_to(other)
+
+        assert len(diff) == 2
+        assert diff["billing_email"] == Diff(current.billing_email, other.billing_email)
+        assert diff["default_repository_permission"] == Diff(current.default_repository_permission,
+                                                             other.default_repository_permission)

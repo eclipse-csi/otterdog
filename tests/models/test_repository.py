@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 from otterdog.utils import UNSET
+from otterdog.models import Diff
 from otterdog.models.repository import Repository
 
 from . import ModelTest
@@ -90,3 +91,16 @@ class RepositoryTest(ModelTest):
         assert len(patch) == 2
         assert patch["name"] == current.name
         assert patch["web_commit_signoff_required"] is current.web_commit_signoff_required
+
+    def test_difference(self):
+        current = Repository.from_model(self.model_data)
+        other = Repository.from_model(self.model_data)
+
+        other.name = "other"
+        other.has_wiki = False
+
+        diff = current.get_difference_to(other)
+
+        assert len(diff) == 2
+        assert diff["name"] == Diff(current.name, other.name)
+        assert diff["has_wiki"] == Diff(current.has_wiki, other.has_wiki)

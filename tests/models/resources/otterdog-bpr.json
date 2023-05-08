@@ -22,5 +22,5 @@
   "bypassPullRequestAllowances": ["/netomi"],
   "restrictsReviewDismissals": false,
   "reviewDismissalAllowances": ["/netomi"],
-  "requiredStatusChecks":["any:Run CI"]
+  "requiredStatusChecks":["eclipse-eca-validation:eclipsefdn/eca","any:Run CI"]
 }

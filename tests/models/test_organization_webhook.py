@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 from otterdog.utils import UNSET
+from otterdog.models import Diff
 from otterdog.models.organization_webhook import OrganizationWebhook
 
 from . import ModelTest
@@ -56,4 +57,17 @@ class OrganizationWebhookTest(ModelTest):
         assert len(patch) == 2
         assert patch["url"] == current.url
         assert patch["active"] is current.active
+
+    def test_difference(self):
+        current = OrganizationWebhook.from_model(self.model_data)
+        other = OrganizationWebhook.from_model(self.model_data)
+
+        other.active = False
+        other.insecure_ssl = "1"
+
+        diff = current.get_difference_to(other)
+
+        assert len(diff) == 2
+        assert diff["active"] == Diff(current.active, other.active)
+        assert diff["insecure_ssl"] == Diff(current.insecure_ssl, other.insecure_ssl)
 

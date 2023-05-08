@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 from otterdog.utils import UNSET
+from otterdog.models import Diff
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 
 from . import ModelTest
@@ -46,7 +47,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.requiresStrictStatusChecks is False
         assert bpr.restrictsReviewDismissals is False
         assert bpr.reviewDismissalAllowances == ["/netomi"]
-        assert bpr.requiredStatusChecks == ["any:Run CI"]
+        assert bpr.requiredStatusChecks == ["eclipse-eca-validation:eclipsefdn/eca","any:Run CI"]
 
     def test_load_from_provider(self):
         bpr = BranchProtectionRule.from_provider(self.provider_data)
@@ -82,9 +83,26 @@ class BranchProtectionRuleTest(ModelTest):
 
         default.pattern = None
         default.requiresStatusChecks = False
+        default.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         patch = current.get_patch_to(default)
 
-        assert len(patch) == 2
+        assert len(patch) == 3
         assert patch["pattern"] == current.pattern
         assert patch["requiresStatusChecks"] is current.requiresStatusChecks
+        assert patch["requiredStatusChecks"] == ["any:Run CI"]
+
+    def test_difference(self):
+        current = BranchProtectionRule.from_model(self.model_data)
+        other = BranchProtectionRule.from_model(self.model_data)
+
+        other.requiresApprovingReviews = False
+        other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
+
+        diff = current.get_difference_to(other)
+
+        assert len(diff) == 2
+        assert diff["requiresApprovingReviews"] == Diff(current.requiresApprovingReviews,
+                                                        other.requiresApprovingReviews)
+        assert diff["requiredStatusChecks"] == Diff(current.requiredStatusChecks,
+                                                    other.requiredStatusChecks)
