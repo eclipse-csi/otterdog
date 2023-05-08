@@ -120,9 +120,6 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
 
 
 def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
-    if type(value) != type(other_value):
-        raise ValueError(f"'value types do not match: {type(value)}' != '{type(other_value)}'")
-
     if isinstance(value, dict):
         raise ValueError(f"dictionary values not supported")
     elif isinstance(value, list):
