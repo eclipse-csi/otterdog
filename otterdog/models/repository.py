@@ -9,9 +9,9 @@
 from dataclasses import dataclass, field as dataclass_field, Field
 from typing import Any, ClassVar
 
-from jsonbender import bend, OptionalS, K, Forall
+from jsonbender import bend, S, OptionalS, K, Forall
 
-from otterdog.utils import UNSET
+from otterdog.utils import UNSET, is_unset
 
 from . import ModelObject, ValidationContext, FailureType
 from .organization_settings import OrganizationSettings
@@ -150,3 +150,20 @@ class Repository(ModelObject):
         })
 
         return cls(**bend(mapping, data))
+
+    def to_provider(self) -> dict[str, Any]:
+        # FIXME: implement correct mapping
+        data = self.to_model_dict()
+
+        mapping = {}
+
+        for field in self.model_fields():
+            if self.is_read_only(field):
+                continue
+
+            key = field.name
+            value = self.__getattribute__(key)
+            if not is_unset(value):
+                mapping[key] = S(key)
+
+        return bend(mapping, data)

@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+import jq
+
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.utils import UNSET, Change
 
@@ -42,6 +44,22 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.secret is UNSET
         assert webhook.url == "https://www.example.org"
         assert webhook.insecure_ssl == "0"
+
+    def test_to_provider(self):
+        webhook = OrganizationWebhook.from_model(self.model_data)
+
+        webhook.secret = UNSET
+
+        provider_data = webhook.to_provider()
+
+        assert len(provider_data) == 3
+        assert provider_data["active"] is True
+        assert provider_data["events"] == ["push"]
+
+        assert jq.compile('.config.secret // ""').input(provider_data).first() == ""
+        assert jq.compile(".config.url").input(provider_data).first() == "https://www.example.org"
+        assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
+        assert jq.compile(".config.content_type").input(provider_data).first() == "form"
 
     def test_patch(self):
         current = OrganizationWebhook.from_model(self.model_data)

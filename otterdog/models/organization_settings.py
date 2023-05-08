@@ -6,12 +6,12 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from typing import Any
 
 from jsonbender import bend, S, OptionalS
 
-from otterdog.utils import UNSET
+from otterdog.utils import UNSET, is_unset
 
 from . import ModelObject, ValidationContext, FailureType
 
@@ -19,7 +19,7 @@ from . import ModelObject, ValidationContext, FailureType
 @dataclass
 class OrganizationSettings(ModelObject):
     name: str
-    plan: str = field(metadata={"readonly": True})
+    plan: str = dataclass_field(metadata={"readonly": True})
     description: str
     email: str
     location: str
@@ -31,7 +31,7 @@ class OrganizationSettings(ModelObject):
     has_repository_projects: bool
     default_branch_name: str
     default_repository_permission: str
-    two_factor_requirement: bool = field(metadata={"readonly": True})
+    two_factor_requirement: bool = dataclass_field(metadata={"readonly": True})
     web_commit_signoff_required: bool
     dependabot_alerts_enabled_for_new_repositories: bool
     dependabot_security_updates_enabled_for_new_repositories: bool
@@ -79,3 +79,19 @@ class OrganizationSettings(ModelObject):
         mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))
+
+    def to_provider(self) -> dict[str, Any]:
+        data = self.to_model_dict()
+
+        mapping = {}
+
+        for field in self.model_fields():
+            if self.is_read_only(field):
+                continue
+
+            key = field.name
+            value = self.__getattribute__(key)
+            if not is_unset(value):
+                mapping[key] = S(key)
+
+        return bend(mapping, data)

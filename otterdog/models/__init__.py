@@ -119,6 +119,10 @@ class ModelObject(ABC):
     def from_provider(cls, data: dict[str, Any]):
         pass
 
+    @abstractmethod
+    def to_provider(self) -> dict[str, Any]:
+        pass
+
     def include_field_for_diff_computation(self, field: Field) -> bool:
         return True
 

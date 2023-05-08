@@ -11,7 +11,7 @@ from typing import Any
 
 from jsonbender import bend, S, OptionalS
 
-from otterdog.utils import UNSET, is_set_and_valid
+from otterdog.utils import UNSET, is_unset, is_set_and_valid
 from . import ModelObject, ValidationContext, FailureType
 
 
@@ -56,3 +56,25 @@ class OrganizationWebhook(ModelObject):
             }
         )
         return cls(**bend(mapping, data))
+
+    def to_provider(self) -> dict[str, Any]:
+        data = self.to_model_dict()
+
+        mapping = {}
+
+        for field in self.model_fields():
+            key = field.name
+            value = self.__getattribute__(key)
+            if not is_unset(value):
+                mapping[key] = S(key)
+
+        config_mapping = {}
+        for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:
+            if config_prop in mapping:
+                mapping.pop(config_prop)
+                config_mapping[config_prop] = S(config_prop)
+
+        if len(config_mapping) > 0:
+            mapping["config"] = config_mapping
+
+        return bend(mapping, data)

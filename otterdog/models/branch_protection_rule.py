@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from typing import Any
 
 from jsonbender import bend, S, OptionalS, Forall
@@ -17,8 +17,8 @@ from . import ModelObject, ValidationContext, FailureType
 
 @dataclass
 class BranchProtectionRule(ModelObject):
-    id: str = field(metadata={"external_only": True})
-    pattern: str = field(metadata={"key": True})
+    id: str = dataclass_field(metadata={"external_only": True})
+    pattern: str = dataclass_field(metadata={"key": True})
     allowsDeletions: bool
     allowsForcePushes: bool
     dismissesStaleReviews: bool
@@ -111,3 +111,20 @@ class BranchProtectionRule(ModelObject):
         mapping.update({"requiredStatusChecks": S("requiredStatusChecks") >> Forall(lambda x: transform_app(x))})
 
         return cls(**bend(mapping, data))
+
+    def to_provider(self) -> dict[str, Any]:
+        # FIXME: implement correct mapping
+        data = self.to_model_dict()
+
+        mapping = {}
+
+        for field in self.model_fields():
+            if self.is_read_only(field):
+                continue
+
+            key = field.name
+            value = self.__getattribute__(key)
+            if not is_unset(value):
+                mapping[key] = S(key)
+
+        return bend(mapping, data)

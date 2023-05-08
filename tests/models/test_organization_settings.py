@@ -6,8 +6,10 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+import jq
+
 from otterdog.models.organization_settings import OrganizationSettings
-from otterdog.utils import Change
+from otterdog.utils import Change, UNSET
 
 from . import ModelTest
 
@@ -94,6 +96,16 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.packages_containers_internal is False
         assert settings.organization_organization_projects_enabled is True
         assert settings.organization_members_can_change_project_visibility is False
+
+    def test_to_provider(self):
+        settings = OrganizationSettings.from_model(self.model_data)
+
+        settings.description = UNSET
+
+        provider_data = settings.to_provider()
+
+        assert len(provider_data) == 30
+        assert provider_data["billing_email"] == settings.billing_email
 
     def test_patch(self):
         current = OrganizationSettings.from_model(self.model_data)
