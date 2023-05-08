@@ -25,11 +25,13 @@ class OrganizationWebhook(ModelObject):
     insecure_ssl: str
     secret: str
 
-    def include_field(self, field: Field) -> bool:
-        if field.name == "secret":
-            return False
-        else:
-            return True
+    def include_field_for_diff_computation(self, field: Field) -> bool:
+        match field.name:
+            case "secret": return False
+            case _: return True
+
+    def include_field_for_patch_computation(self, field: Field) -> bool:
+        return True
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):

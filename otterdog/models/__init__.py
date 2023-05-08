@@ -55,7 +55,7 @@ class ModelObject(ABC):
 
         diff_result = {}
         for field in self.model_fields():
-            if not self.include_field(field):
+            if not self.include_field_for_diff_computation(field):
                 continue
 
             if self.is_nested_model(field):
@@ -75,7 +75,7 @@ class ModelObject(ABC):
 
         patch_result = {}
         for field in self.model_fields():
-            if not self.include_field(field):
+            if not self.include_field_for_patch_computation(field):
                 continue
 
             if self.is_nested_model(field):
@@ -122,14 +122,17 @@ class ModelObject(ABC):
     def from_provider(cls, data: dict[str, Any]):
         pass
 
-    def include_field(self, field: Field) -> bool:
+    def include_field_for_diff_computation(self, field: Field) -> bool:
         return True
 
-    def to_model_dict(self, include_nested_models: bool = False) -> dict[str, Any]:
+    def include_field_for_patch_computation(self, field: Field) -> bool:
+        return self.include_field_for_diff_computation(field)
+
+    def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
         result = {}
 
         for field in self.model_fields():
-            if not self.include_field(field):
+            if for_diff is True and not self.include_field_for_diff_computation(field):
                 continue
 
             if include_nested_models is False and self.is_nested_model(field):

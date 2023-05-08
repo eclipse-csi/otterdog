@@ -108,7 +108,7 @@ class Repository(ModelObject):
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
-    def include_field(self, field: Field) -> bool:
+    def include_field_for_diff_computation(self, field: Field) -> bool:
         # private repos don't support security analysis.
         if field.name == "secret_scanning":
             if self.private is True:
