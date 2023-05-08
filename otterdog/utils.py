@@ -107,43 +107,49 @@ def is_set_and_valid(value: Any) -> bool:
     return not is_unset(value) and value is not None
 
 
-def diff_to_expected(current: Any, expected: Any) -> tuple[bool, Any]:
-    if isinstance(current, dict):
+def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
+    """
+    Checks whether two values are considered to be equal.
+    Note: two lists are considered to be equal if they contain the same elements,
+    regardless or the order.
+    """
+    if isinstance(value, list):
+        return sorted(value) != sorted(other_value)
+
+    return value != other_value
+
+
+def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
+    if type(value) != type(other_value):
+        raise ValueError(f"'value types do not match: {type(value)}' != '{type(other_value)}'")
+
+    if isinstance(value, dict):
         raise ValueError(f"dictionary values not supported")
-    elif isinstance(current, list):
-        combined_list = current + expected
-        # if the two lists contains strings, sort them before comparison
-        if len(combined_list) > 0:
-            if isinstance(combined_list[0], str):
-                sorted_current_list = sorted(current)
-                sorted_expected_list = sorted(expected)
+    elif isinstance(value, list):
+        sorted_value_list = sorted(value)
+        sorted_other_list = sorted(other_value)
 
-                if sorted_current_list != sorted_expected_list:
-                    diff = diff_list(sorted_current_list, sorted_expected_list)
-                    return True, diff
-                else:
-                    return False, None
-            else:
-                raise ValueError(f"only string lists are supported: {combined_list} -> {type(combined_list[0])}")
-        else:
-            return False, None
+        if sorted_value_list != sorted_other_list:
+            diff = _diff_list(sorted_value_list, sorted_other_list)
+            return True, diff
     else:
-        if current != expected:
-            return True, current
-        else:
-            return False, None
+        if value != other_value:
+            return True, value
+
+    # values are not different, no patch generated
+    return False, None
 
 
-def diff_list(list1: list[Any], list2: list[Any]) -> list[Any]:
+def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
     s = set(list2)
     return [x for x in list1 if x not in s]
 
 
-def dump_diff_object_as_json(diff_object: dict[str, Any],
-                             fp: TextIOBase,
-                             offset=0,
-                             indent=2,
-                             close_object: bool = True) -> int:
+def dump_patch_object_as_json(diff_object: dict[str, Any],
+                              fp: TextIOBase,
+                              offset=0,
+                              indent=2,
+                              close_object: bool = True) -> int:
     if close_object is True and len(diff_object) == 0:
         fp.write(",\n")
         return offset

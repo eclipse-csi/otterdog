@@ -8,10 +8,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, Field, fields, field as dataclasses_field
-from typing import Any
+from typing import Any, Generic
 from enum import Enum
 
-from otterdog.utils import diff_to_expected, is_unset
+from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order
 
 
 class FailureType(Enum):
@@ -25,6 +25,12 @@ class ValidationContext(object):
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
+
+
+@dataclass
+class Diff(Generic[T]):
+    self_value: T
+    other_value: T
 
 
 @dataclass
@@ -43,11 +49,31 @@ class ModelObject(ABC):
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         pass
 
-    def diff_to(self, other: "ModelObject") -> dict[str, Any]:
-        if type(self) != type(other):
+    def get_difference_to(self, other: "ModelObject") -> dict[str, Diff[T]]:
+        if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         diff_result = {}
+        for field in self.model_fields():
+            if not self.include_field(field):
+                continue
+
+            if self.is_nested_model(field):
+                continue
+
+            value = self.__getattribute__(field.name)
+            other_value = other.__getattribute__(field.name)
+
+            if is_different_ignoring_order(value, other_value):
+                diff_result[field.name] = Diff(value, other_value)
+
+        return diff_result
+
+    def get_patch_to(self, other: "ModelObject") -> dict[str, Any]:
+        if not isinstance(other, self.__class__):
+            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+
+        patch_result = {}
         for field in self.model_fields():
             if not self.include_field(field):
                 continue
@@ -62,13 +88,13 @@ class ModelObject(ABC):
                 continue
 
             if is_unset(value):
-                diff_result[field.name] = value
+                raise ValueError(f"'value for field='{field.name}' is not set")
             else:
-                values_different, diff = diff_to_expected(value, other_value)
-                if values_different is True:
-                    diff_result[field.name] = diff
+                patch_needed, diff = patch_to_other(value, other_value)
+                if patch_needed is True:
+                    patch_result[field.name] = diff
 
-        return diff_result
+        return patch_result
 
     @classmethod
     def all_fields(cls) -> list[Field]:

@@ -99,14 +99,14 @@ class GitHubOrganization:
                 settings+:"""))
 
         default_org_settings = default_org.settings
-        settings_diff = self.settings.diff_to(default_org_settings)
+        settings_patch = self.settings.get_patch_to(default_org_settings)
 
         # some keys to be ignored, mainly for web settings when
         # specifying '--no-web-ui' flag.
         for ignored_key in ignored_keys:
-            settings_diff.pop(ignored_key)
+            settings_patch.pop(ignored_key)
 
-        utils.dump_diff_object_as_json(settings_diff, output, offset=offset, indent=indent)
+        utils.dump_patch_object_as_json(settings_patch, output, offset=offset, indent=indent)
 
         if len(self.webhooks) > 0:
             default_org_webhook = OrganizationWebhook.from_model(config.default_org_webhook_config)
@@ -115,16 +115,16 @@ class GitHubOrganization:
             offset += indent
 
             for webhook in self.webhooks:
-                webhook_diff = webhook.diff_to(default_org_webhook)
+                webhook_patch = webhook.get_patch_to(default_org_webhook)
 
                 # FIXME: the secret is ignored for the diff generation
                 #        if the webhook has a secret, explicitly add it
                 #        to the dict. This should be made cleaner.
                 if is_set_and_valid(webhook.secret):
-                    webhook_diff["secret"] = webhook.secret
+                    webhook_patch["secret"] = webhook.secret
 
                 output.write(" " * offset + f"orgs.{config.create_webhook}()")
-                utils.dump_diff_object_as_json(webhook_diff, output, offset=offset, indent=indent)
+                utils.dump_patch_object_as_json(webhook_patch, output, offset=offset, indent=indent)
 
             offset -= indent
             output.write(" " * offset + "],\n")
@@ -153,25 +153,25 @@ class GitHubOrganization:
                     function = f"orgs.{config.create_repo}"
                     extend = False
 
-                repo_diff = repo.diff_to(other_repo)
+                repo_patch = repo.get_patch_to(other_repo)
 
                 has_branch_protection_rules = len(repo.branch_protection_rules) > 0
-                has_changes = len(repo_diff) > 0 or has_branch_protection_rules
+                has_changes = len(repo_patch) > 0 or has_branch_protection_rules
                 if extend and has_changes is False:
                     continue
 
                 # remove the name key from the diff_obj to avoid serializing twice to json
-                if "name" in repo_diff:
-                    repo_diff.pop("name")
+                if "name" in repo_patch:
+                    repo_patch.pop("name")
 
                 output.write(" " * offset + f"{function}('{repo_name}')")
 
                 offset = \
-                    utils.dump_diff_object_as_json(repo_diff,
-                                                   output,
-                                                   offset=offset,
-                                                   indent=indent,
-                                                   close_object=False)
+                    utils.dump_patch_object_as_json(repo_patch,
+                                                    output,
+                                                    offset=offset,
+                                                    indent=indent,
+                                                    close_object=False)
 
                 if has_branch_protection_rules:
                     default_org_rule = BranchProtectionRule.from_model(config.default_org_branch_config)
@@ -180,12 +180,12 @@ class GitHubOrganization:
                     offset += indent
 
                     for rule in repo.branch_protection_rules:
-                        rule_diff = rule.diff_to(default_org_rule)
-                        rule_diff.pop("pattern")
+                        rule_patch = rule.get_patch_to(default_org_rule)
+                        rule_patch.pop("pattern")
 
                         output.write(" " * offset +
                                      f"orgs.{config.create_branch_protection_rule}('{rule.pattern}')")
-                        utils.dump_diff_object_as_json(rule_diff, output, offset=offset, indent=indent)
+                        utils.dump_patch_object_as_json(rule_patch, output, offset=offset, indent=indent)
 
                     offset -= indent
                     output.write(" " * offset + "],\n")
