@@ -7,12 +7,14 @@
 # *******************************************************************************
 
 import os
-from typing import Any
 
 from colorama import Fore, Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.repository import Repository
 
 from .plan_operation import PlanOperation
 from otterdog.providers.github import Github
@@ -59,16 +61,11 @@ class LocalPlanOperation(PlanOperation):
         self.gh_client = Github(None)
         return 0
 
-    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> dict[str, Any]:
-        return self.other_org.settings.to_model_dict(for_diff=True)
+    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
+        return self.other_org.settings
 
-    def get_current_webhooks(self, github_id: str) -> list[tuple[str, dict[str, Any]]]:
-        return [("0", hook.to_model_dict(for_diff=True)) for hook in self.other_org.webhooks]
+    def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
+        return self.other_org.webhooks
 
-    def get_current_repos(self, github_id: str) -> list[(str, dict[str, Any], list[(str, dict[str, Any])])]:
-        result = []
-        for repo in self.other_org.repositories:
-            repo_data = repo.to_model_dict(for_diff=True)
-            result.append(("0", repo_data, [("0", rule.to_model_dict(for_diff=True))
-                                            for rule in repo.branch_protection_rules]))
-        return result
+    def get_current_repos(self, github_id: str) -> list[Repository]:
+        return self.other_org.repositories

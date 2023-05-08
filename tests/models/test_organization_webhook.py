@@ -6,9 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from otterdog.utils import UNSET
-from otterdog.models import Diff
 from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.utils import UNSET, Change
 
 from . import ModelTest
 
@@ -65,9 +64,9 @@ class OrganizationWebhookTest(ModelTest):
         other.active = False
         other.insecure_ssl = "1"
 
-        diff = current.get_difference_to(other)
+        diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["active"] == Diff(current.active, other.active)
-        assert diff["insecure_ssl"] == Diff(current.insecure_ssl, other.insecure_ssl)
+        assert diff["active"] == Change(other.active, current.active)
+        assert diff["insecure_ssl"] == Change(other.insecure_ssl, current.insecure_ssl)
 

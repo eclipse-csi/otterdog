@@ -6,9 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from otterdog.utils import UNSET
-from otterdog.models import Diff
 from otterdog.models.repository import Repository
+from otterdog.utils import UNSET, Change
 
 from . import ModelTest
 
@@ -99,8 +98,8 @@ class RepositoryTest(ModelTest):
         other.name = "other"
         other.has_wiki = False
 
-        diff = current.get_difference_to(other)
+        diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["name"] == Diff(current.name, other.name)
-        assert diff["has_wiki"] == Diff(current.has_wiki, other.has_wiki)
+        assert diff["name"] == Change(other.name, current.name)
+        assert diff["has_wiki"] == Change(other.has_wiki, current.has_wiki)

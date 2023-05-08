@@ -20,6 +20,7 @@ from .branch_protection_rule import BranchProtectionRule
 
 @dataclass
 class Repository(ModelObject):
+    id: str = dataclass_field(metadata={"external_only": True})
     name: str = dataclass_field(metadata={"key": True})
     description: str
     homepage: str

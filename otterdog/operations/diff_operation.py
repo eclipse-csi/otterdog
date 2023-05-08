@@ -8,19 +8,19 @@
 
 import os
 from abc import abstractmethod
-from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from functools import partial
 from typing import Any
 
 from colorama import Style
 
-from otterdog import mapping
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter, associate_by_key, print_warn
-from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file, \
+    load_repos_from_provider
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
+from otterdog.providers.github import Github
+from otterdog.utils import IndentingPrinter, associate_by_key, print_warn, Change, is_unset, is_set_and_valid
 
 from . import Operation
 from .validate_operation import ValidateOperation
@@ -122,51 +122,41 @@ class DiffOperation(Operation):
     def _process_settings(self,
                           github_id: str,
                           expected_org: GitHubOrganization,
-                          diff_status: DiffStatus) -> dict[str, Any]:
-        expected_settings = expected_org.settings.to_model_dict(for_diff=True)
+                          diff_status: DiffStatus) -> dict[str, Change[Any]]:
+        expected_org_settings = expected_org.settings
 
         start = datetime.now()
         if self.verbose_output():
             self.printer.print(f"organization settings: Reading...")
 
         # filter out web settings if --no-web-ui is used
-        expected_settings_keys = expected_settings.keys()
+        expected_settings_keys = expected_org_settings.keys(for_diff=True)
         if self.config.no_web_ui:
             expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
 
         # determine differences for settings.
-        current_otterdog_org_settings = self.get_current_org_settings(github_id, expected_settings_keys)
+        current_org_settings = self.get_current_org_settings(github_id, expected_settings_keys)
 
         if self.verbose_output():
             end = datetime.now()
             self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
-        modified_settings = {}
-        for key, expected_value in sorted(expected_settings.items()):
-            if key not in expected_settings_keys:
-                continue
-
-            if key not in current_otterdog_org_settings:
-                self.printer.print_warn(f"unexpected key '{key}' found in configuration, skipping")
-                continue
-
-            current_value = current_otterdog_org_settings.get(key)
-
-            if current_value != expected_value:
-                modified_settings[key] = (expected_value, current_value)
-
+        modified_settings = expected_org_settings.get_difference_from(current_org_settings)
         if len(modified_settings) > 0:
             # some settings might be read-only, collect the correct number of changes
             # to be executed based on the operations to be performed.
-            differences = self.handle_modified_settings(github_id, modified_settings, expected_settings)
+            differences = \
+                self.handle_modified_settings(github_id,
+                                              modified_settings,
+                                              expected_org_settings.to_model_dict())
             diff_status.differences += differences
 
         return modified_settings
 
-    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> dict[str, Any]:
+    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
         # determine differences for settings.
         current_github_org_settings = self.gh_client.get_org_settings(github_id, settings_keys)
-        return mapping.map_github_org_settings_data_to_otterdog(current_github_org_settings)
+        return OrganizationSettings.from_provider(current_github_org_settings)
 
     def _process_webhooks(self, github_id: str, expected_org: GitHubOrganization, diff_status: DiffStatus) -> None:
         start = datetime.now()
@@ -180,165 +170,102 @@ class DiffOperation(Operation):
             end = datetime.now()
             self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-        for webhook_id, current_otterdog_webhook in current_webhooks:
-            webhook_url = current_otterdog_webhook["url"]
+        for current_webhook in current_webhooks:
+            webhook_url = current_webhook.url
+
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.handle_extra_webhook(github_id, current_otterdog_webhook)
+                self.handle_extra_webhook(github_id, current_webhook.to_model_dict())
                 diff_status.extras += 1
                 continue
 
-            modified_webhook = {}
-            expected_webhook_data = expected_webhook.to_model_dict(for_diff=True)
-            for key, expected_value in expected_webhook_data.items():
-                current_value = current_otterdog_webhook.get(key)
+            modified_webhook = expected_webhook.get_difference_from(current_webhook)
 
-                if key == "secret":
-                    if not ((expected_value is not None and current_value is None) or
-                            (expected_value is None and current_value is not None)):
-                        continue
+            # special handling for secrets:
+            #   if a secret was present by now its gone or vice-versa,
+            #   include it in the diff view.
+            expected_secret = expected_webhook.secret
+            current_secret = current_webhook.secret
 
-                if self._is_different(current_value, expected_value):
-                    modified_webhook[key] = (expected_value, current_value)
-                    diff_status.differences += 1
+            if ((expected_secret is not None and is_unset(current_secret)) or
+                    (expected_secret is None and is_set_and_valid(current_secret))):
+                modified_webhook["secret"] = Change(current_secret, expected_secret)
 
             if len(modified_webhook) > 0:
                 self.handle_modified_webhook(github_id,
-                                             webhook_id,
+                                             current_webhook.id,
                                              webhook_url,
                                              modified_webhook,
-                                             expected_webhook_data)
+                                             expected_webhook.to_model_dict())
+
+                diff_status.differences += len(modified_webhook)
 
             expected_webhooks_by_url.pop(webhook_url)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            self.handle_new_webhook(github_id, webhook.to_model_dict(for_diff=True))
+            self.handle_new_webhook(github_id, webhook.to_model_dict())
             diff_status.additions += 1
 
-    def get_current_webhooks(self, github_id: str) -> list[tuple[str, dict[str, Any]]]:
+    def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
         github_webhooks = self.gh_client.get_webhooks(github_id)
-
-        result = []
-        for github_webhook in github_webhooks:
-            webhook_id = str(github_webhook["id"])
-            current_otterdog_webhook = mapping.map_github_org_webhook_data_to_otterdog(github_webhook)
-            result.append((webhook_id, current_otterdog_webhook))
-
-        return result
+        return [OrganizationWebhook.from_provider(webhook) for webhook in github_webhooks]
 
     def _process_repositories(self,
                               github_id: str,
                               expected_org: GitHubOrganization,
-                              modified_org_settings: dict[str, Any],
+                              modified_org_settings: dict[str, Change[Any]],
                               diff_status: DiffStatus) -> None:
-        start = datetime.now()
-        if self.verbose_output():
-            self.printer.print(f"\nrepositories: Reading...")
 
         expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
         current_repos = self.get_current_repos(github_id)
 
-        if self.verbose_output():
-            end = datetime.now()
-            self.printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
-
-        for current_repo_id, current_otterdog_repo_data, current_branch_protection_rules in current_repos:
-            current_repo_name = current_otterdog_repo_data["name"]
-            is_private = current_otterdog_repo_data["private"]
-            is_archived = current_otterdog_repo_data["archived"]
-
+        for current_repo in current_repos:
+            current_repo_name = current_repo.name
             expected_repo = expected_repos_by_name.get(current_repo_name)
 
             if expected_repo is None:
-                self.handle_extra_repo(github_id, current_otterdog_repo_data)
+                self.handle_extra_repo(github_id, current_repo.to_model_dict())
                 diff_status.extras += 1
                 continue
 
-            expected_repo_data = expected_repo.to_model_dict(for_diff=True)
-            modified_repo = {}
-            for key, expected_value in expected_repo_data.items():
-                if not mapping.shall_repo_key_be_included(key, is_private, is_archived):
-                    continue
+            # special handling for some keys that can be set organization wide
+            if "web_commit_signoff_required" in modified_org_settings:
+                org_value, _ = modified_org_settings.get("web_commit_signoff_required")
+                expected_repo.web_commit_signoff_required = org_value
 
-                current_value = current_otterdog_repo_data.get(key)
-                # special handling for some keys that can be set organization wide
-                if key == "web_commit_signoff_required":
-                    if key in modified_org_settings:
-                        org_value, _ = modified_org_settings.get(key)
-                        current_value = org_value
-
-                if expected_value != current_value:
-                    diff_status.differences += 1
-                    modified_repo[key] = (expected_value, current_value)
+            modified_repo = expected_repo.get_difference_from(current_repo)
 
             if len(modified_repo) > 0:
                 self.handle_modified_repo(github_id, current_repo_name, modified_repo)
+                diff_status.differences += len(modified_repo)
 
             self._process_branch_protection_rules(github_id,
-                                                  current_repo_name,
-                                                  current_repo_id,
-                                                  current_branch_protection_rules,
+                                                  current_repo,
                                                   expected_repo,
                                                   diff_status)
 
             expected_repos_by_name.pop(current_repo_name)
 
         for repo_name, repo in expected_repos_by_name.items():
-            new_repo = repo.to_model_dict(for_diff=True)
+            new_repo = repo.to_model_dict()
             self.handle_new_repo(github_id, new_repo)
 
             diff_status.additions += 1
 
             if len(repo.branch_protection_rules) > 0:
-                self._process_branch_protection_rules(github_id, repo_name, "", [], repo, diff_status)
+                self._process_branch_protection_rules(github_id, None, repo, diff_status)
 
-    def _process_single_repo(self, github_id: str, repo_name: str) -> (str, dict[str, Any]):
-        repo_data = \
-            self.gh_client.get_repo_data(github_id, repo_name)
-        repo_data["branch_protection_rules"] = \
-            self.gh_client.get_branch_protection_rules(github_id, repo_name)
-        return repo_name, repo_data
+    def get_current_repos(self, github_id: str) -> list[Repository]:
+        if self.verbose_output():
+            printer = self.printer
+        else:
+            printer = None
 
-    def get_current_repos(self, github_id: str) -> list[(str, dict[str, Any], list[(str, dict[str, Any])])]:
-        current_repos = self.gh_client.get_repos(github_id)
-
-        # retrieve repo_data and branch_protection_rules in parallel using a pool.
-        current_github_repos = {}
-        # partially apply the github_id to get a function that only takes one parameter
-        process_repo = partial(self._process_single_repo, github_id)
-        # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
-        # due to the global interpreter lock.
-        with ProcessPoolExecutor() as pool:
-            data = pool.map(process_repo, current_repos)
-            for (repo_name, repo_data) in data:
-                current_github_repos[repo_name] = repo_data
-
-        result = []
-
-        for repo_name, current_github_repo_data in current_github_repos.items():
-            current_repo_id = current_github_repo_data["node_id"]
-
-            current_github_rules = current_github_repo_data.pop("branch_protection_rules")
-
-            otterdog_rules = []
-            for current_github_rule in current_github_rules:
-                rule_id = current_github_rule["id"]
-
-                current_otterdog_rule = \
-                    mapping.map_github_branch_protection_rule_data_to_otterdog(current_github_rule)
-
-                otterdog_rules.append((rule_id, current_otterdog_rule))
-
-            current_otterdog_repo_data = mapping.map_github_repo_data_to_otterdog(current_github_repo_data)
-            result.append((current_repo_id, current_otterdog_repo_data, otterdog_rules))
-
-        return result
+        return load_repos_from_provider(github_id, self.gh_client, printer)
 
     def _process_branch_protection_rules(self,
                                          org_id: str,
-                                         repo_name: str,
-                                         repo_id: str,
-                                         current_otterdog_rules: list[(str, dict[str, Any])],
+                                         current_repo: Repository | None,
                                          expected_repo: Repository,
                                          diff_status: DiffStatus) -> None:
 
@@ -352,51 +279,38 @@ class DiffOperation(Operation):
                     print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
             return
 
-        # only retrieve current rules if the repo_id is available, otherwise it's a new repo
-        if repo_id:
-            for rule_id, current_otterdog_rule in current_otterdog_rules:
-                rule_pattern = current_otterdog_rule["pattern"]
+        # only retrieve current rules if the current_repo is available, otherwise it's a new repo
+        if current_repo is not None:
+            for current_rule in current_repo.branch_protection_rules:
+                rule_pattern = current_rule.pattern
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_extra_rule(org_id, repo_name, repo_id, current_otterdog_rule)
+                    self.handle_extra_rule(org_id, current_repo.name, current_repo.id, current_rule.to_model_dict())
                     diff_status.extras += 1
                     continue
 
-                expected_rule_data = expected_rule.to_model_dict(for_diff=True)
-                modified_rule = {}
-                for key, expected_value in expected_rule_data.items():
-                    current_value = current_otterdog_rule.get(key)
-                    if self._is_different(current_value, expected_value):
-                        diff_status.differences += 1
-                        modified_rule[key] = (expected_value, current_value)
+                modified_rule = expected_rule.get_difference_from(current_rule)
 
                 if len(modified_rule) > 0:
-                    self.handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
+                    self.handle_modified_rule(org_id, current_repo.name, rule_pattern, current_rule.id, modified_rule)
+                    diff_status.differences += len(modified_rule)
 
                 expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
-            self.handle_new_rule(org_id, repo_name, repo_id, rule.to_model_dict(for_diff=True))
+            if current_repo is not None:
+                repo_id = current_repo.id
+            else:
+                repo_id = None
+
+            self.handle_new_rule(org_id, expected_repo.name, repo_id, rule.to_model_dict())
             diff_status.additions += 1
-
-    @staticmethod
-    def _is_different(current_value, expected_value) -> bool:
-        if isinstance(current_value, list):
-            combined_list = current_value + expected_value
-            # if the two lists contains strings, sort them before comparison
-            if len(combined_list) > 0 and isinstance(combined_list[0], str):
-                sorted_current_list = sorted(current_value)
-                sorted_expected_list = sorted(expected_value)
-
-                return sorted_current_list != sorted_expected_list
-
-        return current_value != expected_value
 
     @abstractmethod
     def handle_modified_settings(self,
                                  org_id: str,
-                                 modified_settings: dict[str, (Any, Any)],
+                                 modified_settings: dict[str, Change[Any]],
                                  full_settings: dict[str, Any]) -> int:
         raise NotImplementedError
 
@@ -405,7 +319,7 @@ class DiffOperation(Operation):
                                 org_id: str,
                                 webhook_id: str,
                                 webhook_url: str,
-                                modified_webhook: dict[str, (Any, Any)],
+                                modified_webhook: dict[str, Change[Any]],
                                 webhook: dict[str, Any]) -> None:
         raise NotImplementedError
 
@@ -421,7 +335,7 @@ class DiffOperation(Operation):
     def handle_modified_repo(self,
                              org_id: str,
                              repo_name: str,
-                             modified_repo: dict[str, (Any, Any)]) -> None:
+                             modified_repo: dict[str, Change[Any]]) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -438,7 +352,7 @@ class DiffOperation(Operation):
                              repo_name: str,
                              rule_pattern: str,
                              rule_id: str,
-                             data: dict[str, Any]) -> None:
+                             data: dict[str, Change[Any]]) -> None:
         raise NotImplementedError
 
     @abstractmethod

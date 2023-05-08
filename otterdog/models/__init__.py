@@ -8,10 +8,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, Field, fields, field as dataclasses_field
-from typing import Any, Generic
 from enum import Enum
+from typing import Any
 
-from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order
+from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change
 
 
 class FailureType(Enum):
@@ -25,12 +25,6 @@ class ValidationContext(object):
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
-
-
-@dataclass
-class Diff(Generic[T]):
-    self_value: T
-    other_value: T
 
 
 @dataclass
@@ -49,7 +43,7 @@ class ModelObject(ABC):
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         pass
 
-    def get_difference_to(self, other: "ModelObject") -> dict[str, Diff[T]]:
+    def get_difference_from(self, other: "ModelObject") -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
@@ -61,11 +55,14 @@ class ModelObject(ABC):
             if self.is_nested_model(field):
                 continue
 
-            value = self.__getattribute__(field.name)
-            other_value = other.__getattribute__(field.name)
+            to_value = self.__getattribute__(field.name)
+            from_value = other.__getattribute__(field.name)
 
-            if is_different_ignoring_order(value, other_value):
-                diff_result[field.name] = Diff(value, other_value)
+            if is_unset(to_value) or is_unset(from_value):
+                continue
+
+            if is_different_ignoring_order(to_value, from_value):
+                diff_result[field.name] = Change(from_value, to_value)
 
         return diff_result
 
@@ -128,8 +125,8 @@ class ModelObject(ABC):
     def include_field_for_patch_computation(self, field: Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
-        result = {}
+    def keys(self, for_diff: bool = False, include_nested_models: bool = False) -> list[str]:
+        result = list()
 
         for field in self.model_fields():
             if for_diff is True and not self.include_field_for_diff_computation(field):
@@ -140,6 +137,16 @@ class ModelObject(ABC):
 
             value = self.__getattribute__(field.name)
             if not is_unset(value):
-                result[field.name] = value
+                result.append(field.name)
+
+        return result
+
+    def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
+        result = {}
+
+        for key in self.keys(for_diff, include_nested_models):
+            value = self.__getattribute__(key)
+            if not is_unset(value):
+                result[key] = value
 
         return result

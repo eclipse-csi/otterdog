@@ -6,9 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from otterdog.utils import UNSET
-from otterdog.models import Diff
 from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.utils import UNSET, Change
 
 from . import ModelTest
 
@@ -99,10 +98,10 @@ class BranchProtectionRuleTest(ModelTest):
         other.requiresApprovingReviews = False
         other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
-        diff = current.get_difference_to(other)
+        diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["requiresApprovingReviews"] == Diff(current.requiresApprovingReviews,
-                                                        other.requiresApprovingReviews)
-        assert diff["requiredStatusChecks"] == Diff(current.requiredStatusChecks,
-                                                    other.requiredStatusChecks)
+        assert diff["requiresApprovingReviews"] == Change(other.requiresApprovingReviews,
+                                                          current.requiresApprovingReviews)
+        assert diff["requiredStatusChecks"] == Change(other.requiredStatusChecks,
+                                                      current.requiredStatusChecks)

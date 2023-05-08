@@ -6,8 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from otterdog.models import Diff
 from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.utils import Change
 
 from . import ModelTest
 
@@ -116,9 +116,9 @@ class OrganizationSettingsTest(ModelTest):
         other.billing_email = "mikael_barbero@eclipse-foundation.org"
         other.default_repository_permission = "none"
 
-        diff = current.get_difference_to(other)
+        diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["billing_email"] == Diff(current.billing_email, other.billing_email)
-        assert diff["default_repository_permission"] == Diff(current.default_repository_permission,
-                                                             other.default_repository_permission)
+        assert diff["billing_email"] == Change(other.billing_email, current.billing_email)
+        assert diff["default_repository_permission"] == Change(other.default_repository_permission,
+                                                               current.default_repository_permission)

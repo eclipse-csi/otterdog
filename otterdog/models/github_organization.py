@@ -217,19 +217,6 @@ def load_github_organization_from_file(github_id: str,
     return org
 
 
-def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> tuple[str, Repository]:
-    # get repo data
-    github_repo_data = gh_client.get_repo_data(github_id, repo_name)
-    repo = Repository.from_provider(github_repo_data)
-
-    # get branch protection rules of the repo
-    rules = gh_client.get_branch_protection_rules(github_id, repo_name)
-    for github_rule in rules:
-        repo.add_branch_protection_rule(BranchProtectionRule.from_provider(github_rule))
-
-    return repo_name, repo
-
-
 def load_github_organization_from_provider(github_id: str,
                                            jsonnet_config: JsonnetConfig,
                                            client: Github,
@@ -269,6 +256,28 @@ def load_github_organization_from_provider(github_id: str,
     for webhook in github_webhooks:
         org.add_webhook(OrganizationWebhook.from_provider(webhook))
 
+    for repo in load_repos_from_provider(github_id, client, printer):
+        org.add_repository(repo)
+
+    return org
+
+
+def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> tuple[str, Repository]:
+    # get repo data
+    github_repo_data = gh_client.get_repo_data(github_id, repo_name)
+    repo = Repository.from_provider(github_repo_data)
+
+    # get branch protection rules of the repo
+    rules = gh_client.get_branch_protection_rules(github_id, repo_name)
+    for github_rule in rules:
+        repo.add_branch_protection_rule(BranchProtectionRule.from_provider(github_rule))
+
+    return repo_name, repo
+
+
+def load_repos_from_provider(github_id: str,
+                             client: Github,
+                             printer: utils.IndentingPrinter = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
         printer.print(f"\nrepositories: Reading...")
@@ -276,21 +285,18 @@ def load_github_organization_from_provider(github_id: str,
     repo_names = client.get_repos(github_id)
 
     # retrieve repo_data and branch_protection_rules in parallel using a pool.
-    github_repos = {}
+    github_repos = []
     # partially apply the github_client and the github_id to get a function that only takes one parameter
     process_repo = partial(_process_single_repo, client, github_id)
     # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
     # due to the global interpreter lock.
     with ProcessPoolExecutor() as pool:
         data = pool.map(process_repo, repo_names)
-        for (repo_name, repo_data) in data:
-            github_repos[repo_name] = repo_data
+        for (_, repo_data) in data:
+            github_repos.append(repo_data)
 
     if printer is not None:
         end = datetime.now()
         printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
-    for repo_name, repo in github_repos.items():
-        org.add_repository(repo)
-
-    return org
+    return github_repos

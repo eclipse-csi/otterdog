@@ -9,124 +9,12 @@
 import re
 from typing import Any
 
-from jsonbender import bend, K, S, OptionalS, Forall
+from jsonbender import bend, K, S
 
 from . import schemas
 from .providers.github import Github
 
-_FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS =\
-    {
-        "allow_auto_merge",
-        "allow_merge_commit",
-        "allow_rebase_merge",
-        "allow_squash_merge",
-        "allow_update_branch",
-        "delete_branch_on_merge",
-        "merge_commit_message",
-        "merge_commit_title",
-        "squash_merge_commit_message",
-        "squash_merge_commit_title",
-        "dependabot_alerts_enabled"
-    }
-
-
-def shall_repo_key_be_included(key: str, is_private: bool, is_archived: bool) -> bool:
-    if is_private and (key == "secret_scanning"):
-        return False
-
-    if is_archived:
-        if key in _FIELDS_NOT_AVAILABLE_FOR_ARCHIVED_PROJECTS:
-            return False
-
-    return True
-
-
-def map_github_org_settings_data_to_otterdog(github_org_data: dict[str, Any]) -> dict[str, Any]:
-    allowed_repo_properties = schemas.get_properties_of_schema(schemas.SETTINGS_SCHEMA)
-
-    # first create an identity mapping for all properties contained in the schema.
-    mapping = {}
-    for k in allowed_repo_properties:
-        if k in github_org_data:
-            mapping[k] = S(k)
-
-    # add mapping for specific properties if they are present.
-    if "plan" in github_org_data:
-        mapping.update({
-            "plan": S("plan", "name")
-        })
-
-    return bend(mapping, github_org_data)
-
-
-def map_github_org_webhook_data_to_otterdog(github_org_webhook_data: dict[str, Any]) -> dict[str, Any]:
-    allowed_webhook_properties = schemas.get_properties_of_schema(schemas.WEBHOOK_SCHEMA)
-
-    # first create an identity mapping for all properties contained in the schema.
-    mapping = {}
-    for k in allowed_webhook_properties:
-        if k in github_org_webhook_data:
-            mapping[k] = S(k)
-
-    # add mapping for specific properties if they are present.
-    if "config" in github_org_webhook_data:
-        mapping.update({
-            "url": S("config", "url"),
-            "content_type": S("config", "content_type"),
-            "insecure_ssl": S("config", "insecure_ssl"),
-            "secret": OptionalS("config", "secret"),
-        })
-
-    return bend(mapping, github_org_webhook_data)
-
-
-def map_github_repo_data_to_otterdog(github_repo_data: dict[str, Any]) -> dict[str, Any]:
-    allowed_repo_properties = schemas.get_properties_of_schema(schemas.REPOSITORY_SCHEMA)
-
-    # first create an identity mapping for all properties contained in the schema.
-    mapping = {}
-    for k in allowed_repo_properties:
-        if k in github_repo_data:
-            mapping[k] = S(k)
-
-    # add mapping for specific properties if they are present.
-    # the "security_and_analysis is not present for private repos.
-    if "security_and_analysis" in github_repo_data:
-        mapping.update({
-            "secret_scanning": S("security_and_analysis", "secret_scanning", "status"),
-            "secret_scanning_push_protection": S("security_and_analysis", "secret_scanning_push_protection", "status")
-        })
-
-    return bend(mapping, github_repo_data)
-
-
-def map_github_branch_protection_rule_data_to_otterdog(github_bpr_data: dict[str, Any]) -> dict[str, Any]:
-    allowed_bpr_properties = schemas.get_properties_of_schema(schemas.BRANCH_PROTECTION_RULE_SCHEMA)
-
-    # first create an identity mapping for all properties contained in the schema.
-    mapping = {}
-    for k in allowed_bpr_properties:
-        if k in github_bpr_data:
-            mapping[k] = S(k)
-
-    def transform_app(x):
-        app = x["app"]
-        context = x["context"]
-
-        if app is None:
-            app_prefix = "any:"
-        else:
-            app_slug = app["slug"]
-            if app_slug == "github-actions":
-                app_prefix = ""
-            else:
-                app_prefix = f"{app_slug}:"
-
-        return f"{app_prefix}{context}"
-
-    mapping.update({"requiredStatusChecks": S("requiredStatusChecks") >> Forall(lambda x: transform_app(x))})
-
-    return bend(mapping, github_bpr_data)
+# TODO: move these methods to the respective model class in an method to_provider
 
 
 def map_otterdog_org_settings_data_to_github(otterdog_org_data: dict[str, Any]) -> dict[str, Any]:

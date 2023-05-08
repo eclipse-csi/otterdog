@@ -12,7 +12,7 @@ from typing import Protocol, Any
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter
+from otterdog.utils import IndentingPrinter, Change
 
 
 class Operation(Protocol):
@@ -55,11 +55,14 @@ class Operation(Protocol):
         self.printer.level_down()
         self.printer.print(f"{closing_prefix}}}")
 
-    def print_modified_dict(self, data: dict[str, Any], item_header: str, redacted_keys: set[str] = None) -> None:
+    def print_modified_dict(self, data: dict[str, Change[Any]], item_header: str, redacted_keys: set[str] = None) -> None:
         self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
-        for key, (expected_value, current_value) in sorted(data.items()):
+        for key, change in sorted(data.items()):
+            current_value = change.from_value
+            expected_value = change.to_value
+
             if isinstance(expected_value, dict):
                 self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()

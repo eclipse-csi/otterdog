@@ -11,15 +11,6 @@ import jq
 import otterdog.mapping as mapping
 
 
-def test_github_webhook_to_otterdog_mapping(github_webhook_data):
-    otterdog_data = mapping.map_github_org_webhook_data_to_otterdog(github_webhook_data)
-
-    assert otterdog_data["secret"] is None
-    assert otterdog_data["url"] == "https://www.example.org"
-    assert otterdog_data["insecure_ssl"] == "0"
-    assert otterdog_data["content_type"] == "json"
-
-
 def test_otterdog_webhook_to_github_mapping(otterdog_webhook_data):
     github_data = mapping.map_otterdog_org_webhook_data_to_github(otterdog_webhook_data)
 
@@ -31,13 +22,6 @@ def test_otterdog_webhook_to_github_mapping(otterdog_webhook_data):
     assert "url" not in github_data
 
 
-def test_github_repo_to_otterdog_mapping(github_repo_data):
-    otterdog_data = mapping.map_github_repo_data_to_otterdog(github_repo_data)
-
-    assert otterdog_data["secret_scanning"] == "enabled"
-    assert otterdog_data["name"] == "otterdog-defaults"
-
-
 def test_otterdog_repo_to_github_mapping(otterdog_repo_data):
     github_data = mapping.map_otterdog_repo_data_to_github(otterdog_repo_data)
 
@@ -46,11 +30,3 @@ def test_otterdog_repo_to_github_mapping(otterdog_repo_data):
     assert github_data["name"] == "otterdog-defaults"
 
     assert "secret_scanning" not in github_data
-
-
-def test_github_bpr_to_otterdog_mapping(github_bpr_data):
-    otterdog_data = mapping.map_github_branch_protection_rule_data_to_otterdog(github_bpr_data)
-
-    assert otterdog_data["pattern"] == "main"
-    assert otterdog_data["allowsForcePushes"] is False
-    assert otterdog_data["requiredStatusChecks"] == ["any:Run CI"]

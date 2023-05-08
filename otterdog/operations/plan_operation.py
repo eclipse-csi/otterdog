@@ -11,7 +11,7 @@ from typing import Any
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
-from otterdog.utils import IndentingPrinter
+from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffOperation, DiffStatus
 
@@ -32,7 +32,7 @@ class PlanOperation(DiffOperation):
 
     def handle_modified_settings(self,
                                  org_id: str,
-                                 modified_settings: dict[str, (Any, Any)],
+                                 modified_settings: dict[str, Change[Any]],
                                  full_settings: dict[str, Any]) -> int:
         self.print_modified_dict(modified_settings, "settings")
 
@@ -50,13 +50,13 @@ class PlanOperation(DiffOperation):
                                 org_id: str,
                                 webhook_id: str,
                                 webhook_url: str,
-                                modified_webhook: dict[str, (Any, Any)],
+                                modified_webhook: dict[str, Change[Any]],
                                 webhook: dict[str, Any]) -> None:
         self.printer.print()
         self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"})
 
         if "secret" in modified_webhook:
-            (new_secret, current_secret) = modified_webhook["secret"]
+            new_secret = modified_webhook["secret"].to_value
             if not new_secret:
                 self.printer.print(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
                                    f"with url '{webhook_url}'")
@@ -69,7 +69,7 @@ class PlanOperation(DiffOperation):
         self.printer.print()
         self.print_dict(webhook, "new webhook", "+", Fore.GREEN)
 
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, (Any, Any)]) -> None:
+    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
         self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
 
     def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
@@ -85,7 +85,7 @@ class PlanOperation(DiffOperation):
                              repo_name: str,
                              rule_pattern: str,
                              rule_id: str,
-                             modified_rule: dict[str, Any]) -> None:
+                             modified_rule: dict[str, Change[Any]]) -> None:
 
         self.printer.print()
         self.print_modified_dict(modified_rule,

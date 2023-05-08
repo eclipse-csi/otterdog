@@ -8,11 +8,11 @@
 
 import json
 from argparse import Namespace
+from dataclasses import dataclass
 from io import TextIOBase
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, TypeVar, Generic
 
 from colorama import init as colorama_init, Fore, Style
-
 
 T = TypeVar("T")
 
@@ -105,6 +105,12 @@ def is_unset(value: Any) -> bool:
 
 def is_set_and_valid(value: Any) -> bool:
     return not is_unset(value) and value is not None
+
+
+@dataclass
+class Change(Generic[T]):
+    from_value: T | None
+    to_value: T | None
 
 
 def is_different_ignoring_order(value: Any, other_value: Any) -> bool:

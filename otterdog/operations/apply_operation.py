@@ -11,7 +11,7 @@ from typing import Any
 from colorama import Style
 
 from otterdog.config import OtterdogConfig
-from otterdog.utils import IndentingPrinter
+from otterdog.utils import IndentingPrinter, Change
 from otterdog import mapping
 
 from .diff_operation import DiffStatus
@@ -38,7 +38,7 @@ class ApplyOperation(PlanOperation):
 
     def handle_modified_settings(self,
                                  org_id: str,
-                                 modified_settings: dict[str, (Any, Any)],
+                                 modified_settings: dict[str, Change[Any]],
                                  full_settings: dict[str, Any]) -> int:
         super().handle_modified_settings(org_id, modified_settings, full_settings)
 
@@ -63,7 +63,7 @@ class ApplyOperation(PlanOperation):
                                 org_id: str,
                                 webhook_id: str,
                                 webhook_url: str,
-                                modified_webhook: dict[str, (Any, Any)],
+                                modified_webhook: dict[str, Change[Any]],
                                 webhook: dict[str, Any]) -> None:
         super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook)
         self._modified_webhooks[webhook_id] = webhook
@@ -75,12 +75,12 @@ class ApplyOperation(PlanOperation):
         super().handle_new_webhook(org_id, data)
         self._new_webhooks.append(data)
 
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, (Any, Any)]) -> None:
+    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
         super().handle_modified_repo(org_id, repo_name, modified_repo)
         
         data = {}
-        for key, (expected_value, current_value) in modified_repo.items():
-            data[key] = expected_value
+        for key, change in modified_repo.items():
+            data[key] = change.to_value
 
         self._modified_repos[repo_name] = data
 
@@ -96,12 +96,12 @@ class ApplyOperation(PlanOperation):
                              repo_name: str,
                              rule_pattern: str,
                              rule_id: str,
-                             modified_rule: dict[str, Any]) -> None:
+                             modified_rule: dict[str, Change[Any]]) -> None:
         super().handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
 
         data = {}
-        for key, (expected_value, current_value) in modified_rule.items():
-            data[key] = expected_value
+        for key, change in modified_rule.items():
+            data[key] = change.to_value
 
         self._modified_rules.append((repo_name, rule_pattern, rule_id, data))
 
