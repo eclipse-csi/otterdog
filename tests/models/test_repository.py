@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+import jq
+
 from otterdog.models.repository import Repository
 from otterdog.utils import UNSET, Change
 
@@ -76,6 +78,37 @@ class RepositoryTest(ModelTest):
         assert repo.secret_scanning == "enabled"
         assert repo.secret_scanning_push_protection == "disabled"
         assert repo.dependabot_alerts_enabled is True
+
+    def test_to_provider(self):
+        repo = Repository.from_model(self.model_data)
+
+        repo.description = UNSET
+
+        provider_data = repo.to_provider()
+
+        assert len(provider_data) == 22
+        assert provider_data["name"] == "otterdog-defaults"
+        assert provider_data.get("description") is None
+
+        assert jq.compile('.security_and_analysis.secret_scanning.status // ""').input(
+            provider_data).first() == "enabled"
+
+    def test_changes_to_provider(self):
+        current = Repository.from_model(self.model_data)
+        other = Repository.from_model(self.model_data)
+
+        other.name = "other"
+        other.has_wiki = False
+        other.secret_scanning = "disabled"
+
+        changes = current.get_difference_from(other)
+        provider_data = current.changes_to_provider(changes)
+
+        assert len(provider_data) == 3
+        assert provider_data["name"] == "otterdog-defaults"
+        assert provider_data["has_wiki"] is True
+        assert jq.compile('.security_and_analysis.secret_scanning.status // ""').input(
+            provider_data).first() == "enabled"
 
     def test_patch(self):
         current = Repository.from_model(self.model_data)

@@ -107,6 +107,20 @@ class OrganizationSettingsTest(ModelTest):
         assert len(provider_data) == 30
         assert provider_data["billing_email"] == settings.billing_email
 
+    def test_changes_to_provider(self):
+        current = OrganizationSettings.from_model(self.model_data)
+        other = OrganizationSettings.from_model(self.model_data)
+
+        other.billing_email = "mikael_barbero@eclipse-foundation.org"
+        other.default_repository_permission = "none"
+
+        changes = current.get_difference_from(other)
+        provider_data = current.changes_to_provider(changes)
+
+        assert len(provider_data) == 2
+        assert provider_data["billing_email"] == current.billing_email
+        assert provider_data["default_repository_permission"] == current.default_repository_permission
+
     def test_patch(self):
         current = OrganizationSettings.from_model(self.model_data)
 

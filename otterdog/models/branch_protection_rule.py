@@ -6,12 +6,15 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import re
 from dataclasses import dataclass, field as dataclass_field
-from typing import Any
+from typing import Any, Union
 
-from jsonbender import bend, S, OptionalS, Forall
+from jsonbender import bend, S, OptionalS, Forall, K
 
+from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid
+
 from . import ModelObject, ValidationContext, FailureType
 
 
@@ -112,19 +115,75 @@ class BranchProtectionRule(ModelObject):
 
         return cls(**bend(mapping, data))
 
-    def to_provider(self) -> dict[str, Any]:
-        # FIXME: implement correct mapping
-        data = self.to_model_dict()
+    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+                   not is_unset(data.get(field.name, UNSET))}
 
-        mapping = {}
+        if "pushRestrictions" in data:
+            mapping.pop("pushRestrictions")
+            restricts_pushes = data["pushRestrictions"]
+            if is_set_and_valid(restricts_pushes):
+                assert provider is not None
+                actor_ids = provider.get_actor_ids(restricts_pushes)
+                mapping["pushActorIds"] = K(actor_ids)
+                mapping["restrictsPushes"] = K(True if len(actor_ids) > 0 else False)
 
-        for field in self.model_fields():
-            if self.is_read_only(field):
-                continue
+        if "reviewDismissalAllowances" in data:
+            mapping.pop("reviewDismissalAllowances")
+            review_dismissal_allowances = data["reviewDismissalAllowances"]
+            if is_set_and_valid(review_dismissal_allowances):
+                assert provider is not None
+                actor_ids = provider.get_actor_ids(review_dismissal_allowances)
+                mapping["reviewDismissalActorIds"] = K(actor_ids)
 
-            key = field.name
-            value = self.__getattribute__(key)
-            if not is_unset(value):
-                mapping[key] = S(key)
+        if "bypassPullRequestAllowances" in data:
+            mapping.pop("bypassPullRequestAllowances")
+            bypass_pull_request_allowances = data["bypassPullRequestAllowances"]
+            if is_set_and_valid(bypass_pull_request_allowances):
+                assert provider is not None
+                actor_ids = provider.get_actor_ids(bypass_pull_request_allowances)
+                mapping["bypassPullRequestActorIds"] = K(actor_ids)
+
+        if "bypassForcePushAllowances" in data:
+            mapping.pop("bypassForcePushAllowances")
+            bypass_force_push_allowances = data["bypassForcePushAllowances"]
+            if is_set_and_valid(bypass_force_push_allowances):
+                assert provider is not None
+                actor_ids = provider.get_actor_ids(bypass_force_push_allowances)
+                mapping["bypassForcePushActorIds"] = K(actor_ids)
+
+        if "requiredStatusChecks" in data:
+            mapping.pop("requiredStatusChecks")
+            required_status_checks = data["requiredStatusChecks"]
+            if is_set_and_valid(required_status_checks):
+                assert provider is not None
+
+                app_slugs = set()
+
+                for check in required_status_checks:
+                    if ":" in check:
+                        app_slug, context = re.split(":", check, 1)
+
+                        if app_slug != "any":
+                            app_slugs.add(app_slug)
+                    else:
+                        app_slugs.add("github-actions")
+
+                app_ids = provider.get_app_ids(app_slugs)
+
+                transformed_checks = []
+                for check in required_status_checks:
+                    if ":" in check:
+                        app_slug, context = re.split(":", check, 1)
+                    else:
+                        app_slug = "github-actions"
+                        context = check
+
+                    if app_slug == "any":
+                        transformed_checks.append({"appId": "any", "context": context})
+                    else:
+                        transformed_checks.append({"appId": app_ids[app_slug], "context": context})
+
+                mapping["requiredStatusChecks"] = K(transformed_checks)
 
         return bend(mapping, data)

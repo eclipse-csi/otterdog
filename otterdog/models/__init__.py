@@ -9,8 +9,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, Field, fields, field as dataclasses_field
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
+from otterdog.providers.github import Github
 from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change
 
 
@@ -99,7 +100,16 @@ class ModelObject(ABC):
 
     @classmethod
     def model_fields(cls) -> list[Field]:
-        return [field for field in fields(cls) if field.metadata.get("external_only", False) is False]
+        return [field for field in fields(cls) if not cls.is_external_only(field)]
+
+    @classmethod
+    def provider_fields(cls) -> list[Field]:
+        return [field for field in fields(cls) if
+                not cls.is_external_only(field) and not cls.is_read_only(field) and not cls.is_nested_model(field)]
+
+    @staticmethod
+    def is_external_only(field: Field) -> bool:
+        return field.metadata.get("external_only", False) is True
 
     @staticmethod
     def is_read_only(field: Field) -> bool:
@@ -119,8 +129,14 @@ class ModelObject(ABC):
     def from_provider(cls, data: dict[str, Any]):
         pass
 
+    def to_provider(self, provider: Union[Github, None] = None) -> dict[str, Any]:
+        return self._to_provider(self.to_model_dict(), provider)
+
+    def changes_to_provider(self, data: dict[str, Change[Any]], provider: Union[Github, None] = None) -> dict[str, Any]:
+        return self._to_provider({key: change.to_value for key, change in data.items()}, provider)
+
     @abstractmethod
-    def to_provider(self) -> dict[str, Any]:
+    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: Field) -> bool:

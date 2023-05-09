@@ -24,7 +24,8 @@ class ModelTest(ABC, unittest.TestCase):
     def provider_data(self):
         pass
 
-    def load_json_resource(self, file: str) -> dict[str, Any]:
+    @staticmethod
+    def load_json_resource(file: str) -> dict[str, Any]:
         filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"resources/{file}")
         with open(filename, "r") as file:
             return json.load(file)

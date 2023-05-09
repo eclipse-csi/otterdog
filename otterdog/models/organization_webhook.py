@@ -7,10 +7,11 @@
 # *******************************************************************************
 
 from dataclasses import dataclass, field as dataclass_field, Field
-from typing import Any
+from typing import Any, Union
 
 from jsonbender import bend, S, OptionalS
 
+from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid
 from . import ModelObject, ValidationContext, FailureType
 
@@ -57,16 +58,9 @@ class OrganizationWebhook(ModelObject):
         )
         return cls(**bend(mapping, data))
 
-    def to_provider(self) -> dict[str, Any]:
-        data = self.to_model_dict()
-
-        mapping = {}
-
-        for field in self.model_fields():
-            key = field.name
-            value = self.__getattribute__(key)
-            if not is_unset(value):
-                mapping[key] = S(key)
+    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+                   not is_unset(data.get(field.name, UNSET))}
 
         config_mapping = {}
         for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:

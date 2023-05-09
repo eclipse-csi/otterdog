@@ -7,10 +7,11 @@
 # *******************************************************************************
 
 from dataclasses import dataclass, field as dataclass_field, Field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Union
 
 from jsonbender import bend, S, OptionalS, K, Forall
 
+from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset
 
 from . import ModelObject, ValidationContext, FailureType
@@ -47,6 +48,8 @@ class Repository(ModelObject):
     dependabot_alerts_enabled: bool
     branch_protection_rules: list[BranchProtectionRule] = dataclass_field(metadata={"model": True},
                                                                           default_factory=list)
+
+    _security_properties: ClassVar[list[str]] = ["secret_scanning", "secret_scanning_push_protection"]
 
     _unavailable_fields_in_archived_repos: ClassVar[set[str]] = \
         {
@@ -111,8 +114,8 @@ class Repository(ModelObject):
 
     def include_field_for_diff_computation(self, field: Field) -> bool:
         # private repos don't support security analysis.
-        if field.name == "secret_scanning":
-            if self.private is True:
+        if self.private is True:
+            if field.name in ["secret_scanning", "secret_scanning_push_protection"]:
                 return False
 
         if self.archived is True:
@@ -151,19 +154,26 @@ class Repository(ModelObject):
 
         return cls(**bend(mapping, data))
 
-    def to_provider(self) -> dict[str, Any]:
-        # FIXME: implement correct mapping
-        data = self.to_model_dict()
+    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+                   not is_unset(data.get(field.name, UNSET))}
 
-        mapping = {}
+        # add mapping for items that GitHub expects in a nested structure.
 
-        for field in self.model_fields():
-            if self.is_read_only(field):
-                continue
+        # private repos don't support a security_and_analysis block.
+        if self.private is True:
+            for security_prop in self._security_properties:
+                if security_prop in mapping:
+                    mapping.pop(security_prop)
+        else:
+            security_mapping = {}
+            for security_prop in self._security_properties:
+                if security_prop in mapping:
+                    mapping.pop(security_prop)
+                if security_prop in data:
+                    security_mapping[security_prop] = {"status": S(security_prop)}
 
-            key = field.name
-            value = self.__getattribute__(key)
-            if not is_unset(value):
-                mapping[key] = S(key)
+            if len(security_mapping) > 0:
+                mapping.update({"security_and_analysis": security_mapping})
 
         return bend(mapping, data)

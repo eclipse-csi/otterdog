@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
+from unittest.mock import MagicMock
+
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.utils import UNSET, Change
 
@@ -20,6 +22,19 @@ class BranchProtectionRuleTest(ModelTest):
     @property
     def provider_data(self):
         return self.load_json_resource("github-bpr.json")
+
+    @property
+    def provider(self):
+        def get_actor_ids(actors):
+            return [f"id_{actor}" for actor in actors]
+
+        def get_app_ids(app_names):
+            return {app: f"id_{app}" for app in app_names}
+
+        provider = MagicMock()
+        provider.get_actor_ids = MagicMock(side_effect=get_actor_ids)
+        provider.get_app_ids = MagicMock(side_effect=get_app_ids)
+        return provider
 
     def test_load_from_model(self):
         bpr = BranchProtectionRule.from_model(self.model_data)
@@ -74,6 +89,32 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.restrictsReviewDismissals is False
         assert bpr.reviewDismissalAllowances == ["/netomi"]
         assert bpr.requiredStatusChecks == ["any:Run CI"]
+
+    def test_to_provider(self):
+        bpr = BranchProtectionRule.from_model(self.model_data)
+
+        provider_data = bpr.to_provider(self.provider)
+
+        assert len(provider_data) == 23
+        assert provider_data["pattern"] == "main"
+        assert provider_data["pushActorIds"] == ["id_/netomi"]
+        assert provider_data["requiredStatusChecks"] == [
+            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
+
+    def test_changes_to_provider(self):
+        current = BranchProtectionRule.from_model(self.model_data)
+        other = BranchProtectionRule.from_model(self.model_data)
+
+        other.requiresApprovingReviews = False
+        other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
+
+        changes = current.get_difference_from(other)
+        provider_data = current.changes_to_provider(changes, self.provider)
+
+        assert len(provider_data) == 2
+        assert provider_data["requiresApprovingReviews"] is True
+        assert provider_data["requiredStatusChecks"] == [
+            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
 
     def test_patch(self):
         current = BranchProtectionRule.from_model(self.model_data)

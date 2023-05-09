@@ -61,6 +61,20 @@ class OrganizationWebhookTest(ModelTest):
         assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
         assert jq.compile(".config.content_type").input(provider_data).first() == "form"
 
+    def test_changes_to_provider(self):
+        current = OrganizationWebhook.from_model(self.model_data)
+        other = OrganizationWebhook.from_model(self.model_data)
+
+        other.active = False
+        other.insecure_ssl = "1"
+
+        changes = current.get_difference_from(other)
+        provider_data = current.changes_to_provider(changes)
+
+        assert len(provider_data) == 2
+        assert provider_data["active"] is True
+        assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
+
     def test_patch(self):
         current = OrganizationWebhook.from_model(self.model_data)
 

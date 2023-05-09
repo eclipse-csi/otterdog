@@ -7,10 +7,11 @@
 # *******************************************************************************
 
 from dataclasses import dataclass, field as dataclass_field
-from typing import Any
+from typing import Any, Union
 
 from jsonbender import bend, S, OptionalS
 
+from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset
 
 from . import ModelObject, ValidationContext, FailureType
@@ -80,18 +81,7 @@ class OrganizationSettings(ModelObject):
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))
 
-    def to_provider(self) -> dict[str, Any]:
-        data = self.to_model_dict()
-
-        mapping = {}
-
-        for field in self.model_fields():
-            if self.is_read_only(field):
-                continue
-
-            key = field.name
-            value = self.__getattribute__(key)
-            if not is_unset(value):
-                mapping[key] = S(key)
-
+    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+                   not is_unset(data.get(field.name, UNSET))}
         return bend(mapping, data)
