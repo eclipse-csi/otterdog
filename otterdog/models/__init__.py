@@ -130,13 +130,15 @@ class ModelObject(ABC):
         pass
 
     def to_provider(self, provider: Union[Github, None] = None) -> dict[str, Any]:
-        return self._to_provider(self.to_model_dict(), provider)
+        return self._to_provider(self.to_model_dict(for_diff=True), provider)
 
-    def changes_to_provider(self, data: dict[str, Change[Any]], provider: Union[Github, None] = None) -> dict[str, Any]:
-        return self._to_provider({key: change.to_value for key, change in data.items()}, provider)
+    @classmethod
+    def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Union[Github, None] = None) -> dict[str, Any]:
+        return cls._to_provider({key: change.to_value for key, change in data.items()}, provider)
 
+    @classmethod
     @abstractmethod
-    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: Field) -> bool:

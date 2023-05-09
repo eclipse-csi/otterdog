@@ -58,8 +58,9 @@ class OrganizationWebhook(ModelObject):
         )
         return cls(**bend(mapping, data))
 
-    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+    @classmethod
+    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
         config_mapping = {}

@@ -109,7 +109,7 @@ class BranchProtectionRuleTest(ModelTest):
         other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         changes = current.get_difference_from(other)
-        provider_data = current.changes_to_provider(changes, self.provider)
+        provider_data = BranchProtectionRule.changes_to_provider(changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["requiresApprovingReviews"] is True

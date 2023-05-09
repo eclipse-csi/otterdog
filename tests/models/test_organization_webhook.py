@@ -69,7 +69,7 @@ class OrganizationWebhookTest(ModelTest):
         other.insecure_ssl = "1"
 
         changes = current.get_difference_from(other)
-        provider_data = current.changes_to_provider(changes)
+        provider_data = OrganizationWebhook.changes_to_provider(changes)
 
         assert len(provider_data) == 2
         assert provider_data["active"] is True

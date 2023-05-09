@@ -115,7 +115,7 @@ class Repository(ModelObject):
     def include_field_for_diff_computation(self, field: Field) -> bool:
         # private repos don't support security analysis.
         if self.private is True:
-            if field.name in ["secret_scanning", "secret_scanning_push_protection"]:
+            if field.name in self._security_properties:
                 return False
 
         if self.archived is True:
@@ -154,26 +154,21 @@ class Repository(ModelObject):
 
         return cls(**bend(mapping, data))
 
-    def _to_provider(self, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in self.provider_fields() if
+    @classmethod
+    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
         # add mapping for items that GitHub expects in a nested structure.
 
-        # private repos don't support a security_and_analysis block.
-        if self.private is True:
-            for security_prop in self._security_properties:
-                if security_prop in mapping:
-                    mapping.pop(security_prop)
-        else:
-            security_mapping = {}
-            for security_prop in self._security_properties:
-                if security_prop in mapping:
-                    mapping.pop(security_prop)
-                if security_prop in data:
-                    security_mapping[security_prop] = {"status": S(security_prop)}
+        security_mapping = {}
+        for security_prop in cls._security_properties:
+            if security_prop in mapping:
+                mapping.pop(security_prop)
+            if security_prop in data:
+                security_mapping[security_prop] = {"status": S(security_prop)}
 
-            if len(security_mapping) > 0:
-                mapping.update({"security_and_analysis": security_mapping})
+        if len(security_mapping) > 0:
+            mapping.update({"security_and_analysis": security_mapping})
 
         return bend(mapping, data)

@@ -102,7 +102,7 @@ class RepositoryTest(ModelTest):
         other.secret_scanning = "disabled"
 
         changes = current.get_difference_from(other)
-        provider_data = current.changes_to_provider(changes)
+        provider_data = Repository.changes_to_provider(changes)
 
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"
