@@ -133,7 +133,7 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for repo_name, repo_id, rule in self._new_rules:
-            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider())
+            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider(self.gh_client))
 
         self.printer.print(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
                            f"{diff_status.differences} changed, "
