@@ -149,7 +149,8 @@ class WebClient:
         elif actor != self.credentials.username:
             raise RuntimeError(f"logged in with unexpected user {actor}")
 
-    def _logged_in_as(self, page: Page) -> str:
+    @staticmethod
+    def _logged_in_as(page: Page) -> str:
         response = page.goto("https://github.com/settings/profile")
 
         if not response.ok:

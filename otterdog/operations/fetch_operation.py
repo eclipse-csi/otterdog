@@ -78,7 +78,7 @@ class FetchOperation(Operation):
                                                    self.config.config_repo,
                                                    f"otterdog/{github_id}.jsonnet",
                                                    ref)
-            except RuntimeError as e:
+            except RuntimeError:
                 self.printer.print_error(f"failed to fetch definition from repo '{self.config.config_repo}'")
                 return 1
 

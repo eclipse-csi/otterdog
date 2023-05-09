@@ -11,8 +11,11 @@ from typing import Any
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
+from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.repository import Repository
 from otterdog.utils import IndentingPrinter, Change
-from otterdog import mapping
 
 from .diff_operation import DiffStatus
 from .plan_operation import PlanOperation
@@ -81,12 +84,7 @@ class ApplyOperation(PlanOperation):
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
         super().handle_modified_repo(org_id, repo_name, modified_repo)
-        
-        data = {}
-        for key, change in modified_repo.items():
-            data[key] = change.to_value
-
-        self._modified_repos[repo_name] = data
+        self._modified_repos[repo_name] = modified_repo
 
     def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
         super().handle_extra_repo(org_id, repo)
@@ -102,12 +100,7 @@ class ApplyOperation(PlanOperation):
                              rule_id: str,
                              modified_rule: dict[str, Change[Any]]) -> None:
         super().handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
-
-        data = {}
-        for key, change in modified_rule.items():
-            data[key] = change.to_value
-
-        self._modified_rules.append((repo_name, rule_pattern, rule_id, data))
+        self._modified_rules.append((repo_name, rule_pattern, rule_id, modified_rule))
 
     def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         super().handle_extra_rule(org_id, repo_name, repo_id, data)
@@ -134,31 +127,31 @@ class ApplyOperation(PlanOperation):
                 return
 
         if self._org_settings_to_update is not None:
-            github_settings = mapping.map_otterdog_org_settings_data_to_github(self._org_settings_to_update)
+            github_settings = OrganizationSettings.changes_to_provider(self._org_settings_to_update)
             self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():
-            github_webhook = mapping.map_otterdog_org_webhook_data_to_github(webhook)
+            github_webhook = OrganizationWebhook.changes_to_provider(webhook)
             self.gh_client.update_webhook(org_id, webhook_id, github_webhook)
 
         for webhook in self._new_webhooks:
-            github_webhook = mapping.map_otterdog_org_webhook_data_to_github(webhook)
+            github_webhook = OrganizationWebhook.changes_to_provider(webhook)
             self.gh_client.add_webhook(org_id, github_webhook)
 
         for repo_name, repo in self._modified_repos.items():
-            github_repo = mapping.map_otterdog_repo_data_to_github(repo)
+            github_repo = Repository.changes_to_provider(repo)
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._new_repos:
-            github_repo = mapping.map_otterdog_repo_data_to_github(repo)
+            github_repo = Repository.changes_to_provider(repo)
             self.gh_client.add_repo(org_id, github_repo, self.config.auto_init_repo)
 
         for (repo_name, rule_pattern, rule_id, rule) in self._modified_rules:
-            github_rule = mapping.map_otterdog_branch_protection_rule_data_to_github(rule, self.gh_client)
+            github_rule = BranchProtectionRule.changes_to_provider(rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for (repo_name, repo_id, rule) in self._new_rules:
-            github_rule = mapping.map_otterdog_branch_protection_rule_data_to_github(rule, self.gh_client)
+            github_rule = BranchProtectionRule.changes_to_provider(rule, self.gh_client)
             self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, github_rule)
 
         self.printer.print(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "

@@ -24,13 +24,16 @@ class Operation(Protocol):
         pass
 
     @abstractmethod
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None: raise NotImplementedError
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+        raise NotImplementedError
 
     @abstractmethod
-    def pre_execute(self) -> None: raise NotImplementedError
+    def pre_execute(self) -> None:
+        raise NotImplementedError
 
     @abstractmethod
-    def execute(self, org_config: OrganizationConfig) -> int: raise NotImplementedError
+    def execute(self, org_config: OrganizationConfig) -> int:
+        raise NotImplementedError
 
     def print_dict(self, data: dict[str, Any], item_header: str, action: str, color: str) -> None:
         prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
@@ -55,7 +58,10 @@ class Operation(Protocol):
         self.printer.level_down()
         self.printer.print(f"{closing_prefix}}}")
 
-    def print_modified_dict(self, data: dict[str, Change[Any]], item_header: str, redacted_keys: set[str] = None) -> None:
+    def print_modified_dict(self,
+                            data: dict[str, Change[Any]],
+                            item_header: str,
+                            redacted_keys: set[str] = None) -> None:
         self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
