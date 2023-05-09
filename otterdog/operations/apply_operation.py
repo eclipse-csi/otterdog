@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from colorama import Style
+from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
 from otterdog.utils import IndentingPrinter, Change
@@ -35,6 +35,10 @@ class ApplyOperation(PlanOperation):
 
     def pre_execute(self) -> None:
         self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
+        self.printer.print(f"\nActions are indicated with the following symbols:")
+        self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
+        self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
+        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
 
     def handle_modified_settings(self,
                                  org_id: str,
