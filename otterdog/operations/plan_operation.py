@@ -11,6 +11,10 @@ from typing import Any
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
+from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.repository import Repository
 from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffOperation, DiffStatus
@@ -33,7 +37,7 @@ class PlanOperation(DiffOperation):
     def handle_modified_settings(self,
                                  org_id: str,
                                  modified_settings: dict[str, Change[Any]],
-                                 full_settings: dict[str, Any]) -> int:
+                                 full_settings: OrganizationSettings) -> int:
         self.print_modified_dict(modified_settings, "settings")
 
         settings_to_change = 0
@@ -51,7 +55,7 @@ class PlanOperation(DiffOperation):
                                 webhook_id: str,
                                 webhook_url: str,
                                 modified_webhook: dict[str, Change[Any]],
-                                webhook: dict[str, Any]) -> None:
+                                webhook: OrganizationWebhook) -> None:
         self.printer.print()
         self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"})
 
@@ -61,24 +65,24 @@ class PlanOperation(DiffOperation):
                 self.printer.print(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
                                    f"with url '{webhook_url}'")
 
-    def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
+    def handle_extra_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         self.printer.print()
-        self.print_dict(webhook, "extra webhook", "-", Fore.RED)
+        self.print_dict(webhook.to_model_dict(), "extra webhook", "-", Fore.RED)
 
-    def handle_new_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
+    def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         self.printer.print()
-        self.print_dict(webhook, "new webhook", "+", Fore.GREEN)
+        self.print_dict(webhook.to_model_dict(), "new webhook", "+", Fore.GREEN)
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
         self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
 
-    def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
+    def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(repo, "extra repo", "-", Fore.RED)
+        self.print_dict(repo.to_model_dict(), "extra repo", "-", Fore.RED)
 
-    def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
+    def handle_new_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(data, "new repo", "+", Fore.GREEN)
+        self.print_dict(repo.to_model_dict(), "new repo", "+", Fore.GREEN)
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -91,13 +95,13 @@ class PlanOperation(DiffOperation):
         self.print_modified_dict(modified_rule,
                                  f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]")
 
-    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
+    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         self.printer.print()
-        self.print_dict(rule_data, f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED)
+        self.print_dict(bpr.to_model_dict(), f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED)
 
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, rule_data: dict[str, Any]) -> None:
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         self.printer.print()
-        self.print_dict(rule_data, f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
+        self.print_dict(bpr.to_model_dict(), f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.print()

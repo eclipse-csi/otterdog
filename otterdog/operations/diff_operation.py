@@ -16,6 +16,7 @@ from colorama import Style
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file, \
     load_repos_from_provider
+from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
@@ -148,7 +149,7 @@ class DiffOperation(Operation):
             differences = \
                 self.handle_modified_settings(github_id,
                                               modified_settings,
-                                              expected_org_settings.to_model_dict())
+                                              expected_org_settings)
             diff_status.differences += differences
 
         return modified_settings
@@ -175,7 +176,7 @@ class DiffOperation(Operation):
 
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.handle_extra_webhook(github_id, current_webhook.to_model_dict())
+                self.handle_extra_webhook(github_id, current_webhook)
                 diff_status.extras += 1
                 continue
 
@@ -196,14 +197,14 @@ class DiffOperation(Operation):
                                              current_webhook.id,
                                              webhook_url,
                                              modified_webhook,
-                                             expected_webhook.to_model_dict())
+                                             expected_webhook)
 
                 diff_status.differences += len(modified_webhook)
 
             expected_webhooks_by_url.pop(webhook_url)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            self.handle_new_webhook(github_id, webhook.to_model_dict())
+            self.handle_new_webhook(github_id, webhook)
             diff_status.additions += 1
 
     def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
@@ -224,14 +225,14 @@ class DiffOperation(Operation):
             expected_repo = expected_repos_by_name.get(current_repo_name)
 
             if expected_repo is None:
-                self.handle_extra_repo(github_id, current_repo.to_model_dict())
+                self.handle_extra_repo(github_id, current_repo)
                 diff_status.extras += 1
                 continue
 
             # special handling for some keys that can be set organization wide
             if "web_commit_signoff_required" in modified_org_settings:
-                org_value, _ = modified_org_settings.get("web_commit_signoff_required")
-                expected_repo.web_commit_signoff_required = org_value
+                change = modified_org_settings["web_commit_signoff_required"]
+                expected_repo.web_commit_signoff_required = change.to_value
 
             modified_repo = expected_repo.get_difference_from(current_repo)
 
@@ -247,8 +248,7 @@ class DiffOperation(Operation):
             expected_repos_by_name.pop(current_repo_name)
 
         for repo_name, repo in expected_repos_by_name.items():
-            new_repo = repo.to_model_dict()
-            self.handle_new_repo(github_id, new_repo)
+            self.handle_new_repo(github_id, repo)
 
             diff_status.additions += 1
 
@@ -286,7 +286,7 @@ class DiffOperation(Operation):
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_extra_rule(org_id, current_repo.name, current_repo.id, current_rule.to_model_dict())
+                    self.handle_extra_rule(org_id, current_repo.name, current_repo.id, current_rule)
                     diff_status.extras += 1
                     continue
 
@@ -304,14 +304,14 @@ class DiffOperation(Operation):
             else:
                 repo_id = None
 
-            self.handle_new_rule(org_id, expected_repo.name, repo_id, rule.to_model_dict())
+            self.handle_new_rule(org_id, expected_repo.name, repo_id, rule)
             diff_status.additions += 1
 
     @abstractmethod
     def handle_modified_settings(self,
                                  org_id: str,
                                  modified_settings: dict[str, Change[Any]],
-                                 full_settings: dict[str, Any]) -> int:
+                                 full_settings: OrganizationSettings) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -320,15 +320,15 @@ class DiffOperation(Operation):
                                 webhook_id: str,
                                 webhook_url: str,
                                 modified_webhook: dict[str, Change[Any]],
-                                webhook: dict[str, Any]) -> None:
+                                webhook: OrganizationWebhook) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_webhook(self, org_id: str, webhook: dict[str, Any]) -> None:
+    def handle_extra_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_webhook(self, org_id: str, data: dict[str, Any]) -> None:
+    def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -339,11 +339,11 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_repo(self, org_id: str, repo: dict[str, Any]) -> None:
+    def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_repo(self, org_id: str, data: dict[str, Any]) -> None:
+    def handle_new_repo(self, org_id: str, repo: Repository) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -352,15 +352,15 @@ class DiffOperation(Operation):
                              repo_name: str,
                              rule_pattern: str,
                              rule_id: str,
-                             data: dict[str, Change[Any]]) -> None:
+                             modified_rule: dict[str, Change[Any]]) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
+    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         raise NotImplementedError
 
     @abstractmethod

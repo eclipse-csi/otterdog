@@ -205,7 +205,17 @@ class RestClient:
         data["auto_init"] = auto_init_repo
 
         try:
-            self._requester.request_json("POST", f"/orgs/{org_id}/repos", data)
+            result = self._requester.request_json("POST", f"/orgs/{org_id}/repos", data)
+
+            for update_key in update_keys:
+                if update_key in result:
+                    update_value_expected = update_data[update_key]
+                    update_value_current = result[update_key]
+
+                    if update_value_current == update_value_expected:
+                        utils.print_debug(f"omitting setting '{update_key}' as it is already set")
+                        update_data.pop(update_key)
+
             utils.print_debug(f"added repo with name '{repo_name}'")
             self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
