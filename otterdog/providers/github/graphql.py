@@ -113,7 +113,7 @@ class GraphQLClient:
 
     def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         rule_pattern = data["pattern"]
-        utils.print_debug(f"creating branch_protection_rule with pattern '{rule_pattern}'"
+        utils.print_debug(f"creating branch_protection_rule with pattern '{rule_pattern}' "
                           f"for repo '{repo_name}'")
 
         data["repositoryId"] = repo_id

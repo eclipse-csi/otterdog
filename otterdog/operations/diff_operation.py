@@ -314,7 +314,7 @@ class DiffOperation(Operation):
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
             if current_repo is not None:
-                repo_id = current_repo.id
+                repo_id = current_repo.node_id
             else:
                 repo_id = None
 
