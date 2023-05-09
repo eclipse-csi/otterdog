@@ -114,6 +114,19 @@ class DiffOperation(Operation):
         diff_status = DiffStatus()
 
         modified_org_settings = self._process_settings(github_id, expected_org, diff_status)
+
+        # add a warning that otterdog potentially must be run a second time
+        # to fully apply all setting.
+        if "web_commit_signoff_required" in modified_org_settings:
+            change = modified_org_settings["web_commit_signoff_required"]
+            if change.to_value is False:
+                if self.verbose_output():
+                    print_warn(f"Setting 'web_commit_signoff_required' setting has been disabled on "
+                               f"organization level. \nThe effective setting on repo level can only be "
+                               f"determined once this change has been applied.\n"
+                               f"You need to run otterdog another time to fully ensure "
+                               f"that the correct configuration is applied.")
+
         self._process_webhooks(github_id, expected_org, diff_status)
         self._process_repositories(github_id, expected_org, modified_org_settings, diff_status)
 
@@ -232,7 +245,8 @@ class DiffOperation(Operation):
             # special handling for some keys that can be set organization wide
             if "web_commit_signoff_required" in modified_org_settings:
                 change = modified_org_settings["web_commit_signoff_required"]
-                expected_repo.web_commit_signoff_required = change.to_value
+                if change.to_value is True:
+                    current_repo.web_commit_signoff_required = change.to_value
 
             modified_repo = expected_repo.get_difference_from(current_repo)
 

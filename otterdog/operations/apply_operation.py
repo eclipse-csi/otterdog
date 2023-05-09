@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any, Union
+from typing import Any
 
 from colorama import Fore, Style
 
@@ -25,7 +25,7 @@ class ApplyOperation(PlanOperation):
     def __init__(self):
         super().__init__()
 
-        self._org_settings_to_update: Union[OrganizationSettings, None] = None
+        self._org_settings_to_update: dict[str, Change[Any]] = {}
         self._modified_webhooks: dict[str, OrganizationWebhook] = {}
         self._new_webhooks: list[OrganizationWebhook] = []
         self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
@@ -48,11 +48,7 @@ class ApplyOperation(PlanOperation):
                                  modified_settings: dict[str, Change[Any]],
                                  full_settings: OrganizationSettings) -> int:
         super().handle_modified_settings(org_id, modified_settings, full_settings)
-
-        # include all settings in the update as the update operation
-        # defines some default if a setting it not provided.
-        # FIXME: this might not be needed anymore
-        self._org_settings_to_update = full_settings
+        self._org_settings_to_update = modified_settings
         return len(modified_settings)
 
     def handle_modified_webhook(self,
@@ -116,8 +112,8 @@ class ApplyOperation(PlanOperation):
                 return
 
         if self._org_settings_to_update is not None:
-            # settings are already mapped to the provider model.
-            self.gh_client.update_org_settings(org_id, self._org_settings_to_update.to_provider())
+            github_settings = OrganizationSettings.changes_to_provider(self._org_settings_to_update)
+            self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():
             self.gh_client.update_webhook(org_id, webhook_id, webhook.to_provider())
