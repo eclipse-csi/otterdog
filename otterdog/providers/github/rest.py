@@ -297,7 +297,8 @@ class Requester:
         self._headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
-            "X-GitHub-Api-Version": api_version
+            "X-GitHub-Api-Version": api_version,
+            "X-Github-Next-Global-ID": "1"
         }
 
         # enable logging for requests_cache

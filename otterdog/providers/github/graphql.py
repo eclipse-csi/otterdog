@@ -26,6 +26,7 @@ class GraphQLClient:
 
         self._headers = {
             "Authorization": f"Bearer {token}",
+            "X-Github-Next-Global-ID": "1"
         }
 
     def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
