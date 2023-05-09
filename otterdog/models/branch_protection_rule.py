@@ -94,7 +94,7 @@ class BranchProtectionRule(ModelObject):
 
     @classmethod
     def from_provider(cls, data: dict[str, Any]) -> "BranchProtectionRule":
-        mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_app(x):
             app = x["app"]

@@ -77,7 +77,7 @@ class OrganizationSettings(ModelObject):
 
     @classmethod
     def from_provider(cls, data: dict[str, Any]) -> "OrganizationSettings":
-        mapping = {k: S(k) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))
 

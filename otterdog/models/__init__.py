@@ -86,7 +86,7 @@ class ModelObject(ABC):
                 continue
 
             if is_unset(value):
-                raise ValueError(f"'value for field='{field.name}' is not set")
+                continue
             else:
                 patch_needed, diff = patch_to_other(value, other_value)
                 if patch_needed is True:
