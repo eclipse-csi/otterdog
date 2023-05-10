@@ -19,7 +19,10 @@ from . import Operation
 
 
 class ImportOperation(Operation):
-    def __init__(self):
+    def __init__(self, force_processing: bool, no_web_ui: bool):
+        self.force_processing = force_processing
+        self.no_web_ui = no_web_ui
+
         self.config = None
         self.jsonnet_config = None
         self._printer = None
@@ -43,7 +46,7 @@ class ImportOperation(Operation):
 
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        if os.path.exists(org_file_name) and not self.config.force_processing:
+        if os.path.exists(org_file_name) and not self.force_processing:
             self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
                                f"'{org_file_name}'.\n"
                                f"  Performing this action will overwrite its contents.\n"
@@ -67,7 +70,7 @@ class ImportOperation(Operation):
 
             gh_client = Github(credentials)
 
-            if self.config.no_web_ui is True:
+            if self.no_web_ui is True:
                 self.printer.print_warn(f"The Web UI will not be queried as '--no-web-ui' has been specified, "
                                         f"the resulting config will be incomplete")
 
@@ -75,10 +78,10 @@ class ImportOperation(Operation):
                 load_github_organization_from_provider(github_id,
                                                        self.jsonnet_config,
                                                        gh_client,
-                                                       self.config.no_web_ui,
+                                                       self.no_web_ui,
                                                        self.printer)
 
-            ignored_keys = gh_client.web_org_settings if self.config.no_web_ui else {}
+            ignored_keys = gh_client.web_org_settings if self.no_web_ui else {}
             output = organization.to_jsonnet(self.jsonnet_config, ignored_keys)
 
             output_dir = self.jsonnet_config.orgs_dir

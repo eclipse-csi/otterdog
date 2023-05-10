@@ -12,7 +12,7 @@ from typing import Protocol, Any
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter, Change
+from otterdog.utils import IndentingPrinter, Change, is_unset
 
 
 class Operation(Protocol):
@@ -61,8 +61,12 @@ class Operation(Protocol):
     def print_modified_dict(self,
                             data: dict[str, Change[Any]],
                             item_header: str,
-                            redacted_keys: set[str] = None) -> None:
-        self.printer.print(f"\n{Fore.YELLOW}~ {Style.RESET_ALL}{item_header} {{")
+                            redacted_keys: set[str] = None,
+                            forced_update: bool = False) -> None:
+        action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
+        color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
+
+        self.printer.print(f"\n{action} {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
         for key, change in sorted(data.items()):
@@ -70,7 +74,7 @@ class Operation(Protocol):
             expected_value = change.to_value
 
             if isinstance(expected_value, dict):
-                self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.print(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
 
                 processed_keys = set()
@@ -78,8 +82,9 @@ class Operation(Protocol):
                     c_v = current_value.get(k)
 
                     if v != c_v:
-                        self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                           f" \"{c_v}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{v}\"")
+                        self.printer.print(f"{action} {Style.RESET_ALL}"
+                                           f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                           f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{v}\"")
 
                     processed_keys.add(k)
 
@@ -87,17 +92,23 @@ class Operation(Protocol):
                     if k not in processed_keys:
                         self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                            f" \"{v}\"")
-
                 self.printer.level_down()
                 self.printer.print(f"  }}")
             else:
+                c_v = current_value if not key or \
+                                        redacted_keys is None or \
+                                        key not in redacted_keys or \
+                                        current_value is None or \
+                                        is_unset(current_value) else "<redacted>"
+
                 e_v = expected_value if not key or \
                                         redacted_keys is None or \
                                         key not in redacted_keys or \
-                                        expected_value is None else "<redacted>"
+                                        expected_value is None or \
+                                        is_unset(expected_value) else "<redacted>"
 
-                self.printer.print(f"{Fore.YELLOW}~ {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                   f" \"{current_value}\" {Fore.YELLOW}->{Style.RESET_ALL} \"{e_v}\"")
+                self.printer.print(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                   f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
 
         self.printer.level_down()
         self.printer.print(f"  }}")

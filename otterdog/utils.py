@@ -248,7 +248,7 @@ def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
         raise RuntimeError(f"failed to evaluate snippet: {str(ex)}")
 
 
-def get_or_default(namespace: Namespace, key: str, default: Any) -> Any:
+def get_or_default(namespace: Namespace, key: str, default: T) -> T:
     if namespace.__contains__(key):
         return namespace.__getattribute__(key)
     else:

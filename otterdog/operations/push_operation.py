@@ -16,7 +16,9 @@ from . import Operation
 
 
 class PushOperation(Operation):
-    def __init__(self):
+    def __init__(self, push_message: str | None):
+        self.push_message = push_message
+
         self.config = None
         self.jsonnet_config = None
         self._printer = None
@@ -58,25 +60,23 @@ class PushOperation(Operation):
             gh_client = Github(credentials)
 
             try:
-                message = self.config.push_message
-
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
                                          f"otterdog/{github_id}.jsonnet",
                                          content,
-                                         message)
+                                         self.push_message)
 
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
                                          f"otterdog/jsonnetfile.json",
                                          bundle_content,
-                                         message)
+                                         self.push_message)
 
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
                                          f"otterdog/jsonnetfile.lock.json",
                                          "",
-                                         message)
+                                         self.push_message)
 
             except RuntimeError as e:
                 self.printer.print_error(f"failed to push definition to repo '{self.config.config_repo}': {str(e)}")

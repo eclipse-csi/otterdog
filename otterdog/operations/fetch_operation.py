@@ -18,7 +18,10 @@ from . import Operation
 
 
 class FetchOperation(Operation):
-    def __init__(self):
+    def __init__(self, force_processing: bool, pull_request: str):
+        self.force_processing = force_processing
+        self.pull_request = pull_request
+
         self.config = None
         self.jsonnet_config = None
         self._printer = None
@@ -42,7 +45,7 @@ class FetchOperation(Operation):
 
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
-        if os.path.exists(org_file_name) and not self.config.force_processing:
+        if os.path.exists(org_file_name) and not self.force_processing:
             self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
                                f"'{org_file_name}'.\n"
                                f"  Performing this action will overwrite its contents.\n"
@@ -67,10 +70,10 @@ class FetchOperation(Operation):
             gh_client = Github(credentials)
 
             try:
-                if self.config.pull_request is not None:
+                if self.pull_request is not None:
                     ref = gh_client.get_ref_for_pull_request(org_config.github_id,
                                                              self.config.config_repo,
-                                                             self.config.pull_request)
+                                                             self.pull_request)
                 else:
                     ref = None
 
@@ -91,7 +94,7 @@ class FetchOperation(Operation):
 
             if ref is not None:
                 self.printer.print(f"organization definition fetched from pull request "
-                                   f"#{self.config.pull_request} to '{org_file_name}'")
+                                   f"#{self.pull_request} to '{org_file_name}'")
             else:
                 self.printer.print(f"organization definition fetched from default branch to '{org_file_name}'")
 

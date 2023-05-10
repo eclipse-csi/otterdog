@@ -21,18 +21,23 @@ from .diff_operation import DiffOperation, DiffStatus
 
 
 class PlanOperation(DiffOperation):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, no_web_ui: bool, update_webhooks: bool):
+        super().__init__(no_web_ui, update_webhooks)
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
 
     def pre_execute(self) -> None:
         self.printer.print(f"Planning execution for configuration at '{self.config.config_file}'")
+        self.print_legend()
+
+    def print_legend(self) -> None:
         self.printer.print(f"\nActions are indicated with the following symbols:")
         self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
-        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
+        self.printer.print(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
+        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available "
+                           f"in other config)")
 
     def handle_modified_settings(self,
                                  org_id: str,
@@ -55,9 +60,10 @@ class PlanOperation(DiffOperation):
                                 webhook_id: str,
                                 webhook_url: str,
                                 modified_webhook: dict[str, Change[Any]],
-                                webhook: OrganizationWebhook) -> None:
+                                webhook: OrganizationWebhook,
+                                forced_update: bool) -> None:
         self.printer.print()
-        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"})
+        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"}, forced_update)
 
         if "secret" in modified_webhook:
             new_secret = modified_webhook["secret"].to_value

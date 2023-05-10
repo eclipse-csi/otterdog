@@ -22,8 +22,10 @@ from .plan_operation import PlanOperation
 
 
 class ApplyOperation(PlanOperation):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, force_processing: bool, no_web_ui: bool, update_webhooks: bool):
+        super().__init__(no_web_ui, update_webhooks)
+
+        self.force_processing = force_processing
 
         self._org_settings_to_update: dict[str, Change[Any]] = {}
         self._modified_webhooks: dict[str, OrganizationWebhook] = {}
@@ -38,10 +40,7 @@ class ApplyOperation(PlanOperation):
 
     def pre_execute(self) -> None:
         self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
-        self.printer.print(f"\nActions are indicated with the following symbols:")
-        self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
-        self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
-        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available live)")
+        self.print_legend()
 
     def handle_modified_settings(self,
                                  org_id: str,
@@ -56,8 +55,9 @@ class ApplyOperation(PlanOperation):
                                 webhook_id: str,
                                 webhook_url: str,
                                 modified_webhook: dict[str, Change[Any]],
-                                webhook: OrganizationWebhook) -> None:
-        super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook)
+                                webhook: OrganizationWebhook,
+                                forced_update: bool) -> None:
+        super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook, forced_update)
         self._modified_webhooks[webhook_id] = webhook
 
     def handle_extra_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
@@ -101,7 +101,7 @@ class ApplyOperation(PlanOperation):
             self.printer.print(f"No changes required ({diff_status.extras} missing definitions ignored).")
             return
 
-        if not self.config.force_processing:
+        if not self.force_processing:
             self.printer.print(f"{Style.BRIGHT}Do you want to perform these actions?\n"
                                f"  Only 'yes' will be accepted to approve.\n\n")
 

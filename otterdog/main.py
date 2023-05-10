@@ -75,6 +75,10 @@ def main(arguments=None):
         subparser.add_argument("--suffix", "-s", action="store", default="-HEAD",
                                help="suffix to append for comparison configuration")
 
+    for subparser in [plan_parser, apply_parser, local_plan_parser]:
+        subparser.add_argument("--update-webhooks", "-u", action="store_true", default=False,
+                               help="updates webhook with secrets regardless of changes")
+
     for subparser in [push_parser]:
         subparser.add_argument("--message", "-m", action="store", default=None,
                                help="commit message")
@@ -91,33 +95,32 @@ def main(arguments=None):
 
     try:
         # get operation dependent arguments with default values
+        force_processing = utils.get_or_default(args, "force", False)
         no_web_ui = utils.get_or_default(args, "no_web_ui", False)
-        push_message = utils.get_or_default(args, "message", None)
-        pull_request = utils.get_or_default(args, "pull_request", None)
-        suffix = utils.get_or_default(args, "suffix", "-HEAD")
+        update_webhooks = utils.get_or_default(args, "update_webhooks", False)
 
-        config = OtterdogConfig.from_file(args.config,
-                                          args.force,
-                                          args.local,
-                                          no_web_ui,
-                                          push_message,
-                                          pull_request)
-
+        config = OtterdogConfig.from_file(args.config, args.local)
         exit_code = 0
 
         match args.subcommand:
             case "plan":
-                operation = PlanOperation()
+                operation = PlanOperation(no_web_ui=no_web_ui,
+                                          update_webhooks=update_webhooks)
             case "local-plan":
-                operation = LocalPlanOperation(suffix)
+                operation = LocalPlanOperation(suffix=args.suffix,
+                                               update_webhooks=update_webhooks)
             case "fetch-config":
-                operation = FetchOperation()
+                operation = FetchOperation(force_processing=force_processing,
+                                           pull_request=args.pull_request)
             case "push-config":
-                operation = PushOperation()
+                operation = PushOperation(push_message=args.push_message)
             case "import":
-                operation = ImportOperation()
+                operation = ImportOperation(force_processing=force_processing,
+                                            no_web_ui=no_web_ui)
             case "apply":
-                operation = ApplyOperation()
+                operation = ApplyOperation(force_processing=force_processing,
+                                           no_web_ui=no_web_ui,
+                                           update_webhooks=update_webhooks)
             case "validate":
                 operation = ValidateOperation()
             case "show":

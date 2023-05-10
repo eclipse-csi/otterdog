@@ -40,11 +40,15 @@ class DiffStatus:
 class DiffOperation(Operation):
     _DEFAULT_POOL_SIZE = 12
 
-    def __init__(self):
+    def __init__(self, no_web_ui: bool, update_webhooks: bool):
+        self.no_web_ui = no_web_ui
+        self.update_webhooks = update_webhooks
+
         self.config = None
         self.jsonnet_config = None
         self.gh_client = None
         self._printer = None
+
         self._validator = ValidateOperation()
 
     @property
@@ -145,7 +149,7 @@ class DiffOperation(Operation):
 
         # filter out web settings if --no-web-ui is used
         expected_settings_keys = expected_org_settings.keys(for_diff=True)
-        if self.config.no_web_ui:
+        if self.no_web_ui:
             expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
 
         # determine differences for settings.
@@ -193,6 +197,20 @@ class DiffOperation(Operation):
                 diff_status.extras += 1
                 continue
 
+            expected_webhooks_by_url.pop(webhook_url)
+
+            if self.update_webhooks and is_set_and_valid(expected_webhook.secret):
+                model_dict = expected_webhook.to_model_dict()
+                modified_webhook = {k: Change(v, v) for k, v in model_dict.items()}
+                self.handle_modified_webhook(github_id,
+                                             current_webhook.id,
+                                             webhook_url,
+                                             modified_webhook,
+                                             expected_webhook,
+                                             True)
+                diff_status.differences += len(modified_webhook)
+                continue
+
             modified_webhook = expected_webhook.get_difference_from(current_webhook)
 
             # special handling for secrets:
@@ -210,11 +228,10 @@ class DiffOperation(Operation):
                                              current_webhook.id,
                                              webhook_url,
                                              modified_webhook,
-                                             expected_webhook)
+                                             expected_webhook,
+                                             False)
 
                 diff_status.differences += len(modified_webhook)
-
-            expected_webhooks_by_url.pop(webhook_url)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
             self.handle_new_webhook(github_id, webhook)
@@ -334,7 +351,8 @@ class DiffOperation(Operation):
                                 webhook_id: str,
                                 webhook_url: str,
                                 modified_webhook: dict[str, Change[Any]],
-                                webhook: OrganizationWebhook) -> None:
+                                webhook: OrganizationWebhook,
+                                forced_update: bool) -> None:
         raise NotImplementedError
 
     @abstractmethod

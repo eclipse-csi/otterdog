@@ -130,7 +130,7 @@ class ModelObject(ABC):
         pass
 
     def to_provider(self, provider: Union[Github, None] = None) -> dict[str, Any]:
-        return self._to_provider(self.to_model_dict(for_diff=True), provider)
+        return self._to_provider(self.to_model_dict(), provider)
 
     @classmethod
     def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Union[Github, None] = None) -> dict[str, Any]:
