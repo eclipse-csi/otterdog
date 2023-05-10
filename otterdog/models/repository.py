@@ -64,7 +64,8 @@ class Repository(ModelObject):
             "merge_commit_title",
             "squash_merge_commit_message",
             "squash_merge_commit_title",
-            "dependabot_alerts_enabled"
+            "dependabot_alerts_enabled",
+            "secret_scanning_push_protection"
          }
 
     def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
