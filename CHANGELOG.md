@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `secret_scanning_push_protection` setting for repository settings. ([#33](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/33))
 - Added support for extending list-based properties, e.g. `requiredStatusChecks` for branch protection rules.
 - Added operation `local-plan` to output changes that will be applied by based on another local config.
 - Added flag `--pull-request` for fetch-config operation to fetch the config from a specific pull request.

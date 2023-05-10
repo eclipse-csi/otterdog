@@ -110,6 +110,13 @@ class Repository(ModelObject):
                                 f"repo[name=\"{self.name}\"] has 'web_commit_signoff_required' disabled while "
                                 f"the organization requires it.")
 
+        secret_scanning_disabled = self.secret_scanning == "disabled"
+        secret_scanning_push_protection_enabled = self.secret_scanning_push_protection == "enabled"
+        if secret_scanning_disabled and secret_scanning_push_protection_enabled:
+            context.add_failure(FailureType.ERROR,
+                                f"repo[name=\"{self.name}\"] has 'secret_scanning' disabled while "
+                                f"'secret_scanning_push_protection' is enabled.")
+
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
