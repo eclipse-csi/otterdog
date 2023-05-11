@@ -127,7 +127,7 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
 
 def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
     if isinstance(value, dict):
-        raise ValueError(f"dictionary values not supported")
+        raise ValueError("dictionary values not supported")
     elif isinstance(value, list):
         sorted_value_list = sorted(value)
         sorted_other_list = sorted(other_value)

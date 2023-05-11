@@ -94,7 +94,7 @@ class GraphQLClient:
              branchProtectionRule {
                pattern
              }
-           }  
+           }
         }"""
 
         response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",

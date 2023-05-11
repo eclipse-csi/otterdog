@@ -125,11 +125,11 @@ class DiffOperation(Operation):
             change = modified_org_settings["web_commit_signoff_required"]
             if change.to_value is False:
                 if self.verbose_output():
-                    print_warn(f"Setting 'web_commit_signoff_required' setting has been disabled on "
-                               f"organization level. \nThe effective setting on repo level can only be "
-                               f"determined once this change has been applied.\n"
-                               f"You need to run otterdog another time to fully ensure "
-                               f"that the correct configuration is applied.")
+                    print_warn("Setting 'web_commit_signoff_required' setting has been disabled on "
+                               "organization level. \nThe effective setting on repo level can only be "
+                               "determined once this change has been applied.\n"
+                               "You need to run otterdog another time to fully ensure "
+                               "that the correct configuration is applied.")
 
         self._process_webhooks(github_id, expected_org, diff_status)
         self._process_repositories(github_id, expected_org, modified_org_settings, diff_status)
@@ -145,7 +145,7 @@ class DiffOperation(Operation):
 
         start = datetime.now()
         if self.verbose_output():
-            self.printer.print(f"organization settings: Reading...")
+            self.printer.print("organization settings: Reading...")
 
         # filter out web settings if --no-web-ui is used
         expected_settings_keys = expected_org_settings.keys(for_diff=True)
@@ -179,7 +179,7 @@ class DiffOperation(Operation):
     def _process_webhooks(self, github_id: str, expected_org: GitHubOrganization, diff_status: DiffStatus) -> None:
         start = datetime.now()
         if self.verbose_output():
-            self.printer.print(f"\nwebhooks: Reading...")
+            self.printer.print("\nwebhooks: Reading...")
 
         expected_webhooks_by_url = associate_by_key(expected_org.webhooks, lambda x: x.url)
         current_webhooks = self.get_current_webhooks(github_id)
@@ -306,7 +306,7 @@ class DiffOperation(Operation):
         if is_archived is True:
             if len(expected_branch_protection_rules_by_pattern) > 0:
                 if self.verbose_output():
-                    print_warn(f"branch_protection_rules specified for archived project, will be ignored.")
+                    print_warn("branch_protection_rules specified for archived project, will be ignored.")
             return
 
         # only retrieve current rules if the current_repo is available, otherwise it's a new repo

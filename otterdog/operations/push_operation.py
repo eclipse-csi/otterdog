@@ -68,13 +68,13 @@ class PushOperation(Operation):
 
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
-                                         f"otterdog/jsonnetfile.json",
+                                         "otterdog/jsonnetfile.json",
                                          bundle_content,
                                          self.push_message)
 
                 gh_client.update_content(org_config.github_id,
                                          self.config.config_repo,
-                                         f"otterdog/jsonnetfile.lock.json",
+                                         "otterdog/jsonnetfile.lock.json",
                                          "",
                                          self.push_message)
 

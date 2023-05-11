@@ -8,8 +8,6 @@
 
 import os
 
-from colorama import Fore, Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
 from otterdog.models.organization_settings import OrganizationSettings

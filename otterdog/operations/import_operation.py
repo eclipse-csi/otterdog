@@ -71,8 +71,8 @@ class ImportOperation(Operation):
             gh_client = Github(credentials)
 
             if self.no_web_ui is True:
-                self.printer.print_warn(f"The Web UI will not be queried as '--no-web-ui' has been specified, "
-                                        f"the resulting config will be incomplete")
+                self.printer.print_warn("The Web UI will not be queried as '--no-web-ui' has been specified, "
+                                        "the resulting config will be incomplete")
 
             organization = \
                 load_github_organization_from_provider(github_id,

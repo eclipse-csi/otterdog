@@ -227,7 +227,7 @@ def load_github_organization_from_provider(github_id: str,
 
     start = datetime.now()
     if printer is not None:
-        printer.print(f"\norganization settings: Reading...")
+        printer.print("\norganization settings: Reading...")
 
     included_keys = set(default_settings.keys())
     # if no_web_ui is set, filter out any web settings
@@ -245,7 +245,7 @@ def load_github_organization_from_provider(github_id: str,
 
     start = datetime.now()
     if printer is not None:
-        printer.print(f"\nwebhooks: Reading...")
+        printer.print("\nwebhooks: Reading...")
 
     github_webhooks = client.get_webhooks(github_id)
 
@@ -280,7 +280,7 @@ def load_repos_from_provider(github_id: str,
                              printer: utils.IndentingPrinter = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
-        printer.print(f"\nrepositories: Reading...")
+        printer.print("\nrepositories: Reading...")
 
     repo_names = client.get_repos(github_id)
 

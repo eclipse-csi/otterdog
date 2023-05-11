@@ -32,7 +32,7 @@ class PlanOperation(DiffOperation):
         self.print_legend()
 
     def print_legend(self) -> None:
-        self.printer.print(f"\nActions are indicated with the following symbols:")
+        self.printer.print("\nActions are indicated with the following symbols:")
         self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
         self.printer.print(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")

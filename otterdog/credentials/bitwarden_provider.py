@@ -37,7 +37,7 @@ class BitwardenVault(CredentialProvider):
 
         item_id = data.get("item_id")
         if item_id is None:
-            raise RuntimeError(f"required key 'item_id' not found in authorization data")
+            raise RuntimeError("required key 'item_id' not found in authorization data")
 
         api_token_key = data.get("api_token_key")
         if api_token_key is None:

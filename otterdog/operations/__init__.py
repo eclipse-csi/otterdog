@@ -93,22 +93,22 @@ class Operation(Protocol):
                         self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                            f" \"{v}\"")
                 self.printer.level_down()
-                self.printer.print(f"  }}")
+                self.printer.print("  }}")
             else:
-                c_v = current_value if not key or \
-                                        redacted_keys is None or \
-                                        key not in redacted_keys or \
-                                        current_value is None or \
-                                        is_unset(current_value) else "<redacted>"
+                def should_redact(value: Any) -> bool:
+                    if is_unset(value) or value is None:
+                        return False
 
-                e_v = expected_value if not key or \
-                                        redacted_keys is None or \
-                                        key not in redacted_keys or \
-                                        expected_value is None or \
-                                        is_unset(expected_value) else "<redacted>"
+                    if redacted_keys is not None and key is not None and key in redacted_keys:
+                        return True
+                    else:
+                        return False
+
+                c_v = "<redacted>" if should_redact(current_value) else current_value
+                e_v = "<redacted>" if should_redact(expected_value) else expected_value
 
                 self.printer.print(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                    f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
 
         self.printer.level_down()
-        self.printer.print(f"  }}")
+        self.printer.print("  }}")

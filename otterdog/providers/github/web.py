@@ -28,7 +28,7 @@ class WebClient:
     def web_settings_definition(self) -> dict[str, Any]:
         # load the definition file which describes how the web settings
         # can be retrieved / modified.
-        utils.print_trace(f"getting web_settings config using jsonnet")
+        utils.print_trace("getting web_settings config using jsonnet")
 
         web_settings_config = files(resources).joinpath("github-web-settings.jsonnet")
         return utils.jsonnet_evaluate_file(str(web_settings_config))

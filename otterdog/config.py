@@ -29,7 +29,7 @@ class JsonnetConfig:
                  import_prefix: str = "../"):
 
         self._data_dir = data_dir
-        self._orgs_dir = jq.compile(f'.config_dir // "orgs"').input(settings).first()
+        self._orgs_dir = jq.compile('.config_dir // "orgs"').input(settings).first()
 
         # create orgs dir if it does not exist yet
         if not os.path.exists(self._orgs_dir):
@@ -44,7 +44,7 @@ class JsonnetConfig:
             if repo is not None:
                 self._base_template_repo_url = repo.strip("/")
                 self._base_template_repo_name = os.path.basename(self._base_template_repo_url)
-                self._base_template_branch = jq.compile(f'.branch // "main"').input(base_template).first()
+                self._base_template_branch = jq.compile('.branch // "main"').input(base_template).first()
                 self._use_jsonnet_bundler = True
 
             self._base_template_file = \
@@ -57,15 +57,15 @@ class JsonnetConfig:
         self._import_prefix = import_prefix
 
         self.create_org = \
-            jq.compile(f'.create_org // "newOrg"').input(settings).first()
+            jq.compile('.create_org // "newOrg"').input(settings).first()
         self.create_webhook = \
-            jq.compile(f'.create_webhook // "newWebhook"').input(settings).first()
+            jq.compile('.create_webhook // "newWebhook"').input(settings).first()
         self.create_repo = \
-            jq.compile(f'.create_repo // "newRepo"').input(settings).first()
+            jq.compile('.create_repo // "newRepo"').input(settings).first()
         self.extend_repo = \
-            jq.compile(f'.extend_repo // "extendRepo"').input(settings).first()
+            jq.compile('.extend_repo // "extendRepo"').input(settings).first()
         self.create_branch_protection_rule =\
-            jq.compile(f'.create_branch_protection_rule // "newBranchProtectionRule"').input(settings).first()
+            jq.compile('.create_branch_protection_rule // "newBranchProtectionRule"').input(settings).first()
 
         template_file = self.template_file
         utils.print_debug(f"loading template file '{template_file}'")

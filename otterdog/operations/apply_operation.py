@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from colorama import Fore, Style
+from colorama import Style
 
 from otterdog.config import OtterdogConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule

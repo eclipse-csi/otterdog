@@ -63,12 +63,12 @@ class OrganizationSettings(ModelObject):
 
         if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
             context.add_failure(FailureType.ERROR,
-                                f"enabling dependabot_alerts or dependabot_security_updates implicitly"
-                                f" enables dependency_graph_enabled_for_new_repositories")
+                                "enabling dependabot_alerts or dependabot_security_updates implicitly"
+                                " enables dependency_graph_enabled_for_new_repositories")
 
         if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
             context.add_failure(FailureType.ERROR,
-                                f"enabling dependabot_security_updates implicitly enables dependabot_alerts")
+                                "enabling dependabot_security_updates implicitly enables dependabot_alerts")
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> "OrganizationSettings":

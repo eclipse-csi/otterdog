@@ -16,7 +16,7 @@ from requests_cache import CachedSession
 
 from otterdog import utils
 
-from .exception import *
+from .exception import GitHubException, BadCredentialsException
 
 
 class RestClient:
@@ -60,7 +60,7 @@ class RestClient:
 
         # check if the content has changed, otherwise do not update
         if old_content is not None and content == old_content:
-            utils.print_debug(f"not updating content, no changes")
+            utils.print_debug("not updating content, no changes")
             return
 
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
