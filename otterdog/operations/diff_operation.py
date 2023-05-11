@@ -268,7 +268,7 @@ class DiffOperation(Operation):
             modified_repo = expected_repo.get_difference_from(current_repo)
 
             if len(modified_repo) > 0:
-                diff_status.differences = self.handle_modified_repo(github_id, current_repo_name, modified_repo)
+                diff_status.differences += self.handle_modified_repo(github_id, current_repo_name, modified_repo)
 
             self._process_branch_protection_rules(github_id,
                                                   current_repo,
