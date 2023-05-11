@@ -18,6 +18,9 @@ local newRepo(name) = {
   has_projects: true,
   has_wiki: true,
 
+  is_template: false,
+  template_repository: null,
+  
   default_branch: "main",
 
   allow_rebase_merge: true,
