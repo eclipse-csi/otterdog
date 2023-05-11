@@ -152,7 +152,8 @@ class RestClient:
 
         response = self._requester.request_raw("PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
         if response.status_code != 204:
-            raise RuntimeError(f"failed adding security manager team for organization '{org_id}'")
+            raise RuntimeError(f"failed adding team '{team_slug}' to security managers of organization '{org_id}'"
+                               f"\n{response.status_code}: {response.text}")
         else:
             utils.print_debug(f"added team {team_slug} to security managers for organization {org_id}")
 
@@ -161,7 +162,8 @@ class RestClient:
 
         response = self._requester.request_raw("DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
         if response.status_code != 204:
-            raise RuntimeError(f"failed removing security manager team for organization '{org_id}'")
+            raise RuntimeError(f"failed removing team '{team_slug}' from security managers of organization '{org_id}'"
+                               f"\n{response.status_code}: {response.text}")
         else:
             utils.print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 

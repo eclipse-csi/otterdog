@@ -163,7 +163,7 @@ local newOrg(id) = {
 
     organization_organization_projects_enabled: true,
     organization_members_can_change_project_visibility: false,
-    
+
     security_managers: []
   },
 
