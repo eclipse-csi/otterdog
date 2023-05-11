@@ -113,7 +113,7 @@ def main(arguments=None):
                 operation = FetchOperation(force_processing=force_processing,
                                            pull_request=args.pull_request)
             case "push-config":
-                operation = PushOperation(push_message=args.push_message)
+                operation = PushOperation(push_message=args.message)
             case "import":
                 operation = ImportOperation(force_processing=force_processing,
                                             no_web_ui=no_web_ui)
@@ -135,7 +135,7 @@ def main(arguments=None):
         # found in the configuration.
         organizations = args.organization
         if len(organizations) == 0:
-            organizations = [k for k, _ in config.organization_configs.items()]
+            organizations = list(config.organization_configs.keys())
 
         for organization in organizations:
             printer.print()
