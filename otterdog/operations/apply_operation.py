@@ -46,9 +46,9 @@ class ApplyOperation(PlanOperation):
                                  org_id: str,
                                  modified_settings: dict[str, Change[Any]],
                                  full_settings: OrganizationSettings) -> int:
-        super().handle_modified_settings(org_id, modified_settings, full_settings)
+        modified = super().handle_modified_settings(org_id, modified_settings, full_settings)
         self._org_settings_to_update = modified_settings
-        return len(modified_settings)
+        return modified
 
     def handle_modified_webhook(self,
                                 org_id: str,
@@ -67,9 +67,10 @@ class ApplyOperation(PlanOperation):
         super().handle_new_webhook(org_id, webhook)
         self._new_webhooks.append(webhook)
 
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
-        super().handle_modified_repo(org_id, repo_name, modified_repo)
+    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
+        modified = super().handle_modified_repo(org_id, repo_name, modified_repo)
         self._modified_repos[repo_name] = modified_repo
+        return modified
 
     def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
         super().handle_extra_repo(org_id, repo)
@@ -126,7 +127,7 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._new_repos:
-            self.gh_client.add_repo(org_id, repo.to_provider(), self.config.auto_init_repo)
+            self.gh_client.add_repo(org_id, repo.to_provider(), repo.template_repository, self.config.auto_init_repo)
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)

@@ -9,7 +9,6 @@
     },
     "plan": {
       "provider": "restapi",
-      "readonly": true,
       "type": "string"
     },
     "billing_email": {
@@ -110,7 +109,6 @@
     },
     "two_factor_requirement": {
       "provider": "web",
-      "readonly": true,
       "type": "boolean"
     },
     "team_discussions_allowed": {

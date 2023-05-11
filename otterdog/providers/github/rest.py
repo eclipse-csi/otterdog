@@ -188,8 +188,38 @@ class RestClient:
                 tb = ex.__traceback__
                 raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def add_repo(self, org_id: str, data: dict[str, Any], auto_init_repo: bool) -> None:
+    def add_repo(self, org_id: str, data: dict[str, Any], template_repository: str, auto_init_repo: bool) -> None:
         repo_name = data["name"]
+
+        if utils.is_set_and_valid(template_repository):
+            utils.print_debug(f"creating repo '{repo_name}' with template '{template_repository}'")
+            template_owner, template_repo = re.split("/", template_repository, 1)
+
+            try:
+                template_data = {
+                    "owner": org_id,
+                    "name": repo_name,
+                    "include_all_branches": False,
+                    "private": False
+                }
+
+                self._requester.request_json("POST",
+                                             f"/repos/{template_owner}/{template_repo}/generate",
+                                             template_data)
+
+                utils.print_debug(f"created repo with name '{repo_name}' from template '{template_repository}'")
+
+                # get all the data for the created repo to avoid setting values that can not be changed due
+                # to defaults from the organization (like web_commit_signoff_required)
+                current_data = self.get_repo_data(org_id, repo_name)
+                self._remove_already_active_settings(data, current_data)
+                self.update_repo(org_id, repo_name, data)
+                return
+            except GitHubException as ex:
+                tb = ex.__traceback__
+                raise RuntimeError(
+                    f"failed to create repo from template '{template_repository}':\n{ex}").with_traceback(tb)
+
         utils.print_debug(f"creating repo '{repo_name}'")
 
         # some settings do not seem to be set correctly during creation
@@ -206,21 +236,24 @@ class RestClient:
 
         try:
             result = self._requester.request_json("POST", f"/orgs/{org_id}/repos", data)
-
-            for update_key in update_keys:
-                if update_key in result:
-                    update_value_expected = update_data[update_key]
-                    update_value_current = result[update_key]
-
-                    if update_value_current == update_value_expected:
-                        utils.print_debug(f"omitting setting '{update_key}' as it is already set")
-                        update_data.pop(update_key)
-
-            utils.print_debug(f"added repo with name '{repo_name}'")
+            utils.print_debug(f"created repo with name '{repo_name}'")
+            self._remove_already_active_settings(update_data, result)
             self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo with name '{repo_name}':\n{ex}").with_traceback(tb)
+
+    @staticmethod
+    def _remove_already_active_settings(update_data: dict[str, Any], current_data: dict[str, Any]):
+        keys = list(update_data.keys())
+        for key in keys:
+            if key in current_data:
+                update_value_expected = update_data[key]
+                update_value_current = current_data[key]
+
+                if update_value_current == update_value_expected:
+                    utils.print_debug(f"omitting setting '{key}' as it is already set")
+                    update_data.pop(key)
 
     def _fill_vulnerability_report_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         utils.print_debug(f"retrieving repo vulnerability report status for '{repo_name}'")

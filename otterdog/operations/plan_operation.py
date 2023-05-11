@@ -47,9 +47,9 @@ class PlanOperation(DiffOperation):
 
         settings_to_change = 0
         for k, v in modified_settings.items():
-            if self.gh_client.is_readonly_org_setting(k):
+            if OrganizationSettings.is_read_only_key(k):
                 self.printer.print(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
-                                   f"can only be changed manually via the Web UI.")
+                                   f"is read-only, will be skipped.")
             else:
                 settings_to_change += 1
 
@@ -79,8 +79,18 @@ class PlanOperation(DiffOperation):
         self.printer.print()
         self.print_dict(webhook.to_model_dict(), "new webhook", "+", Fore.GREEN)
 
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> None:
+    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
         self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
+
+        settings_to_change = 0
+        for k, v in modified_repo.items():
+            if Repository.is_read_only_key(k):
+                self.printer.print(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
+                                   f"is read-only, will be skipped.")
+            else:
+                settings_to_change += 1
+
+        return settings_to_change
 
     def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()

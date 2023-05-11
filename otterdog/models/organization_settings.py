@@ -20,7 +20,7 @@ from . import ModelObject, ValidationContext, FailureType
 @dataclass
 class OrganizationSettings(ModelObject):
     name: str
-    plan: str = dataclass_field(metadata={"readonly": True})
+    plan: str = dataclass_field(metadata={"read_only": True})
     description: str
     email: str
     location: str
@@ -32,7 +32,7 @@ class OrganizationSettings(ModelObject):
     has_repository_projects: bool
     default_branch_name: str
     default_repository_permission: str
-    two_factor_requirement: bool = dataclass_field(metadata={"readonly": True})
+    two_factor_requirement: bool = dataclass_field(metadata={"read_only": True})
     web_commit_signoff_required: bool
     dependabot_alerts_enabled_for_new_repositories: bool
     dependabot_security_updates_enabled_for_new_repositories: bool

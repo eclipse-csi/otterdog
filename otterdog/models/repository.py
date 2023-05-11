@@ -30,6 +30,8 @@ class Repository(ModelObject):
     has_issues: bool
     has_projects: bool
     has_wiki: bool
+    is_template: bool
+    template_repository: str = dataclass_field(metadata={"read_only": True})
     default_branch: str
     allow_rebase_merge: bool
     allow_merge_commit: bool
@@ -155,10 +157,13 @@ class Repository(ModelObject):
 
         mapping.update({
             "branch_protection_rules": K([]),
+
             "secret_scanning":
                 OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
             "secret_scanning_push_protection":
-                OptionalS("security_and_analysis", "secret_scanning_push_protection", "status", default=UNSET)
+                OptionalS("security_and_analysis", "secret_scanning_push_protection", "status", default=UNSET),
+
+            "template_repository": OptionalS("template_repository", "full_name", default=None)
         })
 
         return cls(**bend(mapping, data))

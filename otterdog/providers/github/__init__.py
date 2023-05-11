@@ -51,10 +51,6 @@ class Github:
     def is_web_org_setting(self, setting_key: str) -> bool:
         return setting_key in self._settings_web_keys
 
-    def is_readonly_org_setting(self, setting_key: str) -> bool:
-        setting_entry = self._settings_schema["properties"].get(setting_key)
-        return setting_entry.get("readonly", False)
-
     def get_content(self, org_id: str, repo_name: str, path: str, ref: str = None) -> str:
         return self.rest_client.get_content(org_id, repo_name, path, ref)
 
@@ -118,8 +114,8 @@ class Github:
         if len(data) > 0:
             self.rest_client.update_repo(org_id, repo_name, data)
 
-    def add_repo(self, org_id: str, data: dict[str, str], auto_init_repo: bool) -> None:
-        self.rest_client.add_repo(org_id, data, auto_init_repo)
+    def add_repo(self, org_id: str, data: dict[str, str], template_repository: str, auto_init_repo: bool) -> None:
+        self.rest_client.add_repo(org_id, data, template_repository, auto_init_repo)
 
     def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
         return self.graphql_client.get_branch_protection_rules(org_id, repo)

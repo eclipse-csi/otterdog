@@ -53,6 +53,7 @@ class OrganizationWebhook(ModelObject):
                 "url": OptionalS("config", "url", default=UNSET),
                 "content_type": OptionalS("config", "content_type", default=UNSET),
                 "insecure_ssl": OptionalS("config", "insecure_ssl", default=UNSET),
+                # TODO: the default should actually be None rather than UNSET
                 "secret": OptionalS("config", "secret", default=UNSET)
             }
         )

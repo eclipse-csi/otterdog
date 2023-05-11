@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `is_template` and `template_repository` setting for repository settings. ([#34](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/34))
 - Added flag `--update-webhooks` for apply / plan / local-plan operations to force updates of webhooks with secrets. ([#21](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/21))
 - Added support for `secret_scanning_push_protection` setting for repository settings. ([#33](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/33))
 - Added support for extending list-based properties, e.g. `requiredStatusChecks` for branch protection rules.

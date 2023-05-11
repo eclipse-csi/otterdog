@@ -107,13 +107,25 @@ class ModelObject(ABC):
         return [field for field in fields(cls) if
                 not cls.is_external_only(field) and not cls.is_read_only(field) and not cls.is_nested_model(field)]
 
+    @classmethod
+    def _get_field(cls, key: str) -> Field:
+        for field in fields(cls):
+            if field.name == key:
+                return field
+
+        raise ValueError(f"unknown key {key}")
+
     @staticmethod
     def is_external_only(field: Field) -> bool:
         return field.metadata.get("external_only", False) is True
 
     @staticmethod
     def is_read_only(field: Field) -> bool:
-        return field.metadata.get("readonly", False) is True
+        return field.metadata.get("read_only", False) is True
+
+    @classmethod
+    def is_read_only_key(cls, key: str) -> bool:
+        return cls.is_read_only(cls._get_field(key))
 
     @staticmethod
     def is_nested_model(field: Field) -> bool:

@@ -10,6 +10,8 @@
     "has_issues": { "type": "boolean" },
     "has_projects": { "type": "boolean" },
     "has_wiki": { "type": "boolean" },
+    "is_template": { "type": "boolean" },
+    "template_repository": { "$ref": "#/definitions/string_or_null" },
     "default_branch": { "type": "string" },
     "allow_rebase_merge": { "type": "boolean" },
     "allow_merge_commit": { "type": "boolean" },
