@@ -72,7 +72,7 @@ class Github:
         utils.print_trace(f"merged org settings = {merged_settings}")
         return merged_settings
 
-    def update_org_settings(self, org_id: str, settings: dict[str, str]) -> None:
+    def update_org_settings(self, org_id: str, settings: dict[str, Any]) -> None:
         rest_fields = {}
         web_fields = {}
 

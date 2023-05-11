@@ -94,6 +94,10 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving settings for organization '{org_id}':\n{ex}").with_traceback(tb)
 
+        if "security_managers" in included_keys:
+            security_managers = self.list_security_managers(org_id)
+            settings["security_managers"] = security_managers
+
         result = {}
         for k, v in settings.items():
             if k in included_keys:
@@ -102,15 +106,64 @@ class RestClient:
 
         return result
 
-    def update_org_settings(self, org_id: str, data: dict[str, str]) -> None:
+    def update_org_settings(self, org_id: str, data: dict[str, Any]) -> None:
         utils.print_debug("updating settings via rest API")
 
         try:
             self._requester.request_json("PATCH", f"/orgs/{org_id}", data)
-            utils.print_debug(f"updated {len(data)} setting(s)")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to update settings for organization '{org_id}':\n{ex}").with_traceback(tb)
+
+        if "security_managers" in data:
+            self.update_security_managers(org_id, data["security_managers"])
+
+        utils.print_debug(f"updated {len(data)} setting(s)")
+
+    def list_security_managers(self, org_id: str) -> list[str]:
+        utils.print_debug(f"retrieving security managers for organization {org_id}")
+
+        try:
+            result = self._requester.request_json("GET", f"/orgs/{org_id}/security-managers")
+            return list(map(lambda x: x["slug"], result))
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving security managers for organization "
+                               f"'{org_id}':\n{ex}").with_traceback(tb)
+
+    def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
+        utils.print_debug(f"updating security managers for organization {org_id}")
+
+        current_managers = set(self.list_security_managers(org_id))
+
+        # first, add all security managers that are not yet configured.
+        for team_slug in security_managers:
+            if team_slug in current_managers:
+                current_managers.remove(team_slug)
+            else:
+                self.add_security_manager_team(org_id, team_slug)
+
+        # second, remove the current managers that are left.
+        for team_slug in current_managers:
+            self.remove_security_manager_team(org_id, team_slug)
+
+    def add_security_manager_team(self, org_id: str, team_slug: str) -> None:
+        utils.print_debug(f"adding team {team_slug} to security managers for organization {org_id}")
+
+        response = self._requester.request_raw("PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
+        if response.status_code != 204:
+            raise RuntimeError(f"failed adding security manager team for organization '{org_id}'")
+        else:
+            utils.print_debug(f"added team {team_slug} to security managers for organization {org_id}")
+
+    def remove_security_manager_team(self, org_id: str, team_slug: str) -> None:
+        utils.print_debug(f"removing team {team_slug} from security managers for organization {org_id}")
+
+        response = self._requester.request_raw("DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
+        if response.status_code != 204:
+            raise RuntimeError(f"failed removing security manager team for organization '{org_id}'")
+        else:
+            utils.print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
     def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         utils.print_debug(f"retrieving org webhooks for organization {org_id}")

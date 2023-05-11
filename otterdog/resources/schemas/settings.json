@@ -134,6 +134,11 @@
     "organization_members_can_change_project_visibility": {
       "provider": "web",
       "type": "boolean"
+    },
+    "security_managers": {
+      "provider": "restapi",
+      "type": "array",
+      "items": { "type": "string" }
     }
   },
 

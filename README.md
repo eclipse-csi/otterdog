@@ -186,6 +186,7 @@ configurate that in the `defaults`:
 | packages_containers_internal                             | boolean         | If members can push private releases / containers         |           |
 | organization_organization_projects_enabled               | boolean         | If members can create organization projects               |           |
 | organization_members_can_change_project_visibility       | boolean         | If members can change visibility of organization projects |           |
+| security_managers                                        | list[string]    | List of teams that should act as security managers        |           |
 
 ### Webhooks
 

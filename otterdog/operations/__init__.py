@@ -93,7 +93,7 @@ class Operation(Protocol):
                         self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
                                            f" \"{v}\"")
                 self.printer.level_down()
-                self.printer.print("  }}")
+                self.printer.print("  }")
             else:
                 def should_redact(value: Any) -> bool:
                     if is_unset(value) or value is None:
@@ -111,4 +111,4 @@ class Operation(Protocol):
                                    f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
 
         self.printer.level_down()
-        self.printer.print("  }}")
+        self.printer.print("  }")
