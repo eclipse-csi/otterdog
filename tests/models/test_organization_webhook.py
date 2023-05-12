@@ -101,4 +101,3 @@ class OrganizationWebhookTest(ModelTest):
         assert len(diff) == 2
         assert diff["active"] == Change(other.active, current.active)
         assert diff["insecure_ssl"] == Change(other.insecure_ssl, current.insecure_ssl)
-

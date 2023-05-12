@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from otterdog.utils import *
+from otterdog.utils import is_different_ignoring_order, UNSET, patch_to_other
 
 
 def test_is_different_ignoring_order():

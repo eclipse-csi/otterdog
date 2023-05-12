@@ -61,7 +61,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.requiresStrictStatusChecks is False
         assert bpr.restrictsReviewDismissals is False
         assert bpr.reviewDismissalAllowances == ["/netomi"]
-        assert bpr.requiredStatusChecks == ["eclipse-eca-validation:eclipsefdn/eca","any:Run CI"]
+        assert bpr.requiredStatusChecks == ["eclipse-eca-validation:eclipsefdn/eca", "any:Run CI"]
 
     def test_load_from_provider(self):
         bpr = BranchProtectionRule.from_provider(self.provider_data)
