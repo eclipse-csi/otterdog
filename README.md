@@ -184,8 +184,8 @@ configurate that in the `defaults`:
 | default_branch_name                                      | string          | The default branch name for repos                                                               |                   |
 | packages_containers_public                               | boolean         | If members can push public releases / containers                                                |                   |
 | packages_containers_internal                             | boolean         | If members can push private releases / containers                                               |                   |
-| organization_organization_projects_enabled               | boolean         | If members can create organization projects                                                     |                   |
-| organization_members_can_change_project_visibility       | boolean         | If members can change visibility of organization projects                                       |                   |
+| organization_projects_enabled                            | boolean         | If members can create organization projects                                                     |                   |
+| members_can_change_project_visibility                    | boolean         | If members can change visibility of organization projects                                       |                   |
 | default_workflow_permissions                             | string          | The default permissions granted to the GITHUB_TOKEN when running workflows in this organization | "read" or "write" |
 | security_managers                                        | list[string]    | List of teams that should act as security managers                                              |                   |
 

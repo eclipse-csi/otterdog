@@ -25,6 +25,7 @@
 
 ### Changed
 
+- Removed prefix `organization_` from settings `organization_projects_enabled` and `members_can_change_project_visibility` for organizations. ([#38](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/38))
 - Switch to go-jsonnet and use released version `v0.20.0` in the container image. ([#25](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/25))
 - Use released version `v0.5.1` of `jsonnet-bundler` in the container image. ([#24](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/24))
 - Update some repo settings after creation as they are not taken correctly into account during creation by GitHub.

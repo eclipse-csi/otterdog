@@ -127,11 +127,11 @@
       "provider": "web",
       "type": "boolean"
     },
-    "organization_organization_projects_enabled": {
+    "organization_projects_enabled": {
       "provider": "web",
       "type": "boolean"
     },
-    "organization_members_can_change_project_visibility": {
+    "members_can_change_project_visibility": {
       "provider": "web",
       "type": "boolean"
     },

@@ -50,8 +50,8 @@ class OrganizationSettings(ModelObject):
     team_discussions_allowed: bool
     packages_containers_public: bool
     packages_containers_internal: bool
-    organization_organization_projects_enabled: bool
-    organization_members_can_change_project_visibility: bool
+    organization_projects_enabled: bool
+    members_can_change_project_visibility: bool
     default_workflow_permissions: str
     security_managers: list[str]
 
