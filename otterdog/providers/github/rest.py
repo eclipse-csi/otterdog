@@ -151,11 +151,15 @@ class RestClient:
         utils.print_debug(f"adding team {team_slug} to security managers for organization {org_id}")
 
         response = self._requester.request_raw("PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
-        if response.status_code != 204:
+
+        if response.status_code == 204:
+            utils.print_debug(f"added team {team_slug} to security managers for organization {org_id}")
+        elif response.status_code == 404:
+            utils.print_warn(f"failed to add team '{team_slug}' to security managers for organization {org_id}: "
+                             f"team not found")
+        else:
             raise RuntimeError(f"failed adding team '{team_slug}' to security managers of organization '{org_id}'"
                                f"\n{response.status_code}: {response.text}")
-        else:
-            utils.print_debug(f"added team {team_slug} to security managers for organization {org_id}")
 
     def remove_security_manager_team(self, org_id: str, team_slug: str) -> None:
         utils.print_debug(f"removing team {team_slug} from security managers for organization {org_id}")
