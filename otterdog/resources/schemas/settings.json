@@ -135,6 +135,10 @@
       "provider": "web",
       "type": "boolean"
     },
+    "default_workflow_permissions": {
+      "provider": "web",
+      "type": "string"
+    },
     "security_managers": {
       "provider": "restapi",
       "type": "array",

@@ -69,7 +69,21 @@ class WebClient:
                     continue
 
                 try:
-                    value = page.eval_on_selector(setting_def['selector'],
+                    setting_type = setting_def['type']
+                    match setting_type:
+                        case "checkbox":
+                            selector = setting_def['selector']
+
+                        case "radio":
+                            selector = f"{setting_def['selector']}:checked"
+
+                        case "text":
+                            selector = setting_def['selector']
+
+                        case _:
+                            raise RuntimeError(f"not supported setting type '{setting_type}'")
+
+                    value = page.eval_on_selector(selector,
                                                   "(el, property) => el[property]",
                                                   setting_def['valueSelector'])
 
@@ -127,12 +141,19 @@ class WebClient:
             for setting, setting_def in page_dict.items():
                 new_value = settings[setting]
 
-                if isinstance(new_value, bool):
-                    page.set_checked(setting_def['selector'], new_value == 'True' or new_value)
-                elif isinstance(new_value, str):
-                    page.fill(setting_def['selector'], new_value)
-                else:
-                    raise RuntimeError(f"not yet supported value type '{type(new_value)}'")
+                setting_type = setting_def['type']
+                match setting_type:
+                    case "checkbox":
+                        page.set_checked(setting_def['selector'], new_value == 'True' or new_value)
+
+                    case "radio":
+                        page.set_checked(f"{setting_def['selector']}[value='{new_value}']", True)
+
+                    case "text":
+                        page.fill(setting_def['selector'], new_value)
+
+                    case _:
+                        raise RuntimeError(f"not supported setting type '{setting_type}'")
 
                 # do a trial run first as this will wait till the button is enabled
                 # this might be needed for some text input forms that perform input validation.

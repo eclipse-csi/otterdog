@@ -52,6 +52,7 @@ class OrganizationSettings(ModelObject):
     packages_containers_internal: bool
     organization_organization_projects_enabled: bool
     organization_members_can_change_project_visibility: bool
+    default_workflow_permissions: str
     security_managers: list[str]
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:

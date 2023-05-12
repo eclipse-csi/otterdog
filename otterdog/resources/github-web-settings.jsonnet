@@ -13,6 +13,9 @@ local newCheckbox(otterdogName, inputName = otterdogName) =
 local newTextInput(otterdogName, inputName = otterdogName) =
   newInput('text', 'value', otterdogName, inputName);
 
+local newRadioInput(otterdogName, inputName = otterdogName) =
+  newInput('radio', 'value', otterdogName, inputName);
+
 {
   'settings/member_privileges':
     newCheckbox('members_can_change_repo_visibility') +
@@ -37,4 +40,7 @@ local newTextInput(otterdogName, inputName = otterdogName) =
   'settings/projects':
     newCheckbox('organization_organization_projects_enabled', 'organization[organization_projects_enabled]') +
     newCheckbox('organization_members_can_change_project_visibility', 'organization[members_can_change_project_visibility]'),
+
+  'settings/actions':
+    newRadioInput('default_workflow_permissions', 'actions_default_workflow_permissions'),
 }
