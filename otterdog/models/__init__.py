@@ -6,10 +6,12 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from __future__ import annotations
+
+import dataclasses
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, Field, fields, field as dataclasses_field
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Optional
 
 from otterdog.providers.github import Github
 from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change
@@ -20,15 +22,15 @@ class FailureType(Enum):
     ERROR = 2
 
 
-@dataclass
+@dataclasses.dataclass
 class ValidationContext(object):
-    validation_failures: list[tuple[FailureType, str]] = dataclasses_field(default_factory=list)
+    validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
 
 
-@dataclass
+@dataclasses.dataclass
 class ModelObject(ABC):
     """
     The abstract base class for any model object.
@@ -44,7 +46,7 @@ class ModelObject(ABC):
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         pass
 
-    def get_difference_from(self, other: "ModelObject") -> dict[str, Change[T]]:
+    def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
@@ -67,7 +69,7 @@ class ModelObject(ABC):
 
         return diff_result
 
-    def get_patch_to(self, other: "ModelObject") -> dict[str, Any]:
+    def get_patch_to(self, other: ModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
@@ -95,32 +97,32 @@ class ModelObject(ABC):
         return patch_result
 
     @classmethod
-    def all_fields(cls) -> list[Field]:
-        return [field for field in fields(cls)]
+    def all_fields(cls) -> list[dataclasses.Field]:
+        return [field for field in dataclasses.fields(cls)]
 
     @classmethod
-    def model_fields(cls) -> list[Field]:
-        return [field for field in fields(cls) if not cls.is_external_only(field)]
+    def model_fields(cls) -> list[dataclasses.Field]:
+        return [field for field in dataclasses.fields(cls) if not cls.is_external_only(field)]
 
     @classmethod
-    def provider_fields(cls) -> list[Field]:
-        return [field for field in fields(cls) if
+    def provider_fields(cls) -> list[dataclasses.Field]:
+        return [field for field in dataclasses.fields(cls) if
                 not cls.is_external_only(field) and not cls.is_read_only(field) and not cls.is_nested_model(field)]
 
     @classmethod
-    def _get_field(cls, key: str) -> Field:
-        for field in fields(cls):
+    def _get_field(cls, key: str) -> dataclasses.Field:
+        for field in dataclasses.fields(cls):
             if field.name == key:
                 return field
 
         raise ValueError(f"unknown key {key}")
 
     @staticmethod
-    def is_external_only(field: Field) -> bool:
+    def is_external_only(field: dataclasses.Field) -> bool:
         return field.metadata.get("external_only", False) is True
 
     @staticmethod
-    def is_read_only(field: Field) -> bool:
+    def is_read_only(field: dataclasses.Field) -> bool:
         return field.metadata.get("read_only", False) is True
 
     @classmethod
@@ -128,7 +130,7 @@ class ModelObject(ABC):
         return cls.is_read_only(cls._get_field(key))
 
     @staticmethod
-    def is_nested_model(field: Field) -> bool:
+    def is_nested_model(field: dataclasses.Field) -> bool:
         return field.metadata.get("model", False) is True
 
     @classmethod
@@ -141,22 +143,22 @@ class ModelObject(ABC):
     def from_provider(cls, data: dict[str, Any]):
         pass
 
-    def to_provider(self, provider: Union[Github, None] = None) -> dict[str, Any]:
+    def to_provider(self, provider: Optional[Github] = None) -> dict[str, Any]:
         return self._to_provider(self.to_model_dict(), provider)
 
     @classmethod
-    def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Optional[Github] = None) -> dict[str, Any]:
         return cls._to_provider({key: change.to_value for key, change in data.items()}, provider)
 
     @classmethod
     @abstractmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         pass
 
-    def include_field_for_diff_computation(self, field: Field) -> bool:
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def include_field_for_patch_computation(self, field: Field) -> bool:
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
     def keys(self, for_diff: bool = False, include_nested_models: bool = False) -> list[str]:

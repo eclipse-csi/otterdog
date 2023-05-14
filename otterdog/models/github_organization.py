@@ -6,10 +6,10 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import dataclasses
 import os
 import textwrap
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 from io import StringIO
@@ -33,12 +33,12 @@ from .organization_webhook import OrganizationWebhook
 from .repository import Repository
 
 
-@dataclass
+@dataclasses.dataclass
 class GitHubOrganization:
     github_id: str
     settings: OrganizationSettings
-    webhooks: list[OrganizationWebhook] = field(default_factory=list)
-    repositories: list[Repository] = field(default_factory=list)
+    webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
+    repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)

@@ -6,8 +6,10 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field as dataclass_field
-from typing import Any, Union
+from __future__ import annotations
+
+import dataclasses
+from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS
 
@@ -17,22 +19,22 @@ from otterdog.utils import UNSET, is_unset
 from . import ModelObject, ValidationContext, FailureType
 
 
-@dataclass
+@dataclasses.dataclass
 class OrganizationSettings(ModelObject):
-    name: str
-    plan: str = dataclass_field(metadata={"read_only": True})
-    description: str
-    email: str
-    location: str
-    company: str
+    name: Optional[str]
+    plan: str = dataclasses.field(metadata={"read_only": True})
+    description: Optional[str]
+    email: Optional[str]
+    location: Optional[str]
+    company: Optional[str]
     billing_email: str
-    twitter_username: str
-    blog: str
+    twitter_username: Optional[str]
+    blog: Optional[str]
     has_organization_projects: bool
     has_repository_projects: bool
     default_branch_name: str
     default_repository_permission: str
-    two_factor_requirement: bool = dataclass_field(metadata={"read_only": True})
+    two_factor_requirement: bool = dataclasses.field(metadata={"read_only": True})
     web_commit_signoff_required: bool
     dependabot_alerts_enabled_for_new_repositories: bool
     dependabot_security_updates_enabled_for_new_repositories: bool
@@ -73,18 +75,18 @@ class OrganizationSettings(ModelObject):
                                 "enabling dependabot_security_updates implicitly enables dependabot_alerts")
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> "OrganizationSettings":
+    def from_model(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> "OrganizationSettings":
+    def from_provider(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
         return bend(mapping, data)

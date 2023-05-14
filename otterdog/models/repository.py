@@ -6,8 +6,10 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from dataclasses import dataclass, field as dataclass_field, Field
-from typing import Any, ClassVar, Union
+from __future__ import annotations
+
+import dataclasses
+from typing import Any, ClassVar, Optional
 
 from jsonbender import bend, S, OptionalS, K, Forall
 
@@ -19,11 +21,11 @@ from .organization_settings import OrganizationSettings
 from .branch_protection_rule import BranchProtectionRule
 
 
-@dataclass
+@dataclasses.dataclass
 class Repository(ModelObject):
-    id: str = dataclass_field(metadata={"external_only": True})
-    node_id: str = dataclass_field(metadata={"external_only": True})
-    name: str = dataclass_field(metadata={"key": True})
+    id: str = dataclasses.field(metadata={"external_only": True})
+    node_id: str = dataclasses.field(metadata={"external_only": True})
+    name: str = dataclasses.field(metadata={"key": True})
     description: str
     homepage: str
     private: bool
@@ -31,7 +33,7 @@ class Repository(ModelObject):
     has_projects: bool
     has_wiki: bool
     is_template: bool
-    template_repository: str = dataclass_field(metadata={"read_only": True})
+    template_repository: str = dataclasses.field(metadata={"read_only": True})
     default_branch: str
     allow_rebase_merge: bool
     allow_merge_commit: bool
@@ -49,8 +51,8 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
-    branch_protection_rules: list[BranchProtectionRule] = dataclass_field(metadata={"model": True},
-                                                                          default_factory=list)
+    branch_protection_rules: list[BranchProtectionRule] = dataclasses.field(metadata={"model": True},
+                                                                            default_factory=list)
 
     _security_properties: ClassVar[list[str]] = ["secret_scanning", "secret_scanning_push_protection"]
 
@@ -123,7 +125,7 @@ class Repository(ModelObject):
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
-    def include_field_for_diff_computation(self, field: Field) -> bool:
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
         if self.private is True:
             if field.name in self._security_properties:
@@ -138,7 +140,7 @@ class Repository(ModelObject):
         return True
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> "Repository":
+    def from_model(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update(
@@ -152,7 +154,7 @@ class Repository(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> "Repository":
+    def from_provider(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
@@ -169,7 +171,7 @@ class Repository(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 

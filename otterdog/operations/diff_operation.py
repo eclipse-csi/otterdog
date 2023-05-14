@@ -213,15 +213,17 @@ class DiffOperation(Operation):
 
             modified_webhook = expected_webhook.get_difference_from(current_webhook)
 
-            # special handling for secrets:
-            #   if a secret was present by now its gone or vice-versa,
-            #   include it in the diff view.
-            expected_secret = expected_webhook.secret
-            current_secret = current_webhook.secret
+            if not is_unset(expected_webhook.secret):
+                # special handling for secrets:
+                #   if a secret was present by now its gone or vice-versa,
+                #   include it in the diff view.
 
-            if ((expected_secret is not None and is_unset(current_secret)) or
-                    (expected_secret is None and is_set_and_valid(current_secret))):
-                modified_webhook["secret"] = Change(current_secret, expected_secret)
+                expected_secret = expected_webhook.secret
+                current_secret = current_webhook.secret
+
+                if ((expected_secret is not None and current_secret is None) or
+                        (expected_secret is None and current_secret is not None)):
+                    modified_webhook["secret"] = Change(current_secret, expected_secret)
 
             if len(modified_webhook) > 0:
                 self.handle_modified_webhook(github_id,

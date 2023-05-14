@@ -6,9 +6,11 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from __future__ import annotations
+
+import dataclasses
 import re
-from dataclasses import dataclass, field as dataclass_field
-from typing import Any, Union
+from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS, Forall, K
 
@@ -18,10 +20,10 @@ from otterdog.utils import UNSET, is_unset, is_set_and_valid
 from . import ModelObject, ValidationContext, FailureType
 
 
-@dataclass
+@dataclasses.dataclass
 class BranchProtectionRule(ModelObject):
-    id: str = dataclass_field(metadata={"external_only": True})
-    pattern: str = dataclass_field(metadata={"key": True})
+    id: str = dataclasses.field(metadata={"external_only": True})
+    pattern: str = dataclasses.field(metadata={"key": True})
     allowsDeletions: bool
     allowsForcePushes: bool
     dismissesStaleReviews: bool
@@ -88,12 +90,12 @@ class BranchProtectionRule(ModelObject):
                                 f" 'requiresStatusChecks' disabled but 'requiredStatusChecks' is not empty.")
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> "BranchProtectionRule":
+    def from_model(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> "BranchProtectionRule":
+    def from_provider(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_app(x):
@@ -116,7 +118,7 @@ class BranchProtectionRule(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Union[Github, None] = None) -> dict[str, Any]:
+    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
