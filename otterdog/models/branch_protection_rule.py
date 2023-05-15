@@ -152,6 +152,9 @@ class BranchProtectionRule(ModelObject):
 
         return True
 
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        return True
+
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}

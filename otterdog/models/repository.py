@@ -117,7 +117,7 @@ class Repository(ModelObject):
 
         secret_scanning_disabled = self.secret_scanning == "disabled"
         secret_scanning_push_protection_enabled = self.secret_scanning_push_protection == "enabled"
-        if secret_scanning_disabled and secret_scanning_push_protection_enabled:
+        if secret_scanning_disabled and secret_scanning_push_protection_enabled and self.archived is False:
             context.add_failure(FailureType.ERROR,
                                 f"repo[name=\"{self.name}\"] has 'secret_scanning' disabled while "
                                 f"'secret_scanning_push_protection' is enabled.")
@@ -134,8 +134,6 @@ class Repository(ModelObject):
         if self.archived is True:
             if field.name in self._unavailable_fields_in_archived_repos:
                 return False
-            else:
-                return True
 
         return True
 
