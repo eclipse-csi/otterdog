@@ -41,7 +41,7 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.active is True
         assert webhook.events == ["push", "pull_request"]
         assert webhook.content_type == "json"
-        assert webhook.secret is UNSET
+        assert webhook.secret is None
         assert webhook.url == "https://www.example.org"
         assert webhook.insecure_ssl == "0"
 
