@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from otterdog.utils import is_different_ignoring_order, UNSET, patch_to_other
+from otterdog.utils import is_different_ignoring_order, UNSET, patch_to_other, snake_to_camel_case, camel_to_snake_case
 
 
 def test_is_different_ignoring_order():
@@ -39,3 +39,16 @@ def test_patch_to_other():
     assert patch_to_other([1], [1]) == (False, None)
     assert patch_to_other([1, 2], [1]) == (True, [2])
     assert patch_to_other([1, 2], [2, 1]) == (False, None)
+
+
+def test_snake_to_camel_case():
+    assert snake_to_camel_case("name") == "name"
+    assert snake_to_camel_case("required_status_checks") == "requiredStatusChecks"
+    assert snake_to_camel_case("required__status_checks") == "requiredStatusChecks"
+
+
+def test_camel_to_snake_case():
+    assert camel_to_snake_case("name") == "name"
+    assert camel_to_snake_case("requiredStatusChecks") == "required_status_checks"
+    assert camel_to_snake_case("RequiredStatusChecks") == "required_status_checks"
+    assert camel_to_snake_case("someXYZ") == "some_xyz"

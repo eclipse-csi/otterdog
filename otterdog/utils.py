@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import json
+import re
 from argparse import Namespace
 from dataclasses import dataclass
 from io import TextIOBase
@@ -253,3 +254,15 @@ def get_or_default(namespace: Namespace, key: str, default: T) -> T:
         return namespace.__getattribute__(key)
     else:
         return default
+
+
+def snake_to_camel_case(string: str) -> str:
+    result = re.sub(r"[_\-]+", " ", string).title().replace(" ", "")
+    return result[0].lower() + result[1:]
+
+
+def camel_to_snake_case(string: str) -> str:
+    string = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', string)
+    string = re.sub('__([A-Z])', r'_\1', string)
+    string = re.sub('([a-z0-9])([A-Z])', r'\1_\2', string)
+    return string.lower()

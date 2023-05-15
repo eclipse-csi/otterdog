@@ -258,29 +258,29 @@ value (not adivsed), or referencing it via a credential provider.
 
 ### Branch Protection Rules
 
-| Field                        | Type              | Description                                                                                  |
-|------------------------------|-------------------|----------------------------------------------------------------------------------------------|
-| pattern                      | string            | Pattern to match branches                                                                    |
-| allowsDeletions              | boolean           | If the branch can be deleted                                                                 |
-| allowsForcePushes            | boolean           | If branch allows force pushes                                                                |
-| bypassForcePushAllowances    | list[actor]       | List of actors able to force push for this branch protection rule                            |
-| bypassPullRequestAllowances  | list[actor]       | List of actors able to bypass PRs for this branch protection rule                            |
-| dismissesStaleReviews        | boolean           | Dismiss approved reviews automatically when a new commit is pushed                           |
-| isAdminEnforced              | boolean           | Enforces status checks for admin                                                             |
-| lockAllowsFetchAndMerge      | boolean           | If the repo has dependabot alerts enabled                                                    |
-| lockBranch                   | boolean           | If the branch is read-only                                                                   |
-| pushRestrictions             | list[actor]       | List of actors that are permitted to push to the branch                                      |
-| requireLastPushApproval      | boolean           | Whether the most recent push must be approved by someone other than the person who pushed it |
-| requiredApprovingReviewCount | integer or null   | TBD                                                                                          |
-| requiresApprovingReviews     | boolean           | TBD                                                                                          |
-| requiresCodeOwnerReviews     | boolean           | If reviews from code owners are required to update matching branches                         |
-| requiresCommitSignatures     | boolean           | If commits are required to be signed                                                         |
-| requiresLinearHistory        | boolean           | If merge commits are prohibited from being pushed to this branch                             |
-| requiresStatusChecks         | boolean           | TBD                                                                                          |
-| requiresStrictStatusChecks   | boolean           | TBD                                                                                          |
-| restrictsReviewDismissals    | boolean           | If only allowed actors can dismiss reviews on pull requests                                  |
-| reviewDismissalAllowances    | list[actor]       | List of actors that are permitted to dismiss reviews on pull requests                        |
-| requiredStatusChecks         | list[statuscheck] | List of status checks that must pass before branches can be merged                           |
+| Field                           | Type              | Description                                                                                  |
+|---------------------------------|-------------------|----------------------------------------------------------------------------------------------|
+| pattern                         | string            | Pattern to match branches                                                                    |
+| allows_deletions                | boolean           | If the branch can be deleted                                                                 |
+| allows_force_pushes             | boolean           | If branch allows force pushes                                                                |
+| bypass_force_push_allowances    | list[actor]       | List of actors able to force push for this branch protection rule                            |
+| bypass_pull_request_allowances  | list[actor]       | List of actors able to bypass PRs for this branch protection rule                            |
+| dismisses_stale_reviews         | boolean           | Dismiss approved reviews automatically when a new commit is pushed                           |
+| is_admin_enforced               | boolean           | Enforces status checks for admin                                                             |
+| lock_allows_fetch_and_merge     | boolean           | If the repo has dependabot alerts enabled                                                    |
+| lock_branch                     | boolean           | If the branch is read-only                                                                   |
+| push_restrictions               | list[actor]       | List of actors that are permitted to push to the branch                                      |
+| require_last_push_approval      | boolean           | Whether the most recent push must be approved by someone other than the person who pushed it |
+| required_approving_review_count | integer or null   | TBD                                                                                          |
+| requires_approving_reviews      | boolean           | TBD                                                                                          |
+| requires_code_owner_reviews     | boolean           | If reviews from code owners are required to update matching branches                         |
+| requires_commit_signatures      | boolean           | If commits are required to be signed                                                         |
+| requires_linear_history         | boolean           | If merge commits are prohibited from being pushed to this branch                             |
+| requires_status_checks          | boolean           | TBD                                                                                          |
+| requires_strict_status_checks   | boolean           | TBD                                                                                          |
+| restricts_review_dismissals     | boolean           | If only allowed actors can dismiss reviews on pull requests                                  |
+| review_dismissal_allowances     | list[actor]       | List of actors that are permitted to dismiss reviews on pull requests                        |
+| required_status_checks          | list[statuscheck] | List of status checks that must pass before branches can be merged                           |
 
 
 Note:

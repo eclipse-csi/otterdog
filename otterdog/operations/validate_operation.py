@@ -65,8 +65,12 @@ class ValidateOperation(Operation):
             if validation_failures == 0:
                 self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
             else:
-                self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
-                                   f"{validation_warnings} warning(s), {validation_errors} error(s)")
+                if validation_errors == 0:
+                    self.printer.print(f"{Fore.YELLOW}Validation succeeded{Style.RESET_ALL}: "
+                                       f"{validation_warnings} warning(s), {validation_errors} error(s)")
+                else:
+                    self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                                       f"{validation_warnings} warning(s), {validation_errors} error(s)")
 
             return validation_failures
         finally:

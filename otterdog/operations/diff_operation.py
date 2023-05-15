@@ -110,10 +110,9 @@ class DiffOperation(Operation):
         # We validate the configuration first and only calculate a plan if
         # there are no validation errors.
         validation_warnings, validation_errors = self._validator.validate(expected_org)
-        validation_failures = validation_warnings + validation_errors
-        if validation_failures > 0:
+        if validation_errors > 0:
             self.printer.print("Planning aborted due to validation failures.")
-            return validation_failures
+            return validation_errors
 
         diff_status = DiffStatus()
 

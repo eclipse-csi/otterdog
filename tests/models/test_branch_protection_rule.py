@@ -41,54 +41,54 @@ class BranchProtectionRuleTest(ModelTest):
 
         assert bpr.id is UNSET
         assert bpr.pattern == "main"
-        assert bpr.allowsDeletions is False
-        assert bpr.allowsForcePushes is False
-        assert bpr.dismissesStaleReviews is False
-        assert bpr.isAdminEnforced is False
-        assert bpr.lockAllowsFetchAndMerge is False
-        assert bpr.lockBranch is False
-        assert bpr.bypassForcePushAllowances == ["/netomi"]
-        assert bpr.bypassPullRequestAllowances == ["/netomi"]
-        assert bpr.pushRestrictions == ["/netomi"]
-        assert bpr.requireLastPushApproval is False
-        assert bpr.requiredApprovingReviewCount == 2
-        assert bpr.requiresApprovingReviews is True
-        assert bpr.requiresCodeOwnerReviews is False
-        assert bpr.requiresCommitSignatures is False
-        assert bpr.requiresConversationResolution is False
-        assert bpr.requiresLinearHistory is False
-        assert bpr.requiresStatusChecks is True
-        assert bpr.requiresStrictStatusChecks is False
-        assert bpr.restrictsReviewDismissals is False
-        assert bpr.reviewDismissalAllowances == ["/netomi"]
-        assert bpr.requiredStatusChecks == ["eclipse-eca-validation:eclipsefdn/eca", "any:Run CI"]
+        assert bpr.allows_deletions is False
+        assert bpr.allows_force_pushes is False
+        assert bpr.dismisses_stale_reviews is False
+        assert bpr.is_admin_enforced is False
+        assert bpr.lock_allows_fetch_and_merge is False
+        assert bpr.lock_branch is False
+        assert bpr.bypass_force_push_allowances == ["/netomi"]
+        assert bpr.bypass_pull_request_allowances == ["/netomi"]
+        assert bpr.push_restrictions == ["/netomi"]
+        assert bpr.require_last_push_approval is False
+        assert bpr.required_approving_review_count == 2
+        assert bpr.requires_approving_reviews is True
+        assert bpr.requires_code_owner_reviews is False
+        assert bpr.requires_commit_signatures is False
+        assert bpr.requires_conversation_resolution is False
+        assert bpr.requires_linear_history is False
+        assert bpr.requires_status_checks is True
+        assert bpr.requires_strict_status_checks is False
+        assert bpr.restricts_review_dismissals is False
+        assert bpr.review_dismissal_allowances == ["/netomi"]
+        assert bpr.required_status_checks == ["eclipse-eca-validation:eclipsefdn/eca", "any:Run CI"]
 
     def test_load_from_provider(self):
         bpr = BranchProtectionRule.from_provider(self.provider_data)
 
         assert bpr.id == "BPR_kwDOI9xAhM4CC77t"
         assert bpr.pattern == "main"
-        assert bpr.allowsDeletions is False
-        assert bpr.allowsForcePushes is False
-        assert bpr.dismissesStaleReviews is False
-        assert bpr.isAdminEnforced is False
-        assert bpr.lockAllowsFetchAndMerge is False
-        assert bpr.lockBranch is False
-        assert bpr.bypassForcePushAllowances == ["/netomi"]
-        assert bpr.bypassPullRequestAllowances == ["/netomi"]
-        assert bpr.pushRestrictions == ["/netomi"]
-        assert bpr.requireLastPushApproval is False
-        assert bpr.requiredApprovingReviewCount == 2
-        assert bpr.requiresApprovingReviews is True
-        assert bpr.requiresCodeOwnerReviews is False
-        assert bpr.requiresCommitSignatures is False
-        assert bpr.requiresConversationResolution is False
-        assert bpr.requiresLinearHistory is False
-        assert bpr.requiresStatusChecks is True
-        assert bpr.requiresStrictStatusChecks is False
-        assert bpr.restrictsReviewDismissals is False
-        assert bpr.reviewDismissalAllowances == ["/netomi"]
-        assert bpr.requiredStatusChecks == ["any:Run CI"]
+        assert bpr.allows_deletions is False
+        assert bpr.allows_force_pushes is False
+        assert bpr.dismisses_stale_reviews is False
+        assert bpr.is_admin_enforced is False
+        assert bpr.lock_allows_fetch_and_merge is False
+        assert bpr.lock_branch is False
+        assert bpr.bypass_force_push_allowances == ["/netomi"]
+        assert bpr.bypass_pull_request_allowances == ["/netomi"]
+        assert bpr.push_restrictions == ["/netomi"]
+        assert bpr.require_last_push_approval is False
+        assert bpr.required_approving_review_count == 2
+        assert bpr.requires_approving_reviews is True
+        assert bpr.requires_code_owner_reviews is False
+        assert bpr.requires_commit_signatures is False
+        assert bpr.requires_conversation_resolution is False
+        assert bpr.requires_linear_history is False
+        assert bpr.requires_status_checks is True
+        assert bpr.requires_strict_status_checks is False
+        assert bpr.restricts_review_dismissals is False
+        assert bpr.review_dismissal_allowances == ["/netomi"]
+        assert bpr.required_status_checks == ["any:Run CI"]
 
     def test_to_provider(self):
         bpr = BranchProtectionRule.from_model(self.model_data)
@@ -105,8 +105,8 @@ class BranchProtectionRuleTest(ModelTest):
         current = BranchProtectionRule.from_model(self.model_data)
         other = BranchProtectionRule.from_model(self.model_data)
 
-        other.requiresApprovingReviews = False
-        other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
+        other.requires_approving_reviews = False
+        other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         changes = current.get_difference_from(other)
         provider_data = BranchProtectionRule.changes_to_provider(changes, self.provider)
@@ -118,31 +118,30 @@ class BranchProtectionRuleTest(ModelTest):
 
     def test_patch(self):
         current = BranchProtectionRule.from_model(self.model_data)
-
         default = BranchProtectionRule.from_model(self.model_data)
 
         default.pattern = None
-        default.requiresStatusChecks = False
-        default.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
+        default.requires_status_checks = False
+        default.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         patch = current.get_patch_to(default)
 
         assert len(patch) == 3
         assert patch["pattern"] == current.pattern
-        assert patch["requiresStatusChecks"] is current.requiresStatusChecks
-        assert patch["requiredStatusChecks"] == ["any:Run CI"]
+        assert patch["requires_status_checks"] is current.requires_status_checks
+        assert patch["required_status_checks"] == ["any:Run CI"]
 
     def test_difference(self):
         current = BranchProtectionRule.from_model(self.model_data)
         other = BranchProtectionRule.from_model(self.model_data)
 
-        other.requiresApprovingReviews = False
-        other.requiredStatusChecks = ["eclipse-eca-validation:eclipsefdn/eca"]
+        other.requires_approving_reviews = False
+        other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["requiresApprovingReviews"] == Change(other.requiresApprovingReviews,
-                                                          current.requiresApprovingReviews)
-        assert diff["requiredStatusChecks"] == Change(other.requiredStatusChecks,
-                                                      current.requiredStatusChecks)
+        assert diff["requires_approving_reviews"] == Change(other.requires_approving_reviews,
+                                                            current.requires_approving_reviews)
+        assert diff["required_status_checks"] == Change(other.required_status_checks,
+                                                        current.required_status_checks)

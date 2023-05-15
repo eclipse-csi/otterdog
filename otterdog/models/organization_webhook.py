@@ -28,6 +28,12 @@ class OrganizationWebhook(ModelObject):
     insecure_ssl: str
     secret: Optional[str]
 
+    def validate(self, context: ValidationContext, parent_object: object) -> None:
+        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):
+            context.add_failure(FailureType.ERROR,
+                                f"webhook with url '{self.url}' uses a dummy secret '{self.secret}', "
+                                f"provide a real secret using a credential provider.")
+
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:
             case "secret": return False
@@ -35,12 +41,6 @@ class OrganizationWebhook(ModelObject):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
-
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
-        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):
-            context.add_failure(FailureType.ERROR,
-                                f"webhook with url '{self.url}' uses a dummy secret '{self.secret}', "
-                                f"provide a real secret using a credential provider.")
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> OrganizationWebhook:

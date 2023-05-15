@@ -4,39 +4,39 @@
   "type": "object",
   "properties": {
     "pattern": { "type": "string" },
-    "allowsDeletions": { "type": "boolean" },
-    "allowsForcePushes": { "type": "boolean" },
-    "dismissesStaleReviews": { "type": "boolean" },
-    "isAdminEnforced": { "type": "boolean" },
-    "lockAllowsFetchAndMerge": { "type": "boolean" },
-    "lockBranch": { "type": "boolean" },
-    "bypassForcePushAllowances": {
+    "allows_deletions": { "type": "boolean" },
+    "allows_force_pushes": { "type": "boolean" },
+    "dismisses_stale_reviews": { "type": "boolean" },
+    "is_admin_enforced": { "type": "boolean" },
+    "lock_allows_fetch_and_merge": { "type": "boolean" },
+    "lock_branch": { "type": "boolean" },
+    "bypass_force_push_allowances": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "bypassPullRequestAllowances": {
+    "bypass_pull_request_allowances": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "pushRestrictions": {
+    "push_restrictions": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "requireLastPushApproval": { "type": "boolean" },
-    "requiredApprovingReviewCount": { "$ref": "#/definitions/integer_or_null" },
-    "requiresApprovingReviews": { "type": "boolean" },
-    "requiresCodeOwnerReviews": { "type": "boolean" },
-    "requiresCommitSignatures": { "type": "boolean" },
-    "requiresConversationResolution": { "type": "boolean" },
-    "requiresLinearHistory": { "type": "boolean" },
-    "requiresStatusChecks": { "type": "boolean" },
-    "requiresStrictStatusChecks": { "type": "boolean" },
-    "restrictsReviewDismissals": { "type": "boolean" },
-    "reviewDismissalAllowances": {
+    "require_last_push_approval": { "type": "boolean" },
+    "required_approving_review_count": { "$ref": "#/definitions/integer_or_null" },
+    "requires_approving_reviews": { "type": "boolean" },
+    "requires_code_owner_reviews": { "type": "boolean" },
+    "requires_commit_signatures": { "type": "boolean" },
+    "requires_conversation_resolution": { "type": "boolean" },
+    "requires_linear_history": { "type": "boolean" },
+    "requires_status_checks": { "type": "boolean" },
+    "requires_strict_status_checks": { "type": "boolean" },
+    "restricts_review_dismissals": { "type": "boolean" },
+    "review_dismissal_allowances": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "requiredStatusChecks": {
+    "required_status_checks": {
       "type": "array",
       "items": { "type": "string" }
     }

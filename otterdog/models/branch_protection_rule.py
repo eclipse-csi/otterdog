@@ -15,7 +15,7 @@ from typing import Any, Optional
 from jsonbender import bend, S, OptionalS, Forall, K
 
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, is_set_and_valid
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, snake_to_camel_case
 
 from . import ModelObject, ValidationContext, FailureType
 
@@ -24,70 +24,133 @@ from . import ModelObject, ValidationContext, FailureType
 class BranchProtectionRule(ModelObject):
     id: str = dataclasses.field(metadata={"external_only": True})
     pattern: str = dataclasses.field(metadata={"key": True})
-    allowsDeletions: bool
-    allowsForcePushes: bool
-    dismissesStaleReviews: bool
-    isAdminEnforced: bool
-    lockAllowsFetchAndMerge: bool
-    lockBranch: bool
-    bypassForcePushAllowances: list[str]
-    bypassPullRequestAllowances: list[str]
-    pushRestrictions: list[str]
-    requireLastPushApproval: bool
-    requiredApprovingReviewCount: int
-    requiresApprovingReviews: bool
-    requiresCodeOwnerReviews: bool
-    requiresCommitSignatures: bool
-    requiresConversationResolution: bool
-    requiresLinearHistory: bool
-    requiresStatusChecks: bool
-    requiresStrictStatusChecks: bool
-    restrictsReviewDismissals: bool
-    reviewDismissalAllowances: list[str]
-    requiredStatusChecks: list[str]
+
+    allows_deletions: bool
+    allows_force_pushes: bool
+    is_admin_enforced: bool
+    lock_allows_fetch_and_merge: bool
+    lock_branch: bool
+
+    # the following settings are only taken into account
+    # when requires_approving_reviews is True
+    requires_approving_reviews: bool
+    required_approving_review_count: Optional[int]
+    dismisses_stale_reviews: bool
+    requires_code_owner_reviews: bool
+    require_last_push_approval: bool
+    bypass_pull_request_allowances: list[str]
+    restricts_review_dismissals: bool
+    review_dismissal_allowances: list[str]
+
+    bypass_force_push_allowances: list[str]
+    push_restrictions: list[str]
+
+    requires_commit_signatures: bool
+    requires_conversation_resolution: bool
+    requires_linear_history: bool
+
+    requires_status_checks: bool
+    requires_strict_status_checks: bool
+    required_status_checks: list[str]
 
     def validate(self, context: ValidationContext, parent_object: object) -> None:
         repo_name: str = parent_object.name
 
-        requiresApprovingReviews = self.requiresApprovingReviews is True
-        requiredApprovingReviewCount = self.requiredApprovingReviewCount
+        # when requires_approving_reviews is false, issue a warning if dependent settings
+        # are still set to non default values.
 
-        if requiresApprovingReviews and not is_unset(requiredApprovingReviewCount):
-            if requiredApprovingReviewCount is None or requiredApprovingReviewCount < 0:
+        if self.requires_approving_reviews is False:
+            if is_set_and_valid(self.required_approving_review_count):
+                context.add_failure(FailureType.WARNING,
+                                    f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                    f" 'requires_approving_reviews' disabled but 'required_approving_review_count' "
+                                    f"is set to '{self.required_approving_review_count}', setting will be ignored.")
+
+            for key in ["dismisses_stale_reviews",
+                        "requires_code_owner_reviews",
+                        "require_last_push_approval",
+                        "restricts_review_dismissals"]:
+                if self.__getattribute__(key) is True:
+                    context.add_failure(FailureType.WARNING,
+                                        f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                        f" 'requires_approving_reviews' disabled but '{key}' "
+                                        f"is enabled, setting will be ignored.")
+
+            for key in ["bypass_pull_request_allowances", "review_dismissal_allowances"]:
+                value = self.__getattribute__(key)
+                if not is_unset(value) and len(value) > 0:
+                    context.add_failure(FailureType.WARNING,
+                                        f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                        f" 'requires_approving_reviews' disabled but '{key}' "
+                                        f"is set to {value}, setting will be ignored.")
+
+        # required_approving_review_count must be defined when requires_approving_reviews is enabled
+        required_approving_review_count = self.required_approving_review_count
+        if self.requires_approving_reviews is True and not is_unset(required_approving_review_count):
+            if required_approving_review_count is None or required_approving_review_count < 0:
                 context.add_failure(FailureType.ERROR,
                                     f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
-                                    f" 'requiredApprovingReviews' enabled but 'requiredApprovingReviewCount' "
-                                    f"is not set.")
+                                    f" 'requires_approving_reviews' enabled but 'required_approving_review_count' "
+                                    f"is not set (must be null or a non negative number).")
 
-        permitsReviewDismissals = self.restrictsReviewDismissals is False
-        reviewDismissalAllowances = self.reviewDismissalAllowances
-
-        if permitsReviewDismissals and \
-                is_set_and_valid(reviewDismissalAllowances) and \
-                len(reviewDismissalAllowances) > 0:
-            context.add_failure(FailureType.ERROR,
+        # if 'review_dismissal_allowances' is disabled, issue a warning if review_dismissal_allowances is non-empty.
+        review_dismissal_allowances = self.review_dismissal_allowances
+        if self.restricts_review_dismissals is False and \
+                is_set_and_valid(review_dismissal_allowances) and \
+                len(review_dismissal_allowances) > 0:
+            context.add_failure(FailureType.WARNING,
                                 f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
-                                f" 'restrictsReviewDismissals' disabled but 'reviewDismissalAllowances' is set.")
+                                f" 'restricts_review_dismissals' disabled but "
+                                f"'review_dismissal_allowances' is set to {self.review_dismissal_allowances}, "
+                                f"setting will be ignored.")
 
-        allowsForcePushes = self.allowsForcePushes is True
-        bypassForcePushAllowances = self.bypassForcePushAllowances
-
-        if allowsForcePushes and \
-                is_set_and_valid(bypassForcePushAllowances) and \
-                len(bypassForcePushAllowances) > 0:
-            context.add_failure(FailureType.ERROR,
+        # if 'allows_force_pushes' is enabled, issue a warning if bypass_force_push_allowances is non-empty.
+        bypass_force_push_allowances = self.bypass_force_push_allowances
+        if self.allows_force_pushes is True and \
+                is_set_and_valid(bypass_force_push_allowances) and \
+                len(bypass_force_push_allowances) > 0:
+            context.add_failure(FailureType.WARNING,
                                 f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
-                                f" 'allowsForcePushes' enabled but 'bypassForcePushAllowances' is not empty.")
+                                f" 'allows_force_pushes' enabled but "
+                                f"'bypass_force_push_allowances' is set to {self.bypass_force_push_allowances}, "
+                                f"setting will be ignored.")
 
-        ignoresStatusChecks = self.requiresStatusChecks is False
-        requiredStatusChecks = self.requiredStatusChecks
-
-        if ignoresStatusChecks and \
-                is_set_and_valid(requiredStatusChecks) and \
-                len(requiredStatusChecks) > 0:
-            context.add_failure(FailureType.ERROR,
+        # if 'requires_status_checks' is disabled, issue a warning if required_status_checks is non-empty.
+        required_status_checks = self.required_status_checks
+        if self.requires_status_checks is False and \
+                is_set_and_valid(required_status_checks) and \
+                len(required_status_checks) > 0:
+            context.add_failure(FailureType.WARNING,
                                 f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
-                                f" 'requiresStatusChecks' disabled but 'requiredStatusChecks' is not empty.")
+                                f" 'requires_status_checks' disabled but "
+                                f"'required_status_checks' is set to {self.required_status_checks}, "
+                                f"setting will be ignored.")
+
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        # disable diff computation for dependent fields of requires_approving_reviews,
+        if self.requires_approving_reviews is False:
+            if field.name in ["required_approving_review_count",
+                              "dismisses_stale_reviews",
+                              "requires_code_owner_reviews",
+                              "require_last_push_approval",
+                              "bypass_pull_request_allowances",
+                              "restricts_review_dismissals",
+                              "review_dismissal_allowances"]:
+                return False
+
+        if self.restricts_review_dismissals is False:
+            if field.name in ["review_dismissal_allowances"]:
+                return False
+
+        if self.allows_force_pushes is True:
+            if field.name in ["bypass_force_push_allowances"]:
+                return False
+
+        if self.requires_status_checks is False:
+            if field.name in ["required_status_checks"]:
+                return False
+
+        return True
 
     @classmethod
     def from_model(cls, data: dict[str, Any]) -> BranchProtectionRule:
@@ -96,7 +159,7 @@ class BranchProtectionRule(ModelObject):
 
     @classmethod
     def from_provider(cls, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_app(x):
             app = x["app"]
@@ -113,54 +176,50 @@ class BranchProtectionRule(ModelObject):
 
             return f"{app_prefix}{context}"
 
-        mapping.update({"requiredStatusChecks": S("requiredStatusChecks") >> Forall(lambda x: transform_app(x))})
+        mapping["required_status_checks"] = OptionalS("requiredStatusChecks") >> Forall(lambda x: transform_app(x))
 
         return cls(**bend(mapping, data))
 
     @classmethod
     def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
+        assert provider is not None
+
+        mapping = {snake_to_camel_case(field.name): S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
-        if "pushRestrictions" in data:
+        if "push_restrictions" in data:
             mapping.pop("pushRestrictions")
-            restricts_pushes = data["pushRestrictions"]
+            restricts_pushes = data["push_restrictions"]
             if is_set_and_valid(restricts_pushes):
-                assert provider is not None
                 actor_ids = provider.get_actor_ids(restricts_pushes)
                 mapping["pushActorIds"] = K(actor_ids)
                 mapping["restrictsPushes"] = K(True if len(actor_ids) > 0 else False)
 
-        if "reviewDismissalAllowances" in data:
+        if "review_dismissal_allowances" in data:
             mapping.pop("reviewDismissalAllowances")
-            review_dismissal_allowances = data["reviewDismissalAllowances"]
+            review_dismissal_allowances = data["review_dismissal_allowances"]
             if is_set_and_valid(review_dismissal_allowances):
-                assert provider is not None
                 actor_ids = provider.get_actor_ids(review_dismissal_allowances)
                 mapping["reviewDismissalActorIds"] = K(actor_ids)
 
-        if "bypassPullRequestAllowances" in data:
+        if "bypass_pull_request_allowances" in data:
             mapping.pop("bypassPullRequestAllowances")
-            bypass_pull_request_allowances = data["bypassPullRequestAllowances"]
+            bypass_pull_request_allowances = data["bypass_pull_request_allowances"]
             if is_set_and_valid(bypass_pull_request_allowances):
-                assert provider is not None
                 actor_ids = provider.get_actor_ids(bypass_pull_request_allowances)
                 mapping["bypassPullRequestActorIds"] = K(actor_ids)
 
-        if "bypassForcePushAllowances" in data:
+        if "bypass_force_push_allowances" in data:
             mapping.pop("bypassForcePushAllowances")
-            bypass_force_push_allowances = data["bypassForcePushAllowances"]
+            bypass_force_push_allowances = data["bypass_force_push_allowances"]
             if is_set_and_valid(bypass_force_push_allowances):
-                assert provider is not None
                 actor_ids = provider.get_actor_ids(bypass_force_push_allowances)
                 mapping["bypassForcePushActorIds"] = K(actor_ids)
 
-        if "requiredStatusChecks" in data:
+        if "required_status_checks" in data:
             mapping.pop("requiredStatusChecks")
-            required_status_checks = data["requiredStatusChecks"]
+            required_status_checks = data["required_status_checks"]
             if is_set_and_valid(required_status_checks):
-                assert provider is not None
-
                 app_slugs = set()
 
                 for check in required_status_checks:
