@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import argparse
+import importlib.metadata
 import sys
 import traceback
 
@@ -32,6 +33,11 @@ def main(arguments=None):
     # command line parsing.
     parser = argparse.ArgumentParser(prog="otterdog.sh",
                                      description="Manages GitHub organizations and repositories.")
+
+    _DISTRIBUTION_METADATA = importlib.metadata.metadata('otterdog')
+    version = _DISTRIBUTION_METADATA['Version']
+
+    parser.add_argument("--version", action="version", version=f'%(prog)s {version}')
 
     subparsers = parser.add_subparsers(dest="subcommand",
                                        required=True,
