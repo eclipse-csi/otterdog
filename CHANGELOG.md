@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.1.0.dev] - unreleased
+## [0.1.0] - 15/05/2023
 
 ### Added
 
