@@ -1,5 +1,11 @@
 ## Build instructions
 
+### Quickstart
+
+[Otterdog Presentation @ Open Source Summit 2023](https://docs.google.com/presentation/d/1lLqbhDQf9s5U2A2TkcoFYA39qtODcSot2308vnKbkbA/edit?usp=sharing)
+
+[Default Configuration used @ Eclipse Foundation](https://github.com/EclipseFdn/otterdog-defaults/)
+
 ### System requirements:
 
 * python3.10 (mandatory): install using `apt install python3`
