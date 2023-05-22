@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional
 
-from jsonbender import bend, S, OptionalS
+from jsonbender import bend, S, OptionalS  # type: ignore
 
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid
@@ -28,8 +28,8 @@ class OrganizationWebhook(ModelObject):
     insecure_ssl: str
     secret: Optional[str]
 
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
-        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
             context.add_failure(FailureType.ERROR,
                                 f"webhook with url '{self.url}' uses a dummy secret '{self.secret}', "
                                 f"provide a real secret using a credential provider.")
@@ -43,12 +43,12 @@ class OrganizationWebhook(ModelObject):
         return True
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> OrganizationWebhook:
+    def from_model_data(cls, data: dict[str, Any]) -> OrganizationWebhook:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> OrganizationWebhook:
+    def from_provider_data(cls, data: dict[str, Any]) -> OrganizationWebhook:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update(
             {
@@ -61,7 +61,7 @@ class OrganizationWebhook(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 

@@ -24,7 +24,7 @@ class RepositoryTest(ModelTest):
         return self.load_json_resource("github-repo.json")
 
     def test_load_from_model(self):
-        repo = Repository.from_model(self.model_data)
+        repo = Repository.from_model_data(self.model_data)
 
         assert repo.name == "otterdog-defaults"
         assert repo.description is None
@@ -52,7 +52,7 @@ class RepositoryTest(ModelTest):
         assert repo.dependabot_alerts_enabled is True
 
     def test_load_from_provider(self):
-        repo = Repository.from_provider(self.provider_data)
+        repo = Repository.from_provider_data(self.provider_data)
 
         assert repo.name == "otterdog-defaults"
         assert repo.description is None
@@ -80,11 +80,11 @@ class RepositoryTest(ModelTest):
         assert repo.dependabot_alerts_enabled is True
 
     def test_to_provider(self):
-        repo = Repository.from_model(self.model_data)
+        repo = Repository.from_model_data(self.model_data)
 
         repo.description = UNSET
 
-        provider_data = repo.to_provider()
+        provider_data = repo.to_provider_data()
 
         assert len(provider_data) == 22
         assert provider_data["name"] == "otterdog-defaults"
@@ -94,8 +94,8 @@ class RepositoryTest(ModelTest):
             provider_data).first() == "enabled"
 
     def test_changes_to_provider(self):
-        current = Repository.from_model(self.model_data)
-        other = Repository.from_model(self.model_data)
+        current = Repository.from_model_data(self.model_data)
+        other = Repository.from_model_data(self.model_data)
 
         other.name = "other"
         other.has_wiki = False
@@ -111,9 +111,9 @@ class RepositoryTest(ModelTest):
             provider_data).first() == "enabled"
 
     def test_patch(self):
-        current = Repository.from_model(self.model_data)
+        current = Repository.from_model_data(self.model_data)
 
-        default = Repository.from_model(self.model_data)
+        default = Repository.from_model_data(self.model_data)
 
         default.name = None
         default.web_commit_signoff_required = True
@@ -125,8 +125,8 @@ class RepositoryTest(ModelTest):
         assert patch["web_commit_signoff_required"] is current.web_commit_signoff_required
 
     def test_difference(self):
-        current = Repository.from_model(self.model_data)
-        other = Repository.from_model(self.model_data)
+        current = Repository.from_model_data(self.model_data)
+        other = Repository.from_model_data(self.model_data)
 
         other.name = "other"
         other.has_wiki = False

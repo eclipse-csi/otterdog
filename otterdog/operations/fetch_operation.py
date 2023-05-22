@@ -8,32 +8,19 @@
 
 import os
 
-from colorama import Style
+from colorama import Style  # type: ignore
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.config import OrganizationConfig
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter
 
 from . import Operation
 
 
 class FetchOperation(Operation):
     def __init__(self, force_processing: bool, pull_request: str):
+        super().__init__()
         self.force_processing = force_processing
         self.pull_request = pull_request
-
-        self.config = None
-        self.jsonnet_config = None
-        self._printer = None
-
-    @property
-    def printer(self) -> IndentingPrinter:
-        return self._printer
-
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
-        self.config = config
-        self.jsonnet_config = self.config.jsonnet_config
-        self._printer = printer
 
     def pre_execute(self) -> None:
         self.printer.print(f"Fetching organization definitions for configuration at '{self.config.config_file}'")

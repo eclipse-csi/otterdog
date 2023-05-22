@@ -37,7 +37,7 @@ class BranchProtectionRuleTest(ModelTest):
         return provider
 
     def test_load_from_model(self):
-        bpr = BranchProtectionRule.from_model(self.model_data)
+        bpr = BranchProtectionRule.from_model_data(self.model_data)
 
         assert bpr.id is UNSET
         assert bpr.pattern == "main"
@@ -64,7 +64,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.required_status_checks == ["eclipse-eca-validation:eclipsefdn/eca", "any:Run CI"]
 
     def test_load_from_provider(self):
-        bpr = BranchProtectionRule.from_provider(self.provider_data)
+        bpr = BranchProtectionRule.from_provider_data(self.provider_data)
 
         assert bpr.id == "BPR_kwDOI9xAhM4CC77t"
         assert bpr.pattern == "main"
@@ -91,9 +91,9 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.required_status_checks == ["any:Run CI"]
 
     def test_to_provider(self):
-        bpr = BranchProtectionRule.from_model(self.model_data)
+        bpr = BranchProtectionRule.from_model_data(self.model_data)
 
-        provider_data = bpr.to_provider(self.provider)
+        provider_data = bpr.to_provider_data(self.provider)
 
         assert len(provider_data) == 23
         assert provider_data["pattern"] == "main"
@@ -102,8 +102,8 @@ class BranchProtectionRuleTest(ModelTest):
             {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
 
     def test_changes_to_provider(self):
-        current = BranchProtectionRule.from_model(self.model_data)
-        other = BranchProtectionRule.from_model(self.model_data)
+        current = BranchProtectionRule.from_model_data(self.model_data)
+        other = BranchProtectionRule.from_model_data(self.model_data)
 
         other.requires_approving_reviews = False
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
@@ -117,8 +117,8 @@ class BranchProtectionRuleTest(ModelTest):
             {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
 
     def test_patch(self):
-        current = BranchProtectionRule.from_model(self.model_data)
-        default = BranchProtectionRule.from_model(self.model_data)
+        current = BranchProtectionRule.from_model_data(self.model_data)
+        default = BranchProtectionRule.from_model_data(self.model_data)
 
         default.pattern = None
         default.requires_status_checks = False
@@ -132,8 +132,8 @@ class BranchProtectionRuleTest(ModelTest):
         assert patch["required_status_checks"] == ["any:Run CI"]
 
     def test_difference(self):
-        current = BranchProtectionRule.from_model(self.model_data)
-        other = BranchProtectionRule.from_model(self.model_data)
+        current = BranchProtectionRule.from_model_data(self.model_data)
+        other = BranchProtectionRule.from_model_data(self.model_data)
 
         other.requires_approving_reviews = False
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]

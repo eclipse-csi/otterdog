@@ -9,7 +9,7 @@
 from abc import abstractmethod
 from typing import Protocol
 
-import mintotp
+import mintotp  # type: ignore
 
 from otterdog import utils
 

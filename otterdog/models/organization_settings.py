@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional
 
-from jsonbender import bend, S, OptionalS
+from jsonbender import bend, S, OptionalS  # type: ignore
 
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset
@@ -57,7 +57,7 @@ class OrganizationSettings(ModelObject):
     default_workflow_permissions: str
     security_managers: list[str]
 
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
         # enabling dependabot implicitly enables the dependency graph,
         # disabling the dependency graph in the configuration will result in inconsistencies after
         # applying the configuration, warn the user about it.
@@ -75,18 +75,18 @@ class OrganizationSettings(ModelObject):
                                 "enabling dependabot_security_updates implicitly enables dependabot_alerts")
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> OrganizationSettings:
+    def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> OrganizationSettings:
+    def from_provider_data(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
         return bend(mapping, data)

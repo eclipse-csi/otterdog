@@ -25,7 +25,7 @@ def add_items_if_contained_in_schema(data: dict[str, Any], schema: dict[str, Any
     for k, v in data.items():
         if k in properties:
             if isinstance(v, dict):
-                nested_result = {}
+                nested_result: dict[str, Any] = {}
                 add_items_if_contained_in_schema(v, properties[k], nested_result)
                 result[k] = nested_result
             else:
@@ -33,7 +33,7 @@ def add_items_if_contained_in_schema(data: dict[str, Any], schema: dict[str, Any
 
 
 def get_items_contained_in_schema(data: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
-    result = {}
+    result: dict[str, Any] = {}
     add_items_if_contained_in_schema(data, schema, result)
     return result
 

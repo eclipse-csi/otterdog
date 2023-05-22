@@ -22,7 +22,7 @@ class OrganizationSettingsTest(ModelTest):
         return self.load_json_resource("github-org-settings.json")
 
     def test_load_from_model(self):
-        settings = OrganizationSettings.from_model(self.model_data)
+        settings = OrganizationSettings.from_model_data(self.model_data)
 
         assert settings.name is None
         assert settings.plan == "free"
@@ -59,7 +59,7 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_change_project_visibility is False
 
     def test_load_from_provider(self):
-        settings = OrganizationSettings.from_provider(self.provider_data)
+        settings = OrganizationSettings.from_provider_data(self.provider_data)
 
         assert settings.name is None
         assert settings.plan == "free"
@@ -96,18 +96,18 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_change_project_visibility is False
 
     def test_to_provider(self):
-        settings = OrganizationSettings.from_model(self.model_data)
+        settings = OrganizationSettings.from_model_data(self.model_data)
 
         settings.description = UNSET
 
-        provider_data = settings.to_provider()
+        provider_data = settings.to_provider_data()
 
         assert len(provider_data) == 30
         assert provider_data["billing_email"] == settings.billing_email
 
     def test_changes_to_provider(self):
-        current = OrganizationSettings.from_model(self.model_data)
-        other = OrganizationSettings.from_model(self.model_data)
+        current = OrganizationSettings.from_model_data(self.model_data)
+        other = OrganizationSettings.from_model_data(self.model_data)
 
         other.billing_email = "mikael_barbero@eclipse-foundation.org"
         other.default_repository_permission = "none"
@@ -120,9 +120,9 @@ class OrganizationSettingsTest(ModelTest):
         assert provider_data["default_repository_permission"] == current.default_repository_permission
 
     def test_patch(self):
-        current = OrganizationSettings.from_model(self.model_data)
+        current = OrganizationSettings.from_model_data(self.model_data)
 
-        default = OrganizationSettings.from_model(self.model_data)
+        default = OrganizationSettings.from_model_data(self.model_data)
 
         default.billing_email = None
         default.web_commit_signoff_required = True
@@ -134,8 +134,8 @@ class OrganizationSettingsTest(ModelTest):
         assert patch["web_commit_signoff_required"] is current.web_commit_signoff_required
 
     def test_difference(self):
-        current = OrganizationSettings.from_model(self.model_data)
-        other = OrganizationSettings.from_model(self.model_data)
+        current = OrganizationSettings.from_model_data(self.model_data)
+        other = OrganizationSettings.from_model_data(self.model_data)
 
         other.billing_email = "mikael_barbero@eclipse-foundation.org"
         other.default_repository_permission = "none"

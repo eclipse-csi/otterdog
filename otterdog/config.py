@@ -12,11 +12,11 @@ import re
 import subprocess
 from typing import Any
 
-import jq
+import jq  # type: ignore
 
 from . import utils
 from . import credentials
-from .credentials import bitwarden_provider, pass_provider
+from .credentials import CredentialProvider, bitwarden_provider, pass_provider
 
 _DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
 
@@ -221,7 +221,7 @@ class OtterdogConfig:
 
         self._config_file = os.path.realpath(config_file)
         self._data_dir = os.path.dirname(self._config_file)
-        self._credential_providers = {}
+        self._credential_providers: dict[str, CredentialProvider] = {}
 
         with open(config_file) as f:
             self._configuration = json.load(f)

@@ -6,26 +6,42 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from abc import abstractmethod
-from typing import Protocol, Any
+from abc import ABC, abstractmethod
+from typing import Any, Optional
 
-from colorama import Fore, Style
+from colorama import Fore, Style  # type: ignore
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.config import OtterdogConfig, OrganizationConfig, JsonnetConfig
 from otterdog.utils import IndentingPrinter, Change, is_unset
 
 
-class Operation(Protocol):
-    _DEFAULT_WIDTH = 56
+class Operation(ABC):
+    _DEFAULT_WIDTH: int = 56
+
+    def __init__(self) -> None:
+        self._config: Optional[OtterdogConfig] = None
+        self._jsonnet_config: Optional[JsonnetConfig] = None
+        self._printer: Optional[IndentingPrinter] = None
+
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+        self._config = config
+        self._jsonnet_config = self.config.jsonnet_config
+        self._printer = printer
 
     @property
-    @abstractmethod
-    def printer(self) -> IndentingPrinter:
-        pass
+    def config(self) -> OtterdogConfig:
+        assert self._config is not None
+        return self._config
 
-    @abstractmethod
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
-        raise NotImplementedError
+    @property
+    def jsonnet_config(self) -> JsonnetConfig:
+        assert self._jsonnet_config is not None
+        return self._jsonnet_config
+
+    @property
+    def printer(self) -> IndentingPrinter:
+        assert self._printer is not None
+        return self._printer
 
     @abstractmethod
     def pre_execute(self) -> None:
@@ -61,7 +77,7 @@ class Operation(Protocol):
     def print_modified_dict(self,
                             data: dict[str, Change[Any]],
                             item_header: str,
-                            redacted_keys: set[str] = None,
+                            redacted_keys: Optional[set[str]] = None,
                             forced_update: bool = False) -> None:
         action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
         color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
@@ -79,7 +95,7 @@ class Operation(Protocol):
 
                 processed_keys = set()
                 for k, v in sorted(expected_value.items()):
-                    c_v = current_value.get(k)
+                    c_v = current_value.get(k) if current_value is not None else None
 
                     if v != c_v:
                         self.printer.print(f"{action} {Style.RESET_ALL}"
@@ -88,10 +104,12 @@ class Operation(Protocol):
 
                     processed_keys.add(k)
 
-                for k, v in sorted(current_value.items()):
-                    if k not in processed_keys:
-                        self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                           f" \"{v}\"")
+                if current_value is not None:
+                    for k, v in sorted(current_value.items()):
+                        if k not in processed_keys:
+                            self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                               f" \"{v}\"")
+
                 self.printer.level_down()
                 self.printer.print("  }")
             else:

@@ -9,13 +9,12 @@
 import os
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
-from colorama import Style
+from colorama import Style  # type: ignore
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file, \
-    load_repos_from_provider
+from otterdog.models.github_organization import GitHubOrganization, load_repos_from_provider
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
@@ -41,24 +40,15 @@ class DiffOperation(Operation):
     _DEFAULT_POOL_SIZE = 12
 
     def __init__(self, no_web_ui: bool, update_webhooks: bool):
+        super().__init__()
+
         self.no_web_ui = no_web_ui
         self.update_webhooks = update_webhooks
-
-        self.config = None
-        self.jsonnet_config = None
-        self.gh_client = None
-        self._printer = None
-
+        self._gh_client: Optional[Github] = None
         self._validator = ValidateOperation()
 
-    @property
-    def printer(self) -> IndentingPrinter:
-        return self._printer
-
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
-        self.config = config
-        self.jsonnet_config = self.config.jsonnet_config
-        self._printer = printer
+        super().init(config, printer)
         self._validator.init(config, printer)
 
     def execute(self, org_config: OrganizationConfig) -> int:
@@ -72,15 +62,13 @@ class DiffOperation(Operation):
         finally:
             self.printer.level_down()
 
-    def setup_github_client(self, org_config: OrganizationConfig) -> int:
-        try:
-            credentials = self.config.get_credentials(org_config)
-        except RuntimeError as e:
-            self.printer.print_error(f"invalid credentials\n{str(e)}")
-            return 1
+    def setup_github_client(self, org_config: OrganizationConfig) -> Github:
+        return Github(self.config.get_credentials(org_config))
 
-        self.gh_client = Github(credentials)
-        return 0
+    @property
+    def gh_client(self) -> Github:
+        assert self._gh_client is not None
+        return self._gh_client
 
     def verbose_output(self):
         return True
@@ -89,9 +77,11 @@ class DiffOperation(Operation):
         return True
 
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
-        result = self.setup_github_client(org_config)
-        if result != 0:
-            return result
+        try:
+            self._gh_client = self.setup_github_client(org_config)
+        except RuntimeError as e:
+            self.printer.print_error(f"invalid credentials\n{str(e)}")
+            return 1
 
         github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
@@ -102,7 +92,10 @@ class DiffOperation(Operation):
 
         try:
             expected_org = \
-                load_github_organization_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
+                GitHubOrganization.load_from_file(github_id,
+                                                  org_file_name,
+                                                  self.config,
+                                                  self.resolve_secrets())
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -147,7 +140,7 @@ class DiffOperation(Operation):
             self.printer.print("organization settings: Reading...")
 
         # filter out web settings if --no-web-ui is used
-        expected_settings_keys = expected_org_settings.keys(for_diff=True)
+        expected_settings_keys = set(expected_org_settings.keys(for_diff=True))
         if self.no_web_ui:
             expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
 
@@ -158,7 +151,7 @@ class DiffOperation(Operation):
             end = datetime.now()
             self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
-        modified_settings = expected_org_settings.get_difference_from(current_org_settings)
+        modified_settings: dict[str, Change[Any]] = expected_org_settings.get_difference_from(current_org_settings)
         if len(modified_settings) > 0:
             # some settings might be read-only, collect the correct number of changes
             # to be executed based on the operations to be performed.
@@ -173,7 +166,7 @@ class DiffOperation(Operation):
     def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
         # determine differences for settings.
         current_github_org_settings = self.gh_client.get_org_settings(github_id, settings_keys)
-        return OrganizationSettings.from_provider(current_github_org_settings)
+        return OrganizationSettings.from_provider_data(current_github_org_settings)
 
     def _process_webhooks(self, github_id: str, expected_org: GitHubOrganization, diff_status: DiffStatus) -> None:
         start = datetime.now()
@@ -200,7 +193,7 @@ class DiffOperation(Operation):
 
             if self.update_webhooks and is_set_and_valid(expected_webhook.secret):
                 model_dict = expected_webhook.to_model_dict()
-                modified_webhook = {k: Change(v, v) for k, v in model_dict.items()}
+                modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
                 self.handle_modified_webhook(github_id,
                                              current_webhook.id,
                                              webhook_url,
@@ -240,7 +233,7 @@ class DiffOperation(Operation):
 
     def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
         github_webhooks = self.gh_client.get_webhooks(github_id)
-        return [OrganizationWebhook.from_provider(webhook) for webhook in github_webhooks]
+        return [OrganizationWebhook.from_provider_data(webhook) for webhook in github_webhooks]
 
     def _process_repositories(self,
                               github_id: str,
@@ -266,7 +259,7 @@ class DiffOperation(Operation):
                 if change.to_value is True:
                     current_repo.web_commit_signoff_required = change.to_value
 
-            modified_repo = expected_repo.get_difference_from(current_repo)
+            modified_repo: dict[str, Change[Any]] = expected_repo.get_difference_from(current_repo)
 
             if len(modified_repo) > 0:
                 diff_status.differences += self.handle_modified_repo(github_id, current_repo_name, modified_repo)
@@ -321,7 +314,7 @@ class DiffOperation(Operation):
                     diff_status.extras += 1
                     continue
 
-                modified_rule = expected_rule.get_difference_from(current_rule)
+                modified_rule: dict[str, Change[Any]] = expected_rule.get_difference_from(current_rule)
 
                 if len(modified_rule) > 0:
                     self.handle_modified_rule(org_id, current_repo.name, rule_pattern, current_rule.id, modified_rule)
@@ -392,7 +385,7 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
         raise NotImplementedError
 
     @abstractmethod

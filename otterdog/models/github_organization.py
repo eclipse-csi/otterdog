@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from __future__ import annotations
+
 import dataclasses
 import os
 import textwrap
@@ -13,11 +15,11 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial
 from io import StringIO
-from typing import Any
+from typing import Any, Optional
 
-import jsonschema
+import jsonschema  # type: ignore
 from importlib_resources import files, as_file
-from jsonbender import bend, S, F, Forall
+from jsonbender import bend, S, F, Forall  # type: ignore
 
 from otterdog import resources
 from otterdog import schemas
@@ -72,21 +74,21 @@ class GitHubOrganization:
             jsonschema.validate(instance=data, schema=schemas.ORG_SCHEMA, resolver=resolver)
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> "GitHubOrganization":
+    def from_model_data(cls, data: dict[str, Any]) -> GitHubOrganization:
         # validate the input data with the json schema.
         cls._validate_org_config(data)
 
         mapping = {
             "github_id": S("github_id"),
-            "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model(x)),
-            "webhooks": S("webhooks") >> Forall(lambda x: OrganizationWebhook.from_model(x)),
-            "repositories": S("repositories") >> Forall(lambda x: Repository.from_model(x))
+            "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
+            "webhooks": S("webhooks") >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
+            "repositories": S("repositories") >> Forall(lambda x: Repository.from_model_data(x))
         }
 
         return cls(**bend(mapping, data))
 
     def to_jsonnet(self, config: JsonnetConfig, ignored_keys: set[str]) -> str:
-        default_org = GitHubOrganization.from_model(config.default_org_config)
+        default_org = GitHubOrganization.from_model_data(config.default_org_config)
 
         offset = 4
         indent = 2
@@ -109,7 +111,7 @@ class GitHubOrganization:
         utils.dump_patch_object_as_json(settings_patch, output, offset=offset, indent=indent)
 
         if len(self.webhooks) > 0:
-            default_org_webhook = OrganizationWebhook.from_model(config.default_org_webhook_config)
+            default_org_webhook = OrganizationWebhook.from_model_data(config.default_org_webhook_config)
 
             output.write(" " * offset + "webhooks+: [\n")
             offset += indent
@@ -131,7 +133,7 @@ class GitHubOrganization:
                 if repos_by_name.get(default_repo_name) is None:
                     repos_by_name[default_repo_name] = default_repo
 
-            default_org_repo = Repository.from_model(config.default_org_repo_config)
+            default_org_repo = Repository.from_model_data(config.default_org_repo_config)
 
             output.write(" " * offset + "_repositories+:: [\n")
             offset += indent
@@ -167,7 +169,7 @@ class GitHubOrganization:
                                                     close_object=False)
 
                 if has_branch_protection_rules:
-                    default_org_rule = BranchProtectionRule.from_model(config.default_org_branch_config)
+                    default_org_rule = BranchProtectionRule.from_model_data(config.default_org_branch_config)
 
                     output.write(" " * offset + "branch_protection_rules: [\n")
                     offset += indent
@@ -193,91 +195,93 @@ class GitHubOrganization:
         output.write("}")
         return output.getvalue()
 
+    @classmethod
+    def load_from_file(cls,
+                       github_id: str,
+                       config_file: str,
+                       config: OtterdogConfig,
+                       resolve_secrets: bool = True) -> GitHubOrganization:
+        if not os.path.exists(config_file):
+            msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
+            raise RuntimeError(msg)
 
-def load_github_organization_from_file(github_id: str,
-                                       config_file: str,
-                                       config: OtterdogConfig,
-                                       resolve_secrets: bool = True) -> GitHubOrganization:
-    if not os.path.exists(config_file):
-        msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
-        raise RuntimeError(msg)
+        utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
+        data = utils.jsonnet_evaluate_file(config_file)
 
-    utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
-    data = utils.jsonnet_evaluate_file(config_file)
+        org = cls.from_model_data(data)
 
-    org = GitHubOrganization.from_model(data)
+        # resolve webhook secrets
+        if resolve_secrets:
+            for webhook in org.webhooks:
+                secret = webhook.secret
+                if not is_unset(secret) and secret is not None:
+                    webhook.secret = config.get_secret(secret)
 
-    # resolve webhook secrets
-    if resolve_secrets:
-        for webhook in org.webhooks:
-            secret = webhook.secret
-            if not is_unset(secret) and secret is not None:
-                webhook.secret = config.get_secret(secret)
+        return org
 
-    return org
+    @classmethod
+    def load_from_provider(cls,
+                           github_id: str,
+                           jsonnet_config: JsonnetConfig,
+                           client: Github,
+                           no_web_ui: bool = False,
+                           printer: Optional[utils.IndentingPrinter] = None) -> GitHubOrganization:
 
+        default_settings = jsonnet_config.default_org_config["settings"]
 
-def load_github_organization_from_provider(github_id: str,
-                                           jsonnet_config: JsonnetConfig,
-                                           client: Github,
-                                           no_web_ui: bool = False,
-                                           printer: utils.IndentingPrinter = None) -> GitHubOrganization:
+        start = datetime.now()
+        if printer is not None:
+            printer.print("\norganization settings: Reading...")
 
-    default_settings = jsonnet_config.default_org_config["settings"]
+        included_keys = set(default_settings.keys())
+        # if no_web_ui is set, filter out any web settings
+        if no_web_ui is True:
+            included_keys = {x for x in included_keys if not client.is_web_org_setting(x)}
 
-    start = datetime.now()
-    if printer is not None:
-        printer.print("\norganization settings: Reading...")
+        github_settings = client.get_org_settings(github_id, included_keys)
 
-    included_keys = set(default_settings.keys())
-    # if no_web_ui is set, filter out any web settings
-    if no_web_ui is True:
-        included_keys = {x for x in included_keys if not client.is_web_org_setting(x)}
+        if printer is not None:
+            end = datetime.now()
+            printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
-    github_settings = client.get_org_settings(github_id, included_keys)
+        settings = OrganizationSettings.from_provider_data(github_settings)
+        org = cls(github_id, settings)
 
-    if printer is not None:
-        end = datetime.now()
-        printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+        start = datetime.now()
+        if printer is not None:
+            printer.print("\nwebhooks: Reading...")
 
-    settings = OrganizationSettings.from_provider(github_settings)
-    org = GitHubOrganization(github_id, settings)
+        github_webhooks = client.get_webhooks(github_id)
 
-    start = datetime.now()
-    if printer is not None:
-        printer.print("\nwebhooks: Reading...")
+        if printer is not None:
+            end = datetime.now()
+            printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-    github_webhooks = client.get_webhooks(github_id)
+        for webhook in github_webhooks:
+            org.add_webhook(OrganizationWebhook.from_provider_data(webhook))
 
-    if printer is not None:
-        end = datetime.now()
-        printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+        for repo in load_repos_from_provider(github_id, client, printer):
+            org.add_repository(repo)
 
-    for webhook in github_webhooks:
-        org.add_webhook(OrganizationWebhook.from_provider(webhook))
-
-    for repo in load_repos_from_provider(github_id, client, printer):
-        org.add_repository(repo)
-
-    return org
+        return org
 
 
 def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> tuple[str, Repository]:
     # get repo data
     github_repo_data = gh_client.get_repo_data(github_id, repo_name)
-    repo = Repository.from_provider(github_repo_data)
+    repo = Repository.from_provider_data(github_repo_data)
 
     # get branch protection rules of the repo
     rules = gh_client.get_branch_protection_rules(github_id, repo_name)
     for github_rule in rules:
-        repo.add_branch_protection_rule(BranchProtectionRule.from_provider(github_rule))
+        repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_rule))
 
     return repo_name, repo
 
 
 def load_repos_from_provider(github_id: str,
                              client: Github,
-                             printer: utils.IndentingPrinter = None) -> list[Repository]:
+                             printer: Optional[utils.IndentingPrinter] = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
         printer.print("\nrepositories: Reading...")

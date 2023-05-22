@@ -12,7 +12,7 @@ import dataclasses
 import re
 from typing import Any, Optional
 
-from jsonbender import bend, S, OptionalS, Forall, K
+from jsonbender import bend, S, OptionalS, Forall, K  # type: ignore
 
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid, snake_to_camel_case
@@ -53,7 +53,7 @@ class BranchProtectionRule(ModelObject):
     requires_strict_status_checks: bool
     required_status_checks: list[str]
 
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
         repo_name: str = parent_object.name
 
         # when requires_approving_reviews is false, issue a warning if dependent settings
@@ -156,12 +156,12 @@ class BranchProtectionRule(ModelObject):
         return True
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> BranchProtectionRule:
+    def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> BranchProtectionRule:
+    def from_provider_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_app(x):
@@ -184,7 +184,7 @@ class BranchProtectionRule(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         assert provider is not None
 
         mapping = {snake_to_camel_case(field.name): S(field.name) for field in cls.provider_fields() if

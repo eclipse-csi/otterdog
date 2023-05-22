@@ -7,9 +7,10 @@
 # *******************************************************************************
 
 import os
+from typing import Optional
 
 from otterdog.config import OrganizationConfig
-from otterdog.models.github_organization import GitHubOrganization, load_github_organization_from_file
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
@@ -19,11 +20,16 @@ from otterdog.providers.github import Github
 
 
 class LocalPlanOperation(PlanOperation):
-    def __init__(self, suffix: str, update_webhooks: bool):
+    def __init__(self, suffix: str, update_webhooks: bool) -> None:
         super().__init__(no_web_ui=False, update_webhooks=update_webhooks)
 
         self.suffix = suffix
-        self.other_org: GitHubOrganization | None = None
+        self._other_org: Optional[GitHubOrganization] = None
+
+    @property
+    def other_org(self) -> GitHubOrganization:
+        assert self._other_org is not None
+        return self._other_org
 
     def pre_execute(self) -> None:
         self.printer.print(f"Printing local diff for configuration at '{self.config.config_file}'")
@@ -38,7 +44,7 @@ class LocalPlanOperation(PlanOperation):
             return 1
 
         try:
-            self.other_org = load_github_organization_from_file(github_id, other_org_file_name, self.config, False)
+            self._other_org = GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config, False)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -51,9 +57,8 @@ class LocalPlanOperation(PlanOperation):
     def resolve_secrets(self) -> bool:
         return False
 
-    def setup_github_client(self, org_config: OrganizationConfig) -> int:
-        self.gh_client = Github(None)
-        return 0
+    def setup_github_client(self, org_config: OrganizationConfig) -> Github:
+        return Github(None)
 
     def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
         return self.other_org.settings

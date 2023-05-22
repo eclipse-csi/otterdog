@@ -6,9 +6,9 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any
+from typing import Any, Optional
 
-from colorama import Fore, Style
+from colorama import Fore, Style  # type: ignore
 
 from otterdog.config import OtterdogConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule
@@ -115,7 +115,7 @@ class PlanOperation(DiffOperation):
         self.printer.print()
         self.print_dict(bpr.to_model_dict(), f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED)
 
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
         self.printer.print()
         self.print_dict(bpr.to_model_dict(), f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
 

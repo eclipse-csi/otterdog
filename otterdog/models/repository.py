@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, ClassVar, Optional
 
-from jsonbender import bend, S, OptionalS, K, Forall
+from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset
@@ -78,7 +78,7 @@ class Repository(ModelObject):
     def set_branch_protection_rules(self, rules: list[BranchProtectionRule]) -> None:
         self.branch_protection_rules = rules
 
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
         org_settings: OrganizationSettings = parent_object.settings
 
         free_plan = org_settings.plan == "free"
@@ -138,21 +138,21 @@ class Repository(ModelObject):
         return True
 
     @classmethod
-    def from_model(cls, data: dict[str, Any]) -> Repository:
+    def from_model_data(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update(
             {
                 "branch_protection_rules":
                     OptionalS("branch_protection_rules", default=[]) >>
-                    Forall(lambda x: BranchProtectionRule.from_model(x))
+                    Forall(lambda x: BranchProtectionRule.from_model_data(x))
             }
         )
 
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider(cls, data: dict[str, Any]) -> Repository:
+    def from_provider_data(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
@@ -169,7 +169,7 @@ class Repository(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 

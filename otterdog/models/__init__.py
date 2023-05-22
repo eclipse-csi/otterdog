@@ -43,14 +43,14 @@ class ModelObject(ABC):
         return next(filter(lambda field: field.metadata.get("key", False) is True, self.all_fields())).name
 
     @abstractmethod
-    def validate(self, context: ValidationContext, parent_object: object) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
         pass
 
     def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
-        diff_result = {}
+        diff_result: dict[str, Change[T]] = {}
         for field in self.model_fields():
             if not self.include_field_for_diff_computation(field):
                 continue
@@ -135,24 +135,24 @@ class ModelObject(ABC):
 
     @classmethod
     @abstractmethod
-    def from_model(cls, data: dict[str, Any]):
+    def from_model_data(cls, data: dict[str, Any]):
         pass
 
     @classmethod
     @abstractmethod
-    def from_provider(cls, data: dict[str, Any]):
+    def from_provider_data(cls, data: dict[str, Any]):
         pass
 
-    def to_provider(self, provider: Optional[Github] = None) -> dict[str, Any]:
-        return self._to_provider(self.to_model_dict(), provider)
+    def to_provider_data(self, provider: Optional[Github] = None) -> dict[str, Any]:
+        return self._to_provider_data(self.to_model_dict(), provider)
 
     @classmethod
     def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Optional[Github] = None) -> dict[str, Any]:
-        return cls._to_provider({key: change.to_value for key, change in data.items()}, provider)
+        return cls._to_provider_data({key: change.to_value for key, change in data.items()}, provider)
 
     @classmethod
     @abstractmethod
-    def _to_provider(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

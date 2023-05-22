@@ -8,29 +8,17 @@
 
 import os
 
-from colorama import Style, Fore
+from colorama import Style, Fore  # type: ignore
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter
-from otterdog.models.github_organization import load_github_organization_from_file
+from otterdog.config import OrganizationConfig
+from otterdog.models.github_organization import GitHubOrganization
 
 from . import Operation
 
 
 class ShowOperation(Operation):
     def __init__(self):
-        self.config = None
-        self.jsonnet_config = None
-        self._printer = None
-
-    @property
-    def printer(self) -> IndentingPrinter:
-        return self._printer
-
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
-        self.config = config
-        self.jsonnet_config = self.config.jsonnet_config
-        self._printer = printer
+        super().__init__()
 
     def pre_execute(self) -> None:
         self.printer.print(f"Showing resources defined in configuration '{self.config.config_file}'")
@@ -50,10 +38,10 @@ class ShowOperation(Operation):
 
             try:
                 organization = \
-                    load_github_organization_from_file(github_id,
-                                                       self.jsonnet_config.get_org_config_file(github_id),
-                                                       self.config,
-                                                       False)
+                    GitHubOrganization.load_from_file(github_id,
+                                                      self.jsonnet_config.get_org_config_file(github_id),
+                                                      self.config,
+                                                      False)
             except RuntimeError as ex:
                 self.printer.print_warn(f"failed to load configuration: {str(ex)}")
                 return 1

@@ -178,6 +178,8 @@ def _execute_operation(organizations: list[str], operation: Operation):
         exit_code = 0
         config = _CONFIG
 
+        assert config is not None
+
         operation.init(config, printer)
         operation.pre_execute()
 

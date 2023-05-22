@@ -6,9 +6,9 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any
+from typing import Any, Optional
 
-from colorama import Style
+from colorama import Style  # type: ignore
 
 from otterdog.config import OtterdogConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule
@@ -33,7 +33,7 @@ class ApplyOperation(PlanOperation):
         self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
         self._new_repos: list[Repository] = []
         self._modified_rules: list[tuple[str, str, str, dict[str, Change[Any]]]] = []
-        self._new_rules: list[tuple[str, str, BranchProtectionRule]] = []
+        self._new_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
@@ -91,7 +91,7 @@ class ApplyOperation(PlanOperation):
     def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         super().handle_extra_rule(org_id, repo_name, repo_id, bpr)
 
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
+    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
         super().handle_new_rule(org_id, repo_name, repo_id, bpr)
         self._new_rules.append((repo_name, repo_id, bpr))
 
@@ -117,24 +117,27 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, webhook in self._modified_webhooks.items():
-            self.gh_client.update_webhook(org_id, webhook_id, webhook.to_provider())
+            self.gh_client.update_webhook(org_id, webhook_id, webhook.to_provider_data())
 
         for webhook in self._new_webhooks:
-            self.gh_client.add_webhook(org_id, webhook.to_provider())
+            self.gh_client.add_webhook(org_id, webhook.to_provider_data())
 
-        for repo_name, repo in self._modified_repos.items():
-            github_repo = Repository.changes_to_provider(repo)
+        for repo_name, repo_data in self._modified_repos.items():
+            github_repo = Repository.changes_to_provider(repo_data)
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._new_repos:
-            self.gh_client.add_repo(org_id, repo.to_provider(), repo.template_repository, self.config.auto_init_repo)
+            self.gh_client.add_repo(org_id,
+                                    repo.to_provider_data(),
+                                    repo.template_repository,
+                                    self.config.auto_init_repo)
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for repo_name, repo_id, rule in self._new_rules:
-            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider(self.gh_client))
+            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider_data(self.gh_client))
 
         self.printer.print(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
                            f"{diff_status.differences} changed, "

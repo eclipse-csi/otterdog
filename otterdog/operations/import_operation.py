@@ -8,33 +8,20 @@
 
 import os
 
-from colorama import Style
+from colorama import Style  # type: ignore
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.models.github_organization import load_github_organization_from_provider
+from otterdog.config import OrganizationConfig
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter
 
 from . import Operation
 
 
 class ImportOperation(Operation):
     def __init__(self, force_processing: bool, no_web_ui: bool):
+        super().__init__()
         self.force_processing = force_processing
         self.no_web_ui = no_web_ui
-
-        self.config = None
-        self.jsonnet_config = None
-        self._printer = None
-
-    @property
-    def printer(self) -> IndentingPrinter:
-        return self._printer
-
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
-        self.config = config
-        self.jsonnet_config = self.config.jsonnet_config
-        self._printer = printer
 
     def pre_execute(self) -> None:
         self.printer.print(f"Importing resources for configuration at '{self.config.config_file}'")
@@ -75,13 +62,13 @@ class ImportOperation(Operation):
                                         "the resulting config will be incomplete")
 
             organization = \
-                load_github_organization_from_provider(github_id,
-                                                       self.jsonnet_config,
-                                                       gh_client,
-                                                       self.no_web_ui,
-                                                       self.printer)
+                GitHubOrganization.load_from_provider(github_id,
+                                                      self.jsonnet_config,
+                                                      gh_client,
+                                                      self.no_web_ui,
+                                                      self.printer)
 
-            ignored_keys = gh_client.web_org_settings if self.no_web_ui else {}
+            ignored_keys = gh_client.web_org_settings if self.no_web_ui else set()
             output = organization.to_jsonnet(self.jsonnet_config, ignored_keys)
 
             output_dir = self.jsonnet_config.orgs_dir

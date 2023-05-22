@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any, Union
+from typing import Any, Union, Optional
 
 from otterdog import schemas
 from otterdog import utils
@@ -51,10 +51,15 @@ class Github:
     def is_web_org_setting(self, setting_key: str) -> bool:
         return setting_key in self._settings_web_keys
 
-    def get_content(self, org_id: str, repo_name: str, path: str, ref: str = None) -> str:
+    def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
         return self.rest_client.get_content(org_id, repo_name, path, ref)
 
-    def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
+    def update_content(self,
+                       org_id: str,
+                       repo_name: str,
+                       path: str,
+                       content: str,
+                       message: Optional[str] = None) -> None:
         return self.rest_client.update_content(org_id, repo_name, path, content, message)
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
@@ -128,7 +133,11 @@ class Github:
                                       data: dict[str, Any]) -> None:
         self.graphql_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, data)
 
-    def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
+    def add_branch_protection_rule(self,
+                                   org_id: str,
+                                   repo_name: str,
+                                   repo_id: Optional[str],
+                                   data: dict[str, Any]) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
         if not repo_id:
             repo_data = self.rest_client.get_repo_data(org_id, repo_name)

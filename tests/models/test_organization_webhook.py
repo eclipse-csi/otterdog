@@ -24,7 +24,7 @@ class OrganizationWebhookTest(ModelTest):
         return self.load_json_resource("github-webhook.json")
 
     def test_load_from_model(self):
-        webhook = OrganizationWebhook.from_model(self.model_data)
+        webhook = OrganizationWebhook.from_model_data(self.model_data)
 
         assert webhook.id is UNSET
         assert webhook.active is True
@@ -35,7 +35,7 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.insecure_ssl == "0"
 
     def test_load_from_provider(self):
-        webhook = OrganizationWebhook.from_provider(self.provider_data)
+        webhook = OrganizationWebhook.from_provider_data(self.provider_data)
 
         assert webhook.id == 1
         assert webhook.active is True
@@ -46,11 +46,11 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.insecure_ssl == "0"
 
     def test_to_provider(self):
-        webhook = OrganizationWebhook.from_model(self.model_data)
+        webhook = OrganizationWebhook.from_model_data(self.model_data)
 
         webhook.secret = UNSET
 
-        provider_data = webhook.to_provider()
+        provider_data = webhook.to_provider_data()
 
         assert len(provider_data) == 3
         assert provider_data["active"] is True
@@ -62,8 +62,8 @@ class OrganizationWebhookTest(ModelTest):
         assert jq.compile(".config.content_type").input(provider_data).first() == "form"
 
     def test_changes_to_provider(self):
-        current = OrganizationWebhook.from_model(self.model_data)
-        other = OrganizationWebhook.from_model(self.model_data)
+        current = OrganizationWebhook.from_model_data(self.model_data)
+        other = OrganizationWebhook.from_model_data(self.model_data)
 
         other.active = False
         other.insecure_ssl = "1"
@@ -76,9 +76,9 @@ class OrganizationWebhookTest(ModelTest):
         assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
 
     def test_patch(self):
-        current = OrganizationWebhook.from_model(self.model_data)
+        current = OrganizationWebhook.from_model_data(self.model_data)
 
-        default = OrganizationWebhook.from_model(self.model_data)
+        default = OrganizationWebhook.from_model_data(self.model_data)
 
         default.url = "https://www.notexistent.org"
         default.active = False
@@ -90,8 +90,8 @@ class OrganizationWebhookTest(ModelTest):
         assert patch["active"] is current.active
 
     def test_difference(self):
-        current = OrganizationWebhook.from_model(self.model_data)
-        other = OrganizationWebhook.from_model(self.model_data)
+        current = OrganizationWebhook.from_model_data(self.model_data)
+        other = OrganizationWebhook.from_model_data(self.model_data)
 
         other.active = False
         other.insecure_ssl = "1"

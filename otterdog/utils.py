@@ -11,9 +11,9 @@ import re
 from argparse import Namespace
 from dataclasses import dataclass
 from io import TextIOBase
-from typing import Any, Callable, Literal, TypeVar, Generic
+from typing import Any, Callable, Literal, TypeVar, Generic, Optional
 
-from colorama import init as colorama_init, Fore, Style
+from colorama import init as colorama_init, Fore, Style  # type: ignore
 
 T = TypeVar("T")
 
@@ -110,8 +110,8 @@ def is_set_and_valid(value: Any) -> bool:
 
 @dataclass
 class Change(Generic[T]):
-    from_value: T | None
-    to_value: T | None
+    from_value: Optional[T]
+    to_value: Optional[T]
 
 
 def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
@@ -228,7 +228,7 @@ class IndentingPrinter:
 
 
 def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
-    import _gojsonnet
+    import _gojsonnet  # type: ignore
 
     print_trace(f"evaluating jsonnet file {file}")
 
@@ -239,7 +239,7 @@ def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
 
 
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
-    import _gojsonnet
+    import _gojsonnet  # type: ignore
 
     print_trace(f"evaluating jsonnet snippet {snippet}")
 
