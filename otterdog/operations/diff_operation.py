@@ -8,15 +8,13 @@
 
 import os
 from abc import abstractmethod
-from datetime import datetime
 from typing import Any, Optional
 
 from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.models.github_organization import GitHubOrganization, load_repos_from_provider
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.branch_protection_rule import BranchProtectionRule
-from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
 from otterdog.providers.github import Github
@@ -55,6 +53,13 @@ class DiffOperation(Operation):
         github_id = org_config.github_id
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+
+        try:
+            self._gh_client = self.setup_github_client(org_config)
+        except RuntimeError as e:
+            self.printer.print_error(f"invalid credentials\n{str(e)}")
+            return 1
+
         self.printer.level_up()
 
         try:
@@ -77,12 +82,6 @@ class DiffOperation(Operation):
         return True
 
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
-        try:
-            self._gh_client = self.setup_github_client(org_config)
-        except RuntimeError as e:
-            self.printer.print_error(f"invalid credentials\n{str(e)}")
-            return 1
-
         github_id = org_config.github_id
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
@@ -91,11 +90,7 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            expected_org = \
-                GitHubOrganization.load_from_file(github_id,
-                                                  org_file_name,
-                                                  self.config,
-                                                  self.resolve_secrets())
+            expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load configuration\n{str(e)}")
             return 1
@@ -107,9 +102,15 @@ class DiffOperation(Operation):
             self.printer.print("Planning aborted due to validation failures.")
             return validation_errors
 
+        try:
+            current_org = self.load_current_org(github_id)
+        except RuntimeError as e:
+            self.printer.print_error(f"failed to load current configuration\n{str(e)}")
+            return 1
+
         diff_status = DiffStatus()
 
-        modified_org_settings = self._process_settings(github_id, expected_org, diff_status)
+        modified_org_settings = self._process_settings(github_id, expected_org, current_org, diff_status)
 
         # add a warning that otterdog potentially must be run a second time
         # to fully apply all setting.
@@ -123,33 +124,32 @@ class DiffOperation(Operation):
                                "You need to run otterdog another time to fully ensure "
                                "that the correct configuration is applied.")
 
-        self._process_webhooks(github_id, expected_org, diff_status)
-        self._process_repositories(github_id, expected_org, modified_org_settings, diff_status)
+        self._process_webhooks(github_id, expected_org, current_org, diff_status)
+        self._process_repositories(github_id, expected_org, current_org, modified_org_settings, diff_status)
 
         self.handle_finish(github_id, diff_status)
         return 0
 
+    def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
+        return GitHubOrganization.load_from_file(github_id,
+                                                 org_file_name,
+                                                 self.config,
+                                                 self.resolve_secrets())
+
+    def load_current_org(self, github_id: str) -> GitHubOrganization:
+        return GitHubOrganization.load_from_provider(github_id,
+                                                     self.jsonnet_config,
+                                                     self.gh_client,
+                                                     self.no_web_ui,
+                                                     self.printer)
+
     def _process_settings(self,
                           github_id: str,
                           expected_org: GitHubOrganization,
+                          current_org: GitHubOrganization,
                           diff_status: DiffStatus) -> dict[str, Change[Any]]:
         expected_org_settings = expected_org.settings
-
-        start = datetime.now()
-        if self.verbose_output():
-            self.printer.print("organization settings: Reading...")
-
-        # filter out web settings if --no-web-ui is used
-        expected_settings_keys = set(expected_org_settings.keys(for_diff=True))
-        if self.no_web_ui:
-            expected_settings_keys = {x for x in expected_settings_keys if not self.gh_client.is_web_org_setting(x)}
-
-        # determine differences for settings.
-        current_org_settings = self.get_current_org_settings(github_id, expected_settings_keys)
-
-        if self.verbose_output():
-            end = datetime.now()
-            self.printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+        current_org_settings = current_org.settings
 
         modified_settings: dict[str, Change[Any]] = expected_org_settings.get_difference_from(current_org_settings)
         if len(modified_settings) > 0:
@@ -157,28 +157,18 @@ class DiffOperation(Operation):
             # to be executed based on the operations to be performed.
             differences = \
                 self.handle_modified_settings(github_id,
-                                              modified_settings,
-                                              expected_org_settings)
+                                              modified_settings)
             diff_status.differences += differences
 
         return modified_settings
 
-    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
-        # determine differences for settings.
-        current_github_org_settings = self.gh_client.get_org_settings(github_id, settings_keys)
-        return OrganizationSettings.from_provider_data(current_github_org_settings)
-
-    def _process_webhooks(self, github_id: str, expected_org: GitHubOrganization, diff_status: DiffStatus) -> None:
-        start = datetime.now()
-        if self.verbose_output():
-            self.printer.print("\nwebhooks: Reading...")
-
+    def _process_webhooks(self,
+                          github_id: str,
+                          expected_org: GitHubOrganization,
+                          current_org: GitHubOrganization,
+                          diff_status: DiffStatus) -> None:
         expected_webhooks_by_url = associate_by_key(expected_org.webhooks, lambda x: x.url)
-        current_webhooks = self.get_current_webhooks(github_id)
-
-        if self.verbose_output():
-            end = datetime.now()
-            self.printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+        current_webhooks = current_org.webhooks
 
         for current_webhook in current_webhooks:
             webhook_url = current_webhook.url
@@ -231,18 +221,15 @@ class DiffOperation(Operation):
             self.handle_new_webhook(github_id, webhook)
             diff_status.additions += 1
 
-    def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
-        github_webhooks = self.gh_client.get_webhooks(github_id)
-        return [OrganizationWebhook.from_provider_data(webhook) for webhook in github_webhooks]
-
     def _process_repositories(self,
                               github_id: str,
                               expected_org: GitHubOrganization,
+                              current_org: GitHubOrganization,
                               modified_org_settings: dict[str, Change[Any]],
                               diff_status: DiffStatus) -> None:
 
         expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
-        current_repos = self.get_current_repos(github_id)
+        current_repos = current_org.repositories
 
         for current_repo in current_repos:
             current_repo_name = current_repo.name
@@ -278,14 +265,6 @@ class DiffOperation(Operation):
 
             if len(repo.branch_protection_rules) > 0:
                 self._process_branch_protection_rules(github_id, None, repo, diff_status)
-
-    def get_current_repos(self, github_id: str) -> list[Repository]:
-        if self.verbose_output():
-            printer = self.printer
-        else:
-            printer = None
-
-        return load_repos_from_provider(github_id, self.gh_client, printer)
 
     def _process_branch_protection_rules(self,
                                          org_id: str,
@@ -332,10 +311,7 @@ class DiffOperation(Operation):
             diff_status.additions += 1
 
     @abstractmethod
-    def handle_modified_settings(self,
-                                 org_id: str,
-                                 modified_settings: dict[str, Change[Any]],
-                                 full_settings: OrganizationSettings) -> int:
+    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
         raise NotImplementedError
 
     @abstractmethod

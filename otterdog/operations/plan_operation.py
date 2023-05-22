@@ -39,10 +39,7 @@ class PlanOperation(DiffOperation):
         self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available "
                            f"in other config)")
 
-    def handle_modified_settings(self,
-                                 org_id: str,
-                                 modified_settings: dict[str, Change[Any]],
-                                 full_settings: OrganizationSettings) -> int:
+    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
         self.print_modified_dict(modified_settings, "settings")
 
         settings_to_change = 0

@@ -260,7 +260,7 @@ class GitHubOrganization:
         for webhook in github_webhooks:
             org.add_webhook(OrganizationWebhook.from_provider_data(webhook))
 
-        for repo in load_repos_from_provider(github_id, client, printer):
+        for repo in _load_repos_from_provider(github_id, client, printer):
             org.add_repository(repo)
 
         return org
@@ -279,9 +279,9 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
     return repo_name, repo
 
 
-def load_repos_from_provider(github_id: str,
-                             client: Github,
-                             printer: Optional[utils.IndentingPrinter] = None) -> list[Repository]:
+def _load_repos_from_provider(github_id: str,
+                              client: Github,
+                              printer: Optional[utils.IndentingPrinter] = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
         printer.print("\nrepositories: Reading...")

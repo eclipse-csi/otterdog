@@ -11,12 +11,9 @@ from typing import Optional
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.organization_settings import OrganizationSettings
-from otterdog.models.organization_webhook import OrganizationWebhook
-from otterdog.models.repository import Repository
+from otterdog.providers.github import Github
 
 from .plan_operation import PlanOperation
-from otterdog.providers.github import Github
 
 
 class LocalPlanOperation(PlanOperation):
@@ -35,22 +32,6 @@ class LocalPlanOperation(PlanOperation):
         self.printer.print(f"Printing local diff for configuration at '{self.config.config_file}'")
         self.print_legend()
 
-    def execute(self, org_config: OrganizationConfig) -> int:
-        github_id = org_config.github_id
-        other_org_file_name = self.jsonnet_config.get_org_config_file(github_id) + self.suffix
-
-        if not os.path.exists(other_org_file_name):
-            self.printer.print_warn(f"configuration file '{other_org_file_name}' does not exist")
-            return 1
-
-        try:
-            self._other_org = GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config, False)
-        except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{str(e)}")
-            return 1
-
-        return super().execute(org_config)
-
     def verbose_output(self):
         return False
 
@@ -60,11 +41,10 @@ class LocalPlanOperation(PlanOperation):
     def setup_github_client(self, org_config: OrganizationConfig) -> Github:
         return Github(None)
 
-    def get_current_org_settings(self, github_id: str, settings_keys: set[str]) -> OrganizationSettings:
-        return self.other_org.settings
+    def load_current_org(self, github_id: str) -> GitHubOrganization:
+        other_org_file_name = self.jsonnet_config.get_org_config_file(github_id) + self.suffix
 
-    def get_current_webhooks(self, github_id: str) -> list[OrganizationWebhook]:
-        return self.other_org.webhooks
+        if not os.path.exists(other_org_file_name):
+            raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-    def get_current_repos(self, github_id: str) -> list[Repository]:
-        return self.other_org.repositories
+        return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config, False)

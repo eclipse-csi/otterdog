@@ -42,11 +42,8 @@ class ApplyOperation(PlanOperation):
         self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
-    def handle_modified_settings(self,
-                                 org_id: str,
-                                 modified_settings: dict[str, Change[Any]],
-                                 full_settings: OrganizationSettings) -> int:
-        modified = super().handle_modified_settings(org_id, modified_settings, full_settings)
+    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
+        modified = super().handle_modified_settings(org_id, modified_settings)
         self._org_settings_to_update = modified_settings
         return modified
 
