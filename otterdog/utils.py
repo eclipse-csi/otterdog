@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from io import TextIOBase
 from typing import Any, Callable, Literal, TypeVar, Generic, Optional
 
-from colorama import init as colorama_init, Fore, Style  # type: ignore
+from colorama import init as colorama_init, Fore, Style
 
 T = TypeVar("T")
 

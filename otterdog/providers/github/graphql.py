@@ -9,7 +9,7 @@
 import json
 from typing import Any
 
-import jq
+import jq  # type: ignore
 from importlib_resources import files
 
 import requests
@@ -148,7 +148,7 @@ class GraphQLClient:
             raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}'")
 
     def _run_paged_query(self,
-                         input_variables: dict[str, str],
+                         input_variables: dict[str, Any],
                          query_file: str,
                          prefix_selector: str = ".data.repository.branchProtectionRules") -> list[dict[str, Any]]:
         utils.print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")

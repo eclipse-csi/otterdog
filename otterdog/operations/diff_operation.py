@@ -11,7 +11,7 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Optional
 
-from colorama import Style  # type: ignore
+from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization, load_repos_from_provider

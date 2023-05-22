@@ -8,7 +8,7 @@
 
 import os
 
-from colorama import Fore, Style  # type: ignore
+from colorama import Fore, Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.models import FailureType

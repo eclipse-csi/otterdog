@@ -9,7 +9,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from colorama import Fore, Style  # type: ignore
+from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig, JsonnetConfig
 from otterdog.utils import IndentingPrinter, Change, is_unset

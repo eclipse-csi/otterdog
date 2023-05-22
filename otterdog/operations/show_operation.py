@@ -8,7 +8,7 @@
 
 import os
 
-from colorama import Style, Fore  # type: ignore
+from colorama import Style, Fore
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization

@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from colorama import Style  # type: ignore
+from colorama import Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import Github

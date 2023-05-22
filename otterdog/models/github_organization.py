@@ -17,7 +17,7 @@ from functools import partial
 from io import StringIO
 from typing import Any, Optional
 
-import jsonschema  # type: ignore
+import jsonschema
 from importlib_resources import files, as_file
 from jsonbender import bend, S, F, Forall  # type: ignore
 
