@@ -416,7 +416,7 @@ class Requester:
                            method: str,
                            url_path: str,
                            data: Optional[dict[str, Any]] = None,
-                           params: Optional[dict[str, str]] = None) -> list[dict[str, str]]:
+                           params: Optional[dict[str, str]] = None) -> list[dict[str, Any]]:
         result = []
         current_page = 1
         while current_page > 0:
@@ -424,7 +424,7 @@ class Requester:
             if params is not None:
                 query_params.update(params)
 
-            response = self.request_json(method, url_path, data, query_params)
+            response: list[dict[str, Any]] = self.request_json(method, url_path, data, query_params)
 
             if len(response) == 0:
                 current_page = -1
@@ -440,7 +440,7 @@ class Requester:
                      method: str,
                      url_path: str,
                      data: Optional[dict[str, Any]] = None,
-                     params: Optional[dict[str, str]] = None) -> dict[str, Any] | list[dict[str, Any]]:
+                     params: Optional[dict[str, Any]] = None) -> Any:
         input_data = None
         if data is not None:
             input_data = json.dumps(data)
@@ -478,6 +478,6 @@ class Requester:
         url = response.request.url
 
         if status == 401:
-            raise BadCredentialsException(url, status, response.text, response.headers)
+            raise BadCredentialsException(url, status, response.text)
         else:
-            raise GitHubException(url, status, response.text, response.headers)
+            raise GitHubException(url, status, response.text)

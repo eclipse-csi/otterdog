@@ -6,15 +6,17 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from typing import Optional
+
+
 class GitHubException(Exception):
-    def __init__(self, url: str, status: int, data: str, headers: dict[str, str]):
+    def __init__(self, url: Optional[str], status: int, data: str):
         self.__url = url
         self.__status = status
         self.__data = data
-        self.__headers = headers
 
     @property
-    def url(self) -> str:
+    def url(self) -> Optional[str]:
         return self.__url
 
     @property
@@ -24,10 +26,6 @@ class GitHubException(Exception):
     @property
     def data(self) -> str:
         return self.__data
-
-    @property
-    def headers(self) -> dict[str, str]:
-        return self.__headers
 
     def __str__(self):
         return f"Exception while accessing {self.url}: (status={self.status}, body={self.data})"
