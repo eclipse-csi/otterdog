@@ -24,7 +24,7 @@ if ! command -v poetry &> /dev/null
 then
     # activate virtual environment
     source $PRGDIR/.venv/bin/activate
-    PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog.main "$@"
+    PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog.cli "$@"
 else
     poetry -C $PRGDIR run otterdog "$@"
 fi

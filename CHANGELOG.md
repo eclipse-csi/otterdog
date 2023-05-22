@@ -2,6 +2,12 @@
 
 ## [0.2.0.dev] - unreleased
 
+### Changed
+
+- Switching to module `click` for command line parsing.
+- Updated module `playwright` to version 1.33.0.
+- Updated module `requests` to version 2.30.0.
+
 ## [0.1.0] - 15/05/2023
 
 ### Added
