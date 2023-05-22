@@ -9,7 +9,7 @@
 import base64
 import json
 import re
-from typing import Any
+from typing import Any, Optional
 
 from requests import Response
 from requests_cache import CachedSession
@@ -27,7 +27,7 @@ class RestClient:
     def __init__(self, token: str):
         self._requester = Requester(token, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
-    def get_content_object(self, org_id: str, repo_name: str, path: str, ref: str = None) -> dict[str, Any]:
+    def get_content_object(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> dict[str, Any]:
         utils.print_debug(f"retrieving content '{path}' from repo '{repo_name}'")
 
         try:
@@ -47,7 +47,12 @@ class RestClient:
         json_response = self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode('utf-8')
 
-    def update_content(self, org_id: str, repo_name: str, path: str, content: str, message: str = None) -> None:
+    def update_content(self,
+                       org_id: str,
+                       repo_name: str,
+                       path: str,
+                       content: str,
+                       message: Optional[str] = None) -> None:
         utils.print_debug(f"putting content '{path}' to repo '{repo_name}'")
 
         try:
@@ -410,8 +415,8 @@ class Requester:
     def request_paged_json(self,
                            method: str,
                            url_path: str,
-                           data: dict[str, Any] = None,
-                           params: dict[str, str] = None) -> list[dict[str, str]]:
+                           data: Optional[dict[str, Any]] = None,
+                           params: Optional[dict[str, str]] = None) -> list[dict[str, str]]:
         result = []
         current_page = 1
         while current_page > 0:
@@ -434,8 +439,8 @@ class Requester:
     def request_json(self,
                      method: str,
                      url_path: str,
-                     data: dict[str, Any] = None,
-                     params: dict[str, str] = None) -> dict[str, Any] | list[dict[str, Any]]:
+                     data: Optional[dict[str, Any]] = None,
+                     params: Optional[dict[str, str]] = None) -> dict[str, Any] | list[dict[str, Any]]:
         input_data = None
         if data is not None:
             input_data = json.dumps(data)
@@ -447,8 +452,8 @@ class Requester:
     def request_raw(self,
                     method: str,
                     url_path: str,
-                    data: str = None,
-                    params: dict[str, str] = None) -> Response:
+                    data: Optional[str] = None,
+                    params: Optional[dict[str, str]] = None) -> Response:
         assert method in ["GET", "PATCH", "POST", "PUT", "DELETE"]
 
         response = \

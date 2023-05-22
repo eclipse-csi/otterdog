@@ -61,6 +61,7 @@ class WebClient:
 
             utils.print_trace(f"loading page '{page_url}'")
             response = page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
+            assert response is not None
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
@@ -120,9 +121,9 @@ class WebClient:
 
             utils.print_debug(f"updated {len(data)} setting(s) via web interface")
 
-    def _update_settings(self, org_id: str, settings: dict[str, str], page: Page) -> None:
+    def _update_settings(self, org_id: str, settings: dict[str, Any], page: Page) -> None:
         # first, collect the set of pages that are need to be loaded
-        pages_to_load = {}
+        pages_to_load: dict[str, dict[str, Any]] = {}
         for page_url, page_def in self.web_settings_definition.items():
             for setting, setting_def in page_def.items():
                 if setting in settings:
@@ -135,6 +136,7 @@ class WebClient:
         for page_url, page_dict in pages_to_load.items():
             utils.print_trace(f"loading page '{page_url}'")
             response = page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
+            assert response is not None
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
@@ -173,7 +175,7 @@ class WebClient:
     @staticmethod
     def _logged_in_as(page: Page) -> str:
         response = page.goto("https://github.com/settings/profile")
-
+        assert response is not None
         if not response.ok:
             raise RuntimeError(f"unable to load github profile page: {response.status}")
 
@@ -187,7 +189,7 @@ class WebClient:
 
     def _login(self, page: Page) -> None:
         response = page.goto("https://github.com/login")
-
+        assert response is not None
         if not response.ok:
             raise RuntimeError(f"unable to load github login page: {response.status}")
 
@@ -201,7 +203,7 @@ class WebClient:
     def _logout(self, page: Page) -> None:
         actor = self._logged_in_as(page)
         response = page.goto("https://github.com/settings/profile")
-
+        assert response is not None
         if not response.ok:
             raise RuntimeError("unable to load github logout page")
 
