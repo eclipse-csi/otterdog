@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import textwrap
 from concurrent.futures import ProcessPoolExecutor
@@ -22,7 +23,6 @@ from importlib_resources import files, as_file
 from jsonbender import bend, S, F, Forall  # type: ignore
 
 from otterdog import resources
-from otterdog import schemas
 from otterdog import utils
 from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
@@ -33,6 +33,8 @@ from .branch_protection_rule import BranchProtectionRule
 from .organization_settings import OrganizationSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
+
+_ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
 
 @dataclasses.dataclass
@@ -71,7 +73,7 @@ class GitHubOrganization:
         with as_file(files(resources).joinpath("schemas")) as resource_dir:
             schema_root = resource_dir.as_uri()
             resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
-            jsonschema.validate(instance=data, schema=schemas.ORG_SCHEMA, resolver=resolver)
+            jsonschema.validate(instance=data, schema=_ORG_SCHEMA, resolver=resolver)
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> GitHubOrganization:
@@ -87,7 +89,7 @@ class GitHubOrganization:
 
         return cls(**bend(mapping, data))
 
-    def to_jsonnet(self, config: JsonnetConfig, ignored_keys: set[str]) -> str:
+    def to_jsonnet(self, config: JsonnetConfig) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config)
 
         offset = 4
@@ -102,11 +104,6 @@ class GitHubOrganization:
 
         default_org_settings = default_org.settings
         settings_patch = self.settings.get_patch_to(default_org_settings)
-
-        # some keys to be ignored, mainly for web settings when
-        # specifying '--no-web-ui' flag.
-        for ignored_key in ignored_keys:
-            settings_patch.pop(ignored_key)
 
         utils.dump_patch_object_as_json(settings_patch, output, offset=offset, indent=indent)
 
@@ -227,18 +224,15 @@ class GitHubOrganization:
                            no_web_ui: bool = False,
                            printer: Optional[utils.IndentingPrinter] = None) -> GitHubOrganization:
 
-        default_settings = jsonnet_config.default_org_config["settings"]
-
         start = datetime.now()
         if printer is not None:
             printer.print("\norganization settings: Reading...")
 
+        # FIXME: this uses the keys from the model schema which might be different to the provider schema
+        #        for now this is the same for organization settings, but there might be cases where it is different.
+        default_settings = jsonnet_config.default_org_config["settings"]
         included_keys = set(default_settings.keys())
-        # if no_web_ui is set, filter out any web settings
-        if no_web_ui is True:
-            included_keys = {x for x in included_keys if not client.is_web_org_setting(x)}
-
-        github_settings = client.get_org_settings(github_id, included_keys)
+        github_settings = client.get_org_settings(github_id, included_keys, no_web_ui)
 
         if printer is not None:
             end = datetime.now()

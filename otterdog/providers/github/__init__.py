@@ -6,21 +6,26 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import json
+from importlib_resources import files
 from typing import Any, Union, Optional
 
-from otterdog import schemas
+from otterdog import resources
 from otterdog import utils
 from otterdog.credentials import Credentials
+
 from .graphql import GraphQLClient
 from .rest import RestClient
 from .web import WebClient
+
+_ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
 
 
 class Github:
     def __init__(self, credentials: Union[Credentials, None]):
         self._credentials = credentials
 
-        self._settings_schema = schemas.SETTINGS_SCHEMA
+        self._settings_schema = _ORG_SETTINGS_SCHEMA
         # collect supported rest api keys
         self._settings_restapi_keys =\
             {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "restapi"}
@@ -44,13 +49,6 @@ class Github:
         self._credentials, self._settings_schema, self._settings_restapi_keys, self._settings_web_keys = state
         self._init_clients()
 
-    @property
-    def web_org_settings(self) -> set[str]:
-        return self._settings_web_keys
-
-    def is_web_org_setting(self, setting_key: str) -> bool:
-        return setting_key in self._settings_web_keys
-
     def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
         return self.rest_client.get_content(org_id, repo_name, path, ref)
 
@@ -62,19 +60,21 @@ class Github:
                        message: Optional[str] = None) -> None:
         return self.rest_client.update_content(org_id, repo_name, path, content, message)
 
-    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
+    def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
         # first, get supported settings via the rest api.
         required_rest_keys = {x for x in included_keys if x in self._settings_restapi_keys}
         merged_settings = self.rest_client.get_org_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
-        # them with the other settings.
-        required_web_keys = {x for x in included_keys if x in self._settings_web_keys}
-        if len(required_web_keys) > 0:
-            web_settings = self.web_client.get_org_settings(org_id, required_web_keys)
-            merged_settings.update(web_settings)
+        # them with the other settings, unless --no-web-ui is specified.
+        if not no_web_ui:
+            required_web_keys = {x for x in included_keys if x in self._settings_web_keys}
+            if len(required_web_keys) > 0:
+                web_settings = self.web_client.get_org_settings(org_id, required_web_keys)
+                merged_settings.update(web_settings)
 
-        utils.print_trace(f"merged org settings = {merged_settings}")
+            utils.print_trace(f"merged org settings = {merged_settings}")
+
         return merged_settings
 
     def update_org_settings(self, org_id: str, settings: dict[str, Any]) -> None:

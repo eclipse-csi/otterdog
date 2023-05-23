@@ -90,7 +90,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed putting content '{path}' to repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
+    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
         utils.print_debug(f"retrieving settings for organization {org_id}")
 
         try:

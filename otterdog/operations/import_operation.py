@@ -68,8 +68,7 @@ class ImportOperation(Operation):
                                                       self.no_web_ui,
                                                       self.printer)
 
-            ignored_keys = gh_client.web_org_settings if self.no_web_ui else set()
-            output = organization.to_jsonnet(self.jsonnet_config, ignored_keys)
+            output = organization.to_jsonnet(self.jsonnet_config)
 
             output_dir = self.jsonnet_config.orgs_dir
             if not os.path.exists(output_dir):

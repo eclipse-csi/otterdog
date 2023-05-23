@@ -33,7 +33,7 @@ class WebClient:
         web_settings_config = files(resources).joinpath("github-web-settings.jsonnet")
         return utils.jsonnet_evaluate_file(str(web_settings_config))
 
-    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, str]:
+    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
         utils.print_debug("retrieving settings via web interface")
 
         with sync_playwright() as playwright:
@@ -51,7 +51,7 @@ class WebClient:
 
             return settings
 
-    def _retrieve_settings(self, org_id: str, included_keys: set[str], page: Page) -> dict[str, str]:
+    def _retrieve_settings(self, org_id: str, included_keys: set[str], page: Page) -> dict[str, Any]:
         settings = {}
 
         for page_url, page_def in self.web_settings_definition.items():
@@ -103,7 +103,7 @@ class WebClient:
 
         return settings
 
-    def update_org_settings(self, org_id: str, data: dict[str, str]) -> None:
+    def update_org_settings(self, org_id: str, data: dict[str, Any]) -> None:
         utils.print_debug("updating settings via web interface")
 
         with sync_playwright() as playwright:
