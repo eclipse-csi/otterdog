@@ -175,14 +175,21 @@ class Repository(ModelObject):
 
         # add mapping for items that GitHub expects in a nested structure.
 
-        security_mapping = {}
-        for security_prop in cls._security_properties:
-            if security_prop in mapping:
-                mapping.pop(security_prop)
-            if security_prop in data:
-                security_mapping[security_prop] = {"status": S(security_prop)}
+        # private repos do not support secret scanning settings, remove them.
+        is_private = data.get("private", False)
+        if is_private:
+            for security_prop in cls._security_properties:
+                if security_prop in mapping:
+                    mapping.pop(security_prop)
+        else:
+            security_mapping = {}
+            for security_prop in cls._security_properties:
+                if security_prop in mapping:
+                    mapping.pop(security_prop)
+                if security_prop in data:
+                    security_mapping[security_prop] = {"status": S(security_prop)}
 
-        if len(security_mapping) > 0:
-            mapping.update({"security_and_analysis": security_mapping})
+            if len(security_mapping) > 0:
+                mapping.update({"security_and_analysis": security_mapping})
 
         return bend(mapping, data)
