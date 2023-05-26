@@ -264,7 +264,7 @@ class RestClient:
                     "owner": org_id,
                     "name": repo_name,
                     "include_all_branches": False,
-                    "private": False
+                    "private": data.get("private", False)
                 }
 
                 self._requester.request_json("POST",
