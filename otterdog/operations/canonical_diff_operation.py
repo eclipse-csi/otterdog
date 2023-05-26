@@ -22,7 +22,7 @@ class CanonicalDiffOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Showing changes to a canonical version of the configuration at "
+        self.printer.print(f"Showing diff to a canonical version of the configuration at "
                            f"'{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
