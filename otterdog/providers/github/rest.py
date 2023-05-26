@@ -8,8 +8,12 @@
 
 import base64
 import json
+import pathlib
+import os
 import re
-from typing import Any, Optional
+import tempfile
+import zipfile
+from typing import Any, Optional, IO
 
 from requests import Response
 from requests_cache import CachedSession
@@ -52,7 +56,7 @@ class RestClient:
                        repo_name: str,
                        path: str,
                        content: str,
-                       message: Optional[str] = None) -> None:
+                       message: Optional[str] = None) -> bool:
         utils.print_debug(f"putting content '{path}' to repo '{repo_name}'")
 
         try:
@@ -66,7 +70,7 @@ class RestClient:
         # check if the content has changed, otherwise do not update
         if old_content is not None and content == old_content:
             utils.print_debug("not updating content, no changes")
-            return
+            return False
 
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
         base64_content = base64_encoded_data.decode("utf-8")
@@ -86,6 +90,7 @@ class RestClient:
 
         try:
             self._requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
+            return True
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed putting content '{path}' to repo '{repo_name}':\n{ex}").with_traceback(tb)
@@ -410,6 +415,57 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
 
+    def sync_from_template_repository(self, org_id: str, repo_name: str, template_repository: str) -> list[str]:
+        template_owner, template_repo = re.split("/", template_repository, 1)
+
+        updated_files = []
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            archive_file_name = os.path.join(tmp_dir, "archive.zip")
+            with open(archive_file_name, "wb") as archive_file:
+                self._download_repository_archive(archive_file, template_owner, template_repo)
+
+            archive_target_dir = os.path.join(tmp_dir, "contents")
+            with zipfile.ZipFile(archive_file_name, "r") as zip_file:
+                zip_file.extractall(archive_target_dir)
+
+            base_dir = None
+            for path in pathlib.Path(archive_target_dir).rglob("*"):
+                # the downloaded archive starts with a subdir that encodes
+                # the name / hash of the downloaded repo, use that as the base dir
+                # to resolve relative path names for updating the content.
+                if base_dir is None:
+                    base_dir = path
+
+                relative_path = path.relative_to(base_dir)
+
+                if path.is_file():
+                    utils.print_debug(f"updating file {relative_path}")
+
+                    with open(path, "r") as file:
+                        content = file.read()
+                        updated = self.update_content(org_id, repo_name, str(relative_path), content)
+                        if updated:
+                            updated_files.append(str(relative_path))
+
+        return updated_files
+
+    def _download_repository_archive(self, file: IO, org_id: str, repo_name: str, ref: str = "") -> None:
+        utils.print_debug(f"downloading repository archive for '{org_id}/{repo_name}'")
+
+        try:
+            response = \
+                self._requester.request_raw("GET",
+                                            f"/repos/{org_id}/{repo_name}/zipball/{ref}",
+                                            stream=True)
+
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving repository archive from "
+                               f"repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
 
 class Requester:
     def __init__(self, token: str, base_url: str, api_version: str):
@@ -477,7 +533,8 @@ class Requester:
                     method: str,
                     url_path: str,
                     data: Optional[str] = None,
-                    params: Optional[dict[str, str]] = None) -> Response:
+                    params: Optional[dict[str, str]] = None,
+                    stream: bool = False) -> Response:
         assert method in ["GET", "PATCH", "POST", "PUT", "DELETE"]
 
         response = \
@@ -486,7 +543,8 @@ class Requester:
                                   headers=self._headers,
                                   refresh=True,
                                   params=params,
-                                  data=data)
+                                  data=data,
+                                  stream=stream)
 
         utils.print_trace(f"'{method}' result = ({response.status_code}, {response.text})")
 

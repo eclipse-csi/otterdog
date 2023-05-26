@@ -22,6 +22,7 @@ from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
 from .operations.push_operation import PushOperation
 from .operations.show_operation import ShowOperation
+from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
 
 _CONFIG_FILE = "otterdog.json"
@@ -168,6 +169,16 @@ def apply(organizations: list[str], force, no_web_ui, update_webhooks):
     _execute_operation(organizations, ApplyOperation(force_processing=force,
                                                      no_web_ui=no_web_ui,
                                                      update_webhooks=update_webhooks))
+
+
+@cli.command(cls=StdCommand)
+@click.option("-r", "--repo", default=None,
+              help="repository to sync (default: all repos created from a template)")
+def sync_template(organizations: list[str], repo):
+    """
+    Sync contents of repositories created from a template repository.
+    """
+    _execute_operation(organizations, SyncTemplateOperation(repo=repo))
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
