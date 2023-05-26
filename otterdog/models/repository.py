@@ -34,6 +34,7 @@ class Repository(ModelObject):
     has_wiki: bool
     is_template: bool
     template_repository: str = dataclasses.field(metadata={"read_only": True})
+    topics: list[str]
     default_branch: str
     allow_rebase_merge: bool
     allow_merge_commit: bool

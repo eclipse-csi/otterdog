@@ -226,6 +226,7 @@ class RestClient:
         try:
             repo_data = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
             self._fill_vulnerability_report_for_repo(org_id, repo_name, repo_data)
+            self._fill_topics_for_repo(org_id, repo_name, repo_data)
             return repo_data
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -241,12 +242,21 @@ class RestClient:
         else:
             vulnerability_reports = None
 
+        if "topics" in data:
+            topics = list(data.pop("topics"))
+        else:
+            topics = None
+
         if changes > 0:
             try:
                 if len(data) > 0:
                     self._requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+
                 if vulnerability_reports is not None:
                     self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
+                if topics is not None:
+                    self._update_topics_for_repo(org_id, repo_name, topics)
+
                 utils.print_debug(f"updated {changes} repo setting(s) for repo '{repo_name}'")
             except GitHubException as ex:
                 tb = ex.__traceback__
@@ -288,7 +298,7 @@ class RestClient:
 
         # some settings do not seem to be set correctly during creation
         # collect them and update the repo after creation.
-        update_keys = ['dependabot_alerts_enabled', 'web_commit_signoff_required', 'security_and_analysis']
+        update_keys = ['dependabot_alerts_enabled', 'web_commit_signoff_required', 'security_and_analysis', 'topics']
         update_data = {}
 
         for update_key in update_keys:
@@ -344,6 +354,20 @@ class RestClient:
             raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}'")
         else:
             utils.print_debug(f"updated vulnerability_reports for repo '{repo_name}'")
+
+    def _fill_topics_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        utils.print_debug(f"retrieving repo topics for '{repo_name}'")
+
+        response = \
+            self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
+        repo_data["topics"] = response.get("names", [])
+
+    def _update_topics_for_repo(self, org_id: str, repo_name: str, topics: list[str]) -> None:
+        utils.print_debug(f"updating repo topics for '{repo_name}'")
+
+        data = {"names": topics}
+        self._requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/topics", data=data)
+        utils.print_debug(f"updated topics for repo '{repo_name}'")
 
     def get_user_node_id(self, login: str):
         utils.print_debug(f"retrieving user node id for user '{login}'")

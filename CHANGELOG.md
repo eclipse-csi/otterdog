@@ -2,6 +2,10 @@
 
 ## [0.2.0.dev] - unreleased
 
+### Added
+
+- Added support for `topics` setting for repositories. ([#44](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/44))
+
 ### Changed
 
 - Switching to module `click` for command line parsing.
