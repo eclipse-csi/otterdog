@@ -167,12 +167,16 @@ def dump_patch_object_as_json(diff_object: dict[str, Any],
             continue
 
         fp.write(" " * offset)
-        if isinstance(value, list):
+        if isinstance(value, list) and len(value) > 0:
             fp.write(f"{key}+: [\n")
             offset += indent
-            for item in value:
+            num_items = len(value)
+            for index, item in enumerate(value):
                 fp.write(" " * offset)
-                fp.write(f"{json.dumps(item)},\n")
+                if index < num_items - 1:
+                    fp.write(f"{json.dumps(item)},\n")
+                else:
+                    fp.write(f"{json.dumps(item)}\n")
             offset -= indent
             fp.write(" " * offset)
             fp.write("],\n")

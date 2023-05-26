@@ -16,6 +16,7 @@ from . import utils
 from .config import OtterdogConfig
 from .operations import Operation
 from .operations.apply_operation import ApplyOperation
+from .operations.canonical_diff_operation import CanonicalDiffOperation
 from .operations.fetch_operation import FetchOperation
 from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
@@ -179,6 +180,14 @@ def sync_template(organizations: list[str], repo):
     Sync contents of repositories created from a template repository.
     """
     _execute_operation(organizations, SyncTemplateOperation(repo=repo))
+
+
+@cli.command(cls=StdCommand)
+def canonical_diff(organizations: list[str]):
+    """
+    Displays a diff of the current configuration to a canonical version.
+    """
+    _execute_operation(organizations, CanonicalDiffOperation())
 
 
 def _execute_operation(organizations: list[str], operation: Operation):

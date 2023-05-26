@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added new operation `canonical-diff` to show differences of the current configuration compared to a canonical version. ([#45](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/45))
 - Added new operation `sync-template` to synchronize the contents of repositories created from a template. ([#41](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/41))
 - Added support for `topics` setting for repositories. ([#44](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/44))
 

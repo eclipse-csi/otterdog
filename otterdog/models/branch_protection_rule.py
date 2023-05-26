@@ -179,7 +179,8 @@ class BranchProtectionRule(ModelObject):
 
             return f"{app_prefix}{context}"
 
-        mapping["required_status_checks"] = OptionalS("requiredStatusChecks") >> Forall(lambda x: transform_app(x))
+        mapping["required_status_checks"] = \
+            OptionalS("requiredStatusChecks", default=[]) >> Forall(lambda x: transform_app(x))
 
         return cls(**bend(mapping, data))
 
