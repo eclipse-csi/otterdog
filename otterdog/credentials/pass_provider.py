@@ -20,8 +20,9 @@ class PassVault(CredentialProvider):
 
     def __init__(self, password_store_dir: str):
         utils.print_debug("accessing pass vault")
-        status, _ = subprocess.getstatusoutput("pass ls")
-        utils.print_trace(f"result = {status}")
+        status, output = subprocess.getstatusoutput("pass ls")
+        if status != 0:
+            raise RuntimeError(f"could not access pass vault:\n{output}")
 
         if password_store_dir:
             utils.print_debug(f"setting password store dir to {password_store_dir}")
@@ -53,8 +54,6 @@ class PassVault(CredentialProvider):
     @staticmethod
     def _retrieve_resolved_key(key: str) -> str:
         status, secret = subprocess.getstatusoutput(f"pass {key} 2>/dev/null")
-        utils.print_trace(f"result = ({status}, {secret})")
-
         if status != 0:
             # run the process again, capturing any error output for debugging.
             _, output = subprocess.getstatusoutput(f"pass {key}")

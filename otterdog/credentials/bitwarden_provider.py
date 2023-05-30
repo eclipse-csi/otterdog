@@ -23,8 +23,9 @@ class BitwardenVault(CredentialProvider):
         self._api_token_key = api_token_key
 
         utils.print_debug("unlocking bitwarden vault")
-        self._status, _ = subprocess.getstatusoutput("bw unlock --check")
-        utils.print_trace(f"result = {self._status}")
+        self._status, output = subprocess.getstatusoutput("bw unlock --check")
+        if self._status != 0:
+            raise RuntimeError(f"could not access bitwarden vault:\n{output}")
 
         if not self.is_unlocked():
             raise RuntimeError("bitwarden vault is locked, run 'bw unlock' and follow instructions first")
@@ -43,14 +44,12 @@ class BitwardenVault(CredentialProvider):
         if api_token_key is None:
             api_token_key = self._api_token_key
 
-        status, item_json = subprocess.getstatusoutput(f"bw get item {item_id}")
-        utils.print_trace(f"result = ({status}, {item_json})")
-
+        status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
         if status != 0:
-            raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault")
+            raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
 
         # load the item json string and access the field containing the GitHub token
-        item = json.loads(item_json)
+        item = json.loads(output)
 
         token_field = next(filter(lambda k: k["name"] == api_token_key, item.get("fields", [])), None)
         if token_field is None:
@@ -78,14 +77,15 @@ class BitwardenVault(CredentialProvider):
         try:
             item_id, secret_key = re.split("@", data)
 
-            status, item_json = subprocess.getstatusoutput(f"bw get item {item_id}")
-            utils.print_trace(f"result = ({status}, {item_json})")
+            status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
+            if status != 0:
+                raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
 
             if status != 0:
                 raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault")
 
             # load the item json string and access the field containing the GitHub token
-            item = json.loads(item_json)
+            item = json.loads(output)
 
             secret_field = next(filter(lambda k: k["name"] == secret_key, item.get("fields", [])), None)
             if secret_field is None:

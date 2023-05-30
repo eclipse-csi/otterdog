@@ -10,6 +10,7 @@
 
 ### Changed
 
+- Prevent printing of credential data when trace mode is enabled. ([#47](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/47))
 - Switching to module `click` for command line parsing.
 - Updated module `playwright` to version 1.33.0.
 - Updated module `requests` to version 2.30.0.
