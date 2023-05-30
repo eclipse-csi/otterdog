@@ -363,9 +363,15 @@ class RestClient:
     def _fill_topics_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         utils.print_debug(f"retrieving repo topics for '{repo_name}'")
 
-        response = \
-            self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
-        repo_data["topics"] = response.get("names", [])
+        try:
+            # querying the topics might fail for temporary private forks,
+            # ignore exceptions, example repo that fails:
+            # https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            response = \
+                self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
+            repo_data["topics"] = response.get("names", [])
+        except GitHubException:
+            repo_data["topics"] = []
 
     def _update_topics_for_repo(self, org_id: str, repo_name: str, topics: list[str]) -> None:
         utils.print_debug(f"updating repo topics for '{repo_name}'")
