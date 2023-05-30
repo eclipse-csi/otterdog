@@ -59,17 +59,17 @@ class FetchOperation(Operation):
             try:
                 if self.pull_request is not None:
                     ref = gh_client.get_ref_for_pull_request(org_config.github_id,
-                                                             self.config.config_repo,
+                                                             org_config.config_repo,
                                                              self.pull_request)
                 else:
                     ref = None
 
                 definition = gh_client.get_content(org_config.github_id,
-                                                   self.config.config_repo,
+                                                   org_config.config_repo,
                                                    f"otterdog/{github_id}.jsonnet",
                                                    ref)
             except RuntimeError:
-                self.printer.print_error(f"failed to fetch definition from repo '{self.config.config_repo}'")
+                self.printer.print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
                 return 1
 
             output_dir = self.jsonnet_config.orgs_dir

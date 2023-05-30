@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -177,9 +179,10 @@ class JsonnetConfig:
 
 
 class OrganizationConfig:
-    def __init__(self, name, github_id, credential_data):
+    def __init__(self, name: str, github_id: str, config_repo: str, credential_data: dict[str, Any]):
         self._name = name
         self._github_id = github_id
+        self._config_repo = config_repo
         self._credential_data = credential_data
 
     @property
@@ -191,14 +194,19 @@ class OrganizationConfig:
         return self._github_id
 
     @property
+    def config_repo(self):
+        return self._config_repo
+
+    @property
     def credential_data(self):
         return self._credential_data
 
     def __repr__(self) -> str:
-        return f"OrganizationConfig('{self.name}', '{self.github_id}', {json.dumps(self._credential_data)})"
+        return f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.config_repo}', " \
+               f"{json.dumps(self.credential_data)})"
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]):
+    def from_dict(cls, data: dict[str, Any], otterdog_config: OtterdogConfig):
         name = jq.compile(".name").input(data).first()
         if name is None:
             raise RuntimeError(f"missing required name for organization config with data: '{json.dumps(data)}'")
@@ -207,11 +215,15 @@ class OrganizationConfig:
         if github_id is None:
             raise RuntimeError(f"missing required github_id for organization config with name '{name}'")
 
+        config_repo = jq.compile(".config_repo").input(data).first()
+        if config_repo is None:
+            config_repo = otterdog_config.default_config_repo
+
         data = jq.compile(".credentials").input(data).first()
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, data)
+        return cls(name, github_id, config_repo, data)
 
 
 class OtterdogConfig:
@@ -234,7 +246,7 @@ class OtterdogConfig:
         organizations = jq.compile(".organizations // []").input(self._configuration).first()
         self._organizations = {}
         for org in organizations:
-            org_config = OrganizationConfig.from_dict(org)
+            org_config = OrganizationConfig.from_dict(org, self)
             self._organizations[org_config.name] = org_config
 
     @property
@@ -250,7 +262,7 @@ class OtterdogConfig:
         return self._jsonnet_config
 
     @property
-    def config_repo(self) -> str:
+    def default_config_repo(self) -> str:
         return self._github_config.get("config_repo", "meta-data")
 
     @property
