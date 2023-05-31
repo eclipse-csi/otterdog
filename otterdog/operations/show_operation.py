@@ -63,14 +63,15 @@ class ShowOperation(Operation):
 
                 self.printer.print()
                 self.print_dict(repo_data,
-                                f"{Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}",
+                                f"{Style.BRIGHT}repository[name=\"{repo.name}\"]{Style.RESET_ALL}",
                                 "",
                                 Fore.BLACK)
 
                 for rule in repo.branch_protection_rules:
                     self.printer.print()
                     self.print_dict(rule.to_model_dict(),
-                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo.name}\"]{Style.RESET_ALL}",
+                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo.name}\", "
+                                    f"pattern=\"{rule.pattern}\"]{Style.RESET_ALL}",
                                     "",
                                     Fore.BLACK)
 

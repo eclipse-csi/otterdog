@@ -63,6 +63,7 @@ The GitHub api token needs to have the following scopes enabled:
 * workflow
 * admin:org
 * admin:org_hook
+* delete_repo
 
 The credentials can be stored in different providers (bitwarden, pass).
 

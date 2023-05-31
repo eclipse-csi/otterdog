@@ -163,13 +163,16 @@ def local_plan(organizations: list[str], suffix, update_webhooks):
               help="skip settings retrieved via web ui")
 @click.option("-u", "--update-webhooks", is_flag=True, show_default=True, default=False,
               help="updates webhook with secrets regardless of changes")
-def apply(organizations: list[str], force, no_web_ui, update_webhooks):
+@click.option("-d", "--delete-resources", is_flag=True, show_default=True, default=False,
+              help="enables deletion of resources if they are missing in the definition")
+def apply(organizations: list[str], force, no_web_ui, update_webhooks, delete_resources):
     """
     Apply changes based on the current configuration to the live configuration at GitHub.
     """
     _execute_operation(organizations, ApplyOperation(force_processing=force,
                                                      no_web_ui=no_web_ui,
-                                                     update_webhooks=update_webhooks))
+                                                     update_webhooks=update_webhooks,
+                                                     delete_resources=delete_resources))
 
 
 @cli.command(cls=StdCommand)

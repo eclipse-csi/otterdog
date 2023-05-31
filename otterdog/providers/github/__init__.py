@@ -109,6 +109,9 @@ class Github:
     def add_webhook(self, org_id: str, data: dict[str, str]) -> None:
         self.rest_client.add_webhook(org_id, data)
 
+    def delete_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
+        self.rest_client.delete_webhook(org_id, webhook_id, url)
+
     def get_repos(self, org_id: str) -> list[str]:
         return self.rest_client.get_repos(org_id)
 
@@ -121,6 +124,9 @@ class Github:
 
     def add_repo(self, org_id: str, data: dict[str, str], template_repository: str, auto_init_repo: bool) -> None:
         self.rest_client.add_repo(org_id, data, template_repository, auto_init_repo)
+
+    def delete_repo(self, org_id: str, repo_name: str) -> None:
+        self.rest_client.delete_repo(org_id, repo_name)
 
     def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
         return self.graphql_client.get_branch_protection_rules(org_id, repo)
@@ -144,6 +150,9 @@ class Github:
             repo_id = repo_data["node_id"]
 
         self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
+
+    def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
+        self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
 
     def get_actor_ids(self, actor_names: list[str]) -> list[str]:
         result = []

@@ -30,7 +30,7 @@ class GraphQLClient:
         }
 
     def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        utils.print_debug(f"retrieving branch protection rules for repo '{repo_name}'")
+        utils.print_debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
         branch_protection_rules = self._run_paged_query(variables, "get-branch-protection-rules.gql")
@@ -84,7 +84,7 @@ class GraphQLClient:
                                       rule_pattern: str,
                                       rule_id: str,
                                       data: dict[str, Any]) -> None:
-        utils.print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{repo_name}'")
+        utils.print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["branchProtectionRuleId"] = rule_id
         variables = {"ruleInput": data}
@@ -115,7 +115,7 @@ class GraphQLClient:
     def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_id: str, data: dict[str, Any]) -> None:
         rule_pattern = data["pattern"]
         utils.print_debug(f"creating branch_protection_rule with pattern '{rule_pattern}' "
-                          f"for repo '{repo_name}'")
+                          f"for repo '{org_id}/{repo_name}'")
 
         data["repositoryId"] = repo_id
         variables = {"ruleInput": data}
@@ -146,6 +146,28 @@ class GraphQLClient:
             utils.print_debug(f"successfully created branch protection rule '{rule_pattern}'")
         else:
             raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}'")
+
+    def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
+        utils.print_debug(f"deleting branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
+
+        variables = {"ruleInput": {"branchProtectionRuleId": rule_id}}
+
+        query = """mutation($ruleInput: DeleteBranchProtectionRuleInput!) {
+           deleteBranchProtectionRule(input:$ruleInput) {
+             clientMutationId
+           }
+        }"""
+
+        response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
+                                 headers=self._headers,
+                                 json={"query": query, "variables": variables})
+        utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
+
+        if not response.ok:
+            msg = f"failed removing branch protection rule '{rule_pattern}' for repo '{repo_name}'"
+            raise RuntimeError(msg)
+
+        utils.print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
     def _run_paged_query(self,
                          input_variables: dict[str, Any],

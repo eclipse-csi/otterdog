@@ -36,8 +36,7 @@ class PlanOperation(DiffOperation):
         self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
         self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
         self.printer.print(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
-        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} extra (missing in definition but available "
-                           f"in other config)")
+        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} delete")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
         self.print_modified_dict(modified_settings, "settings")
@@ -68,13 +67,15 @@ class PlanOperation(DiffOperation):
                 self.printer.print(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
                                    f"with url '{webhook_url}'")
 
-    def handle_extra_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
+    def handle_delete_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         self.printer.print()
-        self.print_dict(webhook.to_model_dict(), "extra webhook", "-", Fore.RED)
+        # avoid printing the secret by using for_diff=True
+        self.print_dict(webhook.to_model_dict(for_diff=True), f"remove webhook[url='{webhook.url}']", "-", Fore.RED)
 
     def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         self.printer.print()
-        self.print_dict(webhook.to_model_dict(), "new webhook", "+", Fore.GREEN)
+        # avoid printing the secret by using for_diff=True
+        self.print_dict(webhook.to_model_dict(for_diff=True), f"new webhook[url='{webhook.url}']", "+", Fore.GREEN)
 
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
         self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
@@ -89,13 +90,13 @@ class PlanOperation(DiffOperation):
 
         return settings_to_change
 
-    def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
+    def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(repo.to_model_dict(), "extra repo", "-", Fore.RED)
+        self.print_dict(repo.to_model_dict(), f"remove repo[name=\"{repo.name}\"]", "-", Fore.RED)
 
     def handle_new_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(repo.to_model_dict(for_diff=True), "new repo", "+", Fore.GREEN)
+        self.print_dict(repo.to_model_dict(for_diff=True), f"new repo[name=\"{repo.name}\"]", "+", Fore.GREEN)
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -108,16 +109,20 @@ class PlanOperation(DiffOperation):
         self.print_modified_dict(modified_rule,
                                  f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]")
 
-    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
+    def handle_delete_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         self.printer.print()
-        self.print_dict(bpr.to_model_dict(), f"extra branch_protection_rule[repo=\"{repo_name}\"]", "-", Fore.RED)
+        self.print_dict(bpr.to_model_dict(),
+                        f"remove branch_protection_rule[repo=\"{repo_name}\", pattern=\"{bpr.pattern}\"]",
+                        "-", Fore.RED)
 
     def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
         self.printer.print()
-        self.print_dict(bpr.to_model_dict(), f"new branch_protection_rule[repo=\"{repo_name}\"]", "+", Fore.GREEN)
+        self.print_dict(bpr.to_model_dict(),
+                        f"new branch_protection_rule[repo=\"{repo_name}\", pattern=\"{bpr.pattern}\"]",
+                        "+", Fore.GREEN)
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.print()
         self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
                            f"{diff_status.differences} to change, "
-                           f"{diff_status.extras} are missing in definition.")
+                           f"{diff_status.deletions} to delete.")

@@ -29,10 +29,13 @@ class DiffStatus:
     def __init__(self):
         self.additions = 0
         self.differences = 0
-        self.extras = 0
+        self.deletions = 0
 
-    def total_changes(self) -> int:
-        return self.additions + self.differences
+    def total_changes(self, include_deletions: bool) -> int:
+        if include_deletions:
+            return self.additions + self.differences + self.deletions
+        else:
+            return self.additions + self.differences
 
 
 class DiffOperation(Operation):
@@ -176,8 +179,8 @@ class DiffOperation(Operation):
 
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.handle_extra_webhook(github_id, current_webhook)
-                diff_status.extras += 1
+                self.handle_delete_webhook(github_id, current_webhook)
+                diff_status.deletions += 1
                 continue
 
             expected_webhooks_by_url.pop(webhook_url)
@@ -238,8 +241,8 @@ class DiffOperation(Operation):
             expected_repo = expected_repos_by_all_names.get(current_repo_name)
 
             if expected_repo is None:
-                self.handle_extra_repo(github_id, current_repo)
-                diff_status.extras += 1
+                self.handle_delete_repo(github_id, current_repo)
+                diff_status.deletions += 1
                 continue
 
             # special handling for some keys that can be set organization wide
@@ -294,8 +297,8 @@ class DiffOperation(Operation):
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_extra_rule(org_id, expected_repo.name, current_repo.id, current_rule)
-                    diff_status.extras += 1
+                    self.handle_delete_rule(org_id, expected_repo.name, current_repo.id, current_rule)
+                    diff_status.deletions += 1
                     continue
 
                 modified_rule: dict[str, Change[Any]] = expected_rule.get_difference_from(current_rule)
@@ -330,7 +333,7 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
+    def handle_delete_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -345,7 +348,7 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_repo(self, org_id: str, repo: Repository) -> None:
+    def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -362,7 +365,7 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_extra_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
+    def handle_delete_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
         raise NotImplementedError
 
     @abstractmethod

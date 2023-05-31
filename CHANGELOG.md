@@ -4,7 +4,8 @@
 
 ### Added
 
-- Added support for renaming of repositories by introducing an additiona field `aliases`. ([#43](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/43))
+- Added support to delete resources that are missing in definition (must be explicitly enabled with flag `--delete-resources`). ([#49](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/49))
+- Added support for renaming of repositories by introducing an additional field `aliases`. ([#43](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/43))
 - Added support for overriding the `config_repo` setting per organization. ([#48](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/48))
 - Added new operation `canonical-diff` to show differences of the current configuration compared to a canonical version. ([#45](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/45))
 - Added new operation `sync-template` to synchronize the contents of repositories created from a template. ([#41](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/41))
