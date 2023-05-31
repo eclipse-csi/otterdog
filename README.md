@@ -294,10 +294,10 @@ value (not adivsed), or referencing it via a credential provider.
 
 Note:
 
-* `allowsForcePushes`: if this set to `True`, any actor with push permission can force push to the branch
-* `bypassForcePushAllowances`: if the actor list is non-empty but `allowsForcePushes` is set to True, a validation error will be issued
-* `pushRestrictions`: the contents of the actor list controls whether push restriction is enabled or disabled, i.e. an empty list disables it
-* `reviewDismissalAllowances`: if the actor list is non-empty but `restrictsReviewDismissals` is set to False, a validation error will be issued
+* `allows_force_pushes`: if this set to `True`, any actor with push permission can force push to the branch
+* `bypass_force_push_allowances`: if the actor list is non-empty but `allows_force_pushes` is set to True, a validation error will be issued
+* `push_restrictions`: the contents of the actor list controls whether push restriction is enabled or disabled, i.e. an empty list disables it
+* `review_dismissal_allowances`: if the actor list is non-empty but `restricts_review_dismissals` is set to False, a validation error will be issued
 
 ### Actor Format
 
