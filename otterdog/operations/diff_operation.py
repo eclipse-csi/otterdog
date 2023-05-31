@@ -229,12 +229,13 @@ class DiffOperation(Operation):
                               modified_org_settings: dict[str, Change[Any]],
                               diff_status: DiffStatus) -> None:
 
-        expected_repos_by_name = multi_associate_by_key(expected_org.repositories, Repository.get_all_names)
+        expected_repos_by_all_names = multi_associate_by_key(expected_org.repositories, Repository.get_all_names)
+        expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
         current_repos = current_org.repositories
 
         for current_repo in current_repos:
             current_repo_name = current_repo.name
-            expected_repo = expected_repos_by_name.get(current_repo_name)
+            expected_repo = expected_repos_by_all_names.get(current_repo_name)
 
             if expected_repo is None:
                 self.handle_extra_repo(github_id, current_repo)
@@ -257,8 +258,10 @@ class DiffOperation(Operation):
                                                   expected_repo,
                                                   diff_status)
 
+            # pop the already handled repos
             for name in expected_repo.get_all_names():
-                expected_repos_by_name.pop(name)
+                expected_repos_by_all_names.pop(name)
+            expected_repos_by_name.pop(expected_repo.name)
 
         for repo_name, repo in expected_repos_by_name.items():
             self.handle_new_repo(github_id, repo)

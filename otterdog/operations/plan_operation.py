@@ -95,7 +95,7 @@ class PlanOperation(DiffOperation):
 
     def handle_new_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(repo.to_model_dict(), "new repo", "+", Fore.GREEN)
+        self.print_dict(repo.to_model_dict(for_diff=True), "new repo", "+", Fore.GREEN)
 
     def handle_modified_rule(self,
                              org_id: str,
