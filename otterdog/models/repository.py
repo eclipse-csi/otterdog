@@ -14,7 +14,7 @@ from typing import Any, ClassVar, Optional
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset
+from otterdog.utils import UNSET, is_unset, is_set_and_valid
 
 from . import ModelObject, ValidationContext, FailureType
 from .organization_settings import OrganizationSettings
@@ -26,6 +26,7 @@ class Repository(ModelObject):
     id: str = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
+    aliases: list[str] = dataclasses.field(metadata={"model_only": True})
     description: str
     homepage: str
     private: bool
@@ -72,6 +73,13 @@ class Repository(ModelObject):
             "dependabot_alerts_enabled",
             "secret_scanning_push_protection"
          }
+
+    def get_all_names(self) -> list[str]:
+        names = [self.name]
+        if is_set_and_valid(self.aliases):
+            for alias in self.aliases:
+                names.append(alias)
+        return names
 
     def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
         self.branch_protection_rules.append(rule)

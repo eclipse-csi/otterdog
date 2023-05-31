@@ -18,7 +18,8 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter, associate_by_key, print_warn, Change, is_unset, is_set_and_valid
+from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn,\
+    Change, is_unset, is_set_and_valid
 
 from . import Operation
 from .validate_operation import ValidateOperation
@@ -228,7 +229,7 @@ class DiffOperation(Operation):
                               modified_org_settings: dict[str, Change[Any]],
                               diff_status: DiffStatus) -> None:
 
-        expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
+        expected_repos_by_name = multi_associate_by_key(expected_org.repositories, Repository.get_all_names)
         current_repos = current_org.repositories
 
         for current_repo in current_repos:
@@ -256,7 +257,8 @@ class DiffOperation(Operation):
                                                   expected_repo,
                                                   diff_status)
 
-            expected_repos_by_name.pop(current_repo_name)
+            for name in expected_repo.get_all_names():
+                expected_repos_by_name.pop(name)
 
         for repo_name, repo in expected_repos_by_name.items():
             self.handle_new_repo(github_id, repo)
@@ -289,14 +291,14 @@ class DiffOperation(Operation):
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_extra_rule(org_id, current_repo.name, current_repo.id, current_rule)
+                    self.handle_extra_rule(org_id, expected_repo.name, current_repo.id, current_rule)
                     diff_status.extras += 1
                     continue
 
                 modified_rule: dict[str, Change[Any]] = expected_rule.get_difference_from(current_rule)
 
                 if len(modified_rule) > 0:
-                    self.handle_modified_rule(org_id, current_repo.name, rule_pattern, current_rule.id, modified_rule)
+                    self.handle_modified_rule(org_id, expected_repo.name, rule_pattern, current_rule.id, modified_rule)
                     diff_status.differences += len(modified_rule)
 
                 expected_branch_protection_rules_by_pattern.pop(rule_pattern)

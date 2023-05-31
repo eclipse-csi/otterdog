@@ -4,6 +4,10 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "description": { "$ref": "#/definitions/string_or_null" },
     "homepage": { "$ref": "#/definitions/string_or_null" },
     "private": { "type": "boolean" },

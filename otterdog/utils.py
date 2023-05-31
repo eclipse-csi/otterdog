@@ -204,6 +204,20 @@ def associate_by_key(input_list: list[T], key_func: Callable[[T], str]) -> dict[
     return result
 
 
+def multi_associate_by_key(input_list: list[T], key_func: Callable[[T], list[str]]) -> dict[str, T]:
+    result = {}
+    for item in input_list:
+        keys = key_func(item)
+
+        for key in keys:
+            if key in result:
+                raise RuntimeError(f"duplicate item found with key '{key}'")
+
+            result[key] = item
+
+    return result
+
+
 class IndentingPrinter:
     def __init__(self, spaces_per_level: int = 2):
         self._level = 0

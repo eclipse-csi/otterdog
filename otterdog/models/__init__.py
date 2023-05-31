@@ -51,21 +51,19 @@ class ModelObject(ABC):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         diff_result: dict[str, Change[T]] = {}
-        for field in self.model_fields():
-            if not self.include_field_for_diff_computation(field):
-                continue
+        for key in self.keys(for_diff=True,
+                             for_patch=False,
+                             include_nested_models=False,
+                             exclude_unset_keys=True):
 
-            if self.is_nested_model(field):
-                continue
+            to_value = self.__getattribute__(key)
+            from_value = other.__getattribute__(key)
 
-            to_value = self.__getattribute__(field.name)
-            from_value = other.__getattribute__(field.name)
-
-            if is_unset(to_value) or is_unset(from_value):
+            if is_unset(from_value):
                 continue
 
             if is_different_ignoring_order(to_value, from_value):
-                diff_result[field.name] = Change(from_value, to_value)
+                diff_result[key] = Change(from_value, to_value)
 
         return diff_result
 
@@ -74,25 +72,20 @@ class ModelObject(ABC):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
-        for field in self.model_fields():
-            if not self.include_field_for_patch_computation(field):
-                continue
+        for key in self.keys(for_diff=False,
+                             for_patch=True,
+                             include_nested_models=False,
+                             exclude_unset_keys=True):
 
-            if self.is_nested_model(field):
-                continue
-
-            value = self.__getattribute__(field.name)
-            other_value = other.__getattribute__(field.name)
+            value = self.__getattribute__(key)
+            other_value = other.__getattribute__(key)
 
             if is_unset(other_value):
                 continue
 
-            if is_unset(value):
-                continue
-            else:
-                patch_needed, diff = patch_to_other(value, other_value)
-                if patch_needed is True:
-                    patch_result[field.name] = diff
+            patch_needed, diff = patch_to_other(value, other_value)
+            if patch_needed is True:
+                patch_result[key] = diff
 
         return patch_result
 
@@ -107,7 +100,10 @@ class ModelObject(ABC):
     @classmethod
     def provider_fields(cls) -> list[dataclasses.Field]:
         return [field for field in dataclasses.fields(cls) if
-                not cls.is_external_only(field) and not cls.is_read_only(field) and not cls.is_nested_model(field)]
+                not cls.is_external_only(field) and
+                not cls.is_model_only(field) and
+                not cls.is_read_only(field) and
+                not cls.is_nested_model(field)]
 
     @classmethod
     def _get_field(cls, key: str) -> dataclasses.Field:
@@ -128,6 +124,10 @@ class ModelObject(ABC):
     @classmethod
     def is_read_only_key(cls, key: str) -> bool:
         return cls.is_read_only(cls._get_field(key))
+
+    @staticmethod
+    def is_model_only(field: dataclasses.Field) -> bool:
+        return field.metadata.get("model_only", False) is True
 
     @staticmethod
     def is_nested_model(field: dataclasses.Field) -> bool:
@@ -161,18 +161,32 @@ class ModelObject(ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def keys(self, for_diff: bool = False, include_nested_models: bool = False) -> list[str]:
+    def keys(self,
+             for_diff: bool = False,
+             for_patch: bool = False,
+             include_nested_models: bool = False,
+             exclude_unset_keys: bool = True) -> list[str]:
+
         result = list()
 
         for field in self.model_fields():
             if for_diff is True and not self.include_field_for_diff_computation(field):
                 continue
 
+            if for_patch is True and not self.include_field_for_patch_computation(field):
+                continue
+
+            if (for_diff or for_patch) and self.is_model_only(field):
+                continue
+
             if include_nested_models is False and self.is_nested_model(field):
                 continue
 
-            value = self.__getattribute__(field.name)
-            if not is_unset(value):
+            if exclude_unset_keys:
+                value = self.__getattribute__(field.name)
+                if not is_unset(value):
+                    result.append(field.name)
+            else:
                 result.append(field.name)
 
         return result
@@ -180,9 +194,9 @@ class ModelObject(ABC):
     def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
         result = {}
 
-        for key in self.keys(for_diff, include_nested_models):
-            value = self.__getattribute__(key)
-            if not is_unset(value):
-                result[key] = value
+        for key in self.keys(for_diff=for_diff,
+                             include_nested_models=include_nested_models,
+                             exclude_unset_keys=True):
+            result[key] = self.__getattribute__(key)
 
         return result
