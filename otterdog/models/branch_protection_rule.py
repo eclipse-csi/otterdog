@@ -22,6 +22,10 @@ from . import ModelObject, ValidationContext, FailureType
 
 @dataclasses.dataclass
 class BranchProtectionRule(ModelObject):
+    """
+    Represents a Branch Protection Rule within a Repository.
+    """
+
     id: str = dataclasses.field(metadata={"external_only": True})
     pattern: str = dataclasses.field(metadata={"key": True})
 

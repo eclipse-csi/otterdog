@@ -21,6 +21,10 @@ from . import ModelObject, ValidationContext, FailureType
 
 @dataclasses.dataclass
 class OrganizationSettings(ModelObject):
+    """
+    Represents settings of a GitHub Organization.
+    """
+
     name: Optional[str]
     plan: str = dataclasses.field(metadata={"read_only": True})
     description: Optional[str]

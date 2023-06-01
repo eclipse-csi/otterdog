@@ -39,6 +39,10 @@ _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").
 
 @dataclasses.dataclass
 class GitHubOrganization:
+    """
+    Represents a GitHub Organization with its associated resources.
+    """
+
     github_id: str
     settings: OrganizationSettings
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)

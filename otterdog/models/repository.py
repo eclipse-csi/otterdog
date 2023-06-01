@@ -23,6 +23,10 @@ from .branch_protection_rule import BranchProtectionRule
 
 @dataclasses.dataclass
 class Repository(ModelObject):
+    """
+    Represents a Repository of an Organization.
+    """
+
     id: str = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})

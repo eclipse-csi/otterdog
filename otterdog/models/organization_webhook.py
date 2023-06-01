@@ -20,6 +20,10 @@ from . import ModelObject, ValidationContext, FailureType
 
 @dataclasses.dataclass
 class OrganizationWebhook(ModelObject):
+    """
+    Represents a WebHook defined on organization level.
+    """
+
     id: str = dataclasses.field(metadata={"external_only": True})
     events: list[str]
     active: bool
