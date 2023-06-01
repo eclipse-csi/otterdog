@@ -175,5 +175,9 @@ class Github:
     def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return self.rest_client.get_ref_for_pull_request(org_id, repo_name, pull_number)
 
-    def sync_from_template_repository(self, org_id: str, repo_name: str, template_repository: str) -> list[str]:
-        return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository)
+    def sync_from_template_repository(self,
+                                      org_id: str,
+                                      repo_name: str,
+                                      template_repository: str,
+                                      ignore_paths: list[str]) -> list[str]:
+        return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository, ignore_paths)

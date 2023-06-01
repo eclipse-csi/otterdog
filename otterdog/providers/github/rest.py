@@ -462,7 +462,11 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
 
-    def sync_from_template_repository(self, org_id: str, repo_name: str, template_repository: str) -> list[str]:
+    def sync_from_template_repository(self,
+                                      org_id: str,
+                                      repo_name: str,
+                                      template_repository: str,
+                                      ignore_paths: list[str]) -> list[str]:
         template_owner, template_repo = re.split("/", template_repository, 1)
 
         updated_files = []
@@ -475,6 +479,8 @@ class RestClient:
             with zipfile.ZipFile(archive_file_name, "r") as zip_file:
                 zip_file.extractall(archive_target_dir)
 
+            ignore_paths_set = set(ignore_paths)
+
             base_dir = None
             for path in pathlib.Path(archive_target_dir).rglob("*"):
                 # the downloaded archive starts with a subdir that encodes
@@ -485,7 +491,7 @@ class RestClient:
 
                 relative_path = path.relative_to(base_dir)
 
-                if path.is_file():
+                if path.is_file() and relative_path not in ignore_paths_set:
                     utils.print_debug(f"updating file {relative_path}")
 
                     with open(path, "r") as file:

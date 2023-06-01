@@ -66,7 +66,11 @@ class SyncTemplateOperation(Operation):
                     continue
 
                 self.printer.print(f"Syncing {Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}")
-                updated_files = gh_client.sync_from_template_repository(github_id, repo.name, repo.template_repository)
+                updated_files = \
+                    gh_client.sync_from_template_repository(github_id,
+                                                            repo.name,
+                                                            repo.template_repository,
+                                                            repo.post_process_template_content)
 
                 self.printer.level_up()
                 for file in updated_files:
