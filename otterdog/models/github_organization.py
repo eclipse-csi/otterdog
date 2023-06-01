@@ -148,7 +148,9 @@ class GitHubOrganization:
                 repo_patch = repo.get_patch_to(other_repo)
 
                 has_branch_protection_rules = len(repo.branch_protection_rules) > 0
-                has_changes = len(repo_patch) > 0 or has_branch_protection_rules
+                # FIXME: take branch protection rules into account once it is supported for
+                #        repos that get extended.
+                has_changes = len(repo_patch) > 0
                 if extend and has_changes is False:
                     continue
 
@@ -165,7 +167,9 @@ class GitHubOrganization:
                                                     indent=indent,
                                                     close_object=False)
 
-                if has_branch_protection_rules:
+                # FIXME: support overriding branch protection rules for repos coming from
+                #        the default configuration.
+                if has_branch_protection_rules and not extend:
                     default_org_rule = BranchProtectionRule.from_model_data(config.default_org_branch_config)
 
                     output.write(" " * offset + "branch_protection_rules: [\n")
