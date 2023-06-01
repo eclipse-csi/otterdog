@@ -487,7 +487,7 @@ class RestClient:
                                       org_id: str,
                                       repo_name: str,
                                       template_repository: str,
-                                      ignore_paths: list[str]) -> list[str]:
+                                      ignore_paths: Optional[list[str]]) -> list[str]:
         template_owner, template_repo = re.split("/", template_repository, 1)
 
         updated_files = []
@@ -500,7 +500,7 @@ class RestClient:
             with zipfile.ZipFile(archive_file_name, "r") as zip_file:
                 zip_file.extractall(archive_target_dir)
 
-            ignore_paths_set = set(ignore_paths)
+            ignore_paths_set = set(ignore_paths) if isinstance(ignore_paths, list) else set()
 
             base_dir = None
             for path in pathlib.Path(archive_target_dir).rglob("*"):

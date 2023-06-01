@@ -65,12 +65,18 @@ class SyncTemplateOperation(Operation):
                 elif not is_set_and_valid(repo.template_repository):
                     continue
 
+                if repo.archived is True:
+                    continue
+
+                ignore_paths = \
+                    repo.post_process_template_content if is_set_and_valid(repo.post_process_template_content) else []
+
                 self.printer.print(f"Syncing {Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}")
                 updated_files = \
                     gh_client.sync_from_template_repository(github_id,
                                                             repo.name,
                                                             repo.template_repository,
-                                                            repo.post_process_template_content)
+                                                            ignore_paths)
 
                 self.printer.level_up()
                 for file in updated_files:
