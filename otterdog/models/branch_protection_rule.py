@@ -147,7 +147,7 @@ class BranchProtectionRule(ModelObject):
                 return False
 
         if self.requires_status_checks is False:
-            if field.name in ["required_status_checks"]:
+            if field.name in ["required_status_checks", "requires_strict_status_checks"]:
                 return False
 
         return True
