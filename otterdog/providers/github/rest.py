@@ -491,7 +491,7 @@ class RestClient:
 
                 relative_path = path.relative_to(base_dir)
 
-                if path.is_file() and relative_path not in ignore_paths_set:
+                if path.is_file() and str(relative_path) not in ignore_paths_set:
                     utils.print_debug(f"updating file {relative_path}")
 
                     with open(path, "r") as file:
