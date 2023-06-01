@@ -122,8 +122,13 @@ class Github:
         if len(data) > 0:
             self.rest_client.update_repo(org_id, repo_name, data)
 
-    def add_repo(self, org_id: str, data: dict[str, str], template_repository: str, auto_init_repo: bool) -> None:
-        self.rest_client.add_repo(org_id, data, template_repository, auto_init_repo)
+    def add_repo(self,
+                 org_id: str,
+                 data: dict[str, str],
+                 template_repository: str,
+                 post_process_template_content: list[str],
+                 auto_init_repo: bool) -> None:
+        self.rest_client.add_repo(org_id, data, template_repository, post_process_template_content, auto_init_repo)
 
     def delete_repo(self, org_id: str, repo_name: str) -> None:
         self.rest_client.delete_repo(org_id, repo_name)

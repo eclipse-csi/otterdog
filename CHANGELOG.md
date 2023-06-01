@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support to post process some content initialized from a template repo using setting `post_process_template_content`.
 - Added support to delete resources that are missing in definition (must be explicitly enabled with flag `--delete-resources`). ([#49](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/49))
 - Added support for renaming of repositories by introducing an additional field `aliases`. ([#43](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/43))
 - Added support for overriding the `config_repo` setting per organization. ([#48](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/48))

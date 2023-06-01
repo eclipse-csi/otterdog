@@ -16,6 +16,10 @@
     "has_wiki": { "type": "boolean" },
     "is_template": { "type": "boolean" },
     "template_repository": { "$ref": "#/definitions/string_or_null" },
+    "post_process_template_content": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "topics": {
       "type": "array",
       "items": { "type": "string" }

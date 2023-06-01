@@ -19,6 +19,7 @@ importlib_resources = "~5.12.0"
 requests-cache = "~1.0.1"
 gojsonnet = "~0.20.0"
 click = "~8.1.3"
+chevron = "~0.13.1"
 
 [tool.poetry.dev-dependencies]
 flake8 = "~5.0.4"

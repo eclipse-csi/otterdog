@@ -137,6 +137,7 @@ class ApplyOperation(PlanOperation):
             self.gh_client.add_repo(org_id,
                                     repo.to_provider_data(),
                                     repo.template_repository,
+                                    repo.post_process_template_content,
                                     self.config.auto_init_repo)
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:

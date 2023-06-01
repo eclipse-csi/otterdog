@@ -15,6 +15,7 @@ import tempfile
 import zipfile
 from typing import Any, Optional, IO
 
+import chevron
 from requests import Response
 from requests_cache import CachedSession
 
@@ -47,7 +48,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def get_content(self, org_id: str, repo_name: str, path: str, ref: str) -> str:
+    def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str]) -> str:
         json_response = self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode('utf-8')
 
@@ -277,7 +278,12 @@ class RestClient:
                 tb = ex.__traceback__
                 raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def add_repo(self, org_id: str, data: dict[str, Any], template_repository: str, auto_init_repo: bool) -> None:
+    def add_repo(self,
+                 org_id: str,
+                 data: dict[str, Any],
+                 template_repository: str,
+                 post_process_template_content: list[str],
+                 auto_init_repo: bool) -> None:
         repo_name = data["name"]
 
         if utils.is_set_and_valid(template_repository):
@@ -303,6 +309,21 @@ class RestClient:
                 current_data = self.get_repo_data(org_id, repo_name)
                 self._remove_already_active_settings(data, current_data)
                 self.update_repo(org_id, repo_name, data)
+
+                # if there is template content which shall be post-processed,
+                # use chevron to expand some variables that might be used there.
+                for content_path in post_process_template_content:
+                    content = self.get_content(org_id, repo_name, content_path, None)
+
+                    variables = {
+                        "org": org_id,
+                        "repo": repo_name
+                    }
+
+                    updated_content = chevron.render(content, variables)
+                    if content != updated_content:
+                        self.update_content(org_id, repo_name, content_path, updated_content)
+
                 return
             except GitHubException as ex:
                 tb = ex.__traceback__
