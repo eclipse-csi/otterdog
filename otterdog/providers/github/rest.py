@@ -310,6 +310,18 @@ class RestClient:
                 self._remove_already_active_settings(data, current_data)
                 self.update_repo(org_id, repo_name, data)
 
+                # wait till the repo is initialized, this might take a while.
+                if len(post_process_template_content) > 0:
+                    for i in range(1, 4):
+                        try:
+                            self.get_readme_of_repo(org_id, repo_name)
+                            break
+                        except GitHubException:
+                            utils.print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, "
+                                              f"try {i} of 3")
+                            import time
+                            time.sleep(1)
+
                 # if there is template content which shall be post-processed,
                 # use chevron to expand some variables that might be used there.
                 for content_path in post_process_template_content:
@@ -351,7 +363,16 @@ class RestClient:
             self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed to add repo with name '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    def get_readme_of_repo(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        utils.print_debug(f"getting readme for repo '{org_id}/{repo_name}'")
+
+        try:
+            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/readme")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to get readme for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
     def delete_repo(self, org_id: str, repo_name: str) -> None:
         utils.print_debug(f"deleting repo '{org_id}/{repo_name}'")
