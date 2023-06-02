@@ -163,9 +163,16 @@ class Github:
         result = []
         for actor in actor_names:
             if actor.startswith("/"):
-                result.append(self.rest_client.get_user_node_id(actor[1:]))
+                try:
+                    result.append(self.rest_client.get_user_node_id(actor[1:]))
+                except RuntimeError:
+                    utils.print_warn(f"user '{actor}' does not exist, skipping")
+
             else:
-                result.append(self.rest_client.get_team_node_id(actor))
+                try:
+                    result.append(self.rest_client.get_team_node_id(actor))
+                except RuntimeError:
+                    utils.print_warn(f"team '{actor}' does not exist, skipping")
 
         return result
 

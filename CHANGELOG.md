@@ -14,6 +14,7 @@
 
 ### Changed
 
+- Non-existing users and teams will now trigger a warning message rather a failure during the execution of an `apply` operation. ([#51](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/51))
 - Prevent printing of credential data when trace mode is enabled. ([#47](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/47))
 - Switching to module `click` for command line parsing.
 - Updated module `playwright` to version 1.33.0.
