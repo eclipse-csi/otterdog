@@ -275,7 +275,7 @@ value (not adivsed), or referencing it via a credential provider.
 | bypass_force_push_allowances    | list[actor]       | List of actors able to force push for this branch protection rule                            |
 | bypass_pull_request_allowances  | list[actor]       | List of actors able to bypass PRs for this branch protection rule                            |
 | dismisses_stale_reviews         | boolean           | Dismiss approved reviews automatically when a new commit is pushed                           |
-| is_admin_enforced               | boolean           | Enforces status checks for admin                                                             |
+| is_admin_enforced               | boolean           | Enforces the branch protection rule for admins                                               |
 | lock_allows_fetch_and_merge     | boolean           | If the repo has dependabot alerts enabled                                                    |
 | lock_branch                     | boolean           | If the branch is read-only                                                                   |
 | push_restrictions               | list[actor]       | List of actors that are permitted to push to the branch                                      |
@@ -384,13 +384,13 @@ deactivate-otterdog
 
 * An table arguments
 
-| Argument                     | Description                                                                                |
-|------------------------------|--------------------------------------------------------------------------------------------|
-| -g                           | .gnupg directory PATH by default $HOME/.gnupg if it is not provided                        |
-| -o                           | Output ORGS directory path by default $PWD/orgs if it is not provided                      |
-| -c                           | otterdog json file path by default $PWD/otterdog.json if it is not provided                |
-| -p                           | .password-store directory PATH by default $HOME/.password-store if it is not provided      |
-| -h                           | Help about container arguments and otterdog                                                |
+| Argument                     | Description                                                                           |
+|------------------------------|---------------------------------------------------------------------------------------|
+| -g                           | .gnupg directory PATH by default $HOME/.gnupg if it is not provided                   |
+| -o                           | Output ORGS directory path by default $PWD/orgs if it is not provided                 |
+| -c                           | otterdog json file path by default $PWD/otterdog.json if it is not provided           |
+| -p                           | .password-store directory PATH by default $HOME/.password-store if it is not provided |
+| -h                           | Help about container arguments and otterdog                                           |
 
 * Please find below an example to show configuration
 ```console
