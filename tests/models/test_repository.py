@@ -51,6 +51,10 @@ class RepositoryTest(ModelTest):
         assert repo.secret_scanning_push_protection is UNSET
         assert repo.dependabot_alerts_enabled is True
 
+        assert repo.aliases == ["oldname"]
+        assert repo.post_process_template_content == []
+        assert repo.auto_init is False
+
     def test_load_from_provider(self):
         repo = Repository.from_provider_data(self.provider_data)
 

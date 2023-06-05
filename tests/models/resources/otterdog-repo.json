@@ -1,4 +1,5 @@
 {
+  "aliases": ["oldname"],
   "allow_forking": true,
   "has_wiki": true,
   "web_commit_signoff_required": false,

@@ -14,7 +14,7 @@ from typing import Any, ClassVar, Optional
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, is_set_and_valid
+from otterdog.utils import UNSET, is_unset
 
 from . import ModelObject, ValidationContext, FailureType
 from .organization_settings import OrganizationSettings
@@ -30,16 +30,14 @@ class Repository(ModelObject):
     id: str = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
-    aliases: list[str] = dataclasses.field(metadata={"model_only": True})
-    description: str
-    homepage: str
+    description: Optional[str]
+    homepage: Optional[str]
     private: bool
     has_issues: bool
     has_projects: bool
     has_wiki: bool
     is_template: bool
-    template_repository: str = dataclasses.field(metadata={"read_only": True})
-    post_process_template_content: list[str] = dataclasses.field(metadata={"read_only": True})
+    template_repository: Optional[str] = dataclasses.field(metadata={"read_only": True})
     topics: list[str]
     default_branch: str
     allow_rebase_merge: bool
@@ -58,8 +56,18 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
-    branch_protection_rules: list[BranchProtectionRule] = dataclasses.field(metadata={"model": True},
-                                                                            default_factory=list)
+
+    # model only fields
+    aliases: list[str] = \
+        dataclasses.field(metadata={"model_only": True}, default_factory=list)
+    post_process_template_content: list[str] =\
+        dataclasses.field(metadata={"model_only": True}, default_factory=list)
+    auto_init: bool = \
+        dataclasses.field(metadata={"model_only": True}, default=False)
+
+    # nested model fields
+    branch_protection_rules: list[BranchProtectionRule] = \
+        dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     _security_properties: ClassVar[list[str]] = ["secret_scanning", "secret_scanning_push_protection"]
 
@@ -80,11 +88,7 @@ class Repository(ModelObject):
          }
 
     def get_all_names(self) -> list[str]:
-        names = [self.name]
-        if is_set_and_valid(self.aliases):
-            for alias in self.aliases:
-                names.append(alias)
-        return names
+        return [self.name] + self.aliases
 
     def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
         self.branch_protection_rules.append(rule)

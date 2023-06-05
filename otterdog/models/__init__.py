@@ -36,6 +36,18 @@ class ModelObject(ABC):
     The abstract base class for any model object.
     """
 
+    def __post_init__(self):
+        """
+        Assigns to all field which are UNSET their default value, if one is available.
+        """
+        for field in self.all_fields():
+            value = self.__getattribute__(field.name)
+            if is_unset(value):
+                if field.default is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default)
+                elif field.default_factory is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default_factory())
+
     def is_keyed(self) -> bool:
         return any(field.metadata.get("key", False) for field in self.all_fields())
 
@@ -98,6 +110,10 @@ class ModelObject(ABC):
         return [field for field in dataclasses.fields(cls) if not cls.is_external_only(field)]
 
     @classmethod
+    def model_only_fields(cls) -> list[dataclasses.Field]:
+        return [field for field in dataclasses.fields(cls) if cls.is_model_only(field)]
+
+    @classmethod
     def provider_fields(cls) -> list[dataclasses.Field]:
         return [field for field in dataclasses.fields(cls) if
                 not cls.is_external_only(field) and
@@ -131,7 +147,7 @@ class ModelObject(ABC):
 
     @staticmethod
     def is_nested_model(field: dataclasses.Field) -> bool:
-        return field.metadata.get("model", False) is True
+        return field.metadata.get("nested_model", False) is True
 
     @classmethod
     @abstractmethod

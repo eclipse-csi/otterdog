@@ -20,6 +20,7 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "auto_init": { "type": "boolean" },
     "topics": {
       "type": "array",
       "items": { "type": "string" }

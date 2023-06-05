@@ -11,7 +11,7 @@ import re
 from argparse import Namespace
 from dataclasses import dataclass
 from io import TextIOBase
-from typing import Any, Callable, Literal, TypeVar, Generic, Optional
+from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard
 
 from colorama import init as colorama_init, Fore, Style
 
@@ -106,6 +106,10 @@ def is_unset(value: Any) -> bool:
 
 def is_set_and_valid(value: Any) -> bool:
     return not is_unset(value) and value is not None
+
+
+def is_set_and_present(value: Optional[T]) -> TypeGuard[T]:
+    return is_set_and_valid(value)
 
 
 @dataclass

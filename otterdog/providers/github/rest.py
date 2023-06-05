@@ -281,12 +281,12 @@ class RestClient:
     def add_repo(self,
                  org_id: str,
                  data: dict[str, Any],
-                 template_repository: str,
+                 template_repository: Optional[str],
                  post_process_template_content: list[str],
                  auto_init_repo: bool) -> None:
         repo_name = data["name"]
 
-        if utils.is_set_and_valid(template_repository):
+        if utils.is_set_and_present(template_repository):
             utils.print_debug(f"creating repo '{org_id}/{repo_name}' with template '{template_repository}'")
             template_owner, template_repo = re.split("/", template_repository, 1)
 

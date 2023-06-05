@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import os
+import shutil
 
 from colorama import Style
 
@@ -34,8 +35,8 @@ class ImportOperation(Operation):
         org_file_name = self.jsonnet_config.get_org_config_file(github_id)
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
-                               f"'{org_file_name}'.\n"
+            self.printer.print(f"\nDefinition already exists at "
+                               f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
                                f"  Performing this action will overwrite its contents.\n"
                                f"  Do you want to continue?\n"
                                f"  Only 'yes' will be accepted to approve.\n\n")
@@ -45,6 +46,11 @@ class ImportOperation(Operation):
             if answer != "yes":
                 self.printer.print("\nImport cancelled.")
                 return 1
+
+        if os.path.exists(org_file_name):
+            backup_file = f"{org_file_name}.bak"
+            shutil.copy(org_file_name, backup_file)
+            self.printer.print(f"\nExisting definition copied to {Style.BRIGHT}'{backup_file}'{Style.RESET_ALL}.\n")
 
         self.printer.level_up()
 

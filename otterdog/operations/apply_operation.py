@@ -138,7 +138,7 @@ class ApplyOperation(PlanOperation):
                                     repo.to_provider_data(),
                                     repo.template_repository,
                                     repo.post_process_template_content,
-                                    self.config.auto_init_repo)
+                                    repo.auto_init)
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)

@@ -63,16 +63,25 @@ class Operation(ABC):
                 self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
                 for k, v in value.items():
-                    self.printer.print(f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} = \"{v}\"")
+                    self.printer.print(f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(v)}")
                 self.printer.level_down()
                 self.printer.print(f"{closing_prefix}}}")
             elif isinstance(value, list):
                 self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {value}")
             else:
-                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = \"{value}\"")
+                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(value)}")
 
         self.printer.level_down()
         self.printer.print(f"{closing_prefix}}}")
+
+    @staticmethod
+    def _get_value(value: Any) -> str:
+        if value is None:
+            return str(value)
+        if isinstance(value, bool):
+            return str(value)
+        else:
+            return f"\"{value}\""
 
     def print_modified_dict(self,
                             data: dict[str, Change[Any]],

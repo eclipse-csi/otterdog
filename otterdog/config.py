@@ -50,8 +50,7 @@ class JsonnetConfig:
                 self._use_jsonnet_bundler = True
 
             self._base_template_file = \
-                jq.compile(f'.file // "{_DEFAULT_TEMPLATE_FILE}"')\
-                  .input(base_template).first()
+                jq.compile(f'.file // "{_DEFAULT_TEMPLATE_FILE}"').input(base_template).first()
 
         if not local_only:
             self._init_base_template()
@@ -264,10 +263,6 @@ class OtterdogConfig:
     @property
     def default_config_repo(self) -> str:
         return self._github_config.get("config_repo", "meta-data")
-
-    @property
-    def auto_init_repo(self) -> bool:
-        return self._github_config.get("auto_init_repo", True)
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:

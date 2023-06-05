@@ -92,7 +92,7 @@ class PlanOperation(DiffOperation):
 
     def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()
-        self.print_dict(repo.to_model_dict(), f"remove repo[name=\"{repo.name}\"]", "-", Fore.RED)
+        self.print_dict(repo.to_model_dict(for_diff=True), f"remove repo[name=\"{repo.name}\"]", "-", Fore.RED)
 
     def handle_new_repo(self, org_id: str, repo: Repository) -> None:
         self.printer.print()

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `auto_init` setting for repositories: when enabled, repositories will get initialized with a README.md upon creation.
 - Added support to post process some content initialized from a template repo using setting `post_process_template_content`.
 - Added support to delete resources that are missing in definition (must be explicitly enabled with flag `--delete-resources`). ([#49](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/49))
 - Added support for renaming of repositories by introducing an additional field `aliases`. ([#43](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/43))
@@ -14,6 +15,7 @@
 
 ### Changed
 
+- Operation `import` will create a backup of the existing definition for an organization if it already exists.
 - Non-existing users and teams will now trigger a warning message rather a failure during the execution of an `apply` operation. ([#51](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/51))
 - Prevent printing of credential data when trace mode is enabled. ([#47](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/47))
 - Switching to module `click` for command line parsing.

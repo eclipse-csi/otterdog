@@ -125,7 +125,7 @@ class Github:
     def add_repo(self,
                  org_id: str,
                  data: dict[str, str],
-                 template_repository: str,
+                 template_repository: Optional[str],
                  post_process_template_content: list[str],
                  auto_init_repo: bool) -> None:
         self.rest_client.add_repo(org_id, data, template_repository, post_process_template_content, auto_init_repo)
