@@ -230,7 +230,7 @@ class GitHubOrganization:
                            jsonnet_config: JsonnetConfig,
                            client: Github,
                            no_web_ui: bool = False,
-                           printer: Optional[utils.IndentingPrinter] = None) -> GitHubOrganization:
+                           printer: Optional[utils.IndentingWriter] = None) -> GitHubOrganization:
 
         start = datetime.now()
         if printer is not None:
@@ -283,7 +283,7 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
 
 def _load_repos_from_provider(github_id: str,
                               client: Github,
-                              printer: Optional[utils.IndentingPrinter] = None) -> list[Repository]:
+                              printer: Optional[utils.IndentingWriter] = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
         printer.print("\nrepositories: Reading...")

@@ -15,7 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
-from otterdog.utils import IndentingPrinter, Change
+from otterdog.utils import IndentingWriter, Change
 
 from .diff_operation import DiffOperation, DiffStatus
 
@@ -24,7 +24,7 @@ class PlanOperation(DiffOperation):
     def __init__(self, no_web_ui: bool, update_webhooks: bool):
         super().__init__(no_web_ui, update_webhooks)
 
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
         super().init(config, printer)
 
     def pre_execute(self) -> None:

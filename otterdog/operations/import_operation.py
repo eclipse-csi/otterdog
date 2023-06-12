@@ -14,6 +14,7 @@ from colorama import Style
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import Github
+from otterdog.utils import print_warn, print_error
 
 from . import Operation
 
@@ -60,14 +61,14 @@ class ImportOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             gh_client = Github(credentials)
 
             if self.no_web_ui is True:
-                self.printer.print_warn("The Web UI will not be queried as '--no-web-ui' has been specified, "
-                                        "the resulting config will be incomplete")
+                print_warn("the Web UI will not be queried as '--no-web-ui' has been specified, "
+                           "the resulting config will be incomplete")
 
             organization = \
                 GitHubOrganization.load_from_provider(github_id,

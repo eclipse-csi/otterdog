@@ -19,7 +19,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn,\
+from otterdog.utils import IndentingWriter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
     Change, is_unset, is_set_and_valid
 
 from . import Operation
@@ -50,7 +50,7 @@ class DiffOperation(Operation):
         self._gh_client: Optional[Github] = None
         self._validator = ValidateOperation()
 
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
         super().init(config, printer)
         self._validator.init(config, printer)
 
@@ -62,7 +62,7 @@ class DiffOperation(Operation):
         try:
             self._gh_client = self.setup_github_client(org_config)
         except RuntimeError as e:
-            self.printer.print_error(f"invalid credentials\n{str(e)}")
+            print_error(f"invalid credentials\n{str(e)}")
             return 1
 
         self.printer.level_up()
@@ -94,13 +94,13 @@ class DiffOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
-            self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
             return 1
 
         try:
             expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{str(e)}")
+            print_error(f"failed to load configuration\n{str(e)}")
             return 1
 
         # We validate the configuration first and only calculate a plan if
@@ -113,7 +113,7 @@ class DiffOperation(Operation):
         try:
             current_org = self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load current configuration\n{str(e)}")
+            print_error(f"failed to load current configuration\n{str(e)}")
             return 1
 
         diff_status = DiffStatus()

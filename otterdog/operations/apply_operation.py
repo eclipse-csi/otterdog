@@ -15,7 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
-from otterdog.utils import IndentingPrinter, Change
+from otterdog.utils import IndentingWriter, Change
 
 from .diff_operation import DiffStatus
 from .plan_operation import PlanOperation
@@ -39,7 +39,7 @@ class ApplyOperation(PlanOperation):
         self._new_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
         self._deleted_rules: list[tuple[str, BranchProtectionRule]] = []
 
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
         super().init(config, printer)
 
     def pre_execute(self) -> None:

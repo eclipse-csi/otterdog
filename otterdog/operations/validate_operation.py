@@ -13,6 +13,7 @@ from colorama import Fore, Style
 from otterdog.config import OrganizationConfig
 from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import print_error, print_warn
 
 from . import Operation
 
@@ -36,7 +37,7 @@ class ValidateOperation(Operation):
             org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
-                self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+                print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
                 return 1
 
             try:
@@ -46,7 +47,7 @@ class ValidateOperation(Operation):
                                                       self.config,
                                                       False)
             except RuntimeError as ex:
-                self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
+                print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
             validation_warnings, validation_errors = self.validate(organization)
@@ -75,11 +76,11 @@ class ValidateOperation(Operation):
         for failure_type, message in context.validation_failures:
             match failure_type:
                 case FailureType.WARNING:
-                    self.printer.print_warn(message)
+                    print_warn(message)
                     validation_warnings += 1
 
                 case FailureType.ERROR:
-                    self.printer.print_error(message)
+                    print_error(message)
                     validation_errors += 1
 
         return validation_warnings, validation_errors

@@ -13,6 +13,7 @@ from colorama import Style, Fore
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import print_error
 
 from . import Operation
 
@@ -35,7 +36,7 @@ class CanonicalDiffOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
-            self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
             return 1
 
         try:
@@ -45,7 +46,7 @@ class CanonicalDiffOperation(Operation):
                                                   self.config,
                                                   False)
         except RuntimeError as ex:
-            self.printer.print_warn(f"failed to load configuration: {str(ex)}")
+            print_error(f"failed to load configuration: {str(ex)}")
             return 1
 
         with open(org_file_name, "r") as file:

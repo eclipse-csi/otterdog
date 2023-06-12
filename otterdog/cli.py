@@ -194,7 +194,7 @@ def canonical_diff(organizations: list[str]):
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
-    printer = utils.IndentingPrinter()
+    printer = utils.IndentingWriter(sys.stdout)
     printer.print()
 
     try:

@@ -12,7 +12,7 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter, Change, is_unset
+from otterdog.utils import IndentingWriter, Change, is_unset
 
 
 class Operation(ABC):
@@ -20,9 +20,9 @@ class Operation(ABC):
 
     def __init__(self) -> None:
         self._config: Optional[OtterdogConfig] = None
-        self._printer: Optional[IndentingPrinter] = None
+        self._printer: Optional[IndentingWriter] = None
 
-    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
         self._config = config
         self._printer = printer
 
@@ -32,7 +32,7 @@ class Operation(ABC):
         return self._config
 
     @property
-    def printer(self) -> IndentingPrinter:
+    def printer(self) -> IndentingWriter:
         assert self._printer is not None
         return self._printer
 

@@ -12,6 +12,7 @@ from colorama import Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import Github
+from otterdog.utils import print_error
 
 from . import Operation
 
@@ -39,7 +40,7 @@ class PushOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             with open(org_file_name, "r") as file:
@@ -70,7 +71,7 @@ class PushOperation(Operation):
                                          self.push_message)
 
             except RuntimeError as e:
-                self.printer.print_error(f"failed to push definition to repo '{org_config.config_repo}': {str(e)}")
+                print_error(f"failed to push definition to repo '{org_config.config_repo}': {str(e)}")
                 return 1
 
             self.printer.print(f"organization definition pushed to '{org_file_name}'")

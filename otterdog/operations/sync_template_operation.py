@@ -14,7 +14,7 @@ from colorama import Style
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import Github
-from otterdog.utils import is_set_and_present
+from otterdog.utils import is_set_and_present, print_error
 
 from . import Operation
 
@@ -39,7 +39,7 @@ class SyncTemplateOperation(Operation):
             org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
-                self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+                print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
                 return 1
 
             try:
@@ -49,13 +49,13 @@ class SyncTemplateOperation(Operation):
                                                       self.config,
                                                       False)
             except RuntimeError as ex:
-                self.printer.print_warn(f"failed to load configuration: {str(ex)}")
+                print_error(f"failed to load configuration: {str(ex)}")
                 return 1
 
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             gh_client = Github(credentials)

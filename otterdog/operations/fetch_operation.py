@@ -12,6 +12,7 @@ from colorama import Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import Github
+from otterdog.utils import print_error
 
 from . import Operation
 
@@ -53,7 +54,7 @@ class FetchOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             gh_client = Github(credentials)
@@ -71,7 +72,7 @@ class FetchOperation(Operation):
                                                    f"otterdog/{github_id}.jsonnet",
                                                    ref)
             except RuntimeError:
-                self.printer.print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
+                print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
                 return 1
 
             output_dir = jsonnet_config.org_dir

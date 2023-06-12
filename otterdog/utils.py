@@ -10,8 +10,7 @@ import json
 import re
 from argparse import Namespace
 from dataclasses import dataclass
-from io import TextIOBase
-from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard
+from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard, TextIO
 from urllib.parse import urlparse
 
 from colorama import init as colorama_init, Fore, Style
@@ -155,7 +154,7 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
 
 
 def dump_patch_object_as_json(diff_object: dict[str, Any],
-                              fp: TextIOBase,
+                              fp: TextIO,
                               offset=0,
                               indent=2,
                               close_object: bool = True) -> int:
@@ -223,8 +222,9 @@ def multi_associate_by_key(input_list: list[T], key_func: Callable[[T], list[str
     return result
 
 
-class IndentingPrinter:
-    def __init__(self, spaces_per_level: int = 2):
+class IndentingWriter:
+    def __init__(self, writer: TextIO, spaces_per_level: int = 2):
+        self._writer = writer
         self._level = 0
         self._spaces_per_level = spaces_per_level
 
@@ -232,15 +232,9 @@ class IndentingPrinter:
         lines = text.splitlines()
         if len(lines) > 0:
             for line in lines:
-                print(" " * (self._level * self._spaces_per_level) + line, end=end)
+                self._writer.write(" " * (self._level * self._spaces_per_level) + line + end)
         else:
-            print(end=end)
-
-    def print_warn(self, text: str) -> None:
-        print_warn(text)
-
-    def print_error(self, text: str) -> None:
-        print_error(text)
+            self._writer.write(end)
 
     def level_up(self) -> None:
         self._level += 1
