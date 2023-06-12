@@ -33,10 +33,17 @@ class OrganizationWebhook(ModelObject):
     secret: Optional[str]
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        if self.has_dummy_secret():
+            context.add_failure(FailureType.WARNING,
+                                f"organization webhook with url '{self.url}' has a secret set but only a "
+                                f"dummy secret '{self.secret}' is provided in the configuration, "
+                                f"webhook will be skipped during processing.")
+
+    def has_dummy_secret(self) -> bool:
         if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
-            context.add_failure(FailureType.ERROR,
-                                f"webhook with url '{self.url}' uses a dummy secret '{self.secret}', "
-                                f"provide a real secret using a credential provider.")
+            return True
+        else:
+            return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:

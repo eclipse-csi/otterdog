@@ -189,6 +189,11 @@ class DiffOperation(Operation):
 
             expected_webhooks_by_url.pop(webhook_url)
 
+            # any webhook that contains a dummy secret will be skipped.
+            if expected_webhook.has_dummy_secret():
+                continue
+
+            # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
             if self.update_webhooks and is_set_and_valid(expected_webhook.secret):
                 model_dict = expected_webhook.to_model_dict()
                 modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
