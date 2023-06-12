@@ -12,6 +12,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 from io import TextIOBase
 from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard
+from urllib.parse import urlparse
 
 from colorama import init as colorama_init, Fore, Style
 
@@ -288,3 +289,33 @@ def camel_to_snake_case(string: str) -> str:
     string = re.sub('__([A-Z])', r'_\1', string)
     string = re.sub('([a-z0-9])([A-Z])', r'\1_\2', string)
     return string.lower()
+
+
+def parse_template_url(url: str) -> tuple[str, str, str]:
+    parts = urlparse(url)
+
+    if parts.netloc != "github.com":
+        raise ValueError(f"only github.com is supported for template urls: {parts.netloc}")
+
+    repo_url = f"{parts.scheme}://{parts.netloc}{parts.path}"
+
+    matcher = re.match(r"([^@]+)(@(.*))?", parts.fragment)
+    if matcher is None:
+        raise ValueError(f"failed to parse file from template url: {url}")
+
+    file = matcher.group(1)
+    ref = matcher.group(3)
+
+    if ref is None:
+        raise ValueError(f"failed to parse ref from template url: {url}")
+
+    return repo_url, file, ref
+
+
+def run_once(f):
+    def wrapper(*args, **kwargs):
+        if not wrapper.has_run:
+            wrapper.has_run = True
+            return f(*args, **kwargs)
+    wrapper.has_run = False
+    return wrapper

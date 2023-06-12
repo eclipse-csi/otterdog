@@ -207,7 +207,7 @@ class WebClient:
         if not response.ok:
             raise RuntimeError("unable to load github logout page")
 
-        selector = 'div.Header-item > details.details-overlay > summary.Header-link > img[alt = "@{}"]'.format(actor)
+        selector = 'summary.Header-link > img[alt = "@{}"]'.format(actor)
         page.eval_on_selector(selector, "el => el.click()")
         page.wait_for_selector('button[type="submit"].dropdown-signout')
         page.eval_on_selector('button[type="submit"].dropdown-signout', "el => el.click()")

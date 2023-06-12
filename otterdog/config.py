@@ -11,177 +11,26 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 from typing import Any
 
 import jq  # type: ignore
 
-from . import utils
 from . import credentials
 from .credentials import CredentialProvider, bitwarden_provider, pass_provider
-
-_DEFAULT_TEMPLATE_FILE = "default-org.libsonnet"
-
-
-class JsonnetConfig:
-    def __init__(self,
-                 data_dir: str,
-                 settings: dict[str, Any],
-                 local_only: bool,
-                 import_prefix: str = "../"):
-
-        self._data_dir = data_dir
-        self._orgs_dir = jq.compile('.config_dir // "orgs"').input(settings).first()
-
-        # create orgs dir if it does not exist yet
-        if not os.path.exists(self._orgs_dir):
-            os.makedirs(self._orgs_dir)
-
-        self._use_jsonnet_bundler = False
-        base_template = settings.get("base_template")
-        if base_template is None:
-            self._base_template_file = _DEFAULT_TEMPLATE_FILE
-        else:
-            repo = base_template.get("repo")
-            if repo is not None:
-                self._base_template_repo_url = repo.strip("/")
-                self._base_template_repo_name = os.path.basename(self._base_template_repo_url)
-                self._base_template_branch = jq.compile('.branch // "main"').input(base_template).first()
-                self._use_jsonnet_bundler = True
-
-            self._base_template_file = \
-                jq.compile(f'.file // "{_DEFAULT_TEMPLATE_FILE}"').input(base_template).first()
-
-        if not local_only:
-            self._init_base_template()
-
-        self._import_prefix = import_prefix
-
-        self.create_org = \
-            jq.compile('.create_org // "newOrg"').input(settings).first()
-        self.create_webhook = \
-            jq.compile('.create_webhook // "newWebhook"').input(settings).first()
-        self.create_repo = \
-            jq.compile('.create_repo // "newRepo"').input(settings).first()
-        self.extend_repo = \
-            jq.compile('.extend_repo // "extendRepo"').input(settings).first()
-        self.create_branch_protection_rule =\
-            jq.compile('.create_branch_protection_rule // "newBranchProtectionRule"').input(settings).first()
-
-        template_file = self.template_file
-        utils.print_debug(f"loading template file '{template_file}'")
-        if not os.path.exists(self.template_file):
-            raise RuntimeError(f"template file '{template_file}' does not exist")
-
-        try:
-            # load the default settings for the organization
-            snippet = f"(import '{template_file}').newOrg('default')"
-            self.default_org_config = utils.jsonnet_evaluate_snippet(snippet)
-        except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default organization config: {ex}")
-
-        try:
-            # load the default webhook config
-            webhook_snippet = f"(import '{template_file}').newWebhook()"
-            self.default_org_webhook_config = utils.jsonnet_evaluate_snippet(webhook_snippet)
-        except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default webhook config: {ex}")
-
-        try:
-            # load the default repo config
-            repo_snippet = f"(import '{template_file}').newRepo('default')"
-            self.default_org_repo_config = utils.jsonnet_evaluate_snippet(repo_snippet)
-        except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default repo config: {ex}")
-
-        try:
-            # load the default branch protection rule config
-            branch_protection_snippet = f"(import '{template_file}').newBranchProtectionRule('default')"
-            self.default_org_branch_config = utils.jsonnet_evaluate_snippet(branch_protection_snippet)
-        except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default branch protection rule config: {ex}")
-
-    @property
-    def template_file(self) -> str:
-        if self._use_jsonnet_bundler:
-            return os.path.join(self._data_dir,
-                                self.orgs_dir,
-                                "vendor",
-                                self._base_template_repo_name,
-                                self._base_template_file)
-        else:
-            return os.path.join(self._data_dir, self._base_template_file)
-
-    @property
-    def orgs_dir(self) -> str:
-        return f"{self._data_dir}/{self._orgs_dir}"
-
-    def get_org_config_file(self, org_id: str) -> str:
-        return f"{self.orgs_dir}/{org_id}.jsonnet"
-
-    def get_import_statement(self) -> str:
-        if self._use_jsonnet_bundler:
-            return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
-        else:
-            return f"import '{self._import_prefix}{self._base_template_file}'"
-
-    def get_jsonnet_bundle_file(self) -> str:
-        return f"{self.orgs_dir}/jsonnetfile.json"
-
-    def get_jsonnet_bundle_lock_file(self) -> str:
-        return f"{self.orgs_dir}/jsonnetfile.lock.json"
-
-    def _init_base_template(self) -> None:
-        if self._use_jsonnet_bundler:
-            content =\
-                {
-                    "version": 1,
-                    "dependencies": [
-                        {
-                            "source": {
-                                "git": {
-                                    "remote": f"{self._base_template_repo_url}.git",
-                                    "subdir": ""
-                                }
-                            },
-                            "version": f"{self._base_template_branch}"
-                        }
-                    ],
-                    "legacyImports": True
-                }
-
-            with open(self.get_jsonnet_bundle_file(), "w") as file:
-                file.write(json.dumps(content, indent=2))
-
-            # create an empty lock file if it does not exist yet
-            lock_file = self.get_jsonnet_bundle_lock_file()
-            if not os.path.exists(lock_file):
-                with open(lock_file, "w") as file:
-                    file.write("")
-
-            utils.print_debug("running jsonnet-bundler update")
-            cwd = os.getcwd()
-
-            try:
-                os.chdir(self.orgs_dir)
-                status, result = subprocess.getstatusoutput("jb update")
-                utils.print_trace(f"result = ({status}, {result})")
-
-                if status != 0:
-                    raise RuntimeError(result)
-
-            finally:
-                os.chdir(cwd)
-
-    def __repr__(self) -> str:
-        return f"JsonnetConfig('{self._data_dir},'{self._base_template_file}')"
+from .jsonnet import JsonnetConfig
 
 
 class OrganizationConfig:
-    def __init__(self, name: str, github_id: str, config_repo: str, credential_data: dict[str, Any]):
+    def __init__(self,
+                 name: str,
+                 github_id: str,
+                 config_repo: str,
+                 jsonnet_config: JsonnetConfig,
+                 credential_data: dict[str, Any]):
         self._name = name
         self._github_id = github_id
         self._config_repo = config_repo
+        self._jsonnet_config = jsonnet_config
         self._credential_data = credential_data
 
     @property
@@ -195,6 +44,10 @@ class OrganizationConfig:
     @property
     def config_repo(self):
         return self._config_repo
+
+    @property
+    def jsonnet_config(self):
+        return self._jsonnet_config
 
     @property
     def credential_data(self):
@@ -214,33 +67,37 @@ class OrganizationConfig:
         if github_id is None:
             raise RuntimeError(f"missing required github_id for organization config with name '{name}'")
 
-        config_repo = jq.compile(".config_repo").input(data).first()
-        if config_repo is None:
-            config_repo = otterdog_config.default_config_repo
+        config_repo = jq.compile(f".config_repo // \"{otterdog_config.default_config_repo}\"").input(data).first()
+        base_template = jq.compile(f".base_template // \"{otterdog_config.default_base_template}\"").input(data).first()
+
+        jsonnet_config = \
+            JsonnetConfig(github_id, otterdog_config.jsonnet_base_dir, base_template, otterdog_config.local_mode)
 
         data = jq.compile(".credentials").input(data).first()
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, config_repo, data)
+        return cls(name, github_id, config_repo, jsonnet_config, data)
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, local_only: bool):
+    def __init__(self, config_file: str, local_mode: bool):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
         self._config_file = os.path.realpath(config_file)
-        self._data_dir = os.path.dirname(self._config_file)
+        self._config_dir = os.path.dirname(self._config_file)
         self._credential_providers: dict[str, CredentialProvider] = {}
+
+        self._local_mode = local_mode
 
         with open(config_file) as f:
             self._configuration = json.load(f)
 
-        jsonnet_settings = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
-        self._jsonnet_config = JsonnetConfig(self.data_dir, jsonnet_settings, local_only)
-
+        self._jsonnet_config = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
         self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
+
+        self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
 
         organizations = jq.compile(".organizations // []").input(self._configuration).first()
         self._organizations = {}
@@ -253,22 +110,26 @@ class OtterdogConfig:
         return self._config_file
 
     @property
-    def data_dir(self) -> str:
-        return self._data_dir
+    def jsonnet_base_dir(self) -> str:
+        return self._jsonnet_base_dir
 
     @property
-    def jsonnet_config(self) -> JsonnetConfig:
-        return self._jsonnet_config
+    def local_mode(self) -> bool:
+        return self._local_mode
 
     @property
     def default_config_repo(self) -> str:
-        return self._github_config.get("config_repo", "meta-data")
+        return self._github_config.get("config_repo", ".otterdog")
+
+    @property
+    def default_base_template(self) -> str:
+        return self._jsonnet_config["base_template"]
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:
         return self._organizations
 
-    def organization_config(self, organization_name: str) -> OrganizationConfig:
+    def get_organization_config(self, organization_name: str) -> OrganizationConfig:
         org_config = self._organizations.get(organization_name)
         if org_config is None:
             raise RuntimeError(f"unknown organization with name '{organization_name}'")
@@ -318,8 +179,8 @@ class OtterdogConfig:
             return secret_data
 
     def __repr__(self):
-        return f"OtterdogConfig('{self.data_dir}')"
+        return f"OtterdogConfig('{self.config_file}')"
 
     @classmethod
-    def from_file(cls, config_file: str, local_only: bool):
-        return cls(config_file, local_only)
+    def from_file(cls, config_file: str, local_mode: bool):
+        return cls(config_file, local_mode)

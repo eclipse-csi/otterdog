@@ -29,10 +29,12 @@ class ImportOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
+        jsonnet_config = org_config.jsonnet_config
+        jsonnet_config.init()
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+        org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
             self.printer.print(f"\nDefinition already exists at "
@@ -69,14 +71,14 @@ class ImportOperation(Operation):
 
             organization = \
                 GitHubOrganization.load_from_provider(github_id,
-                                                      self.jsonnet_config,
+                                                      jsonnet_config,
                                                       gh_client,
                                                       self.no_web_ui,
                                                       self.printer)
 
-            output = organization.to_jsonnet(self.jsonnet_config)
+            output = organization.to_jsonnet(jsonnet_config)
 
-            output_dir = self.jsonnet_config.orgs_dir
+            output_dir = jsonnet_config.org_dir
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 

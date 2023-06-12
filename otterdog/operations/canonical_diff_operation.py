@@ -27,10 +27,12 @@ class CanonicalDiffOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
+        jsonnet_config = org_config.jsonnet_config
+        jsonnet_config.init()
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+        org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
             self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
@@ -39,7 +41,7 @@ class CanonicalDiffOperation(Operation):
         try:
             organization = \
                 GitHubOrganization.load_from_file(github_id,
-                                                  self.jsonnet_config.get_org_config_file(github_id),
+                                                  org_file_name,
                                                   self.config,
                                                   False)
         except RuntimeError as ex:
@@ -52,7 +54,7 @@ class CanonicalDiffOperation(Operation):
         original_config_without_comments: list[str] = \
             list(filter(lambda x: not x.strip().startswith("#"), original_config.split("\n")))
 
-        canonical_config = organization.to_jsonnet(self.jsonnet_config)
+        canonical_config = organization.to_jsonnet(jsonnet_config)
         canonical_config_as_lines = canonical_config.split("\n")
 
         if original_config_without_comments[-1] == "":

@@ -27,10 +27,11 @@ class FetchOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
+        jsonnet_config = org_config.jsonnet_config
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+        org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
             self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
@@ -72,7 +73,7 @@ class FetchOperation(Operation):
                 self.printer.print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
                 return 1
 
-            output_dir = self.jsonnet_config.orgs_dir
+            output_dir = jsonnet_config.org_dir
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 

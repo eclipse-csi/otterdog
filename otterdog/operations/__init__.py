@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 from colorama import Fore, Style
 
-from otterdog.config import OtterdogConfig, OrganizationConfig, JsonnetConfig
+from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.utils import IndentingPrinter, Change, is_unset
 
 
@@ -20,23 +20,16 @@ class Operation(ABC):
 
     def __init__(self) -> None:
         self._config: Optional[OtterdogConfig] = None
-        self._jsonnet_config: Optional[JsonnetConfig] = None
         self._printer: Optional[IndentingPrinter] = None
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self._config = config
-        self._jsonnet_config = self.config.jsonnet_config
         self._printer = printer
 
     @property
     def config(self) -> OtterdogConfig:
         assert self._config is not None
         return self._config
-
-    @property
-    def jsonnet_config(self) -> JsonnetConfig:
-        assert self._jsonnet_config is not None
-        return self._jsonnet_config
 
     @property
     def printer(self) -> IndentingPrinter:

@@ -10,6 +10,7 @@ import os
 from typing import Optional
 
 from otterdog.config import OrganizationConfig
+from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import Github
 
@@ -41,8 +42,8 @@ class LocalPlanOperation(PlanOperation):
     def setup_github_client(self, org_config: OrganizationConfig) -> Github:
         return Github(None)
 
-    def load_current_org(self, github_id: str) -> GitHubOrganization:
-        other_org_file_name = self.jsonnet_config.get_org_config_file(github_id) + self.suffix
+    def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
+        other_org_file_name = jsonnet_config.org_config_file + self.suffix
 
         if not os.path.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")

@@ -15,12 +15,18 @@
 
 ### Changed
 
+- Simplified setting `base_template` and support a per-organization override. ([#39](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/39))
 - Operation `import` will create a backup of the existing definition for an organization if it already exists.
 - Non-existing users and teams will now trigger a warning message rather a failure during the execution of an `apply` operation. ([#51](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/51))
 - Prevent printing of credential data when trace mode is enabled. ([#47](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/47))
 - Switching to module `click` for command line parsing.
 - Updated module `playwright` to version 1.33.0.
 - Updated module `requests` to version 2.30.0.
+
+### Fixed
+
+- Fixed selector for logging out a user when accessing the GitHub Web UI after some changes to the Web UI.
+
 
 ## [0.1.0] - 15/05/2023
 

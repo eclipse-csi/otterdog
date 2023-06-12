@@ -13,6 +13,7 @@ from typing import Any, Optional
 from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_webhook import OrganizationWebhook
@@ -87,7 +88,10 @@ class DiffOperation(Operation):
 
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+        jsonnet_config = org_config.jsonnet_config
+        jsonnet_config.init()
+
+        org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
             self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
@@ -107,7 +111,7 @@ class DiffOperation(Operation):
             return validation_errors
 
         try:
-            current_org = self.load_current_org(github_id)
+            current_org = self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load current configuration\n{str(e)}")
             return 1
@@ -140,9 +144,9 @@ class DiffOperation(Operation):
                                                  self.config,
                                                  self.resolve_secrets())
 
-    def load_current_org(self, github_id: str) -> GitHubOrganization:
+    def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         return GitHubOrganization.load_from_provider(github_id,
-                                                     self.jsonnet_config,
+                                                     jsonnet_config,
                                                      self.gh_client,
                                                      self.no_web_ui,
                                                      self.printer)

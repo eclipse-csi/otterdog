@@ -213,7 +213,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
 
         for organization in organizations:
             printer.print()
-            org_config = config.organization_config(organization)
+            org_config = config.get_organization_config(organization)
             exit_code = max(exit_code, operation.execute(org_config))
 
         sys.exit(exit_code)

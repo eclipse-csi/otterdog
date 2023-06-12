@@ -101,7 +101,7 @@ class GitHubOrganization:
 
         output = StringIO()
         output.write(textwrap.dedent(f"""
-            local orgs = {config.get_import_statement()};
+            local orgs = {config.import_statement};
 
             orgs.{config.create_org}('{self.github_id}') {{
                 settings+:"""))

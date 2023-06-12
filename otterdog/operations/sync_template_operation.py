@@ -29,12 +29,13 @@ class SyncTemplateOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
+        jsonnet_config = org_config.jsonnet_config
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
         self.printer.level_up()
 
         try:
-            org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+            org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
                 self.printer.print_warn(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
@@ -43,7 +44,7 @@ class SyncTemplateOperation(Operation):
             try:
                 organization = \
                     GitHubOrganization.load_from_file(github_id,
-                                                      self.jsonnet_config.get_org_config_file(github_id),
+                                                      org_file_name,
                                                       self.config,
                                                       False)
             except RuntimeError as ex:

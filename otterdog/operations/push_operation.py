@@ -26,10 +26,12 @@ class PushOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
+        jsonnet_config = org_config.jsonnet_config
+        jsonnet_config.init()
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
-        org_file_name = self.jsonnet_config.get_org_config_file(github_id)
+        org_file_name = jsonnet_config.org_config_file
 
         self.printer.level_up()
 
@@ -43,7 +45,7 @@ class PushOperation(Operation):
             with open(org_file_name, "r") as file:
                 content = file.read()
 
-            with open(self.jsonnet_config.get_jsonnet_bundle_file(), "r") as file:
+            with open(jsonnet_config.jsonnet_bundle_file, "r") as file:
                 bundle_content = file.read()
 
             gh_client = Github(credentials)
