@@ -310,12 +310,3 @@ def parse_template_url(url: str) -> tuple[str, str, str]:
         raise ValueError(f"failed to parse ref from template url: {url}")
 
     return repo_url, file, ref
-
-
-def run_once(f):
-    def wrapper(*args, **kwargs):
-        if not wrapper.has_run:
-            wrapper.has_run = True
-            return f(*args, **kwargs)
-    wrapper.has_run = False
-    return wrapper

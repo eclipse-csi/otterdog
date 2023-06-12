@@ -30,7 +30,7 @@ class ImportOperation(Operation):
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init()
+        jsonnet_config.init_template()
 
         self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 

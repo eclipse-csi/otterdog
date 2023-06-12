@@ -89,7 +89,7 @@ class DiffOperation(Operation):
     def _generate_diff(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init()
+        jsonnet_config.init_template()
 
         org_file_name = jsonnet_config.org_config_file
 

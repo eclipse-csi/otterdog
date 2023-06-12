@@ -12,7 +12,7 @@ import subprocess
 
 from typing import Any
 
-from .utils import jsonnet_evaluate_snippet, parse_template_url, print_debug, print_trace, run_once
+from .utils import jsonnet_evaluate_snippet, parse_template_url, print_debug, print_trace
 
 
 class JsonnetConfig:
@@ -44,12 +44,16 @@ class JsonnetConfig:
         self._default_org_repo_config: dict[str, Any] | None = None
         self._default_org_branch_config: dict[str, Any] | None = None
 
+        self._initialized = False
+
     @property
     def org_id(self) -> str:
         return self._org_id
 
-    @run_once
-    def init(self) -> None:
+    def init_template(self) -> None:
+        if self._initialized is True:
+            return
+
         if not self._local_only:
             self._init_base_template()
 
@@ -85,6 +89,8 @@ class JsonnetConfig:
             self._default_org_branch_config = jsonnet_evaluate_snippet(branch_protection_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default branch protection rule config: {ex}")
+
+        self._initialized = True
 
     @property
     def default_org_config(self):
