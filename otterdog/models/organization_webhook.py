@@ -35,9 +35,9 @@ class OrganizationWebhook(ModelObject):
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(FailureType.WARNING,
-                                f"organization webhook with url '{self.url}' has a secret set but only a "
-                                f"dummy secret '{self.secret}' is provided in the configuration, "
-                                f"webhook will be skipped during processing.")
+                                f"organization webhook with url '{self.url}' will be skipped during processing:\n"
+                                f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
+                                f"the configuration.")
 
     def has_dummy_secret(self) -> bool:
         if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
