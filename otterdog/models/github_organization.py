@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-import textwrap
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial
@@ -23,10 +22,9 @@ from importlib_resources import files, as_file
 from jsonbender import bend, S, F, Forall  # type: ignore
 
 from otterdog import resources
-from otterdog import utils
 from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
-from otterdog.utils import is_unset
+from otterdog.utils import is_unset, IndentingPrinter, associate_by_key, print_debug, jsonnet_evaluate_file
 
 from . import ValidationContext
 from .branch_protection_rule import BranchProtectionRule
@@ -96,38 +94,35 @@ class GitHubOrganization:
     def to_jsonnet(self, config: JsonnetConfig) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config)
 
-        offset = 4
-        indent = 2
-
         output = StringIO()
-        output.write(textwrap.dedent(f"""
-            local orgs = {config.import_statement};
+        printer = IndentingPrinter(output)
 
-            orgs.{config.create_org}('{self.github_id}') {{
-                settings+:"""))
+        printer.println(f"local orgs = {config.import_statement};")
+        printer.println()
+        printer.println(f"orgs.{config.create_org}('{self.github_id}') {{")
+        printer.level_up()
 
-        default_org_settings = default_org.settings
-        settings_patch = self.settings.get_patch_to(default_org_settings)
+        # print organization settings
+        printer.print("settings+:")
+        self.settings.to_jsonnet(printer, config, False, default_org.settings)
 
-        utils.dump_patch_object_as_json(settings_patch, output, offset=offset, indent=indent)
-
+        # print organization webhooks
         if len(self.webhooks) > 0:
             default_org_webhook = OrganizationWebhook.from_model_data(config.default_org_webhook_config)
 
-            output.write(" " * offset + "webhooks+: [\n")
-            offset += indent
+            printer.println("webhooks+: [")
+            printer.level_up()
 
             for webhook in self.webhooks:
-                webhook_patch = webhook.get_patch_to(default_org_webhook)
-                output.write(" " * offset + f"orgs.{config.create_webhook}()")
-                utils.dump_patch_object_as_json(webhook_patch, output, offset=offset, indent=indent)
+                webhook.to_jsonnet(printer, config, False, default_org_webhook)
 
-            offset -= indent
-            output.write(" " * offset + "],\n")
+            printer.level_down()
+            printer.println("],")
 
+        # print repositories
         if len(self.repositories) > 0:
-            repos_by_name = utils.associate_by_key(self.repositories, lambda x: x.name)
-            default_repos_by_name = utils.associate_by_key(default_org.repositories, lambda x: x.name)
+            repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
+            default_repos_by_name = associate_by_key(default_org.repositories, lambda x: x.name)
 
             # add all default repos which are not yet contained in repos
             for default_repo_name, default_repo in default_repos_by_name.items():
@@ -136,68 +131,25 @@ class GitHubOrganization:
 
             default_org_repo = Repository.from_model_data(config.default_org_repo_config)
 
-            output.write(" " * offset + "_repositories+:: [\n")
-            offset += indent
+            printer.println("_repositories+:: [")
+            printer.level_up()
 
             for repo_name, repo in sorted(repos_by_name.items()):
                 if repo_name in default_repos_by_name:
                     other_repo = default_repos_by_name[repo_name]
-                    function = f"orgs.{config.extend_repo}"
                     extend = True
                 else:
                     other_repo = default_org_repo
-                    function = f"orgs.{config.create_repo}"
                     extend = False
 
-                repo_patch = repo.get_patch_to(other_repo)
+                repo.to_jsonnet(printer, config, extend, other_repo)
 
-                has_branch_protection_rules = len(repo.branch_protection_rules) > 0
-                # FIXME: take branch protection rules into account once it is supported for
-                #        repos that get extended.
-                has_changes = len(repo_patch) > 0
-                if extend and has_changes is False:
-                    continue
+            printer.level_down()
+            printer.println("],")
 
-                # remove the name key from the diff_obj to avoid serializing twice to json
-                if "name" in repo_patch:
-                    repo_patch.pop("name")
+        printer.level_down()
+        printer.println("}")
 
-                output.write(" " * offset + f"{function}('{repo_name}')")
-
-                offset = \
-                    utils.dump_patch_object_as_json(repo_patch,
-                                                    output,
-                                                    offset=offset,
-                                                    indent=indent,
-                                                    close_object=False)
-
-                # FIXME: support overriding branch protection rules for repos coming from
-                #        the default configuration.
-                if has_branch_protection_rules and not extend:
-                    default_org_rule = BranchProtectionRule.from_model_data(config.default_org_branch_config)
-
-                    output.write(" " * offset + "branch_protection_rules: [\n")
-                    offset += indent
-
-                    for rule in repo.branch_protection_rules:
-                        rule_patch = rule.get_patch_to(default_org_rule)
-                        rule_patch.pop("pattern")
-
-                        output.write(" " * offset +
-                                     f"orgs.{config.create_branch_protection_rule}('{rule.pattern}')")
-                        utils.dump_patch_object_as_json(rule_patch, output, offset=offset, indent=indent)
-
-                    offset -= indent
-                    output.write(" " * offset + "],\n")
-
-                # close the repo object
-                offset -= indent
-                output.write(" " * offset + "},\n")
-
-            offset -= indent
-            output.write(" " * offset + "],\n")
-
-        output.write("}")
         return output.getvalue()
 
     @classmethod
@@ -210,8 +162,8 @@ class GitHubOrganization:
             msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
             raise RuntimeError(msg)
 
-        utils.print_debug(f"loading configuration for organization {github_id} from file {config_file}")
-        data = utils.jsonnet_evaluate_file(config_file)
+        print_debug(f"loading configuration for organization {github_id} from file {config_file}")
+        data = jsonnet_evaluate_file(config_file)
 
         org = cls.from_model_data(data)
 
@@ -230,11 +182,11 @@ class GitHubOrganization:
                            jsonnet_config: JsonnetConfig,
                            client: Github,
                            no_web_ui: bool = False,
-                           printer: Optional[utils.IndentingWriter] = None) -> GitHubOrganization:
+                           printer: Optional[IndentingPrinter] = None) -> GitHubOrganization:
 
         start = datetime.now()
         if printer is not None:
-            printer.print("\norganization settings: Reading...")
+            printer.println("\norganization settings: Reading...")
 
         # FIXME: this uses the keys from the model schema which might be different to the provider schema
         #        for now this is the same for organization settings, but there might be cases where it is different.
@@ -244,20 +196,20 @@ class GitHubOrganization:
 
         if printer is not None:
             end = datetime.now()
-            printer.print(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+            printer.println(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
         settings = OrganizationSettings.from_provider_data(github_settings)
         org = cls(github_id, settings)
 
         start = datetime.now()
         if printer is not None:
-            printer.print("\nwebhooks: Reading...")
+            printer.println("\nwebhooks: Reading...")
 
         github_webhooks = client.get_webhooks(github_id)
 
         if printer is not None:
             end = datetime.now()
-            printer.print(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+            printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
         for webhook in github_webhooks:
             org.add_webhook(OrganizationWebhook.from_provider_data(webhook))
@@ -283,10 +235,10 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
 
 def _load_repos_from_provider(github_id: str,
                               client: Github,
-                              printer: Optional[utils.IndentingWriter] = None) -> list[Repository]:
+                              printer: Optional[IndentingPrinter] = None) -> list[Repository]:
     start = datetime.now()
     if printer is not None:
-        printer.print("\nrepositories: Reading...")
+        printer.println("\nrepositories: Reading...")
 
     repo_names = client.get_repos(github_id)
 
@@ -303,6 +255,6 @@ def _load_repos_from_provider(github_id: str,
 
     if printer is not None:
         end = datetime.now()
-        printer.print(f"repositories: Read complete after {(end - start).total_seconds()}s")
+        printer.println(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
     return github_repos

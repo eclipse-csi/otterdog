@@ -14,7 +14,8 @@ from enum import Enum
 from typing import Any, Optional
 
 from otterdog.providers.github import Github
-from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change
+from otterdog.jsonnet import JsonnetConfig
+from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change, IndentingPrinter
 
 
 class FailureType(Enum):
@@ -216,3 +217,11 @@ class ModelObject(ABC):
             result[key] = self.__getattribute__(key)
 
         return result
+
+    @abstractmethod
+    def to_jsonnet(self,
+                   printer: IndentingPrinter,
+                   jsonnet_config: JsonnetConfig,
+                   extend: bool,
+                   default_object: ModelObject) -> None:
+        pass

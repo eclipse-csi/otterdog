@@ -22,14 +22,14 @@ class ShowOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Showing resources defined in configuration '{self.config.config_file}'")
+        self.printer.println(f"Showing resources defined in configuration '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -55,7 +55,7 @@ class ShowOperation(Operation):
                             Fore.BLACK)
 
             for webhook in organization.webhooks:
-                self.printer.print()
+                self.printer.println()
                 self.print_dict(webhook.to_model_dict(),
                                 f"{Style.BRIGHT}webhook{Style.RESET_ALL}",
                                 "",
@@ -64,14 +64,14 @@ class ShowOperation(Operation):
             for repo in organization.repositories:
                 repo_data = repo.to_model_dict(False)
 
-                self.printer.print()
+                self.printer.println()
                 self.print_dict(repo_data,
                                 f"{Style.BRIGHT}repository[name=\"{repo.name}\"]{Style.RESET_ALL}",
                                 "",
                                 Fore.BLACK)
 
                 for rule in repo.branch_protection_rules:
-                    self.printer.print()
+                    self.printer.println()
                     self.print_dict(rule.to_model_dict(),
                                     f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo.name}\", "
                                     f"pattern=\"{rule.pattern}\"]{Style.RESET_ALL}",

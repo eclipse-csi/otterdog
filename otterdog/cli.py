@@ -12,7 +12,6 @@ import sys
 import traceback
 from typing import Any, Optional
 
-from . import utils
 from .config import OtterdogConfig
 from .operations import Operation
 from .operations.apply_operation import ApplyOperation
@@ -25,6 +24,7 @@ from .operations.push_operation import PushOperation
 from .operations.show_operation import ShowOperation
 from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
+from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
 
@@ -56,7 +56,7 @@ class StdCommand(click.Command):
         global _CONFIG
 
         verbose = ctx.params.pop("verbose")
-        utils.init(verbose)
+        init(verbose)
 
         config_file = ctx.params.pop("config")
         local_mode = ctx.params.pop("local")
@@ -64,10 +64,10 @@ class StdCommand(click.Command):
         try:
             _CONFIG = OtterdogConfig.from_file(config_file, local_mode)
         except Exception as e:
-            if utils.is_debug_enabled():
+            if is_debug_enabled():
                 traceback.print_exception(e)
 
-            utils.print_error(str(e))
+            print_error(str(e))
             sys.exit(2)
 
         return super().invoke(ctx)
@@ -194,8 +194,8 @@ def canonical_diff(organizations: list[str]):
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
-    printer = utils.IndentingWriter(sys.stdout)
-    printer.print()
+    printer = IndentingPrinter(sys.stdout)
+    printer.println()
 
     try:
         exit_code = 0
@@ -212,17 +212,17 @@ def _execute_operation(organizations: list[str], operation: Operation):
             organizations = list(config.organization_configs.keys())
 
         for organization in organizations:
-            printer.print()
+            printer.println()
             org_config = config.get_organization_config(organization)
             exit_code = max(exit_code, operation.execute(org_config))
 
         sys.exit(exit_code)
 
     except Exception as e:
-        if utils.is_debug_enabled():
+        if is_debug_enabled():
             traceback.print_exception(e)
 
-        utils.print_error(str(e))
+        print_error(str(e))
         sys.exit(2)
 
 

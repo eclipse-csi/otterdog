@@ -16,6 +16,9 @@ from .utils import jsonnet_evaluate_snippet, parse_template_url, print_debug, pr
 
 
 class JsonnetConfig:
+    # FIXME: the function names to create resources should not be hard-coded but
+    #        rather follow a convention to add new resources more easily.
+
     create_org = "newOrg"
     create_webhook = "newWebhook"
     create_repo = "newRepo"

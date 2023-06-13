@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Changed indentation for import operation.
 - Skipping organization webhooks with a dummy secret during processing.
 - Simplified setting `base_template` and support a per-organization override. ([#39](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/39))
 - Operation `import` will create a backup of the existing definition for an organization if it already exists.

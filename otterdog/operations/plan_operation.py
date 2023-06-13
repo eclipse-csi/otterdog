@@ -15,7 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
-from otterdog.utils import IndentingWriter, Change
+from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffOperation, DiffStatus
 
@@ -24,19 +24,19 @@ class PlanOperation(DiffOperation):
     def __init__(self, no_web_ui: bool, update_webhooks: bool):
         super().__init__(no_web_ui, update_webhooks)
 
-    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Planning execution for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Planning execution for configuration at '{self.config.config_file}'")
         self.print_legend()
 
     def print_legend(self) -> None:
-        self.printer.print("\nActions are indicated with the following symbols:")
-        self.printer.print(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
-        self.printer.print(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
-        self.printer.print(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
-        self.printer.print(f"  {Fore.RED}-{Style.RESET_ALL} delete")
+        self.printer.println("\nActions are indicated with the following symbols:")
+        self.printer.println(f"  {Fore.GREEN}+{Style.RESET_ALL} create")
+        self.printer.println(f"  {Fore.YELLOW}~{Style.RESET_ALL} modify")
+        self.printer.println(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
+        self.printer.println(f"  {Fore.RED}-{Style.RESET_ALL} delete")
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
         self.print_modified_dict(modified_settings, "settings")
@@ -44,8 +44,8 @@ class PlanOperation(DiffOperation):
         settings_to_change = 0
         for k, v in modified_settings.items():
             if OrganizationSettings.is_read_only_key(k):
-                self.printer.print(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
-                                   f"is read-only, will be skipped.")
+                self.printer.println(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
+                                     f"is read-only, will be skipped.")
             else:
                 settings_to_change += 1
 
@@ -58,22 +58,22 @@ class PlanOperation(DiffOperation):
                                 modified_webhook: dict[str, Change[Any]],
                                 webhook: OrganizationWebhook,
                                 forced_update: bool) -> None:
-        self.printer.print()
+        self.printer.println()
         self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"}, forced_update)
 
         if "secret" in modified_webhook:
             new_secret = modified_webhook["secret"].to_value
             if not new_secret:
-                self.printer.print(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
-                                   f"with url '{webhook_url}'")
+                self.printer.println(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
+                                     f"with url '{webhook_url}'")
 
     def handle_delete_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
-        self.printer.print()
+        self.printer.println()
         # avoid printing the secret by using for_diff=True
         self.print_dict(webhook.to_model_dict(for_diff=True), f"remove webhook[url='{webhook.url}']", "-", Fore.RED)
 
     def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
-        self.printer.print()
+        self.printer.println()
         # avoid printing the secret by using for_diff=True
         self.print_dict(webhook.to_model_dict(for_diff=True), f"new webhook[url='{webhook.url}']", "+", Fore.GREEN)
 
@@ -83,19 +83,19 @@ class PlanOperation(DiffOperation):
         settings_to_change = 0
         for k, v in modified_repo.items():
             if Repository.is_read_only_key(k):
-                self.printer.print(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
-                                   f"is read-only, will be skipped.")
+                self.printer.println(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
+                                     f"is read-only, will be skipped.")
             else:
                 settings_to_change += 1
 
         return settings_to_change
 
     def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
-        self.printer.print()
+        self.printer.println()
         self.print_dict(repo.to_model_dict(for_diff=True), f"remove repo[name=\"{repo.name}\"]", "-", Fore.RED)
 
     def handle_new_repo(self, org_id: str, repo: Repository) -> None:
-        self.printer.print()
+        self.printer.println()
         self.print_dict(repo.to_model_dict(for_diff=True), f"new repo[name=\"{repo.name}\"]", "+", Fore.GREEN)
 
     def handle_modified_rule(self,
@@ -105,24 +105,24 @@ class PlanOperation(DiffOperation):
                              rule_id: str,
                              modified_rule: dict[str, Change[Any]]) -> None:
 
-        self.printer.print()
+        self.printer.println()
         self.print_modified_dict(modified_rule,
                                  f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]")
 
     def handle_delete_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
-        self.printer.print()
+        self.printer.println()
         self.print_dict(bpr.to_model_dict(),
                         f"remove branch_protection_rule[repo=\"{repo_name}\", pattern=\"{bpr.pattern}\"]",
                         "-", Fore.RED)
 
     def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
-        self.printer.print()
+        self.printer.println()
         self.print_dict(bpr.to_model_dict(),
                         f"new branch_protection_rule[repo=\"{repo_name}\", pattern=\"{bpr.pattern}\"]",
                         "+", Fore.GREEN)
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
-        self.printer.print()
-        self.printer.print(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
-                           f"{diff_status.differences} to change, "
-                           f"{diff_status.deletions} to delete.")
+        self.printer.println()
+        self.printer.println(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
+                             f"{diff_status.differences} to change, "
+                             f"{diff_status.deletions} to delete.")

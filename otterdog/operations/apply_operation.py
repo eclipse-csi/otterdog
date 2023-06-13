@@ -15,7 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
-from otterdog.utils import IndentingWriter, Change
+from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffStatus
 from .plan_operation import PlanOperation
@@ -39,11 +39,11 @@ class ApplyOperation(PlanOperation):
         self._new_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
         self._deleted_rules: list[tuple[str, BranchProtectionRule]] = []
 
-    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Apply changes for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
@@ -100,23 +100,23 @@ class ApplyOperation(PlanOperation):
         self._new_rules.append((repo_name, repo_id, bpr))
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
-        self.printer.print()
+        self.printer.println()
 
         if diff_status.total_changes(self._delete_resources) == 0:
-            self.printer.print("No changes required.")
+            self.printer.println("No changes required.")
             if not self._delete_resources and diff_status.deletions > 0:
-                self.printer.print(f"{diff_status.deletions} resource(s) would be deleted with "
-                                   f"flag \'--delete-resources\".")
+                self.printer.println(f"{diff_status.deletions} resource(s) would be deleted with "
+                                     f"flag \'--delete-resources\".")
             return
 
         if not self._force_processing:
-            self.printer.print(f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                               f"  Only 'yes' will be accepted to approve.\n\n")
+            self.printer.println(f"{Style.BRIGHT}Do you want to perform these actions?\n"
+                                 f"  Only 'yes' will be accepted to approve.\n\n")
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
+            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
             if answer != "yes":
-                self.printer.print("\nApply cancelled.")
+                self.printer.println("\nApply cancelled.")
                 return
 
         if self._org_settings_to_update is not None:
@@ -161,6 +161,6 @@ class ApplyOperation(PlanOperation):
             "deleted" if self._delete_resources else \
             "live resources ignored (use \"--delete-resources\" to delete them)"
 
-        self.printer.print(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
-                           f"{diff_status.differences} changed, "
-                           f"{diff_status.deletions} {delete_snippet}.")
+        self.printer.println(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
+                             f"{diff_status.differences} changed, "
+                             f"{diff_status.deletions} {delete_snippet}.")

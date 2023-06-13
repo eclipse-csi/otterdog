@@ -12,7 +12,7 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingWriter, Change, is_unset
+from otterdog.utils import IndentingPrinter, Change, is_unset
 
 
 class Operation(ABC):
@@ -20,9 +20,9 @@ class Operation(ABC):
 
     def __init__(self) -> None:
         self._config: Optional[OtterdogConfig] = None
-        self._printer: Optional[IndentingWriter] = None
+        self._printer: Optional[IndentingPrinter] = None
 
-    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self._config = config
         self._printer = printer
 
@@ -32,7 +32,7 @@ class Operation(ABC):
         return self._config
 
     @property
-    def printer(self) -> IndentingWriter:
+    def printer(self) -> IndentingPrinter:
         assert self._printer is not None
         return self._printer
 
@@ -48,24 +48,24 @@ class Operation(ABC):
         prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
         closing_prefix = " " * len(action) + " " if action else ""
 
-        self.printer.print(f"{prefix}{item_header} {{")
+        self.printer.println(f"{prefix}{item_header} {{")
         self.printer.level_up()
 
         for key, value in sorted(data.items()):
             if isinstance(value, dict):
-                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
                 for k, v in value.items():
-                    self.printer.print(f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(v)}")
+                    self.printer.println(f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(v)}")
                 self.printer.level_down()
-                self.printer.print(f"{closing_prefix}}}")
+                self.printer.println(f"{closing_prefix}}}")
             elif isinstance(value, list):
-                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {value}")
+                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {value}")
             else:
-                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(value)}")
+                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(value)}")
 
         self.printer.level_down()
-        self.printer.print(f"{closing_prefix}}}")
+        self.printer.println(f"{closing_prefix}}}")
 
     @staticmethod
     def _get_value(value: Any) -> str:
@@ -84,7 +84,7 @@ class Operation(ABC):
         action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
         color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
 
-        self.printer.print(f"\n{action} {Style.RESET_ALL}{item_header} {{")
+        self.printer.println(f"\n{action} {Style.RESET_ALL}{item_header} {{")
         self.printer.level_up()
 
         for key, change in sorted(data.items()):
@@ -92,7 +92,7 @@ class Operation(ABC):
             expected_value = change.to_value
 
             if isinstance(expected_value, dict):
-                self.printer.print(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.println(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
 
                 processed_keys = set()
@@ -100,20 +100,20 @@ class Operation(ABC):
                     c_v = current_value.get(k) if current_value is not None else None
 
                     if v != c_v:
-                        self.printer.print(f"{action} {Style.RESET_ALL}"
-                                           f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                           f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{v}\"")
+                        self.printer.println(f"{action} {Style.RESET_ALL}"
+                                             f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                             f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{v}\"")
 
                     processed_keys.add(k)
 
                 if current_value is not None:
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
-                            self.printer.print(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                               f" \"{v}\"")
+                            self.printer.println(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                                 f" \"{v}\"")
 
+                self.printer.println("}")
                 self.printer.level_down()
-                self.printer.print("  }")
             else:
                 def should_redact(value: Any) -> bool:
                     if is_unset(value) or value is None:
@@ -127,8 +127,8 @@ class Operation(ABC):
                 c_v = "<redacted>" if should_redact(current_value) else current_value
                 e_v = "<redacted>" if should_redact(expected_value) else expected_value
 
-                self.printer.print(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                   f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
+                self.printer.println(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                     f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
 
+        self.printer.println("}")
         self.printer.level_down()
-        self.printer.print("  }")

@@ -13,10 +13,10 @@ from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
+from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset
-
-from . import ModelObject, ValidationContext, FailureType
+from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
 
 
 @dataclasses.dataclass
@@ -94,3 +94,13 @@ class OrganizationSettings(ModelObject):
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
         return bend(mapping, data)
+
+    def to_jsonnet(self,
+                   printer: IndentingPrinter,
+                   jsonnet_config: JsonnetConfig,
+                   extend: bool,
+                   default_object: ModelObject) -> None:
+        patch = self.get_patch_to(default_object)
+        write_patch_object_as_json(patch, printer, False)
+        printer.level_down()
+        printer.println("},")

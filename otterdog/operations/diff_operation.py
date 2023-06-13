@@ -19,7 +19,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingWriter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
+from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
     Change, is_unset, is_set_and_valid
 
 from . import Operation
@@ -50,14 +50,14 @@ class DiffOperation(Operation):
         self._gh_client: Optional[Github] = None
         self._validator = ValidateOperation()
 
-    def init(self, config: OtterdogConfig, printer: IndentingWriter) -> None:
+    def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
         self._validator.init(config, printer)
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         try:
             self._gh_client = self.setup_github_client(org_config)
@@ -107,7 +107,7 @@ class DiffOperation(Operation):
         # there are no validation errors.
         validation_warnings, validation_errors = self._validator.validate(expected_org)
         if validation_errors > 0:
-            self.printer.print("Planning aborted due to validation failures.")
+            self.printer.println("Planning aborted due to validation failures.")
             return validation_errors
 
         try:

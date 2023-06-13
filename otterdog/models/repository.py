@@ -13,12 +13,13 @@ from typing import Any, ClassVar, Optional
 
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
+from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset
+from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
 
-from . import ModelObject, ValidationContext, FailureType
-from .organization_settings import OrganizationSettings
 from .branch_protection_rule import BranchProtectionRule
+from .organization_settings import OrganizationSettings
 
 
 @dataclasses.dataclass
@@ -211,3 +212,45 @@ class Repository(ModelObject):
                 mapping.update({"security_and_analysis": security_mapping})
 
         return bend(mapping, data)
+
+    def to_jsonnet(self,
+                   printer: IndentingPrinter,
+                   jsonnet_config: JsonnetConfig,
+                   extend: bool,
+                   default_object: ModelObject) -> None:
+
+        patch = self.get_patch_to(default_object)
+
+        has_branch_protection_rules = len(self.branch_protection_rules) > 0
+        # FIXME: take branch protection rules into account once it is supported for
+        #        repos that get extended.
+        has_changes = len(patch) > 0
+        if extend and has_changes is False:
+            return
+
+        # remove the name key from the diff_obj to avoid serializing twice to json
+        if "name" in patch:
+            patch.pop("name")
+
+        function = f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
+        printer.print(f"{function}('{self.name}')")
+
+        write_patch_object_as_json(patch, printer, close_object=False)
+
+        # FIXME: support overriding branch protection rules for repos coming from
+        #        the default configuration.
+        if has_branch_protection_rules and not extend:
+            default_org_rule = BranchProtectionRule.from_model_data(jsonnet_config.default_org_branch_config)
+
+            printer.println("branch_protection_rules: [")
+            printer.level_up()
+
+            for rule in self.branch_protection_rules:
+                rule.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
+
+            printer.level_down()
+            printer.println("],")
+
+        # close the repo object
+        printer.level_down()
+        printer.println("},")

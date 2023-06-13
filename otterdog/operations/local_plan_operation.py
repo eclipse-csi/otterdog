@@ -30,7 +30,7 @@ class LocalPlanOperation(PlanOperation):
         return self._other_org
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Printing local diff for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Printing local diff for configuration at '{self.config.config_file}'")
         self.print_legend()
 
     def verbose_output(self):

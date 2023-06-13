@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from __future__ import annotations
+
 import json
 import re
 from argparse import Namespace
@@ -153,46 +155,38 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
     return [x for x in list1 if x not in s]
 
 
-def dump_patch_object_as_json(diff_object: dict[str, Any],
-                              fp: TextIO,
-                              offset=0,
-                              indent=2,
-                              close_object: bool = True) -> int:
+def write_patch_object_as_json(diff_object: dict[str, Any],
+                               printer: IndentingPrinter,
+                               close_object: bool = True) -> None:
     if close_object is True and len(diff_object) == 0:
-        fp.write(",\n")
-        return offset
+        printer.println(",")
+        return
 
-    fp.write(" {\n")
-    offset += indent
+    printer.println(" {")
+    printer.level_up()
 
     for key, value in sorted(diff_object.items()):
         if is_unset(value):
             print_warn(f"key '{key}' defined in default configuration not present in config, skipping")
             continue
 
-        fp.write(" " * offset)
         if isinstance(value, list) and len(value) > 0:
-            fp.write(f"{key}+: [\n")
-            offset += indent
+            printer.println(f"{key}+: [")
+            printer.level_up()
             num_items = len(value)
             for index, item in enumerate(value):
-                fp.write(" " * offset)
                 if index < num_items - 1:
-                    fp.write(f"{json.dumps(item)},\n")
+                    printer.println(f"{json.dumps(item)},")
                 else:
-                    fp.write(f"{json.dumps(item)}\n")
-            offset -= indent
-            fp.write(" " * offset)
-            fp.write("],\n")
+                    printer.println(f"{json.dumps(item)}")
+            printer.level_down()
+            printer.println("],")
         else:
-            fp.write(f"{key}: {json.dumps(value)},\n")
+            printer.println(f"{key}: {json.dumps(value)},")
 
     if close_object is True:
-        offset -= indent
-        fp.write(" " * offset + "},\n")
-        return offset
-    else:
-        return offset
+        printer.level_down()
+        printer.println("},")
 
 
 def associate_by_key(input_list: list[T], key_func: Callable[[T], str]) -> dict[str, T]:
@@ -222,19 +216,42 @@ def multi_associate_by_key(input_list: list[T], key_func: Callable[[T], list[str
     return result
 
 
-class IndentingWriter:
-    def __init__(self, writer: TextIO, spaces_per_level: int = 2):
+class IndentingPrinter:
+    def __init__(self, writer: TextIO, initial_offset: int = 0, spaces_per_level: int = 2):
         self._writer = writer
+        self._initial_offset = " " * initial_offset
         self._level = 0
         self._spaces_per_level = spaces_per_level
+        self._indented_line = False
 
-    def print(self, text: str = '', end: str = '\n') -> None:
-        lines = text.splitlines()
+    @property
+    def _current_indentation(self) -> str:
+        return self._initial_offset + " " * (self._level * self._spaces_per_level)
+
+    def print(self, text: str = '') -> None:
+        lines = text.splitlines(keepends=True)
         if len(lines) > 0:
             for line in lines:
-                self._writer.write(" " * (self._level * self._spaces_per_level) + line + end)
-        else:
-            self._writer.write(end)
+                self._print_indentation()
+
+                if line.endswith("\n"):
+                    self._writer.write(line[:-1])
+                    self.print_line_break()
+                else:
+                    self._writer.write(line)
+
+    def println(self, text: str = '') -> None:
+        self.print(text)
+        self.print_line_break()
+
+    def print_line_break(self) -> None:
+        self._writer.write("\n")
+        self._indented_line = False
+
+    def _print_indentation(self) -> None:
+        if not self._indented_line:
+            self._writer.write(self._current_indentation)
+            self._indented_line = True
 
     def level_up(self) -> None:
         self._level += 1

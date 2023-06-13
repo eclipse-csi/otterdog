@@ -23,15 +23,15 @@ class CanonicalDiffOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Showing diff to a canonical version of the configuration at "
-                           f"'{self.config.config_file}'")
+        self.printer.println(f"Showing diff to a canonical version of the configuration at "
+                             f"'{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
@@ -58,18 +58,15 @@ class CanonicalDiffOperation(Operation):
         canonical_config = organization.to_jsonnet(jsonnet_config)
         canonical_config_as_lines = canonical_config.split("\n")
 
-        if original_config_without_comments[-1] == "":
-            original_config_without_comments.pop(-1)
-
         for line in difflib.unified_diff(original_config_without_comments,
                                          canonical_config_as_lines,
                                          "original",
                                          "canonical"):
             if line.startswith("+"):
-                self.printer.print(f"{Fore.GREEN}{line}{Style.RESET_ALL}")
+                self.printer.println(f"{Fore.GREEN}{line}{Style.RESET_ALL}")
             elif line.startswith("-"):
-                self.printer.print(f"{Fore.RED}{line}{Style.RESET_ALL}")
+                self.printer.println(f"{Fore.RED}{line}{Style.RESET_ALL}")
             else:
-                self.printer.print(line)
+                self.printer.println(line)
 
         return 0

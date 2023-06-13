@@ -24,28 +24,28 @@ class FetchOperation(Operation):
         self.pull_request = pull_request
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Fetching organization definitions for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Fetching organization definitions for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.print(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
-                               f"'{org_file_name}'.\n"
-                               f"  Performing this action will overwrite its contents.\n"
-                               f"  Do you want to continue?\n"
-                               f"  Only 'yes' will be accepted to approve.\n\n")
+            self.printer.println(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
+                                 f"'{org_file_name}'.\n"
+                                 f"  Performing this action will overwrite its contents.\n"
+                                 f"  Do you want to continue?\n"
+                                 f"  Only 'yes' will be accepted to approve.\n\n")
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
+            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
             if answer != "yes":
-                self.printer.print("\nFetch cancelled.")
+                self.printer.println("\nFetch cancelled.")
                 return 1
 
         self.printer.level_up()
@@ -83,10 +83,10 @@ class FetchOperation(Operation):
                 file.write(definition)
 
             if ref is not None:
-                self.printer.print(f"organization definition fetched from pull request "
-                                   f"#{self.pull_request} to '{org_file_name}'")
+                self.printer.println(f"organization definition fetched from pull request "
+                                     f"#{self.pull_request} to '{org_file_name}'")
             else:
-                self.printer.print(f"organization definition fetched from default branch to '{org_file_name}'")
+                self.printer.println(f"organization definition fetched from default branch to '{org_file_name}'")
 
             return 0
         finally:

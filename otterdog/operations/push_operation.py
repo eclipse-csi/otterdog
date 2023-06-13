@@ -23,14 +23,14 @@ class PushOperation(Operation):
         self.push_message = push_message
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Pushing organization definitions for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Pushing organization definitions for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
@@ -74,7 +74,7 @@ class PushOperation(Operation):
                 print_error(f"failed to push definition to repo '{org_config.config_repo}': {str(e)}")
                 return 1
 
-            self.printer.print(f"organization definition pushed to '{org_file_name}'")
+            self.printer.println(f"organization definition pushed to '{org_file_name}'")
 
             return 0
         finally:

@@ -13,9 +13,10 @@ from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
+from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, is_set_and_valid
-from . import ModelObject, ValidationContext, FailureType
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
 
 
 @dataclasses.dataclass
@@ -86,3 +87,12 @@ class OrganizationWebhook(ModelObject):
             mapping["config"] = config_mapping
 
         return bend(mapping, data)
+
+    def to_jsonnet(self,
+                   printer: IndentingPrinter,
+                   jsonnet_config: JsonnetConfig,
+                   extend: bool,
+                   default_object: ModelObject) -> None:
+        patch = self.get_patch_to(default_object)
+        printer.print(f"orgs.{jsonnet_config.create_webhook}()")
+        write_patch_object_as_json(patch, printer)

@@ -25,14 +25,14 @@ class SyncTemplateOperation(Operation):
         self._repo = repo
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Showing resources defined in configuration '{self.config.config_file}'")
+        self.printer.println(f"Showing resources defined in configuration '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -68,7 +68,7 @@ class SyncTemplateOperation(Operation):
                     continue
 
                 if is_set_and_present(repo.template_repository):
-                    self.printer.print(f"Syncing {Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}")
+                    self.printer.println(f"Syncing {Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}")
                     updated_files = \
                         gh_client.sync_from_template_repository(github_id,
                                                                 repo.name,
@@ -77,7 +77,7 @@ class SyncTemplateOperation(Operation):
 
                     self.printer.level_up()
                     for file in updated_files:
-                        self.printer.print(f"updated file '{file}'")
+                        self.printer.println(f"updated file '{file}'")
                     self.printer.level_down()
 
             return 0

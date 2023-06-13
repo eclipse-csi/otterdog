@@ -26,34 +26,34 @@ class ImportOperation(Operation):
         self.no_web_ui = no_web_ui
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Importing resources for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Importing resources for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.print(f"\nDefinition already exists at "
-                               f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
-                               f"  Performing this action will overwrite its contents.\n"
-                               f"  Do you want to continue?\n"
-                               f"  Only 'yes' will be accepted to approve.\n\n")
+            self.printer.println(f"\nDefinition already exists at "
+                                 f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
+                                 f"  Performing this action will overwrite its contents.\n"
+                                 f"  Do you want to continue?\n"
+                                 f"  Only 'yes' will be accepted to approve.\n\n")
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ", end='')
+            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
             if answer != "yes":
-                self.printer.print("\nImport cancelled.")
+                self.printer.println("\nImport cancelled.")
                 return 1
 
         if os.path.exists(org_file_name):
             backup_file = f"{org_file_name}.bak"
             shutil.copy(org_file_name, backup_file)
-            self.printer.print(f"\nExisting definition copied to {Style.BRIGHT}'{backup_file}'{Style.RESET_ALL}.\n")
+            self.printer.println(f"\nExisting definition copied to {Style.BRIGHT}'{backup_file}'{Style.RESET_ALL}.\n")
 
         self.printer.level_up()
 
@@ -86,7 +86,7 @@ class ImportOperation(Operation):
             with open(org_file_name, "w") as file:
                 file.write(output)
 
-            self.printer.print(f"organization definition written to '{org_file_name}'")
+            self.printer.println(f"organization definition written to '{org_file_name}'")
 
             return 0
         finally:

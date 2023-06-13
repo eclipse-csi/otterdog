@@ -23,14 +23,14 @@ class ValidateOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.print(f"Validating configuration at '{self.config.config_file}'")
+        self.printer.println(f"Validating configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.print(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -54,20 +54,21 @@ class ValidateOperation(Operation):
             validation_failures = validation_warnings + validation_errors
 
             if validation_failures == 0:
-                self.printer.print(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+                self.printer.println(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
             else:
                 if validation_errors == 0:
-                    self.printer.print(f"{Fore.YELLOW}Validation succeeded{Style.RESET_ALL}: "
-                                       f"{validation_warnings} warning(s), {validation_errors} error(s)")
+                    self.printer.println(f"{Fore.YELLOW}Validation succeeded{Style.RESET_ALL}: "
+                                         f"{validation_warnings} warning(s), {validation_errors} error(s)")
                 else:
-                    self.printer.print(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
-                                       f"{validation_warnings} warning(s), {validation_errors} error(s)")
+                    self.printer.println(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                                         f"{validation_warnings} warning(s), {validation_errors} error(s)")
 
             return validation_failures
         finally:
             self.printer.level_down()
 
-    def validate(self, organization: GitHubOrganization) -> tuple[int, int]:
+    @staticmethod
+    def validate(organization: GitHubOrganization) -> tuple[int, int]:
         context = organization.validate()
 
         validation_warnings = 0
