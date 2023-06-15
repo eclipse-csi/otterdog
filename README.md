@@ -194,7 +194,6 @@ configurate that in the `defaults`:
 | readers_can_create_discussions                           | boolean or null | If readers can create discussions                                                               |                   |
 | members_can_create_teams                                 | boolean         | If members can create teams                                                                     |                   |
 | two_factor_requirement                                   | boolean         | If two factor is required for all members                                                       | read-only         |
-| team_discussions_allowed                                 | boolean         | If team discussions are allowed                                                                 |                   |
 | default_branch_name                                      | string          | The default branch name for repos                                                               |                   |
 | packages_containers_public                               | boolean         | If members can push public releases / containers                                                |                   |
 | packages_containers_internal                             | boolean         | If members can push private releases / containers                                               |                   |
@@ -310,13 +309,14 @@ Note:
 
 ### Actor Format
 
-* User: `/login`, e.g. `/netomi`
-* Team: `<organization>/<team-slug>`, e.g. `OtterdogTest/committers`
+* User: `@<user-login>`, e.g. `@netomi`
+* Team: `@<team-combined-slug>`, the combined slug has the format `<organization>/<team-slug>`, e.g. `@OtterdogTest/committers`
+* App: `<app-slug>`, e.g. `eclipse-eca-validation`
 
 ### Status Check Format
 
 * GitHub Action Status: `<status-name>`, e.g. `Run CI`
-* Status from an app: `<app-slug>:<status-name>`, e.g. `eclipsefdn:eca`
+* Status from an app: `<app-slug>:<status-name>`, e.g. `eclipse-eca-validation:eclipsefdn/eca`
 * Status from any source: `any:<status-name`, e.g. `any:Run CI`
 
 ## Usage
