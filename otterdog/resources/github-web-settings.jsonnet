@@ -27,9 +27,6 @@ local newRadioInput(otterdogName, inputName = otterdogName) =
   'settings/security':
     newCheckbox('two_factor_requirement'),
 
-  'settings/teams':
-    newCheckbox('team_discussions_allowed', 'organization[team_discussions_allowed]'),
-
   'settings/repository-defaults':
     newTextInput('default_branch_name'),
 

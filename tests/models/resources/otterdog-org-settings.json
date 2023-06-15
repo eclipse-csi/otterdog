@@ -28,7 +28,6 @@
   "packages_containers_public": false,
   "plan": "free",
   "readers_can_create_discussions": false,
-  "team_discussions_allowed": true,
   "twitter_username": null,
   "two_factor_requirement": false,
   "web_commit_signoff_required": false

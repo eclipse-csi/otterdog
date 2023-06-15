@@ -53,7 +53,6 @@ class OrganizationSettings(ModelObject):
     members_can_delete_issues: bool
     members_can_create_teams: bool
     readers_can_create_discussions: bool
-    team_discussions_allowed: bool
     packages_containers_public: bool
     packages_containers_internal: bool
     organization_projects_enabled: bool

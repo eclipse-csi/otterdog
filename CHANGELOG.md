@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Deprecated setting `team_discussions_allowed` which has been removed from the GitHub Web UI. ([#54](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/54))
 - Changed indentation for import operation.
 - Skipping organization webhooks with a dummy secret during processing.
 - Simplified setting `base_template` and support a per-organization override. ([#39](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/39))

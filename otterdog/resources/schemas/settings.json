@@ -112,6 +112,7 @@
       "type": "boolean"
     },
     "team_discussions_allowed": {
+      "deprecated": true,
       "provider": "web",
       "type": "boolean"
     },
