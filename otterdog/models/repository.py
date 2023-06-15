@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Iterator
 
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
@@ -88,6 +88,10 @@ class Repository(ModelObject):
             "secret_scanning_push_protection"
          }
 
+    @property
+    def model_object_name(self) -> str:
+        return "repository"
+
     def get_all_names(self) -> list[str]:
         return [self.name] + self.aliases
 
@@ -155,6 +159,11 @@ class Repository(ModelObject):
                 return False
 
         return True
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        for rule in self.branch_protection_rules:
+            yield rule, self
+            yield from rule.get_model_objects()
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Repository:

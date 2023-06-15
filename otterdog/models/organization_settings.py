@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
@@ -60,6 +60,10 @@ class OrganizationSettings(ModelObject):
     default_workflow_permissions: str
     security_managers: list[str]
 
+    @property
+    def model_object_name(self) -> str:
+        return "settings"
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         # enabling dependabot implicitly enables the dependency graph,
         # disabling the dependency graph in the configuration will result in inconsistencies after
@@ -76,6 +80,9 @@ class OrganizationSettings(ModelObject):
         if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
             context.add_failure(FailureType.ERROR,
                                 "enabling dependabot_security_updates implicitly enables dependabot_alerts")
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        yield from []
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:

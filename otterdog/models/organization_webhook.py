@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
@@ -33,6 +33,10 @@ class OrganizationWebhook(ModelObject):
     insecure_ssl: str
     secret: Optional[str]
 
+    @property
+    def model_object_name(self) -> str:
+        return "webhook"
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(FailureType.WARNING,
@@ -53,6 +57,9 @@ class OrganizationWebhook(ModelObject):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        yield from []
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationWebhook:

@@ -49,34 +49,21 @@ class ShowOperation(Operation):
                 print_error(f"failed to load configuration: {str(ex)}")
                 return 1
 
-            self.print_dict(organization.settings.to_model_dict(),
-                            f"{Style.BRIGHT}settings{Style.RESET_ALL}",
-                            "",
-                            Fore.BLACK)
+            for model_object, parent_object in organization.get_model_objects():
+                header = f"{Style.BRIGHT}{model_object.model_object_name}{Style.RESET_ALL}"
 
-            for webhook in organization.webhooks:
-                self.printer.println()
-                self.print_dict(webhook.to_model_dict(),
-                                f"{Style.BRIGHT}webhook{Style.RESET_ALL}",
-                                "",
-                                Fore.BLACK)
+                if model_object.is_keyed():
+                    key = model_object.get_key()
+                    header = header + f"[{key}={Style.BRIGHT}\"{model_object.get_key_value()}\"{Style.RESET_ALL}"
 
-            for repo in organization.repositories:
-                repo_data = repo.to_model_dict(False)
+                    if parent_object is not None:
+                        header = header + f", {parent_object.model_object_name}=" \
+                                          f"{Style.BRIGHT}\"{parent_object.get_key_value()}\"{Style.RESET_ALL}"
+
+                    header = header + "]"
 
                 self.printer.println()
-                self.print_dict(repo_data,
-                                f"{Style.BRIGHT}repository[name=\"{repo.name}\"]{Style.RESET_ALL}",
-                                "",
-                                Fore.BLACK)
-
-                for rule in repo.branch_protection_rules:
-                    self.printer.println()
-                    self.print_dict(rule.to_model_dict(),
-                                    f"{Style.BRIGHT}branch_protection_rule[repo=\"{repo.name}\", "
-                                    f"pattern=\"{rule.pattern}\"]{Style.RESET_ALL}",
-                                    "",
-                                    Fore.BLACK)
+                self.print_dict(model_object.to_model_dict(), header, "", Fore.BLACK)
 
             return 0
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 
 from otterdog.providers.github import Github
 from otterdog.jsonnet import JsonnetConfig
@@ -49,11 +49,19 @@ class ModelObject(ABC):
                 elif field.default_factory is not dataclasses.MISSING:
                     self.__setattr__(field.name, field.default_factory())
 
+    @property
+    @abstractmethod
+    def model_object_name(self) -> str:
+        pass
+
     def is_keyed(self) -> bool:
         return any(field.metadata.get("key", False) for field in self.all_fields())
 
     def get_key(self) -> str:
         return next(filter(lambda field: field.metadata.get("key", False) is True, self.all_fields())).name
+
+    def get_key_value(self) -> Any:
+        return self.__getattribute__(self.get_key())
 
     @abstractmethod
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -149,6 +157,10 @@ class ModelObject(ABC):
     @staticmethod
     def is_nested_model(field: dataclasses.Field) -> bool:
         return field.metadata.get("nested_model", False) is True
+
+    @abstractmethod
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        pass
 
     @classmethod
     @abstractmethod

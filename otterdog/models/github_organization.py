@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import partial
 from io import StringIO
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 
 import jsonschema
 from importlib_resources import files, as_file
@@ -26,7 +26,7 @@ from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
 from otterdog.utils import is_unset, IndentingPrinter, associate_by_key, print_debug, jsonnet_evaluate_file
 
-from . import ValidationContext
+from . import ValidationContext, ModelObject
 from .branch_protection_rule import BranchProtectionRule
 from .organization_settings import OrganizationSettings
 from .organization_webhook import OrganizationWebhook
@@ -76,6 +76,18 @@ class GitHubOrganization:
             schema_root = resource_dir.as_uri()
             resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
             jsonschema.validate(instance=data, schema=_ORG_SCHEMA, resolver=resolver)
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, Optional[ModelObject]]]:
+        yield self.settings, None
+        yield from self.settings.get_model_objects()
+
+        for webhook in self.webhooks:
+            yield webhook, None
+            yield from webhook.get_model_objects()
+
+        for repo in self.repositories:
+            yield repo, None
+            yield from repo.get_model_objects()
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> GitHubOrganization:

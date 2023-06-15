@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import Any, Optional
+from typing import Any, Optional, Iterator
 
 from jsonbender import bend, S, OptionalS, Forall, K  # type: ignore
 
@@ -57,6 +57,10 @@ class BranchProtectionRule(ModelObject):
     requires_status_checks: bool
     requires_strict_status_checks: bool
     required_status_checks: list[str]
+
+    @property
+    def model_object_name(self) -> str:
+        return "branch_protection_rule"
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         repo_name: str = parent_object.name
@@ -159,6 +163,9 @@ class BranchProtectionRule(ModelObject):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        yield from []
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
