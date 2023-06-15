@@ -225,9 +225,12 @@ class GraphQLClient:
             typename = actor["__typename"]
             if typename == "User":
                 login = actor["login"]
-                result.append(f"/{login}")
+                result.append(f"@{login}")
             elif typename == "Team":
                 slug = actor["combinedSlug"]
+                result.append(f"@{slug}")
+            elif typename == "App":
+                slug = actor["slug"]
                 result.append(slug)
             else:
                 raise RuntimeError(f"unsupported actor '{actor}'")

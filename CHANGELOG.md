@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Changed format to specify actors in branch protection rules, using a '@' prefix to denote users and teams, and not prefix for apps.
 - Deprecated setting `team_discussions_allowed` which has been removed from the GitHub Web UI. ([#54](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/54))
 - Changed indentation for import operation.
 - Skipping organization webhooks with a dummy secret during processing.

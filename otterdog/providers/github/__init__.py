@@ -162,17 +162,26 @@ class Github:
     def get_actor_ids(self, actor_names: list[str]) -> list[str]:
         result = []
         for actor in actor_names:
-            if actor.startswith("/"):
-                try:
-                    result.append(self.rest_client.get_user_node_id(actor[1:]))
-                except RuntimeError:
-                    utils.print_warn(f"user '{actor}' does not exist, skipping")
-
+            if actor.startswith("@"):
+                # if it starts with a @, it's either a user or team:
+                #    - team-names contains a / in its slug
+                #    - user-names are not allowed to contain a /
+                if "/" in actor:
+                    try:
+                        result.append(self.rest_client.get_team_node_id(actor[1:]))
+                    except RuntimeError:
+                        utils.print_warn(f"team '{actor[1:]}' does not exist, skipping")
+                else:
+                    try:
+                        result.append(self.rest_client.get_user_node_id(actor[1:]))
+                    except RuntimeError:
+                        utils.print_warn(f"user '{actor[1:]}' does not exist, skipping")
             else:
+                # it's an app
                 try:
-                    result.append(self.rest_client.get_team_node_id(actor))
+                    result.append(self.rest_client.get_app_id(actor))
                 except RuntimeError:
-                    utils.print_warn(f"team '{actor}' does not exist, skipping")
+                    utils.print_warn(f"app '{actor}' does not exist, skipping")
 
         return result
 
