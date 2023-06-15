@@ -1,10 +1,17 @@
-## Build instructions
+# Otterdog
 
-### Quickstart
+## Introduction
+
+Otterdog is a tool to manage GitHub organizations at scale using a configuration as code approach.
+It is actively developed by the Eclipse Foundation and used to manage its numerous projects hosted on GitHub.
+
+## Quickstart
 
 [Otterdog Presentation @ Open Source Summit 2023](https://docs.google.com/presentation/d/1lLqbhDQf9s5U2A2TkcoFYA39qtODcSot2308vnKbkbA/edit?usp=sharing)
 
 [Default Configuration used @ Eclipse Foundation](https://github.com/EclipseFdn/otterdog-defaults/)
+
+## Build instructions
 
 ### System requirements:
 
