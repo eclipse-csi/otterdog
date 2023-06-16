@@ -195,5 +195,5 @@ class Github:
                                       org_id: str,
                                       repo_name: str,
                                       template_repository: str,
-                                      ignore_paths: Optional[list[str]]) -> list[str]:
-        return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository, ignore_paths)
+                                      template_paths: Optional[list[str]]) -> list[str]:
+        return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository, template_paths)

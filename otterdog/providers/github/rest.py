@@ -326,13 +326,7 @@ class RestClient:
                 # use chevron to expand some variables that might be used there.
                 for content_path in post_process_template_content:
                     content = self.get_content(org_id, repo_name, content_path, None)
-
-                    variables = {
-                        "org": org_id,
-                        "repo": repo_name
-                    }
-
-                    updated_content = chevron.render(content, variables)
+                    updated_content = self._render_template_content(org_id, repo_name, content)
                     if content != updated_content:
                         self.update_content(org_id, repo_name, content_path, updated_content)
 
@@ -364,6 +358,15 @@ class RestClient:
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    @staticmethod
+    def _render_template_content(org_id: str, repo_name: str, content: str) -> str:
+        variables = {
+            "org": org_id,
+            "repo": repo_name
+        }
+
+        return chevron.render(content, variables)
 
     def get_readme_of_repo(self, org_id: str, repo_name: str) -> dict[str, Any]:
         utils.print_debug(f"getting readme for repo '{org_id}/{repo_name}'")
@@ -487,7 +490,7 @@ class RestClient:
                                       org_id: str,
                                       repo_name: str,
                                       template_repository: str,
-                                      ignore_paths: Optional[list[str]]) -> list[str]:
+                                      template_paths: Optional[list[str]]) -> list[str]:
         template_owner, template_repo = re.split("/", template_repository, 1)
 
         updated_files = []
@@ -500,7 +503,7 @@ class RestClient:
             with zipfile.ZipFile(archive_file_name, "r") as zip_file:
                 zip_file.extractall(archive_target_dir)
 
-            ignore_paths_set = set(ignore_paths) if isinstance(ignore_paths, list) else set()
+            template_paths_set = set(template_paths) if isinstance(template_paths, list) else set()
 
             base_dir = None
             for path in pathlib.Path(archive_target_dir).rglob("*"):
@@ -512,11 +515,15 @@ class RestClient:
 
                 relative_path = path.relative_to(base_dir)
 
-                if path.is_file() and str(relative_path) not in ignore_paths_set:
+                if path.is_file():
                     utils.print_debug(f"updating file {relative_path}")
 
                     with open(path, "r") as file:
                         content = file.read()
+
+                        if str(relative_path) in template_paths_set:
+                            content = self._render_template_content(org_id, repo_name, content)
+
                         updated = self.update_content(org_id, repo_name, str(relative_path), content)
                         if updated:
                             updated_files.append(str(relative_path))
