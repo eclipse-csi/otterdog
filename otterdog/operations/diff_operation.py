@@ -40,8 +40,6 @@ class DiffStatus:
 
 
 class DiffOperation(Operation):
-    _DEFAULT_POOL_SIZE = 12
-
     def __init__(self, no_web_ui: bool, update_webhooks: bool):
         super().__init__()
 
