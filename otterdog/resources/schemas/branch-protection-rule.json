@@ -39,6 +39,11 @@
     "required_status_checks": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "requires_deployments": { "type":  "boolean" },
+    "required_deployment_environments": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   },
 

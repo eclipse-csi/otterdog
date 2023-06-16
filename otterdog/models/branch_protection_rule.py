@@ -58,6 +58,9 @@ class BranchProtectionRule(ModelObject):
     requires_strict_status_checks: bool
     required_status_checks: list[str]
 
+    requires_deployments: bool
+    required_deployment_environments: list[str]
+
     @property
     def model_object_name(self) -> str:
         return "branch_protection_rule"
@@ -71,7 +74,7 @@ class BranchProtectionRule(ModelObject):
         if self.requires_approving_reviews is False:
             if is_set_and_valid(self.required_approving_review_count):
                 context.add_failure(FailureType.WARNING,
-                                    f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                    f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                     f" 'requires_approving_reviews' disabled but 'required_approving_review_count' "
                                     f"is set to '{self.required_approving_review_count}', setting will be ignored.")
 
@@ -81,7 +84,7 @@ class BranchProtectionRule(ModelObject):
                         "restricts_review_dismissals"]:
                 if self.__getattribute__(key) is True:
                     context.add_failure(FailureType.WARNING,
-                                        f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                        f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                         f" 'requires_approving_reviews' disabled but '{key}' "
                                         f"is enabled, setting will be ignored.")
 
@@ -89,7 +92,7 @@ class BranchProtectionRule(ModelObject):
                 value = self.__getattribute__(key)
                 if not is_unset(value) and len(value) > 0:
                     context.add_failure(FailureType.WARNING,
-                                        f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                        f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                         f" 'requires_approving_reviews' disabled but '{key}' "
                                         f"is set to {value}, setting will be ignored.")
 
@@ -98,7 +101,7 @@ class BranchProtectionRule(ModelObject):
         if self.requires_approving_reviews is True and not is_unset(required_approving_review_count):
             if required_approving_review_count is None or required_approving_review_count < 0:
                 context.add_failure(FailureType.ERROR,
-                                    f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                    f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                     f" 'requires_approving_reviews' enabled but 'required_approving_review_count' "
                                     f"is not set (must be null or a non negative number).")
 
@@ -108,7 +111,7 @@ class BranchProtectionRule(ModelObject):
                 is_set_and_valid(review_dismissal_allowances) and \
                 len(review_dismissal_allowances) > 0:
             context.add_failure(FailureType.WARNING,
-                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                 f" 'restricts_review_dismissals' disabled but "
                                 f"'review_dismissal_allowances' is set to {self.review_dismissal_allowances}, "
                                 f"setting will be ignored.")
@@ -119,7 +122,7 @@ class BranchProtectionRule(ModelObject):
                 is_set_and_valid(bypass_force_push_allowances) and \
                 len(bypass_force_push_allowances) > 0:
             context.add_failure(FailureType.WARNING,
-                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                 f" 'allows_force_pushes' enabled but "
                                 f"'bypass_force_push_allowances' is set to {self.bypass_force_push_allowances}, "
                                 f"setting will be ignored.")
@@ -130,10 +133,20 @@ class BranchProtectionRule(ModelObject):
                 is_set_and_valid(required_status_checks) and \
                 len(required_status_checks) > 0:
             context.add_failure(FailureType.WARNING,
-                                f"branch_protection_rule[repo=\"{repo_name}\",pattern=\"{self.pattern}\"] has"
+                                f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
                                 f" 'requires_status_checks' disabled but "
                                 f"'required_status_checks' is set to {self.required_status_checks}, "
                                 f"setting will be ignored.")
+
+        # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
+        if self.requires_deployments is False and \
+                is_set_and_valid(self.required_deployment_environments) and \
+                len(self.required_deployment_environments) > 0:
+            context.add_failure(FailureType.WARNING,
+                                f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{self.pattern}\"] has"
+                                f" 'requires_deployments' disabled but "
+                                f"'required_deployment_environments' is set to {self.required_deployment_environments}"
+                                f", setting will be ignored.")
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # disable diff computation for dependent fields of requires_approving_reviews,
@@ -157,6 +170,10 @@ class BranchProtectionRule(ModelObject):
 
         if self.requires_status_checks is False:
             if field.name in ["required_status_checks", "requires_strict_status_checks"]:
+                return False
+
+        if self.requires_deployments is False:
+            if field.name in ["required_deployment_environments"]:
                 return False
 
         return True

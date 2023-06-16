@@ -40,6 +40,8 @@ query($endCursor: String, $organization: String!, $repository: String!) {
           }
           context
         }
+        requiresDeployments
+        requiredDeploymentEnvironments
       }
       pageInfo {
         hasNextPage
