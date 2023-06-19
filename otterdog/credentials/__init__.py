@@ -7,7 +7,7 @@
 # *******************************************************************************
 
 from abc import abstractmethod
-from typing import Protocol
+from typing import Protocol, Optional
 
 import mintotp  # type: ignore
 
@@ -36,7 +36,9 @@ class Credentials:
 
 class CredentialProvider(Protocol):
     @abstractmethod
-    def get_credentials(self, data: dict[str, str]) -> Credentials: raise NotImplementedError
+    def get_credentials(self, eclipse_project: Optional[str], data: dict[str, str]) -> Credentials:
+        raise NotImplementedError
 
     @abstractmethod
-    def get_secret(self, data: str) -> str: raise NotImplementedError
+    def get_secret(self, data: str) -> str:
+        raise NotImplementedError

@@ -9,6 +9,8 @@
 import os
 import subprocess
 
+from typing import Optional
+
 from otterdog.credentials import Credentials, CredentialProvider
 from otterdog import utils
 
@@ -17,6 +19,11 @@ class PassVault(CredentialProvider):
     """
     A class to provide convenient access to a pass vault.
     """
+
+    KEY_API_TOKEN = "api_token"
+    KEY_USERNAME = "username"
+    KEY_PASSWORD = "password"
+    KEY_2FA_SEED = "2fa_seed"
 
     def __init__(self, password_store_dir: str):
         utils.print_debug("accessing pass vault")
@@ -31,11 +38,11 @@ class PassVault(CredentialProvider):
         if status > 0:
             raise RuntimeError("pass vault is not accessible")
 
-    def get_credentials(self, data: dict[str, str]) -> Credentials:
-        github_token = self._retrieve_key("api_token", data)
-        username = self._retrieve_key("username", data)
-        password = self._retrieve_key("password", data)
-        totp_secret = self._retrieve_key("2fa_seed", data)
+    def get_credentials(self, eclipse_project: Optional[str], data: dict[str, str]) -> Credentials:
+        github_token = self._retrieve_key(self.KEY_API_TOKEN, eclipse_project, data)
+        username = self._retrieve_key(self.KEY_USERNAME, eclipse_project, data)
+        password = self._retrieve_key(self.KEY_PASSWORD, eclipse_project, data)
+        totp_secret = self._retrieve_key(self.KEY_2FA_SEED, eclipse_project, data)
 
         return Credentials(username, password, github_token, totp_secret)
 
@@ -43,8 +50,18 @@ class PassVault(CredentialProvider):
         return self._retrieve_resolved_key(key_data)
 
     @staticmethod
-    def _retrieve_key(key: str, data: dict[str, str]) -> str:
+    def _retrieve_key(key: str, eclipse_project: Optional[str], data: dict[str, str]) -> str:
         resolved_key = data.get(key)
+
+        # custom handling for eclipse projects, the keys are organized in the format
+        #    bots/<eclipse-project>/github.com/<key>
+        if resolved_key is None and eclipse_project is not None:
+            match key:
+                case PassVault.KEY_API_TOKEN: query_key = "otterdog-token"
+                case PassVault.KEY_2FA_SEED: query_key = "2FA-seed"
+                case _: query_key = key
+
+            return PassVault._retrieve_resolved_key(f"bots/{eclipse_project}/github.com/{query_key}")
 
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in authorization data")

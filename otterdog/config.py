@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Optional
 
 import jq  # type: ignore
 
@@ -24,11 +24,13 @@ class OrganizationConfig:
     def __init__(self,
                  name: str,
                  github_id: str,
+                 eclipse_project: Optional[str],
                  config_repo: str,
                  jsonnet_config: JsonnetConfig,
                  credential_data: dict[str, Any]):
         self._name = name
         self._github_id = github_id
+        self._eclipse_project = eclipse_project
         self._config_repo = config_repo
         self._jsonnet_config = jsonnet_config
         self._credential_data = credential_data
@@ -38,27 +40,31 @@ class OrganizationConfig:
         return self._name
 
     @property
-    def github_id(self):
+    def github_id(self) -> str:
         return self._github_id
 
     @property
-    def config_repo(self):
+    def eclipse_project(self) -> Optional[str]:
+        return self._eclipse_project
+
+    @property
+    def config_repo(self) -> str:
         return self._config_repo
 
     @property
-    def jsonnet_config(self):
+    def jsonnet_config(self) -> JsonnetConfig:
         return self._jsonnet_config
 
     @property
-    def credential_data(self):
+    def credential_data(self) -> dict[str, Any]:
         return self._credential_data
 
     def __repr__(self) -> str:
-        return f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.config_repo}', " \
-               f"{json.dumps(self.credential_data)})"
+        return f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.eclipse_project}', " \
+               f"'{self.config_repo}', {json.dumps(self.credential_data)})"
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], otterdog_config: OtterdogConfig):
+    def from_dict(cls, data: dict[str, Any], otterdog_config: OtterdogConfig) -> OrganizationConfig:
         name = jq.compile(".name").input(data).first()
         if name is None:
             raise RuntimeError(f"missing required name for organization config with data: '{json.dumps(data)}'")
@@ -66,6 +72,8 @@ class OrganizationConfig:
         github_id = jq.compile(".github_id").input(data).first()
         if github_id is None:
             raise RuntimeError(f"missing required github_id for organization config with name '{name}'")
+
+        eclipse_project = jq.compile(".eclipse_project").input(data).first()
 
         config_repo = jq.compile(f".config_repo // \"{otterdog_config.default_config_repo}\"").input(data).first()
         base_template = jq.compile(f".base_template // \"{otterdog_config.default_base_template}\"").input(data).first()
@@ -77,7 +85,7 @@ class OrganizationConfig:
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, config_repo, jsonnet_config, data)
+        return cls(name, github_id, eclipse_project, config_repo, jsonnet_config, data)
 
 
 class OtterdogConfig:
@@ -168,7 +176,7 @@ class OtterdogConfig:
             raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
 
         provider = self._get_credential_provider(provider_type)
-        return provider.get_credentials(org_config.credential_data)
+        return provider.get_credentials(org_config.eclipse_project, org_config.credential_data)
 
     def get_secret(self, secret_data: str) -> str:
         if secret_data and ":" in secret_data:
