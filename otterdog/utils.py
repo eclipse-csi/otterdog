@@ -141,7 +141,10 @@ def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
 
         if sorted_value_list != sorted_other_list:
             diff = _diff_list(sorted_value_list, sorted_other_list)
-            return True, diff
+            if len(diff) > 0:
+                return True, diff
+            else:
+                return False, diff
     else:
         if value != other_value:
             return True, value
@@ -171,17 +174,15 @@ def write_patch_object_as_json(diff_object: dict[str, Any],
             continue
 
         if isinstance(value, list):
-            printer.print(f"{key}+: [")
+            printer.println(f"{key}+: [")
+            printer.level_up()
             num_items = len(value)
-            if num_items > 0:
-                printer.println()
-                printer.level_up()
-                for index, item in enumerate(value):
-                    if index < num_items - 1:
-                        printer.println(f"{json.dumps(item)},")
-                    else:
-                        printer.println(f"{json.dumps(item)}")
-                printer.level_down()
+            for index, item in enumerate(value):
+                if index < num_items - 1:
+                    printer.println(f"{json.dumps(item)},")
+                else:
+                    printer.println(f"{json.dumps(item)}")
+            printer.level_down()
             printer.println("],")
         else:
             printer.println(f"{key}: {json.dumps(value)},")
