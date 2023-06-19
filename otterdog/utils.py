@@ -171,15 +171,17 @@ def write_patch_object_as_json(diff_object: dict[str, Any],
             continue
 
         if isinstance(value, list):
-            printer.println(f"{key}+: [")
-            printer.level_up()
+            printer.print(f"{key}+: [")
             num_items = len(value)
-            for index, item in enumerate(value):
-                if index < num_items - 1:
-                    printer.println(f"{json.dumps(item)},")
-                else:
-                    printer.println(f"{json.dumps(item)}")
-            printer.level_down()
+            if num_items > 0:
+                printer.println()
+                printer.level_up()
+                for index, item in enumerate(value):
+                    if index < num_items - 1:
+                        printer.println(f"{json.dumps(item)},")
+                    else:
+                        printer.println(f"{json.dumps(item)}")
+                printer.level_down()
             printer.println("],")
         else:
             printer.println(f"{key}: {json.dumps(value)},")
