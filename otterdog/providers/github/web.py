@@ -88,6 +88,7 @@ class WebClient:
                                                   "(el, property) => el[property]",
                                                   setting_def['valueSelector'])
 
+                    settings[setting] = value
                     utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
 
                 except Exception as e:
@@ -97,9 +98,7 @@ class WebClient:
                         page.screenshot(path=screenshot_file)
                         utils.print_warn(f"saved page screenshot to file '{screenshot_file}'")
 
-                    raise RuntimeError(f"failed to retrieve setting '{setting}' via web ui: {str(e)}")
-
-                settings[setting] = value
+                    utils.print_warn(f"failed to retrieve setting '{setting}' via web ui:\n{str(e)}")
 
         return settings
 
