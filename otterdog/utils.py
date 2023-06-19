@@ -170,7 +170,7 @@ def write_patch_object_as_json(diff_object: dict[str, Any],
             print_warn(f"key '{key}' defined in default configuration not present in config, skipping")
             continue
 
-        if isinstance(value, list) and len(value) > 0:
+        if isinstance(value, list):
             printer.println(f"{key}+: [")
             printer.level_up()
             num_items = len(value)
