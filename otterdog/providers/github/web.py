@@ -202,12 +202,35 @@ class WebClient:
 
     def _logout(self, page: Page) -> None:
         actor = self._logged_in_as(page)
-        response = page.goto("https://github.com/settings/profile")
+
+        response = page.goto("https://github.com/logout")
         assert response is not None
         if not response.ok:
-            raise RuntimeError("unable to load github logout page")
+            response = page.goto("https://github.com/settings/profile")
+            assert response is not None
+            if not response.ok:
+                raise RuntimeError("unable to load github logout page")
 
-        selector = 'summary.Header-link > img[alt = "@{}"]'.format(actor)
-        page.eval_on_selector(selector, "el => el.click()")
-        page.wait_for_selector('button[type="submit"].dropdown-signout')
-        page.eval_on_selector('button[type="submit"].dropdown-signout', "el => el.click()")
+            try:
+                selector = 'summary.Header-link > img[alt = "@{}"]'.format(actor)
+                page.eval_on_selector(selector, "el => el.click()")
+                page.wait_for_selector('button[type="submit"].dropdown-signout')
+                page.eval_on_selector('button[type="submit"].dropdown-signout', "el => el.click()")
+            except Exception as e:
+                if utils.is_debug_enabled():
+                    screenshot_file = "screenshot_profile.png"
+                    page.screenshot(path=screenshot_file)
+                    utils.print_warn(f"saved page screenshot to file '{screenshot_file}'")
+
+                raise RuntimeError(f"failed to logout via web ui: {str(e)}")
+        else:
+            try:
+                selector = 'input[value = "Sign out"]'
+                page.eval_on_selector(selector, "el => el.click()")
+            except Exception as e:
+                if utils.is_debug_enabled():
+                    screenshot_file = "screenshot_profile.png"
+                    page.screenshot(path=screenshot_file)
+                    utils.print_warn(f"saved page screenshot to file '{screenshot_file}'")
+
+                raise RuntimeError(f"failed to logout via web ui: {str(e)}")
