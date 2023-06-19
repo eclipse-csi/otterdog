@@ -14,8 +14,8 @@ from colorama import Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
 from otterdog.providers.github import Github
@@ -181,7 +181,7 @@ class DiffOperation(Operation):
 
             expected_webhook = expected_webhooks_by_url.get(webhook_url)
             if expected_webhook is None:
-                self.handle_delete_webhook(github_id, current_webhook)
+                self.handle_delete_object(github_id, current_webhook)
                 diff_status.deletions += 1
                 continue
 
@@ -229,7 +229,7 @@ class DiffOperation(Operation):
                 diff_status.differences += len(modified_webhook)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            self.handle_new_webhook(github_id, webhook)
+            self.handle_new_object(github_id, webhook)
             diff_status.additions += 1
 
     def _process_repositories(self,
@@ -248,7 +248,7 @@ class DiffOperation(Operation):
             expected_repo = expected_repos_by_all_names.get(current_repo_name)
 
             if expected_repo is None:
-                self.handle_delete_repo(github_id, current_repo)
+                self.handle_delete_object(github_id, current_repo)
                 diff_status.deletions += 1
                 continue
 
@@ -274,7 +274,7 @@ class DiffOperation(Operation):
             expected_repos_by_name.pop(expected_repo.name)
 
         for repo_name, repo in expected_repos_by_name.items():
-            self.handle_new_repo(github_id, repo)
+            self.handle_new_object(github_id, repo)
 
             diff_status.additions += 1
 
@@ -304,7 +304,7 @@ class DiffOperation(Operation):
 
                 expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
                 if expected_rule is None:
-                    self.handle_delete_rule(org_id, expected_repo.name, current_repo.id, current_rule)
+                    self.handle_delete_object(org_id, current_rule, current_repo)
                     diff_status.deletions += 1
                     continue
 
@@ -317,12 +317,8 @@ class DiffOperation(Operation):
                 expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
-            if current_repo is not None:
-                repo_id = current_repo.node_id
-            else:
-                repo_id = None
-
-            self.handle_new_rule(org_id, expected_repo.name, repo_id, rule)
+            repo = expected_repo if current_repo is None else current_repo
+            self.handle_new_object(org_id, rule, repo)
             diff_status.additions += 1
 
     @abstractmethod
@@ -340,11 +336,17 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_delete_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
+    def handle_new_object(self,
+                          org_id: str,
+                          model_object: ModelObject,
+                          parent_object: Optional[ModelObject] = None) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
+    def handle_delete_object(self,
+                             org_id: str,
+                             model_object: ModelObject,
+                             parent_object: Optional[ModelObject] = None) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -355,28 +357,12 @@ class DiffOperation(Operation):
         raise NotImplementedError
 
     @abstractmethod
-    def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def handle_new_repo(self, org_id: str, repo: Repository) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     def handle_modified_rule(self,
                              org_id: str,
                              repo_name: str,
                              rule_pattern: str,
                              rule_id: str,
                              modified_rule: dict[str, Change[Any]]) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def handle_delete_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
         raise NotImplementedError
 
     @abstractmethod

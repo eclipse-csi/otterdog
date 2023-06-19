@@ -12,6 +12,7 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.models import ModelObject
 from otterdog.utils import IndentingPrinter, Change, is_unset
 
 
@@ -132,3 +133,19 @@ class Operation(ABC):
 
         self.printer.println("}")
         self.printer.level_down()
+
+    @staticmethod
+    def get_model_header(model_object: ModelObject, parent_object: Optional[ModelObject]) -> str:
+        header = f"{Style.BRIGHT}{model_object.model_object_name}{Style.RESET_ALL}"
+
+        if model_object.is_keyed():
+            key = model_object.get_key()
+            header = header + f"[{key}={Style.BRIGHT}\"{model_object.get_key_value()}\"{Style.RESET_ALL}"
+
+            if parent_object is not None:
+                header = header + f", {parent_object.model_object_name}=" \
+                                  f"{Style.BRIGHT}\"{parent_object.get_key_value()}\"{Style.RESET_ALL}"
+
+            header = header + "]"
+
+        return header

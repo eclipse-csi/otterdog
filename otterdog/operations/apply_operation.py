@@ -19,6 +19,7 @@ from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffStatus
 from .plan_operation import PlanOperation
+from ..models import ModelObject
 
 
 class ApplyOperation(PlanOperation):
@@ -46,6 +47,43 @@ class ApplyOperation(PlanOperation):
         self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
+    def handle_new_object(self, org_id: str, model_object: ModelObject,
+                          parent_object: Optional[ModelObject] = None) -> None:
+        super().handle_new_object(org_id, model_object, parent_object)
+
+        if isinstance(model_object, OrganizationWebhook):
+            self._new_webhooks.append(model_object)
+        elif isinstance(model_object, Repository):
+            self._new_repos.append(model_object)
+        elif isinstance(model_object, BranchProtectionRule):
+            if isinstance(parent_object, Repository):
+                repo_name = parent_object.name
+                repo_id = parent_object.id
+            else:
+                raise ValueError(f"parent_object is of type '{type(parent_object)}' but expected 'Repository'")
+
+            self._new_rules.append((repo_name, repo_id, model_object))
+        else:
+            raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
+
+    def handle_delete_object(self, org_id: str, model_object: ModelObject,
+                             parent_object: Optional[ModelObject] = None) -> None:
+        super().handle_delete_object(org_id, model_object, parent_object)
+
+        if isinstance(model_object, OrganizationWebhook):
+            self._deleted_webhooks.append(model_object)
+        elif isinstance(model_object, Repository):
+            self._deleted_repos.append(model_object)
+        elif isinstance(model_object, BranchProtectionRule):
+            if isinstance(parent_object, Repository):
+                repo_name = parent_object.name
+            else:
+                raise ValueError(f"parent_object is of type '{type(parent_object)}' but expected 'Repository'")
+
+            self._deleted_rules.append((repo_name, model_object))
+        else:
+            raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
+
     def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
         modified = super().handle_modified_settings(org_id, modified_settings)
         self._org_settings_to_update = modified_settings
@@ -61,26 +99,10 @@ class ApplyOperation(PlanOperation):
         super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook, forced_update)
         self._modified_webhooks[webhook_id] = webhook
 
-    def handle_delete_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
-        super().handle_delete_webhook(org_id, webhook)
-        self._deleted_webhooks.append(webhook)
-
-    def handle_new_webhook(self, org_id: str, webhook: OrganizationWebhook) -> None:
-        super().handle_new_webhook(org_id, webhook)
-        self._new_webhooks.append(webhook)
-
     def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
         modified = super().handle_modified_repo(org_id, repo_name, modified_repo)
         self._modified_repos[repo_name] = modified_repo
         return modified
-
-    def handle_delete_repo(self, org_id: str, repo: Repository) -> None:
-        super().handle_delete_repo(org_id, repo)
-        self._deleted_repos.append(repo)
-
-    def handle_new_repo(self, org_id: str, repo: Repository) -> None:
-        super().handle_new_repo(org_id, repo)
-        self._new_repos.append(repo)
 
     def handle_modified_rule(self,
                              org_id: str,
@@ -90,14 +112,6 @@ class ApplyOperation(PlanOperation):
                              modified_rule: dict[str, Change[Any]]) -> None:
         super().handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
         self._modified_rules.append((repo_name, rule_pattern, rule_id, modified_rule))
-
-    def handle_delete_rule(self, org_id: str, repo_name: str, repo_id: str, bpr: BranchProtectionRule) -> None:
-        super().handle_delete_rule(org_id, repo_name, repo_id, bpr)
-        self._deleted_rules.append((repo_name, bpr))
-
-    def handle_new_rule(self, org_id: str, repo_name: str, repo_id: Optional[str], bpr: BranchProtectionRule) -> None:
-        super().handle_new_rule(org_id, repo_name, repo_id, bpr)
-        self._new_rules.append((repo_name, repo_id, bpr))
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.println()

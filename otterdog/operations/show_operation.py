@@ -50,20 +50,9 @@ class ShowOperation(Operation):
                 return 1
 
             for model_object, parent_object in organization.get_model_objects():
-                header = f"{Style.BRIGHT}{model_object.model_object_name}{Style.RESET_ALL}"
-
-                if model_object.is_keyed():
-                    key = model_object.get_key()
-                    header = header + f"[{key}={Style.BRIGHT}\"{model_object.get_key_value()}\"{Style.RESET_ALL}"
-
-                    if parent_object is not None:
-                        header = header + f", {parent_object.model_object_name}=" \
-                                          f"{Style.BRIGHT}\"{parent_object.get_key_value()}\"{Style.RESET_ALL}"
-
-                    header = header + "]"
-
                 self.printer.println()
-                self.print_dict(model_object.to_model_dict(), header, "", Fore.BLACK)
+                model_header = self.get_model_header(model_object, parent_object)
+                self.print_dict(model_object.to_model_dict(), model_header, "", Fore.BLACK)
 
             return 0
 
