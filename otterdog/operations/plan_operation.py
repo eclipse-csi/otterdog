@@ -63,7 +63,7 @@ class PlanOperation(DiffOperation):
         model_header = self.get_model_header(current_object, parent_object)
 
         # FIXME: this code should be moved to the Webhook model class.
-        redacted_keys = {"secret"}
+        redacted_keys = {"secret"} if self.resolve_secrets() is True else set()
 
         self.print_modified_dict(modified_object, model_header, redacted_keys, forced_update)
 

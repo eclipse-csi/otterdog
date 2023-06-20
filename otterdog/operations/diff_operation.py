@@ -177,8 +177,14 @@ class DiffOperation(Operation):
                               expected_org: GitHubOrganization,
                               current_org: GitHubOrganization,
                               diff_status: DiffStatus) -> None:
+        expected_webhooks_by_all_urls = multi_associate_by_key(expected_org.webhooks, Webhook.get_all_urls)
         expected_webhooks_by_url = associate_by_key(expected_org.webhooks, lambda x: x.url)
-        self._process_webhooks(github_id, expected_webhooks_by_url, current_org.webhooks, None, diff_status)
+        self._process_webhooks(github_id,
+                               expected_webhooks_by_all_urls,
+                               expected_webhooks_by_url,
+                               current_org.webhooks,
+                               None,
+                               diff_status)
 
     def _process_repositories(self,
                               github_id: str,
@@ -287,13 +293,20 @@ class DiffOperation(Operation):
                                current_repo: Repository | None,
                                expected_repo: Repository,
                                diff_status: DiffStatus) -> None:
+        expected_webhooks_by_all_urls = multi_associate_by_key(expected_repo.webhooks, Webhook.get_all_urls)
         expected_webhooks_by_url = associate_by_key(expected_repo.webhooks, lambda x: x.url)
         current_repo_webhooks = current_repo.webhooks if current_repo is not None else []
         repo = expected_repo if current_repo is None else current_repo
-        self._process_webhooks(github_id, expected_webhooks_by_url, current_repo_webhooks, repo, diff_status)
+        self._process_webhooks(github_id,
+                               expected_webhooks_by_all_urls,
+                               expected_webhooks_by_url,
+                               current_repo_webhooks,
+                               repo,
+                               diff_status)
 
     def _process_webhooks(self,
                           github_id: str,
+                          expected_webhooks_by_all_urls: dict[str, WT],
                           expected_webhooks_by_url: dict[str, WT],
                           current_webhooks: list[WT],
                           parent_object: Optional[ModelObject],
@@ -302,13 +315,16 @@ class DiffOperation(Operation):
         for current_webhook in current_webhooks:
             webhook_url = current_webhook.url
 
-            expected_webhook = expected_webhooks_by_url.get(webhook_url)
+            expected_webhook = expected_webhooks_by_all_urls.get(webhook_url)
             if expected_webhook is None:
                 self.handle_delete_object(github_id, current_webhook, parent_object)
                 diff_status.deletions += 1
                 continue
 
-            expected_webhooks_by_url.pop(webhook_url)
+            # pop the already handled webhooks
+            for url in expected_webhook.get_all_urls():
+                expected_webhooks_by_all_urls.pop(url)
+            expected_webhooks_by_url.pop(expected_webhook.url)
 
             # any webhook that contains a dummy secret will be skipped.
             if expected_webhook.has_dummy_secret():
@@ -337,8 +353,12 @@ class DiffOperation(Operation):
                 expected_secret = expected_webhook.secret
                 current_secret = current_webhook.secret
 
+                def has_unresolved_secret(secret: Optional[str]):
+                    return secret is not None and self.resolve_secrets() is False
+
                 if ((expected_secret is not None and current_secret is None) or
-                        (expected_secret is None and current_secret is not None)):
+                        (expected_secret is None and current_secret is not None) or
+                        (has_unresolved_secret(expected_secret) or has_unresolved_secret(current_secret))):
                     modified_webhook["secret"] = Change(current_secret, expected_secret)
 
             if len(modified_webhook) > 0:

@@ -204,14 +204,15 @@ configurate that in the `defaults`:
 
 ### Webhooks
 
-| Field        | Type             | Description                                                     |
-|--------------|------------------|-----------------------------------------------------------------|
-| active       | boolean          | If the webhook is active                                        |
-| events       | array of strings | List of events that trigger the webhook                         |
-| url          | string           | Url the webhook should access                                   |
-| content_type | string           | The content type the webhook shall use                          |
-| insecure_ssl | string           | If the webhook uses insecure ssl connections, either "0" or "1" |
-| secret       | string or null   | The secret the webhook shall use if any                         |
+| Field        | Type             | Description                                                                             |
+|--------------|------------------|-----------------------------------------------------------------------------------------|
+| active       | boolean          | If the webhook is active                                                                |
+| aliases      | list[string]     | List of webhook alias urls, need to add previous url when changing the url of a webhook |
+| events       | array of strings | List of events that trigger the webhook                                                 |
+| url          | string           | Url the webhook should access                                                           |
+| content_type | string           | The content type the webhook shall use                                                  |
+| insecure_ssl | string           | If the webhook uses insecure ssl connections, either "0" or "1"                         |
+| secret       | string or null   | The secret the webhook shall use if any                                                 |
 
 The secret value can be resolved using a credential provider. The supported format is 
 `<credential_provider>:<provider specific data>`:

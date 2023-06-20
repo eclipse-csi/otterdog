@@ -4,6 +4,10 @@
   "type": "object",
   "properties": {
     "active": { "type": "boolean" },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "events": {
       "type": "array",
       "items": { "type": "string" }

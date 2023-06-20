@@ -33,6 +33,13 @@ class Webhook(ModelObject, abc.ABC):
     insecure_ssl: str
     secret: Optional[str]
 
+    # model only fields
+    aliases: list[str] = \
+        dataclasses.field(metadata={"model_only": True}, default_factory=list)
+
+    def get_all_urls(self) -> list[str]:
+        return [self.url] + self.aliases
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(FailureType.WARNING,
