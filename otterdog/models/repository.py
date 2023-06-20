@@ -154,6 +154,9 @@ class Repository(ModelObject):
                                 f"repo[name=\"{self.name}\"] has 'secret_scanning' disabled while "
                                 f"'secret_scanning_push_protection' is enabled.")
 
+        for webhook in self.webhooks:
+            webhook.validate(context, self)
+
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 

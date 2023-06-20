@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, cast
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ValidationContext, FailureType, ModelObject
@@ -29,10 +29,13 @@ class RepositoryWebhook(Webhook):
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
+            from otterdog.models.repository import Repository
+            repo_name = cast(Repository, parent_object).name
             context.add_failure(FailureType.WARNING,
-                                f"repository webhook with url '{self.url}' will be skipped during processing:\n"
-                                f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
-                                f"the configuration.")
+                                f"repository webhook with url '{self.url}' for repo '{repo_name}' will be "
+                                f"skipped during processing:\n"
+                                f"webhook has a secret set, but only a dummy secret '{self.secret}' "
+                                f"is provided in the configuration.")
 
     def to_jsonnet(self,
                    printer: IndentingPrinter,
