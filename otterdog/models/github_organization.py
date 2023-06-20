@@ -31,6 +31,7 @@ from .branch_protection_rule import BranchProtectionRule
 from .organization_settings import OrganizationSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
+from .repo_webhook import RepositoryWebhook
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
@@ -141,7 +142,7 @@ class GitHubOrganization:
                 if repos_by_name.get(default_repo_name) is None:
                     repos_by_name[default_repo_name] = default_repo
 
-            default_org_repo = Repository.from_model_data(config.default_org_repo_config)
+            default_org_repo = Repository.from_model_data(config.default_repo_config)
 
             printer.println("_repositories+:: [")
             printer.level_up()
@@ -186,6 +187,12 @@ class GitHubOrganization:
                 if not is_unset(secret) and secret is not None:
                     webhook.secret = config.get_secret(secret)
 
+            for repo in org.repositories:
+                for repo_webhook in repo.webhooks:
+                    secret = repo_webhook.secret
+                    if not is_unset(secret) and secret is not None:
+                        repo_webhook.secret = config.get_secret(secret)
+
         return org
 
     @classmethod
@@ -217,7 +224,7 @@ class GitHubOrganization:
         if printer is not None:
             printer.println("\nwebhooks: Reading...")
 
-        github_webhooks = client.get_webhooks(github_id)
+        github_webhooks = client.get_org_webhooks(github_id)
 
         if printer is not None:
             end = datetime.now()
@@ -241,6 +248,11 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
     rules = gh_client.get_branch_protection_rules(github_id, repo_name)
     for github_rule in rules:
         repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_rule))
+
+    # get webhooks of the repo
+    webhooks = gh_client.get_repo_webhooks(github_id, repo_name)
+    for github_webhook in webhooks:
+        repo.add_webhook(RepositoryWebhook.from_provider_data(github_webhook))
 
     return repo_name, repo
 

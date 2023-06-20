@@ -19,6 +19,7 @@ from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
 
 from .branch_protection_rule import BranchProtectionRule
+from .repo_webhook import RepositoryWebhook
 from .organization_settings import OrganizationSettings
 
 
@@ -67,6 +68,8 @@ class Repository(ModelObject):
         dataclasses.field(metadata={"model_only": True}, default=False)
 
     # nested model fields
+    webhooks: list[RepositoryWebhook] = \
+        dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     branch_protection_rules: list[BranchProtectionRule] = \
         dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
@@ -100,6 +103,12 @@ class Repository(ModelObject):
 
     def set_branch_protection_rules(self, rules: list[BranchProtectionRule]) -> None:
         self.branch_protection_rules = rules
+
+    def add_webhook(self, webhook: RepositoryWebhook) -> None:
+        self.webhooks.append(webhook)
+
+    def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
+        self.webhooks = webhooks
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         org_settings: OrganizationSettings = parent_object.settings
@@ -161,6 +170,10 @@ class Repository(ModelObject):
         return True
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        for webhook in self.webhooks:
+            yield webhook, self
+            yield from webhook.get_model_objects()
+
         for rule in self.branch_protection_rules:
             yield rule, self
             yield from rule.get_model_objects()
@@ -171,6 +184,10 @@ class Repository(ModelObject):
 
         mapping.update(
             {
+                "webhooks":
+                    OptionalS("webhooks", default=[]) >>
+                    Forall(lambda x: RepositoryWebhook.from_model_data(x)),
+
                 "branch_protection_rules":
                     OptionalS("branch_protection_rules", default=[]) >>
                     Forall(lambda x: BranchProtectionRule.from_model_data(x))
@@ -184,6 +201,7 @@ class Repository(ModelObject):
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
+            "webhooks": K([]),
             "branch_protection_rules": K([]),
 
             "secret_scanning":
@@ -230,26 +248,38 @@ class Repository(ModelObject):
 
         patch = self.get_patch_to(default_object)
 
+        has_webhooks = len(self.webhooks) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
-        # FIXME: take branch protection rules into account once it is supported for
-        #        repos that get extended.
+        # FIXME: take webhooks and branch protection rules into account once
+        #        it is supported for repos that get extended.
         has_changes = len(patch) > 0
         if extend and has_changes is False:
             return
 
-        # remove the name key from the diff_obj to avoid serializing twice to json
-        if "name" in patch:
-            patch.pop("name")
+        patch.pop("name")
 
         function = f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
         printer.print(f"{function}('{self.name}')")
 
         write_patch_object_as_json(patch, printer, close_object=False)
 
+        # FIXME: support overriding webhooks for repos coming from the default configuration.
+        if has_webhooks and not extend:
+            default_repo_webhook = RepositoryWebhook.from_model_data(jsonnet_config.default_repo_webhook_config)
+
+            printer.println("webhooks: [")
+            printer.level_up()
+
+            for webhook in self.webhooks:
+                webhook.to_jsonnet(printer, jsonnet_config, False, default_repo_webhook)
+
+            printer.level_down()
+            printer.println("],")
+
         # FIXME: support overriding branch protection rules for repos coming from
         #        the default configuration.
         if has_branch_protection_rules and not extend:
-            default_org_rule = BranchProtectionRule.from_model_data(jsonnet_config.default_org_branch_config)
+            default_org_rule = BranchProtectionRule.from_model_data(jsonnet_config.default_branch_config)
 
             printer.println("branch_protection_rules: [")
             printer.level_up()

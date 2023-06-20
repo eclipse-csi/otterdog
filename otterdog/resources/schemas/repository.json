@@ -45,6 +45,10 @@
     "branch_protection_rules": {
       "type": "array",
       "items": { "$ref": "branch-protection-rule.json" }
+    },
+    "webhooks": {
+      "type": "array",
+      "items": { "$ref": "webhook.json" }
     }
   },
 

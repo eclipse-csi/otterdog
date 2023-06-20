@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from colorama import Style
 
@@ -15,6 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
+from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffStatus
@@ -30,14 +31,17 @@ class ApplyOperation(PlanOperation):
         self._delete_resources = delete_resources
 
         self._org_settings_to_update: dict[str, Change[Any]] = {}
-        self._modified_webhooks: dict[str, OrganizationWebhook] = {}
-        self._new_webhooks: list[OrganizationWebhook] = []
-        self._deleted_webhooks: list[OrganizationWebhook] = []
+        self._modified_org_webhooks: dict[str, OrganizationWebhook] = {}
+        self._added_org_webhooks: list[OrganizationWebhook] = []
+        self._deleted_org_webhooks: list[OrganizationWebhook] = []
         self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
-        self._new_repos: list[Repository] = []
+        self._added_repos: list[Repository] = []
         self._deleted_repos: list[Repository] = []
+        self._modified_repo_webhooks: list[tuple[str, str, RepositoryWebhook]] = []
+        self._added_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
+        self._deleted_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
         self._modified_rules: list[tuple[str, str, str, dict[str, Change[Any]]]] = []
-        self._new_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
+        self._added_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
         self._deleted_rules: list[tuple[str, BranchProtectionRule]] = []
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
@@ -47,22 +51,23 @@ class ApplyOperation(PlanOperation):
         self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
-    def handle_new_object(self, org_id: str, model_object: ModelObject,
+    def handle_add_object(self,
+                          org_id: str,
+                          model_object: ModelObject,
                           parent_object: Optional[ModelObject] = None) -> None:
-        super().handle_new_object(org_id, model_object, parent_object)
+        super().handle_add_object(org_id, model_object, parent_object)
 
         if isinstance(model_object, OrganizationWebhook):
-            self._new_webhooks.append(model_object)
+            self._added_org_webhooks.append(model_object)
         elif isinstance(model_object, Repository):
-            self._new_repos.append(model_object)
+            self._added_repos.append(model_object)
+        elif isinstance(model_object, RepositoryWebhook):
+            repo_name = cast(Repository, parent_object).name
+            self._added_repo_webhooks.append((repo_name, model_object))
         elif isinstance(model_object, BranchProtectionRule):
-            if isinstance(parent_object, Repository):
-                repo_name = parent_object.name
-                repo_id = parent_object.id
-            else:
-                raise ValueError(f"parent_object is of type '{type(parent_object)}' but expected 'Repository'")
-
-            self._new_rules.append((repo_name, repo_id, model_object))
+            repo_name = cast(Repository, parent_object).name
+            repo_id = cast(Repository, parent_object).id
+            self._added_rules.append((repo_name, repo_id, model_object))
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
 
@@ -71,47 +76,51 @@ class ApplyOperation(PlanOperation):
         super().handle_delete_object(org_id, model_object, parent_object)
 
         if isinstance(model_object, OrganizationWebhook):
-            self._deleted_webhooks.append(model_object)
+            self._deleted_org_webhooks.append(model_object)
         elif isinstance(model_object, Repository):
             self._deleted_repos.append(model_object)
+        elif isinstance(model_object, RepositoryWebhook):
+            repo_name = cast(Repository, parent_object).name
+            self._deleted_repo_webhooks.append((repo_name, model_object))
         elif isinstance(model_object, BranchProtectionRule):
-            if isinstance(parent_object, Repository):
-                repo_name = parent_object.name
-            else:
-                raise ValueError(f"parent_object is of type '{type(parent_object)}' but expected 'Repository'")
-
+            repo_name = cast(Repository, parent_object).name
             self._deleted_rules.append((repo_name, model_object))
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
 
-    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
-        modified = super().handle_modified_settings(org_id, modified_settings)
-        self._org_settings_to_update = modified_settings
+    def handle_modified_object(self,
+                               org_id: str,
+                               modified_object: dict[str, Change[Any]],
+                               forced_update: bool,
+                               current_object: ModelObject,
+                               expected_object: ModelObject,
+                               parent_object: Optional[ModelObject] = None) -> int:
+        modified = \
+            super().handle_modified_object(org_id,
+                                           modified_object,
+                                           forced_update,
+                                           current_object,
+                                           expected_object,
+                                           parent_object)
+
+        if isinstance(current_object, OrganizationSettings):
+            self._org_settings_to_update = modified_object
+        elif isinstance(current_object, OrganizationWebhook):
+            self._modified_org_webhooks[current_object.id] = cast(OrganizationWebhook, expected_object)
+        elif isinstance(current_object, Repository):
+            self._modified_repos[current_object.name] = modified_object
+        elif isinstance(current_object, RepositoryWebhook):
+            repo_name = cast(Repository, parent_object).name
+            self._modified_repo_webhooks.append((repo_name,
+                                                 current_object.id,
+                                                 cast(RepositoryWebhook, expected_object)))
+        elif isinstance(current_object, BranchProtectionRule):
+            repo_name = cast(Repository, parent_object).name
+            self._modified_rules.append((repo_name, current_object.pattern, current_object.id, modified_object))
+        else:
+            raise ValueError(f"unexpected current_object of type '{type(current_object)}'")
+
         return modified
-
-    def handle_modified_webhook(self,
-                                org_id: str,
-                                webhook_id: str,
-                                webhook_url: str,
-                                modified_webhook: dict[str, Change[Any]],
-                                webhook: OrganizationWebhook,
-                                forced_update: bool) -> None:
-        super().handle_modified_webhook(org_id, webhook_id, webhook_url, modified_webhook, webhook, forced_update)
-        self._modified_webhooks[webhook_id] = webhook
-
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
-        modified = super().handle_modified_repo(org_id, repo_name, modified_repo)
-        self._modified_repos[repo_name] = modified_repo
-        return modified
-
-    def handle_modified_rule(self,
-                             org_id: str,
-                             repo_name: str,
-                             rule_pattern: str,
-                             rule_id: str,
-                             modified_rule: dict[str, Change[Any]]) -> None:
-        super().handle_modified_rule(org_id, repo_name, rule_pattern, rule_id, modified_rule)
-        self._modified_rules.append((repo_name, rule_pattern, rule_id, modified_rule))
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.println()
@@ -137,36 +146,45 @@ class ApplyOperation(PlanOperation):
             github_settings = OrganizationSettings.changes_to_provider(self._org_settings_to_update)
             self.gh_client.update_org_settings(org_id, github_settings)
 
-        for webhook_id, webhook in self._modified_webhooks.items():
-            self.gh_client.update_webhook(org_id, webhook_id, webhook.to_provider_data())
+        for webhook_id, org_webhook in self._modified_org_webhooks.items():
+            self.gh_client.update_org_webhook(org_id, webhook_id, org_webhook.to_provider_data())
 
-        for webhook in self._new_webhooks:
-            self.gh_client.add_webhook(org_id, webhook.to_provider_data())
+        for org_webhook in self._added_org_webhooks:
+            self.gh_client.add_org_webhook(org_id, org_webhook.to_provider_data())
 
         for repo_name, repo_data in self._modified_repos.items():
             github_repo = Repository.changes_to_provider(repo_data)
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
-        for repo in self._new_repos:
+        for repo in self._added_repos:
             self.gh_client.add_repo(org_id,
                                     repo.to_provider_data(),
                                     repo.template_repository,
                                     repo.post_process_template_content,
                                     repo.auto_init)
 
+        for repo_name, webhook_id, repo_webhook in self._modified_repo_webhooks:
+            self.gh_client.update_repo_webhook(org_id, repo_name, webhook_id, repo_webhook.to_provider_data())
+
+        for repo_name, repo_webhook in self._added_repo_webhooks:
+            self.gh_client.add_repo_webhook(org_id, repo_name, repo_webhook.to_provider_data())
+
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
-        for repo_name, repo_id, rule in self._new_rules:
+        for repo_name, repo_id, rule in self._added_rules:
             self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider_data(self.gh_client))
 
         if self._delete_resources:
-            for webhook in self._deleted_webhooks:
-                self.gh_client.delete_webhook(org_id, webhook.id, webhook.url)
+            for org_webhook in self._deleted_org_webhooks:
+                self.gh_client.delete_org_webhook(org_id, org_webhook.id, org_webhook.url)
 
             for repo in self._deleted_repos:
                 self.gh_client.delete_repo(org_id, repo.name)
+
+            for repo_name, repo_webhook in self._deleted_repo_webhooks:
+                self.gh_client.delete_repo_webhook(org_id, repo_name, repo_webhook.id, repo_webhook.url)
 
             for repo_name, rule in self._deleted_rules:
                 self.gh_client.delete_branch_protection_rule(org_id, repo_name, rule.pattern, rule.id)

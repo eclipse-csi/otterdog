@@ -20,9 +20,10 @@ class JsonnetConfig:
     #        rather follow a convention to add new resources more easily.
 
     create_org = "newOrg"
-    create_webhook = "newWebhook"
+    create_org_webhook = "newOrgWebhook"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
+    create_repo_webhook = "newRepoWebhook"
     create_branch_protection_rule = "newBranchProtectionRule"
 
     def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
@@ -44,8 +45,9 @@ class JsonnetConfig:
 
         self._default_org_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
-        self._default_org_repo_config: dict[str, Any] | None = None
-        self._default_org_branch_config: dict[str, Any] | None = None
+        self._default_repo_config: dict[str, Any] | None = None
+        self._default_repo_webhook_config: dict[str, Any] | None = None
+        self._default_branch_config: dict[str, Any] | None = None
 
         self._initialized = False
 
@@ -67,29 +69,36 @@ class JsonnetConfig:
 
         try:
             # load the default settings for the organization
-            snippet = f"(import '{template_file}').newOrg('default')"
+            snippet = f"(import '{template_file}').{self.create_org}('default')"
             self._default_org_config = jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config: {ex}")
 
         try:
-            # load the default webhook config
-            webhook_snippet = f"(import '{template_file}').newWebhook()"
-            self._default_org_webhook_config = jsonnet_evaluate_snippet(webhook_snippet)
+            # load the default org webhook config
+            org_webhook_snippet = f"(import '{template_file}').{self.create_org_webhook}('default')"
+            self._default_org_webhook_config = jsonnet_evaluate_snippet(org_webhook_snippet)
         except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default webhook config: {ex}")
+            raise RuntimeError(f"failed to get default org webhook config: {ex}")
 
         try:
             # load the default repo config
-            repo_snippet = f"(import '{template_file}').newRepo('default')"
-            self._default_org_repo_config = jsonnet_evaluate_snippet(repo_snippet)
+            repo_snippet = f"(import '{template_file}').{self.create_repo}('default')"
+            self._default_repo_config = jsonnet_evaluate_snippet(repo_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default repo config: {ex}")
 
         try:
+            # load the default repo webhook config
+            repo_webhook_snippet = f"(import '{template_file}').{self.create_repo_webhook}('default')"
+            self._default_repo_webhook_config = jsonnet_evaluate_snippet(repo_webhook_snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to get default repo webhook config: {ex}")
+
+        try:
             # load the default branch protection rule config
-            branch_protection_snippet = f"(import '{template_file}').newBranchProtectionRule('default')"
-            self._default_org_branch_config = jsonnet_evaluate_snippet(branch_protection_snippet)
+            branch_protection_snippet = f"(import '{template_file}').{self.create_branch_protection_rule}('default')"
+            self._default_branch_config = jsonnet_evaluate_snippet(branch_protection_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default branch protection rule config: {ex}")
 
@@ -104,12 +113,16 @@ class JsonnetConfig:
         return self._default_org_webhook_config
 
     @property
-    def default_org_repo_config(self):
-        return self._default_org_repo_config
+    def default_repo_config(self):
+        return self._default_repo_config
 
     @property
-    def default_org_branch_config(self):
-        return self._default_org_branch_config
+    def default_repo_webhook_config(self):
+        return self._default_repo_webhook_config
+
+    @property
+    def default_branch_config(self):
+        return self._default_branch_config
 
     @property
     def template_file(self) -> str:

@@ -99,18 +99,18 @@ class Github:
         if len(web_fields) > 0:
             self.web_client.update_org_settings(org_id, web_fields)
 
-    def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
-        return self.rest_client.get_webhooks(org_id)
+    def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
+        return self.rest_client.get_org_webhooks(org_id)
 
-    def update_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+    def update_org_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
-            self.rest_client.update_webhook(org_id, webhook_id, webhook)
+            self.rest_client.update_org_webhook(org_id, webhook_id, webhook)
 
-    def add_webhook(self, org_id: str, data: dict[str, str]) -> None:
-        self.rest_client.add_webhook(org_id, data)
+    def add_org_webhook(self, org_id: str, data: dict[str, str]) -> None:
+        self.rest_client.add_org_webhook(org_id, data)
 
-    def delete_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
-        self.rest_client.delete_webhook(org_id, webhook_id, url)
+    def delete_org_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
+        self.rest_client.delete_org_webhook(org_id, webhook_id, url)
 
     def get_repos(self, org_id: str) -> list[str]:
         return self.rest_client.get_repos(org_id)
@@ -158,6 +158,19 @@ class Github:
 
     def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
         self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
+
+    def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return self.rest_client.get_repo_webhooks(org_id, repo_name)
+
+    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+        if len(webhook) > 0:
+            self.rest_client.update_repo_webhook(org_id, repo_name, webhook_id, webhook)
+
+    def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        self.rest_client.add_repo_webhook(org_id, repo_name, data)
+
+    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, url: str) -> None:
+        self.rest_client.delete_repo_webhook(org_id, repo_name, webhook_id, url)
 
     def get_actor_ids(self, actor_names: list[str]) -> list[str]:
         result = []

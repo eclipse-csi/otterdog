@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for repository webhooks. ([#56](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/56))
 - Added support for `requires_deployment` and `required_deployment_environment` settings for branch protection rules. ([#29](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/29))
 - Added support for `auto_init` setting for repositories: when enabled, repositories will get initialized with a README.md upon creation.
 - Added support to post process some content initialized from a template repo using setting `post_process_template_content`.

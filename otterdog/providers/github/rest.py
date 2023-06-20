@@ -182,48 +182,91 @@ class RestClient:
         else:
             utils.print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
-    def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
-        utils.print_debug(f"retrieving org webhooks for organization {org_id}")
+    def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving org webhooks for org '{org_id}'")
 
         try:
             return self._requester.request_json("GET", f"/orgs/{org_id}/hooks")
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving webhooks for organization '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def update_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
-        utils.print_debug(f"updating webhook {webhook_id} for organization {org_id}")
+    def update_org_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+        utils.print_debug(f"updating org webhook '{webhook_id}' for organization {org_id}")
 
         try:
             self._requester.request_json("PATCH", f"/orgs/{org_id}/hooks/{webhook_id}", webhook)
             utils.print_debug(f"updated webhook {webhook_id}")
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed to update webhook {webhook_id}:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update org webhook {webhook_id}:\n{ex}").with_traceback(tb)
 
-    def add_webhook(self, org_id: str, data: dict[str, Any]) -> None:
+    def add_org_webhook(self, org_id: str, data: dict[str, Any]) -> None:
         url = data["config"]["url"]
-        utils.print_debug(f"adding webhook with url '{url}'")
+        utils.print_debug(f"adding org webhook with url '{url}'")
 
         # mandatory field "name" = "web"
         data["name"] = "web"
 
         try:
             self._requester.request_json("POST", f"/orgs/{org_id}/hooks", data)
-            utils.print_debug(f"added webhook with url '{url}'")
+            utils.print_debug(f"added org webhook with url '{url}'")
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed to add webhook with url '{url}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add org webhook with url '{url}':\n{ex}").with_traceback(tb)
 
-    def delete_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
-        utils.print_debug(f"deleting webhook with url '{url}'")
+    def delete_org_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
+        utils.print_debug(f"deleting org webhook with url '{url}'")
 
         response = self._requester.request_raw("DELETE", f"/orgs/{org_id}/hooks/{webhook_id}")
 
         if response.status_code != 204:
-            raise RuntimeError(f"failed to delete webhook with url '{url}'")
+            raise RuntimeError(f"failed to delete org webhook with url '{url}'")
 
-        utils.print_debug(f"removed webhook with url '{url}'")
+        utils.print_debug(f"removed org webhook with url '{url}'")
+
+    def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving webhooks for repo '{org_id}/{repo_name}'")
+
+        try:
+            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/hooks")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+        utils.print_debug(f"updating repo webhook '{webhook_id}' for repo '{org_id}/{repo_name}'")
+
+        try:
+            self._requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}/hooks/{webhook_id}", webhook)
+            utils.print_debug(f"updated repo webhook '{webhook_id}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to update repo webhook {webhook_id}:\n{ex}").with_traceback(tb)
+
+    def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        url = data["config"]["url"]
+        utils.print_debug(f"adding repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
+
+        # mandatory field "name" = "web"
+        data["name"] = "web"
+
+        try:
+            self._requester.request_json("POST", f"/repos/{org_id}/{repo_name}/hooks", data)
+            utils.print_debug(f"added repo webhook with url '{url}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to add repo webhook with url '{url}':\n{ex}").with_traceback(tb)
+
+    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, url: str) -> None:
+        utils.print_debug(f"deleting repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
+
+        response = self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/hooks/{webhook_id}")
+
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete repo webhook with url '{url}'")
+
+        utils.print_debug(f"removed repo webhook with url '{url}'")
 
     def get_repos(self, org_id: str) -> list[str]:
         utils.print_debug(f"retrieving repos for organization {org_id}")

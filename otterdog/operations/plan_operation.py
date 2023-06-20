@@ -12,9 +12,7 @@ from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
 from otterdog.models import ModelObject
-from otterdog.models.organization_settings import OrganizationSettings
-from otterdog.models.organization_webhook import OrganizationWebhook
-from otterdog.models.repository import Repository
+from otterdog.models.webhook import Webhook
 from otterdog.utils import IndentingPrinter, Change
 
 from .diff_operation import DiffOperation, DiffStatus
@@ -38,13 +36,13 @@ class PlanOperation(DiffOperation):
         self.printer.println(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
         self.printer.println(f"  {Fore.RED}-{Style.RESET_ALL} delete")
 
-    def handle_new_object(self,
+    def handle_add_object(self,
                           org_id: str,
                           model_object: ModelObject,
                           parent_object: Optional[ModelObject] = None) -> None:
         self.printer.println()
         model_header = self.get_model_header(model_object, parent_object)
-        self.print_dict(model_object.to_model_dict(for_diff=True), f"new {model_header}", "+", Fore.GREEN)
+        self.print_dict(model_object.to_model_dict(for_diff=True), f"add {model_header}", "+", Fore.GREEN)
 
     def handle_delete_object(self,
                              org_id: str,
@@ -54,58 +52,38 @@ class PlanOperation(DiffOperation):
         model_header = self.get_model_header(model_object, parent_object)
         self.print_dict(model_object.to_model_dict(for_diff=True), f"remove {model_header}", "-", Fore.RED)
 
-    def handle_modified_settings(self, org_id: str, modified_settings: dict[str, Change[Any]]) -> int:
-        self.print_modified_dict(modified_settings, "settings")
+    def handle_modified_object(self,
+                               org_id: str,
+                               modified_object: dict[str, Change[Any]],
+                               forced_update: bool,
+                               current_object: ModelObject,
+                               expected_object: ModelObject,
+                               parent_object: Optional[ModelObject] = None) -> int:
+        self.printer.println()
+        model_header = self.get_model_header(current_object, parent_object)
+
+        # FIXME: this code should be moved to the Webhook model class.
+        redacted_keys = {"secret"}
+
+        self.print_modified_dict(modified_object, model_header, redacted_keys, forced_update)
+
+        # FIXME: this code should be moved to the Webhook model class.
+        if isinstance(current_object, Webhook):
+            if "secret" in modified_object:
+                new_secret = modified_object["secret"].to_value
+                if not new_secret:
+                    self.printer.println(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
+                                         f"with url '{current_object.url}'")
 
         settings_to_change = 0
-        for k, v in modified_settings.items():
-            if OrganizationSettings.is_read_only_key(k):
+        for k, v in modified_object.items():
+            if current_object.is_read_only_key(k):
                 self.printer.println(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
                                      f"is read-only, will be skipped.")
             else:
                 settings_to_change += 1
 
         return settings_to_change
-
-    def handle_modified_webhook(self,
-                                org_id: str,
-                                webhook_id: str,
-                                webhook_url: str,
-                                modified_webhook: dict[str, Change[Any]],
-                                webhook: OrganizationWebhook,
-                                forced_update: bool) -> None:
-        self.printer.println()
-        self.print_modified_dict(modified_webhook, f"webhook[url='{webhook_url}']", {"secret"}, forced_update)
-
-        if "secret" in modified_webhook:
-            new_secret = modified_webhook["secret"].to_value
-            if not new_secret:
-                self.printer.println(f"\n{Fore.RED}Warning:{Style.RESET_ALL} removing secret for webhook "
-                                     f"with url '{webhook_url}'")
-
-    def handle_modified_repo(self, org_id: str, repo_name: str, modified_repo: dict[str, Change[Any]]) -> int:
-        self.print_modified_dict(modified_repo, f"repo[name=\"{repo_name}\"]")
-
-        settings_to_change = 0
-        for k, v in modified_repo.items():
-            if Repository.is_read_only_key(k):
-                self.printer.println(f"\n{Fore.YELLOW}Note:{Style.RESET_ALL} setting '{k}' "
-                                     f"is read-only, will be skipped.")
-            else:
-                settings_to_change += 1
-
-        return settings_to_change
-
-    def handle_modified_rule(self,
-                             org_id: str,
-                             repo_name: str,
-                             rule_pattern: str,
-                             rule_id: str,
-                             modified_rule: dict[str, Change[Any]]) -> None:
-
-        self.printer.println()
-        self.print_modified_dict(modified_rule,
-                                 f"branch_protection_rule[repo=\"{repo_name}\", pattern=\"{rule_pattern}\"]")
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
         self.printer.println()

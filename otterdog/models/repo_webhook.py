@@ -18,19 +18,19 @@ from otterdog.utils import IndentingPrinter, write_patch_object_as_json
 
 
 @dataclasses.dataclass
-class OrganizationWebhook(Webhook):
+class RepositoryWebhook(Webhook):
     """
-    Represents a Webhook defined on organization level.
+    Represents a Webhook defined on repo level.
     """
 
     @property
     def model_object_name(self) -> str:
-        return "org_webhook"
+        return "repo_webhook"
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(FailureType.WARNING,
-                                f"organization webhook with url '{self.url}' will be skipped during processing:\n"
+                                f"repository webhook with url '{self.url}' will be skipped during processing:\n"
                                 f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
                                 f"the configuration.")
 
@@ -40,6 +40,6 @@ class OrganizationWebhook(Webhook):
                    extend: bool,
                    default_object: ModelObject) -> None:
         patch = self.get_patch_to(default_object)
-        patch.pop("url")
-        printer.print(f"orgs.{jsonnet_config.create_org_webhook}('{self.url}')")
+        patch.pop('url')
+        printer.print(f"orgs.{jsonnet_config.create_repo_webhook}('{self.url}')")
         write_patch_object_as_json(patch, printer)
