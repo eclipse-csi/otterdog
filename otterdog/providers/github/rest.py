@@ -229,7 +229,15 @@ class RestClient:
         utils.print_debug(f"retrieving webhooks for repo '{org_id}/{repo_name}'")
 
         try:
-            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/hooks")
+            # special handling due to temporary private forks for security advisories.
+            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            # currently it is not possible via the api to determine such repos, but when
+            # requesting hooks for such a repo, you would get a 404 response.
+            response = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/hooks")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return []
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
