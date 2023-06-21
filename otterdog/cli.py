@@ -22,6 +22,7 @@ from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
 from .operations.push_operation import PushOperation
 from .operations.show_operation import ShowOperation
+from .operations.show_live_operation import ShowLiveOperation
 from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
@@ -95,6 +96,16 @@ def show(organizations: list[str]):
     Displays the full configuration for organizations.
     """
     _execute_operation(organizations, ShowOperation())
+
+
+@cli.command(cls=StdCommand)
+@click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
+              help="skip settings retrieved via web ui")
+def show_live(organizations: list[str], no_web_ui):
+    """
+    Displays the live configuration for organizations.
+    """
+    _execute_operation(organizations, ShowLiveOperation(no_web_ui=no_web_ui))
 
 
 @cli.command(cls=StdCommand)

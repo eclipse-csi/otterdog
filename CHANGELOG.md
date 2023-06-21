@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added support for `environments` for repositories. ([#58](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/58))
+- Added new operation `show-live` to show the current live resources of an organization.
 - Added support for changing the webhook url by introducing an additional field `aliases`.
 - Added support for repository webhooks. ([#56](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/56))
 - Added support for `requires_deployment` and `required_deployment_environment` settings for branch protection rules. ([#29](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/29))

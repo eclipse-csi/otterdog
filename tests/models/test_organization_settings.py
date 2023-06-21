@@ -58,7 +58,7 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_change_project_visibility is False
 
     def test_load_from_provider(self):
-        settings = OrganizationSettings.from_provider_data(self.provider_data)
+        settings = OrganizationSettings.from_provider_data(self.org_id, self.provider_data)
 
         assert settings.name is None
         assert settings.plan == "free"

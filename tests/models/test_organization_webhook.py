@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-import jq
+import jq  # type: ignore
 
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.utils import UNSET, Change
@@ -35,7 +35,7 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.insecure_ssl == "0"
 
     def test_load_from_provider(self):
-        webhook = OrganizationWebhook.from_provider_data(self.provider_data)
+        webhook = OrganizationWebhook.from_provider_data(self.org_id, self.provider_data)
 
         assert webhook.id == 1
         assert webhook.active is True

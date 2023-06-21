@@ -1,0 +1,87 @@
+{
+  "id": 1102681190,
+  "node_id": "EN_kwDOI9xAhM5BuZRm",
+  "name": "linux",
+  "url": "https://api.github.com/repos/OtterdogTest/test-repo/environments/linux",
+  "html_url": "https://github.com/OtterdogTest/test-repo/deployments/activity_log?environments_filter=linux",
+  "created_at": "2023-06-13T20:40:38Z",
+  "updated_at": "2023-06-21T11:58:31Z",
+  "can_admins_bypass": true,
+  "protection_rules": [
+    {
+      "id": 9174563,
+      "node_id": "GA_kwDOI9xAhM4Ai_4j",
+      "type": "required_reviewers",
+      "reviewers": [
+        {
+          "type": "User",
+          "reviewer": {
+            "login": "netomi",
+            "id": 1048055,
+            "node_id": "U_kgDOAA_99w",
+            "avatar_url": "https://avatars.githubusercontent.com/u/1048055?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/netomi",
+            "html_url": "https://github.com/netomi",
+            "followers_url": "https://api.github.com/users/netomi/followers",
+            "following_url": "https://api.github.com/users/netomi/following{/other_user}",
+            "gists_url": "https://api.github.com/users/netomi/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/netomi/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/netomi/subscriptions",
+            "organizations_url": "https://api.github.com/users/netomi/orgs",
+            "repos_url": "https://api.github.com/users/netomi/repos",
+            "events_url": "https://api.github.com/users/netomi/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/netomi/received_events",
+            "type": "User",
+            "site_admin": false
+          }
+        },
+        {
+          "type": "Team",
+          "reviewer": {
+            "name": "eclipsefdn-security",
+            "id": 7999804,
+            "node_id": "T_kwDOB3kOks4AehE8",
+            "slug": "eclipsefdn-security",
+            "description": "",
+            "privacy": "closed",
+            "notification_setting": "notifications_enabled",
+            "url": "https://api.github.com/organizations/125374098/team/7999804",
+            "html_url": "https://github.com/orgs/OtterdogTest/teams/eclipsefdn-security",
+            "members_url": "https://api.github.com/organizations/125374098/team/7999804/members{/member}",
+            "repositories_url": "https://api.github.com/organizations/125374098/team/7999804/repos",
+            "permission": "pull",
+            "parent": null
+          }
+        }
+      ]
+    },
+    {
+      "id": 9174564,
+      "node_id": "GA_kwDOI9xAhM4Ai_4k",
+      "type": "wait_timer",
+      "wait_timer": 15
+    },
+    {
+      "id": 9174567,
+      "node_id": "GA_kwDOI9xAhM4Ai_4n",
+      "type": "branch_policy"
+    }
+  ],
+  "deployment_branch_policy": {
+    "protected_branches": false,
+    "custom_branch_policies": true
+  },
+  "branch_policies": [
+    {
+      "id": 361471,
+      "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3kzNjE0NzE=",
+      "name": "main"
+    },
+    {
+      "id": 361472,
+      "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3kzNjE0NzI=",
+      "name": "develop/*"
+    }
+  ]
+}

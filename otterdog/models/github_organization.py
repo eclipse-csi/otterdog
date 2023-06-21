@@ -28,6 +28,7 @@ from otterdog.utils import is_unset, IndentingPrinter, associate_by_key, print_d
 
 from . import ValidationContext, ModelObject
 from .branch_protection_rule import BranchProtectionRule
+from .environment import Environment
 from .organization_settings import OrganizationSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
@@ -217,7 +218,7 @@ class GitHubOrganization:
             end = datetime.now()
             printer.println(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
-        settings = OrganizationSettings.from_provider_data(github_settings)
+        settings = OrganizationSettings.from_provider_data(github_id, github_settings)
         org = cls(github_id, settings)
 
         start = datetime.now()
@@ -231,7 +232,7 @@ class GitHubOrganization:
             printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
         for webhook in github_webhooks:
-            org.add_webhook(OrganizationWebhook.from_provider_data(webhook))
+            org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
 
         for repo in _load_repos_from_provider(github_id, client, printer):
             org.add_repository(repo)
@@ -242,17 +243,22 @@ class GitHubOrganization:
 def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> tuple[str, Repository]:
     # get repo data
     github_repo_data = gh_client.get_repo_data(github_id, repo_name)
-    repo = Repository.from_provider_data(github_repo_data)
+    repo = Repository.from_provider_data(github_id, github_repo_data)
 
     # get branch protection rules of the repo
     rules = gh_client.get_branch_protection_rules(github_id, repo_name)
     for github_rule in rules:
-        repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_rule))
+        repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
 
     # get webhooks of the repo
     webhooks = gh_client.get_repo_webhooks(github_id, repo_name)
     for github_webhook in webhooks:
-        repo.add_webhook(RepositoryWebhook.from_provider_data(github_webhook))
+        repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
+
+    # get environments of the repo
+    environments = gh_client.get_repo_environments(github_id, repo_name)
+    for github_environment in environments:
+        repo.add_environment(Environment.from_provider_data(github_id, github_environment))
 
     return repo_name, repo
 

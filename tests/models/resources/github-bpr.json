@@ -18,10 +18,10 @@
   "requiresStatusChecks": true,
   "requiresStrictStatusChecks": false,
   "restrictsPushes": false,
-  "pushRestrictions": ["/netomi"],
-  "bypassForcePushAllowances": ["/netomi"],
-  "bypassPullRequestAllowances": ["/netomi"],
+  "pushRestrictions": ["@netomi"],
+  "bypassForcePushAllowances": ["@netomi"],
+  "bypassPullRequestAllowances": ["@netomi"],
   "restrictsReviewDismissals": false,
-  "reviewDismissalAllowances": ["/netomi"],
+  "reviewDismissalAllowances": ["@netomi"],
   "requiredStatusChecks":[{"app":null,"context":"Run CI"}]
 }

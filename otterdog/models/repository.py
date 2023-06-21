@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, Optional, Iterator
+from typing import Any, ClassVar, Optional, Iterator, cast
 
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
@@ -19,8 +19,8 @@ from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
 
 from .branch_protection_rule import BranchProtectionRule
+from .environment import Environment
 from .repo_webhook import RepositoryWebhook
-from .organization_settings import OrganizationSettings
 
 
 @dataclasses.dataclass
@@ -29,7 +29,7 @@ class Repository(ModelObject):
     Represents a Repository of an Organization.
     """
 
-    id: str = dataclasses.field(metadata={"external_only": True})
+    id: int = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
     description: Optional[str]
@@ -72,6 +72,8 @@ class Repository(ModelObject):
         dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     branch_protection_rules: list[BranchProtectionRule] = \
         dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    environments: list[Environment] = \
+        dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     _security_properties: ClassVar[list[str]] = ["secret_scanning", "secret_scanning_push_protection"]
 
@@ -110,8 +112,15 @@ class Repository(ModelObject):
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
         self.webhooks = webhooks
 
+    def add_environment(self, environment: Environment) -> None:
+        self.environments.append(environment)
+
+    def set_environments(self, environments: list[Environment]) -> None:
+        self.environments = environments
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        org_settings: OrganizationSettings = parent_object.settings
+        from .github_organization import GitHubOrganization
+        org_settings = cast(GitHubOrganization, parent_object).settings
 
         free_plan = org_settings.plan == "free"
 
@@ -126,32 +135,32 @@ class Repository(ModelObject):
 
         if is_public and disallow_forking:
             context.add_failure(FailureType.WARNING,
-                                f"public repo[name=\"{self.name}\"] has 'allow_forking' disabled "
+                                f"public {self.get_model_header()} has 'allow_forking' disabled "
                                 f"which is not permitted.")
 
         has_wiki = self.has_wiki is True
         if is_private and has_wiki and free_plan:
             context.add_failure(FailureType.WARNING,
-                                f"private repo[name=\"{self.name}\"] has 'has_wiki' enabled which"
+                                f"private {self.get_model_header()} has 'has_wiki' enabled which"
                                 f"requires at least GitHub Team billing, "
                                 f"currently using \"{org_settings.plan}\" plan.")
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:
             context.add_failure(FailureType.ERROR,
-                                f"private repo[name=\"{self.name}\"] has 'allow_forking' enabled "
+                                f"private {self.get_model_header()} has 'allow_forking' enabled "
                                 f"while the organization disables 'members_can_fork_private_repositories'.")
 
         repo_web_commit_signoff_not_required = self.web_commit_signoff_required is False
         if repo_web_commit_signoff_not_required and org_web_commit_signoff_required:
             context.add_failure(FailureType.ERROR,
-                                f"repo[name=\"{self.name}\"] has 'web_commit_signoff_required' disabled while "
+                                f"{self.get_model_header()} has 'web_commit_signoff_required' disabled while "
                                 f"the organization requires it.")
 
         secret_scanning_disabled = self.secret_scanning == "disabled"
         secret_scanning_push_protection_enabled = self.secret_scanning_push_protection == "enabled"
         if secret_scanning_disabled and secret_scanning_push_protection_enabled and self.archived is False:
             context.add_failure(FailureType.ERROR,
-                                f"repo[name=\"{self.name}\"] has 'secret_scanning' disabled while "
+                                f"{self.get_model_header()} has 'secret_scanning' disabled while "
                                 f"'secret_scanning_push_protection' is enabled.")
 
         for webhook in self.webhooks:
@@ -159,6 +168,9 @@ class Repository(ModelObject):
 
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
+
+        for env in self.environments:
+            env.validate(context, self)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
@@ -181,6 +193,10 @@ class Repository(ModelObject):
             yield rule, self
             yield from rule.get_model_objects()
 
+        for env in self.environments:
+            yield env, self
+            yield from env.get_model_objects()
+
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
@@ -193,19 +209,24 @@ class Repository(ModelObject):
 
                 "branch_protection_rules":
                     OptionalS("branch_protection_rules", default=[]) >>
-                    Forall(lambda x: BranchProtectionRule.from_model_data(x))
+                    Forall(lambda x: BranchProtectionRule.from_model_data(x)),
+
+                "environments":
+                    OptionalS("environments", default=[]) >>
+                    Forall(lambda x: Environment.from_model_data(x))
             }
         )
 
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider_data(cls, data: dict[str, Any]) -> Repository:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update({
             "webhooks": K([]),
             "branch_protection_rules": K([]),
+            "environments": K([]),
 
             "secret_scanning":
                 OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
@@ -253,7 +274,9 @@ class Repository(ModelObject):
 
         has_webhooks = len(self.webhooks) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
-        # FIXME: take webhooks and branch protection rules into account once
+        has_environments = len(self.environments) > 0
+
+        # FIXME: take webhooks, branch protection rules and environments into account once
         #        it is supported for repos that get extended.
         has_changes = len(patch) > 0
         if extend and has_changes is False:
@@ -289,6 +312,20 @@ class Repository(ModelObject):
 
             for rule in self.branch_protection_rules:
                 rule.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
+
+            printer.level_down()
+            printer.println("],")
+
+        # FIXME: support overriding environments for repos coming from
+        #        the default configuration.
+        if has_environments and not extend:
+            default_environment = Environment.from_model_data(jsonnet_config.default_environment_config)
+
+            printer.println("environments: [")
+            printer.level_up()
+
+            for env in self.environments:
+                env.to_jsonnet(printer, jsonnet_config, False, default_environment)
 
             printer.level_down()
             printer.println("],")

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional, Iterator
+from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
@@ -81,16 +81,13 @@ class OrganizationSettings(ModelObject):
             context.add_failure(FailureType.ERROR,
                                 "enabling dependabot_security_updates implicitly enables dependabot_alerts")
 
-    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
-        yield from []
-
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
-    def from_provider_data(cls, data: dict[str, Any]) -> OrganizationSettings:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return cls(**bend(mapping, data))

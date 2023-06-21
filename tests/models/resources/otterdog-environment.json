@@ -1,0 +1,13 @@
+{
+  "name": "linux",
+  "wait_timer": 15,
+  "reviewers": [
+    "@netomi",
+    "@OtterdogTest/eclipsefdn-security"
+  ],
+  "deployment_branch_policy": "pattern",
+  "branch_policies": [
+    "main",
+    "develop/*"
+  ]
+}

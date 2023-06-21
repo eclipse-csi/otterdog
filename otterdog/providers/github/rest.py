@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import base64
+import jq  # type: ignore
 import json
 import pathlib
 import os
@@ -495,6 +496,36 @@ class RestClient:
         data = {"names": topics}
         self._requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/topics", data=data)
         utils.print_debug(f"updated topics for repo '{repo_name}'")
+
+    def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving environments for repo '{org_id}/{repo_name}'")
+
+        try:
+            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/environments")
+
+            environments = response["environments"]
+            for env in environments:
+                env_name = env["name"]
+                has_branch_policies = \
+                    jq.compile(".deployment_branch_policy.custom_branch_policies // false").input(env).first()
+
+                if has_branch_policies:
+                    env["branch_policies"] = self._get_deployment_branch_policies(org_id, repo_name, env_name)
+            return environments
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    def _get_deployment_branch_policies(self, org_id: str, repo_name: str, env_name: str) -> dict[str, Any]:
+        utils.print_debug(f"retrieving deployment branch policies for env '{env_name}'")
+
+        try:
+            url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
+            response = self._requester.request_json("GET", url)
+            return response["branch_policies"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}").with_traceback(tb)
 
     def get_user_node_id(self, login: str):
         utils.print_debug(f"retrieving user node id for user '{login}'")

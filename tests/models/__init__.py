@@ -15,6 +15,10 @@ from typing import Any
 
 
 class ModelTest(ABC, unittest.TestCase):
+    @property
+    def org_id(self) -> str:
+        return "OtterdogTest"
+
     @abstractmethod
     def model_data(self):
         pass
@@ -27,5 +31,5 @@ class ModelTest(ABC, unittest.TestCase):
     @staticmethod
     def load_json_resource(file: str) -> dict[str, Any]:
         filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"resources/{file}")
-        with open(filename, "r") as file:
-            return json.load(file)
+        with open(filename, "r") as fp:
+            return json.load(fp)

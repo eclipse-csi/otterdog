@@ -222,6 +222,8 @@ class DiffOperation(Operation):
                                                 current_repo,
                                                 expected_repo)
 
+            # TODO: handle environments
+
             self._process_repo_webhooks(github_id,
                                         current_repo,
                                         expected_repo,

@@ -147,14 +147,14 @@ class Github:
     def add_branch_protection_rule(self,
                                    org_id: str,
                                    repo_name: str,
-                                   repo_id: Optional[str],
+                                   repo_node_id: Optional[str],
                                    data: dict[str, Any]) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
-        if not repo_id:
+        if not repo_node_id:
             repo_data = self.rest_client.get_repo_data(org_id, repo_name)
-            repo_id = repo_data["node_id"]
+            repo_node_id = repo_data["node_id"]
 
-        self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_id, data)
+        self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_node_id, data)
 
     def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
         self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
@@ -171,6 +171,9 @@ class Github:
 
     def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, url: str) -> None:
         self.rest_client.delete_repo_webhook(org_id, repo_name, webhook_id, url)
+
+    def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return self.rest_client.get_repo_environments(org_id, repo_name)
 
     def get_actor_ids(self, actor_names: list[str]) -> list[str]:
         result = []

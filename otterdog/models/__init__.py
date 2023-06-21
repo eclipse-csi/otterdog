@@ -13,6 +13,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Iterator
 
+from colorama import Style
+
 from otterdog.providers.github import Github
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change, IndentingPrinter
@@ -158,9 +160,23 @@ class ModelObject(ABC):
     def is_nested_model(field: dataclasses.Field) -> bool:
         return field.metadata.get("nested_model", False) is True
 
-    @abstractmethod
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
-        pass
+        yield from []
+
+    def get_model_header(self, parent_object: Optional[ModelObject] = None) -> str:
+        header = f"{Style.BRIGHT}{self.model_object_name}{Style.RESET_ALL}"
+
+        if self.is_keyed():
+            key = self.get_key()
+            header = header + f"[{key}={Style.BRIGHT}\"{self.get_key_value()}\"{Style.RESET_ALL}"
+
+            if isinstance(parent_object, ModelObject):
+                header = header + f", {parent_object.model_object_name}=" \
+                                  f"{Style.BRIGHT}\"{parent_object.get_key_value()}\"{Style.RESET_ALL}"
+
+            header = header + "]"
+
+        return header
 
     @classmethod
     @abstractmethod
@@ -169,7 +185,7 @@ class ModelObject(ABC):
 
     @classmethod
     @abstractmethod
-    def from_provider_data(cls, data: dict[str, Any]):
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]):
         pass
 
     def to_provider_data(self, provider: Optional[Github] = None) -> dict[str, Any]:

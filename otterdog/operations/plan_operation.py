@@ -41,7 +41,7 @@ class PlanOperation(DiffOperation):
                           model_object: ModelObject,
                           parent_object: Optional[ModelObject] = None) -> None:
         self.printer.println()
-        model_header = self.get_model_header(model_object, parent_object)
+        model_header = model_object.get_model_header(parent_object)
         self.print_dict(model_object.to_model_dict(for_diff=True), f"add {model_header}", "+", Fore.GREEN)
 
     def handle_delete_object(self,
@@ -49,7 +49,7 @@ class PlanOperation(DiffOperation):
                              model_object: ModelObject,
                              parent_object: Optional[ModelObject] = None) -> None:
         self.printer.println()
-        model_header = self.get_model_header(model_object, parent_object)
+        model_header = model_object.get_model_header(parent_object)
         self.print_dict(model_object.to_model_dict(for_diff=True), f"remove {model_header}", "-", Fore.RED)
 
     def handle_modified_object(self,
@@ -60,7 +60,7 @@ class PlanOperation(DiffOperation):
                                expected_object: ModelObject,
                                parent_object: Optional[ModelObject] = None) -> int:
         self.printer.println()
-        model_header = self.get_model_header(current_object, parent_object)
+        model_header = current_object.get_model_header(parent_object)
 
         # FIXME: this code should be moved to the Webhook model class.
         redacted_keys = {"secret"} if self.resolve_secrets() is True else set()

@@ -66,8 +66,8 @@ class ApplyOperation(PlanOperation):
             self._added_repo_webhooks.append((repo_name, model_object))
         elif isinstance(model_object, BranchProtectionRule):
             repo_name = cast(Repository, parent_object).name
-            repo_id = cast(Repository, parent_object).id
-            self._added_rules.append((repo_name, repo_id, model_object))
+            repo_node_id = cast(Repository, parent_object).node_id
+            self._added_rules.append((repo_name, repo_node_id, model_object))
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
 
@@ -173,8 +173,11 @@ class ApplyOperation(PlanOperation):
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
-        for repo_name, repo_id, rule in self._added_rules:
-            self.gh_client.add_branch_protection_rule(org_id, repo_name, repo_id, rule.to_provider_data(self.gh_client))
+        for repo_name, repo_node_id, rule in self._added_rules:
+            self.gh_client.add_branch_protection_rule(org_id,
+                                                      repo_name,
+                                                      repo_node_id,
+                                                      rule.to_provider_data(self.gh_client))
 
         if self._delete_resources:
             for org_webhook in self._deleted_org_webhooks:

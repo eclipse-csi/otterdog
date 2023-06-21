@@ -17,10 +17,10 @@
   "requires_status_checks": true,
   "requires_strict_status_checks": false,
   "restricts_pushes": false,
-  "push_restrictions": ["/netomi"],
-  "bypass_force_push_allowances": ["/netomi"],
-  "bypass_pull_request_allowances": ["/netomi"],
+  "push_restrictions": ["@netomi"],
+  "bypass_force_push_allowances": ["@netomi"],
+  "bypass_pull_request_allowances": ["@netomi"],
   "restricts_review_dismissals": false,
-  "review_dismissal_allowances": ["/netomi"],
+  "review_dismissal_allowances": ["@netomi"],
   "required_status_checks":["eclipse-eca-validation:eclipsefdn/eca","any:Run CI"]
 }

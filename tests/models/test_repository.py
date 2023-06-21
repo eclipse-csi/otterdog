@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-import jq
+import jq  # type: ignore
 
 from otterdog.models.repository import Repository
 from otterdog.utils import UNSET, Change
@@ -56,8 +56,10 @@ class RepositoryTest(ModelTest):
         assert repo.auto_init is False
 
     def test_load_from_provider(self):
-        repo = Repository.from_provider_data(self.provider_data)
+        repo = Repository.from_provider_data(self.org_id, self.provider_data)
 
+        assert repo.id == 605555050
+        assert repo.node_id == "R_kgDOJBgJag"
         assert repo.name == "otterdog-defaults"
         assert repo.description is None
         assert repo.homepage is None

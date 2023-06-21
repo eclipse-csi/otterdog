@@ -47,9 +47,9 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.is_admin_enforced is False
         assert bpr.lock_allows_fetch_and_merge is False
         assert bpr.lock_branch is False
-        assert bpr.bypass_force_push_allowances == ["/netomi"]
-        assert bpr.bypass_pull_request_allowances == ["/netomi"]
-        assert bpr.push_restrictions == ["/netomi"]
+        assert bpr.bypass_force_push_allowances == ["@netomi"]
+        assert bpr.bypass_pull_request_allowances == ["@netomi"]
+        assert bpr.push_restrictions == ["@netomi"]
         assert bpr.require_last_push_approval is False
         assert bpr.required_approving_review_count == 2
         assert bpr.requires_approving_reviews is True
@@ -60,11 +60,11 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.requires_status_checks is True
         assert bpr.requires_strict_status_checks is False
         assert bpr.restricts_review_dismissals is False
-        assert bpr.review_dismissal_allowances == ["/netomi"]
+        assert bpr.review_dismissal_allowances == ["@netomi"]
         assert bpr.required_status_checks == ["eclipse-eca-validation:eclipsefdn/eca", "any:Run CI"]
 
     def test_load_from_provider(self):
-        bpr = BranchProtectionRule.from_provider_data(self.provider_data)
+        bpr = BranchProtectionRule.from_provider_data(self.org_id, self.provider_data)
 
         assert bpr.id == "BPR_kwDOI9xAhM4CC77t"
         assert bpr.pattern == "main"
@@ -74,9 +74,9 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.is_admin_enforced is False
         assert bpr.lock_allows_fetch_and_merge is False
         assert bpr.lock_branch is False
-        assert bpr.bypass_force_push_allowances == ["/netomi"]
-        assert bpr.bypass_pull_request_allowances == ["/netomi"]
-        assert bpr.push_restrictions == ["/netomi"]
+        assert bpr.bypass_force_push_allowances == ["@netomi"]
+        assert bpr.bypass_pull_request_allowances == ["@netomi"]
+        assert bpr.push_restrictions == ["@netomi"]
         assert bpr.require_last_push_approval is False
         assert bpr.required_approving_review_count == 2
         assert bpr.requires_approving_reviews is True
@@ -87,7 +87,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.requires_status_checks is True
         assert bpr.requires_strict_status_checks is False
         assert bpr.restricts_review_dismissals is False
-        assert bpr.review_dismissal_allowances == ["/netomi"]
+        assert bpr.review_dismissal_allowances == ["@netomi"]
         assert bpr.required_status_checks == ["any:Run CI"]
 
     def test_to_provider(self):
@@ -97,7 +97,7 @@ class BranchProtectionRuleTest(ModelTest):
 
         assert len(provider_data) == 23
         assert provider_data["pattern"] == "main"
-        assert provider_data["pushActorIds"] == ["id_/netomi"]
+        assert provider_data["pushActorIds"] == ["id_@netomi"]
         assert provider_data["requiredStatusChecks"] == [
             {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
 

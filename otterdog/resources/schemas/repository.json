@@ -49,6 +49,10 @@
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }
+    },
+    "environments": {
+      "type": "array",
+      "items": { "$ref": "environment.json" }
     }
   },
 

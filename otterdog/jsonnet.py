@@ -25,6 +25,7 @@ class JsonnetConfig:
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
     create_branch_protection_rule = "newBranchProtectionRule"
+    create_environment = "newEnvironment"
 
     def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
         self._org_id = org_id
@@ -48,6 +49,7 @@ class JsonnetConfig:
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_branch_config: dict[str, Any] | None = None
+        self._default_environment_config: dict[str, Any] | None = None
 
         self._initialized = False
 
@@ -102,6 +104,13 @@ class JsonnetConfig:
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default branch protection rule config: {ex}")
 
+        try:
+            # load the default environment config
+            environment_snippet = f"(import '{template_file}').{self.create_environment}('default')"
+            self._default_environment_config = jsonnet_evaluate_snippet(environment_snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to get default environment config: {ex}")
+
         self._initialized = True
 
     @property
@@ -123,6 +132,10 @@ class JsonnetConfig:
     @property
     def default_branch_config(self):
         return self._default_branch_config
+
+    @property
+    def default_environment_config(self):
+        return self._default_environment_config
 
     @property
     def template_file(self) -> str:

@@ -1,0 +1,21 @@
+{
+  "$id": "environment.json",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "wait_timer": { "type": "integer" },
+    "reviewers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "deployment_branch_policy": { "type": "string" },
+    "branch_policies": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+
+  "required": [ "name" ],
+  "additionalProperties": false
+}
