@@ -102,14 +102,14 @@ class Github:
     def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         return self.rest_client.get_org_webhooks(org_id)
 
-    def update_org_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+    def update_org_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
             self.rest_client.update_org_webhook(org_id, webhook_id, webhook)
 
     def add_org_webhook(self, org_id: str, data: dict[str, str]) -> None:
         self.rest_client.add_org_webhook(org_id, data)
 
-    def delete_org_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
+    def delete_org_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
         self.rest_client.delete_org_webhook(org_id, webhook_id, url)
 
     def get_repos(self, org_id: str) -> list[str]:
@@ -162,20 +162,33 @@ class Github:
     def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_client.get_repo_webhooks(org_id, repo_name)
 
-    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
             self.rest_client.update_repo_webhook(org_id, repo_name, webhook_id, webhook)
 
     def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         self.rest_client.add_repo_webhook(org_id, repo_name, data)
 
-    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, url: str) -> None:
+    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
         self.rest_client.delete_repo_webhook(org_id, repo_name, webhook_id, url)
 
     def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_client.get_repo_environments(org_id, repo_name)
 
-    def get_actor_ids(self, actor_names: list[str]) -> list[str]:
+    def update_repo_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
+        if len(env) > 0:
+            self.rest_client.update_repo_environment(org_id, repo_name, env_name, env)
+
+    def add_repo_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        self.rest_client.add_repo_environment(org_id, repo_name, env_name, data)
+
+    def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
+        self.rest_client.delete_repo_environment(org_id, repo_name, env_name)
+
+    def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
+        return list(map(lambda x: x[1][1], self.get_actor_ids_with_type(actor_names)))
+
+    def get_actor_ids_with_type(self, actor_names: list[str]) -> list[tuple[str, tuple[int, str]]]:
         result = []
         for actor in actor_names:
             if actor.startswith("@"):
@@ -184,25 +197,25 @@ class Github:
                 #    - user-names are not allowed to contain a /
                 if "/" in actor:
                     try:
-                        result.append(self.rest_client.get_team_node_id(actor[1:]))
+                        result.append(("Team", self.rest_client.get_team_ids(actor[1:])))
                     except RuntimeError:
                         utils.print_warn(f"team '{actor[1:]}' does not exist, skipping")
                 else:
                     try:
-                        result.append(self.rest_client.get_user_node_id(actor[1:]))
+                        result.append(("User", self.rest_client.get_user_ids(actor[1:])))
                     except RuntimeError:
                         utils.print_warn(f"user '{actor[1:]}' does not exist, skipping")
             else:
                 # it's an app
                 try:
-                    result.append(self.rest_client.get_app_id(actor))
+                    result.append(("App", self.rest_client.get_app_ids(actor)))
                 except RuntimeError:
                     utils.print_warn(f"app '{actor}' does not exist, skipping")
 
         return result
 
-    def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
-        return {app_name: self.rest_client.get_app_id(app_name) for app_name in app_names}
+    def get_app_node_ids(self, app_names: set[str]) -> dict[str, str]:
+        return {app_name: self.rest_client.get_app_ids(app_name)[1] for app_name in app_names}
 
     def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return self.rest_client.get_ref_for_pull_request(org_id, repo_name, pull_number)

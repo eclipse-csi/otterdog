@@ -192,7 +192,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def update_org_webhook(self, org_id: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+    def update_org_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         utils.print_debug(f"updating org webhook '{webhook_id}' for organization {org_id}")
 
         try:
@@ -216,7 +216,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add org webhook with url '{url}':\n{ex}").with_traceback(tb)
 
-    def delete_org_webhook(self, org_id: str, webhook_id: str, url: str) -> None:
+    def delete_org_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
         utils.print_debug(f"deleting org webhook with url '{url}'")
 
         response = self._requester.request_raw("DELETE", f"/orgs/{org_id}/hooks/{webhook_id}")
@@ -243,7 +243,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, webhook: dict[str, Any]) -> None:
+    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         utils.print_debug(f"updating repo webhook '{webhook_id}' for repo '{org_id}/{repo_name}'")
 
         try:
@@ -267,7 +267,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo webhook with url '{url}':\n{ex}").with_traceback(tb)
 
-    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: str, url: str) -> None:
+    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
         utils.print_debug(f"deleting repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
 
         response = self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/hooks/{webhook_id}")
@@ -516,7 +516,43 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def _get_deployment_branch_policies(self, org_id: str, repo_name: str, env_name: str) -> dict[str, Any]:
+    def update_repo_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
+        utils.print_debug(f"updating repo environment '{env_name}' for repo '{org_id}/{repo_name}'")
+
+        if "name" in env:
+            env.pop("name")
+
+        if "branch_policies" in env:
+            branch_policies = env.pop("branch_policies")
+        else:
+            branch_policies = None
+
+        try:
+            self._requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/environments/{env_name}", env)
+
+            if branch_policies is not None:
+                self._update_deployment_branch_policies(org_id, repo_name, env_name, branch_policies)
+
+            utils.print_debug(f"updated repo environment '{env_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to update repo environment '{env_name}':\n{ex}").with_traceback(tb)
+
+    def add_repo_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]) -> None:
+        utils.print_debug(f"adding repo environment '{env_name}' for repo '{org_id}/{repo_name}'")
+        self.update_repo_environment(org_id, repo_name, env_name, data)
+        utils.print_debug(f"added repo environment '{env_name}'")
+
+    def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
+        utils.print_debug(f"deleting repo environment '{env_name} for repo '{org_id}/{repo_name}'")
+
+        response = self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/environments/{env_name}")
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete repo environment '{env_name}'")
+
+        utils.print_debug(f"removed repo environment '{env_name}'")
+
+    def _get_deployment_branch_policies(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
         utils.print_debug(f"retrieving deployment branch policies for env '{env_name}'")
 
         try:
@@ -527,33 +563,92 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}").with_traceback(tb)
 
-    def get_user_node_id(self, login: str):
-        utils.print_debug(f"retrieving user node id for user '{login}'")
+    def _update_deployment_branch_policies(self,
+                                           org_id: str,
+                                           repo_name: str,
+                                           env_name: str,
+                                           branch_policies: list[str]) -> None:
+        utils.print_debug(f"updating deployment branch policies for env '{env_name}'")
+
+        current_branch_policies_by_name = \
+            utils.associate_by_key(self._get_deployment_branch_policies(org_id, repo_name, env_name),
+                                   lambda x: x["name"])
+
+        try:
+            for policy in branch_policies:
+                if policy in current_branch_policies_by_name:
+                    current_branch_policies_by_name.pop(policy)
+                else:
+                    self._create_deployment_branch_policy(org_id, repo_name, env_name, policy)
+
+            for policy_name, policy_dict in current_branch_policies_by_name.items():
+                self._delete_deployment_branch_policy(org_id, repo_name, env_name, policy_dict["id"])
+
+            utils.print_debug(f"updated deployment branch policies for env '{env_name}'")
+
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed creating deployment branch policies:\n{ex}").with_traceback(tb)
+
+    def _create_deployment_branch_policy(self,
+                                         org_id: str,
+                                         repo_name: str,
+                                         env_name: str,
+                                         name: str) -> None:
+        utils.print_debug(f"creating deployment branch policy for env '{env_name}' with name '{name}")
+
+        try:
+            data = {"name": name}
+            url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
+            self._requester.request_json("POST", url, data)
+            utils.print_debug(f"created deployment branch policy for env '{env_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed creating deployment branch policy:\n{ex}").with_traceback(tb)
+
+    def _delete_deployment_branch_policy(self,
+                                         org_id: str,
+                                         repo_name: str,
+                                         env_name: str,
+                                         policy_id: int) -> None:
+        utils.print_debug(f"deleting deployment branch policy for env '{env_name}' with id '{policy_id}")
+
+        url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies/{policy_id}"
+        response = self._requester.request_raw("DELETE", url)
+        if response.status_code != 204:
+            raise RuntimeError(
+                f"failed deleting deployment branch policy"
+                f"\n{response.status_code}: {response.text}")
+        else:
+            utils.print_debug(f"deleted deployment branch policy for env '{env_name}'")
+
+    def get_user_ids(self, login: str) -> tuple[int, str]:
+        utils.print_debug(f"retrieving user ids for user '{login}'")
 
         try:
             response = self._requester.request_json("GET", f"/users/{login}")
-            return response["node_id"]
+            return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving user node id:\n{ex}").with_traceback(tb)
 
-    def get_team_node_id(self, combined_slug: str) -> str:
-        utils.print_debug("retrieving team node id")
+    def get_team_ids(self, combined_slug: str) -> tuple[int, str]:
+        utils.print_debug("retrieving team ids")
         org_id, team_slug = re.split("/", combined_slug)
 
         try:
             response = self._requester.request_json("GET", f"/orgs/{org_id}/teams/{team_slug}")
-            return response["node_id"]
+            return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving team node id:\n{ex}").with_traceback(tb)
 
-    def get_app_id(self, app_slug: str) -> str:
+    def get_app_ids(self, app_slug: str) -> tuple[int, str]:
         utils.print_debug("retrieving app node id")
 
         try:
             response = self._requester.request_json("GET", f"/apps/{app_slug}")
-            return response["node_id"]
+            return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving app node id:\n{ex}").with_traceback(tb)

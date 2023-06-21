@@ -25,7 +25,7 @@ class Webhook(ModelObject, abc.ABC):
     Represents a WebHook.
     """
 
-    id: str = dataclasses.field(metadata={"external_only": True})
+    id: int = dataclasses.field(metadata={"external_only": True})
     events: list[str]
     active: bool
     url: str = dataclasses.field(metadata={"key": True})

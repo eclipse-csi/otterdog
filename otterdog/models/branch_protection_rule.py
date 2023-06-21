@@ -219,7 +219,7 @@ class BranchProtectionRule(ModelObject):
             mapping.pop("pushRestrictions")
             restricts_pushes = data["push_restrictions"]
             if is_set_and_valid(restricts_pushes):
-                actor_ids = provider.get_actor_ids(restricts_pushes)
+                actor_ids = provider.get_actor_node_ids(restricts_pushes)
                 mapping["pushActorIds"] = K(actor_ids)
                 mapping["restrictsPushes"] = K(True if len(actor_ids) > 0 else False)
 
@@ -227,21 +227,21 @@ class BranchProtectionRule(ModelObject):
             mapping.pop("reviewDismissalAllowances")
             review_dismissal_allowances = data["review_dismissal_allowances"]
             if is_set_and_valid(review_dismissal_allowances):
-                actor_ids = provider.get_actor_ids(review_dismissal_allowances)
+                actor_ids = provider.get_actor_node_ids(review_dismissal_allowances)
                 mapping["reviewDismissalActorIds"] = K(actor_ids)
 
         if "bypass_pull_request_allowances" in data:
             mapping.pop("bypassPullRequestAllowances")
             bypass_pull_request_allowances = data["bypass_pull_request_allowances"]
             if is_set_and_valid(bypass_pull_request_allowances):
-                actor_ids = provider.get_actor_ids(bypass_pull_request_allowances)
+                actor_ids = provider.get_actor_node_ids(bypass_pull_request_allowances)
                 mapping["bypassPullRequestActorIds"] = K(actor_ids)
 
         if "bypass_force_push_allowances" in data:
             mapping.pop("bypassForcePushAllowances")
             bypass_force_push_allowances = data["bypass_force_push_allowances"]
             if is_set_and_valid(bypass_force_push_allowances):
-                actor_ids = provider.get_actor_ids(bypass_force_push_allowances)
+                actor_ids = provider.get_actor_node_ids(bypass_force_push_allowances)
                 mapping["bypassForcePushActorIds"] = K(actor_ids)
 
         if "required_status_checks" in data:
@@ -259,7 +259,7 @@ class BranchProtectionRule(ModelObject):
                     else:
                         app_slugs.add("github-actions")
 
-                app_ids = provider.get_app_ids(app_slugs)
+                app_ids = provider.get_app_node_ids(app_slugs)
 
                 transformed_checks = []
                 for check in required_status_checks:

@@ -222,17 +222,9 @@ class DiffOperation(Operation):
                                                 current_repo,
                                                 expected_repo)
 
-            # TODO: handle environments
-
-            self._process_repo_webhooks(github_id,
-                                        current_repo,
-                                        expected_repo,
-                                        diff_status)
-
-            self._process_branch_protection_rules(github_id,
-                                                  current_repo,
-                                                  expected_repo,
-                                                  diff_status)
+            self._process_repo_webhooks(github_id, current_repo, expected_repo, diff_status)
+            self._process_environments(github_id, current_repo, expected_repo, diff_status)
+            self._process_branch_protection_rules(github_id, current_repo, expected_repo, diff_status)
 
             # pop the already handled repos
             for name in expected_repo.get_all_names():
@@ -246,6 +238,9 @@ class DiffOperation(Operation):
 
             if len(repo.webhooks) > 0:
                 self._process_repo_webhooks(github_id, None, repo, diff_status)
+
+            if len(repo.environments) > 0:
+                self._process_environments(github_id, None, repo, diff_status)
 
             if len(repo.branch_protection_rules) > 0:
                 self._process_branch_protection_rules(github_id, None, repo, diff_status)
@@ -267,23 +262,26 @@ class DiffOperation(Operation):
             return
 
         # only retrieve current rules if the current_repo is available, otherwise it's a new repo
-        if current_repo is not None:
-            for current_rule in current_repo.branch_protection_rules:
-                rule_pattern = current_rule.pattern
+        current_rules = current_repo.branch_protection_rules if current_repo is not None else []
+        for current_rule in current_rules:
+            rule_pattern = current_rule.pattern
 
-                expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
-                if expected_rule is None:
-                    self.handle_delete_object(org_id, current_rule, current_repo)
-                    diff_status.deletions += 1
-                    continue
+            expected_rule = expected_branch_protection_rules_by_pattern.get(rule_pattern)
+            if expected_rule is None:
+                self.handle_delete_object(org_id, current_rule, current_repo)
+                diff_status.deletions += 1
+                continue
 
-                modified_rule: dict[str, Change[Any]] = expected_rule.get_difference_from(current_rule)
+            modified_rule: dict[str, Change[Any]] = expected_rule.get_difference_from(current_rule)
 
-                if len(modified_rule) > 0:
-                    diff_status.differences += \
-                        self.handle_modified_object(org_id, modified_rule, False, current_rule, current_repo)
+            if len(modified_rule) > 0:
+                # we know that the current repo is not None
+                assert current_repo is not None
 
-                expected_branch_protection_rules_by_pattern.pop(rule_pattern)
+                diff_status.differences += \
+                    self.handle_modified_object(org_id, modified_rule, False, current_rule, expected_rule, current_repo)
+
+            expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
         for rule_pattern, rule in expected_branch_protection_rules_by_pattern.items():
             repo = expected_repo if current_repo is None else current_repo
@@ -291,7 +289,7 @@ class DiffOperation(Operation):
             diff_status.additions += 1
 
     def _process_repo_webhooks(self,
-                               github_id: str,
+                               org_id: str,
                                current_repo: Repository | None,
                                expected_repo: Repository,
                                diff_status: DiffStatus) -> None:
@@ -299,7 +297,7 @@ class DiffOperation(Operation):
         expected_webhooks_by_url = associate_by_key(expected_repo.webhooks, lambda x: x.url)
         current_repo_webhooks = current_repo.webhooks if current_repo is not None else []
         repo = expected_repo if current_repo is None else current_repo
-        self._process_webhooks(github_id,
+        self._process_webhooks(org_id,
                                expected_webhooks_by_all_urls,
                                expected_webhooks_by_url,
                                current_repo_webhooks,
@@ -307,7 +305,7 @@ class DiffOperation(Operation):
                                diff_status)
 
     def _process_webhooks(self,
-                          github_id: str,
+                          org_id: str,
                           expected_webhooks_by_all_urls: dict[str, WT],
                           expected_webhooks_by_url: dict[str, WT],
                           current_webhooks: list[WT],
@@ -319,7 +317,7 @@ class DiffOperation(Operation):
 
             expected_webhook = expected_webhooks_by_all_urls.get(webhook_url)
             if expected_webhook is None:
-                self.handle_delete_object(github_id, current_webhook, parent_object)
+                self.handle_delete_object(org_id, current_webhook, parent_object)
                 diff_status.deletions += 1
                 continue
 
@@ -338,7 +336,7 @@ class DiffOperation(Operation):
                 modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
                 diff_status.differences += \
-                    self.handle_modified_object(github_id,
+                    self.handle_modified_object(org_id,
                                                 modified_webhook,
                                                 True,
                                                 current_webhook,
@@ -365,7 +363,7 @@ class DiffOperation(Operation):
 
             if len(modified_webhook) > 0:
                 diff_status.differences += \
-                    self.handle_modified_object(github_id,
+                    self.handle_modified_object(org_id,
                                                 modified_webhook,
                                                 False,
                                                 current_webhook,
@@ -373,7 +371,43 @@ class DiffOperation(Operation):
                                                 parent_object)
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
-            self.handle_add_object(github_id, webhook, parent_object)
+            self.handle_add_object(org_id, webhook, parent_object)
+            diff_status.additions += 1
+
+    def _process_environments(self,
+                              org_id: str,
+                              current_repo: Repository | None,
+                              expected_repo: Repository,
+                              diff_status: DiffStatus) -> None:
+
+        expected_environments_by_name = \
+            associate_by_key(expected_repo.environments, lambda x: x.name)
+
+        # only retrieve current rules if the current_repo is available, otherwise it's a new repo
+        current_environments = current_repo.environments if current_repo is not None else []
+        for current_env in current_environments:
+            env_name = current_env.name
+
+            expected_env = expected_environments_by_name.get(env_name)
+            if expected_env is None:
+                self.handle_delete_object(org_id, current_env, current_repo)
+                diff_status.deletions += 1
+                continue
+
+            modified_env: dict[str, Change[Any]] = expected_env.get_difference_from(current_env)
+
+            if len(modified_env) > 0:
+                # we know that the current repo is not None
+                assert current_repo is not None
+
+                diff_status.differences += \
+                    self.handle_modified_object(org_id, modified_env, False, current_env, expected_env, current_repo)
+
+            expected_environments_by_name.pop(env_name)
+
+        for env_name, env in expected_environments_by_name.items():
+            repo = expected_repo if current_repo is None else current_repo
+            self.handle_add_object(org_id, env, repo)
             diff_status.additions += 1
 
     @abstractmethod

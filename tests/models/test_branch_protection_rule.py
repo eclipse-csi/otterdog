@@ -25,15 +25,15 @@ class BranchProtectionRuleTest(ModelTest):
 
     @property
     def provider(self):
-        def get_actor_ids(actors):
+        def get_actor_node_ids(actors):
             return [f"id_{actor}" for actor in actors]
 
-        def get_app_ids(app_names):
+        def get_app_node_ids(app_names):
             return {app: f"id_{app}" for app in app_names}
 
         provider = MagicMock()
-        provider.get_actor_ids = MagicMock(side_effect=get_actor_ids)
-        provider.get_app_ids = MagicMock(side_effect=get_app_ids)
+        provider.get_actor_node_ids = MagicMock(side_effect=get_actor_node_ids)
+        provider.get_app_node_ids = MagicMock(side_effect=get_app_node_ids)
         return provider
 
     def test_load_from_model(self):

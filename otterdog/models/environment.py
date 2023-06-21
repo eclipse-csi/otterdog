@@ -44,11 +44,28 @@ class Environment(ModelObject):
                                 f"outside of supported range (0, 43200).")
 
         if is_set_and_valid(self.deployment_branch_policy):
-            if self.deployment_branch_policy not in {"all", "protected_branches", "branch_policies"}:
+            if self.deployment_branch_policy not in {"all", "protected", "selected"}:
                 context.add_failure(FailureType.ERROR,
                                     f"{self.get_model_header(parent_object)} has 'deployment_branch_policy' of value "
                                     f"'{self.deployment_branch_policy}', "
-                                    f"only 'all' | 'protected_branches' | 'branch_policies' is allowed.")
+                                    f"only 'all' | 'protected' | 'selected' are allowed.")
+
+            if self.deployment_branch_policy != "selected" and len(self.branch_policies) > 0:
+                context.add_failure(FailureType.WARNING,
+                                    f"{self.get_model_header(parent_object)} has 'deployment_branch_policy' set to "
+                                    f"'{self.deployment_branch_policy}', "
+                                    f"but 'branch_policies' is set to {self.branch_policies}, "
+                                    f"setting will be ignored. .")
+
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        if self.deployment_branch_policy != "selected":
+            if field.name in ["branch_policies"]:
+                return False
+
+        return True
+
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        return True
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Environment:
@@ -75,9 +92,9 @@ class Environment(ModelObject):
                 return "all"
             else:
                 if x.get("protected_branches", False) is True:
-                    return "protected_branches"
+                    return "protected"
                 elif x.get("custom_branch_policies", False) is True:
-                    return "branch_policies"
+                    return "selected"
                 else:
                     raise ValueError(f"unexpected deployment_branch_policy {x}")
 
@@ -107,10 +124,42 @@ class Environment(ModelObject):
 
     @classmethod
     def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+        assert provider is not None
+
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
-        # TODO: implement
+        if "reviewers" in mapping:
+            reviewers = data["reviewers"]
+            reviewer_mapping = []
+            for actor_type, (actor_id, actor_node_id) in provider.get_actor_ids_with_type(reviewers):
+                reviewer_mapping.append({"type": actor_type, "id": actor_id})
+            mapping["reviewers"] = reviewer_mapping
+
+        if "deployment_branch_policy" in mapping:
+            deployment_branch_policy = data["deployment_branch_policy"]
+
+            match deployment_branch_policy:
+                case "all":
+                    deployment_branch_policy_mapping = None
+
+                case "protected":
+                    deployment_branch_policy_mapping = {
+                        "protected_branches": True,
+                        "custom_branch_policies": False
+                    }
+
+                case "selected":
+                    deployment_branch_policy_mapping = {
+                      "protected_branches": False,
+                      "custom_branch_policies": True
+                    }
+
+                case _:
+                    raise RuntimeError(f"unexpected deployment_branch_policy '{deployment_branch_policy}'")
+
+            mapping["deployment_branch_policy"] = deployment_branch_policy_mapping
+
         return bend(mapping, data)
 
     def to_jsonnet(self,
@@ -120,4 +169,6 @@ class Environment(ModelObject):
                    default_object: ModelObject) -> None:
 
         patch = self.get_patch_to(default_object)
+        patch.pop("name")
+        printer.print(f"orgs.{jsonnet_config.create_environment}('{self.name}')")
         write_patch_object_as_json(patch, printer)

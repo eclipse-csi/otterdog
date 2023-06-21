@@ -12,6 +12,7 @@ from colorama import Style
 
 from otterdog.config import OtterdogConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.environment import Environment
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.repository import Repository
@@ -31,15 +32,18 @@ class ApplyOperation(PlanOperation):
         self._delete_resources = delete_resources
 
         self._org_settings_to_update: dict[str, Change[Any]] = {}
-        self._modified_org_webhooks: dict[str, OrganizationWebhook] = {}
+        self._modified_org_webhooks: dict[int, OrganizationWebhook] = {}
         self._added_org_webhooks: list[OrganizationWebhook] = []
         self._deleted_org_webhooks: list[OrganizationWebhook] = []
         self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
         self._added_repos: list[Repository] = []
         self._deleted_repos: list[Repository] = []
-        self._modified_repo_webhooks: list[tuple[str, str, RepositoryWebhook]] = []
+        self._modified_repo_webhooks: list[tuple[str, int, RepositoryWebhook]] = []
         self._added_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
         self._deleted_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
+        self._modified_environments: list[tuple[str, str, dict[str, Change[Any]]]] = []
+        self._added_environments: list[tuple[str, Environment]] = []
+        self._deleted_environments: list[tuple[str, Environment]] = []
         self._modified_rules: list[tuple[str, str, str, dict[str, Change[Any]]]] = []
         self._added_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
         self._deleted_rules: list[tuple[str, BranchProtectionRule]] = []
@@ -64,6 +68,9 @@ class ApplyOperation(PlanOperation):
         elif isinstance(model_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
             self._added_repo_webhooks.append((repo_name, model_object))
+        elif isinstance(model_object, Environment):
+            repo_name = cast(Repository, parent_object).name
+            self._added_environments.append((repo_name, model_object))
         elif isinstance(model_object, BranchProtectionRule):
             repo_name = cast(Repository, parent_object).name
             repo_node_id = cast(Repository, parent_object).node_id
@@ -82,6 +89,9 @@ class ApplyOperation(PlanOperation):
         elif isinstance(model_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
             self._deleted_repo_webhooks.append((repo_name, model_object))
+        elif isinstance(model_object, Environment):
+            repo_name = cast(Repository, parent_object).name
+            self._deleted_environments.append((repo_name, model_object))
         elif isinstance(model_object, BranchProtectionRule):
             repo_name = cast(Repository, parent_object).name
             self._deleted_rules.append((repo_name, model_object))
@@ -114,6 +124,9 @@ class ApplyOperation(PlanOperation):
             self._modified_repo_webhooks.append((repo_name,
                                                  current_object.id,
                                                  cast(RepositoryWebhook, expected_object)))
+        elif isinstance(current_object, Environment):
+            repo_name = cast(Repository, parent_object).name
+            self._modified_environments.append((repo_name, current_object.name, modified_object))
         elif isinstance(current_object, BranchProtectionRule):
             repo_name = cast(Repository, parent_object).name
             self._modified_rules.append((repo_name, current_object.pattern, current_object.id, modified_object))
@@ -169,6 +182,13 @@ class ApplyOperation(PlanOperation):
         for repo_name, repo_webhook in self._added_repo_webhooks:
             self.gh_client.add_repo_webhook(org_id, repo_name, repo_webhook.to_provider_data())
 
+        for repo_name, env_name, modified_env in self._modified_environments:
+            github_env = Environment.changes_to_provider(modified_env, self.gh_client)
+            self.gh_client.update_repo_environment(org_id, repo_name, env_name, github_env)
+
+        for repo_name, env in self._added_environments:
+            self.gh_client.add_repo_environment(org_id, repo_name, env.name, env.to_provider_data(self.gh_client))
+
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
@@ -188,6 +208,9 @@ class ApplyOperation(PlanOperation):
 
             for repo_name, repo_webhook in self._deleted_repo_webhooks:
                 self.gh_client.delete_repo_webhook(org_id, repo_name, repo_webhook.id, repo_webhook.url)
+
+            for repo_name, repo_env in self._deleted_environments:
+                self.gh_client.delete_repo_environment(org_id, repo_name, repo_env.name)
 
             for repo_name, rule in self._deleted_rules:
                 self.gh_client.delete_branch_protection_rule(org_id, repo_name, rule.pattern, rule.id)
