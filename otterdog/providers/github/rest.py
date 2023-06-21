@@ -512,9 +512,9 @@ class RestClient:
                 if has_branch_policies:
                     env["branch_policies"] = self._get_deployment_branch_policies(org_id, repo_name, env_name)
             return environments
-        except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+        except GitHubException:
+            # querying the environments might fail for private repos, ignore exceptions
+            return []
 
     def update_repo_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
         utils.print_debug(f"updating repo environment '{env_name}' for repo '{org_id}/{repo_name}'")
