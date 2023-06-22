@@ -109,6 +109,13 @@ class Repository(ModelObject):
     def add_webhook(self, webhook: RepositoryWebhook) -> None:
         self.webhooks.append(webhook)
 
+    def get_webhook(self, url: str) -> Optional[RepositoryWebhook]:
+        for webhook in self.webhooks:
+            if webhook.url == url:
+                return webhook
+
+        return None
+
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
         self.webhooks = webhooks
 

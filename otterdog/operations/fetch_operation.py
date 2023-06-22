@@ -40,7 +40,7 @@ class FetchOperation(Operation):
                                  f"'{org_file_name}'.\n"
                                  f"  Performing this action will overwrite its contents.\n"
                                  f"  Do you want to continue?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n\n")
+                                 f"  Only 'yes' will be accepted to approve.\n")
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()

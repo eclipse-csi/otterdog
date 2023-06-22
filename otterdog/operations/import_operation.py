@@ -42,7 +42,7 @@ class ImportOperation(Operation):
                                  f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
                                  f"  Performing this action will overwrite its contents.\n"
                                  f"  Do you want to continue?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n\n")
+                                 f"  Only 'yes' will be accepted to approve.\n")
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
@@ -51,9 +51,12 @@ class ImportOperation(Operation):
                 return 1
 
         if os.path.exists(org_file_name):
+            sync_secrets_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
             shutil.copy(org_file_name, backup_file)
             self.printer.println(f"\nExisting definition copied to {Style.BRIGHT}'{backup_file}'{Style.RESET_ALL}.\n")
+        else:
+            sync_secrets_from_previous_config = False
 
         self.printer.level_up()
 
@@ -77,6 +80,31 @@ class ImportOperation(Operation):
                                                       self.no_web_ui,
                                                       self.printer)
 
+            # sync secrets from existing configuration if it is present.
+            if sync_secrets_from_previous_config:
+                self.printer.println("Copying secrets from previous configuration.")
+
+                previous_organization = \
+                    GitHubOrganization.load_from_file(github_id,
+                                                      org_file_name,
+                                                      self.config,
+                                                      False)
+
+                for webhook in organization.webhooks:
+                    if webhook.has_dummy_secret():
+                        previous_webhook = previous_organization.get_webhook(webhook.url)
+                        if previous_webhook is not None:
+                            webhook.secret = previous_webhook.secret
+
+                for repo in organization.repositories:
+                    previous_repo = previous_organization.get_repository(repo.name)
+                    if previous_repo is not None:
+                        for repo_webhook in repo.webhooks:
+                            if repo_webhook.has_dummy_secret():
+                                previous_repo_webhook = previous_repo.get_webhook(repo_webhook.url)
+                                if previous_repo_webhook is not None:
+                                    repo_webhook.secret = previous_repo_webhook.secret
+
             output = organization.to_jsonnet(jsonnet_config)
 
             output_dir = jsonnet_config.org_dir
@@ -86,7 +114,7 @@ class ImportOperation(Operation):
             with open(org_file_name, "w") as file:
                 file.write(output)
 
-            self.printer.println(f"organization definition written to '{org_file_name}'")
+            self.printer.println(f"Organization definition written to '{org_file_name}'.")
 
             return 0
         finally:

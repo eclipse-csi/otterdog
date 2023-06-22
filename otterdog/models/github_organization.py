@@ -52,11 +52,25 @@ class GitHubOrganization:
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
 
+    def get_webhook(self, url: str) -> Optional[OrganizationWebhook]:
+        for webhook in self.webhooks:
+            if webhook.url == url:
+                return webhook
+
+        return None
+
     def set_webhooks(self, webhooks: list[OrganizationWebhook]) -> None:
         self.webhooks = webhooks
 
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
+
+    def get_repository(self, repo_name: str) -> Optional[Repository]:
+        for repo in self.repositories:
+            if repo.name == repo_name:
+                return repo
+
+        return None
 
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos

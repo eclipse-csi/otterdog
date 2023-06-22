@@ -147,7 +147,7 @@ class ApplyOperation(PlanOperation):
 
         if not self._force_processing:
             self.printer.println(f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n\n")
+                                 f"  Only 'yes' will be accepted to approve.\n")
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
