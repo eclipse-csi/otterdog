@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from jsonbender import bend, S, OptionalS, Forall, K  # type: ignore
 
@@ -18,7 +18,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid, snake_to_camel_case, IndentingPrinter, \
-    write_patch_object_as_json
+    write_patch_object_as_json, associate_by_key
 
 
 @dataclasses.dataclass
@@ -92,7 +92,7 @@ class BranchProtectionRule(ModelObject):
                     context.add_failure(FailureType.WARNING,
                                         f"{self.get_model_header(parent_object)} has"
                                         f" 'requires_approving_reviews' disabled but '{key}' "
-                                        f"is set to {value}, setting will be ignored.")
+                                        f"is set to '{value}', setting will be ignored.")
 
         # required_approving_review_count must be defined when requires_approving_reviews is enabled
         required_approving_review_count = self.required_approving_review_count
@@ -111,7 +111,7 @@ class BranchProtectionRule(ModelObject):
             context.add_failure(FailureType.WARNING,
                                 f"{self.get_model_header(parent_object)} has"
                                 f" 'restricts_review_dismissals' disabled but "
-                                f"'review_dismissal_allowances' is set to {self.review_dismissal_allowances}, "
+                                f"'review_dismissal_allowances' is set to '{self.review_dismissal_allowances}', "
                                 f"setting will be ignored.")
 
         # if 'allows_force_pushes' is enabled, issue a warning if bypass_force_push_allowances is non-empty.
@@ -122,7 +122,7 @@ class BranchProtectionRule(ModelObject):
             context.add_failure(FailureType.WARNING,
                                 f"{self.get_model_header(parent_object)} has"
                                 f" 'allows_force_pushes' enabled but "
-                                f"'bypass_force_push_allowances' is set to {self.bypass_force_push_allowances}, "
+                                f"'bypass_force_push_allowances' is set to '{self.bypass_force_push_allowances}', "
                                 f"setting will be ignored.")
 
         # if 'requires_status_checks' is disabled, issue a warning if required_status_checks is non-empty.
@@ -133,7 +133,7 @@ class BranchProtectionRule(ModelObject):
             context.add_failure(FailureType.WARNING,
                                 f"{self.get_model_header(parent_object)} has"
                                 f" 'requires_status_checks' disabled but "
-                                f"'required_status_checks' is set to {self.required_status_checks}, "
+                                f"'required_status_checks' is set to '{self.required_status_checks}', "
                                 f"setting will be ignored.")
 
         # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
@@ -141,10 +141,21 @@ class BranchProtectionRule(ModelObject):
                 is_set_and_valid(self.required_deployment_environments) and \
                 len(self.required_deployment_environments) > 0:
             context.add_failure(FailureType.WARNING,
-                                f"{self.get_model_header(parent_object)} has"
-                                f" 'requires_deployments' disabled but "
-                                f"'required_deployment_environments' is set to {self.required_deployment_environments}"
-                                f", setting will be ignored.")
+                                f"{self.get_model_header(parent_object)} has "
+                                f"'requires_deployments' disabled but "
+                                f"'required_deployment_environments' is set to "
+                                f"'{self.required_deployment_environments}', setting will be ignored.")
+
+        if self.requires_deployments is True and len(self.required_deployment_environments) > 0:
+            from .repository import Repository
+            environments = cast(Repository, parent_object).environments
+
+            environments_by_name = associate_by_key(environments, lambda x: x.name)
+            for env_name in self.required_deployment_environments:
+                if env_name not in environments_by_name:
+                    context.add_failure(FailureType.ERROR,
+                                        f"{self.get_model_header(parent_object)} requires deployment environment "
+                                        f"'{env_name}' which is not defined in the repository itself.")
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # disable diff computation for dependent fields of requires_approving_reviews,

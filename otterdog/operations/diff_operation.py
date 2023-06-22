@@ -107,7 +107,7 @@ class DiffOperation(Operation):
         # there are no validation errors.
         validation_warnings, validation_errors = self._validator.validate(expected_org)
         if validation_errors > 0:
-            self.printer.println("Planning aborted due to validation failures.")
+            self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
 
         try:
