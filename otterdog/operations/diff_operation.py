@@ -356,9 +356,15 @@ class DiffOperation(Operation):
                 def has_unresolved_secret(secret: Optional[str]):
                     return secret is not None and self.resolve_secrets() is False
 
+                # if there are different unresolved secrets, display changes
+                has_different_unresolved_secrets = \
+                    has_unresolved_secret(expected_secret) and \
+                    has_unresolved_secret(current_secret) and \
+                    expected_secret != current_secret
+
                 if ((expected_secret is not None and current_secret is None) or
                         (expected_secret is None and current_secret is not None) or
-                        (has_unresolved_secret(expected_secret) or has_unresolved_secret(current_secret))):
+                        has_different_unresolved_secrets):
                     modified_webhook["secret"] = Change(current_secret, expected_secret)
 
             if len(modified_webhook) > 0:
