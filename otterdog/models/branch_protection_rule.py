@@ -130,7 +130,7 @@ class BranchProtectionRule(ModelObject):
         if self.requires_status_checks is False and \
                 is_set_and_valid(required_status_checks) and \
                 len(required_status_checks) > 0:
-            context.add_failure(FailureType.WARNING,
+            context.add_failure(FailureType.INFO,
                                 f"{self.get_model_header(parent_object)} has"
                                 f" 'requires_status_checks' disabled but "
                                 f"'required_status_checks' is set to '{self.required_status_checks}', "
