@@ -29,7 +29,7 @@ class OrganizationWebhook(Webhook):
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
-            context.add_failure(FailureType.WARNING,
+            context.add_failure(FailureType.INFO,
                                 f"{self.get_model_header()} will be skipped during processing:\n"
                                 f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
                                 f"the configuration.")

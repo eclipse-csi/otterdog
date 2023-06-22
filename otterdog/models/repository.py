@@ -166,6 +166,12 @@ class Repository(ModelObject):
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
+        if self.archived is True:
+            if len(self.branch_protection_rules) > 0:
+                context.add_failure(FailureType.INFO,
+                                    f"{self.get_model_header()} is archived but has branch_protection_rules, "
+                                    f"rules will be ignored.")
+
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 

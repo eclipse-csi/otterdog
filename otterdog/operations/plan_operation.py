@@ -86,7 +86,6 @@ class PlanOperation(DiffOperation):
         return settings_to_change
 
     def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
-        self.printer.println()
         self.printer.println(f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
                              f"{diff_status.differences} to change, "
                              f"{diff_status.deletions} to delete.")

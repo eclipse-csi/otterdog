@@ -20,7 +20,7 @@ from otterdog.models.repository import Repository
 from otterdog.models.webhook import Webhook
 from otterdog.providers.github import Github
 from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
-    Change, is_unset, is_set_and_valid
+    Change, is_unset, is_set_and_valid, is_info_enabled
 
 from . import Operation
 from .validate_operation import ValidateOperation
@@ -105,10 +105,14 @@ class DiffOperation(Operation):
 
         # We validate the configuration first and only calculate a plan if
         # there are no validation errors.
-        validation_warnings, validation_errors = self._validator.validate(expected_org)
+        validation_infos, validation_warnings, validation_errors = self._validator.validate(expected_org)
         if validation_errors > 0:
             self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
+
+        if validation_infos > 0 and not is_info_enabled():
+            self.printer.println(f"there have been {validation_infos} validation infos, "
+                                 f"enable verbose output with '-v' to to display them.")
 
         try:
             current_org = self.load_current_org(github_id, jsonnet_config)
@@ -254,11 +258,8 @@ class DiffOperation(Operation):
         expected_branch_protection_rules_by_pattern = \
             associate_by_key(expected_repo.branch_protection_rules, lambda x: x.pattern)
 
-        is_archived = expected_repo.archived
-        if is_archived is True:
-            if len(expected_branch_protection_rules_by_pattern) > 0:
-                if self.verbose_output():
-                    print_warn("branch_protection_rules specified for archived project, will be ignored.")
+        # ignore branch protection rules for archived projects.
+        if expected_repo.archived is True:
             return
 
         # only retrieve current rules if the current_repo is available, otherwise it's a new repo

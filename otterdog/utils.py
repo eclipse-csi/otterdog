@@ -22,8 +22,9 @@ T = TypeVar("T")
 
 # verbose levels
 # 0: off
-# 1: debug
-# 2: trace
+# 1: info
+# 2: debug
+# 3: trace
 _verbose_level = 0
 
 
@@ -33,17 +34,30 @@ def init(verbose: int) -> None:
     colorama_init()
 
 
-def is_debug_enabled() -> bool:
+def is_info_enabled() -> bool:
     return _verbose_level >= 1
 
 
+def is_debug_enabled() -> bool:
+    return _verbose_level >= 2
+
+
+def is_trace_enabled() -> bool:
+    return _verbose_level >= 3
+
+
+def print_info(msg: str) -> None:
+    if is_info_enabled():
+        _print_message(msg, Fore.GREEN, "Info")
+
+
 def print_debug(msg: str) -> None:
-    if _verbose_level >= 1:
+    if is_debug_enabled():
         print(f"{Fore.CYAN}[DEBUG]{Style.RESET_ALL} " + msg)
 
 
 def print_trace(msg: str) -> None:
-    if _verbose_level >= 2:
+    if is_trace_enabled():
         print(f"{Fore.MAGENTA}[TRACE]{Style.RESET_ALL} " + msg)
 
 

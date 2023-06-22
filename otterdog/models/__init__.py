@@ -21,8 +21,9 @@ from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_or
 
 
 class FailureType(Enum):
-    WARNING = 1
-    ERROR = 2
+    INFO = 1
+    WARNING = 2
+    ERROR = 3
 
 
 @dataclasses.dataclass

@@ -24,7 +24,8 @@ from jsonbender import bend, S, F, Forall  # type: ignore
 from otterdog import resources
 from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
-from otterdog.utils import is_unset, IndentingPrinter, associate_by_key, print_debug, jsonnet_evaluate_file
+from otterdog.utils import is_unset, IndentingPrinter, associate_by_key, print_debug, jsonnet_evaluate_file, \
+    is_info_enabled
 
 from . import ValidationContext, ModelObject
 from .branch_protection_rule import BranchProtectionRule
@@ -205,7 +206,7 @@ class GitHubOrganization:
                            printer: Optional[IndentingPrinter] = None) -> GitHubOrganization:
 
         start = datetime.now()
-        if printer is not None:
+        if printer is not None and is_info_enabled():
             printer.println("\norganization settings: Reading...")
 
         # FIXME: this uses the keys from the model schema which might be different to the provider schema
@@ -214,7 +215,7 @@ class GitHubOrganization:
         included_keys = set(default_settings.keys())
         github_settings = client.get_org_settings(github_id, included_keys, no_web_ui)
 
-        if printer is not None:
+        if printer is not None and is_info_enabled():
             end = datetime.now()
             printer.println(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
@@ -222,12 +223,12 @@ class GitHubOrganization:
         org = cls(github_id, settings)
 
         start = datetime.now()
-        if printer is not None:
+        if printer is not None and is_info_enabled():
             printer.println("\nwebhooks: Reading...")
 
         github_webhooks = client.get_org_webhooks(github_id)
 
-        if printer is not None:
+        if printer is not None and is_info_enabled():
             end = datetime.now()
             printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
@@ -267,7 +268,7 @@ def _load_repos_from_provider(github_id: str,
                               client: Github,
                               printer: Optional[IndentingPrinter] = None) -> list[Repository]:
     start = datetime.now()
-    if printer is not None:
+    if printer is not None and is_info_enabled():
         printer.println("\nrepositories: Reading...")
 
     repo_names = client.get_repos(github_id)
@@ -283,7 +284,7 @@ def _load_repos_from_provider(github_id: str,
         for (_, repo_data) in data:
             github_repos.append(repo_data)
 
-    if printer is not None:
+    if printer is not None and is_info_enabled():
         end = datetime.now()
         printer.println(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
