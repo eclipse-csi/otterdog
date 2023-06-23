@@ -106,7 +106,7 @@ class WebClient:
         utils.print_debug("updating settings via web interface")
 
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            browser = playwright.firefox.launch()
 
             page = browser.new_page()
             page.set_default_timeout(self._DEFAULT_TIMEOUT)
