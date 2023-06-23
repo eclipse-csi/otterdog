@@ -35,7 +35,7 @@ class Secret(ModelObject, abc.ABC):
                                 f"only a dummy value '{self.value}' is provided in the configuration.")
 
     def has_dummy_secret(self) -> bool:
-        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
+        if is_set_and_valid(self.value) and all(ch == '*' for ch in self.value):  # type: ignore
             return True
         else:
             return False
