@@ -15,6 +15,7 @@ from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.environment import Environment
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.repository import Repository
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.utils import IndentingPrinter, Change
@@ -25,8 +26,13 @@ from ..models import ModelObject
 
 
 class ApplyOperation(PlanOperation):
-    def __init__(self, force_processing: bool, no_web_ui: bool, update_webhooks: bool, delete_resources: bool):
-        super().__init__(no_web_ui, update_webhooks)
+    def __init__(self,
+                 force_processing: bool,
+                 no_web_ui: bool,
+                 update_webhooks: bool,
+                 update_secrets: bool,
+                 delete_resources: bool):
+        super().__init__(no_web_ui, update_webhooks, update_secrets)
 
         self._force_processing = force_processing
         self._delete_resources = delete_resources
@@ -35,6 +41,9 @@ class ApplyOperation(PlanOperation):
         self._modified_org_webhooks: dict[int, OrganizationWebhook] = {}
         self._added_org_webhooks: list[OrganizationWebhook] = []
         self._deleted_org_webhooks: list[OrganizationWebhook] = []
+        self._modified_org_secrets: dict[str, OrganizationSecret] = {}
+        self._added_org_secrets: list[OrganizationSecret] = []
+        self._deleted_org_secrets: list[OrganizationSecret] = []
         self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
         self._added_repos: list[Repository] = []
         self._deleted_repos: list[Repository] = []
@@ -63,6 +72,8 @@ class ApplyOperation(PlanOperation):
 
         if isinstance(model_object, OrganizationWebhook):
             self._added_org_webhooks.append(model_object)
+        elif isinstance(model_object, OrganizationSecret):
+            self._added_org_secrets.append(model_object)
         elif isinstance(model_object, Repository):
             self._added_repos.append(model_object)
         elif isinstance(model_object, RepositoryWebhook):
@@ -84,6 +95,8 @@ class ApplyOperation(PlanOperation):
 
         if isinstance(model_object, OrganizationWebhook):
             self._deleted_org_webhooks.append(model_object)
+        elif isinstance(model_object, OrganizationSecret):
+            self._deleted_org_secrets.append(model_object)
         elif isinstance(model_object, Repository):
             self._deleted_repos.append(model_object)
         elif isinstance(model_object, RepositoryWebhook):
@@ -117,6 +130,8 @@ class ApplyOperation(PlanOperation):
             self._org_settings_to_update = modified_object
         elif isinstance(current_object, OrganizationWebhook):
             self._modified_org_webhooks[current_object.id] = cast(OrganizationWebhook, expected_object)
+        elif isinstance(current_object, OrganizationSecret):
+            self._modified_org_secrets[current_object.name] = cast(OrganizationSecret, expected_object)
         elif isinstance(current_object, Repository):
             self._modified_repos[current_object.name] = modified_object
         elif isinstance(current_object, RepositoryWebhook):
@@ -156,52 +171,67 @@ class ApplyOperation(PlanOperation):
                 return
 
         if self._org_settings_to_update is not None:
-            github_settings = OrganizationSettings.changes_to_provider(self._org_settings_to_update)
+            github_settings = \
+                OrganizationSettings.changes_to_provider(org_id, self._org_settings_to_update, self.gh_client)
             self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, org_webhook in self._modified_org_webhooks.items():
-            self.gh_client.update_org_webhook(org_id, webhook_id, org_webhook.to_provider_data())
+            self.gh_client.update_org_webhook(org_id, webhook_id,
+                                              org_webhook.to_provider_data(org_id, self.gh_client))
 
         for org_webhook in self._added_org_webhooks:
-            self.gh_client.add_org_webhook(org_id, org_webhook.to_provider_data())
+            self.gh_client.add_org_webhook(org_id, org_webhook.to_provider_data(org_id, self.gh_client))
+
+        for secret_name, org_secret in self._modified_org_secrets.items():
+            self.gh_client.update_org_secret(org_id, secret_name,
+                                             org_secret.to_provider_data(org_id, self.gh_client))
+
+        for org_secret in self._added_org_secrets:
+            self.gh_client.add_org_secret(org_id, org_secret.to_provider_data(org_id, self.gh_client))
 
         for repo_name, repo_data in self._modified_repos.items():
-            github_repo = Repository.changes_to_provider(repo_data)
+            github_repo = Repository.changes_to_provider(org_id, repo_data, self.gh_client)
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._added_repos:
             self.gh_client.add_repo(org_id,
-                                    repo.to_provider_data(),
+                                    repo.to_provider_data(org_id, self.gh_client),
                                     repo.template_repository,
                                     repo.post_process_template_content,
                                     repo.auto_init)
 
         for repo_name, webhook_id, repo_webhook in self._modified_repo_webhooks:
-            self.gh_client.update_repo_webhook(org_id, repo_name, webhook_id, repo_webhook.to_provider_data())
+            self.gh_client.update_repo_webhook(org_id, repo_name, webhook_id,
+                                               repo_webhook.to_provider_data(org_id, self.gh_client))
 
         for repo_name, repo_webhook in self._added_repo_webhooks:
-            self.gh_client.add_repo_webhook(org_id, repo_name, repo_webhook.to_provider_data())
+            self.gh_client.add_repo_webhook(org_id, repo_name,
+                                            repo_webhook.to_provider_data(org_id, self.gh_client))
 
         for repo_name, env_name, modified_env in self._modified_environments:
-            github_env = Environment.changes_to_provider(modified_env, self.gh_client)
+            github_env = Environment.changes_to_provider(org_id, modified_env, self.gh_client)
             self.gh_client.update_repo_environment(org_id, repo_name, env_name, github_env)
 
         for repo_name, env in self._added_environments:
-            self.gh_client.add_repo_environment(org_id, repo_name, env.name, env.to_provider_data(self.gh_client))
+            self.gh_client.add_repo_environment(org_id, repo_name, env.name,
+                                                env.to_provider_data(org_id, self.gh_client))
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
-            github_rule = BranchProtectionRule.changes_to_provider(modified_rule, self.gh_client)
+            github_rule = BranchProtectionRule.changes_to_provider(org_id, modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for repo_name, repo_node_id, rule in self._added_rules:
             self.gh_client.add_branch_protection_rule(org_id,
                                                       repo_name,
                                                       repo_node_id,
-                                                      rule.to_provider_data(self.gh_client))
+                                                      rule.to_provider_data(org_id, self.gh_client))
 
         if self._delete_resources:
             for org_webhook in self._deleted_org_webhooks:
                 self.gh_client.delete_org_webhook(org_id, org_webhook.id, org_webhook.url)
+
+            for org_secret in self._deleted_org_secrets:
+                self.gh_client.delete_org_secret(org_id, org_secret.name)
 
             for repo in self._deleted_repos:
                 self.gh_client.delete_repo(org_id, repo.name)

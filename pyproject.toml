@@ -20,6 +20,7 @@ requests-cache = "^1.0"
 gojsonnet = "^0.20"
 click = "^8.1"
 chevron = "^0.14"
+PyNaCl = "^1.5"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^6.0"

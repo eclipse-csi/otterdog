@@ -17,6 +17,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
+from otterdog.models.secret import Secret
 from otterdog.models.webhook import Webhook
 from otterdog.providers.github import Github
 from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
@@ -26,6 +27,7 @@ from . import Operation
 from .validate_operation import ValidateOperation
 
 WT = TypeVar("WT", bound=Webhook)
+ST = TypeVar("ST", bound=Secret)
 
 
 class DiffStatus:
@@ -42,11 +44,12 @@ class DiffStatus:
 
 
 class DiffOperation(Operation):
-    def __init__(self, no_web_ui: bool, update_webhooks: bool):
+    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool):
         super().__init__()
 
         self.no_web_ui = no_web_ui
         self.update_webhooks = update_webhooks
+        self.update_secrets = update_secrets
         self._gh_client: Optional[Github] = None
         self._validator = ValidateOperation()
 
@@ -137,6 +140,7 @@ class DiffOperation(Operation):
                                "that the correct configuration is applied.")
 
         self._process_org_webhooks(github_id, expected_org, current_org, diff_status)
+        self._process_org_secrets(github_id, expected_org, current_org, diff_status)
         self._process_repositories(github_id, expected_org, current_org, modified_org_settings, diff_status)
 
         self.handle_finish(github_id, diff_status)
@@ -190,6 +194,14 @@ class DiffOperation(Operation):
                                None,
                                diff_status)
 
+    def _process_org_secrets(self,
+                             github_id: str,
+                             expected_org: GitHubOrganization,
+                             current_org: GitHubOrganization,
+                             diff_status: DiffStatus) -> None:
+        expected_secrets_by_name = associate_by_key(expected_org.secrets, lambda x: x.name)
+        self._process_secrets(github_id, expected_secrets_by_name, current_org.secrets, None, diff_status)
+
     def _process_repositories(self,
                               github_id: str,
                               expected_org: GitHubOrganization,
@@ -227,6 +239,7 @@ class DiffOperation(Operation):
                                                 expected_repo)
 
             self._process_repo_webhooks(github_id, current_repo, expected_repo, diff_status)
+            self._process_repo_secrets(github_id, current_repo, expected_repo, diff_status)
             self._process_environments(github_id, current_repo, expected_repo, diff_status)
             self._process_branch_protection_rules(github_id, current_repo, expected_repo, diff_status)
 
@@ -242,6 +255,9 @@ class DiffOperation(Operation):
 
             if len(repo.webhooks) > 0:
                 self._process_repo_webhooks(github_id, None, repo, diff_status)
+
+            if len(repo.secrets) > 0:
+                self._process_repo_secrets(github_id, None, repo, diff_status)
 
             if len(repo.environments) > 0:
                 self._process_environments(github_id, None, repo, diff_status)
@@ -304,6 +320,20 @@ class DiffOperation(Operation):
                                current_repo_webhooks,
                                repo,
                                diff_status)
+
+    def _process_repo_secrets(self,
+                              org_id: str,
+                              current_repo: Repository | None,
+                              expected_repo: Repository,
+                              diff_status: DiffStatus) -> None:
+        expected_secrets_by_name = associate_by_key(expected_repo.secrets, lambda x: x.name)
+        current_repo_secrets = current_repo.secrets if current_repo is not None else []
+        repo = expected_repo if current_repo is None else current_repo
+        self._process_secrets(org_id,
+                              expected_secrets_by_name,
+                              current_repo_secrets,
+                              repo,
+                              diff_status)
 
     def _process_webhooks(self,
                           org_id: str,
@@ -379,6 +409,71 @@ class DiffOperation(Operation):
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
             self.handle_add_object(org_id, webhook, parent_object)
+            diff_status.additions += 1
+
+    def _process_secrets(self,
+                         org_id: str,
+                         expected_secrets_by_name: dict[str, ST],
+                         current_secrets: list[ST],
+                         parent_object: Optional[ModelObject],
+                         diff_status: DiffStatus) -> None:
+
+        for current_secret in current_secrets:
+            secret_name = current_secret.name
+
+            expected_secret = expected_secrets_by_name.get(secret_name)
+            if expected_secret is None:
+                self.handle_delete_object(org_id, current_secret, parent_object)
+                diff_status.deletions += 1
+                continue
+
+            # pop the already handled secret
+            expected_secrets_by_name.pop(expected_secret.name)
+
+            # any secret that contains a dummy value will be skipped.
+            if expected_secret.has_dummy_secret():
+                continue
+
+            # if secrets shall be updated and the secret contains a valid secret perform a forced update.
+            if self.update_secrets:
+                model_dict = expected_secret.to_model_dict()
+                modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
+
+                diff_status.differences += \
+                    self.handle_modified_object(org_id,
+                                                modified_secret,
+                                                True,
+                                                current_secret,
+                                                expected_secret,
+                                                parent_object)
+                continue
+
+            modified_secret = expected_secret.get_difference_from(current_secret)
+
+            if not is_unset(expected_secret.value):
+                expected_secret_value = expected_secret.value
+                current_secret_value = current_secret.value
+
+                def has_unresolved_secret(secret_value: Optional[str]):
+                    return secret_value is not None and self.resolve_secrets() is False
+
+                # if there are different unresolved secrets, display changes
+                if has_unresolved_secret(expected_secret_value) and \
+                        has_unresolved_secret(current_secret_value) and \
+                        expected_secret_value != current_secret_value:
+                    modified_secret["value"] = Change(current_secret_value, expected_secret_value)
+
+            if len(modified_secret) > 0:
+                diff_status.differences += \
+                    self.handle_modified_object(org_id,
+                                                modified_secret,
+                                                False,
+                                                current_secret,
+                                                expected_secret,
+                                                parent_object)
+
+        for secret_name, secret in expected_secrets_by_name.items():
+            self.handle_add_object(org_id, secret, parent_object)
             diff_status.additions += 1
 
     def _process_environments(self,

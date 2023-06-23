@@ -90,7 +90,7 @@ class RepositoryTest(ModelTest):
 
         repo.description = UNSET
 
-        provider_data = repo.to_provider_data()
+        provider_data = repo.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 22
         assert provider_data["name"] == "otterdog-defaults"
@@ -108,7 +108,7 @@ class RepositoryTest(ModelTest):
         other.secret_scanning = "disabled"
 
         changes = current.get_difference_from(other)
-        provider_data = Repository.changes_to_provider(changes)
+        provider_data = Repository.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"

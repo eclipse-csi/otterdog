@@ -8,8 +8,6 @@
 
 import jq  # type: ignore
 
-from unittest.mock import MagicMock
-
 from otterdog.models.environment import Environment
 from otterdog.utils import UNSET
 
@@ -24,21 +22,6 @@ class EnvironmentTest(ModelTest):
     @property
     def provider_data(self):
         return self.load_json_resource("github-environment.json")
-
-    @property
-    def provider(self):
-        def get_actor_ids_with_type(actors):
-            result = []
-            for actor in actors:
-                if "/" in actor:
-                    result.append(("Team", (f"id_{actor[1:]}", f"id_{actor[1:]}")))
-                else:
-                    result.append(("User", (f"id_{actor[1:]}", f"id_{actor[1:]}")))
-            return result
-
-        provider = MagicMock()
-        provider.get_actor_ids_with_type = MagicMock(side_effect=get_actor_ids_with_type)
-        return provider
 
     def test_load_from_model(self):
         pass
@@ -66,7 +49,7 @@ class EnvironmentTest(ModelTest):
     def test_to_provider(self):
         env = Environment.from_model_data(self.model_data)
 
-        provider_data = env.to_provider_data(self.provider)
+        provider_data = env.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 5
         assert provider_data["wait_timer"] == 15

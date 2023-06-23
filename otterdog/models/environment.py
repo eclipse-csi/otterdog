@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any
 
 from jsonbender import bend, S, OptionalS, K, F, Filter, Forall, If  # type: ignore
 
@@ -123,9 +123,7 @@ class Environment(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
-        assert provider is not None
-
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 

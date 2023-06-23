@@ -188,8 +188,28 @@ class Github:
     def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
         return self.rest_client.get_org_secrets(org_id)
 
+    def update_org_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        if len(secret) > 0:
+            self.rest_client.update_org_secret(org_id, secret_name, secret)
+
+    def add_org_secret(self, org_id: str, data: dict[str, str]) -> None:
+        self.rest_client.add_org_secret(org_id, data)
+
+    def delete_org_secret(self, org_id: str, secret_name: str) -> None:
+        self.rest_client.delete_org_secret(org_id, secret_name)
+
     def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_client.get_repo_secrets(org_id, repo_name)
+
+    def get_org_public_key(self, org_id: str) -> tuple[str, str]:
+        return self.rest_client.get_org_public_key(org_id)
+
+    def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[str]:
+        repo_ids = []
+        for repo_name in repo_names:
+            repo_data = self.get_repo_data(org_id, repo_name)
+            repo_ids.append(repo_data["id"])
+        return repo_ids
 
     def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
         return list(map(lambda x: x[1][1], self.get_actor_ids_with_type(actor_names)))

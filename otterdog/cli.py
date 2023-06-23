@@ -144,27 +144,35 @@ def import_command(organizations: list[str], force, no_web_ui):
 @cli.command(cls=StdCommand)
 @click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
               help="skip settings retrieved via web ui")
-@click.option("-u", "--update-webhooks", is_flag=True, show_default=True, default=False,
+@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
               help="updates webhook with secrets regardless of changes")
-def plan(organizations: list[str], no_web_ui, update_webhooks):
+@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
+              help="updates webhook with secrets regardless of changes")
+def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
     """
-    _execute_operation(organizations, PlanOperation(no_web_ui=no_web_ui, update_webhooks=update_webhooks))
+    _execute_operation(organizations, PlanOperation(no_web_ui=no_web_ui,
+                                                    update_webhooks=update_webhooks,
+                                                    update_secrets=update_secrets))
 
 
 @cli.command(cls=StdCommand)
 @click.option("-s", "--suffix", show_default=True, default="-HEAD",
               help="suffix to append to the configuration for comparison")
-@click.option("-u", "--update-webhooks", is_flag=True, show_default=True, default=False,
+@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
               help="updates webhook with secrets regardless of changes")
-def local_plan(organizations: list[str], suffix, update_webhooks):
+@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
+              help="updates webhook with secrets regardless of changes")
+def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
     """
-    _execute_operation(organizations, LocalPlanOperation(suffix=suffix, update_webhooks=update_webhooks))
+    _execute_operation(organizations, LocalPlanOperation(suffix=suffix,
+                                                         update_webhooks=update_webhooks,
+                                                         update_secrets=update_secrets))
 
 
 @cli.command(cls=StdCommand)
@@ -172,17 +180,20 @@ def local_plan(organizations: list[str], suffix, update_webhooks):
               help="skips interactive approvals")
 @click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
               help="skip settings retrieved via web ui")
-@click.option("-u", "--update-webhooks", is_flag=True, show_default=True, default=False,
+@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
+              help="updates webhook with secrets regardless of changes")
+@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
               help="updates webhook with secrets regardless of changes")
 @click.option("-d", "--delete-resources", is_flag=True, show_default=True, default=False,
               help="enables deletion of resources if they are missing in the definition")
-def apply(organizations: list[str], force, no_web_ui, update_webhooks, delete_resources):
+def apply(organizations: list[str], force, no_web_ui, update_webhooks, update_secrets, delete_resources):
     """
     Apply changes based on the current configuration to the live configuration at GitHub.
     """
     _execute_operation(organizations, ApplyOperation(force_processing=force,
                                                      no_web_ui=no_web_ui,
                                                      update_webhooks=update_webhooks,
+                                                     update_secrets=update_secrets,
                                                      delete_resources=delete_resources))
 
 

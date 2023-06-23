@@ -16,7 +16,8 @@ from jsonbender import bend, S, OptionalS, K, Forall, If  # type: ignore
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.models.secret import Secret
-from otterdog.utils import IndentingPrinter, write_patch_object_as_json, is_set_and_valid, UNSET
+from otterdog.providers.github import Github
+from otterdog.utils import IndentingPrinter, write_patch_object_as_json, is_unset, is_set_and_valid, UNSET
 
 
 @dataclasses.dataclass
@@ -73,6 +74,29 @@ class OrganizationSecret(Secret):
             }
         )
         return cls(**bend(mapping, data))
+
+    @classmethod
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
+        assert provider is not None
+
+        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
+                   not is_unset(data.get(field.name, UNSET))}
+
+        if "value" in mapping:
+            mapping.pop("value")
+
+            key_id, public_key = provider.get_org_public_key(org_id)
+            mapping["encrypted_value"] = K(Secret.encrypt_value(public_key, data["value"]))
+            mapping["key_id"] = K(key_id)
+
+        if "visibility" in mapping:
+            mapping["visibility"] = If(S("visibility") == K("public"), K("all"), S("visibility"))
+
+        if "selected_repositories" in mapping:
+            mapping.pop("selected_repositories")
+            mapping["selected_repository_ids"] = K(provider.get_repo_ids(org_id, data["selected_repositories"]))
+
+        return bend(mapping, data)
 
     def to_jsonnet(self,
                    printer: IndentingPrinter,

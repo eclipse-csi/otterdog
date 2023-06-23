@@ -220,9 +220,7 @@ class BranchProtectionRule(ModelObject):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
-        assert provider is not None
-
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
         mapping = {snake_to_camel_case(field.name): S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 

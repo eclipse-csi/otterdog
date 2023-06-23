@@ -98,7 +98,7 @@ class OrganizationSettingsTest(ModelTest):
 
         settings.description = UNSET
 
-        provider_data = settings.to_provider_data()
+        provider_data = settings.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 29
         assert provider_data["billing_email"] == settings.billing_email
@@ -111,7 +111,7 @@ class OrganizationSettingsTest(ModelTest):
         other.default_repository_permission = "none"
 
         changes = current.get_difference_from(other)
-        provider_data = OrganizationSettings.changes_to_provider(changes)
+        provider_data = OrganizationSettings.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["billing_email"] == current.billing_email

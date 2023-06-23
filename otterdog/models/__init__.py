@@ -189,16 +189,16 @@ class ModelObject(ABC):
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
         pass
 
-    def to_provider_data(self, provider: Optional[Github] = None) -> dict[str, Any]:
-        return self._to_provider_data(self.to_model_dict(), provider)
+    def to_provider_data(self, org_id: str, provider: Github) -> dict[str, Any]:
+        return self._to_provider_data(org_id, self.to_model_dict(), provider)
 
     @classmethod
-    def changes_to_provider(cls, data: dict[str, Change[Any]], provider: Optional[Github] = None) -> dict[str, Any]:
-        return cls._to_provider_data({key: change.to_value for key, change in data.items()}, provider)
+    def changes_to_provider(cls, org_id: str, data: dict[str, Change[Any]], provider: Github) -> dict[str, Any]:
+        return cls._to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
 
     @classmethod
     @abstractmethod
-    def _to_provider_data(cls, data: dict[str, Any], provider: Optional[Github] = None) -> dict[str, Any]:
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

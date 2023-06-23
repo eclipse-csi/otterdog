@@ -6,8 +6,6 @@
 #  SPDX-License-Identifier: MIT
 #  *******************************************************************************
 
-from unittest.mock import MagicMock
-
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.utils import UNSET, Change
 
@@ -22,19 +20,6 @@ class BranchProtectionRuleTest(ModelTest):
     @property
     def provider_data(self):
         return self.load_json_resource("github-bpr.json")
-
-    @property
-    def provider(self):
-        def get_actor_node_ids(actors):
-            return [f"id_{actor}" for actor in actors]
-
-        def get_app_node_ids(app_names):
-            return {app: f"id_{app}" for app in app_names}
-
-        provider = MagicMock()
-        provider.get_actor_node_ids = MagicMock(side_effect=get_actor_node_ids)
-        provider.get_app_node_ids = MagicMock(side_effect=get_app_node_ids)
-        return provider
 
     def test_load_from_model(self):
         bpr = BranchProtectionRule.from_model_data(self.model_data)
@@ -93,11 +78,11 @@ class BranchProtectionRuleTest(ModelTest):
     def test_to_provider(self):
         bpr = BranchProtectionRule.from_model_data(self.model_data)
 
-        provider_data = bpr.to_provider_data(self.provider)
+        provider_data = bpr.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 23
         assert provider_data["pattern"] == "main"
-        assert provider_data["pushActorIds"] == ["id_@netomi"]
+        assert provider_data["pushActorIds"] == ["id_netomi"]
         assert provider_data["requiredStatusChecks"] == [
             {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
 
@@ -109,7 +94,7 @@ class BranchProtectionRuleTest(ModelTest):
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         changes = current.get_difference_from(other)
-        provider_data = BranchProtectionRule.changes_to_provider(changes, self.provider)
+        provider_data = BranchProtectionRule.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["requiresApprovingReviews"] is True

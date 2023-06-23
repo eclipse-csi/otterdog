@@ -19,8 +19,8 @@ from .diff_operation import DiffOperation, DiffStatus
 
 
 class PlanOperation(DiffOperation):
-    def __init__(self, no_web_ui: bool, update_webhooks: bool):
-        super().__init__(no_web_ui, update_webhooks)
+    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool):
+        super().__init__(no_web_ui, update_webhooks, update_secrets)
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
