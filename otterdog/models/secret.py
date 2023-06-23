@@ -12,33 +12,27 @@ import abc
 import dataclasses
 from typing import Any, Optional, cast, Callable
 
-from jsonbender import bend, S, OptionalS  # type: ignore
+from jsonbender import bend, S, OptionalS, K  # type: ignore
 
-from otterdog.models import ModelObject
+from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
 from otterdog.utils import UNSET, is_unset, is_set_and_valid
 
 
 @dataclasses.dataclass
-class Webhook(ModelObject, abc.ABC):
+class Secret(ModelObject, abc.ABC):
     """
-    Represents a Webhook.
+    Represents a Secret.
     """
 
-    id: int = dataclasses.field(metadata={"external_only": True})
-    events: list[str]
-    active: bool
-    url: str = dataclasses.field(metadata={"key": True})
-    content_type: str
-    insecure_ssl: str
-    secret: Optional[str]
+    name: str
+    value: str
 
-    # model only fields
-    aliases: list[str] = \
-        dataclasses.field(metadata={"model_only": True}, default_factory=list)
-
-    def get_all_urls(self) -> list[str]:
-        return [self.url] + self.aliases
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        if self.has_dummy_secret():
+            context.add_failure(FailureType.INFO,
+                                f"{self.get_model_header()} will be skipped during processing:\n"
+                                f"only a dummy value '{self.value}' is provided in the configuration.")
 
     def has_dummy_secret(self) -> bool:
         if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
@@ -48,7 +42,7 @@ class Webhook(ModelObject, abc.ABC):
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:
-            case "secret": return False
+            case "value": return False
             case _: return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
@@ -62,14 +56,8 @@ class Webhook(ModelObject, abc.ABC):
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        mapping.update(
-            {
-                "url": OptionalS("config", "url", default=UNSET),
-                "content_type": OptionalS("config", "content_type", default=UNSET),
-                "insecure_ssl": OptionalS("config", "insecure_ssl", default=UNSET),
-                "secret": OptionalS("config", "secret", default=None)
-            }
-        )
+        # the provider will never send the value itself, use a dummy secret.
+        mapping["value"] = K("********")
         return cls(**bend(mapping, data))
 
     @classmethod
@@ -77,22 +65,14 @@ class Webhook(ModelObject, abc.ABC):
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
 
-        config_mapping = {}
-        for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:
-            if config_prop in mapping:
-                mapping.pop(config_prop)
-                config_mapping[config_prop] = S(config_prop)
-
-        if len(config_mapping) > 0:
-            mapping["config"] = config_mapping
-
+        # TODO: implement
         return bend(mapping, data)
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
-        webhook_secret = self.secret
-        if not is_unset(webhook_secret) and webhook_secret is not None:
-            self.secret = secret_resolver(webhook_secret)
+        secret_value = self.value
+        if not is_unset(secret_value) and secret_value is not None:
+            self.value = secret_resolver(secret_value)
 
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
-            self.secret = cast(Webhook, other_object).secret
+            self.value = cast(Secret, other_object).value

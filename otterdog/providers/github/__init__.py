@@ -185,6 +185,12 @@ class Github:
     def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         self.rest_client.delete_repo_environment(org_id, repo_name, env_name)
 
+    def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        return self.rest_client.get_org_secrets(org_id)
+
+    def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return self.rest_client.get_repo_secrets(org_id, repo_name)
+
     def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
         return list(map(lambda x: x[1][1], self.get_actor_ids_with_type(actor_names)))
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Iterator
+from typing import Any, Optional, Iterator, Callable
 
 from colorama import Style
 
@@ -246,6 +246,9 @@ class ModelObject(ABC):
             result[key] = self.__getattribute__(key)
 
         return result
+
+    def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
+        pass
 
     def copy_secrets(self, other_object: ModelObject) -> None:
         pass

@@ -622,6 +622,43 @@ class RestClient:
         else:
             utils.print_debug(f"deleted deployment branch policy for env '{env_name}'")
 
+    def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving secrets for org '{org_id}'")
+
+        try:
+            response = self._requester.request_json("GET", f"/orgs/{org_id}/actions/secrets")
+
+            secrets = response["secrets"]
+            for secret in secrets:
+                if secret["visibility"] == "selected":
+                    secret["selected_repositories"] = \
+                        self._get_selected_repositories_for_org_secret(org_id, secret["name"])
+            return secrets
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}").with_traceback(tb)
+
+    def _get_selected_repositories_for_org_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving selected repositories secret '{secret_name}'")
+
+        try:
+            url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
+            response = self._requester.request_json("GET", url)
+            return response["repositories"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+
+    def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"retrieving secrets for repo '{org_id}/{repo_name}'")
+
+        try:
+            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
+            return response["secrets"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed getting secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
     def get_user_ids(self, login: str) -> tuple[int, str]:
         utils.print_debug(f"retrieving user ids for user '{login}'")
 

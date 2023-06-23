@@ -50,6 +50,10 @@
       "type": "array",
       "items": { "$ref": "webhook.json" }
     },
+    "secrets": {
+      "type": "array",
+      "items": { "$ref": "repo-secret.json" }
+    },
     "environments": {
       "type": "array",
       "items": { "$ref": "environment.json" }

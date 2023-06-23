@@ -234,9 +234,20 @@ Examples:
 }
 ```
 
-Note: After executing an `import` operation, the secret will be set to `******` as GitHub will only send redacted
-secrets. You will need to update the definition file with the real secret values, either by entering the secret
-value (not adivsed), or referencing it via a credential provider.
+Note: After executing an `import` operation, the secret will be set to `********` as GitHub will only send redacted
+secrets. You will need to update the definition file with the real secret value, either by entering the secret
+value (not advised), or referencing it via a credential provider.
+
+### Organizational Secrets
+
+| Field                 | Type           | Description                                                                                 |
+|-----------------------|----------------|---------------------------------------------------------------------------------------------|
+| name                  | string         | The name of the secret                                                                      |
+| visibility            | string         | Controls which repositories can use the secret, can be `public` or `private` or `selected`  |
+| selected_repositories | list[string]   | List of repositories that can use the secret, only use if `visibility` is set to `selected` |
+| value                 | string         | The secret value                                                                            |
+
+The secret value can be resolved using a credential provider in the same way as for Webhooks.
 
 ### Repository Settings
 
@@ -273,8 +284,18 @@ value (not adivsed), or referencing it via a credential provider.
 | secret_scanning_push_protection | string                       | If secret scanning push protection is "enabled" or "disabled"                           |                                 |
 | dependabot_alerts_enabled       | boolean                      | If the repo has dependabot alerts enabled                                               |                                 |
 | webhooks                        | list[webhook]                | webhooks defined for this repo, see section above for details                           |                                 |
-| webhooks                        | list[environment]            | environments defined for this repo, see section below for details                       |                                 |
+| secrets                         | list[repo-secret]            | secrets defined for this repo, see section below for details                            |                                 |
+| environments                    | list[environment]            | environments defined for this repo, see section below for details                       |                                 |
 | branch_protection_rules         | list[branch-protection-rule] | branch protection rules of the repo, see section below for details                      |                                 |
+
+### Repository Secrets
+
+| Field                 | Type           | Description                                                                                 |
+|-----------------------|----------------|---------------------------------------------------------------------------------------------|
+| name                  | string         | The name of the secret                                                                      |
+| value                 | string         | The secret value                                                                            |
+
+The secret value can be resolved using a credential provider in the same way as for Webhooks.
 
 ### Environment
 

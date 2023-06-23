@@ -9,6 +9,10 @@
       "type": "array",
       "items": { "$ref": "webhook.json" }
     },
+    "secrets": {
+      "type": "array",
+      "items": { "$ref": "org-secret.json" }
+    },
     "repositories": {
       "type": "array",
       "items": { "$ref": "repository.json" }

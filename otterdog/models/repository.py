@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, Optional, Iterator, cast
+from typing import Any, ClassVar, Optional, Iterator, cast, Callable
 
 from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
 
@@ -20,6 +20,7 @@ from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
+from .repo_secret import RepositorySecret
 from .repo_webhook import RepositoryWebhook
 
 
@@ -70,6 +71,8 @@ class Repository(ModelObject):
     # nested model fields
     webhooks: list[RepositoryWebhook] = \
         dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    secrets: list[RepositorySecret] = \
+        dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     branch_protection_rules: list[BranchProtectionRule] = \
         dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     environments: list[Environment] = \
@@ -118,6 +121,19 @@ class Repository(ModelObject):
 
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
         self.webhooks = webhooks
+
+    def add_secret(self, secret: RepositorySecret) -> None:
+        self.secrets.append(secret)
+
+    def get_secret(self, name: str) -> Optional[RepositorySecret]:
+        for secret in self.secrets:
+            if secret.name == name:
+                return secret
+
+        return None
+
+    def set_secrets(self, secrets: list[RepositorySecret]) -> None:
+        self.secrets = secrets
 
     def add_environment(self, environment: Environment) -> None:
         self.environments.append(environment)
@@ -179,6 +195,9 @@ class Repository(ModelObject):
                                     f"{self.get_model_header()} is archived but has branch_protection_rules, "
                                     f"rules will be ignored.")
 
+        for secret in self.secrets:
+            secret.validate(context, self)
+
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
@@ -202,6 +221,10 @@ class Repository(ModelObject):
             yield webhook, self
             yield from webhook.get_model_objects()
 
+        for secret in self.secrets:
+            yield secret, self
+            yield from secret.get_model_objects()
+
         for rule in self.branch_protection_rules:
             yield rule, self
             yield from rule.get_model_objects()
@@ -219,6 +242,10 @@ class Repository(ModelObject):
                 "webhooks":
                     OptionalS("webhooks", default=[]) >>
                     Forall(lambda x: RepositoryWebhook.from_model_data(x)),
+
+                "secrets":
+                    OptionalS("secrets", default=[]) >>
+                    Forall(lambda x: RepositorySecret.from_model_data(x)),
 
                 "branch_protection_rules":
                     OptionalS("branch_protection_rules", default=[]) >>
@@ -238,6 +265,7 @@ class Repository(ModelObject):
 
         mapping.update({
             "webhooks": K([]),
+            "secrets": K([]),
             "branch_protection_rules": K([]),
             "environments": K([]),
 
@@ -277,12 +305,25 @@ class Repository(ModelObject):
 
         return bend(mapping, data)
 
+    def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
+        for webhook in self.webhooks:
+            webhook.resolve_secrets(secret_resolver)
+
+        for secret in self.secrets:
+            secret.resolve_secrets(secret_resolver)
+
     def copy_secrets(self, other_object: ModelObject) -> None:
         for webhook in self.webhooks:
             other_repo = cast(Repository, other_object)
             other_webhook = other_repo.get_webhook(webhook.url)
             if other_webhook is not None:
                 webhook.copy_secrets(other_webhook)
+
+        for secret in self.secrets:
+            other_repo = cast(Repository, other_object)
+            other_secret = other_repo.get_secret(secret.name)
+            if other_secret is not None:
+                secret.copy_secrets(other_secret)
 
     def to_jsonnet(self,
                    printer: IndentingPrinter,
@@ -293,6 +334,7 @@ class Repository(ModelObject):
         patch = self.get_patch_to(default_object)
 
         has_webhooks = len(self.webhooks) > 0
+        has_secrets = len(self.secrets) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
         has_environments = len(self.environments) > 0
 
@@ -318,6 +360,19 @@ class Repository(ModelObject):
 
             for webhook in self.webhooks:
                 webhook.to_jsonnet(printer, jsonnet_config, False, default_repo_webhook)
+
+            printer.level_down()
+            printer.println("],")
+
+        # FIXME: support overriding secrets for repos coming from the default configuration.
+        if has_secrets and not extend:
+            default_repo_secret = RepositorySecret.from_model_data(jsonnet_config.default_repo_secret_config)
+
+            printer.println("secrets: [")
+            printer.level_up()
+
+            for secret in self.secrets:
+                secret.to_jsonnet(printer, jsonnet_config, False, default_repo_secret)
 
             printer.level_down()
             printer.println("],")

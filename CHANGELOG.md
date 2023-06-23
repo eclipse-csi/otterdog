@@ -4,7 +4,9 @@
 
 ### Added
 
-- Added support for `environments` for repositories. ([#58](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/58))
+- Added support for organization level `secrets`. ([#52](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/52))
+- Added support for repository level `secrets`. ([#52](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/52))
+- Added support for repository level `environments`. ([#58](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/58))
 - Added new operation `show-live` to show the current live resources of an organization.
 - Added support for changing the webhook url by introducing an additional field `aliases`.
 - Added support for repository webhooks. ([#56](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/56))

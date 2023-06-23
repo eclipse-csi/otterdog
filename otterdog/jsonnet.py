@@ -21,9 +21,11 @@ class JsonnetConfig:
 
     create_org = "newOrg"
     create_org_webhook = "newOrgWebhook"
+    create_org_secret = "newOrgSecret"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
+    create_repo_secret = "newRepoSecret"
     create_branch_protection_rule = "newBranchProtectionRule"
     create_environment = "newEnvironment"
 
@@ -46,8 +48,10 @@ class JsonnetConfig:
 
         self._default_org_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
+        self._default_org_secret_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
+        self._default_repo_secret_config: dict[str, Any] | None = None
         self._default_branch_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
 
@@ -84,6 +88,13 @@ class JsonnetConfig:
             raise RuntimeError(f"failed to get default org webhook config: {ex}")
 
         try:
+            # load the default org secret config
+            org_secret_snippet = f"(import '{template_file}').{self.create_org_secret}('default')"
+            self._default_org_secret_config = jsonnet_evaluate_snippet(org_secret_snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to get default org secret config: {ex}")
+
+        try:
             # load the default repo config
             repo_snippet = f"(import '{template_file}').{self.create_repo}('default')"
             self._default_repo_config = jsonnet_evaluate_snippet(repo_snippet)
@@ -96,6 +107,13 @@ class JsonnetConfig:
             self._default_repo_webhook_config = jsonnet_evaluate_snippet(repo_webhook_snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default repo webhook config: {ex}")
+
+        try:
+            # load the default repo secret config
+            repo_secret_snippet = f"(import '{template_file}').{self.create_repo_secret}('default')"
+            self._default_repo_secret_config = jsonnet_evaluate_snippet(repo_secret_snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to get default repo secret config: {ex}")
 
         try:
             # load the default branch protection rule config
@@ -122,12 +140,20 @@ class JsonnetConfig:
         return self._default_org_webhook_config
 
     @property
+    def default_org_secret_config(self):
+        return self._default_org_secret_config
+
+    @property
     def default_repo_config(self):
         return self._default_repo_config
 
     @property
     def default_repo_webhook_config(self):
         return self._default_repo_webhook_config
+
+    @property
+    def default_repo_secret_config(self):
+        return self._default_repo_secret_config
 
     @property
     def default_branch_config(self):
