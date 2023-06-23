@@ -120,6 +120,17 @@ class GitHubOrganization:
 
         return cls(**bend(mapping, data))
 
+    def copy_secrets(self, other_org: GitHubOrganization) -> None:
+        for webhook in self.webhooks:
+            other_webhook = other_org.get_webhook(webhook.url)
+            if other_webhook is not None:
+                webhook.copy_secrets(other_webhook)
+
+        for repo in self.repositories:
+            other_repo = other_org.get_repository(repo.name)
+            if other_repo is not None:
+                repo.copy_secrets(other_repo)
+
     def to_jsonnet(self, config: JsonnetConfig) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config)
 

@@ -247,6 +247,9 @@ class ModelObject(ABC):
 
         return result
 
+    def copy_secrets(self, other_object: ModelObject) -> None:
+        pass
+
     @abstractmethod
     def to_jsonnet(self,
                    printer: IndentingPrinter,

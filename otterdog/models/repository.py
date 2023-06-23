@@ -277,6 +277,13 @@ class Repository(ModelObject):
 
         return bend(mapping, data)
 
+    def copy_secrets(self, other_object: ModelObject) -> None:
+        for webhook in self.webhooks:
+            other_repo = cast(Repository, other_object)
+            other_webhook = other_repo.get_webhook(webhook.url)
+            if other_webhook is not None:
+                webhook.copy_secrets(other_webhook)
+
     def to_jsonnet(self,
                    printer: IndentingPrinter,
                    jsonnet_config: JsonnetConfig,

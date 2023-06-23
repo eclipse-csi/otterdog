@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
@@ -87,3 +87,7 @@ class Webhook(ModelObject, abc.ABC):
             mapping["config"] = config_mapping
 
         return bend(mapping, data)
+
+    def copy_secrets(self, other_object: ModelObject) -> None:
+        if self.has_dummy_secret():
+            self.secret = cast(Webhook, other_object).secret
