@@ -77,17 +77,8 @@ class OrganizationSecret(Secret):
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
-        assert provider is not None
-
         mapping = {field.name: S(field.name) for field in cls.provider_fields() if
                    not is_unset(data.get(field.name, UNSET))}
-
-        if "value" in mapping:
-            mapping.pop("value")
-
-            key_id, public_key = provider.get_org_public_key(org_id)
-            mapping["encrypted_value"] = K(Secret.encrypt_value(public_key, data["value"]))
-            mapping["key_id"] = K(key_id)
 
         if "visibility" in mapping:
             mapping["visibility"] = If(S("visibility") == K("public"), K("all"), S("visibility"))

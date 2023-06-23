@@ -17,6 +17,7 @@ from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.repository import Repository
+from otterdog.models.repo_secret import RepositorySecret
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.utils import IndentingPrinter, Change
 
@@ -50,6 +51,9 @@ class ApplyOperation(PlanOperation):
         self._modified_repo_webhooks: list[tuple[str, int, RepositoryWebhook]] = []
         self._added_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
         self._deleted_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
+        self._modified_repo_secrets: list[tuple[str, str, RepositorySecret]] = []
+        self._added_repo_secrets: list[tuple[str, RepositorySecret]] = []
+        self._deleted_repo_secrets: list[tuple[str, RepositorySecret]] = []
         self._modified_environments: list[tuple[str, str, dict[str, Change[Any]]]] = []
         self._added_environments: list[tuple[str, Environment]] = []
         self._deleted_environments: list[tuple[str, Environment]] = []
@@ -79,6 +83,9 @@ class ApplyOperation(PlanOperation):
         elif isinstance(model_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
             self._added_repo_webhooks.append((repo_name, model_object))
+        elif isinstance(model_object, RepositorySecret):
+            repo_name = cast(Repository, parent_object).name
+            self._added_repo_secrets.append((repo_name, model_object))
         elif isinstance(model_object, Environment):
             repo_name = cast(Repository, parent_object).name
             self._added_environments.append((repo_name, model_object))
@@ -102,6 +109,9 @@ class ApplyOperation(PlanOperation):
         elif isinstance(model_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
             self._deleted_repo_webhooks.append((repo_name, model_object))
+        elif isinstance(model_object, RepositorySecret):
+            repo_name = cast(Repository, parent_object).name
+            self._deleted_repo_secrets.append((repo_name, model_object))
         elif isinstance(model_object, Environment):
             repo_name = cast(Repository, parent_object).name
             self._deleted_environments.append((repo_name, model_object))
@@ -139,6 +149,10 @@ class ApplyOperation(PlanOperation):
             self._modified_repo_webhooks.append((repo_name,
                                                  current_object.id,
                                                  cast(RepositoryWebhook, expected_object)))
+        elif isinstance(current_object, RepositorySecret):
+            repo_name = cast(Repository, parent_object).name
+            self._modified_repo_secrets.append((repo_name, current_object.name,
+                                                cast(RepositorySecret, expected_object)))
         elif isinstance(current_object, Environment):
             repo_name = cast(Repository, parent_object).name
             self._modified_environments.append((repo_name, current_object.name, modified_object))
@@ -208,6 +222,14 @@ class ApplyOperation(PlanOperation):
             self.gh_client.add_repo_webhook(org_id, repo_name,
                                             repo_webhook.to_provider_data(org_id, self.gh_client))
 
+        for repo_name, secret_name, repo_secret in self._modified_repo_secrets:
+            self.gh_client.update_repo_secret(org_id, repo_name, secret_name,
+                                              repo_secret.to_provider_data(org_id, self.gh_client))
+
+        for repo_name, repo_secret in self._added_repo_secrets:
+            self.gh_client.add_repo_secret(org_id, repo_name,
+                                           repo_secret.to_provider_data(org_id, self.gh_client))
+
         for repo_name, env_name, modified_env in self._modified_environments:
             github_env = Environment.changes_to_provider(org_id, modified_env, self.gh_client)
             self.gh_client.update_repo_environment(org_id, repo_name, env_name, github_env)
@@ -238,6 +260,9 @@ class ApplyOperation(PlanOperation):
 
             for repo_name, repo_webhook in self._deleted_repo_webhooks:
                 self.gh_client.delete_repo_webhook(org_id, repo_name, repo_webhook.id, repo_webhook.url)
+
+            for repo_name, repo_secret in self._deleted_repo_secrets:
+                self.gh_client.delete_repo_secret(org_id, repo_name, repo_secret.name)
 
             for repo_name, repo_env in self._deleted_environments:
                 self.gh_client.delete_repo_environment(org_id, repo_name, repo_env.name)

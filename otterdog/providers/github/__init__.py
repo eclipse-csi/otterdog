@@ -201,8 +201,15 @@ class Github:
     def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_client.get_repo_secrets(org_id, repo_name)
 
-    def get_org_public_key(self, org_id: str) -> tuple[str, str]:
-        return self.rest_client.get_org_public_key(org_id)
+    def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
+        if len(secret) > 0:
+            self.rest_client.update_repo_secret(org_id, repo_name, secret_name, secret)
+
+    def add_repo_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        self.rest_client.add_repo_secret(org_id, repo_name, data)
+
+    def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        self.rest_client.delete_repo_secret(org_id, repo_name, secret_name)
 
     def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[str]:
         repo_ids = []

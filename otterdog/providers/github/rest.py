@@ -7,21 +7,20 @@
 # *******************************************************************************
 
 import base64
-import jq  # type: ignore
 import json
-import pathlib
 import os
+import pathlib
 import re
 import tempfile
 import zipfile
 from typing import Any, Optional, IO
 
 import chevron
+import jq  # type: ignore
 from requests import Response
 from requests_cache import CachedSession
 
 from otterdog.utils import print_debug, print_trace, print_warn, is_set_and_present, associate_by_key
-
 from .exception import GitHubException, BadCredentialsException
 
 
@@ -656,7 +655,7 @@ class RestClient:
         if "name" in secret:
             secret.pop("name")
 
-        print(secret)
+        self.encrypt_org_secret_inplace(org_id, secret)
 
         response = \
             self._requester.request_raw("PUT",
@@ -671,6 +670,8 @@ class RestClient:
         secret_name = data.pop("name")
         print_debug(f"adding org secret '{secret_name}'")
 
+        self.encrypt_org_secret_inplace(org_id, data)
+
         response = \
             self._requester.request_raw("PUT",
                                         f"/orgs/{org_id}/actions/secrets/{secret_name}",
@@ -679,6 +680,12 @@ class RestClient:
             raise RuntimeError(f"failed to add org secret '{secret_name}'")
         else:
             print_debug(f"added org secret '{secret_name}'")
+
+    def encrypt_org_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
+        value = data.pop("value")
+        key_id, public_key = self.get_org_public_key(org_id)
+        data["encrypted_value"] = self.encrypt_value(public_key, value)
+        data["key_id"] = key_id
 
     def delete_org_secret(self, org_id: str, secret_name: str) -> None:
         print_debug(f"deleting org secret '{secret_name}'")
@@ -699,6 +706,66 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
+    def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
+        print_debug(f"updating repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
+
+        if "name" in secret:
+            secret.pop("name")
+
+        self.encrypt_repo_secret_inplace(org_id, repo_name, secret)
+
+        response = \
+            self._requester.request_raw("PUT",
+                                        f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
+                                        json.dumps(secret))
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to update repo secret '{secret_name}'")
+        else:
+            print_debug(f"updated repo secret '{secret_name}'")
+
+    def add_repo_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        secret_name = data.pop("name")
+        print_debug(f"adding repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
+
+        self.encrypt_repo_secret_inplace(org_id, repo_name, data)
+
+        response = \
+            self._requester.request_raw("PUT",
+                                        f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
+                                        json.dumps(data))
+        if response.status_code != 201:
+            raise RuntimeError(f"failed to add repo secret '{secret_name}'")
+        else:
+            print_debug(f"added repo secret '{secret_name}'")
+
+    def encrypt_repo_secret_inplace(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        value = data.pop("value")
+        key_id, public_key = self.get_repo_public_key(org_id, repo_name)
+        data["encrypted_value"] = self.encrypt_value(public_key, value)
+        data["key_id"] = key_id
+
+    def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        print_debug(f"deleting repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
+
+        response = self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}")
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete repo secret '{secret_name}'")
+
+        print_debug(f"removed repo secret '{secret_name}'")
+
+    @staticmethod
+    def encrypt_value(public_key: str, secret_value: str) -> str:
+        """
+        Encrypt a Unicode string using a public key.
+        """
+        from base64 import b64encode
+        from nacl import encoding, public
+
+        public_key_obj = public.PublicKey(public_key.encode("utf-8"), encoding.Base64Encoder)
+        sealed_box = public.SealedBox(public_key_obj)
+        encrypted = sealed_box.encrypt(secret_value.encode("utf-8"))
+        return b64encode(encrypted).decode("utf-8")
+
     def get_org_public_key(self, org_id: str) -> tuple[str, str]:
         print_debug(f"retrieving org public key for org '{org_id}'")
 
@@ -708,6 +775,16 @@ class RestClient:
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving org public key:\n{ex}").with_traceback(tb)
+
+    def get_repo_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
+        print_debug(f"retrieving repo public key for repo '{org_id}/{repo_name}'")
+
+        try:
+            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/secrets/public-key")
+            return response["key_id"], response["key"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving repo public key:\n{ex}").with_traceback(tb)
 
     def get_user_ids(self, login: str) -> tuple[int, str]:
         print_debug(f"retrieving user ids for user '{login}'")
