@@ -1,0 +1,62 @@
+site_name: otterdog
+site_description: Manage GitHub organizations at scale
+strict: true
+site_url: https://otterdog.readthedocs.io/
+
+theme:
+  name: 'material'
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: indigo
+    accent: indigo
+    toggle:
+      icon: material/lightbulb-outline
+      name: "Switch to dark mode"
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: indigo
+    accent: indigo
+    toggle:
+      icon: material/lightbulb
+      name: "Switch to light mode"
+  features:
+    - content.tabs.link
+    - content.code.annotate
+    - announce.dismiss
+    - navigation.tabs
+  logo: 'otterdog.png'
+  favicon: 'favicon.png'
+
+repo_url: https://gitlab.eclipse.org/eclipsefdn/security/otterdog
+edit_uri: edit/main/docs/
+
+nav:
+- Get Started:
+  - Welcome to Otterdog: index.md
+- Contribute: contributing.md
+
+markdown_extensions:
+- tables
+- toc:
+    permalink: true
+    title: Page contents
+- pymdownx.details
+- pymdownx.superfences
+- pymdownx.highlight
+- pymdownx.extra
+- pymdownx.emoji:
+    emoji_index: !!python/name:materialx.emoji.twemoji
+    emoji_generator: !!python/name:materialx.emoji.to_svg
+- pymdownx.tabbed:
+    alternate_style: true
+
+watch: []
+
+plugins:
+- search
+- exclude:
+    glob:
+    - theme/announce.html
+    - plugins/*
+    - __pycache__/*

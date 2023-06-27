@@ -25,6 +25,9 @@ PyNaCl = "^1.5"
 [tool.poetry.dev-dependencies]
 flake8 = "^6.0"
 pre-commit = "^3.3"
+mkdocs = "^1.4"
+mkdocs-material = "^9.1"
+mkdocs-exclude = "^1.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3"
