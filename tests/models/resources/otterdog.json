@@ -1,0 +1,20 @@
+{
+  "defaults": {
+    "bitwarden": {
+      "api_token_key": "api_token_admin"
+    },
+    "jsonnet": {
+      "base_template": "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main",
+      "config_dir": "."
+    },
+    "github": {
+      "config_repo": ".eclipsefdn"
+    }
+  },
+  "organizations": [
+    {
+      "name": "test-org",
+      "github_id": "test-org"
+    }
+  ]
+}

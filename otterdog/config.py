@@ -81,7 +81,7 @@ class OrganizationConfig:
         jsonnet_config = \
             JsonnetConfig(github_id, otterdog_config.jsonnet_base_dir, base_template, otterdog_config.local_mode)
 
-        data = jq.compile(".credentials").input(data).first()
+        data = jq.compile(".credentials // {}").input(data).first()
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 

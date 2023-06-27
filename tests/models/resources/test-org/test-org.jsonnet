@@ -1,7 +1,7 @@
 
-local orgs = import 'test-default.org.jsonnet';
+local orgs = import 'vendor/test-defaults/test-defaults.libsonnet';
 
-orgs.newOrg('testorg') {
+orgs.newOrg('test-org') {
     settings+: {
       billing_email: "info@test.org",
       blog: "https://www.test.org",
@@ -13,14 +13,10 @@ orgs.newOrg('testorg') {
       readers_can_create_discussions: true,
     },
     webhooks+: [
-      orgs.newWebhook() {
-        config+: {
-          url: "https://www.example.org",
-        },
-      },
+      orgs.newOrgWebhook('https://www.example.org')
     ],
     repositories+: [
-      orgs.newRepo('.github') {
+      orgs.newRepo('test-repo') {
         allow_auto_merge: false,
         allow_merge_commit: true,
         allow_rebase_merge: false,
