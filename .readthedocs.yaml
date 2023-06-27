@@ -11,11 +11,9 @@ build:
       - pip install poetry
       # Tell poetry to not use a virtual environment
       - poetry config virtualenvs.create false
-      - poetry remove gojsonnet
     post_install:
-      # Install dependencies with 'docs' dependency group
-      # https://python-poetry.org/docs/managing-dependencies/#dependency-groups
-      - poetry install --with docs
+      # Install only dependencies of 'docs' dependency group
+      - poetry install --only=docs
 
 mkdocs:
   configuration: mkdocs.yml
