@@ -57,6 +57,4 @@ plugins:
 - search
 - exclude:
     glob:
-    - theme/announce.html
-    - plugins/*
     - __pycache__/*
