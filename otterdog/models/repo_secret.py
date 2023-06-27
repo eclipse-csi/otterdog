@@ -26,11 +26,13 @@ class RepositorySecret(Secret):
     def model_object_name(self) -> str:
         return "repo_secret"
 
-    def to_jsonnet(self,
-                   printer: IndentingPrinter,
-                   jsonnet_config: JsonnetConfig,
-                   extend: bool,
-                   default_object: ModelObject) -> None:
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
         patch = self.get_patch_to(default_object)
         patch.pop("name")
         printer.print(f"orgs.{jsonnet_config.create_repo_secret}('{self.name}')")

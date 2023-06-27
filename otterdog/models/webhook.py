@@ -34,22 +34,23 @@ class Webhook(ModelObject, abc.ABC):
     secret: Optional[str]
 
     # model only fields
-    aliases: list[str] = \
-        dataclasses.field(metadata={"model_only": True}, default_factory=list)
+    aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
 
     def get_all_urls(self) -> list[str]:
         return [self.url] + self.aliases
 
     def has_dummy_secret(self) -> bool:
-        if is_set_and_valid(self.secret) and all(ch == '*' for ch in self.secret):  # type: ignore
+        if is_set_and_valid(self.secret) and all(ch == "*" for ch in self.secret):  # type: ignore
             return True
         else:
             return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:
-            case "secret": return False
-            case _: return True
+            case "secret":
+                return False
+            case _:
+                return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
@@ -67,15 +68,16 @@ class Webhook(ModelObject, abc.ABC):
                 "url": OptionalS("config", "url", default=UNSET),
                 "content_type": OptionalS("config", "content_type", default=UNSET),
                 "insecure_ssl": OptionalS("config", "insecure_ssl", default=UNSET),
-                "secret": OptionalS("config", "secret", default=None)
+                "secret": OptionalS("config", "secret", default=None),
             }
         )
         return cls(**bend(mapping, data))
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
-                   not is_unset(data.get(field.name, UNSET))}
+        mapping = {
+            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
+        }
 
         config_mapping = {}
         for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:

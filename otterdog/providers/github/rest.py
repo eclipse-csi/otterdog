@@ -20,7 +20,13 @@ import jq  # type: ignore
 from requests import Response
 from requests_cache import CachedSession
 
-from otterdog.utils import print_debug, print_trace, print_warn, is_set_and_present, associate_by_key
+from otterdog.utils import (
+    print_debug,
+    print_trace,
+    print_warn,
+    is_set_and_present,
+    associate_by_key,
+)
 from .exception import GitHubException, BadCredentialsException
 
 
@@ -41,30 +47,29 @@ class RestClient:
             else:
                 params = None
 
-            return self._requester.request_json("GET",
-                                                f"/repos/{org_id}/{repo_name}/contents/{path}",
-                                                params=params)
+            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/contents/{path}", params=params)
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}")\
-                .with_traceback(tb)
+            raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
 
     def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str]) -> str:
         json_response = self.get_content_object(org_id, repo_name, path, ref)
-        return base64.b64decode(json_response["content"]).decode('utf-8')
+        return base64.b64decode(json_response["content"]).decode("utf-8")
 
-    def update_content(self,
-                       org_id: str,
-                       repo_name: str,
-                       path: str,
-                       content: str,
-                       message: Optional[str] = None) -> bool:
+    def update_content(
+        self,
+        org_id: str,
+        repo_name: str,
+        path: str,
+        content: str,
+        message: Optional[str] = None,
+    ) -> bool:
         print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
 
         try:
             json_response = self.get_content_object(org_id, repo_name, path)
             old_sha = json_response["sha"]
-            old_content = base64.b64decode(json_response["content"]).decode('utf-8')
+            old_content = base64.b64decode(json_response["content"]).decode("utf-8")
         except RuntimeError:
             old_sha = None
             old_content = None
@@ -140,8 +145,9 @@ class RestClient:
             return list(map(lambda x: x["slug"], result))
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving security managers for organization "
-                               f"'{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(
+                f"failed retrieving security managers for organization " f"'{org_id}':\n{ex}"
+            ).with_traceback(tb)
 
     def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
         print_debug(f"updating security managers for organization {org_id}")
@@ -167,19 +173,24 @@ class RestClient:
         if response.status_code == 204:
             print_debug(f"added team {team_slug} to security managers for organization {org_id}")
         elif response.status_code == 404:
-            print_warn(f"failed to add team '{team_slug}' to security managers for organization {org_id}: "
-                       f"team not found")
+            print_warn(
+                f"failed to add team '{team_slug}' to security managers for organization {org_id}: " f"team not found"
+            )
         else:
-            raise RuntimeError(f"failed adding team '{team_slug}' to security managers of organization '{org_id}'"
-                               f"\n{response.status_code}: {response.text}")
+            raise RuntimeError(
+                f"failed adding team '{team_slug}' to security managers of organization '{org_id}'"
+                f"\n{response.status_code}: {response.text}"
+            )
 
     def remove_security_manager_team(self, org_id: str, team_slug: str) -> None:
         print_debug(f"removing team {team_slug} from security managers for organization {org_id}")
 
         response = self._requester.request_raw("DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
         if response.status_code != 204:
-            raise RuntimeError(f"failed removing team '{team_slug}' from security managers of organization '{org_id}'"
-                               f"\n{response.status_code}: {response.text}")
+            raise RuntimeError(
+                f"failed removing team '{team_slug}' from security managers of organization '{org_id}'"
+                f"\n{response.status_code}: {response.text}"
+            )
         else:
             print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
@@ -330,12 +341,14 @@ class RestClient:
                 tb = ex.__traceback__
                 raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    def add_repo(self,
-                 org_id: str,
-                 data: dict[str, Any],
-                 template_repository: Optional[str],
-                 post_process_template_content: list[str],
-                 auto_init_repo: bool) -> None:
+    def add_repo(
+        self,
+        org_id: str,
+        data: dict[str, Any],
+        template_repository: Optional[str],
+        post_process_template_content: list[str],
+        auto_init_repo: bool,
+    ) -> None:
         repo_name = data["name"]
 
         if is_set_and_present(template_repository):
@@ -347,12 +360,14 @@ class RestClient:
                     "owner": org_id,
                     "name": repo_name,
                     "include_all_branches": False,
-                    "private": data.get("private", False)
+                    "private": data.get("private", False),
                 }
 
-                self._requester.request_json("POST",
-                                             f"/repos/{template_owner}/{template_repo}/generate",
-                                             template_data)
+                self._requester.request_json(
+                    "POST",
+                    f"/repos/{template_owner}/{template_repo}/generate",
+                    template_data,
+                )
 
                 print_debug(f"created repo with name '{repo_name}' from template '{template_repository}'")
 
@@ -369,9 +384,9 @@ class RestClient:
                             self.get_readme_of_repo(org_id, repo_name)
                             break
                         except GitHubException:
-                            print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, "
-                                        f"try {i} of 3")
+                            print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 3")
                             import time
+
                             time.sleep(1)
 
                 # if there is template content which shall be post-processed,
@@ -386,13 +401,19 @@ class RestClient:
             except GitHubException as ex:
                 tb = ex.__traceback__
                 raise RuntimeError(
-                    f"failed to create repo from template '{template_repository}':\n{ex}").with_traceback(tb)
+                    f"failed to create repo from template '{template_repository}':\n{ex}"
+                ).with_traceback(tb)
 
         print_debug(f"creating repo '{org_id}/{repo_name}'")
 
         # some settings do not seem to be set correctly during creation
         # collect them and update the repo after creation.
-        update_keys = ['dependabot_alerts_enabled', 'web_commit_signoff_required', 'security_and_analysis', 'topics']
+        update_keys = [
+            "dependabot_alerts_enabled",
+            "web_commit_signoff_required",
+            "security_and_analysis",
+            "topics",
+        ]
         update_data = {}
 
         for update_key in update_keys:
@@ -413,10 +434,7 @@ class RestClient:
 
     @staticmethod
     def _render_template_content(org_id: str, repo_name: str, content: str) -> str:
-        variables = {
-            "org": org_id,
-            "repo": repo_name
-        }
+        variables = {"org": org_id, "repo": repo_name}
 
         return chevron.render(content, variables)
 
@@ -454,8 +472,7 @@ class RestClient:
     def _fill_vulnerability_report_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
 
-        response_vulnerability = \
-            self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
+        response_vulnerability = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
 
         if response_vulnerability.status_code == 204:
             repo_data["dependabot_alerts_enabled"] = True
@@ -484,8 +501,7 @@ class RestClient:
             # querying the topics might fail for temporary private forks,
             # ignore exceptions, example repo that fails:
             # https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
-            response = \
-                self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
+            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
             repo_data["topics"] = response.get("names", [])
         except GitHubException:
             repo_data["topics"] = []
@@ -506,8 +522,9 @@ class RestClient:
             environments = response["environments"]
             for env in environments:
                 env_name = env["name"]
-                has_branch_policies = \
+                has_branch_policies = (
                     jq.compile(".deployment_branch_policy.custom_branch_policies // false").input(env).first()
+                )
 
                 if has_branch_policies:
                     env["branch_policies"] = self._get_deployment_branch_policies(org_id, repo_name, env_name)
@@ -563,16 +580,15 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}").with_traceback(tb)
 
-    def _update_deployment_branch_policies(self,
-                                           org_id: str,
-                                           repo_name: str,
-                                           env_name: str,
-                                           branch_policies: list[str]) -> None:
+    def _update_deployment_branch_policies(
+        self, org_id: str, repo_name: str, env_name: str, branch_policies: list[str]
+    ) -> None:
         print_debug(f"updating deployment branch policies for env '{env_name}'")
 
-        current_branch_policies_by_name = \
-            associate_by_key(self._get_deployment_branch_policies(org_id, repo_name, env_name),
-                             lambda x: x["name"])
+        current_branch_policies_by_name = associate_by_key(
+            self._get_deployment_branch_policies(org_id, repo_name, env_name),
+            lambda x: x["name"],
+        )
 
         try:
             for policy in branch_policies:
@@ -590,11 +606,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed creating deployment branch policies:\n{ex}").with_traceback(tb)
 
-    def _create_deployment_branch_policy(self,
-                                         org_id: str,
-                                         repo_name: str,
-                                         env_name: str,
-                                         name: str) -> None:
+    def _create_deployment_branch_policy(self, org_id: str, repo_name: str, env_name: str, name: str) -> None:
         print_debug(f"creating deployment branch policy for env '{env_name}' with name '{name}")
 
         try:
@@ -606,19 +618,13 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed creating deployment branch policy:\n{ex}").with_traceback(tb)
 
-    def _delete_deployment_branch_policy(self,
-                                         org_id: str,
-                                         repo_name: str,
-                                         env_name: str,
-                                         policy_id: int) -> None:
+    def _delete_deployment_branch_policy(self, org_id: str, repo_name: str, env_name: str, policy_id: int) -> None:
         print_debug(f"deleting deployment branch policy for env '{env_name}' with id '{policy_id}")
 
         url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies/{policy_id}"
         response = self._requester.request_raw("DELETE", url)
         if response.status_code != 204:
-            raise RuntimeError(
-                f"failed deleting deployment branch policy"
-                f"\n{response.status_code}: {response.text}")
+            raise RuntimeError(f"failed deleting deployment branch policy" f"\n{response.status_code}: {response.text}")
         else:
             print_debug(f"deleted deployment branch policy for env '{env_name}'")
 
@@ -631,8 +637,9 @@ class RestClient:
             secrets = response["secrets"]
             for secret in secrets:
                 if secret["visibility"] == "selected":
-                    secret["selected_repositories"] = \
-                        self._get_selected_repositories_for_org_secret(org_id, secret["name"])
+                    secret["selected_repositories"] = self._get_selected_repositories_for_org_secret(
+                        org_id, secret["name"]
+                    )
             return secrets
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -657,10 +664,9 @@ class RestClient:
 
         self.encrypt_org_secret_inplace(org_id, secret)
 
-        response = \
-            self._requester.request_raw("PUT",
-                                        f"/orgs/{org_id}/actions/secrets/{secret_name}",
-                                        json.dumps(secret))
+        response = self._requester.request_raw(
+            "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
+        )
         if response.status_code != 204:
             raise RuntimeError(f"failed to update org secret '{secret_name}'")
         else:
@@ -672,10 +678,7 @@ class RestClient:
 
         self.encrypt_org_secret_inplace(org_id, data)
 
-        response = \
-            self._requester.request_raw("PUT",
-                                        f"/orgs/{org_id}/actions/secrets/{secret_name}",
-                                        json.dumps(data))
+        response = self._requester.request_raw("PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(data))
         if response.status_code != 201:
             raise RuntimeError(f"failed to add org secret '{secret_name}'")
         else:
@@ -714,10 +717,11 @@ class RestClient:
 
         self.encrypt_repo_secret_inplace(org_id, repo_name, secret)
 
-        response = \
-            self._requester.request_raw("PUT",
-                                        f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-                                        json.dumps(secret))
+        response = self._requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
+            json.dumps(secret),
+        )
         if response.status_code != 204:
             raise RuntimeError(f"failed to update repo secret '{secret_name}'")
         else:
@@ -729,10 +733,11 @@ class RestClient:
 
         self.encrypt_repo_secret_inplace(org_id, repo_name, data)
 
-        response = \
-            self._requester.request_raw("PUT",
-                                        f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-                                        json.dumps(data))
+        response = self._requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
+            json.dumps(data),
+        )
         if response.status_code != 201:
             raise RuntimeError(f"failed to add repo secret '{secret_name}'")
         else:
@@ -827,11 +832,13 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
 
-    def sync_from_template_repository(self,
-                                      org_id: str,
-                                      repo_name: str,
-                                      template_repository: str,
-                                      template_paths: Optional[list[str]]) -> list[str]:
+    def sync_from_template_repository(
+        self,
+        org_id: str,
+        repo_name: str,
+        template_repository: str,
+        template_paths: Optional[list[str]],
+    ) -> list[str]:
         template_owner, template_repo = re.split("/", template_repository, 1)
 
         updated_files = []
@@ -875,18 +882,16 @@ class RestClient:
         print_debug(f"downloading repository archive for '{org_id}/{repo_name}'")
 
         try:
-            response = \
-                self._requester.request_raw("GET",
-                                            f"/repos/{org_id}/{repo_name}/zipball/{ref}",
-                                            stream=True)
+            response = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/zipball/{ref}", stream=True)
 
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
 
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving repository archive from "
-                               f"repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(
+                f"failed retrieving repository archive from " f"repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
 
 
 class Requester:
@@ -897,28 +902,31 @@ class Requester:
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": api_version,
-            "X-Github-Next-Global-ID": "1"
+            "X-Github-Next-Global-ID": "1",
         }
 
         # enable logging for requests_cache
         # import logging
         # logging.basicConfig(level='DEBUG')
 
-        self._session: CachedSession = \
-            CachedSession("otterdog",
-                          backend="filesystem",
-                          use_cache_dir=True,
-                          cache_control=True,
-                          allowable_methods=['GET'])
+        self._session: CachedSession = CachedSession(
+            "otterdog",
+            backend="filesystem",
+            use_cache_dir=True,
+            cache_control=True,
+            allowable_methods=["GET"],
+        )
 
     def _build_url(self, url_path: str) -> str:
         return f"{self._base_url}{url_path}"
 
-    def request_paged_json(self,
-                           method: str,
-                           url_path: str,
-                           data: Optional[dict[str, Any]] = None,
-                           params: Optional[dict[str, str]] = None) -> list[dict[str, Any]]:
+    def request_paged_json(
+        self,
+        method: str,
+        url_path: str,
+        data: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, str]] = None,
+    ) -> list[dict[str, Any]]:
         result = []
         current_page = 1
         while current_page > 0:
@@ -938,11 +946,13 @@ class Requester:
 
         return result
 
-    def request_json(self,
-                     method: str,
-                     url_path: str,
-                     data: Optional[dict[str, Any]] = None,
-                     params: Optional[dict[str, Any]] = None) -> Any:
+    def request_json(
+        self,
+        method: str,
+        url_path: str,
+        data: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
+    ) -> Any:
         input_data = None
         if data is not None:
             input_data = json.dumps(data)
@@ -951,22 +961,25 @@ class Requester:
         self._check_response(response)
         return response.json()
 
-    def request_raw(self,
-                    method: str,
-                    url_path: str,
-                    data: Optional[str] = None,
-                    params: Optional[dict[str, str]] = None,
-                    stream: bool = False) -> Response:
+    def request_raw(
+        self,
+        method: str,
+        url_path: str,
+        data: Optional[str] = None,
+        params: Optional[dict[str, str]] = None,
+        stream: bool = False,
+    ) -> Response:
         assert method in ["GET", "PATCH", "POST", "PUT", "DELETE"]
 
-        response = \
-            self._session.request(method,
-                                  url=self._build_url(url_path),
-                                  headers=self._headers,
-                                  refresh=True,
-                                  params=params,
-                                  data=data,
-                                  stream=stream)
+        response = self._session.request(
+            method,
+            url=self._build_url(url_path),
+            headers=self._headers,
+            refresh=True,
+            params=params,
+            data=data,
+            stream=stream,
+        )
 
         print_trace(f"'{method}' result = ({response.status_code}, {response.text})")
 

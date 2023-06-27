@@ -24,7 +24,13 @@ from jsonbender import bend, S, F, Forall  # type: ignore
 from otterdog import resources
 from otterdog.config import OtterdogConfig, JsonnetConfig
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter, associate_by_key, print_debug, jsonnet_evaluate_file, is_info_enabled
+from otterdog.utils import (
+    IndentingPrinter,
+    associate_by_key,
+    print_debug,
+    jsonnet_evaluate_file,
+    is_info_enabled,
+)
 
 from . import ValidationContext, ModelObject
 from .branch_protection_rule import BranchProtectionRule
@@ -138,7 +144,7 @@ class GitHubOrganization:
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
             "webhooks": S("webhooks") >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": S("secrets") >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
-            "repositories": S("repositories") >> Forall(lambda x: Repository.from_model_data(x))
+            "repositories": S("repositories") >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
         return cls(**bend(mapping, data))
@@ -244,11 +250,13 @@ class GitHubOrganization:
         return output.getvalue()
 
     @classmethod
-    def load_from_file(cls,
-                       github_id: str,
-                       config_file: str,
-                       config: OtterdogConfig,
-                       resolve_secrets: bool = True) -> GitHubOrganization:
+    def load_from_file(
+        cls,
+        github_id: str,
+        config_file: str,
+        config: OtterdogConfig,
+        resolve_secrets: bool = True,
+    ) -> GitHubOrganization:
         if not os.path.exists(config_file):
             msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
             raise RuntimeError(msg)
@@ -264,13 +272,14 @@ class GitHubOrganization:
         return org
 
     @classmethod
-    def load_from_provider(cls,
-                           github_id: str,
-                           jsonnet_config: JsonnetConfig,
-                           client: Github,
-                           no_web_ui: bool = False,
-                           printer: Optional[IndentingPrinter] = None) -> GitHubOrganization:
-
+    def load_from_provider(
+        cls,
+        github_id: str,
+        jsonnet_config: JsonnetConfig,
+        client: Github,
+        no_web_ui: bool = False,
+        printer: Optional[IndentingPrinter] = None,
+    ) -> GitHubOrganization:
         start = datetime.now()
         if printer is not None and is_info_enabled():
             printer.println("\norganization settings: Reading...")
@@ -348,9 +357,9 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
     return repo_name, repo
 
 
-def _load_repos_from_provider(github_id: str,
-                              client: Github,
-                              printer: Optional[IndentingPrinter] = None) -> list[Repository]:
+def _load_repos_from_provider(
+    github_id: str, client: Github, printer: Optional[IndentingPrinter] = None
+) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():
         printer.println("\nrepositories: Reading...")
@@ -365,7 +374,7 @@ def _load_repos_from_provider(github_id: str,
     # due to the global interpreter lock.
     with ProcessPoolExecutor() as pool:
         data = pool.map(process_repo, repo_names)
-        for (_, repo_data) in data:
+        for _, repo_data in data:
             github_repos.append(repo_data)
 
     if printer is not None and is_info_enabled():

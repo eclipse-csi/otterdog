@@ -73,13 +73,17 @@ class OrganizationSettings(ModelObject):
         dependency_graph_disabled = self.dependency_graph_enabled_for_new_repositories is False
 
         if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
-            context.add_failure(FailureType.ERROR,
-                                "enabling dependabot_alerts or dependabot_security_updates implicitly"
-                                " enables dependency_graph_enabled_for_new_repositories")
+            context.add_failure(
+                FailureType.ERROR,
+                "enabling dependabot_alerts or dependabot_security_updates implicitly"
+                " enables dependency_graph_enabled_for_new_repositories",
+            )
 
         if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
-            context.add_failure(FailureType.ERROR,
-                                "enabling dependabot_security_updates implicitly enables dependabot_alerts")
+            context.add_failure(
+                FailureType.ERROR,
+                "enabling dependabot_security_updates implicitly enables dependabot_alerts",
+            )
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
@@ -94,15 +98,18 @@ class OrganizationSettings(ModelObject):
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
-                   not is_unset(data.get(field.name, UNSET))}
+        mapping = {
+            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
+        }
         return bend(mapping, data)
 
-    def to_jsonnet(self,
-                   printer: IndentingPrinter,
-                   jsonnet_config: JsonnetConfig,
-                   extend: bool,
-                   default_object: ModelObject) -> None:
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
         patch = self.get_patch_to(default_object)
         write_patch_object_as_json(patch, printer, False)
         printer.level_down()

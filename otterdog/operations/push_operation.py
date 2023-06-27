@@ -52,23 +52,29 @@ class PushOperation(Operation):
             gh_client = Github(credentials)
 
             try:
-                gh_client.update_content(org_config.github_id,
-                                         org_config.config_repo,
-                                         f"otterdog/{github_id}.jsonnet",
-                                         content,
-                                         self.push_message)
+                gh_client.update_content(
+                    org_config.github_id,
+                    org_config.config_repo,
+                    f"otterdog/{github_id}.jsonnet",
+                    content,
+                    self.push_message,
+                )
 
-                gh_client.update_content(org_config.github_id,
-                                         org_config.config_repo,
-                                         "otterdog/jsonnetfile.json",
-                                         bundle_content,
-                                         self.push_message)
+                gh_client.update_content(
+                    org_config.github_id,
+                    org_config.config_repo,
+                    "otterdog/jsonnetfile.json",
+                    bundle_content,
+                    self.push_message,
+                )
 
-                gh_client.update_content(org_config.github_id,
-                                         org_config.config_repo,
-                                         "otterdog/jsonnetfile.lock.json",
-                                         "",
-                                         self.push_message)
+                gh_client.update_content(
+                    org_config.github_id,
+                    org_config.config_repo,
+                    "otterdog/jsonnetfile.lock.json",
+                    "",
+                    self.push_message,
+                )
 
             except RuntimeError as e:
                 print_error(f"failed to push definition to repo '{org_config.config_repo}': {str(e)}")

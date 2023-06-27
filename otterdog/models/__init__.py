@@ -17,7 +17,14 @@ from colorama import Style
 
 from otterdog.providers.github import Github
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change, IndentingPrinter
+from otterdog.utils import (
+    patch_to_other,
+    is_unset,
+    T,
+    is_different_ignoring_order,
+    Change,
+    IndentingPrinter,
+)
 
 
 class FailureType(Enum):
@@ -61,7 +68,12 @@ class ModelObject(ABC):
         return any(field.metadata.get("key", False) for field in self.all_fields())
 
     def get_key(self) -> str:
-        return next(filter(lambda field: field.metadata.get("key", False) is True, self.all_fields())).name
+        return next(
+            filter(
+                lambda field: field.metadata.get("key", False) is True,
+                self.all_fields(),
+            )
+        ).name
 
     def get_key_value(self) -> Any:
         return self.__getattribute__(self.get_key())
@@ -75,11 +87,12 @@ class ModelObject(ABC):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         diff_result: dict[str, Change[T]] = {}
-        for key in self.keys(for_diff=True,
-                             for_patch=False,
-                             include_nested_models=False,
-                             exclude_unset_keys=True):
-
+        for key in self.keys(
+            for_diff=True,
+            for_patch=False,
+            include_nested_models=False,
+            exclude_unset_keys=True,
+        ):
             to_value = self.__getattribute__(key)
             from_value = other.__getattribute__(key)
 
@@ -96,11 +109,12 @@ class ModelObject(ABC):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
-        for key in self.keys(for_diff=False,
-                             for_patch=True,
-                             include_nested_models=False,
-                             exclude_unset_keys=True):
-
+        for key in self.keys(
+            for_diff=False,
+            for_patch=True,
+            include_nested_models=False,
+            exclude_unset_keys=True,
+        ):
             value = self.__getattribute__(key)
             other_value = other.__getattribute__(key)
 
@@ -127,11 +141,14 @@ class ModelObject(ABC):
 
     @classmethod
     def provider_fields(cls) -> list[dataclasses.Field]:
-        return [field for field in dataclasses.fields(cls) if
-                not cls.is_external_only(field) and
-                not cls.is_model_only(field) and
-                not cls.is_read_only(field) and
-                not cls.is_nested_model(field)]
+        return [
+            field
+            for field in dataclasses.fields(cls)
+            if not cls.is_external_only(field)
+            and not cls.is_model_only(field)
+            and not cls.is_read_only(field)
+            and not cls.is_nested_model(field)
+        ]
 
     @classmethod
     def _get_field(cls, key: str) -> dataclasses.Field:
@@ -169,11 +186,13 @@ class ModelObject(ABC):
 
         if self.is_keyed():
             key = self.get_key()
-            header = header + f"[{key}={Style.BRIGHT}\"{self.get_key_value()}\"{Style.RESET_ALL}"
+            header = header + f'[{key}={Style.BRIGHT}"{self.get_key_value()}"{Style.RESET_ALL}'
 
             if isinstance(parent_object, ModelObject):
-                header = header + f", {parent_object.model_object_name}=" \
-                                  f"{Style.BRIGHT}\"{parent_object.get_key_value()}\"{Style.RESET_ALL}"
+                header = (
+                    header + f", {parent_object.model_object_name}="
+                    f'{Style.BRIGHT}"{parent_object.get_key_value()}"{Style.RESET_ALL}'
+                )
 
             header = header + "]"
 
@@ -207,12 +226,13 @@ class ModelObject(ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def keys(self,
-             for_diff: bool = False,
-             for_patch: bool = False,
-             include_nested_models: bool = False,
-             exclude_unset_keys: bool = True) -> list[str]:
-
+    def keys(
+        self,
+        for_diff: bool = False,
+        for_patch: bool = False,
+        include_nested_models: bool = False,
+        exclude_unset_keys: bool = True,
+    ) -> list[str]:
         result = list()
 
         for field in self.model_fields():
@@ -240,9 +260,11 @@ class ModelObject(ABC):
     def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
         result = {}
 
-        for key in self.keys(for_diff=for_diff,
-                             include_nested_models=include_nested_models,
-                             exclude_unset_keys=True):
+        for key in self.keys(
+            for_diff=for_diff,
+            include_nested_models=include_nested_models,
+            exclude_unset_keys=True,
+        ):
             result[key] = self.__getattribute__(key)
 
         return result
@@ -254,9 +276,11 @@ class ModelObject(ABC):
         pass
 
     @abstractmethod
-    def to_jsonnet(self,
-                   printer: IndentingPrinter,
-                   jsonnet_config: JsonnetConfig,
-                   extend: bool,
-                   default_object: ModelObject) -> None:
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
         pass

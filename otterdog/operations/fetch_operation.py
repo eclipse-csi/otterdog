@@ -36,11 +36,13 @@ class FetchOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.println(f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
-                                 f"'{org_file_name}'.\n"
-                                 f"  Performing this action will overwrite its contents.\n"
-                                 f"  Do you want to continue?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n")
+            self.printer.println(
+                f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
+                f"'{org_file_name}'.\n"
+                f"  Performing this action will overwrite its contents.\n"
+                f"  Do you want to continue?\n"
+                f"  Only 'yes' will be accepted to approve.\n"
+            )
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
@@ -61,16 +63,18 @@ class FetchOperation(Operation):
 
             try:
                 if self.pull_request is not None:
-                    ref = gh_client.get_ref_for_pull_request(org_config.github_id,
-                                                             org_config.config_repo,
-                                                             self.pull_request)
+                    ref = gh_client.get_ref_for_pull_request(
+                        org_config.github_id, org_config.config_repo, self.pull_request
+                    )
                 else:
                     ref = None
 
-                definition = gh_client.get_content(org_config.github_id,
-                                                   org_config.config_repo,
-                                                   f"otterdog/{github_id}.jsonnet",
-                                                   ref)
+                definition = gh_client.get_content(
+                    org_config.github_id,
+                    org_config.config_repo,
+                    f"otterdog/{github_id}.jsonnet",
+                    ref,
+                )
             except RuntimeError:
                 print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
                 return 1
@@ -83,8 +87,9 @@ class FetchOperation(Operation):
                 file.write(definition)
 
             if ref is not None:
-                self.printer.println(f"organization definition fetched from pull request "
-                                     f"#{self.pull_request} to '{org_file_name}'")
+                self.printer.println(
+                    f"organization definition fetched from pull request " f"#{self.pull_request} to '{org_file_name}'"
+                )
             else:
                 self.printer.println(f"organization definition fetched from default branch to '{org_file_name}'")
 

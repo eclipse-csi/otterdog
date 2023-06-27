@@ -12,7 +12,12 @@ import subprocess
 
 from typing import Any
 
-from .utils import jsonnet_evaluate_snippet, parse_template_url, print_debug, print_trace
+from .utils import (
+    jsonnet_evaluate_snippet,
+    parse_template_url,
+    print_debug,
+    print_trace,
+)
 
 
 class JsonnetConfig:
@@ -165,10 +170,12 @@ class JsonnetConfig:
 
     @property
     def template_file(self) -> str:
-        return os.path.join(self.org_dir,
-                            "vendor",
-                            self._base_template_repo_name,
-                            self._base_template_file)
+        return os.path.join(
+            self.org_dir,
+            "vendor",
+            self._base_template_repo_name,
+            self._base_template_file,
+        )
 
     @property
     def org_dir(self) -> str:
@@ -191,22 +198,21 @@ class JsonnetConfig:
         return f"{self.org_dir}/jsonnetfile.lock.json"
 
     def _init_base_template(self) -> None:
-        content =\
-            {
-                "version": 1,
-                "dependencies": [
-                    {
-                        "source": {
-                            "git": {
-                                "remote": f"{self._base_template_repo_url}.git",
-                                "subdir": ""
-                            }
-                        },
-                        "version": f"{self._base_template_ref}"
-                    }
-                ],
-                "legacyImports": True
-            }
+        content = {
+            "version": 1,
+            "dependencies": [
+                {
+                    "source": {
+                        "git": {
+                            "remote": f"{self._base_template_repo_url}.git",
+                            "subdir": "",
+                        }
+                    },
+                    "version": f"{self._base_template_ref}",
+                }
+            ],
+            "legacyImports": True,
+        }
 
         with open(self.jsonnet_bundle_file, "w") as file:
             file.write(json.dumps(content, indent=2))

@@ -23,8 +23,9 @@ class CanonicalDiffOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Showing diff to a canonical version of the configuration at "
-                             f"'{self.config.config_file}'")
+        self.printer.println(
+            f"Showing diff to a canonical version of the configuration at " f"'{self.config.config_file}'"
+        )
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -40,11 +41,7 @@ class CanonicalDiffOperation(Operation):
             return 1
 
         try:
-            organization = \
-                GitHubOrganization.load_from_file(github_id,
-                                                  org_file_name,
-                                                  self.config,
-                                                  False)
+            organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
         except RuntimeError as ex:
             print_error(f"failed to load configuration: {str(ex)}")
             return 1
@@ -52,16 +49,19 @@ class CanonicalDiffOperation(Operation):
         with open(org_file_name, "r") as file:
             original_config = file.read()
 
-        original_config_without_comments: list[str] = \
-            list(filter(lambda x: not x.strip().startswith("#"), original_config.split("\n")))
+        original_config_without_comments: list[str] = list(
+            filter(lambda x: not x.strip().startswith("#"), original_config.split("\n"))
+        )
 
         canonical_config = organization.to_jsonnet(jsonnet_config)
         canonical_config_as_lines = canonical_config.split("\n")
 
-        for line in difflib.unified_diff(original_config_without_comments,
-                                         canonical_config_as_lines,
-                                         "original",
-                                         "canonical"):
+        for line in difflib.unified_diff(
+            original_config_without_comments,
+            canonical_config_as_lines,
+            "original",
+            "canonical",
+        ):
             if line.startswith("+"):
                 self.printer.println(f"{Fore.GREEN}{line}{Style.RESET_ALL}")
             elif line.startswith("-"):

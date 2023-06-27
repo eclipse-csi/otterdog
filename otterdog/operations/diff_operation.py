@@ -20,8 +20,17 @@ from otterdog.models.repository import Repository
 from otterdog.models.secret import Secret
 from otterdog.models.webhook import Webhook
 from otterdog.providers.github import Github
-from otterdog.utils import IndentingPrinter, associate_by_key, multi_associate_by_key, print_warn, print_error, \
-    Change, is_unset, is_set_and_valid, is_info_enabled
+from otterdog.utils import (
+    IndentingPrinter,
+    associate_by_key,
+    multi_associate_by_key,
+    print_warn,
+    print_error,
+    Change,
+    is_unset,
+    is_set_and_valid,
+    is_info_enabled,
+)
 
 from . import Operation
 from .validate_operation import ValidateOperation
@@ -108,14 +117,20 @@ class DiffOperation(Operation):
 
         # We validate the configuration first and only calculate a plan if
         # there are no validation errors.
-        validation_infos, validation_warnings, validation_errors = self._validator.validate(expected_org)
+        (
+            validation_infos,
+            validation_warnings,
+            validation_errors,
+        ) = self._validator.validate(expected_org)
         if validation_errors > 0:
             self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
 
         if validation_infos > 0 and not is_info_enabled():
-            self.printer.println(f"there have been {validation_infos} validation infos, "
-                                 f"enable verbose output with '-v' to to display them.")
+            self.printer.println(
+                f"there have been {validation_infos} validation infos, "
+                f"enable verbose output with '-v' to to display them."
+            )
 
         try:
             current_org = self.load_current_org(github_id, jsonnet_config)
@@ -133,11 +148,13 @@ class DiffOperation(Operation):
             change = modified_org_settings["web_commit_signoff_required"]
             if change.to_value is False:
                 if self.verbose_output():
-                    print_warn("Setting 'web_commit_signoff_required' setting has been disabled on "
-                               "organization level. \nThe effective setting on repo level can only be "
-                               "determined once this change has been applied.\n"
-                               "You need to run otterdog another time to fully ensure "
-                               "that the correct configuration is applied.")
+                    print_warn(
+                        "Setting 'web_commit_signoff_required' setting has been disabled on "
+                        "organization level. \nThe effective setting on repo level can only be "
+                        "determined once this change has been applied.\n"
+                        "You need to run otterdog another time to fully ensure "
+                        "that the correct configuration is applied."
+                    )
 
         self._process_org_webhooks(github_id, expected_org, current_org, diff_status)
         self._process_org_secrets(github_id, expected_org, current_org, diff_status)
@@ -147,23 +164,20 @@ class DiffOperation(Operation):
         return 0
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
-        return GitHubOrganization.load_from_file(github_id,
-                                                 org_file_name,
-                                                 self.config,
-                                                 self.resolve_secrets())
+        return GitHubOrganization.load_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
 
     def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
-        return GitHubOrganization.load_from_provider(github_id,
-                                                     jsonnet_config,
-                                                     self.gh_client,
-                                                     self.no_web_ui,
-                                                     self.printer)
+        return GitHubOrganization.load_from_provider(
+            github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.printer
+        )
 
-    def _process_org_settings(self,
-                              github_id: str,
-                              expected_org: GitHubOrganization,
-                              current_org: GitHubOrganization,
-                              diff_status: DiffStatus) -> dict[str, Change[Any]]:
+    def _process_org_settings(
+        self,
+        github_id: str,
+        expected_org: GitHubOrganization,
+        current_org: GitHubOrganization,
+        diff_status: DiffStatus,
+    ) -> dict[str, Change[Any]]:
         expected_org_settings = expected_org.settings
         current_org_settings = current_org.settings
 
@@ -171,44 +185,52 @@ class DiffOperation(Operation):
         if len(modified_settings) > 0:
             # some settings might be read-only, collect the correct number of changes
             # to be executed based on the operations to be performed.
-            diff_status.differences += \
-                self.handle_modified_object(github_id,
-                                            modified_settings,
-                                            False,
-                                            current_org_settings,
-                                            expected_org_settings)
+            diff_status.differences += self.handle_modified_object(
+                github_id,
+                modified_settings,
+                False,
+                current_org_settings,
+                expected_org_settings,
+            )
 
         return modified_settings
 
-    def _process_org_webhooks(self,
-                              github_id: str,
-                              expected_org: GitHubOrganization,
-                              current_org: GitHubOrganization,
-                              diff_status: DiffStatus) -> None:
+    def _process_org_webhooks(
+        self,
+        github_id: str,
+        expected_org: GitHubOrganization,
+        current_org: GitHubOrganization,
+        diff_status: DiffStatus,
+    ) -> None:
         expected_webhooks_by_all_urls = multi_associate_by_key(expected_org.webhooks, Webhook.get_all_urls)
         expected_webhooks_by_url = associate_by_key(expected_org.webhooks, lambda x: x.url)
-        self._process_webhooks(github_id,
-                               expected_webhooks_by_all_urls,
-                               expected_webhooks_by_url,
-                               current_org.webhooks,
-                               None,
-                               diff_status)
+        self._process_webhooks(
+            github_id,
+            expected_webhooks_by_all_urls,
+            expected_webhooks_by_url,
+            current_org.webhooks,
+            None,
+            diff_status,
+        )
 
-    def _process_org_secrets(self,
-                             github_id: str,
-                             expected_org: GitHubOrganization,
-                             current_org: GitHubOrganization,
-                             diff_status: DiffStatus) -> None:
+    def _process_org_secrets(
+        self,
+        github_id: str,
+        expected_org: GitHubOrganization,
+        current_org: GitHubOrganization,
+        diff_status: DiffStatus,
+    ) -> None:
         expected_secrets_by_name = associate_by_key(expected_org.secrets, lambda x: x.name)
         self._process_secrets(github_id, expected_secrets_by_name, current_org.secrets, None, diff_status)
 
-    def _process_repositories(self,
-                              github_id: str,
-                              expected_org: GitHubOrganization,
-                              current_org: GitHubOrganization,
-                              modified_org_settings: dict[str, Change[Any]],
-                              diff_status: DiffStatus) -> None:
-
+    def _process_repositories(
+        self,
+        github_id: str,
+        expected_org: GitHubOrganization,
+        current_org: GitHubOrganization,
+        modified_org_settings: dict[str, Change[Any]],
+        diff_status: DiffStatus,
+    ) -> None:
         expected_repos_by_all_names = multi_associate_by_key(expected_org.repositories, Repository.get_all_names)
         expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
         current_repos = current_org.repositories
@@ -231,12 +253,9 @@ class DiffOperation(Operation):
             modified_repo: dict[str, Change[Any]] = expected_repo.get_difference_from(current_repo)
 
             if len(modified_repo) > 0:
-                diff_status.differences += \
-                    self.handle_modified_object(github_id,
-                                                modified_repo,
-                                                False,
-                                                current_repo,
-                                                expected_repo)
+                diff_status.differences += self.handle_modified_object(
+                    github_id, modified_repo, False, current_repo, expected_repo
+                )
 
             self._process_repo_webhooks(github_id, current_repo, expected_repo, diff_status)
             self._process_repo_secrets(github_id, current_repo, expected_repo, diff_status)
@@ -265,14 +284,16 @@ class DiffOperation(Operation):
             if len(repo.branch_protection_rules) > 0:
                 self._process_branch_protection_rules(github_id, None, repo, diff_status)
 
-    def _process_branch_protection_rules(self,
-                                         org_id: str,
-                                         current_repo: Repository | None,
-                                         expected_repo: Repository,
-                                         diff_status: DiffStatus) -> None:
-
-        expected_branch_protection_rules_by_pattern = \
-            associate_by_key(expected_repo.branch_protection_rules, lambda x: x.pattern)
+    def _process_branch_protection_rules(
+        self,
+        org_id: str,
+        current_repo: Repository | None,
+        expected_repo: Repository,
+        diff_status: DiffStatus,
+    ) -> None:
+        expected_branch_protection_rules_by_pattern = associate_by_key(
+            expected_repo.branch_protection_rules, lambda x: x.pattern
+        )
 
         # ignore branch protection rules for archived projects.
         if expected_repo.archived is True:
@@ -295,8 +316,14 @@ class DiffOperation(Operation):
                 # we know that the current repo is not None
                 assert current_repo is not None
 
-                diff_status.differences += \
-                    self.handle_modified_object(org_id, modified_rule, False, current_rule, expected_rule, current_repo)
+                diff_status.differences += self.handle_modified_object(
+                    org_id,
+                    modified_rule,
+                    False,
+                    current_rule,
+                    expected_rule,
+                    current_repo,
+                )
 
             expected_branch_protection_rules_by_pattern.pop(rule_pattern)
 
@@ -305,44 +332,47 @@ class DiffOperation(Operation):
             self.handle_add_object(org_id, rule, repo)
             diff_status.additions += 1
 
-    def _process_repo_webhooks(self,
-                               org_id: str,
-                               current_repo: Repository | None,
-                               expected_repo: Repository,
-                               diff_status: DiffStatus) -> None:
+    def _process_repo_webhooks(
+        self,
+        org_id: str,
+        current_repo: Repository | None,
+        expected_repo: Repository,
+        diff_status: DiffStatus,
+    ) -> None:
         expected_webhooks_by_all_urls = multi_associate_by_key(expected_repo.webhooks, Webhook.get_all_urls)
         expected_webhooks_by_url = associate_by_key(expected_repo.webhooks, lambda x: x.url)
         current_repo_webhooks = current_repo.webhooks if current_repo is not None else []
         repo = expected_repo if current_repo is None else current_repo
-        self._process_webhooks(org_id,
-                               expected_webhooks_by_all_urls,
-                               expected_webhooks_by_url,
-                               current_repo_webhooks,
-                               repo,
-                               diff_status)
+        self._process_webhooks(
+            org_id,
+            expected_webhooks_by_all_urls,
+            expected_webhooks_by_url,
+            current_repo_webhooks,
+            repo,
+            diff_status,
+        )
 
-    def _process_repo_secrets(self,
-                              org_id: str,
-                              current_repo: Repository | None,
-                              expected_repo: Repository,
-                              diff_status: DiffStatus) -> None:
+    def _process_repo_secrets(
+        self,
+        org_id: str,
+        current_repo: Repository | None,
+        expected_repo: Repository,
+        diff_status: DiffStatus,
+    ) -> None:
         expected_secrets_by_name = associate_by_key(expected_repo.secrets, lambda x: x.name)
         current_repo_secrets = current_repo.secrets if current_repo is not None else []
         repo = expected_repo if current_repo is None else current_repo
-        self._process_secrets(org_id,
-                              expected_secrets_by_name,
-                              current_repo_secrets,
-                              repo,
-                              diff_status)
+        self._process_secrets(org_id, expected_secrets_by_name, current_repo_secrets, repo, diff_status)
 
-    def _process_webhooks(self,
-                          org_id: str,
-                          expected_webhooks_by_all_urls: dict[str, WT],
-                          expected_webhooks_by_url: dict[str, WT],
-                          current_webhooks: list[WT],
-                          parent_object: Optional[ModelObject],
-                          diff_status: DiffStatus) -> None:
-
+    def _process_webhooks(
+        self,
+        org_id: str,
+        expected_webhooks_by_all_urls: dict[str, WT],
+        expected_webhooks_by_url: dict[str, WT],
+        current_webhooks: list[WT],
+        parent_object: Optional[ModelObject],
+        diff_status: DiffStatus,
+    ) -> None:
         for current_webhook in current_webhooks:
             webhook_url = current_webhook.url
 
@@ -366,13 +396,14 @@ class DiffOperation(Operation):
                 model_dict = expected_webhook.to_model_dict()
                 modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
-                diff_status.differences += \
-                    self.handle_modified_object(org_id,
-                                                modified_webhook,
-                                                True,
-                                                current_webhook,
-                                                expected_webhook,
-                                                parent_object)
+                diff_status.differences += self.handle_modified_object(
+                    org_id,
+                    modified_webhook,
+                    True,
+                    current_webhook,
+                    expected_webhook,
+                    parent_object,
+                )
                 continue
 
             modified_webhook = expected_webhook.get_difference_from(current_webhook)
@@ -388,36 +419,41 @@ class DiffOperation(Operation):
                     return secret is not None and self.resolve_secrets() is False
 
                 # if there are different unresolved secrets, display changes
-                has_different_unresolved_secrets = \
-                    has_unresolved_secret(expected_secret) and \
-                    has_unresolved_secret(current_secret) and \
-                    expected_secret != current_secret
+                has_different_unresolved_secrets = (
+                    has_unresolved_secret(expected_secret)
+                    and has_unresolved_secret(current_secret)
+                    and expected_secret != current_secret
+                )
 
-                if ((expected_secret is not None and current_secret is None) or
-                        (expected_secret is None and current_secret is not None) or
-                        has_different_unresolved_secrets):
+                if (
+                    (expected_secret is not None and current_secret is None)
+                    or (expected_secret is None and current_secret is not None)
+                    or has_different_unresolved_secrets
+                ):
                     modified_webhook["secret"] = Change(current_secret, expected_secret)
 
             if len(modified_webhook) > 0:
-                diff_status.differences += \
-                    self.handle_modified_object(org_id,
-                                                modified_webhook,
-                                                False,
-                                                current_webhook,
-                                                expected_webhook,
-                                                parent_object)
+                diff_status.differences += self.handle_modified_object(
+                    org_id,
+                    modified_webhook,
+                    False,
+                    current_webhook,
+                    expected_webhook,
+                    parent_object,
+                )
 
         for webhook_url, webhook in expected_webhooks_by_url.items():
             self.handle_add_object(org_id, webhook, parent_object)
             diff_status.additions += 1
 
-    def _process_secrets(self,
-                         org_id: str,
-                         expected_secrets_by_name: dict[str, ST],
-                         current_secrets: list[ST],
-                         parent_object: Optional[ModelObject],
-                         diff_status: DiffStatus) -> None:
-
+    def _process_secrets(
+        self,
+        org_id: str,
+        expected_secrets_by_name: dict[str, ST],
+        current_secrets: list[ST],
+        parent_object: Optional[ModelObject],
+        diff_status: DiffStatus,
+    ) -> None:
         for current_secret in current_secrets:
             secret_name = current_secret.name
 
@@ -439,13 +475,14 @@ class DiffOperation(Operation):
                 model_dict = expected_secret.to_model_dict()
                 modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
-                diff_status.differences += \
-                    self.handle_modified_object(org_id,
-                                                modified_secret,
-                                                True,
-                                                current_secret,
-                                                expected_secret,
-                                                parent_object)
+                diff_status.differences += self.handle_modified_object(
+                    org_id,
+                    modified_secret,
+                    True,
+                    current_secret,
+                    expected_secret,
+                    parent_object,
+                )
                 continue
 
             modified_secret = expected_secret.get_difference_from(current_secret)
@@ -458,32 +495,35 @@ class DiffOperation(Operation):
                     return secret_value is not None and self.resolve_secrets() is False
 
                 # if there are different unresolved secrets, display changes
-                if has_unresolved_secret(expected_secret_value) and \
-                        has_unresolved_secret(current_secret_value) and \
-                        expected_secret_value != current_secret_value:
+                if (
+                    has_unresolved_secret(expected_secret_value)
+                    and has_unresolved_secret(current_secret_value)
+                    and expected_secret_value != current_secret_value
+                ):
                     modified_secret["value"] = Change(current_secret_value, expected_secret_value)
 
             if len(modified_secret) > 0:
-                diff_status.differences += \
-                    self.handle_modified_object(org_id,
-                                                modified_secret,
-                                                False,
-                                                current_secret,
-                                                expected_secret,
-                                                parent_object)
+                diff_status.differences += self.handle_modified_object(
+                    org_id,
+                    modified_secret,
+                    False,
+                    current_secret,
+                    expected_secret,
+                    parent_object,
+                )
 
         for secret_name, secret in expected_secrets_by_name.items():
             self.handle_add_object(org_id, secret, parent_object)
             diff_status.additions += 1
 
-    def _process_environments(self,
-                              org_id: str,
-                              current_repo: Repository | None,
-                              expected_repo: Repository,
-                              diff_status: DiffStatus) -> None:
-
-        expected_environments_by_name = \
-            associate_by_key(expected_repo.environments, lambda x: x.name)
+    def _process_environments(
+        self,
+        org_id: str,
+        current_repo: Repository | None,
+        expected_repo: Repository,
+        diff_status: DiffStatus,
+    ) -> None:
+        expected_environments_by_name = associate_by_key(expected_repo.environments, lambda x: x.name)
 
         # only retrieve current rules if the current_repo is available, otherwise it's a new repo
         current_environments = current_repo.environments if current_repo is not None else []
@@ -502,8 +542,9 @@ class DiffOperation(Operation):
                 # we know that the current repo is not None
                 assert current_repo is not None
 
-                diff_status.differences += \
-                    self.handle_modified_object(org_id, modified_env, False, current_env, expected_env, current_repo)
+                diff_status.differences += self.handle_modified_object(
+                    org_id, modified_env, False, current_env, expected_env, current_repo
+                )
 
             expected_environments_by_name.pop(env_name)
 
@@ -513,27 +554,33 @@ class DiffOperation(Operation):
             diff_status.additions += 1
 
     @abstractmethod
-    def handle_add_object(self,
-                          org_id: str,
-                          model_object: ModelObject,
-                          parent_object: Optional[ModelObject] = None) -> None:
+    def handle_add_object(
+        self,
+        org_id: str,
+        model_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_delete_object(self,
-                             org_id: str,
-                             model_object: ModelObject,
-                             parent_object: Optional[ModelObject] = None) -> None:
+    def handle_delete_object(
+        self,
+        org_id: str,
+        model_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def handle_modified_object(self,
-                               org_id: str,
-                               modified_object: dict[str, Change[Any]],
-                               forced_update: bool,
-                               current_object: ModelObject,
-                               expected_object: ModelObject,
-                               parent_object: Optional[ModelObject] = None) -> int:
+    def handle_modified_object(
+        self,
+        org_id: str,
+        modified_object: dict[str, Change[Any]],
+        forced_update: bool,
+        current_object: ModelObject,
+        expected_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod

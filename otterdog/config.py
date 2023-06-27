@@ -21,13 +21,15 @@ from .jsonnet import JsonnetConfig
 
 
 class OrganizationConfig:
-    def __init__(self,
-                 name: str,
-                 github_id: str,
-                 eclipse_project: Optional[str],
-                 config_repo: str,
-                 jsonnet_config: JsonnetConfig,
-                 credential_data: dict[str, Any]):
+    def __init__(
+        self,
+        name: str,
+        github_id: str,
+        eclipse_project: Optional[str],
+        config_repo: str,
+        jsonnet_config: JsonnetConfig,
+        credential_data: dict[str, Any],
+    ):
         self._name = name
         self._github_id = github_id
         self._eclipse_project = eclipse_project
@@ -60,8 +62,10 @@ class OrganizationConfig:
         return self._credential_data
 
     def __repr__(self) -> str:
-        return f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.eclipse_project}', " \
-               f"'{self.config_repo}', {json.dumps(self.credential_data)})"
+        return (
+            f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.eclipse_project}', "
+            f"'{self.config_repo}', {json.dumps(self.credential_data)})"
+        )
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], otterdog_config: OtterdogConfig) -> OrganizationConfig:
@@ -75,11 +79,15 @@ class OrganizationConfig:
 
         eclipse_project = jq.compile(".eclipse_project").input(data).first()
 
-        config_repo = jq.compile(f".config_repo // \"{otterdog_config.default_config_repo}\"").input(data).first()
-        base_template = jq.compile(f".base_template // \"{otterdog_config.default_base_template}\"").input(data).first()
+        config_repo = jq.compile(f'.config_repo // "{otterdog_config.default_config_repo}"').input(data).first()
+        base_template = jq.compile(f'.base_template // "{otterdog_config.default_base_template}"').input(data).first()
 
-        jsonnet_config = \
-            JsonnetConfig(github_id, otterdog_config.jsonnet_base_dir, base_template, otterdog_config.local_mode)
+        jsonnet_config = JsonnetConfig(
+            github_id,
+            otterdog_config.jsonnet_base_dir,
+            base_template,
+            otterdog_config.local_mode,
+        )
 
         data = jq.compile(".credentials // {}").input(data).first()
         if data is None:
@@ -148,19 +156,19 @@ class OtterdogConfig:
         if provider is None:
             match provider_type:
                 case "bitwarden":
-                    api_token_key =\
-                        jq.compile('.defaults.bitwarden.api_token_key // "api_token_admin"')\
-                          .input(self._configuration)\
-                          .first()
+                    api_token_key = (
+                        jq.compile('.defaults.bitwarden.api_token_key // "api_token_admin"')
+                        .input(self._configuration)
+                        .first()
+                    )
 
                     provider = bitwarden_provider.BitwardenVault(api_token_key)
                     self._credential_providers[provider_type] = provider
 
                 case "pass":
-                    password_store_dir =\
-                        jq.compile('.defaults.pass.password_store_dir // ""')\
-                          .input(self._configuration)\
-                          .first()
+                    password_store_dir = (
+                        jq.compile('.defaults.pass.password_store_dir // ""').input(self._configuration).first()
+                    )
 
                     provider = pass_provider.PassVault(password_store_dir)
                     self._credential_providers[provider_type] = provider

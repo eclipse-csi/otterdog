@@ -57,9 +57,12 @@ class PassVault(CredentialProvider):
         #    bots/<eclipse-project>/github.com/<key>
         if resolved_key is None and eclipse_project is not None:
             match key:
-                case PassVault.KEY_API_TOKEN: query_key = "otterdog-token"
-                case PassVault.KEY_2FA_SEED: query_key = "2FA-seed"
-                case _: query_key = key
+                case PassVault.KEY_API_TOKEN:
+                    query_key = "otterdog-token"
+                case PassVault.KEY_2FA_SEED:
+                    query_key = "2FA-seed"
+                case _:
+                    query_key = key
 
             return PassVault._retrieve_resolved_key(f"bots/{eclipse_project}/github.com/{query_key}")
 

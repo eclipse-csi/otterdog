@@ -29,10 +29,10 @@ from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
 
-_DISTRIBUTION_METADATA = importlib.metadata.metadata('otterdog')
-_VERSION = _DISTRIBUTION_METADATA['Version']
+_DISTRIBUTION_METADATA = importlib.metadata.metadata("otterdog")
+_VERSION = _DISTRIBUTION_METADATA["Version"]
 
-_CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 _CONFIG: Optional[OtterdogConfig] = None
 
@@ -41,15 +41,36 @@ class StdCommand(click.Command):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.context_settings = _CONTEXT_SETTINGS
-        self.params.insert(0, click.Option(["-v", "--verbose"], count=True,
-                                           help="enable verbose output (-vv for more verbose output)"))
+        self.params.insert(
+            0,
+            click.Option(
+                ["-v", "--verbose"],
+                count=True,
+                help="enable verbose output (-vv for more verbose output)",
+            ),
+        )
 
-        self.params.insert(0, click.Option(["-c", "--config"], default=_CONFIG_FILE, show_default=True,
-                                           type=click.Path(True, True, False),
-                                           help="configuration file to use"))
+        self.params.insert(
+            0,
+            click.Option(
+                ["-c", "--config"],
+                default=_CONFIG_FILE,
+                show_default=True,
+                type=click.Path(True, True, False),
+                help="configuration file to use",
+            ),
+        )
 
-        self.params.insert(0, click.Option(["--local"], is_flag=True, default=False, show_default=True,
-                                           help="work in local mode, not updating the referenced default config"))
+        self.params.insert(
+            0,
+            click.Option(
+                ["--local"],
+                is_flag=True,
+                default=False,
+                show_default=True,
+                help="work in local mode, not updating the referenced default config",
+            ),
+        )
 
         self.params.insert(0, click.Argument(["organizations"], nargs=-1))
 
@@ -99,8 +120,14 @@ def show(organizations: list[str]):
 
 
 @cli.command(cls=StdCommand)
-@click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
-              help="skip settings retrieved via web ui")
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
 def show_live(organizations: list[str], no_web_ui):
     """
     Displays the live configuration for organizations.
@@ -109,10 +136,19 @@ def show_live(organizations: list[str], no_web_ui):
 
 
 @cli.command(cls=StdCommand)
-@click.option("-f", "--force", is_flag=True, show_default=True, default=False,
-              help="skips interactive approvals")
-@click.option("-p", "--pull-request",
-              help="fetch from pull request number instead of default branch")
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+@click.option(
+    "-p",
+    "--pull-request",
+    help="fetch from pull request number instead of default branch",
+)
 def fetch_config(organizations: list[str], force, pull_request):
     """
     Fetches the configuration from the corresponding config repo of an organization.
@@ -130,10 +166,22 @@ def push_config(organizations: list[str], message):
 
 
 @cli.command(cls=StdCommand, name="import")
-@click.option("-f", "--force", is_flag=True, show_default=True, default=False,
-              help="skips interactive approvals")
-@click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
-              help="skip settings retrieved via web ui")
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
 def import_command(organizations: list[str], force, no_web_ui):
     """
     Imports existing resources for a GitHub organization.
@@ -142,64 +190,149 @@ def import_command(organizations: list[str], force, no_web_ui):
 
 
 @cli.command(cls=StdCommand)
-@click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
-              help="skip settings retrieved via web ui")
-@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
-@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
+@click.option(
+    "--update-webhooks",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
+@click.option(
+    "--update-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
 def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
     """
-    _execute_operation(organizations, PlanOperation(no_web_ui=no_web_ui,
-                                                    update_webhooks=update_webhooks,
-                                                    update_secrets=update_secrets))
+    _execute_operation(
+        organizations,
+        PlanOperation(
+            no_web_ui=no_web_ui,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+        ),
+    )
 
 
 @cli.command(cls=StdCommand)
-@click.option("-s", "--suffix", show_default=True, default="-HEAD",
-              help="suffix to append to the configuration for comparison")
-@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
-@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
+@click.option(
+    "-s",
+    "--suffix",
+    show_default=True,
+    default="-HEAD",
+    help="suffix to append to the configuration for comparison",
+)
+@click.option(
+    "--update-webhooks",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
+@click.option(
+    "--update-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
 def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
     """
-    _execute_operation(organizations, LocalPlanOperation(suffix=suffix,
-                                                         update_webhooks=update_webhooks,
-                                                         update_secrets=update_secrets))
+    _execute_operation(
+        organizations,
+        LocalPlanOperation(
+            suffix=suffix,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+        ),
+    )
 
 
 @cli.command(cls=StdCommand)
-@click.option("-f", "--force", is_flag=True, show_default=True, default=False,
-              help="skips interactive approvals")
-@click.option("-n", "--no-web-ui", is_flag=True, show_default=True, default=False,
-              help="skip settings retrieved via web ui")
-@click.option("--update-webhooks", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
-@click.option("--update-secrets", is_flag=True, show_default=True, default=False,
-              help="updates webhook with secrets regardless of changes")
-@click.option("-d", "--delete-resources", is_flag=True, show_default=True, default=False,
-              help="enables deletion of resources if they are missing in the definition")
-def apply(organizations: list[str], force, no_web_ui, update_webhooks, update_secrets, delete_resources):
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
+@click.option(
+    "--update-webhooks",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
+@click.option(
+    "--update-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
+@click.option(
+    "-d",
+    "--delete-resources",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="enables deletion of resources if they are missing in the definition",
+)
+def apply(
+    organizations: list[str],
+    force,
+    no_web_ui,
+    update_webhooks,
+    update_secrets,
+    delete_resources,
+):
     """
     Apply changes based on the current configuration to the live configuration at GitHub.
     """
-    _execute_operation(organizations, ApplyOperation(force_processing=force,
-                                                     no_web_ui=no_web_ui,
-                                                     update_webhooks=update_webhooks,
-                                                     update_secrets=update_secrets,
-                                                     delete_resources=delete_resources))
+    _execute_operation(
+        organizations,
+        ApplyOperation(
+            force_processing=force,
+            no_web_ui=no_web_ui,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+            delete_resources=delete_resources,
+        ),
+    )
 
 
 @cli.command(cls=StdCommand)
-@click.option("-r", "--repo", default=None,
-              help="repository to sync (default: all repos created from a template)")
+@click.option(
+    "-r",
+    "--repo",
+    default=None,
+    help="repository to sync (default: all repos created from a template)",
+)
 def sync_template(organizations: list[str], repo):
     """
     Sync contents of repositories created from a template repository.
@@ -248,5 +381,5 @@ def _execute_operation(organizations: list[str], operation: Operation):
         sys.exit(2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

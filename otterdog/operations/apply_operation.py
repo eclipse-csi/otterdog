@@ -27,12 +27,14 @@ from ..models import ModelObject
 
 
 class ApplyOperation(PlanOperation):
-    def __init__(self,
-                 force_processing: bool,
-                 no_web_ui: bool,
-                 update_webhooks: bool,
-                 update_secrets: bool,
-                 delete_resources: bool):
+    def __init__(
+        self,
+        force_processing: bool,
+        no_web_ui: bool,
+        update_webhooks: bool,
+        update_secrets: bool,
+        delete_resources: bool,
+    ):
         super().__init__(no_web_ui, update_webhooks, update_secrets)
 
         self._force_processing = force_processing
@@ -68,10 +70,12 @@ class ApplyOperation(PlanOperation):
         self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
-    def handle_add_object(self,
-                          org_id: str,
-                          model_object: ModelObject,
-                          parent_object: Optional[ModelObject] = None) -> None:
+    def handle_add_object(
+        self,
+        org_id: str,
+        model_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> None:
         super().handle_add_object(org_id, model_object, parent_object)
 
         if isinstance(model_object, OrganizationWebhook):
@@ -96,8 +100,12 @@ class ApplyOperation(PlanOperation):
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
 
-    def handle_delete_object(self, org_id: str, model_object: ModelObject,
-                             parent_object: Optional[ModelObject] = None) -> None:
+    def handle_delete_object(
+        self,
+        org_id: str,
+        model_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> None:
         super().handle_delete_object(org_id, model_object, parent_object)
 
         if isinstance(model_object, OrganizationWebhook):
@@ -121,20 +129,23 @@ class ApplyOperation(PlanOperation):
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
 
-    def handle_modified_object(self,
-                               org_id: str,
-                               modified_object: dict[str, Change[Any]],
-                               forced_update: bool,
-                               current_object: ModelObject,
-                               expected_object: ModelObject,
-                               parent_object: Optional[ModelObject] = None) -> int:
-        modified = \
-            super().handle_modified_object(org_id,
-                                           modified_object,
-                                           forced_update,
-                                           current_object,
-                                           expected_object,
-                                           parent_object)
+    def handle_modified_object(
+        self,
+        org_id: str,
+        modified_object: dict[str, Change[Any]],
+        forced_update: bool,
+        current_object: ModelObject,
+        expected_object: ModelObject,
+        parent_object: Optional[ModelObject] = None,
+    ) -> int:
+        modified = super().handle_modified_object(
+            org_id,
+            modified_object,
+            forced_update,
+            current_object,
+            expected_object,
+            parent_object,
+        )
 
         if isinstance(current_object, OrganizationSettings):
             self._org_settings_to_update = modified_object
@@ -146,13 +157,18 @@ class ApplyOperation(PlanOperation):
             self._modified_repos[current_object.name] = modified_object
         elif isinstance(current_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
-            self._modified_repo_webhooks.append((repo_name,
-                                                 current_object.id,
-                                                 cast(RepositoryWebhook, expected_object)))
+            self._modified_repo_webhooks.append(
+                (repo_name, current_object.id, cast(RepositoryWebhook, expected_object))
+            )
         elif isinstance(current_object, RepositorySecret):
             repo_name = cast(Repository, parent_object).name
-            self._modified_repo_secrets.append((repo_name, current_object.name,
-                                                cast(RepositorySecret, expected_object)))
+            self._modified_repo_secrets.append(
+                (
+                    repo_name,
+                    current_object.name,
+                    cast(RepositorySecret, expected_object),
+                )
+            )
         elif isinstance(current_object, Environment):
             repo_name = cast(Repository, parent_object).name
             self._modified_environments.append((repo_name, current_object.name, modified_object))
@@ -170,16 +186,18 @@ class ApplyOperation(PlanOperation):
         if diff_status.total_changes(self._delete_resources) == 0:
             self.printer.println("No changes required.")
             if not self._delete_resources and diff_status.deletions > 0:
-                self.printer.println(f"{diff_status.deletions} resource(s) would be deleted with "
-                                     f"flag \'--delete-resources\'.")
+                self.printer.println(
+                    f"{diff_status.deletions} resource(s) would be deleted with " f"flag '--delete-resources'."
+                )
             return
 
         if not self._force_processing:
             if diff_status.deletions > 0 and not self._delete_resources:
                 self.printer.println("No resource will be removed, use flag '--delete-resources' to delete them.\n")
 
-            self.printer.println(f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n")
+            self.printer.println(
+                f"{Style.BRIGHT}Do you want to perform these actions?\n" f"  Only 'yes' will be accepted to approve.\n"
+            )
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
@@ -188,20 +206,19 @@ class ApplyOperation(PlanOperation):
                 return
 
         if self._org_settings_to_update is not None:
-            github_settings = \
-                OrganizationSettings.changes_to_provider(org_id, self._org_settings_to_update, self.gh_client)
+            github_settings = OrganizationSettings.changes_to_provider(
+                org_id, self._org_settings_to_update, self.gh_client
+            )
             self.gh_client.update_org_settings(org_id, github_settings)
 
         for webhook_id, org_webhook in self._modified_org_webhooks.items():
-            self.gh_client.update_org_webhook(org_id, webhook_id,
-                                              org_webhook.to_provider_data(org_id, self.gh_client))
+            self.gh_client.update_org_webhook(org_id, webhook_id, org_webhook.to_provider_data(org_id, self.gh_client))
 
         for org_webhook in self._added_org_webhooks:
             self.gh_client.add_org_webhook(org_id, org_webhook.to_provider_data(org_id, self.gh_client))
 
         for secret_name, org_secret in self._modified_org_secrets.items():
-            self.gh_client.update_org_secret(org_id, secret_name,
-                                             org_secret.to_provider_data(org_id, self.gh_client))
+            self.gh_client.update_org_secret(org_id, secret_name, org_secret.to_provider_data(org_id, self.gh_client))
 
         for org_secret in self._added_org_secrets:
             self.gh_client.add_org_secret(org_id, org_secret.to_provider_data(org_id, self.gh_client))
@@ -211,45 +228,59 @@ class ApplyOperation(PlanOperation):
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
         for repo in self._added_repos:
-            self.gh_client.add_repo(org_id,
-                                    repo.to_provider_data(org_id, self.gh_client),
-                                    repo.template_repository,
-                                    repo.post_process_template_content,
-                                    repo.auto_init)
+            self.gh_client.add_repo(
+                org_id,
+                repo.to_provider_data(org_id, self.gh_client),
+                repo.template_repository,
+                repo.post_process_template_content,
+                repo.auto_init,
+            )
 
         for repo_name, webhook_id, repo_webhook in self._modified_repo_webhooks:
-            self.gh_client.update_repo_webhook(org_id, repo_name, webhook_id,
-                                               repo_webhook.to_provider_data(org_id, self.gh_client))
+            self.gh_client.update_repo_webhook(
+                org_id,
+                repo_name,
+                webhook_id,
+                repo_webhook.to_provider_data(org_id, self.gh_client),
+            )
 
         for repo_name, repo_webhook in self._added_repo_webhooks:
-            self.gh_client.add_repo_webhook(org_id, repo_name,
-                                            repo_webhook.to_provider_data(org_id, self.gh_client))
+            self.gh_client.add_repo_webhook(org_id, repo_name, repo_webhook.to_provider_data(org_id, self.gh_client))
 
         for repo_name, secret_name, repo_secret in self._modified_repo_secrets:
-            self.gh_client.update_repo_secret(org_id, repo_name, secret_name,
-                                              repo_secret.to_provider_data(org_id, self.gh_client))
+            self.gh_client.update_repo_secret(
+                org_id,
+                repo_name,
+                secret_name,
+                repo_secret.to_provider_data(org_id, self.gh_client),
+            )
 
         for repo_name, repo_secret in self._added_repo_secrets:
-            self.gh_client.add_repo_secret(org_id, repo_name,
-                                           repo_secret.to_provider_data(org_id, self.gh_client))
+            self.gh_client.add_repo_secret(org_id, repo_name, repo_secret.to_provider_data(org_id, self.gh_client))
 
         for repo_name, env_name, modified_env in self._modified_environments:
             github_env = Environment.changes_to_provider(org_id, modified_env, self.gh_client)
             self.gh_client.update_repo_environment(org_id, repo_name, env_name, github_env)
 
         for repo_name, env in self._added_environments:
-            self.gh_client.add_repo_environment(org_id, repo_name, env.name,
-                                                env.to_provider_data(org_id, self.gh_client))
+            self.gh_client.add_repo_environment(
+                org_id,
+                repo_name,
+                env.name,
+                env.to_provider_data(org_id, self.gh_client),
+            )
 
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(org_id, modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
         for repo_name, repo_node_id, rule in self._added_rules:
-            self.gh_client.add_branch_protection_rule(org_id,
-                                                      repo_name,
-                                                      repo_node_id,
-                                                      rule.to_provider_data(org_id, self.gh_client))
+            self.gh_client.add_branch_protection_rule(
+                org_id,
+                repo_name,
+                repo_node_id,
+                rule.to_provider_data(org_id, self.gh_client),
+            )
 
         if self._delete_resources:
             for org_webhook in self._deleted_org_webhooks:
@@ -273,10 +304,10 @@ class ApplyOperation(PlanOperation):
             for repo_name, rule in self._deleted_rules:
                 self.gh_client.delete_branch_protection_rule(org_id, repo_name, rule.pattern, rule.id)
 
-        delete_snippet = \
-            "deleted" if self._delete_resources else \
-            "live resources ignored"
+        delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
 
-        self.printer.println(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
-                             f"{diff_status.differences} changed, "
-                             f"{diff_status.deletions} {delete_snippet}.")
+        self.printer.println(
+            f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
+            f"{diff_status.differences} changed, "
+            f"{diff_status.deletions} {delete_snippet}."
+        )

@@ -43,11 +43,7 @@ class SyncTemplateOperation(Operation):
                 return 1
 
             try:
-                organization = \
-                    GitHubOrganization.load_from_file(github_id,
-                                                      org_file_name,
-                                                      self.config,
-                                                      False)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
             except RuntimeError as ex:
                 print_error(f"failed to load configuration: {str(ex)}")
                 return 1
@@ -68,12 +64,13 @@ class SyncTemplateOperation(Operation):
                     continue
 
                 if is_set_and_present(repo.template_repository):
-                    self.printer.println(f"Syncing {Style.BRIGHT}repository[\"{repo.name}\"]{Style.RESET_ALL}")
-                    updated_files = \
-                        gh_client.sync_from_template_repository(github_id,
-                                                                repo.name,
-                                                                repo.template_repository,
-                                                                repo.post_process_template_content)
+                    self.printer.println(f'Syncing {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
+                    updated_files = gh_client.sync_from_template_repository(
+                        github_id,
+                        repo.name,
+                        repo.template_repository,
+                        repo.post_process_template_content,
+                    )
 
                     self.printer.level_up()
                     for file in updated_files:

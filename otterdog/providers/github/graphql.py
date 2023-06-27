@@ -26,7 +26,7 @@ class GraphQLClient:
 
         self._headers = {
             "Authorization": f"Bearer {token}",
-            "X-Github-Next-Global-ID": "1"
+            "X-Github-Next-Global-ID": "1",
         }
 
     def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
@@ -36,54 +36,62 @@ class GraphQLClient:
         branch_protection_rules = self._run_paged_query(variables, "get-branch-protection-rules.gql")
 
         for branch_protection_rule in branch_protection_rules:
-            self._fill_paged_results_if_not_empty(branch_protection_rule,
-                                                  "pushAllowances",
-                                                  "pushRestrictions",
-                                                  "get-push-allowances.gql")
+            self._fill_paged_results_if_not_empty(
+                branch_protection_rule,
+                "pushAllowances",
+                "pushRestrictions",
+                "get-push-allowances.gql",
+            )
 
-            self._fill_paged_results_if_not_empty(branch_protection_rule,
-                                                  "reviewDismissalAllowances",
-                                                  "reviewDismissalAllowances",
-                                                  "get-review-dismissal-allowances.gql")
+            self._fill_paged_results_if_not_empty(
+                branch_protection_rule,
+                "reviewDismissalAllowances",
+                "reviewDismissalAllowances",
+                "get-review-dismissal-allowances.gql",
+            )
 
-            self._fill_paged_results_if_not_empty(branch_protection_rule,
-                                                  "bypassPullRequestAllowances",
-                                                  "bypassPullRequestAllowances",
-                                                  "get-bypass-pull-request-allowances.gql")
+            self._fill_paged_results_if_not_empty(
+                branch_protection_rule,
+                "bypassPullRequestAllowances",
+                "bypassPullRequestAllowances",
+                "get-bypass-pull-request-allowances.gql",
+            )
 
-            self._fill_paged_results_if_not_empty(branch_protection_rule,
-                                                  "bypassForcePushAllowances",
-                                                  "bypassForcePushAllowances",
-                                                  "get-bypass-force-push-allowances.gql")
+            self._fill_paged_results_if_not_empty(
+                branch_protection_rule,
+                "bypassForcePushAllowances",
+                "bypassForcePushAllowances",
+                "get-bypass-force-push-allowances.gql",
+            )
 
         return branch_protection_rules
 
-    def _fill_paged_results_if_not_empty(self,
-                                         branch_protection_rule: dict[str, Any],
-                                         input_key: str,
-                                         output_key: str,
-                                         query_file: str):
+    def _fill_paged_results_if_not_empty(
+        self,
+        branch_protection_rule: dict[str, Any],
+        input_key: str,
+        output_key: str,
+        query_file: str,
+    ):
         value = branch_protection_rule.pop(input_key)
 
         total_count = int(jq.compile(".totalCount").input(value).first())
 
         if total_count > 0:
             variables = {"branchProtectionRuleId": branch_protection_rule["id"]}
-            actors = \
-                self._run_paged_query(variables,
-                                      query_file,
-                                      f".data.node.{input_key}")
-            branch_protection_rule[output_key] = \
-                self._transform_actors(actors)
+            actors = self._run_paged_query(variables, query_file, f".data.node.{input_key}")
+            branch_protection_rule[output_key] = self._transform_actors(actors)
         else:
             branch_protection_rule[output_key] = []
 
-    def update_branch_protection_rule(self,
-                                      org_id: str,
-                                      repo_name: str,
-                                      rule_pattern: str,
-                                      rule_id: str,
-                                      data: dict[str, Any]) -> None:
+    def update_branch_protection_rule(
+        self,
+        org_id: str,
+        repo_name: str,
+        rule_pattern: str,
+        rule_id: str,
+        data: dict[str, Any],
+    ) -> None:
         utils.print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["branchProtectionRuleId"] = rule_id
@@ -97,9 +105,11 @@ class GraphQLClient:
            }
         }"""
 
-        response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                                 headers=self._headers,
-                                 json={"query": query, "variables": variables})
+        response = requests.post(
+            url=f"{self._GH_GRAPHQL_URL_ROOT}",
+            headers=self._headers,
+            json={"query": query, "variables": variables},
+        )
         utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
 
         if not response.ok:
@@ -114,8 +124,9 @@ class GraphQLClient:
 
     def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]) -> None:
         rule_pattern = data["pattern"]
-        utils.print_debug(f"creating branch_protection_rule with pattern '{rule_pattern}' "
-                          f"for repo '{org_id}/{repo_name}'")
+        utils.print_debug(
+            f"creating branch_protection_rule with pattern '{rule_pattern}' " f"for repo '{org_id}/{repo_name}'"
+        )
 
         data["repositoryId"] = repo_node_id
         variables = {"ruleInput": data}
@@ -132,9 +143,11 @@ class GraphQLClient:
         utils.print_trace(query)
         utils.print_trace(json.dumps(variables))
 
-        response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                                 headers=self._headers,
-                                 json={"query": query, "variables": variables})
+        response = requests.post(
+            url=f"{self._GH_GRAPHQL_URL_ROOT}",
+            headers=self._headers,
+            json={"query": query, "variables": variables},
+        )
         utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
 
         if not response.ok:
@@ -158,9 +171,11 @@ class GraphQLClient:
            }
         }"""
 
-        response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                                 headers=self._headers,
-                                 json={"query": query, "variables": variables})
+        response = requests.post(
+            url=f"{self._GH_GRAPHQL_URL_ROOT}",
+            headers=self._headers,
+            json={"query": query, "variables": variables},
+        )
         utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
 
         if not response.ok:
@@ -169,10 +184,12 @@ class GraphQLClient:
 
         utils.print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
-    def _run_paged_query(self,
-                         input_variables: dict[str, Any],
-                         query_file: str,
-                         prefix_selector: str = ".data.repository.branchProtectionRules") -> list[dict[str, Any]]:
+    def _run_paged_query(
+        self,
+        input_variables: dict[str, Any],
+        query_file: str,
+        prefix_selector: str = ".data.repository.branchProtectionRules",
+    ) -> list[dict[str, Any]]:
         utils.print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = files(resources).joinpath(f"graphql/{query_file}").read_text()
@@ -185,9 +202,11 @@ class GraphQLClient:
             variables = {"endCursor": end_cursor}
             variables.update(input_variables)
 
-            response = requests.post(url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                                     headers=self._headers,
-                                     json={"query": query, "variables": variables})
+            response = requests.post(
+                url=f"{self._GH_GRAPHQL_URL_ROOT}",
+                headers=self._headers,
+                json={"query": query, "variables": variables},
+            )
             utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
 
             if not response.ok:
@@ -195,18 +214,12 @@ class GraphQLClient:
 
             json_data = response.json()
             if "data" in json_data:
-                rules_result =\
-                    jq.compile(prefix_selector + ".nodes")\
-                      .input(json_data)\
-                      .first()
+                rules_result = jq.compile(prefix_selector + ".nodes").input(json_data).first()
 
                 for rule in rules_result:
                     result.append(rule)
 
-                page_info =\
-                    jq.compile(prefix_selector + ".pageInfo")\
-                      .input(json_data)\
-                      .first()
+                page_info = jq.compile(prefix_selector + ".pageInfo").input(json_data).first()
 
                 if page_info["hasNextPage"]:
                     end_cursor = page_info["endCursor"]

@@ -19,7 +19,11 @@ from .plan_operation import PlanOperation
 
 class LocalPlanOperation(PlanOperation):
     def __init__(self, suffix: str, update_webhooks: bool, update_secrets: bool) -> None:
-        super().__init__(no_web_ui=False, update_webhooks=update_webhooks, update_secrets=update_secrets)
+        super().__init__(
+            no_web_ui=False,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+        )
 
         self.suffix = suffix
         self._other_org: Optional[GitHubOrganization] = None

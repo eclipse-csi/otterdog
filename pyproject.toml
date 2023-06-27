@@ -25,6 +25,7 @@ PyNaCl = "^1.5"
 [tool.poetry.group.dev.dependencies]
 flake8 = "^6.0"
 pre-commit = "^3.3"
+black = "^23.3"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3"
@@ -56,3 +57,9 @@ build-backend = "poetry.core.masonry.api"
 minversion = "7.2"
 testpaths = ["tests"]
 pythonpath = [".", "otterdog"]
+
+[tool.black]
+color = true
+line-length = 120
+target-version = ['py310']
+skip-string-normalization = true

@@ -38,11 +38,13 @@ class ImportOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.println(f"\nDefinition already exists at "
-                                 f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
-                                 f"  Performing this action will overwrite its contents.\n"
-                                 f"  Do you want to continue?\n"
-                                 f"  Only 'yes' will be accepted to approve.\n")
+            self.printer.println(
+                f"\nDefinition already exists at "
+                f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
+                f"  Performing this action will overwrite its contents.\n"
+                f"  Do you want to continue?\n"
+                f"  Only 'yes' will be accepted to approve.\n"
+            )
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
             answer = input()
@@ -70,25 +72,20 @@ class ImportOperation(Operation):
             gh_client = Github(credentials)
 
             if self.no_web_ui is True:
-                print_warn("the Web UI will not be queried as '--no-web-ui' has been specified, "
-                           "the resulting config will be incomplete")
+                print_warn(
+                    "the Web UI will not be queried as '--no-web-ui' has been specified, "
+                    "the resulting config will be incomplete"
+                )
 
-            organization = \
-                GitHubOrganization.load_from_provider(github_id,
-                                                      jsonnet_config,
-                                                      gh_client,
-                                                      self.no_web_ui,
-                                                      self.printer)
+            organization = GitHubOrganization.load_from_provider(
+                github_id, jsonnet_config, gh_client, self.no_web_ui, self.printer
+            )
 
             # copy secrets from existing configuration if it is present.
             if sync_secrets_from_previous_config:
                 self.printer.println("Copying secrets from previous configuration.")
 
-                previous_organization = \
-                    GitHubOrganization.load_from_file(github_id,
-                                                      org_file_name,
-                                                      self.config,
-                                                      False)
+                previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
 
                 organization.copy_secrets(previous_organization)
 

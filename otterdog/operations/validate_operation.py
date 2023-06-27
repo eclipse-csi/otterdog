@@ -41,11 +41,7 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = \
-                    GitHubOrganization.load_from_file(github_id,
-                                                      org_file_name,
-                                                      self.config,
-                                                      False)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
             except RuntimeError as ex:
                 print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
@@ -57,18 +53,23 @@ class ValidateOperation(Operation):
                 self.printer.println(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
             else:
                 if validation_errors == 0:
-                    self.printer.println(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}: "
-                                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
-                                         f"{validation_errors} error(s)")
+                    self.printer.println(
+                        f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}: "
+                        f"{validation_infos} info(s), {validation_warnings} warning(s), "
+                        f"{validation_errors} error(s)"
+                    )
                 else:
-                    self.printer.println(f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
-                                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
-                                         f"{validation_errors} error(s)")
+                    self.printer.println(
+                        f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                        f"{validation_infos} info(s), {validation_warnings} warning(s), "
+                        f"{validation_errors} error(s)"
+                    )
 
             if validation_infos > 0 and not is_info_enabled():
                 self.printer.level_up()
-                self.printer.println("in order to print validation infos, enable printing info message by "
-                                     "adding '-v' flag.")
+                self.printer.println(
+                    "in order to print validation infos, enable printing info message by " "adding '-v' flag."
+                )
                 self.printer.level_down()
 
             return validation_errors

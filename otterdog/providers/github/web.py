@@ -70,23 +70,25 @@ class WebClient:
                     continue
 
                 try:
-                    setting_type = setting_def['type']
+                    setting_type = setting_def["type"]
                     match setting_type:
                         case "checkbox":
-                            selector = setting_def['selector']
+                            selector = setting_def["selector"]
 
                         case "radio":
                             selector = f"{setting_def['selector']}:checked"
 
                         case "text":
-                            selector = setting_def['selector']
+                            selector = setting_def["selector"]
 
                         case _:
                             raise RuntimeError(f"not supported setting type '{setting_type}'")
 
-                    value = page.eval_on_selector(selector,
-                                                  "(el, property) => el[property]",
-                                                  setting_def['valueSelector'])
+                    value = page.eval_on_selector(
+                        selector,
+                        "(el, property) => el[property]",
+                        setting_def["valueSelector"],
+                    )
 
                     settings[setting] = value
                     utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
@@ -142,24 +144,24 @@ class WebClient:
             for setting, setting_def in page_dict.items():
                 new_value = settings[setting]
 
-                setting_type = setting_def['type']
+                setting_type = setting_def["type"]
                 match setting_type:
                     case "checkbox":
-                        page.set_checked(setting_def['selector'], new_value == 'True' or new_value)
+                        page.set_checked(setting_def["selector"], new_value == "True" or new_value)
 
                     case "radio":
                         page.set_checked(f"{setting_def['selector']}[value='{new_value}']", True)
 
                     case "text":
-                        page.fill(setting_def['selector'], new_value)
+                        page.fill(setting_def["selector"], new_value)
 
                     case _:
                         raise RuntimeError(f"not supported setting type '{setting_type}'")
 
                 # do a trial run first as this will wait till the button is enabled
                 # this might be needed for some text input forms that perform input validation.
-                page.click(setting_def['save'], trial=True)
-                page.click(setting_def['save'], trial=False)
+                page.click(setting_def["save"], trial=True)
+                page.click(setting_def["save"], trial=False)
 
                 utils.print_trace(f"updated setting for '{setting}' = '{new_value}'")
 
@@ -179,8 +181,7 @@ class WebClient:
             raise RuntimeError(f"unable to load github profile page: {response.status}")
 
         try:
-            actor = page.eval_on_selector('meta[name="octolytics-actor-login"]',
-                                          "element => element.content")
+            actor = page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
         except Error:
             actor = None
 

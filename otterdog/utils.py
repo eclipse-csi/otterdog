@@ -90,6 +90,7 @@ class _Unset:
     A marker class to indicate that a value is unset and thus should
     not be considered. This is different to None.
     """
+
     _instance = None
 
     def __new__(cls):
@@ -172,9 +173,9 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
     return [x for x in list1 if x not in s]
 
 
-def write_patch_object_as_json(diff_object: dict[str, Any],
-                               printer: IndentingPrinter,
-                               close_object: bool = True) -> None:
+def write_patch_object_as_json(
+    diff_object: dict[str, Any], printer: IndentingPrinter, close_object: bool = True
+) -> None:
     if close_object is True and len(diff_object) == 0:
         printer.println(",")
         return
@@ -245,7 +246,7 @@ class IndentingPrinter:
     def _current_indentation(self) -> str:
         return self._initial_offset + " " * (self._level * self._spaces_per_level)
 
-    def print(self, text: str = '') -> None:
+    def print(self, text: str = "") -> None:
         lines = text.splitlines(keepends=True)
         if len(lines) > 0:
             for line in lines:
@@ -257,7 +258,7 @@ class IndentingPrinter:
                 else:
                     self._writer.write(line)
 
-    def println(self, text: str = '') -> None:
+    def println(self, text: str = "") -> None:
         self.print(text)
         self.print_line_break()
 
@@ -313,9 +314,9 @@ def snake_to_camel_case(string: str) -> str:
 
 
 def camel_to_snake_case(string: str) -> str:
-    string = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', string)
-    string = re.sub('__([A-Z])', r'_\1', string)
-    string = re.sub('([a-z0-9])([A-Z])', r'\1_\2', string)
+    string = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", string)
+    string = re.sub("__([A-Z])", r"_\1", string)
+    string = re.sub("([a-z0-9])([A-Z])", r"\1_\2", string)
     return string.lower()
 
 

@@ -30,20 +30,24 @@ class Secret(ModelObject, abc.ABC):
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
-            context.add_failure(FailureType.INFO,
-                                f"{self.get_model_header()} will be skipped during processing:\n"
-                                f"only a dummy value '{self.value}' is provided in the configuration.")
+            context.add_failure(
+                FailureType.INFO,
+                f"{self.get_model_header()} will be skipped during processing:\n"
+                f"only a dummy value '{self.value}' is provided in the configuration.",
+            )
 
     def has_dummy_secret(self) -> bool:
-        if is_set_and_valid(self.value) and all(ch == '*' for ch in self.value):  # type: ignore
+        if is_set_and_valid(self.value) and all(ch == "*" for ch in self.value):  # type: ignore
             return True
         else:
             return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:
-            case "value": return False
-            case _: return True
+            case "value":
+                return False
+            case _:
+                return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
@@ -62,8 +66,9 @@ class Secret(ModelObject, abc.ABC):
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
-        mapping = {field.name: S(field.name) for field in cls.provider_fields() if
-                   not is_unset(data.get(field.name, UNSET))}
+        mapping = {
+            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
+        }
         return bend(mapping, data)
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:

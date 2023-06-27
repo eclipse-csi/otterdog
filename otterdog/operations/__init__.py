@@ -74,13 +74,15 @@ class Operation(ABC):
         if isinstance(value, bool):
             return str(value)
         else:
-            return f"\"{value}\""
+            return f'"{value}"'
 
-    def print_modified_dict(self,
-                            data: dict[str, Change[Any]],
-                            item_header: str,
-                            redacted_keys: Optional[set[str]] = None,
-                            forced_update: bool = False) -> None:
+    def print_modified_dict(
+        self,
+        data: dict[str, Change[Any]],
+        item_header: str,
+        redacted_keys: Optional[set[str]] = None,
+        forced_update: bool = False,
+    ) -> None:
         action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
         color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
 
@@ -100,21 +102,25 @@ class Operation(ABC):
                     c_v = current_value.get(k) if current_value is not None else None
 
                     if v != c_v:
-                        self.printer.println(f"{action} {Style.RESET_ALL}"
-                                             f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                             f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{v}\"")
+                        self.printer.println(
+                            f"{action} {Style.RESET_ALL}"
+                            f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                            f' "{c_v}" {color}->{Style.RESET_ALL} "{v}"'
+                        )
 
                     processed_keys.add(k)
 
                 if current_value is not None:
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
-                            self.printer.println(f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                                 f" \"{v}\"")
+                            self.printer.println(
+                                f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f' "{v}"'
+                            )
 
                 self.printer.println("}")
                 self.printer.level_down()
             else:
+
                 def should_redact(value: Any) -> bool:
                     if is_unset(value) or value is None:
                         return False
@@ -127,8 +133,10 @@ class Operation(ABC):
                 c_v = "<redacted>" if should_redact(current_value) else current_value
                 e_v = "<redacted>" if should_redact(expected_value) else expected_value
 
-                self.printer.println(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                     f" \"{c_v}\" {color}->{Style.RESET_ALL} \"{e_v}\"")
+                self.printer.println(
+                    f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                    f' "{c_v}" {color}->{Style.RESET_ALL} "{e_v}"'
+                )
 
         self.printer.println("}")
         self.printer.level_down()

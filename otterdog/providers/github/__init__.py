@@ -27,12 +27,14 @@ class Github:
 
         self._settings_schema = _ORG_SETTINGS_SCHEMA
         # collect supported rest api keys
-        self._settings_restapi_keys =\
-            {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "restapi"}
+        self._settings_restapi_keys = {
+            k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "restapi"
+        }
 
         # collect supported web interface keys
-        self._settings_web_keys =\
-            {k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"}
+        self._settings_web_keys = {
+            k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"
+        }
 
         if credentials is not None:
             self._init_clients()
@@ -43,21 +45,33 @@ class Github:
         self.graphql_client = GraphQLClient(self._credentials.github_token)
 
     def __getstate__(self):
-        return self._credentials, self._settings_schema, self._settings_restapi_keys, self._settings_web_keys
+        return (
+            self._credentials,
+            self._settings_schema,
+            self._settings_restapi_keys,
+            self._settings_web_keys,
+        )
 
     def __setstate__(self, state):
-        self._credentials, self._settings_schema, self._settings_restapi_keys, self._settings_web_keys = state
+        (
+            self._credentials,
+            self._settings_schema,
+            self._settings_restapi_keys,
+            self._settings_web_keys,
+        ) = state
         self._init_clients()
 
     def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
         return self.rest_client.get_content(org_id, repo_name, path, ref)
 
-    def update_content(self,
-                       org_id: str,
-                       repo_name: str,
-                       path: str,
-                       content: str,
-                       message: Optional[str] = None) -> bool:
+    def update_content(
+        self,
+        org_id: str,
+        repo_name: str,
+        path: str,
+        content: str,
+        message: Optional[str] = None,
+    ) -> bool:
         return self.rest_client.update_content(org_id, repo_name, path, content, message)
 
     def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
@@ -122,13 +136,21 @@ class Github:
         if len(data) > 0:
             self.rest_client.update_repo(org_id, repo_name, data)
 
-    def add_repo(self,
-                 org_id: str,
-                 data: dict[str, str],
-                 template_repository: Optional[str],
-                 post_process_template_content: list[str],
-                 auto_init_repo: bool) -> None:
-        self.rest_client.add_repo(org_id, data, template_repository, post_process_template_content, auto_init_repo)
+    def add_repo(
+        self,
+        org_id: str,
+        data: dict[str, str],
+        template_repository: Optional[str],
+        post_process_template_content: list[str],
+        auto_init_repo: bool,
+    ) -> None:
+        self.rest_client.add_repo(
+            org_id,
+            data,
+            template_repository,
+            post_process_template_content,
+            auto_init_repo,
+        )
 
     def delete_repo(self, org_id: str, repo_name: str) -> None:
         self.rest_client.delete_repo(org_id, repo_name)
@@ -136,19 +158,23 @@ class Github:
     def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
         return self.graphql_client.get_branch_protection_rules(org_id, repo)
 
-    def update_branch_protection_rule(self,
-                                      org_id: str,
-                                      repo_name: str,
-                                      rule_pattern: str,
-                                      rule_id: str,
-                                      data: dict[str, Any]) -> None:
+    def update_branch_protection_rule(
+        self,
+        org_id: str,
+        repo_name: str,
+        rule_pattern: str,
+        rule_id: str,
+        data: dict[str, Any],
+    ) -> None:
         self.graphql_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, data)
 
-    def add_branch_protection_rule(self,
-                                   org_id: str,
-                                   repo_name: str,
-                                   repo_node_id: Optional[str],
-                                   data: dict[str, Any]) -> None:
+    def add_branch_protection_rule(
+        self,
+        org_id: str,
+        repo_name: str,
+        repo_node_id: Optional[str],
+        data: dict[str, Any],
+    ) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
         if not repo_node_id:
             repo_data = self.rest_client.get_repo_data(org_id, repo_name)
@@ -253,9 +279,11 @@ class Github:
     def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return self.rest_client.get_ref_for_pull_request(org_id, repo_name, pull_number)
 
-    def sync_from_template_repository(self,
-                                      org_id: str,
-                                      repo_name: str,
-                                      template_repository: str,
-                                      template_paths: Optional[list[str]]) -> list[str]:
+    def sync_from_template_repository(
+        self,
+        org_id: str,
+        repo_name: str,
+        template_repository: str,
+        template_paths: Optional[list[str]],
+    ) -> list[str]:
         return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository, template_paths)
