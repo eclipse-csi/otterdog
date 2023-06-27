@@ -43,6 +43,7 @@ optional = true
 mkdocs = "^1.4"
 mkdocs-material = "^9.1"
 mkdocs-exclude = "^1.0"
+jinja2 = "3.0.3"
 
 [tool.poetry.scripts]
 otterdog = "otterdog.cli:cli"
