@@ -171,10 +171,13 @@ class ApplyOperation(PlanOperation):
             self.printer.println("No changes required.")
             if not self._delete_resources and diff_status.deletions > 0:
                 self.printer.println(f"{diff_status.deletions} resource(s) would be deleted with "
-                                     f"flag \'--delete-resources\".")
+                                     f"flag \'--delete-resources\'.")
             return
 
         if not self._force_processing:
+            if diff_status.deletions > 0 and not self._delete_resources:
+                self.printer.println("No resource will be removed, use flag '--delete-resources' to delete them.\n")
+
             self.printer.println(f"{Style.BRIGHT}Do you want to perform these actions?\n"
                                  f"  Only 'yes' will be accepted to approve.\n")
 
@@ -272,7 +275,7 @@ class ApplyOperation(PlanOperation):
 
         delete_snippet = \
             "deleted" if self._delete_resources else \
-            "live resources ignored (use \"--delete-resources\" to delete them)"
+            "live resources ignored"
 
         self.printer.println(f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
                              f"{diff_status.differences} changed, "
