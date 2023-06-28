@@ -1,0 +1,18 @@
+version: '2.1'
+orbs:
+  python: circleci/python@2.0.3
+jobs:
+  build_and_test:
+    executor: python/default
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: poetry
+      - run:
+          command: |
+            poetry run pytest
+          name: Run pytest
+workflows:
+  main:
+    jobs:
+      - build_and_test
