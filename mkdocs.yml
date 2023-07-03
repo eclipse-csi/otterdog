@@ -33,7 +33,12 @@ edit_uri: edit/main/docs/
 
 nav:
 - Get Started:
-  - Welcome to Otterdog: index.md
+    - Overview: index.md
+    - install.md
+    - setup.md
+- Reference:
+    - reference/operations.md
+    - reference/resources.md
 - Contribute: contributing.md
 
 markdown_extensions:
