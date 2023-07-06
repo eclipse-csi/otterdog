@@ -36,9 +36,10 @@ nav:
     - Overview: index.md
     - install.md
     - setup.md
+    - usage.md
 - Reference:
-    - reference/operations.md
     - reference/resources.md
+    - reference/operations.md
 - Contribute: contributing.md
 
 markdown_extensions:
