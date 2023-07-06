@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "otterdog"
-version = "0.2.0.dev"
+version = "0.3.0.dev"
 description = "Tool to manage GitHub organizations and their repositories."
 authors = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
 readme = "README.md"
