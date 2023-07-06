@@ -69,18 +69,18 @@ class OrganizationConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], otterdog_config: OtterdogConfig) -> OrganizationConfig:
-        name = jq.compile(".name").input(data).first()
+        name = data.get("name")
         if name is None:
             raise RuntimeError(f"missing required name for organization config with data: '{json.dumps(data)}'")
 
-        github_id = jq.compile(".github_id").input(data).first()
+        github_id = data.get("github_id")
         if github_id is None:
             raise RuntimeError(f"missing required github_id for organization config with name '{name}'")
 
-        eclipse_project = jq.compile(".eclipse_project").input(data).first()
+        eclipse_project = data.get("eclipse_project")
 
-        config_repo = jq.compile(f'.config_repo // "{otterdog_config.default_config_repo}"').input(data).first()
-        base_template = jq.compile(f'.base_template // "{otterdog_config.default_base_template}"').input(data).first()
+        config_repo = data.get("config_repo", otterdog_config.default_config_repo)
+        base_template = data.get("base_template", otterdog_config.default_base_template)
 
         jsonnet_config = JsonnetConfig(
             github_id,
@@ -89,7 +89,7 @@ class OrganizationConfig:
             otterdog_config.local_mode,
         )
 
-        data = jq.compile(".credentials // {}").input(data).first()
+        data = data.get("credentials", {})
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
@@ -115,7 +115,8 @@ class OtterdogConfig:
 
         self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
 
-        organizations = jq.compile(".organizations // []").input(self._configuration).first()
+        organizations = self._configuration.get("organizations", [])
+
         self._organizations = {}
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org, self)
