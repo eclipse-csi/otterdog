@@ -6,6 +6,12 @@ A few system dependencies are required to be installed:
 
 ### Mandatory system dependencies
 
+* [`python 3.10+`](https://www.python.org/): Python 3 + pip
+
+```bash
+apt install python3 python3-pip
+```
+
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
