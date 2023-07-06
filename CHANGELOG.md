@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added new operation `web-login` to open a browser window logged in to an organization.
 - Added support for organization level `secrets`. ([#52](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/52))
 - Added support for repository level `secrets`. ([#52](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/52))
 - Added support for repository level `environments`. ([#58](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/58))

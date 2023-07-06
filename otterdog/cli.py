@@ -25,6 +25,7 @@ from .operations.show_operation import ShowOperation
 from .operations.show_live_operation import ShowLiveOperation
 from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
+from .operations.web_login_operation import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
@@ -346,6 +347,14 @@ def canonical_diff(organizations: list[str]):
     Displays a diff of the current configuration to a canonical version.
     """
     _execute_operation(organizations, CanonicalDiffOperation())
+
+
+@cli.command(cls=StdCommand)
+def web_login(organizations: list[str]):
+    """
+    Opens a new browser window and logins to GitHub with the bot account for the organization.
+    """
+    _execute_operation(organizations, WebLoginOperation())
 
 
 def _execute_operation(organizations: list[str], operation: Operation):

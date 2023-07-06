@@ -287,3 +287,6 @@ class Github:
         template_paths: Optional[list[str]],
     ) -> list[str]:
         return self.rest_client.sync_from_template_repository(org_id, repo_name, template_repository, template_paths)
+
+    def open_browser_with_logged_in_user(self, org_id: str) -> None:
+        self.web_client.open_browser_with_logged_in_user(org_id)

@@ -165,6 +165,27 @@ class WebClient:
 
                 utils.print_trace(f"updated setting for '{setting}' = '{new_value}'")
 
+    def open_browser_with_logged_in_user(self, org_id: str) -> None:
+        utils.print_debug("opening browser window")
+
+        with sync_playwright() as playwright:
+            browser = playwright.firefox.launch(headless=False)
+            context = browser.new_context(no_viewport=True)
+
+            page = context.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+            self._login_if_required(page)
+
+            page.goto("https://github.com/{}".format(org_id))
+            input('Enter anything to logout and close browser.\n')
+
+            self._logout(page)
+
+            page.close()
+            context.close()
+            browser.close()
+
     def _login_if_required(self, page: Page) -> None:
         actor = self._logged_in_as(page)
 
