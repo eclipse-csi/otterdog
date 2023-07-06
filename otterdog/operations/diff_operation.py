@@ -106,7 +106,7 @@ class DiffOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
-            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch first")
+            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch-config first")
             return 1
 
         try:
