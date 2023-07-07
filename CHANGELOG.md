@@ -2,6 +2,10 @@
 
 ## [0.3.0.dev] - unreleased
 
+### Added
+
+- Added support for shell autocompletion. ([#65](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/65))
+
 ## [0.2.0.dev] - unreleased
 
 ### Added

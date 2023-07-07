@@ -6,11 +6,13 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import click
 import importlib.metadata
 import sys
 import traceback
 from typing import Any, Optional
+
+import click
+from click.shell_completion import CompletionItem
 
 from .config import OtterdogConfig
 from .operations import Operation
@@ -21,8 +23,8 @@ from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
 from .operations.push_operation import PushOperation
-from .operations.show_operation import ShowOperation
 from .operations.show_live_operation import ShowLiveOperation
+from .operations.show_operation import ShowOperation
 from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
 from .operations.web_login_operation import WebLoginOperation
@@ -36,6 +38,23 @@ _VERSION = _DISTRIBUTION_METADATA["Version"]
 _CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
 
 _CONFIG: Optional[OtterdogConfig] = None
+
+
+def complete_organizations(ctx, param, incomplete):
+    config_file = ctx.params.get("config")
+    if config_file is None:
+        config_file = _CONFIG_FILE
+
+    try:
+        config = OtterdogConfig.from_file(config_file, False)
+        out = []
+        for org in config.organization_configs.keys():
+            if incomplete in org:
+                out.append(CompletionItem(org))
+        return out
+
+    except RuntimeError:
+        return []
 
 
 class StdCommand(click.Command):
@@ -73,7 +92,7 @@ class StdCommand(click.Command):
             ),
         )
 
-        self.params.insert(0, click.Argument(["organizations"], nargs=-1))
+        self.params.insert(0, click.Argument(["organizations"], nargs=-1, shell_complete=complete_organizations))
 
     def invoke(self, ctx: click.Context) -> Any:
         global _CONFIG

@@ -7,6 +7,7 @@ image_version = "latest"
 container_name = "otterdog"
 
 POETRY := $(shell command -v poetry 2> /dev/null)
+OTTERDOG_SCRIPT := $(realpath ./otterdog.sh)
 
 init:
 ifndef POETRY
@@ -15,6 +16,8 @@ endif
 	poetry config virtualenvs.in-project true
 	poetry install --only=main
 	poetry run playwright install firefox
+
+	ln -s $(OTTERDOG_SCRIPT) ~/.local/bin/otterdog
 
 
 test:
