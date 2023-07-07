@@ -33,7 +33,7 @@ _CONFIG_FILE = "otterdog.json"
 _DISTRIBUTION_METADATA = importlib.metadata.metadata("otterdog")
 _VERSION = _DISTRIBUTION_METADATA["Version"]
 
-_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
 
 _CONFIG: Optional[OtterdogConfig] = None
 
@@ -190,7 +190,7 @@ def import_command(organizations: list[str], force, no_web_ui):
     _execute_operation(organizations, ImportOperation(force_processing=force, no_web_ui=no_web_ui))
 
 
-@cli.command(cls=StdCommand)
+@cli.command(cls=StdCommand, short_help="Show changes to live configuration on GitHub.")
 @click.option(
     "-n",
     "--no-web-ui",
@@ -228,7 +228,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
     )
 
 
-@cli.command(cls=StdCommand)
+@cli.command(cls=StdCommand, short_help="Show changes to another local configuration.")
 @click.option(
     "-s",
     "--suffix",
@@ -349,7 +349,7 @@ def canonical_diff(organizations: list[str]):
     _execute_operation(organizations, CanonicalDiffOperation())
 
 
-@cli.command(cls=StdCommand)
+@cli.command(cls=StdCommand, short_help="Open a browser window logged in to the GitHub organization.")
 def web_login(organizations: list[str]):
     """
     Opens a new browser window and logins to GitHub with the bot account for the organization.
