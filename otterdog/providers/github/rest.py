@@ -703,11 +703,18 @@ class RestClient:
         print_debug(f"retrieving secrets for repo '{org_id}/{repo_name}'")
 
         try:
-            response = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
-            return response["secrets"]
+            # special handling due to temporary private forks for security advisories.
+            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            # currently it is not possible via the api to determine such repos, but when
+            # requesting hooks for such a repo, you would get a 404 response.
+            response = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
+            if response.status_code == 200:
+                return response.json()["secrets"]
+            else:
+                return []
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed getting secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
     def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
         print_debug(f"updating repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
