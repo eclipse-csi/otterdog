@@ -52,6 +52,7 @@ class PassVault(CredentialProvider):
     @staticmethod
     def _retrieve_key(key: str, eclipse_project: Optional[str], data: dict[str, str]) -> str:
         resolved_key = data.get(key)
+        strict = True
 
         # custom handling for eclipse projects, the keys are organized in the format
         #    bots/<eclipse-project>/github.com/<key>
@@ -59,12 +60,13 @@ class PassVault(CredentialProvider):
             match key:
                 case PassVault.KEY_API_TOKEN:
                     query_key = "otterdog-token"
+                    strict = False
                 case PassVault.KEY_2FA_SEED:
                     query_key = "2FA-seed"
                 case _:
                     query_key = key
 
-            return PassVault._retrieve_resolved_key(f"bots/{eclipse_project}/github.com/{query_key}")
+            return PassVault._retrieve_resolved_key(f"bots/{eclipse_project}/github.com/{query_key}", strict)
 
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in authorization data")
@@ -72,12 +74,17 @@ class PassVault(CredentialProvider):
         return PassVault._retrieve_resolved_key(resolved_key)
 
     @staticmethod
-    def _retrieve_resolved_key(key: str) -> str:
+    def _retrieve_resolved_key(key: str, strict: bool = True) -> str:
         status, secret = subprocess.getstatusoutput(f"pass {key} 2>/dev/null")
         if status != 0:
             # run the process again, capturing any error output for debugging.
             _, output = subprocess.getstatusoutput(f"pass {key}")
-            raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")
+
+            if strict:
+                raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")
+            else:
+                utils.print_warn(f"{key} could not be retrieved from your pass vault:\n{output}")
+                secret = ""
 
         return secret
 
