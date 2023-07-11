@@ -39,7 +39,9 @@ class SyncTemplateOperation(Operation):
             org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
-                print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch-config first")
+                print_error(
+                    f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
+                )
                 return 1
 
             try:
