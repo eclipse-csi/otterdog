@@ -19,7 +19,7 @@ from otterdog.credentials import Credentials
 
 class WebClient:
     # use 10s as default timeout
-    _DEFAULT_TIMEOUT = 10000
+    _DEFAULT_TIMEOUT = 15000
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
