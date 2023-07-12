@@ -145,6 +145,7 @@ class Repository(ModelObject):
 
         free_plan = org_settings.plan == "free"
 
+        org_has_projects_disabled = org_settings.has_organization_projects is False
         org_web_commit_signoff_required = org_settings.web_commit_signoff_required is True
         org_members_cannot_fork_private_repositories = org_settings.members_can_fork_private_repositories is False
 
@@ -167,6 +168,14 @@ class Repository(ModelObject):
                 f"private {self.get_model_header()} has 'has_wiki' enabled which"
                 f"requires at least GitHub Team billing, "
                 f'currently using "{org_settings.plan}" plan.',
+            )
+
+        has_projects = self.has_projects is True
+        if has_projects and org_has_projects_disabled:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header()} has 'has_projects' enabled "
+                f"while the organization disables 'has_organization_projects'.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:

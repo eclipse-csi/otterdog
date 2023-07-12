@@ -6,6 +6,10 @@
 
 - Added support for shell autocompletion. ([#65](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/65))
 
+### Removed
+
+- Removed organization setting `organization_projects_enabled` which encodes the same information as `has_organization_projects`.
+
 ### Fixed
 
 - Fixed retrieving repository secrets for temporary private clone repositories.

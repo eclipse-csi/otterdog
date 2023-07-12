@@ -35,7 +35,6 @@ local newRadioInput(otterdogName, inputName = otterdogName) =
     newCheckbox('packages_containers_internal', 'packages[containers][internal]'),
 
   'settings/projects':
-    newCheckbox('organization_projects_enabled', 'organization[organization_projects_enabled]') +
     newCheckbox('members_can_change_project_visibility', 'organization[members_can_change_project_visibility]'),
 
   'settings/actions':

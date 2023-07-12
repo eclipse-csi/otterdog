@@ -54,7 +54,6 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.readers_can_create_discussions is False
         assert settings.packages_containers_public is False
         assert settings.packages_containers_internal is False
-        assert settings.organization_projects_enabled is True
         assert settings.members_can_change_project_visibility is False
 
     def test_load_from_provider(self):
@@ -90,7 +89,6 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.readers_can_create_discussions is False
         assert settings.packages_containers_public is False
         assert settings.packages_containers_internal is False
-        assert settings.organization_projects_enabled is True
         assert settings.members_can_change_project_visibility is False
 
     def test_to_provider(self):
@@ -100,7 +98,7 @@ class OrganizationSettingsTest(ModelTest):
 
         provider_data = settings.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 29
+        assert len(provider_data) == 28
         assert provider_data["billing_email"] == settings.billing_email
 
     def test_changes_to_provider(self):
@@ -142,5 +140,6 @@ class OrganizationSettingsTest(ModelTest):
 
         assert len(diff) == 2
         assert diff["billing_email"] == Change(other.billing_email, current.billing_email)
-        assert diff["default_repository_permission"] == Change(other.default_repository_permission,
-                                                               current.default_repository_permission)
+        assert diff["default_repository_permission"] == Change(
+            other.default_repository_permission, current.default_repository_permission
+        )
