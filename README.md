@@ -176,6 +176,8 @@ configurate that in the `defaults`:
 | description                                              | string or null  | Description                                                                                     |                   |
 | blog                                                     | string or null  | Url of the blog                                                                                 |                   |
 | plan                                                     | string          | Billing plan of the organization                                                                | read-only         |
+| has_discussions                                          | boolean         | If the organization has enabled discussions on organization level                               |                   |
+| discussion_source_repository                             | string or null  | The source repository to host discussions on organization level, e.g. <org-id>/<repo-name>      |                   |
 | has_organization_projects                                | boolean         | If the organization can have projects                                                           |                   |
 | has_repository_projects                                  | boolean         | If the organization has repository projects                                                     |                   |
 | default_repository_permission                            | string          | Default repository permissions                                                                  |                   |
@@ -257,6 +259,7 @@ The secret value can be resolved using a credential provider in the same way as 
 | description                     | string or null               | Project description                                                                     |                                 |
 | homepage                        | string or null               | Link to the homepage                                                                    |                                 |
 | private                         | boolean                      | If the project is private                                                               |                                 |
+| has_discussions                 | boolean                      | If the repo has discussions enabled                                                     |                                 |
 | has_issues                      | boolean                      | If the repo can have issues                                                             |                                 |
 | has_projects                    | boolean                      | If the repo can have projects                                                           |                                 |
 | has_wiki                        | boolean                      | If the repo has a wiki                                                                  |                                 |

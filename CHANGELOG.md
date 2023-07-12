@@ -4,11 +4,16 @@
 
 ### Added
 
+- Added support for configuring discussions on organization and repository level. ([#67](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/67))
 - Added support for shell autocompletion. ([#65](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/65))
 
 ### Removed
 
 - Removed organization setting `organization_projects_enabled` which encodes the same information as `has_organization_projects`.
+
+### Changed
+
+- Adding a retry mechanism for generating a totp when signing in via the GitHub Web UI due to a recent change that a totp can not be reused anymore.
 
 ### Fixed
 

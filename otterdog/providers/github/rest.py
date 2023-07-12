@@ -311,6 +311,15 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving data for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
+    def get_repo_by_id(self, repo_id: int) -> dict[str, Any]:
+        print_debug(f"retrieving repo by id for '{repo_id}'")
+
+        try:
+            return self._requester.request_json("GET", f"/repositories/{repo_id}")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving data for repo '{repo_id}':\n{ex}").with_traceback(tb)
+
     def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         print_debug(f"updating repo settings for repo '{org_id}/{repo_name}'")
 

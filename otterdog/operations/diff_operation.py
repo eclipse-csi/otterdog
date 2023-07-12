@@ -235,6 +235,8 @@ class DiffOperation(Operation):
         expected_repos_by_name = associate_by_key(expected_org.repositories, lambda x: x.name)
         current_repos = current_org.repositories
 
+        has_organization_projects_disabled = expected_org.settings.has_organization_projects is False
+
         for current_repo in current_repos:
             current_repo_name = current_repo.name
             expected_repo = expected_repos_by_all_names.get(current_repo_name)
@@ -251,6 +253,11 @@ class DiffOperation(Operation):
                     current_repo.web_commit_signoff_required = change.to_value
 
             modified_repo: dict[str, Change[Any]] = expected_repo.get_difference_from(current_repo)
+
+            # special handling for some keys that can be disabled on organization level
+            # TODO: make this cleaner
+            if "has_projects" in modified_repo and has_organization_projects_disabled:
+                modified_repo.pop("has_projects")
 
             if len(modified_repo) > 0:
                 diff_status.differences += self.handle_modified_object(

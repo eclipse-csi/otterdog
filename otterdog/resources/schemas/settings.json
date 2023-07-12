@@ -136,6 +136,14 @@
       "provider": "web",
       "type": "string"
     },
+    "has_discussions": {
+      "provider": "web",
+      "type": "boolean"
+    },
+    "discussion_source_repository": {
+      "provider": "web",
+      "$ref": "#/definitions/string_or_null"
+    },
     "security_managers": {
       "provider": "restapi",
       "type": "array",

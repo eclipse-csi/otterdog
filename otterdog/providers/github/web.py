@@ -52,11 +52,11 @@ class WebClient:
             return settings
 
     def _retrieve_settings(self, org_id: str, included_keys: set[str], page: Page) -> dict[str, Any]:
-        settings = {}
+        settings: dict[str, Any] = {}
 
         for page_url, page_def in self.web_settings_definition.items():
             # check if the page contains any setting that is requested
-            if not any(x in included_keys for x in page_def.keys()):
+            if not any(x in included_keys for x in list(map(lambda x: x["name"], page_def))):
                 continue
 
             utils.print_trace(f"loading page '{page_url}'")
@@ -65,9 +65,19 @@ class WebClient:
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
-            for setting, setting_def in page_def.items():
+            for setting_def in page_def:
+                setting = setting_def["name"]
+                utils.print_trace(f"checking setting '{setting}'")
+
                 if setting not in included_keys:
                     continue
+
+                parent = setting_def.get("parent", None)
+                if parent is not None:
+                    parent_value = settings[parent]
+                    if isinstance(parent_value, bool) and parent_value is False:
+                        settings[setting] = None
+                        continue
 
                 try:
                     setting_type = setting_def["type"]
@@ -78,17 +88,28 @@ class WebClient:
                         case "radio":
                             selector = f"{setting_def['selector']}:checked"
 
+                        case "select-menu":
+                            selector = f"{setting_def['selector']}"
+
                         case "text":
                             selector = setting_def["selector"]
 
                         case _:
                             raise RuntimeError(f"not supported setting type '{setting_type}'")
 
+                    pre_selector = setting_def['preSelector']
+                    if pre_selector is not None:
+                        page.click(pre_selector)
+                        page.wait_for_selector(selector, state='attached')
+
                     value = page.eval_on_selector(
                         selector,
                         "(el, property) => el[property]",
                         setting_def["valueSelector"],
                     )
+
+                    if isinstance(value, str):
+                        value = value.strip()
 
                     settings[setting] = value
                     utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
@@ -126,7 +147,8 @@ class WebClient:
         # first, collect the set of pages that are need to be loaded
         pages_to_load: dict[str, dict[str, Any]] = {}
         for page_url, page_def in self.web_settings_definition.items():
-            for setting, setting_def in page_def.items():
+            for setting_def in page_def:
+                setting = setting_def["name"]
                 if setting in settings:
                     utils.print_trace(f"adding page '{page_url}' with setting '{setting}'")
                     page_dict = pages_to_load.get(page_url, {})
@@ -142,28 +164,55 @@ class WebClient:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_dict.items():
+                utils.print_trace(f"updating setting '{setting}'")
                 new_value = settings[setting]
 
-                setting_type = setting_def["type"]
-                match setting_type:
-                    case "checkbox":
-                        page.set_checked(setting_def["selector"], new_value == "True" or new_value)
+                try:
+                    setting_type = setting_def["type"]
+                    match setting_type:
+                        case "checkbox":
+                            page.set_checked(setting_def["selector"], new_value == "True" or new_value)
 
-                    case "radio":
-                        page.set_checked(f"{setting_def['selector']}[value='{new_value}']", True)
+                        case "radio":
+                            page.set_checked(f"{setting_def['selector']}[value='{new_value}']", True)
 
-                    case "text":
-                        page.fill(setting_def["selector"], new_value)
+                        case "select-menu":
+                            pre_selector = setting_def['preSelector']
+                            page.click(pre_selector)
 
-                    case _:
-                        raise RuntimeError(f"not supported setting type '{setting_type}'")
+                            selector = f"{setting_def['saveSelector']}"
+                            page.wait_for_selector(selector, state='attached')
+                            handles = page.query_selector_all(selector)
+                            for handle in handles:
+                                if new_value == handle.inner_text().strip():
+                                    handle.click()
+                                    break
 
-                # do a trial run first as this will wait till the button is enabled
-                # this might be needed for some text input forms that perform input validation.
-                page.click(setting_def["save"], trial=True)
-                page.click(setting_def["save"], trial=False)
+                        case "text":
+                            page.fill(setting_def["selector"], new_value)
 
-                utils.print_trace(f"updated setting for '{setting}' = '{new_value}'")
+                        case _:
+                            raise RuntimeError(f"not supported setting type '{setting_type}'")
+
+                    delay_save = setting_def.get("delay_save", None)
+                    if delay_save is not None and delay_save in settings:
+                        continue
+
+                    # do a trial run first as this will wait till the button is enabled
+                    # this might be needed for some text input forms that perform input validation.
+                    page.click(setting_def["save"], trial=True)
+                    page.click(setting_def["save"], trial=False)
+
+                    utils.print_trace(f"updated setting for '{setting}' = '{new_value}'")
+                except Exception as e:
+                    if utils.is_debug_enabled():
+                        page_name = page_url.split("/")[-1]
+                        screenshot_file = f"screenshot_{page_name}.png"
+                        page.screenshot(path=screenshot_file)
+                        utils.print_warn(f"saved page screenshot to file '{screenshot_file}'")
+
+                    utils.print_warn(f"failed to update setting '{setting}' via web ui:\n{str(e)}")
+                    raise e
 
     def open_browser_with_logged_in_user(self, org_id: str) -> None:
         utils.print_debug("opening browser window")
@@ -220,6 +269,12 @@ class WebClient:
 
         page.goto("https://github.com/sessions/two-factor")
         page.type("#app_totp", self.credentials.get_totp())
+
+        try:
+            actor = page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
+            utils.print_trace(f"logged in as {actor}")
+        except Error:
+            raise RuntimeError("could not log in to web UI")
 
     def _logout(self, page: Page) -> None:
         actor = self._logged_in_as(page)

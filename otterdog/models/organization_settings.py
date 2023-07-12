@@ -16,7 +16,7 @@ from jsonbender import bend, S, OptionalS  # type: ignore
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
 
 
 @dataclasses.dataclass
@@ -34,6 +34,8 @@ class OrganizationSettings(ModelObject):
     billing_email: str
     twitter_username: Optional[str]
     blog: Optional[str]
+    has_discussions: bool
+    discussion_source_repository: str
     has_organization_projects: bool
     has_repository_projects: bool
     default_branch_name: str
@@ -63,6 +65,15 @@ class OrganizationSettings(ModelObject):
     def model_object_name(self) -> str:
         return "settings"
 
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        if self.has_discussions is False and field.name == "discussion_source_repository":
+            return False
+
+        return True
+
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        return True
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         # enabling dependabot implicitly enables the dependency graph,
         # disabling the dependency graph in the configuration will result in inconsistencies after
@@ -82,6 +93,12 @@ class OrganizationSettings(ModelObject):
             context.add_failure(
                 FailureType.ERROR,
                 "enabling dependabot_security_updates implicitly enables dependabot_alerts",
+            )
+
+        if self.has_discussions is True and not is_set_and_valid(self.discussion_source_repository):
+            context.add_failure(
+                FailureType.ERROR,
+                "enabling 'has_discussions' requires setting a valid repository in 'discussion_source_repository'.",
             )
 
     @classmethod

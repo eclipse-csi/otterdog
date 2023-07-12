@@ -36,6 +36,7 @@ class Repository(ModelObject):
     description: Optional[str]
     homepage: Optional[str]
     private: bool
+    has_discussions: bool
     has_issues: bool
     has_projects: bool
     has_wiki: bool
@@ -141,6 +142,7 @@ class Repository(ModelObject):
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         from .github_organization import GitHubOrganization
 
+        github_id = cast(GitHubOrganization, parent_object).github_id
         org_settings = cast(GitHubOrganization, parent_object).settings
 
         free_plan = org_settings.plan == "free"
@@ -148,6 +150,11 @@ class Repository(ModelObject):
         org_has_projects_disabled = org_settings.has_organization_projects is False
         org_web_commit_signoff_required = org_settings.web_commit_signoff_required is True
         org_members_cannot_fork_private_repositories = org_settings.members_can_fork_private_repositories is False
+
+        org_has_discussions_enabled_with_repo_as_source = (
+            org_settings.has_discussions is True
+            and org_settings.discussion_source_repository == f"{github_id}/{self.name}"
+        )
 
         is_private = self.private is True
         is_public = self.private is False
@@ -170,12 +177,20 @@ class Repository(ModelObject):
                 f'currently using "{org_settings.plan}" plan.',
             )
 
+        has_discussions_disabled = self.has_discussions is False
+        if has_discussions_disabled and org_has_discussions_enabled_with_repo_as_source:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header()} has 'has_discussions' disabled "
+                f"while the organization uses this repo as source repository for discussions.",
+            )
+
         has_projects = self.has_projects is True
         if has_projects and org_has_projects_disabled:
             context.add_failure(
-                FailureType.ERROR,
+                FailureType.INFO,
                 f"{self.get_model_header()} has 'has_projects' enabled "
-                f"while the organization disables 'has_organization_projects'.",
+                f"while the organization disables 'has_organization_projects', setting will be ignored.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:
@@ -358,7 +373,8 @@ class Repository(ModelObject):
         if extend and has_changes is False:
             return
 
-        patch.pop("name")
+        if "name" in patch:
+            patch.pop("name")
 
         function = f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
         printer.print(f"{function}('{self.name}')")

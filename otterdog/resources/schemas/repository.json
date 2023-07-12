@@ -11,6 +11,7 @@
     "description": { "$ref": "#/definitions/string_or_null" },
     "homepage": { "$ref": "#/definitions/string_or_null" },
     "private": { "type": "boolean" },
+    "has_discussions": { "type": "boolean" },
     "has_issues": { "type": "boolean" },
     "has_projects": { "type": "boolean" },
     "has_wiki": { "type": "boolean" },

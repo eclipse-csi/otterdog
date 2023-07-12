@@ -35,6 +35,8 @@ class Github:
         self._settings_web_keys = {
             k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"
         }
+        # TODO: make this cleaner
+        self._settings_web_keys.add("discussion_source_repository_id")
 
         if credentials is not None:
             self._init_clients()
@@ -131,6 +133,9 @@ class Github:
 
     def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
         return self.rest_client.get_repo_data(org_id, repo_name)
+
+    def get_repo_by_id(self, repo_id: int) -> dict[str, Any]:
+        return self.rest_client.get_repo_by_id(repo_id)
 
     def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         if len(data) > 0:
