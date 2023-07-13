@@ -8,6 +8,7 @@ container_name = "otterdog"
 
 POETRY := $(shell command -v poetry 2> /dev/null)
 OTTERDOG_SCRIPT := $(realpath ./otterdog.sh)
+OTTERDOG_LINK := ~/.local/bin/otterdog
 
 init:
 ifndef POETRY
@@ -17,8 +18,7 @@ endif
 	poetry install --only=main
 	poetry run playwright install firefox
 
-	ln -s $(OTTERDOG_SCRIPT) ~/.local/bin/otterdog
-
+	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
 
 test:
 	poetry run py.test
