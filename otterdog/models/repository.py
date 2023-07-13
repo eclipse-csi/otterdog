@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, ClassVar, Optional, Iterator, cast, Callable
 
-from jsonbender import bend, S, OptionalS, K, Forall  # type: ignore
+from jsonbender import bend, S, OptionalS, K, Forall, If, F  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
@@ -60,6 +60,7 @@ class Repository(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
+    dependabot_security_updates_enabled: bool
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -77,6 +78,7 @@ class Repository(ModelObject):
     _security_properties: ClassVar[list[str]] = [
         "secret_scanning",
         "secret_scanning_push_protection",
+        "dependabot_security_updates_enabled",
     ]
 
     _unavailable_fields_in_archived_repos: ClassVar[set[str]] = {
@@ -91,6 +93,7 @@ class Repository(ModelObject):
         "squash_merge_commit_message",
         "squash_merge_commit_title",
         "dependabot_alerts_enabled",
+        "dependabot_security_updates_enabled",
         "secret_scanning_push_protection",
     }
 
@@ -287,6 +290,14 @@ class Repository(ModelObject):
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
+        def status_to_bool(status):
+            if status == "enabled":
+                return True
+            elif status == "disabled":
+                return False
+            else:
+                return UNSET
+
         mapping.update(
             {
                 "webhooks": K([]),
@@ -300,6 +311,10 @@ class Repository(ModelObject):
                     "status",
                     default=UNSET,
                 ),
+                "dependabot_security_updates_enabled": OptionalS(
+                    "security_and_analysis", "dependabot_security_updates", "status", default=UNSET
+                )
+                >> F(status_to_bool),
                 "template_repository": OptionalS("template_repository", "full_name", default=None),
             }
         )
@@ -326,7 +341,13 @@ class Repository(ModelObject):
                 if security_prop in mapping:
                     mapping.pop(security_prop)
                 if security_prop in data:
-                    security_mapping[security_prop] = {"status": S(security_prop)}
+                    if security_prop.endswith("_enabled"):
+                        github_security_prop = security_prop.removesuffix("_enabled")
+                        security_mapping[github_security_prop] = {
+                            "status": If(S(security_prop) == K(True), K("enabled"), K("disabled"))
+                        }
+                    else:
+                        security_mapping[security_prop] = {"status": S(security_prop)}
 
             if len(security_mapping) > 0:
                 mapping.update({"security_and_analysis": security_mapping})

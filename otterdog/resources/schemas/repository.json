@@ -43,6 +43,7 @@
     "secret_scanning": { "type": "string" },
     "secret_scanning_push_protection": { "type": "string" },
     "dependabot_alerts_enabled": { "type": "boolean" },
+    "dependabot_security_updates_enabled": { "type": "boolean" },
     "branch_protection_rules": {
       "type": "array",
       "items": { "$ref": "branch-protection-rule.json" }

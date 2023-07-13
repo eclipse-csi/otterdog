@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `dependabot_security_updates_enabled` setting for a repository. ([#69](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/69))
 - Added support for configuring discussions on organization and repository level. ([#67](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/67))
 - Added support for shell autocompletion. ([#65](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/65))
 
