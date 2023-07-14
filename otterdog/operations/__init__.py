@@ -46,7 +46,7 @@ class Operation(ABC):
 
     def print_dict(self, data: dict[str, Any], item_header: str, action: str, color: str) -> None:
         prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
-        closing_prefix = " " * len(action) + " " if action else ""
+        closing_prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
 
         self.printer.println(f"{prefix}{item_header} {{")
         self.printer.level_up()
