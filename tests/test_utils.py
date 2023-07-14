@@ -8,8 +8,15 @@
 
 import pytest
 
-from otterdog.utils import \
-    is_different_ignoring_order, UNSET, patch_to_other, snake_to_camel_case, camel_to_snake_case, parse_template_url
+from otterdog.utils import (
+    is_different_ignoring_order,
+    UNSET,
+    patch_to_other,
+    snake_to_camel_case,
+    camel_to_snake_case,
+    parse_template_url,
+    is_ghsa_repo,
+)
 
 
 def test_is_different_ignoring_order():
@@ -58,11 +65,20 @@ def test_camel_to_snake_case():
 
 
 def test_parse_template_url():
-    assert parse_template_url("https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main") == \
-           ("https://github.com/EclipseFdn/otterdog-defaults", "otterdog-defaults.libsonnet", "main")
+    assert parse_template_url("https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main") == (
+        "https://github.com/EclipseFdn/otterdog-defaults",
+        "otterdog-defaults.libsonnet",
+        "main",
+    )
 
     with pytest.raises(ValueError):
         assert parse_template_url("https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet")
 
     with pytest.raises(ValueError):
         parse_template_url("https://github.com/EclipseFdn/otterdog-defaults")
+
+
+def test_is_ghsa_repo():
+    assert is_ghsa_repo("name") is False
+    assert is_ghsa_repo("name-wqjm-x66q-r2c6") is False
+    assert is_ghsa_repo("jiro-ghsa-wqjm-x66q-r2c6") is True

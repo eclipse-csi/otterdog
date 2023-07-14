@@ -339,3 +339,12 @@ def parse_template_url(url: str) -> tuple[str, str, str]:
         raise ValueError(f"failed to parse ref from template url: {url}")
 
     return repo_url, file, ref
+
+
+def is_ghsa_repo(repo_name: str) -> bool:
+    """
+    Returns True if the given repo_name is considered to be a repo created for a GitHub security advisory.
+
+    Pattern: <regular repo name>-ghsa-xxxx-xxxx-xxxx
+    """
+    return re.match(".*-ghsa(-[23456789cfghjmpqrvwx]{4}){3}", repo_name) is not None

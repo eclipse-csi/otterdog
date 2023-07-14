@@ -14,6 +14,7 @@
 
 ### Changed
 
+- Exclude temporary private fork repositories created for security advisories. ([#66](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/66))
 - Adding a retry mechanism for generating a totp when signing in via the GitHub Web UI due to a recent change that a totp can not be reused anymore.
 
 ### Fixed

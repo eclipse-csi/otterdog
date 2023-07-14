@@ -129,7 +129,9 @@ class Github:
         self.rest_client.delete_org_webhook(org_id, webhook_id, url)
 
     def get_repos(self, org_id: str) -> list[str]:
-        return self.rest_client.get_repos(org_id)
+        # filter out repos which are created to work on GitHub Security Advisories
+        # they should not be part of the visible configuration
+        return list(filter(lambda name: not utils.is_ghsa_repo(name), self.rest_client.get_repos(org_id)))
 
     def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
         return self.rest_client.get_repo_data(org_id, repo_name)
