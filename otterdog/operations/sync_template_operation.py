@@ -25,7 +25,7 @@ class SyncTemplateOperation(Operation):
         self._repo = repo
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Showing resources defined in configuration '{self.config.config_file}'")
+        self.printer.println(f"Syncing template repos for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id

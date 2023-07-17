@@ -22,7 +22,7 @@ class ShowLiveOperation(Operation):
         self.no_web_ui = no_web_ui
 
     def pre_execute(self) -> None:
-        self.printer.println("Showing live resources for organizations")
+        self.printer.println(f"Showing live resources for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id

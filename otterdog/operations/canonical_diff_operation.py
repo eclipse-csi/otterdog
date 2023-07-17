@@ -23,9 +23,7 @@ class CanonicalDiffOperation(Operation):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.println(
-            f"Showing diff to a canonical version of the configuration at " f"'{self.config.config_file}'"
-        )
+        self.printer.println(f"Showing diff to a canonical version of the configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
