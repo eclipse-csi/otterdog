@@ -41,27 +41,29 @@ class ApplyOperation(PlanOperation):
         self._delete_resources = delete_resources
 
         self._org_settings_to_update: dict[str, Change[Any]] = {}
-        self._modified_org_webhooks: dict[int, OrganizationWebhook] = {}
-        self._added_org_webhooks: list[OrganizationWebhook] = []
-        self._deleted_org_webhooks: list[OrganizationWebhook] = []
-        self._modified_org_secrets: dict[str, OrganizationSecret] = {}
-        self._added_org_secrets: list[OrganizationSecret] = []
-        self._deleted_org_secrets: list[OrganizationSecret] = []
-        self._modified_repos: dict[str, dict[str, Change[Any]]] = {}
-        self._added_repos: list[Repository] = []
-        self._deleted_repos: list[Repository] = []
-        self._modified_repo_webhooks: list[tuple[str, int, RepositoryWebhook]] = []
-        self._added_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
-        self._deleted_repo_webhooks: list[tuple[str, RepositoryWebhook]] = []
-        self._modified_repo_secrets: list[tuple[str, str, RepositorySecret]] = []
-        self._added_repo_secrets: list[tuple[str, RepositorySecret]] = []
-        self._deleted_repo_secrets: list[tuple[str, RepositorySecret]] = []
-        self._modified_environments: list[tuple[str, str, dict[str, Change[Any]]]] = []
-        self._added_environments: list[tuple[str, Environment]] = []
-        self._deleted_environments: list[tuple[str, Environment]] = []
-        self._modified_rules: list[tuple[str, str, str, dict[str, Change[Any]]]] = []
-        self._added_rules: list[tuple[str, Optional[str], BranchProtectionRule]] = []
-        self._deleted_rules: list[tuple[str, BranchProtectionRule]] = []
+        self._modified_org_webhooks: dict[int, OrganizationWebhook]
+        self._added_org_webhooks: list[OrganizationWebhook]
+        self._deleted_org_webhooks: list[OrganizationWebhook]
+        self._modified_org_secrets: dict[str, OrganizationSecret]
+        self._added_org_secrets: list[OrganizationSecret]
+        self._deleted_org_secrets: list[OrganizationSecret]
+        self._modified_repos: dict[str, dict[str, Change[Any]]]
+        self._added_repos: list[Repository]
+        self._deleted_repos: list[Repository]
+        self._modified_repo_webhooks: list[tuple[str, int, RepositoryWebhook]]
+        self._added_repo_webhooks: list[tuple[str, RepositoryWebhook]]
+        self._deleted_repo_webhooks: list[tuple[str, RepositoryWebhook]]
+        self._modified_repo_secrets: list[tuple[str, str, RepositorySecret]]
+        self._added_repo_secrets: list[tuple[str, RepositorySecret]]
+        self._deleted_repo_secrets: list[tuple[str, RepositorySecret]]
+        self._modified_environments: list[tuple[str, str, dict[str, Change[Any]]]]
+        self._added_environments: list[tuple[str, Environment]]
+        self._deleted_environments: list[tuple[str, Environment]]
+        self._modified_rules: list[tuple[str, str, str, dict[str, Change[Any]]]]
+        self._added_rules: list[tuple[str, Optional[str], BranchProtectionRule]]
+        self._deleted_rules: list[tuple[str, BranchProtectionRule]]
+
+        self._reset()
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
@@ -69,6 +71,30 @@ class ApplyOperation(PlanOperation):
     def pre_execute(self) -> None:
         self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
+
+    def _reset(self) -> None:
+        self._org_settings_to_update = {}
+        self._modified_org_webhooks = {}
+        self._added_org_webhooks = []
+        self._deleted_org_webhooks = []
+        self._modified_org_secrets = {}
+        self._added_org_secrets = []
+        self._deleted_org_secrets = []
+        self._modified_repos = {}
+        self._added_repos = []
+        self._deleted_repos = []
+        self._modified_repo_webhooks = []
+        self._added_repo_webhooks = []
+        self._deleted_repo_webhooks = []
+        self._modified_repo_secrets = []
+        self._added_repo_secrets = []
+        self._deleted_repo_secrets = []
+        self._modified_environments = []
+        self._added_environments = []
+        self._deleted_environments = []
+        self._modified_rules = []
+        self._added_rules = []
+        self._deleted_rules = []
 
     def handle_add_object(
         self,
@@ -205,28 +231,35 @@ class ApplyOperation(PlanOperation):
                 self.printer.println("\nApply cancelled.")
                 return
 
-        if self._org_settings_to_update is not None:
+        # update organization settings
+        if len(self._org_settings_to_update) > 0:
             github_settings = OrganizationSettings.changes_to_provider(
                 org_id, self._org_settings_to_update, self.gh_client
             )
             self.gh_client.update_org_settings(org_id, github_settings)
 
+        # update organization webhooks
         for webhook_id, org_webhook in self._modified_org_webhooks.items():
             self.gh_client.update_org_webhook(org_id, webhook_id, org_webhook.to_provider_data(org_id, self.gh_client))
 
+        # add organization webhooks
         for org_webhook in self._added_org_webhooks:
             self.gh_client.add_org_webhook(org_id, org_webhook.to_provider_data(org_id, self.gh_client))
 
+        # update organization secrets
         for secret_name, org_secret in self._modified_org_secrets.items():
             self.gh_client.update_org_secret(org_id, secret_name, org_secret.to_provider_data(org_id, self.gh_client))
 
+        # add organization secrets
         for org_secret in self._added_org_secrets:
             self.gh_client.add_org_secret(org_id, org_secret.to_provider_data(org_id, self.gh_client))
 
+        # update repos
         for repo_name, repo_data in self._modified_repos.items():
             github_repo = Repository.changes_to_provider(org_id, repo_data, self.gh_client)
             self.gh_client.update_repo(org_id, repo_name, github_repo)
 
+        # add repos
         for repo in self._added_repos:
             self.gh_client.add_repo(
                 org_id,
@@ -236,6 +269,7 @@ class ApplyOperation(PlanOperation):
                 repo.auto_init,
             )
 
+        # update repo webhooks
         for repo_name, webhook_id, repo_webhook in self._modified_repo_webhooks:
             self.gh_client.update_repo_webhook(
                 org_id,
@@ -244,9 +278,11 @@ class ApplyOperation(PlanOperation):
                 repo_webhook.to_provider_data(org_id, self.gh_client),
             )
 
+        # add repo webhooks
         for repo_name, repo_webhook in self._added_repo_webhooks:
             self.gh_client.add_repo_webhook(org_id, repo_name, repo_webhook.to_provider_data(org_id, self.gh_client))
 
+        # update repo secrets
         for repo_name, secret_name, repo_secret in self._modified_repo_secrets:
             self.gh_client.update_repo_secret(
                 org_id,
@@ -255,13 +291,16 @@ class ApplyOperation(PlanOperation):
                 repo_secret.to_provider_data(org_id, self.gh_client),
             )
 
+        # add repo secrets
         for repo_name, repo_secret in self._added_repo_secrets:
             self.gh_client.add_repo_secret(org_id, repo_name, repo_secret.to_provider_data(org_id, self.gh_client))
 
+        # update environments
         for repo_name, env_name, modified_env in self._modified_environments:
             github_env = Environment.changes_to_provider(org_id, modified_env, self.gh_client)
             self.gh_client.update_repo_environment(org_id, repo_name, env_name, github_env)
 
+        # add environments
         for repo_name, env in self._added_environments:
             self.gh_client.add_repo_environment(
                 org_id,
@@ -270,10 +309,12 @@ class ApplyOperation(PlanOperation):
                 env.to_provider_data(org_id, self.gh_client),
             )
 
+        # update branch protection rules
         for repo_name, rule_pattern, rule_id, modified_rule in self._modified_rules:
             github_rule = BranchProtectionRule.changes_to_provider(org_id, modified_rule, self.gh_client)
             self.gh_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, github_rule)
 
+        # add branch protection rules
         for repo_name, repo_node_id, rule in self._added_rules:
             self.gh_client.add_branch_protection_rule(
                 org_id,
@@ -311,3 +352,5 @@ class ApplyOperation(PlanOperation):
             f"{diff_status.differences} changed, "
             f"{diff_status.deletions} {delete_snippet}."
         )
+
+        self._reset()

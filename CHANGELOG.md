@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- Fixed resetting apply operation when running it on multiple organizations at the same time.
 - Fixed retrieving repository secrets for temporary private clone repositories.
 
 ## [0.2.0.dev] - unreleased
