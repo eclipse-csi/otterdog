@@ -43,6 +43,7 @@ nav:
 - Contribute: contributing.md
 
 markdown_extensions:
+- admonition
 - tables
 - toc:
     permalink: true

@@ -60,3 +60,26 @@ You should be set to finally run otterdog:
 ```console
 $ ./otterdog.sh --version
 ```
+
+Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`, so you can also run it like that: 
+
+```console
+$ otterdog --version
+```
+
+## Shell integration
+
+To enable shell completion, add the following snippet to your shell configuration file (`~/.bashrc` or `~/.zshrc`):
+
+=== "bash"
+    ``` shell
+    eval "$(_OTTERDOG_COMPLETE=bash_source otterdog)"
+    ```
+
+=== "zsh"
+    ``` shell
+    eval "$(_OTTERDOG_COMPLETE=zsh_source otterdog)"
+    ```
+
+When running `otterdog` in a directory that contains a `otterdog.json` file, shell completion will be able to suggest 
+organizations found in the `otterdog.json` file.

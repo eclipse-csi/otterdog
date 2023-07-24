@@ -54,21 +54,13 @@ git checkout -b my-new-feature-branch
 # Make your changes...
 ```
 
-### Run tests and linting
+### Run tests
 
-Run tests and linting locally to make sure everything is working as expected.
+Run tests locally to make sure everything is working as expected.
 
 ```bash
-# Run automated code formatting and linting
-make format
-# Otterdog uses black and ruff
-# (https://github.com/ambv/black, https://github.com/charliermarsh/ruff)
-
-# Run tests and linting
-make
-# There are a few sub-commands in Makefile like `test`, `testcov` and `lint`
-# which you might want to use, but generally just `make` should be all you need.
-# You can run `make help` to see more options.
+# Run tests
+make test
 ```
 
 ### Commit and push your changes
