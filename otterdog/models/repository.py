@@ -168,7 +168,7 @@ class Repository(ModelObject):
         if is_public and disallow_forking:
             context.add_failure(
                 FailureType.WARNING,
-                f"public {self.get_model_header()} has 'allow_forking' disabled " f"which is not permitted.",
+                f"public {self.get_model_header()} has 'allow_forking' disabled which is not permitted.",
             )
 
         has_wiki = self.has_wiki is True

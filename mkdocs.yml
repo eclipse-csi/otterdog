@@ -42,6 +42,9 @@ nav:
       - Format: reference/resource-format.md
       - GitHub Organization: reference/github-organization.md
       - Organization Settings: reference/organization-settings.md
+      - Organization Webhook: reference/organization-webhook.md
+      - Organization Secret: reference/organization-secret.md
+      - Repository: reference/repository.md
     - reference/operations.md
 - Contribute: contributing.md
 

@@ -100,6 +100,22 @@ class OrganizationSettings(ModelObject):
                 "enabling 'has_discussions' requires setting a valid repository in 'discussion_source_repository'.",
             )
 
+        if is_set_and_valid(self.default_workflow_permissions):
+            if self.default_workflow_permissions not in {"read", "write"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'default_workflow_permissions' has value '{self.default_workflow_permissions}', "
+                    f"only values ('read' | 'write') are allowed.",
+                )
+
+        if is_set_and_valid(self.default_repository_permission):
+            if self.default_repository_permission not in {"none", "read", "write", "admin"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'default_repository_permission' has value '{self.default_repository_permission}', "
+                    f"only values ('none' | 'read' | 'write' | 'admin') are allowed.",
+                )
+
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
