@@ -49,7 +49,6 @@ class OrganizationSettings(ModelObject):
     members_can_create_public_repositories: bool
     members_can_fork_private_repositories: bool
     members_can_create_public_pages: bool
-    members_can_create_private_pages: bool
     members_can_change_repo_visibility: bool
     members_can_delete_repositories: bool
     members_can_delete_issues: bool
@@ -99,12 +98,6 @@ class OrganizationSettings(ModelObject):
             context.add_failure(
                 FailureType.ERROR,
                 "enabling 'has_discussions' requires setting a valid repository in 'discussion_source_repository'.",
-            )
-
-        if self.members_can_create_private_pages is True and self.plan == "free":
-            context.add_failure(
-                FailureType.ERROR,
-                "enabling 'members_can_create_private_pages' is not supported for a billing plan of type 'free'.",
             )
 
     @classmethod
