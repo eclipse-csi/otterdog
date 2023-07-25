@@ -288,4 +288,3 @@ make container_clean
 
 ### GraphQL
 * branch protection rule property `blocksCreations` can not be updated via an update or create mutation, always seem to be `false`
-* repo setting `secret_scanning_push_protection` seems to be only available for GitHub Enterprise billing, omitting for now
