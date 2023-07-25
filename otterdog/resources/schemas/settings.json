@@ -67,11 +67,11 @@
       "provider": "restapi",
       "type": "boolean"
     },
-    "members_can_create_pages": {
+    "members_can_create_public_pages": {
       "provider": "restapi",
       "type": "boolean"
     },
-    "members_can_create_public_pages": {
+    "members_can_create_private_pages": {
       "provider": "restapi",
       "type": "boolean"
     },

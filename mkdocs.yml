@@ -38,7 +38,10 @@ nav:
     - setup.md
     - usage.md
 - Reference:
-    - reference/resources.md
+    - Resources:
+      - Format: reference/resource-format.md
+      - GitHub Organization: reference/github-organization.md
+      - Organization Settings: reference/organization-settings.md
     - reference/operations.md
 - Contribute: contributing.md
 
@@ -47,11 +50,20 @@ markdown_extensions:
 - tables
 - toc:
     permalink: true
-    title: Page contents
-- pymdownx.details
+    title: Page
+- pymdownx.highlight:
+    anchor_linenums: true
+    line_spans: __span
+    pygments_lang_class: true
+- pymdownx.inlinehilite
+- pymdownx.snippets
 - pymdownx.superfences
-- pymdownx.highlight
+- pymdownx.details
 - pymdownx.extra
+- pymdownx.caret
+- pymdownx.keys
+- pymdownx.mark
+- pymdownx.tilde
 - pymdownx.emoji:
     emoji_index: !!python/name:materialx.emoji.twemoji
     emoji_generator: !!python/name:materialx.emoji.to_svg

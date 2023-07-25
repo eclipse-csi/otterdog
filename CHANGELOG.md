@@ -10,6 +10,7 @@
 
 ### Removed
 
+- Removed organization setting `members_can_create_pages` which is a read-only setting.
 - Removed organization setting `organization_projects_enabled` which encodes the same information as `has_organization_projects`.
 
 ### Changed

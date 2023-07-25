@@ -987,6 +987,8 @@ class Requester:
     ) -> Response:
         assert method in ["GET", "PATCH", "POST", "PUT", "DELETE"]
 
+        print_trace(f"'{method}' url = {url_path}, data = {data}")
+
         response = self._session.request(
             method,
             url=self._build_url(url_path),
