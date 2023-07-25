@@ -3,16 +3,16 @@ hide:
   - toc
 ---
 
-Supported properties
+The following table captures all supported settings on organization level:
 
-| Key                                                        | Type            | Description                                                                                                                                                                    | Notes                                                  |
+| Key                                                        | Value           | Description                                                                                                                                                                    | Notes                                                  |
 |------------------------------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
 | _billing_email_                                            | string          | The billing email                                                                                                                                                              |                                                        |
 | _blog_                                                     | string or null  | The blog url (usually links to the homepage of the organization)                                                                                                               |                                                        |
 | _company_                                                  | string or null  | The company name if                                                                                                                                                            |                                                        |
 | _default_branch_name_                                      | string          | The default branch name for newly created repositories                                                                                                                         |                                                        |
-| _default_repository_permission_                            | string          | The base permission for all members of the organization for its repositories                                                                                                   | "none", "read", "write" or "admin"                     |
-| _default_workflow_permissions_                             | string          | The default permissions granted to the GITHUB_TOKEN when running workflows in this organization                                                                                | "read" or "write"                                      |
+| _default_repository_permission_                            | string          | The base permission for all members of the organization for its repositories                                                                                                   | `none`, `read`, `write` or `admin`                     |
+| _default_workflow_permissions_                             | string          | The default permissions granted to the GITHUB_TOKEN when running workflows in this organization                                                                                | `read` or `write`                                      |
 | _dependabot_alerts_enabled_for_new_repositories_           | boolean         | If dependabot alerts will be enabled by default for newly created repos                                                                                                        |                                                        |
 | _dependabot_security_updates_enabled_for_new_repositories_ | boolean         | If dependabot security updates will be enabled by default for newly created repos                                                                                              |                                                        |
 | _dependency_graph_enabled_for_new_repositories_            | boolean         | If the dependency graph is will be enabled by default for newly created repos                                                                                                  |                                                        |
@@ -42,21 +42,30 @@ Supported properties
 | _two_factor_requirement_                                   | boolean         | If two factor is required for all members                                                                                                                                      | read-only property, can only be changed via the Web UI |
 | _web_commit_signoff_required_                              | boolean         | If repositories require contributors to sign-off on commits they make through GitHub's web interface. If enabled on organization level, it overrides the setting on repo level |                                                        |
 
-Example
+## Validation rules
+
+- enabling either `dependabot_alerts_enabled_for_new_repositories` or `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependency_graph_enabled_for_new_repositories`
+- enabling `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependabot_alerts_enabled_for_new_repositories`
+- enabling `has_discussions` also requires setting `discussion_source_repository` to a valid repository to host the discussions
+
+## Example usage
 
 === "jsonnet"
-    ```jsonnet
-    settings+: { 
-        blog: "https://adoptium.net",
-        default_repository_permission: "none",
-        default_workflow_permissions: "write",
-        description: "The Adoptium Working Group ...",
-        name: "Eclipse Adoptium",
-        readers_can_create_discussions: true,
-        security_managers+: [
-            "adoptium-project-leads"
-        ],
-        twitter_username: "adoptium",
-        web_commit_signoff_required: false,
+    ``` jsonnet
+    orgs.newOrg('adoptium') {
+        settings+: { 
+            blog: "https://adoptium.net",
+            default_repository_permission: "none",
+            default_workflow_permissions: "write",
+            description: "The Adoptium Working Group ...",
+            name: "Eclipse Adoptium",
+            readers_can_create_discussions: true,
+            security_managers+: [
+                "adoptium-project-leads"
+            ],
+            twitter_username: "adoptium",
+            web_commit_signoff_required: false,
+        },
+        ...
     }
     ```

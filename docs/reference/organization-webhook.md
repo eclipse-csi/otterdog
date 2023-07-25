@@ -3,38 +3,71 @@ hide:
   - toc
 ---
 
-### Webhooks
+Definition of a Webhook on organization level, the following properties are supported:
 
-| Field        | Type             | Description                                                                             |
-|--------------|------------------|-----------------------------------------------------------------------------------------|
-| active       | boolean          | If the webhook is active                                                                |
-| aliases      | list[string]     | List of webhook alias urls, need to add previous url when changing the url of a webhook |
-| events       | array of strings | List of events that trigger the webhook                                                 |
-| url          | string           | Url the webhook should access                                                           |
-| content_type | string           | The content type the webhook shall use                                                  |
-| insecure_ssl | string           | If the webhook uses insecure ssl connections, either "0" or "1"                         |
-| secret       | string or null   | The secret the webhook shall use if any                                                 |
+| Key            | Value          | Description                                                                                                       | Notes                                                                                                   |
+|----------------|----------------|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| _active_       | boolean        | If the webhook is active                                                                                          |                                                                                                         |
+| _aliases_      | list[string]   | List of webhook alias urls, can be used to change the url of a webhook without re-creating the webhook as a whole | read-only property                                                                                      |
+| _events_       | list[string]   | List of events that trigger the webhook                                                                           | [supported events](https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads) |
+| _url_          | string         | The payload url to which a POST request will be sent when the webhook gets triggered                              |                                                                                                         |
+| _content_type_ | string         | The content type the webhook shall use                                                                            | `json` or `form`                                                                                        |
+| _insecure_ssl_ | string         | If the webhook uses insecure ssl connections                                                                      | `0` or `1`                                                                                              |
+| _secret_       | string or null | The secret the webhook shall use if any                                                                           |                                                                                                         |
 
-The secret value can be resolved using a credential provider. The supported format is 
-`<credential_provider>:<provider specific data>`:
+The secret value can be resolved via a credential provider. The supported format is `<credential_provider>:<provider specific data>`.
 
-* Bitwarden: `bitwarden:<bitwarden item id>@<custom_field_key>`
-* Pass: `pass:<path/to/secret>`
+- Bitwarden: `bitwarden:<bitwarden item id>@<custom_field_key>`
 
-Examples:
+    ``` json
+    "secret": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@webhook_secret"
+    ```
 
-```json
-{
-  "secret": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@webhook_secret"
+- Pass: `pass:<path/to/secret>`
+
+    ``` json
+    "secret": "pass:path/to/org/webhook_secret"
+    ```
+
+!!! note
+
+    After executing an `import` operation, the secret will be set to `********` as GitHub will only send redacted
+    secrets. You will need to update the configuration with the real secret value, either by entering the secret
+    value (not advised), or referencing it via a credential provider.
+
+    Webhooks which have a redacted secret defined will be skipped during processing.
+
+## Jsonnet Function
+
+``` jsonnet
+orgs.newOrgWebhook('<url>') {
+  <key>: <value>
 }
 ```
 
-```json
-{
-  "secret": "pass:myorg/mywebhook_secret"
-}
-```
+## Validation rules
 
-Note: After executing an `import` operation, the secret will be set to `********` as GitHub will only send redacted
-secrets. You will need to update the definition file with the real secret value, either by entering the secret
-value (not advised), or referencing it via a credential provider.
+- redacted secrets (`********`) trigger a validation info and will skip the webhook during processing
+- `content_type` must either be `json` or `form`
+- `insecure_ssl` must either be `0` (disabled) or `1` (enabled)
+
+## Example usage
+
+=== "jsonnet"
+    ``` jsonnet
+    orgs.newOrg('adoptium') {
+      ...
+      webhooks+: [
+        orgs.newOrgWebhook('https://app.codacy.com/2.0/events/gh/organization') {
+          content_type: "json",
+          events+: [
+            "meta",
+            "organization",
+            "repository"
+          ],
+          secret: "********",
+        },
+      ],
+      ...
+    }
+    ```

@@ -9,10 +9,9 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ValidationContext, FailureType, ModelObject
+from otterdog.models import ModelObject
 from otterdog.models.webhook import Webhook
 from otterdog.utils import IndentingPrinter, write_patch_object_as_json
 
@@ -26,15 +25,6 @@ class RepositoryWebhook(Webhook):
     @property
     def model_object_name(self) -> str:
         return "repo_webhook"
-
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        if self.has_dummy_secret():
-            context.add_failure(
-                FailureType.INFO,
-                f"{self.get_model_header(parent_object)} will be skipped during processing:\n"
-                f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
-                f"the configuration.",
-            )
 
     def to_jsonnet(
         self,
