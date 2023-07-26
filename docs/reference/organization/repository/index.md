@@ -59,7 +59,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 
     In general, you will only ever use `orgs.newRepo` as this function will define a new repository with default
     values. However, in some cases it might be needed to change properties for a repo that has already been defined 
-    in the default configuration. In such situation, you can use `orgs.extendRepo`.
+    in the default configuration. In such situation, you should use `orgs.extendRepo`.
 
 ## Validation rules
 
