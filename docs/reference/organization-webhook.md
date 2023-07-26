@@ -65,7 +65,7 @@ orgs.newOrgWebhook('<url>') {
             "organization",
             "repository"
           ],
-          secret: "********",
+          secret: "pass:path/to/my/webhook/secret",
         },
       ],
       ...

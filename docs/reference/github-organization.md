@@ -1,10 +1,10 @@
 This resource represents a GitHub organization with all supported settings and nested resources.
 The following settings and nested resources are currently supported:
 
-1. [organization settings](organization-settings.md)
-2. [organization webhooks](organization-webhook.md)
-3. [organization secrets](organization-secret.md)
-4. [repositories](repository.md)
+1. [Organization Settings](organization-settings.md)
+2. [Organization Webhooks](organization-webhook.md)
+3. [Organization Secrets](organization-secret.md)
+4. [Repositories](repository.md)
 
 === "jsonnet"
     ```jsonnet
