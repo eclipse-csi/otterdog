@@ -121,7 +121,7 @@ class DiffOperation(Operation):
             validation_infos,
             validation_warnings,
             validation_errors,
-        ) = self._validator.validate(expected_org)
+        ) = self._validator.validate(expected_org, jsonnet_config.template_dir)
         if validation_errors > 0:
             self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
