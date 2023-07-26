@@ -24,7 +24,12 @@ theme:
     - content.tabs.link
     - content.code.annotate
     - announce.dismiss
+    - navigation.instant
     - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.expand
+    - toc.integrate
   logo: 'otterdog.png'
   favicon: 'favicon.png'
 
@@ -40,11 +45,17 @@ nav:
 - Reference:
     - Resources:
       - Format: reference/resource-format.md
-      - GitHub Organization: reference/github-organization.md
-      - Organization Settings: reference/organization-settings.md
-      - Organization Webhook: reference/organization-webhook.md
-      - Organization Secret: reference/organization-secret.md
-      - Repository: reference/repository.md
+      - GitHub Organization:
+        - reference/organization/index.md
+        - Organization Settings: reference/organization/settings.md
+        - Organization Webhook: reference/organization/webhook.md
+        - Organization Secret: reference/organization/secret.md
+        - Repository:
+          - reference/organization/repository/index.md
+          - Repository Webhook: reference/organization/repository/webhook.md
+          - Repository Secret: reference/organization/repository/secret.md
+          - Environment: reference/organization/repository/environment.md
+          - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
     - reference/operations.md
 - Contribute: contributing.md
 

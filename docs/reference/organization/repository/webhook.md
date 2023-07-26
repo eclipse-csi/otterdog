@@ -1,17 +1,12 @@
----
-hide:
-  - toc
----
-
-Definition of a Webhook on organization level, the following properties are supported:
+Definition of a Webhook on repository level, the following properties are supported:
 
 | Key            | Value          | Description                                                                                                       | Notes                                                                                                   |
 |----------------|----------------|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| _url_          | string         | The payload url to which a POST request will be sent when the webhook gets triggered                              |                                                                                                         |
 | _active_       | boolean        | If the webhook is active                                                                                          |                                                                                                         |
 | _aliases_      | list[string]   | List of webhook alias urls, can be used to change the url of a webhook without re-creating the webhook as a whole | read-only property                                                                                      |
-| _events_       | list[string]   | List of events that trigger the webhook                                                                           | [supported events](https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads) |
-| _url_          | string         | The payload url to which a POST request will be sent when the webhook gets triggered                              |                                                                                                         |
 | _content_type_ | string         | The content type the webhook shall use                                                                            | `json` or `form`                                                                                        |
+| _events_       | list[string]   | List of events that trigger the webhook                                                                           | [supported events](https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads) |
 | _insecure_ssl_ | string         | If the webhook uses insecure ssl connections                                                                      | `0` or `1`                                                                                              |
 | _secret_       | string or null | The secret the webhook shall use if any                                                                           |                                                                                                         |
 
@@ -40,7 +35,7 @@ The secret value can be resolved via a credential provider. The supported format
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newOrgWebhook('<url>') {
+orgs.newRepoWebhook('<url>') {
   <key>: <value>
 }
 ```
@@ -57,17 +52,20 @@ orgs.newOrgWebhook('<url>') {
     ``` jsonnet
     orgs.newOrg('adoptium') {
       ...
-      webhooks+: [
-        orgs.newOrgWebhook('https://app.codacy.com/2.0/events/gh/organization') {
-          content_type: "json",
-          events+: [
-            "meta",
-            "organization",
-            "repository"
+      _repositories+:: [
+        ...
+        orgs.newRepo('aqa-tests') {
+          ...
+          webhooks+: [
+            orgs.newRepoWebhook('https://ci.adoptium.net/ghprbhook/') {
+              events+: [
+                "issue_comment",
+                "pull_request"
+              ],
+              secret: "pass:path/to/webhook/secret",
+            },
           ],
-          secret: "pass:path/to/my/webhook/secret",
-        },
-      ],
-      ...
+        }
+      ]
     }
     ```

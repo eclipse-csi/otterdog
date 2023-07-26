@@ -1,16 +1,11 @@
----
-hide:
-  - toc
----
-
 Definition of a Secret on organization level, the following properties are supported:
 
 | Key                     | Value          | Description                                    | Note                                                 |
 |-------------------------|----------------|------------------------------------------------|------------------------------------------------------|
 | _name_                  | string         | The name of the secret                         |                                                      |
-| _visibility_            | string         | Controls which repositories can use the secret | `public`, `private` or `selected`                    |
 | _selected_repositories_ | list[string]   | List of repositories that can use the secret   | only applicable if `visibility` is set to `selected` |
 | _value_                 | string         | The secret value                               |                                                      |
+| _visibility_            | string         | Controls which repositories can use the secret | `public`, `private` or `selected`                    |
 
 The secret value can be resolved via a credential provider. The supported format is `<credential_provider>:<provider specific data>`.
 
@@ -32,7 +27,7 @@ The secret value can be resolved via a credential provider. The supported format
     secret value anymore via its API. You will need to update the configuration with the real secret value, either
     by entering the secret value (not advised), or referencing it via a credential provider.
 
-    Secrets which have a redacted secret defined will be skipped during processing.
+    Secrets which have a redacted value defined will be skipped during processing.
 
 ## Jsonnet Function
 
@@ -44,7 +39,7 @@ orgs.newOrgSecret('<name>') {
 
 ## Validation rules
 
-- redacted secrets (`********`) trigger a validation info and will skip the secret during processing
+- redacted secret values (`********`) trigger a validation info and will skip the secret during processing
 - `visibility` of `private` is not supported by GitHub with a billing plan of type `free`
 - specifying a non-empty list of `selected_repositories` while `visibility` is not set to `selected` triggers a warning
 
