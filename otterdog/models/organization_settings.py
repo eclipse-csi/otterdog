@@ -74,6 +74,9 @@ class OrganizationSettings(ModelObject):
         return True
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        # execute custom validation rules if present
+        self.execute_custom_validation_if_present(context, "validate-org-settings.py")
+
         # enabling dependabot implicitly enables the dependency graph,
         # disabling the dependency graph in the configuration will result in inconsistencies after
         # applying the configuration, warn the user about it.

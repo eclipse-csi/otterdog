@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import os
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -35,10 +36,19 @@ class FailureType(Enum):
 
 @dataclasses.dataclass
 class ValidationContext(object):
+    template_dir: str
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
+
+    def property_equals(self, model_object, key, value):
+        current_value = model_object.__getattribute__(key)
+        if current_value != value:
+            self.add_failure(
+                FailureType.ERROR,
+                f"{model_object.get_model_header()} has '{key}' set to '{current_value}' but '{value}' is required.",
+            )
 
 
 @dataclasses.dataclass
@@ -81,6 +91,12 @@ class ModelObject(ABC):
     @abstractmethod
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         pass
+
+    # noinspection PyMethodMayBeStatic
+    def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
+        validate_script = os.path.join(context.template_dir, filename)
+        if os.path.exists(validate_script):
+            exec(open(validate_script).read())
 
     def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):

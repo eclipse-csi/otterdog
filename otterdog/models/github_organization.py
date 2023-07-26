@@ -96,8 +96,8 @@ class GitHubOrganization:
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
-    def validate(self) -> ValidationContext:
-        context = ValidationContext()
+    def validate(self, template_dir: str) -> ValidationContext:
+        context = ValidationContext(template_dir)
         self.settings.validate(context, self)
 
         for webhook in self.webhooks:

@@ -48,7 +48,9 @@ class ValidateOperation(Operation):
                 print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
-            validation_infos, validation_warnings, validation_errors = self.validate(organization)
+            validation_infos, validation_warnings, validation_errors = self.validate(
+                organization, jsonnet_config.template_dir
+            )
             validation_count = validation_infos + validation_warnings + validation_errors
 
             if validation_count == 0:
@@ -79,8 +81,8 @@ class ValidateOperation(Operation):
             self.printer.level_down()
 
     @staticmethod
-    def validate(organization: GitHubOrganization) -> tuple[int, int, int]:
-        context = organization.validate()
+    def validate(organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
+        context = organization.validate(template_dir)
 
         validation_infos = 0
         validation_warnings = 0

@@ -169,11 +169,17 @@ class JsonnetConfig:
         return self._default_environment_config
 
     @property
-    def template_file(self) -> str:
+    def template_dir(self) -> str:
         return os.path.join(
             self.org_dir,
             "vendor",
             self._base_template_repo_name,
+        )
+
+    @property
+    def template_file(self) -> str:
+        return os.path.join(
+            self.template_dir,
             self._base_template_file,
         )
 
