@@ -10,7 +10,7 @@ The secret value can be resolved via a credential provider. The supported format
 - Bitwarden: `bitwarden:<bitwarden item id>@<custom_field_key>`
 
     ``` json
-    "secret": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@webhook_secret"
+    "secret": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@secret"
     ```
 
 - Pass: `pass:<path/to/secret>`
