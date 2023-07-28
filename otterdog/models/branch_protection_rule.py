@@ -275,9 +275,7 @@ class BranchProtectionRule(ModelObject):
             lambda x: transform_app(x)
         )
 
-        t = cls(**bend(mapping, data))
-        print(t)
-        return t
+        return cls(**bend(mapping, data))
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
