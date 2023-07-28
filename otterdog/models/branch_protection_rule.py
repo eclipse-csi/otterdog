@@ -43,9 +43,9 @@ class BranchProtectionRule(ModelObject):
     lock_allows_fetch_and_merge: bool
     lock_branch: bool
 
+    requires_pull_request: bool
     # the following settings are only taken into account
-    # when requires_approving_reviews is True
-    requires_approving_reviews: bool
+    # when requires_pull_request is True
     required_approving_review_count: Optional[int]
     dismisses_stale_reviews: bool
     requires_code_owner_reviews: bool
@@ -76,12 +76,12 @@ class BranchProtectionRule(ModelObject):
         # when requires_approving_reviews is false, issue a warning if dependent settings
         # are still set to non default values.
 
-        if self.requires_approving_reviews is False:
+        if self.requires_pull_request is False:
             if is_set_and_valid(self.required_approving_review_count):
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has"
-                    f" 'requires_approving_reviews' disabled but 'required_approving_review_count' "
+                    f" 'requires_pull_request' disabled but 'required_approving_review_count' "
                     f"is set to '{self.required_approving_review_count}', setting will be ignored.",
                 )
 
@@ -95,7 +95,7 @@ class BranchProtectionRule(ModelObject):
                     context.add_failure(
                         FailureType.WARNING,
                         f"{self.get_model_header(parent_object)} has"
-                        f" 'requires_approving_reviews' disabled but '{key}' "
+                        f" 'requires_pull_request' disabled but '{key}' "
                         f"is enabled, setting will be ignored.",
                     )
 
@@ -108,19 +108,19 @@ class BranchProtectionRule(ModelObject):
                     context.add_failure(
                         FailureType.WARNING,
                         f"{self.get_model_header(parent_object)} has"
-                        f" 'requires_approving_reviews' disabled but '{key}' "
+                        f" 'requires_pull_request' disabled but '{key}' "
                         f"is set to '{value}', setting will be ignored.",
                     )
 
-        # required_approving_review_count must be defined when requires_approving_reviews is enabled
+        # required_approving_review_count must be defined when requires_pull_request is enabled
         required_approving_review_count = self.required_approving_review_count
-        if self.requires_approving_reviews is True and not is_unset(required_approving_review_count):
+        if self.requires_pull_request is True and not is_unset(required_approving_review_count):
             if required_approving_review_count is None or required_approving_review_count < 0:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has"
-                    f" 'requires_approving_reviews' enabled but 'required_approving_review_count' "
-                    f"is not set (must be null or a non negative number).",
+                    f" 'requires_pull_request' enabled but 'required_approving_review_count' "
+                    f"is not set (must be set to a non negative number).",
                 )
 
         # if 'review_dismissal_allowances' is disabled, issue a warning if review_dismissal_allowances is non-empty.
@@ -138,12 +138,11 @@ class BranchProtectionRule(ModelObject):
                 f"setting will be ignored.",
             )
 
-        # if 'allows_force_pushes' is enabled, issue a warning if bypass_force_push_allowances is non-empty.
-        bypass_force_push_allowances = self.bypass_force_push_allowances
+        # if 'allows_force_pushes' is enabled, issue an error if bypass_force_push_allowances is non-empty.
         if (
             self.allows_force_pushes is True
-            and is_set_and_valid(bypass_force_push_allowances)
-            and len(bypass_force_push_allowances) > 0
+            and is_set_and_valid(self.bypass_force_push_allowances)
+            and len(self.bypass_force_push_allowances) > 0
         ):
             context.add_failure(
                 FailureType.WARNING,
@@ -196,9 +195,17 @@ class BranchProtectionRule(ModelObject):
                         f"'{env_name}' which is not defined in the repository itself.",
                     )
 
+        # if 'lock_branch' is disabled, issue a warning if lock_allows_fetch_and_merge is enabled.
+        if self.lock_branch is False and self.lock_allows_fetch_and_merge is True:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{self.get_model_header(parent_object)} has 'lock_branch' disabled but "
+                f"'lock_allows_fetch_and_merge' enabled, setting will be ignored.",
+            )
+
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        # disable diff computation for dependent fields of requires_approving_reviews,
-        if self.requires_approving_reviews is False:
+        # disable diff computation for dependent fields of requires_pull_request,
+        if self.requires_pull_request is False:
             if field.name in [
                 "required_approving_review_count",
                 "dismisses_stale_reviews",
@@ -237,11 +244,17 @@ class BranchProtectionRule(ModelObject):
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+
+        if "requires_approving_reviews" in data:
+            mapping["requires_pull_request"] = S("requires_approving_reviews")
+
         return cls(**bend(mapping, data))
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> BranchProtectionRule:
         mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+
+        mapping["requires_pull_request"] = OptionalS("requiresApprovingReviews", default=UNSET)
 
         def transform_app(x):
             app = x["app"]
@@ -262,7 +275,9 @@ class BranchProtectionRule(ModelObject):
             lambda x: transform_app(x)
         )
 
-        return cls(**bend(mapping, data))
+        t = cls(**bend(mapping, data))
+        print(t)
+        return t
 
     @classmethod
     def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
@@ -271,6 +286,10 @@ class BranchProtectionRule(ModelObject):
             for field in cls.provider_fields()
             if not is_unset(data.get(field.name, UNSET))
         }
+
+        if "requires_pull_request" in data:
+            mapping.pop("requiresPullRequest")
+            mapping["requiresApprovingReviews"] = K(data["requires_pull_request"])
 
         if "push_restrictions" in data:
             mapping.pop("pushRestrictions")

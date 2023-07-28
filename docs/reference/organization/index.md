@@ -1,3 +1,5 @@
+# GitHub Organization
+
 This resource represents a GitHub organization with all supported settings and nested resources.
 
 === "jsonnet"
