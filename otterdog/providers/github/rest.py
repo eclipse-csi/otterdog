@@ -635,10 +635,13 @@ class RestClient:
     ) -> None:
         print_debug(f"updating deployment branch policies for env '{env_name}'")
 
-        current_branch_policies_by_name = associate_by_key(
-            self._get_deployment_branch_policies(org_id, repo_name, env_name),
-            lambda x: x["name"],
-        )
+        try:
+            current_branch_policies_by_name = associate_by_key(
+                self._get_deployment_branch_policies(org_id, repo_name, env_name),
+                lambda x: x["name"],
+            )
+        except RuntimeError:
+            current_branch_policies_by_name = {}
 
         try:
             for policy in branch_policies:
