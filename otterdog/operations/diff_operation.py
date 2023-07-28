@@ -259,6 +259,11 @@ class DiffOperation(Operation):
             if "has_projects" in modified_repo and has_organization_projects_disabled:
                 modified_repo.pop("has_projects")
 
+            if "gh_pages_source_branch" in modified_repo:
+                modified_repo["gh_pages_source_path"] = Change(
+                    expected_repo.gh_pages_source_path, expected_repo.gh_pages_source_path
+                )
+
             if len(modified_repo) > 0:
                 diff_status.differences += self.handle_modified_object(
                     github_id, modified_repo, False, current_repo, expected_repo
