@@ -18,6 +18,8 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "restricts_pushes": { "type": "boolean" },
+    "blocks_creations": { "type": "boolean" },
     "push_restrictions": {
       "type": "array",
       "items": { "type": "string" }

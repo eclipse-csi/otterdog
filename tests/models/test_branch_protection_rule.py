@@ -80,7 +80,7 @@ class BranchProtectionRuleTest(ModelTest):
 
         provider_data = bpr.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 23
+        assert len(provider_data) == 24
         assert provider_data["pattern"] == "main"
         assert provider_data["pushActorIds"] == ["id_netomi"]
         assert provider_data["requiredStatusChecks"] == [

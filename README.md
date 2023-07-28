@@ -285,6 +285,3 @@ make container_clean
 ```
 
 ## Known issues
-
-### GraphQL
-* branch protection rule property `blocksCreations` can not be updated via an update or create mutation, always seem to be `false`

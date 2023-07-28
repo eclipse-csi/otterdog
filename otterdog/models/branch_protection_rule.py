@@ -55,6 +55,9 @@ class BranchProtectionRule(ModelObject):
     review_dismissal_allowances: list[str]
 
     bypass_force_push_allowances: list[str]
+
+    restricts_pushes: bool
+    blocks_creations: bool
     push_restrictions: list[str]
 
     requires_commit_signatures: bool
@@ -195,6 +198,30 @@ class BranchProtectionRule(ModelObject):
                         f"'{env_name}' which is not defined in the repository itself.",
                     )
 
+        # if 'restricts_pushes' is disabled, issue a warning if push_restrictions is non-empty.
+        if (
+            self.restricts_pushes is False
+            and is_set_and_valid(self.push_restrictions)
+            and len(self.push_restrictions) > 0
+        ):
+            context.add_failure(
+                FailureType.WARNING,
+                f"{self.get_model_header(parent_object)} has"
+                f" 'restricts_pushes' disabled but "
+                f"'push_restrictions' is set to '{self.push_restrictions}', "
+                f"setting will be ignored.",
+            )
+
+        # if 'restricts_pushes' is disabled, issue a warning if blocks_creations is enabled.
+        if self.restricts_pushes is False and self.blocks_creations is True:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{self.get_model_header(parent_object)} has"
+                f" 'restricts_pushes' disabled but "
+                f"'blocks_creations' is set to '{self.blocks_creations}', "
+                f"setting will be ignored.",
+            )
+
         # if 'lock_branch' is disabled, issue a warning if lock_allows_fetch_and_merge is enabled.
         if self.lock_branch is False and self.lock_allows_fetch_and_merge is True:
             context.add_failure(
@@ -295,7 +322,6 @@ class BranchProtectionRule(ModelObject):
             if is_set_and_valid(restricts_pushes):
                 actor_ids = provider.get_actor_node_ids(restricts_pushes)
                 mapping["pushActorIds"] = K(actor_ids)
-                mapping["restrictsPushes"] = K(True if len(actor_ids) > 0 else False)
 
         if "review_dismissal_allowances" in data:
             mapping.pop("reviewDismissalAllowances")
