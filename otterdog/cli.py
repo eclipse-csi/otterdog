@@ -350,7 +350,7 @@ def apply(
 @click.option(
     "-r",
     "--repo",
-    default=None,
+    required=True,
     help="repository to sync (default: all repos created from a template)",
 )
 def sync_template(organizations: list[str], repo):
