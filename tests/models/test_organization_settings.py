@@ -45,7 +45,6 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
-        assert settings.members_can_create_pages is True
         assert settings.members_can_create_public_pages is True
         assert settings.members_can_change_repo_visibility is False
         assert settings.members_can_delete_repositories is True
@@ -80,7 +79,6 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
-        assert settings.members_can_create_pages is True
         assert settings.members_can_create_public_pages is True
         assert settings.members_can_change_repo_visibility is False
         assert settings.members_can_delete_repositories is True
@@ -98,7 +96,7 @@ class OrganizationSettingsTest(ModelTest):
 
         provider_data = settings.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 28
+        assert len(provider_data) == 27
         assert provider_data["billing_email"] == settings.billing_email
 
     def test_changes_to_provider(self):

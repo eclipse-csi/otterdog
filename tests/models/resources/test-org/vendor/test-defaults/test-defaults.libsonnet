@@ -82,7 +82,7 @@ local newBranchProtectionRule(pattern) = {
     "eclipse-eca-validation:eclipsefdn/eca",
   ],
   required_approving_review_count: 2,
-  requires_approving_reviews: true,
+  requires_pull_request: true,
   requires_code_owner_reviews: false,
   requires_commit_signatures: false,
   requires_conversation_resolution: false,
@@ -130,7 +130,6 @@ local newOrg(id) = {
     web_commit_signoff_required: true,
 
     # GitHub Pages
-    members_can_create_pages: true,
     members_can_create_public_pages: true,
 
     dependabot_alerts_enabled_for_new_repositories: true,
@@ -199,7 +198,7 @@ local newOrg(id) = {
           bypass_pull_request_allowances: [
             std.format("@%s/eclipsefdn-security", $['github_id'])
           ],
-          requires_approving_reviews: true,
+          requires_pull_request: true,
           required_approving_review_count: 1,
           requires_code_owner_reviews: true,
           requires_status_checks: false,

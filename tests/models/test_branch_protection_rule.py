@@ -37,7 +37,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.push_restrictions == ["@netomi"]
         assert bpr.require_last_push_approval is False
         assert bpr.required_approving_review_count == 2
-        assert bpr.requires_approving_reviews is True
+        assert bpr.requires_pull_request is True
         assert bpr.requires_code_owner_reviews is False
         assert bpr.requires_commit_signatures is False
         assert bpr.requires_conversation_resolution is False
@@ -64,7 +64,7 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.push_restrictions == ["@netomi"]
         assert bpr.require_last_push_approval is False
         assert bpr.required_approving_review_count == 2
-        assert bpr.requires_approving_reviews is True
+        assert bpr.requires_pull_request is True
         assert bpr.requires_code_owner_reviews is False
         assert bpr.requires_commit_signatures is False
         assert bpr.requires_conversation_resolution is False
@@ -84,13 +84,15 @@ class BranchProtectionRuleTest(ModelTest):
         assert provider_data["pattern"] == "main"
         assert provider_data["pushActorIds"] == ["id_netomi"]
         assert provider_data["requiredStatusChecks"] == [
-            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
+            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'},
+            {'appId': 'any', 'context': 'Run CI'},
+        ]
 
     def test_changes_to_provider(self):
         current = BranchProtectionRule.from_model_data(self.model_data)
         other = BranchProtectionRule.from_model_data(self.model_data)
 
-        other.requires_approving_reviews = False
+        other.requires_pull_request = False
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         changes = current.get_difference_from(other)
@@ -99,7 +101,9 @@ class BranchProtectionRuleTest(ModelTest):
         assert len(provider_data) == 2
         assert provider_data["requiresApprovingReviews"] is True
         assert provider_data["requiredStatusChecks"] == [
-            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'}, {'appId': 'any', 'context': 'Run CI'}]
+            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'},
+            {'appId': 'any', 'context': 'Run CI'},
+        ]
 
     def test_patch(self):
         current = BranchProtectionRule.from_model_data(self.model_data)
@@ -120,13 +124,11 @@ class BranchProtectionRuleTest(ModelTest):
         current = BranchProtectionRule.from_model_data(self.model_data)
         other = BranchProtectionRule.from_model_data(self.model_data)
 
-        other.requires_approving_reviews = False
+        other.requires_pull_request = False
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         diff = current.get_difference_from(other)
 
         assert len(diff) == 2
-        assert diff["requires_approving_reviews"] == Change(other.requires_approving_reviews,
-                                                            current.requires_approving_reviews)
-        assert diff["required_status_checks"] == Change(other.required_status_checks,
-                                                        current.required_status_checks)
+        assert diff["requires_pull_request"] == Change(other.requires_pull_request, current.requires_pull_request)
+        assert diff["required_status_checks"] == Change(other.required_status_checks, current.required_status_checks)

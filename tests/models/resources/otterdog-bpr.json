@@ -9,7 +9,7 @@
   "lock_branch": false,
   "require_last_push_approval": false,
   "required_approving_review_count": 2,
-  "requires_approving_reviews": true,
+  "requires_pull_request": true,
   "requires_code_owner_reviews": false,
   "requires_commit_signatures": false,
   "requires_conversation_resolution": false,
