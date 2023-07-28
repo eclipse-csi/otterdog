@@ -259,6 +259,9 @@ class DiffOperation(Operation):
             if "has_projects" in modified_repo and has_organization_projects_disabled:
                 modified_repo.pop("has_projects")
 
+            # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
+            #        the modified data as GitHub needs the path as well when the branch is changed.
+            #        this needs to make clean to support making the diff operation generic as possible.
             if "gh_pages_source_branch" in modified_repo:
                 modified_repo["gh_pages_source_path"] = Change(
                     expected_repo.gh_pages_source_path, expected_repo.gh_pages_source_path
