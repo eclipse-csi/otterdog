@@ -16,7 +16,7 @@ from jsonbender import bend, S, OptionalS, K, Forall, If, F  # type: ignore
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, IndentingPrinter, write_patch_object_as_json
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
@@ -62,6 +62,10 @@ class Repository(ModelObject):
     dependabot_alerts_enabled: bool
     dependabot_security_updates_enabled: bool
 
+    gh_pages_build_type: str
+    gh_pages_source_branch: Optional[str]
+    gh_pages_source_path: Optional[str]
+
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
     post_process_template_content: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -96,6 +100,11 @@ class Repository(ModelObject):
         "dependabot_security_updates_enabled",
         "secret_scanning_push_protection",
     }
+
+    _gh_pages_properties: ClassVar[list[str]] = [
+        "gh_pages_source_branch",
+        "gh_pages_source_path",
+    ]
 
     @property
     def model_object_name(self) -> str:
@@ -231,6 +240,35 @@ class Repository(ModelObject):
                     f"rules will be ignored.",
                 )
 
+        if is_set_and_valid(self.gh_pages_build_type):
+            if self.gh_pages_build_type not in {"disabled", "legacy", "workflow"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'gh_pages_build_type' has value '{self.gh_pages_build_type}', "
+                    f"only values ('disabled' | 'legacy' | 'workflow') are allowed.",
+                )
+
+            if self.gh_pages_build_type == "disabled":
+                for key in self._gh_pages_properties:
+                    value = self.__getattribute__(key)
+                    if value is not None:
+                        context.add_failure(
+                            FailureType.WARNING,
+                            f"{self.get_model_header(parent_object)} has"
+                            f" 'gh_pages_build_type' disabled but '{key}' "
+                            f"is set to a value '{value}', setting will be ignored.",
+                        )
+
+            if self.gh_pages_build_type in {"legacy", "workflow"}:
+                if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has"
+                        f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}' "
+                        f"but no 'github-pages' environment, please add such an environment as GitHub will "
+                        f"create it automatically otherwise.",
+                    )
+
         for secret in self.secrets:
             secret.validate(context, self)
 
@@ -248,6 +286,10 @@ class Repository(ModelObject):
 
         if self.archived is True:
             if field.name in self._unavailable_fields_in_archived_repos:
+                return False
+
+        if self.gh_pages_build_type in ["disabled", "workflow"]:
+            if field.name in self._gh_pages_properties:
                 return False
 
         return True
@@ -297,6 +339,15 @@ class Repository(ModelObject):
                 return False
             else:
                 return UNSET
+
+        # mapping for gh-pages config
+        mapping.update(
+            {
+                "gh_pages_build_type": OptionalS("gh_pages", "build_type", default="disabled"),
+                "gh_pages_source_branch": OptionalS("gh_pages", "source", "branch", default=None),
+                "gh_pages_source_path": OptionalS("gh_pages", "source", "path", default=None),
+            }
+        )
 
         mapping.update(
             {
@@ -351,6 +402,24 @@ class Repository(ModelObject):
 
             if len(security_mapping) > 0:
                 mapping.update({"security_and_analysis": security_mapping})
+
+        gh_pages_mapping = {}
+        if "gh_pages_build_type" in data:
+            mapping.pop("gh_pages_build_type")
+            gh_pages_mapping["build_type"] = S("gh_pages_build_type")
+
+        gh_pages_legacy_mapping = {}
+        for source_prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+            if source_prop in data:
+                mapping.pop(source_prop)
+                key = source_prop.rsplit("_")[-1]
+                gh_pages_legacy_mapping[key] = S(source_prop)
+
+        if len(gh_pages_legacy_mapping) > 0:
+            gh_pages_mapping["source"] = gh_pages_legacy_mapping
+
+        if len(gh_pages_mapping) > 0:
+            mapping["gh_pages"] = gh_pages_mapping
 
         return bend(mapping, data)
 

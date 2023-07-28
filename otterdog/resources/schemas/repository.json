@@ -44,6 +44,9 @@
     "secret_scanning_push_protection": { "type": "string" },
     "dependabot_alerts_enabled": { "type": "boolean" },
     "dependabot_security_updates_enabled": { "type": "boolean" },
+    "gh_pages_build_type": { "type": "string" },
+    "gh_pages_source_branch": { "$ref": "#/definitions/string_or_null" },
+    "gh_pages_source_path": { "$ref": "#/definitions/string_or_null" },
     "branch_protection_rules": {
       "type": "array",
       "items": { "$ref": "branch-protection-rule.json" }

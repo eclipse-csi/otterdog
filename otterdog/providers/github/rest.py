@@ -304,6 +304,7 @@ class RestClient:
 
         try:
             repo_data = self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
+            self._fill_github_pages_config_for_repo(org_id, repo_name, repo_data)
             self._fill_vulnerability_report_for_repo(org_id, repo_name, repo_data)
             self._fill_topics_for_repo(org_id, repo_name, repo_data)
             return repo_data
@@ -320,7 +321,7 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving data for repo '{repo_id}':\n{ex}").with_traceback(tb)
 
-    def update_repo(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+    def update_repo(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating repo settings for repo '{org_id}/{repo_name}'")
 
         changes = len(data)
@@ -335,6 +336,11 @@ class RestClient:
         else:
             topics = None
 
+        if "gh_pages" in data:
+            gh_pages = data.pop("gh_pages")
+        else:
+            gh_pages = None
+
         if changes > 0:
             try:
                 if len(data) > 0:
@@ -344,6 +350,8 @@ class RestClient:
                     self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
                 if topics is not None:
                     self._update_topics_for_repo(org_id, repo_name, topics)
+                if gh_pages is not None:
+                    self._update_github_pages_config_for_repo(org_id, repo_name, gh_pages)
 
                 print_debug(f"updated {changes} repo setting(s) for repo '{repo_name}'")
             except GitHubException as ex:
@@ -422,6 +430,7 @@ class RestClient:
             "web_commit_signoff_required",
             "security_and_analysis",
             "topics",
+            "gh_pages",
         ]
         update_data = {}
 
@@ -477,6 +486,38 @@ class RestClient:
                 if update_value_current == update_value_expected:
                     print_debug(f"omitting setting '{key}' as it is already set")
                     update_data.pop(key)
+
+    def _fill_github_pages_config_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"retrieving github pages config for '{org_id}/{repo_name}'")
+
+        response = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
+        if response.status_code == 200:
+            repo_data["gh_pages"] = response.json()
+
+    def _update_github_pages_config_for_repo(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
+        print_debug(f"updating github pages config for '{org_id}/{repo_name}'")
+
+        build_type = gh_pages.get("build_type", None)
+        if build_type == "disabled":
+            self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
+        else:
+            # first check if the pages config already exists:
+            response_get = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
+            if response_get.status_code != 200:
+                method = "POST"
+                status_code = 201
+            else:
+                method = "PUT"
+                status_code = 204
+
+            response = self._requester.request_raw(
+                method, f"/repos/{org_id}/{repo_name}/pages", data=json.dumps(gh_pages)
+            )
+
+            if response.status_code != status_code:
+                raise RuntimeError(f"failed to update github pages config for repo '{repo_name}'")
+            else:
+                print_debug(f"updated github pages config for repo '{repo_name}'")
 
     def _fill_vulnerability_report_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
