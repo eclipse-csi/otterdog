@@ -38,9 +38,9 @@ When the `apply` operation is executed, the following happens:
 ## Example
 
 ```shell
-tn@proteus:~/workspace/eclipse/EclipseFdn/otterdog-configs$ otterdog apply adoptium 
+tn@proteus:~/.../otterdog-configs$ otterdog apply adoptium 
 
-Apply changes for configuration at '/home/tn/workspace/eclipse/EclipseFdn/otterdog-configs/otterdog.json'
+Apply changes for configuration at '.../otterdog-configs/otterdog.json'
 
 Actions are indicated with the following symbols:
   + create
