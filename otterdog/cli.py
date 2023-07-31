@@ -66,7 +66,7 @@ class StdCommand(click.Command):
             click.Option(
                 ["-v", "--verbose"],
                 count=True,
-                help="enable verbose output (-vv for more verbose output)",
+                help="enable verbose output (-vvv for more verbose output)",
             ),
         )
 

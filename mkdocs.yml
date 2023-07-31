@@ -56,7 +56,13 @@ nav:
           - Repository Secret: reference/organization/repository/secret.md
           - Environment: reference/organization/repository/environment.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
-    - reference/operations.md
+    - CLI Operations:
+        - reference/operations/index.md
+        - Import: reference/operations/import.md
+        - Plan: reference/operations/plan.md
+        - Apply: reference/operations/apply.md
+        - Validate: reference/operations/validate.md
+
 - Contribute: contributing.md
 
 markdown_extensions:
