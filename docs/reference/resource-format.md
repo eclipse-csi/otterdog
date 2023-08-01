@@ -7,7 +7,7 @@ The infrastructure configuration of a GitHub organization is stored in [jsonnet]
 
 ## Jsonnet content
 
-The following example illustrate the basic structure used by otterdog:
+The following example illustrates the basic structure used by otterdog:
 
 ``` jsonnet linenums="1" hl_lines="1 3 5 8 15 19"
 
