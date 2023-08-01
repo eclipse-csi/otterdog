@@ -232,7 +232,13 @@ def import_command(organizations: list[str], force, no_web_ui):
     default=False,
     help="updates webhook with secrets regardless of changes",
 )
-def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
+@click.option(
+    "--update-filter",
+    show_default=True,
+    default=".*",
+    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+)
+def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, update_filter):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
@@ -243,6 +249,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
             no_web_ui=no_web_ui,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            update_filter=update_filter,
         ),
     )
 
@@ -269,7 +276,13 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets):
     default=False,
     help="updates webhook with secrets regardless of changes",
 )
-def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets):
+@click.option(
+    "--update-filter",
+    show_default=True,
+    default=".*",
+    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+)
+def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets, update_filter):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
@@ -277,9 +290,7 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     _execute_operation(
         organizations,
         LocalPlanOperation(
-            suffix=suffix,
-            update_webhooks=update_webhooks,
-            update_secrets=update_secrets,
+            suffix=suffix, update_webhooks=update_webhooks, update_secrets=update_secrets, update_filter=update_filter
         ),
     )
 
@@ -316,6 +327,12 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     help="updates webhook with secrets regardless of changes",
 )
 @click.option(
+    "--update-filter",
+    show_default=True,
+    default=".*",
+    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+)
+@click.option(
     "-d",
     "--delete-resources",
     is_flag=True,
@@ -329,6 +346,7 @@ def apply(
     no_web_ui,
     update_webhooks,
     update_secrets,
+    update_filter,
     delete_resources,
 ):
     """
@@ -341,6 +359,7 @@ def apply(
             no_web_ui=no_web_ui,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            update_filter=update_filter,
             delete_resources=delete_resources,
         ),
     )

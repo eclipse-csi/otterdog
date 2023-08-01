@@ -33,9 +33,10 @@ class ApplyOperation(PlanOperation):
         no_web_ui: bool,
         update_webhooks: bool,
         update_secrets: bool,
+        update_filter: str,
         delete_resources: bool,
     ):
-        super().__init__(no_web_ui, update_webhooks, update_secrets)
+        super().__init__(no_web_ui, update_webhooks, update_secrets, update_filter)
 
         self._force_processing = force_processing
         self._delete_resources = delete_resources

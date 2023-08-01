@@ -7,6 +7,7 @@
 # *******************************************************************************
 
 import os
+import re
 from abc import abstractmethod
 from typing import Any, Optional, TypeVar
 
@@ -53,12 +54,13 @@ class DiffStatus:
 
 
 class DiffOperation(Operation):
-    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool):
+    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool, update_filter: str):
         super().__init__()
 
         self.no_web_ui = no_web_ui
         self.update_webhooks = update_webhooks
         self.update_secrets = update_secrets
+        self.update_filter = update_filter
         self._gh_client: Optional[Github] = None
         self._validator = ValidateOperation()
 
@@ -407,7 +409,11 @@ class DiffOperation(Operation):
                 continue
 
             # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
-            if self.update_webhooks and is_set_and_valid(expected_webhook.secret):
+            if (
+                self.update_webhooks
+                and is_set_and_valid(expected_webhook.secret)
+                and re.match(self.update_filter, expected_webhook.url)
+            ):
                 model_dict = expected_webhook.to_model_dict()
                 modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
@@ -486,7 +492,7 @@ class DiffOperation(Operation):
                 continue
 
             # if secrets shall be updated and the secret contains a valid secret perform a forced update.
-            if self.update_secrets:
+            if self.update_secrets and re.match(self.update_filter, expected_secret.name):
                 model_dict = expected_secret.to_model_dict()
                 modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
