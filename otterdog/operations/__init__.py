@@ -44,35 +44,77 @@ class Operation(ABC):
     def execute(self, org_config: OrganizationConfig) -> int:
         raise NotImplementedError
 
-    def print_dict(self, data: dict[str, Any], item_header: str, action: str, color: str) -> None:
+    def print_dict(
+        self,
+        data: dict[str, Any],
+        item_header: str,
+        action: str,
+        color: str,
+        key_value_separator: str = "=",
+        value_separator: str = "",
+    ) -> None:
         prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
         closing_prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
 
-        self.printer.println(f"{prefix}{item_header} {{")
-        self.printer.level_up()
+        self.printer.print(f"{prefix}{item_header} ")
+        self._print_dict_internal(data, prefix, closing_prefix, False, key_value_separator, value_separator)
 
+    def _print_internal(
+        self,
+        data: Any,
+        prefix: str,
+        closing_prefix: str,
+        include_prefix: bool,
+        key_value_separator: str,
+        value_separator: str,
+    ):
+        if isinstance(data, dict):
+            self._print_dict_internal(
+                data, prefix, closing_prefix, include_prefix, key_value_separator, value_separator
+            )
+        elif isinstance(data, list):
+            self._print_list_internal(data, prefix, closing_prefix, key_value_separator, value_separator)
+        else:
+            self.printer.println(f"{prefix if include_prefix else ''}{self._get_value(data)}{value_separator}")
+
+    def _print_dict_internal(
+        self,
+        data: dict[str, Any],
+        prefix: str,
+        closing_prefix: str,
+        include_prefix: bool,
+        key_value_separator: str,
+        value_separator: str,
+    ):
+        self.printer.println(f"{prefix if include_prefix else ''}{{")
+        self.printer.level_up()
         for key, value in sorted(data.items()):
-            if isinstance(value, dict):
-                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
-                self.printer.level_up()
-                for k, v in value.items():
-                    self.printer.println(f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(v)}")
-                self.printer.level_down()
-                self.printer.println(f"{closing_prefix}}}")
-            elif isinstance(value, list):
-                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {value}")
-            else:
-                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {self._get_value(value)}")
+            self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} {key_value_separator} ")
+            self._print_internal(value, prefix, closing_prefix, False, key_value_separator, value_separator)
 
         self.printer.level_down()
-        self.printer.println(f"{closing_prefix}}}")
+        self.printer.println(f"{closing_prefix}}}{value_separator}")
+
+    def _print_list_internal(
+        self, data: list[Any], prefix: str, closing_prefix: str, key_value_separator: str, value_separator: str
+    ):
+        if len(data) > 0:
+            self.printer.println("[")
+            self.printer.level_up()
+            for entry in data:
+                self._print_internal(entry, prefix, closing_prefix, True, key_value_separator, value_separator)
+
+            self.printer.level_down()
+            self.printer.println(f"{closing_prefix}],")
+        else:
+            self.printer.println(f"[]{value_separator}")
 
     @staticmethod
     def _get_value(value: Any) -> str:
         if value is None:
-            return str(value)
+            return "null"
         if isinstance(value, bool):
-            return str(value)
+            return str(value).lower()
         else:
             return f'"{value}"'
 
@@ -86,7 +128,10 @@ class Operation(ABC):
         action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
         color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
 
-        self.printer.println(f"\n{action} {Style.RESET_ALL}{item_header} {{")
+        prefix = f"{action} {Style.RESET_ALL}" if action else ""
+        closing_prefix = f"{action} {Style.RESET_ALL}" if action else ""
+
+        self.printer.println(f"\n{prefix}{item_header} {{")
         self.printer.level_up()
 
         for key, change in sorted(data.items()):
@@ -94,7 +139,7 @@ class Operation(ABC):
             expected_value = change.to_value
 
             if isinstance(expected_value, dict):
-                self.printer.println(f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
                 self.printer.level_up()
 
                 processed_keys = set()
@@ -103,9 +148,8 @@ class Operation(ABC):
 
                     if v != c_v:
                         self.printer.println(
-                            f"{action} {Style.RESET_ALL}"
-                            f"{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                            f' "{c_v}" {color}->{Style.RESET_ALL} "{v}"'
+                            f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                            f' {self._get_value(c_v)} {color}->{Style.RESET_ALL} {self._get_value(v)}'
                         )
 
                     processed_keys.add(k)
@@ -114,7 +158,8 @@ class Operation(ABC):
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
                             self.printer.println(
-                                f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f' "{v}"'
+                                f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                f' {self._get_value(v)}'
                             )
 
                 self.printer.println("}")
@@ -134,9 +179,9 @@ class Operation(ABC):
                 e_v = "<redacted>" if should_redact(expected_value) else expected_value
 
                 self.printer.println(
-                    f"{action} {Style.RESET_ALL}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                    f' "{c_v}" {color}->{Style.RESET_ALL} "{e_v}"'
+                    f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                    f' {self._get_value(c_v)} {color}->{Style.RESET_ALL} {self._get_value(e_v)}'
                 )
 
-        self.printer.println("}")
         self.printer.level_down()
+        self.printer.println(f"{closing_prefix}}}")
