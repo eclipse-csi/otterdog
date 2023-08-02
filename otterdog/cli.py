@@ -25,6 +25,7 @@ from .operations.plan_operation import PlanOperation
 from .operations.push_operation import PushOperation
 from .operations.show_live_operation import ShowLiveOperation
 from .operations.show_operation import ShowOperation
+from .operations.show_default_operation import ShowDefaultOperation
 from .operations.sync_template_operation import SyncTemplateOperation
 from .operations.validate_operation import ValidateOperation
 from .operations.web_login_operation import WebLoginOperation
@@ -153,6 +154,14 @@ def show_live(organizations: list[str], no_web_ui):
     Displays the live configuration for organizations.
     """
     _execute_operation(organizations, ShowLiveOperation(no_web_ui=no_web_ui))
+
+
+@cli.command(cls=StdCommand)
+def show_default(organizations: list[str]):
+    """
+    Displays the default configuration for organizations.
+    """
+    _execute_operation(organizations, ShowDefaultOperation())
 
 
 @cli.command(cls=StdCommand)

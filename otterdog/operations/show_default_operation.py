@@ -6,23 +6,20 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import os
-
 from colorama import Style, Fore
 
 from otterdog.config import OrganizationConfig
-from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import print_error
+from otterdog.utils import jsonnet_evaluate_snippet
 
 from . import Operation
 
 
-class ShowOperation(Operation):
+class ShowDefaultOperation(Operation):
     def __init__(self):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Showing resources defined in configuration '{self.config.config_file}'")
+        self.printer.println(f"Showing defaults defined in configuration '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -33,26 +30,39 @@ class ShowOperation(Operation):
         self.printer.level_up()
 
         try:
-            org_file_name = jsonnet_config.org_config_file
+            default_org = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org}('<github-id>')")
+            default_org_settings = {"settings": default_org["settings"]}
+            self.printer.println()
+            self.print_dict(
+                default_org_settings, f"orgs.{jsonnet_config.create_org}('<github-id>') =", "", Fore.RED, ":", ","
+            )
 
-            if not os.path.exists(org_file_name):
-                print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
-                )
-                return 1
+            default_repo = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo}('<repo-name>')")
+            self.printer.println()
+            self.print_dict(
+                default_repo, f"orgs.{jsonnet_config.create_repo}('<repo-name>') =", "", Fore.BLACK, ":", ","
+            )
 
-            try:
-                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
-            except RuntimeError as ex:
-                print_error(f"failed to load configuration: {str(ex)}")
-                return 1
-
-            for model_object, parent_object in organization.get_model_objects():
-                self.printer.println()
-                model_header = model_object.get_model_header(parent_object)
-                self.print_dict(model_object.to_model_dict(), model_header, "", Fore.BLACK)
+            default_bpr = self.evaluate(jsonnet_config, f"{jsonnet_config.create_branch_protection_rule}('<pattern>')")
+            self.printer.println()
+            self.print_dict(
+                default_bpr,
+                f"orgs.{jsonnet_config.create_branch_protection_rule}('<pattern>') =",
+                "",
+                Fore.BLACK,
+                ":",
+                ",",
+            )
 
             return 0
 
         finally:
             self.printer.level_down()
+
+    @staticmethod
+    def evaluate(jsonnet_config, function: str):
+        try:
+            snippet = f"(import '{jsonnet_config.template_file}').{function}"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to evaluate snippet: {ex}")
