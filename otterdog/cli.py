@@ -157,11 +157,17 @@ def show_live(organizations: list[str], no_web_ui):
 
 
 @cli.command(cls=StdCommand)
-def show_default(organizations: list[str]):
+@click.option(
+    "--markdown",
+    is_flag=True,
+    default=False,
+    help="output in markdown format",
+)
+def show_default(organizations: list[str], markdown):
     """
     Displays the default configuration for organizations.
     """
-    _execute_operation(organizations, ShowDefaultOperation())
+    _execute_operation(organizations, ShowDefaultOperation(markdown))
 
 
 @cli.command(cls=StdCommand)
