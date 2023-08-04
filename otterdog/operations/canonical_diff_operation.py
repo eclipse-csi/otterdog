@@ -13,7 +13,7 @@ from colorama import Style, Fore
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import print_error
+from otterdog.utils import print_error, sort_jsonnet, strip_trailing_commas
 
 from . import Operation
 
@@ -47,12 +47,12 @@ class CanonicalDiffOperation(Operation):
         with open(org_file_name, "r") as file:
             original_config = file.read()
 
-        original_config_without_comments: list[str] = list(
-            filter(lambda x: not x.strip().startswith("#"), original_config.split("\n"))
+        original_config_without_comments: list[str] = strip_trailing_commas(
+            sort_jsonnet(list(filter(lambda x: not x.strip().startswith("#"), original_config.split("\n"))))
         )
 
         canonical_config = organization.to_jsonnet(jsonnet_config)
-        canonical_config_as_lines = canonical_config.split("\n")
+        canonical_config_as_lines = strip_trailing_commas(sort_jsonnet(canonical_config.split("\n")))
 
         for line in difflib.unified_diff(
             original_config_without_comments,

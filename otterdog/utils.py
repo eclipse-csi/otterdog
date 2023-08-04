@@ -348,3 +348,55 @@ def is_ghsa_repo(repo_name: str) -> bool:
     Pattern: <regular repo name>-ghsa-xxxx-xxxx-xxxx
     """
     return re.match(".*-ghsa(-[23456789cfghjmpqrvwx]{4}){3}", repo_name) is not None
+
+
+def strip_trailing_commas(lines: list[str]) -> list[str]:
+    return list(map(lambda line: line.rstrip(","), lines))
+
+
+def sort_jsonnet(lines: list[str]) -> list[str]:
+    ast: list[tuple[str, Any]] = []
+    object_stack = [ast]
+
+    for line in lines:
+        trimmed_line = line.rstrip().rstrip(",")
+        if trimmed_line.endswith("{") or trimmed_line.endswith("["):
+            current_node: list[tuple[str, Any]] = []
+            object_stack[-1].append((line, current_node))
+            object_stack.append(current_node)
+        elif trimmed_line.endswith("}") and "{" not in trimmed_line:
+            object_stack[-1].append((line, None))
+            object_stack.pop()
+        elif trimmed_line.endswith("]") and "[" not in trimmed_line:
+            object_stack[-1].append((line, None))
+            object_stack.pop()
+        else:
+            object_stack[-1].append((line, None))
+
+    for node in ast:
+        _sort_node(node)
+
+    result: list[str] = []
+    for node in ast:
+        print_node(node, result)
+    return result
+
+
+def _sort_node(node):
+    line, context = node
+
+    if context is not None:
+        last = context.pop()
+        context.sort()
+        context.append(last)
+        for next_node in context:
+            _sort_node(next_node)
+
+
+def print_node(node, result):
+    line, context = node
+
+    result.append(line)
+    if context is not None:
+        for next_node in context:
+            print_node(next_node, result)

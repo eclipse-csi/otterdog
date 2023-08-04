@@ -19,6 +19,7 @@
 
 ### Changed
 
+- Changed Operation `canonical-diff` to ignore ordering of keys.
 - Support setting a non-existing branch as source branch for GitHub Pages deployment. ([#96](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/96))
 - Renamed branch protection rule property `required_approving_reviews` to `requires_pull_request` which is more consistent with its semantics.
 - Exclude temporary private fork repositories created for security advisories. ([#66](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/66))
