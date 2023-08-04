@@ -553,9 +553,15 @@ class DiffOperation(Operation):
 
             expected_env = expected_environments_by_name.get(env_name)
             if expected_env is None:
-                self.handle_delete_object(org_id, current_env, current_repo)
-                diff_status.deletions += 1
-                continue
+                # if it's a github-pages environment and gh pages are enabled, ignore it.
+                # GitHub automatically creates it, a validation warning is output if it is missing
+                # in the configuration.
+                if current_env.name == "github-pages" and expected_repo.gh_pages_build_type != "disabled":
+                    continue
+                else:
+                    self.handle_delete_object(org_id, current_env, current_repo)
+                    diff_status.deletions += 1
+                    continue
 
             modified_env: dict[str, Change[Any]] = expected_env.get_difference_from(current_env)
 

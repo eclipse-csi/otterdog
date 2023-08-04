@@ -262,11 +262,10 @@ class Repository(ModelObject):
             if self.gh_pages_build_type in {"legacy", "workflow"}:
                 if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
                     context.add_failure(
-                        FailureType.ERROR,
+                        FailureType.WARNING,
                         f"{self.get_model_header(parent_object)} has"
                         f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}' "
-                        f"but no 'github-pages' environment, please add such an environment as GitHub will "
-                        f"create it automatically otherwise.",
+                        f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
         for secret in self.secrets:

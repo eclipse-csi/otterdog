@@ -471,7 +471,7 @@ class RestClient:
         response = self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}")
 
         if response.status_code != 204:
-            raise RuntimeError(f"failed to delete repo '{org_id}/{repo_name}'")
+            raise RuntimeError(f"failed to delete repo '{org_id}/{repo_name}': {response.text}")
 
         print_debug(f"removed repo '{org_id}/{repo_name}'")
 
@@ -501,23 +501,33 @@ class RestClient:
         if build_type == "disabled":
             self._requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
         else:
+            gh_pages_data: list[tuple[str, str, int]] = []
             # first check if the pages config already exists:
             response_get = self._requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
             if response_get.status_code != 200:
-                method = "POST"
-                status_code = 201
-            else:
-                method = "PUT"
-                status_code = 204
+                # check if the branch already exists
+                source = gh_pages.get("source", None)
+                if source is not None:
+                    branch = source.get("branch", None)
+                    if branch is not None:
+                        existing_branches = self.get_repo_branches(org_id, repo_name)
+                        existing_branch_names = list(map(lambda x: x["name"], existing_branches))
+                        if branch not in existing_branch_names:
+                            gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
+                            gh_pages["source"]["branch"] = existing_branch_names[0]
+                            gh_pages_data.insert(0, (json.dumps(gh_pages), "POST", 201))
 
-            response = self._requester.request_raw(
-                method, f"/repos/{org_id}/{repo_name}/pages", data=json.dumps(gh_pages)
-            )
-
-            if response.status_code != status_code:
-                raise RuntimeError(f"failed to update github pages config for repo '{repo_name}'")
+                if len(gh_pages_data) == 0:
+                    gh_pages_data.append((json.dumps(gh_pages), "POST", 201))
             else:
-                print_debug(f"updated github pages config for repo '{repo_name}'")
+                gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
+
+            for data, method, status_code in gh_pages_data:
+                response = self._requester.request_raw(method, f"/repos/{org_id}/{repo_name}/pages", data=data)
+                if response.status_code != status_code:
+                    raise RuntimeError(f"failed to update github pages config for repo '{repo_name}': {response.text}")
+                else:
+                    print_debug(f"updated github pages config for repo '{repo_name}'")
 
     def _fill_vulnerability_report_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
@@ -540,7 +550,7 @@ class RestClient:
         response = self._requester.request_raw(method, f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
 
         if response.status_code != 204:
-            raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}'")
+            raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}': {response.text}")
         else:
             print_debug(f"updated vulnerability_reports for repo '{repo_name}'")
 
@@ -850,6 +860,15 @@ class RestClient:
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving repo public key:\n{ex}").with_traceback(tb)
+
+    def get_repo_branches(self, org_id: str, repo_name) -> list[dict[str, Any]]:
+        print_debug(f"retrieving branches for repo '{org_id}/{repo_name}'")
+
+        try:
+            return self._requester.request_json("GET", f"/repos/{org_id}/{repo_name}/branches")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
     def get_user_ids(self, login: str) -> tuple[int, str]:
         print_debug(f"retrieving user ids for user '{login}'")
