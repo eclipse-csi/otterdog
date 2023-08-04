@@ -16,7 +16,14 @@ from jsonbender import bend, S, OptionalS  # type: ignore
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import Github
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
+from otterdog.utils import (
+    UNSET,
+    is_unset,
+    is_set_and_valid,
+    is_set_and_present,
+    IndentingPrinter,
+    write_patch_object_as_json,
+)
 
 
 @dataclasses.dataclass
@@ -84,23 +91,35 @@ class OrganizationSettings(ModelObject):
         dependabot_security_updates_enabled = self.dependabot_security_updates_enabled_for_new_repositories is True
         dependency_graph_disabled = self.dependency_graph_enabled_for_new_repositories is False
 
+        if is_set_and_present(self.description) and len(self.description) > 160:
+            context.add_failure(
+                FailureType.ERROR,
+                "setting 'description' exceeds maximum allowed length of 160 chars.",
+            )
+
         if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
             context.add_failure(
                 FailureType.ERROR,
-                "enabling dependabot_alerts or dependabot_security_updates implicitly"
-                " enables dependency_graph_enabled_for_new_repositories",
+                "enabling 'dependabot_alerts' or 'dependabot_security_updates' implicitly"
+                " enables 'dependency_graph_enabled_for_new_repositories'.",
             )
 
         if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
             context.add_failure(
                 FailureType.ERROR,
-                "enabling dependabot_security_updates implicitly enables dependabot_alerts",
+                "enabling 'dependabot_security_updates' implicitly enables dependabot_alerts.",
             )
 
         if self.has_discussions is True and not is_set_and_valid(self.discussion_source_repository):
             context.add_failure(
                 FailureType.ERROR,
                 "enabling 'has_discussions' requires setting a valid repository in 'discussion_source_repository'.",
+            )
+
+        if is_set_and_present(self.discussion_source_repository) and "/" not in self.discussion_source_repository:
+            context.add_failure(
+                FailureType.ERROR,
+                "setting 'discussion_source_repository' requires a repository in '<owner>/<repo-name>' format.",
             )
 
         if is_set_and_valid(self.default_workflow_permissions):
