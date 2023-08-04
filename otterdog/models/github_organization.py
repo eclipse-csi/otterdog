@@ -176,7 +176,7 @@ class GitHubOrganization:
                 repo.copy_secrets(other_repo)
 
     def to_jsonnet(self, config: JsonnetConfig) -> str:
-        default_org = GitHubOrganization.from_model_data(config.default_org_config)
+        default_org = GitHubOrganization.from_model_data(config.default_org_config_for_org_id(self.github_id))
 
         output = StringIO()
         printer = IndentingPrinter(output)

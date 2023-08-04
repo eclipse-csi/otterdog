@@ -78,12 +78,8 @@ class JsonnetConfig:
         if not os.path.exists(self.template_file):
             raise RuntimeError(f"template file '{template_file}' does not exist")
 
-        try:
-            # load the default settings for the organization
-            snippet = f"(import '{template_file}').{self.create_org}('default')"
-            self._default_org_config = jsonnet_evaluate_snippet(snippet)
-        except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default organization config: {ex}")
+        # load the default settings for the organization
+        self._default_org_config = self.default_org_config_for_org_id("default")
 
         try:
             # load the default org webhook config
@@ -139,6 +135,14 @@ class JsonnetConfig:
     @property
     def default_org_config(self):
         return self._default_org_config
+
+    def default_org_config_for_org_id(self, org_id: str):
+        try:
+            # load the default settings for the organization
+            snippet = f"(import '{self.template_file}').{self.create_org}('{org_id}')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError as ex:
+            raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}")
 
     @property
     def default_org_webhook_config(self):
