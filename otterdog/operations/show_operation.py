@@ -105,7 +105,7 @@ class ShowOperation(Operation):
             for webhook in organization.webhooks:
                 uses_ssl = ":white_check_mark:" if webhook.insecure_ssl == "0" else ":x:"
                 has_secret = ":white_check_mark:" if is_set_and_valid(webhook.secret) else ":x:"
-                resolved_secret = ":white_check_mark:" if not webhook.has_dummy_secret() else ":x:"
+                resolved_secret = ":white_check_mark:" if not webhook.has_dummy_secret() else ":regional_indicator_x:"
 
                 self.printer.println(f"| {webhook.url} | {uses_ssl} | {has_secret} | {resolved_secret} |")
         else:
@@ -119,7 +119,7 @@ class ShowOperation(Operation):
             self.printer.println("| :--- | :-------------: |")
 
             for secret in organization.secrets:
-                resolved_secret = ":white_check_mark:" if not secret.has_dummy_secret() else ":x:"
+                resolved_secret = ":white_check_mark:" if not secret.has_dummy_secret() else ":regional_indicator_x:"
 
                 self.printer.println(f"| {secret.name} | {resolved_secret} |")
         else:
@@ -134,8 +134,8 @@ class ShowOperation(Operation):
 
         for repo in organization.repositories:
             has_bpr = ":white_check_mark:" if len(repo.branch_protection_rules) > 0 else ":x:"
-            has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":negative_squared_cross_mark:"
-            has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":negative_squared_cross_mark:"
+            has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":regional_indicator_x:"
+            has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":regional_indicator_x:"
 
             self.printer.println(f"| [{repo.name}](repo-{repo.name}.md) | {has_bpr} | {has_secrets} | {has_webhooks} |")
 
@@ -178,7 +178,7 @@ class ShowOperation(Operation):
             for webhook in repo.webhooks:
                 uses_ssl = ":white_check_mark:" if webhook.insecure_ssl == "0" else ":x:"
                 has_secret = ":white_check_mark:" if is_set_and_valid(webhook.secret) else ":x:"
-                resolved_secret = ":white_check_mark:" if not webhook.has_dummy_secret() else ":x:"
+                resolved_secret = ":white_check_mark:" if not webhook.has_dummy_secret() else ":regional_indicator_x:"
 
                 self.printer.println(f"| {webhook.url} | {uses_ssl} | {has_secret} | {resolved_secret} |")
         else:
@@ -193,7 +193,7 @@ class ShowOperation(Operation):
             self.printer.println("| :--- | :-------------: |")
 
             for secret in repo.secrets:
-                resolved_secret = ":white_check_mark:" if not secret.has_dummy_secret() else ":x:"
+                resolved_secret = ":white_check_mark:" if not secret.has_dummy_secret() else ":regional_indicator_x:"
 
                 self.printer.println(f"| {secret.name} | {resolved_secret} |")
         else:
