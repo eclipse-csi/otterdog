@@ -36,6 +36,10 @@ class Operation(ABC):
         assert self._printer is not None
         return self._printer
 
+    @printer.setter
+    def printer(self, value: IndentingPrinter):
+        self._printer = value
+
     @abstractmethod
     def pre_execute(self) -> None:
         raise NotImplementedError

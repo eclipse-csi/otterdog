@@ -133,11 +133,24 @@ def validate(organizations: list[str]):
 
 
 @cli.command(cls=StdCommand)
-def show(organizations: list[str]):
+@click.option(
+    "--markdown",
+    is_flag=True,
+    default=False,
+    help="output in markdown format",
+)
+@click.option(
+    "--output-dir",
+    show_default=True,
+    type=click.Path(False, False, True),
+    default="docs",
+    help="output directory for generated markdown files",
+)
+def show(organizations: list[str], markdown, output_dir):
     """
     Displays the full configuration for organizations.
     """
-    _execute_operation(organizations, ShowOperation())
+    _execute_operation(organizations, ShowOperation(markdown, output_dir))
 
 
 @cli.command(cls=StdCommand)
