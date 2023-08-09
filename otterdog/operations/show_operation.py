@@ -139,9 +139,12 @@ class ShowOperation(Operation):
             secret_scanning = ":white_check_mark:" if repo.secret_scanning == "enabled" else ":x:"
 
             label = ":material-archive:" if repo.archived else ""
+            github_url = f"https://github.com/{organization.github_id}/{repo.name}"
 
             self.printer.println(
-                f"| [{repo.name}](repo-{repo.name}.md) {label} | {has_bpr} | {has_secrets} | {has_webhooks} | "
+                f"| [{repo.name}](repo-{repo.name}.md) {label} "
+                f"[:octicons-link-external-16:]({github_url}){{:target='_blank'}} | "
+                f"{has_bpr} | {has_secrets} | {has_webhooks} | "
                 f"{secret_scanning} |"
             )
 
