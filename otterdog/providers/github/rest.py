@@ -870,6 +870,23 @@ class RestClient:
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
+    def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
+        print_debug(f"dispatching workflow for repo '{org_id}/{repo_name}'")
+
+        repo_data = self.get_repo_data(org_id, repo_name)
+        data = {"ref": repo_data["default_branch"]}
+
+        response = self._requester.request_raw(
+            "POST", f"/repos/{org_id}/{repo_name}/actions/workflows/{workflow_name}/dispatches", json.dumps(data)
+        )
+
+        if response.status_code != 204:
+            print_debug(f"failed dispatching workflow for repo '{org_id}/{repo_name}'")
+            return False
+        else:
+            print_debug(f"dispatched workflow for repo '{org_id}/{repo_name}'")
+            return True
+
     def get_user_ids(self, login: str) -> tuple[int, str]:
         print_debug(f"retrieving user ids for user '{login}'")
 

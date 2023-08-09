@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `dispatch-workflow` to dispatch a workflow in a specified repository.
 - Added flag `--update-filter` for plan, local-plan and apply operations to only update matching webhooks / secrets. ([#90](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/90))
 - Added support for `github-pages` configuration for a repository. ([#59](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/59))
 - Added support for `blocks_creations` and `restricts_pushes` settings for a branch protection rule. ([#87](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/87))

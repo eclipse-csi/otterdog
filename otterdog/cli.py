@@ -18,6 +18,7 @@ from .config import OtterdogConfig
 from .operations import Operation
 from .operations.apply_operation import ApplyOperation
 from .operations.canonical_diff_operation import CanonicalDiffOperation
+from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_operation import FetchOperation
 from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
@@ -181,6 +182,24 @@ def show_default(organizations: list[str], markdown):
     Displays the default configuration for organizations.
     """
     _execute_operation(organizations, ShowDefaultOperation(markdown))
+
+
+@cli.command(cls=StdCommand)
+@click.option(
+    "--repo",
+    show_default=True,
+    default=".eclipsefdn",
+    help="the repo to dispatch workflows for",
+)
+@click.option(
+    "--workflow",
+    help="the name of the workflow to dispatch",
+)
+def dispatch_workflow(organizations: list[str], repo, workflow):
+    """
+    Dispatches a workflow in a repo of an organization.
+    """
+    _execute_operation(organizations, DispatchWorkflowOperation(repo, workflow))
 
 
 @cli.command(cls=StdCommand)

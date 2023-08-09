@@ -244,6 +244,9 @@ class Github:
     def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         self.rest_client.delete_repo_secret(org_id, repo_name, secret_name)
 
+    def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
+        return self.rest_client.dispatch_workflow(org_id, repo_name, workflow_name)
+
     def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[str]:
         repo_ids = []
         for repo_name in repo_names:
