@@ -136,7 +136,7 @@ class ShowOperation(Operation):
             has_bpr = ":white_check_mark:" if len(repo.branch_protection_rules) > 0 else ":x:"
             has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":regional_indicator_x:"
             has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":regional_indicator_x:"
-            secret_scanning = ":white_check_mark:" if repo.secret_scanning is True else ":x:"
+            secret_scanning = ":white_check_mark:" if repo.secret_scanning == "enabled" else ":x:"
 
             label = ":material-archive:" if repo.archived else ""
 
