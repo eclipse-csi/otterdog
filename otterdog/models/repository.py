@@ -407,15 +407,18 @@ class Repository(ModelObject):
             mapping.pop("gh_pages_build_type")
             gh_pages_mapping["build_type"] = S("gh_pages_build_type")
 
-        gh_pages_legacy_mapping = {}
-        for source_prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
-            if source_prop in data:
-                mapping.pop(source_prop)
-                key = source_prop.rsplit("_")[-1]
-                gh_pages_legacy_mapping[key] = S(source_prop)
+        gh_pages_build_type = data.get("gh_pages_build_type", None)
 
-        if len(gh_pages_legacy_mapping) > 0:
-            gh_pages_mapping["source"] = gh_pages_legacy_mapping
+        if gh_pages_build_type is None or gh_pages_build_type == "legacy":
+            gh_pages_legacy_mapping = {}
+            for source_prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+                if source_prop in data:
+                    mapping.pop(source_prop)
+                    key = source_prop.rsplit("_")[-1]
+                    gh_pages_legacy_mapping[key] = S(source_prop)
+
+            if len(gh_pages_legacy_mapping) > 0:
+                gh_pages_mapping["source"] = gh_pages_legacy_mapping
 
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
