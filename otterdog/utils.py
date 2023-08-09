@@ -194,13 +194,13 @@ def write_patch_object_as_json(
             num_items = len(value)
             for index, item in enumerate(value):
                 if index < num_items - 1:
-                    printer.println(f"{json.dumps(item)},")
+                    printer.println(f"{json.dumps(item, ensure_ascii=False)},")
                 else:
-                    printer.println(f"{json.dumps(item)}")
+                    printer.println(f"{json.dumps(item, ensure_ascii=False)}")
             printer.level_down()
             printer.println("],")
         else:
-            printer.println(f"{key}: {json.dumps(value)},")
+            printer.println(f"{key}: {json.dumps(value, ensure_ascii=False)},")
 
     if close_object is True:
         printer.level_down()
