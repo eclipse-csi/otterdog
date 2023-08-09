@@ -129,15 +129,21 @@ class ShowOperation(Operation):
         self.printer.println('=== "Repositories"')
         self.printer.level_up()
 
-        self.printer.println("| Repository | Branch Protection Rules | Secrets | Webhooks |")
-        self.printer.println("| :--------- | :---------------------: | :-----: | :------: |")
+        self.printer.println("| Repository | Branch Protection Rules | Secrets | Webhooks | Secret Scanning |")
+        self.printer.println("| :--------- | :---------------------: | :-----: | :------: | :-------------: |")
 
         for repo in organization.repositories:
             has_bpr = ":white_check_mark:" if len(repo.branch_protection_rules) > 0 else ":x:"
             has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":regional_indicator_x:"
             has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":regional_indicator_x:"
+            secret_scanning = ":white_check_mark:" if repo.secret_scanning is True else ":x:"
 
-            self.printer.println(f"| [{repo.name}](repo-{repo.name}.md) | {has_bpr} | {has_secrets} | {has_webhooks} |")
+            label = ":material-archive:" if repo.archived else ""
+
+            self.printer.println(
+                f"| [{repo.name}](repo-{repo.name}.md) {label} | {has_bpr} | {has_secrets} | {has_webhooks} | "
+                f"{secret_scanning} |"
+            )
 
         self.printer.level_down()
 
