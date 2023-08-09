@@ -6,7 +6,6 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-import difflib
 import os
 
 from colorama import Style, Fore
@@ -54,12 +53,7 @@ class CanonicalDiffOperation(Operation):
         canonical_config = organization.to_jsonnet(jsonnet_config)
         canonical_config_as_lines = strip_trailing_commas(sort_jsonnet(canonical_config.split("\n")))
 
-        for line in difflib.unified_diff(
-            original_config_without_comments,
-            canonical_config_as_lines,
-            "original",
-            "canonical",
-        ):
+        for line in self._diff(original_config_without_comments, canonical_config_as_lines, "original", "canonical"):
             if line.startswith("+"):
                 self.printer.println(f"{Fore.GREEN}{line}{Style.RESET_ALL}")
             elif line.startswith("-"):
@@ -68,3 +62,19 @@ class CanonicalDiffOperation(Operation):
                 self.printer.println(line)
 
         return 0
+
+    @staticmethod
+    def _diff(a, b, name_a, name_b):
+        from tempfile import NamedTemporaryFile
+        from subprocess import Popen, PIPE
+
+        with NamedTemporaryFile() as file:
+            file.write(bytes("\n".join(a), "utf-8"))
+            file.flush()
+            p = Popen(
+                ['diff', '--label', name_a, '--label', name_b, '-u', '-w', '-', file.name], stdin=PIPE, stdout=PIPE
+            )
+            out, err = p.communicate(bytes("\n".join(b), "utf-8"))
+
+            for line in out.decode("utf-8").split("\n"):
+                yield line
