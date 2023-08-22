@@ -10,7 +10,7 @@ from colorama import Style, Fore
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import print_error, print_warn
 
 from . import Operation
@@ -39,7 +39,7 @@ class ShowLiveOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = Github(credentials)
+            gh_client = GitHubProvider(credentials)
 
             if self.no_web_ui is True:
                 print_warn(

@@ -12,7 +12,7 @@ from typing import Optional
 from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 
 from .plan_operation import PlanOperation
 
@@ -41,8 +41,8 @@ class LocalPlanOperation(PlanOperation):
     def resolve_secrets(self) -> bool:
         return False
 
-    def setup_github_client(self, org_config: OrganizationConfig) -> Github:
-        return Github(None)
+    def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
+        return GitHubProvider(None)
 
     def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         other_org_file_name = jsonnet_config.org_config_file + self.suffix

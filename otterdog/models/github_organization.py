@@ -23,7 +23,7 @@ from jsonbender import bend, S, F, Forall  # type: ignore
 
 from otterdog import resources
 from otterdog.config import OtterdogConfig, JsonnetConfig
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -276,7 +276,7 @@ class GitHubOrganization:
         cls,
         github_id: str,
         jsonnet_config: JsonnetConfig,
-        client: Github,
+        client: GitHubProvider,
         no_web_ui: bool = False,
         printer: Optional[IndentingPrinter] = None,
     ) -> GitHubOrganization:
@@ -329,7 +329,7 @@ class GitHubOrganization:
         return org
 
 
-def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> tuple[str, Repository]:
+def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_name: str) -> tuple[str, Repository]:
     # get repo data
     github_repo_data = gh_client.get_repo_data(github_id, repo_name)
     repo = Repository.from_provider_data(github_id, github_repo_data)
@@ -358,7 +358,7 @@ def _process_single_repo(gh_client: Github, github_id: str, repo_name: str) -> t
 
 
 def _load_repos_from_provider(
-    github_id: str, client: Github, printer: Optional[IndentingPrinter] = None
+    github_id: str, client: GitHubProvider, printer: Optional[IndentingPrinter] = None
 ) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():

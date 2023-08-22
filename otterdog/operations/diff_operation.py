@@ -20,7 +20,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
 from otterdog.models.secret import Secret
 from otterdog.models.webhook import Webhook
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -61,7 +61,7 @@ class DiffOperation(Operation):
         self.update_webhooks = update_webhooks
         self.update_secrets = update_secrets
         self.update_filter = update_filter
-        self._gh_client: Optional[Github] = None
+        self._gh_client: Optional[GitHubProvider] = None
         self._validator = ValidateOperation()
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
@@ -86,11 +86,11 @@ class DiffOperation(Operation):
         finally:
             self.printer.level_down()
 
-    def setup_github_client(self, org_config: OrganizationConfig) -> Github:
-        return Github(self.config.get_credentials(org_config))
+    def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
+        return GitHubProvider(self.config.get_credentials(org_config))
 
     @property
-    def gh_client(self) -> Github:
+    def gh_client(self) -> GitHubProvider:
         assert self._gh_client is not None
         return self._gh_client
 

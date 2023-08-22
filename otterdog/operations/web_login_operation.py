@@ -9,7 +9,7 @@
 from colorama import Style
 
 from otterdog.config import OrganizationConfig
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import print_error
 
 from . import Operation
@@ -36,7 +36,7 @@ class WebLoginOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = Github(credentials)
+            gh_client = GitHubProvider(credentials)
             gh_client.open_browser_with_logged_in_user(github_id)
 
             return 0

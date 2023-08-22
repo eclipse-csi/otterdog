@@ -11,7 +11,7 @@ import os
 from colorama import Style
 
 from otterdog.config import OrganizationConfig
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import print_error
 
 from . import Operation
@@ -59,7 +59,7 @@ class FetchOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = Github(credentials)
+            gh_client = GitHubProvider(credentials)
 
             try:
                 if self.pull_request is not None:

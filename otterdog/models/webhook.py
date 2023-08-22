@@ -15,7 +15,7 @@ from typing import Any, Optional, cast, Callable
 from jsonbender import bend, S, OptionalS  # type: ignore
 
 from otterdog.models import ModelObject, ValidationContext, FailureType
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, is_unset, is_set_and_valid
 
 
@@ -97,7 +97,7 @@ class Webhook(ModelObject, abc.ABC):
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }

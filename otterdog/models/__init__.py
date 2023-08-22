@@ -16,7 +16,7 @@ from typing import Any, Optional, Iterator, Callable
 
 from colorama import Style
 
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.utils import (
     patch_to_other,
@@ -224,16 +224,16 @@ class ModelObject(ABC):
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
         pass
 
-    def to_provider_data(self, org_id: str, provider: Github) -> dict[str, Any]:
+    def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
         return self._to_provider_data(org_id, self.to_model_dict(), provider)
 
     @classmethod
-    def changes_to_provider(cls, org_id: str, data: dict[str, Change[Any]], provider: Github) -> dict[str, Any]:
+    def changes_to_provider(cls, org_id: str, data: dict[str, Change[Any]], provider: GitHubProvider) -> dict[str, Any]:
         return cls._to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
 
     @classmethod
     @abstractmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: Github) -> dict[str, Any]:
+    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

@@ -11,7 +11,7 @@ from typing import Optional
 from colorama import Style
 
 from otterdog.config import OrganizationConfig
-from otterdog.providers.github import Github
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import print_error
 
 from . import Operation
@@ -49,7 +49,7 @@ class PushOperation(Operation):
             with open(jsonnet_config.jsonnet_bundle_file, "r") as file:
                 bundle_content = file.read()
 
-            gh_client = Github(credentials)
+            gh_client = GitHubProvider(credentials)
 
             try:
                 updated = gh_client.update_content(
