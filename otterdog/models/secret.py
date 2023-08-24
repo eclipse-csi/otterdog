@@ -36,6 +36,12 @@ class Secret(ModelObject, abc.ABC):
                 f"only a dummy value '{self.value}' is provided in the configuration.",
             )
 
+        if self.name.startswith("GITHUB_"):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header()} starts with prefix 'GITHUB_' which is not allowed for secrets.",
+            )
+
     def has_dummy_secret(self) -> bool:
         if is_set_and_valid(self.value) and all(ch == "*" for ch in self.value):  # type: ignore
             return True
