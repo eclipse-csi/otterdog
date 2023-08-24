@@ -273,6 +273,18 @@ class WebClient:
         try:
             actor = page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
             utils.print_trace(f"logged in as {actor}")
+
+            if page.title() == "Verify two-factor authentication":
+                verify_button = page.get_by_role("button", name="Verify 2FA now")
+                if verify_button is not None:
+                    verify_button.click()
+
+                    confirm_button = page.get_by_role("button", name="Confirm")
+                    if confirm_button is not None:
+                        confirm_button.click()
+
+                    page.type("#app_totp", self.credentials.get_totp())
+
         except Error:
             raise RuntimeError("could not log in to web UI")
 
