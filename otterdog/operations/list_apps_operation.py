@@ -13,7 +13,7 @@ from colorama import Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error
+from otterdog.utils import print_error, is_info_enabled
 
 from . import Operation
 
@@ -25,19 +25,22 @@ class ListAppsOperation(Operation):
         self.json_output = json_output
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Listing app installations for configuration at '{self.config.config_file}'")
+        if not self.json_output or is_info_enabled():
+            self.printer.println(f"Listing app installations for configuration at '{self.config.config_file}'")
 
     def post_execute(self) -> None:
         if self.json_output is True:
-            self.printer.println()
+            if is_info_enabled():
+                self.printer.println()
             apps = [v for k, v in sorted(self.all_apps.items())]
             self.printer.println(json.dumps(apps, indent=2))
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
-        self.printer.level_up()
+        if not self.json_output or is_info_enabled():
+            self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+            self.printer.level_up()
 
         try:
             try:
@@ -55,7 +58,8 @@ class ListAppsOperation(Operation):
                     self.printer.println()
                     self.print_dict(filtered, f"app['{app['app_slug']}']", "", "")
             else:
-                self.printer.println(f"Found {len(apps)} app installations.")
+                if is_info_enabled():
+                    self.printer.println(f"Found {len(apps)} app installations.")
 
                 for app in apps:
                     app_slug = str(app["app_slug"])
@@ -64,4 +68,5 @@ class ListAppsOperation(Operation):
 
             return 0
         finally:
-            self.printer.level_down()
+            if not self.json_output or is_info_enabled():
+                self.printer.level_down()
