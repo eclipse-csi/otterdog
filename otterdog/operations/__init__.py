@@ -48,6 +48,9 @@ class Operation(ABC):
     def execute(self, org_config: OrganizationConfig) -> int:
         raise NotImplementedError
 
+    def post_execute(self) -> None:
+        pass
+
     def print_dict(
         self,
         data: dict[str, Any],

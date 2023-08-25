@@ -31,7 +31,7 @@ class ShowDefaultOperation(Operation):
         jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+            self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
             self.printer.level_up()
 
         try:

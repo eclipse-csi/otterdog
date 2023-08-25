@@ -71,7 +71,7 @@ class DiffOperation(Operation):
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(f"Organization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         try:
             self._gh_client = self.setup_github_client(org_config)

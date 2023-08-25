@@ -471,10 +471,10 @@ def _execute_operation(organizations: list[str], operation: Operation):
             organizations = list(config.organization_configs.keys())
 
         for organization in organizations:
-            printer.println()
             org_config = config.get_organization_config(organization)
             exit_code = max(exit_code, operation.execute(org_config))
 
+        operation.post_execute()
         sys.exit(exit_code)
 
     except Exception as e:
