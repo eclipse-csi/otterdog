@@ -60,7 +60,8 @@ class Operation(ABC):
         prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
         closing_prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
 
-        self.printer.print(f"{prefix}{item_header} ")
+        if item_header:
+            self.printer.print(f"{prefix}{item_header} ")
         self._print_dict_internal(data, prefix, closing_prefix, False, key_value_separator, value_separator)
 
     def _print_internal(

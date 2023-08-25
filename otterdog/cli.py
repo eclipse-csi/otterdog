@@ -20,6 +20,7 @@ from .operations.apply_operation import ApplyOperation
 from .operations.canonical_diff_operation import CanonicalDiffOperation
 from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_operation import FetchOperation
+from .operations.list_apps_operation import ListAppsOperation
 from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
@@ -230,6 +231,14 @@ def push_config(organizations: list[str], message):
     Pushes the local configuration to the corresponding config repo of an organization.
     """
     _execute_operation(organizations, PushOperation(push_message=message))
+
+
+@cli.command(cls=StdCommand)
+def list_apps(organizations: list[str]):
+    """
+    Lists all app installations for the organization.
+    """
+    _execute_operation(organizations, ListAppsOperation())
 
 
 @cli.command(cls=StdCommand, name="import")
