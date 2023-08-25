@@ -234,11 +234,12 @@ def push_config(organizations: list[str], message):
 
 
 @cli.command(cls=StdCommand)
-def list_apps(organizations: list[str]):
+@click.option("--json", is_flag=True, show_default=True, default=False, help="use json format for output")
+def list_apps(organizations: list[str], json):
     """
     Lists all app installations for the organization.
     """
-    _execute_operation(organizations, ListAppsOperation())
+    _execute_operation(organizations, ListAppsOperation(json))
 
 
 @cli.command(cls=StdCommand, name="import")
