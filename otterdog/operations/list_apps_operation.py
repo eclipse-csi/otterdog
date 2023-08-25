@@ -40,6 +40,7 @@ class ListAppsOperation(Operation):
             apps = gh_client.rest_api.org.get_app_installations(github_id)
             for app in apps:
                 filtered = {key: app[key] for key in ["app_id", "permissions"]}
+                self.printer.println()
                 self.print_dict(filtered, f"app['{app['app_slug']}']", "", "")
 
             return 0
