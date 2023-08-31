@@ -12,7 +12,7 @@ from colorama import Style
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error
+from otterdog.utils import print_error, get_approval
 
 from . import Operation
 
@@ -41,12 +41,11 @@ class FetchOperation(Operation):
                 f"'{org_file_name}'.\n"
                 f"  Performing this action will overwrite its contents.\n"
                 f"  Do you want to continue?\n"
-                f"  Only 'yes' will be accepted to approve.\n"
+                f"  Only 'yes' or 'y' will be accepted to approve.\n"
             )
 
             self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
-            answer = input()
-            if answer != "yes":
+            if not get_approval():
                 self.printer.println("\nFetch cancelled.")
                 return 1
 

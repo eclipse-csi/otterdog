@@ -400,3 +400,11 @@ def print_node(node, result):
     if context is not None:
         for next_node in context:
             print_node(next_node, result)
+
+
+def get_approval() -> bool:
+    answer = input()
+    if answer != "yes" and answer != "y":
+        return False
+    else:
+        return True
