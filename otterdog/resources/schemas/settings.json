@@ -128,10 +128,6 @@
       "provider": "web",
       "type": "boolean"
     },
-    "default_workflow_permissions": {
-      "provider": "web",
-      "type": "string"
-    },
     "has_discussions": {
       "provider": "web",
       "type": "boolean"
