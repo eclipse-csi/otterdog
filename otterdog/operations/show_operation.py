@@ -93,7 +93,7 @@ class ShowOperation(Operation):
         self.printer.println("# Current configuration")
         self.printer.println('=== "Organization Settings"')
         self.printer.level_up()
-        self._print_model_object(organization.settings)
+        self._print_model_object(organization.settings, True)
         self.printer.level_down()
 
         self.printer.println('=== "Organization Webhooks"')
@@ -221,7 +221,14 @@ class ShowOperation(Operation):
         with open(os.path.join(self.output_dir, f"repo-{repo.name}.md"), "w") as file:
             file.write(writer.getvalue())
 
-    def _print_model_object(self, model_object: ModelObject):
+    def _print_model_object(self, model_object: ModelObject, include_nested: bool = False):
         self.printer.println("``` jsonnet")
-        self.print_dict(model_object.to_model_dict(), model_object.model_object_name, "", "", ":", ",")
+        self.print_dict(
+            model_object.to_model_dict(include_nested_models=include_nested),
+            model_object.model_object_name,
+            "",
+            "",
+            ":",
+            ",",
+        )
         self.printer.println("```")

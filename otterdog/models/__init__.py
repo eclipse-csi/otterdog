@@ -12,7 +12,7 @@ import os
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Iterator, Callable
+from typing import Any, Optional, Iterator, Callable, cast
 
 from colorama import Style
 from jsonbender import bend  # type: ignore
@@ -187,6 +187,10 @@ class ModelObject(ABC):
     def is_read_only_key(cls, key: str) -> bool:
         return cls.is_read_only(cls._get_field(key))
 
+    @classmethod
+    def is_nested_model_key(cls, key: str) -> bool:
+        return cls.is_nested_model(cls._get_field(key))
+
     @staticmethod
     def is_model_only(field: dataclasses.Field) -> bool:
         return field.metadata.get("model_only", False) is True
@@ -292,7 +296,11 @@ class ModelObject(ABC):
             include_nested_models=include_nested_models,
             exclude_unset_keys=True,
         ):
-            result[key] = self.__getattribute__(key)
+            value = self.__getattribute__(key)
+            if self.is_nested_model_key(key):
+                result[key] = cast(ModelObject, value).to_model_dict(for_diff, include_nested_models)
+            else:
+                result[key] = value
 
         return result
 
