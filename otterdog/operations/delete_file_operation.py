@@ -13,18 +13,20 @@ from colorama import Style
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_set_and_present, print_error
+from otterdog.utils import print_error
 
 from . import Operation
 
 
-class SyncTemplateOperation(Operation):
-    def __init__(self, repo: str):
+class DeleteFileOperation(Operation):
+    def __init__(self, repo: str, path: str, message: str):
         super().__init__()
         self._repo = repo
+        self._path = path
+        self._message = message
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Syncing template repos for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Deleting file in a repo for configuration at '{self.config.config_file}'")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -64,18 +66,13 @@ class SyncTemplateOperation(Operation):
                 if repo.name != self._repo:
                     continue
 
-                if is_set_and_present(repo.template_repository):
-                    self.printer.println(f'Syncing {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
-                    updated_files = rest_api.repo.sync_from_template_repository(
-                        github_id,
-                        repo.name,
-                        repo.template_repository,
-                        repo.post_process_template_content,
-                    )
+                self.printer.println(f'Deleting file in {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
 
+                deleted_file = rest_api.content.delete_content(github_id, repo.name, self._path, self._message)
+
+                if deleted_file is True:
                     self.printer.level_up()
-                    for file in updated_files:
-                        self.printer.println(f"updated file '{file}'")
+                    self.printer.println(f"deleted file '{self._path}'")
                     self.printer.level_down()
 
             return 0

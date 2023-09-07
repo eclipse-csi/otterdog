@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `delete-file` to delete files in a repo of an organization.
 - Added support for workflow settings for an organization. ([#62](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/62))
 - Added operation `list-apps` to display current app installations for an organization. ([#101](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/101))
 - Added validation for secrets to not start with restricted prefix "GITHUB_". ([#100](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/100))

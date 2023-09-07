@@ -29,6 +29,7 @@ from .operations.show_live_operation import ShowLiveOperation
 from .operations.show_operation import ShowOperation
 from .operations.show_default_operation import ShowDefaultOperation
 from .operations.sync_template_operation import SyncTemplateOperation
+from .operations.delete_file_operation import DeleteFileOperation
 from .operations.validate_operation import ValidateOperation
 from .operations.web_login_operation import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
@@ -427,13 +428,32 @@ def apply(
     "-r",
     "--repo",
     required=True,
-    help="repository to sync (default: all repos created from a template)",
+    help="repository to sync",
 )
 def sync_template(organizations: list[str], repo):
     """
     Sync contents of repositories created from a template repository.
     """
     _execute_operation(organizations, SyncTemplateOperation(repo=repo))
+
+
+@cli.command(cls=StdCommand)
+@click.option(
+    "-r",
+    "--repo",
+    required=True,
+    help="repository to use",
+)
+@click.option(
+    "--path",
+    help="the path of the content to be deleted",
+)
+@click.option("-m", "--message", help="commit messaged")
+def delete_file(organizations: list[str], repo, path, message):
+    """
+    Delete files in a repository.
+    """
+    _execute_operation(organizations, DeleteFileOperation(repo=repo, path=path, message=message))
 
 
 @cli.command(cls=StdCommand)

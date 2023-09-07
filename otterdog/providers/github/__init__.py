@@ -292,14 +292,5 @@ class GitHubProvider:
     def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)
 
-    def sync_from_template_repository(
-        self,
-        org_id: str,
-        repo_name: str,
-        template_repository: str,
-        template_paths: Optional[list[str]],
-    ) -> list[str]:
-        return self.rest_api.repo.sync_from_template_repository(org_id, repo_name, template_repository, template_paths)
-
     def open_browser_with_logged_in_user(self, org_id: str) -> None:
         self.web_client.open_browser_with_logged_in_user(org_id)

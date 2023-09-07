@@ -82,3 +82,35 @@ class ContentClient(RestClient):
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed putting content '{path}' to repo '{repo_name}':\n{ex}").with_traceback(tb)
+
+    def delete_content(
+        self,
+        org_id: str,
+        repo_name: str,
+        path: str,
+        message: Optional[str] = None,
+    ) -> bool:
+        print_debug(f"deleting content '{path}' in repo '{org_id}/{repo_name}'")
+
+        try:
+            json_response = self.get_content_object(org_id, repo_name, path)
+            old_sha = json_response["sha"]
+        except RuntimeError:
+            old_sha = None
+
+        if old_sha is None:
+            return False
+
+        if message is None:
+            push_message = f"Deleting file '{path}' with otterdog."
+        else:
+            push_message = message
+
+        data = {"message": push_message, "sha": old_sha}
+
+        try:
+            self.requester.request_json("DELETE", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
+            return True
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed deleting content '{path}' in repo '{repo_name}':\n{ex}").with_traceback(tb)
