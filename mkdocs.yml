@@ -48,6 +48,7 @@ nav:
       - GitHub Organization:
         - reference/organization/index.md
         - Organization Settings: reference/organization/settings.md
+        - Organization Workflow Settings: reference/organization/workflow-settings.md
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
         - Repository:

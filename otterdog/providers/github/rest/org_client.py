@@ -21,7 +21,7 @@ class OrgClient(RestClient):
         super().__init__(rest_api)
 
     def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
-        print_debug(f"retrieving settings for organization {org_id}")
+        print_debug(f"retrieving settings for org '{org_id}'")
 
         try:
             settings = self.requester.request_json("GET", f"/orgs/{org_id}")
@@ -33,6 +33,10 @@ class OrgClient(RestClient):
             security_managers = self.list_security_managers(org_id)
             settings["security_managers"] = security_managers
 
+        if "workflows" in included_keys:
+            workflow_settings = self.get_org_workflow_settings(org_id)
+            settings["workflows"] = workflow_settings
+
         result = {}
         for k, v in settings.items():
             if k in included_keys:
@@ -42,7 +46,7 @@ class OrgClient(RestClient):
         return result
 
     def update_org_settings(self, org_id: str, data: dict[str, Any]) -> None:
-        print_debug("updating settings via rest API")
+        print_debug(f"updating settings for organization '{org_id}'")
 
         try:
             self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
@@ -267,3 +271,138 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting app installations for org '{org_id}':\n{ex}").with_traceback(tb)
+
+    def get_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
+        print_debug(f"retrieving workflow settings for org '{org_id}'")
+
+        workflow_settings: dict[str, Any] = {}
+
+        try:
+            permissions = self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions")
+            workflow_settings.update(permissions)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving workflow settings for org '{org_id}':\n{ex}").with_traceback(tb)
+
+        if permissions["enabled_repositories"] == "selected":
+            workflow_settings["selected_repositories"] = self._get_selected_repositories_for_org_workflow_settings(
+                org_id
+            )
+        else:
+            workflow_settings["selected_repositories"] = None
+
+        allowed_actions = permissions.get("allowed_actions", "none")
+        if allowed_actions == "selected":
+            workflow_settings.update(self._get_selected_actions_for_org_workflow_settings(org_id))
+
+        if allowed_actions != "none":
+            workflow_settings.update(self._get_org_default_workflow_permissions(org_id))
+
+        return workflow_settings
+
+    def update_org_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating workflow settings for org '{org_id}'")
+
+        permission_data = {k: data[k] for k in ["enabled_repositories", "allowed_actions"] if k in data}
+        if len(permission_data) > 0:
+            response = self.requester.request_raw(
+                "PUT", f"/orgs/{org_id}/actions/permissions", json.dumps(permission_data)
+            )
+
+            if response.status_code == 204:
+                print_debug(f"updated workflow settings for org '{org_id}'")
+            else:
+                raise RuntimeError(
+                    f"failed to update workflow settings for org '{org_id}'"
+                    f"\n{response.status_code}: {response.text}"
+                )
+
+        if "selected_repository_ids" in data:
+            self._update_selected_repositories_for_org_workflow_settings(org_id, data["selected_repository_ids"])
+
+        allowed_action_data = {
+            k: data[k] for k in ["github_owned_allowed", "verified_allowed", "patterns_allowed"] if k in data
+        }
+        if len(allowed_action_data) > 0:
+            self._update_selected_actions_for_org_workflow_settings(org_id, allowed_action_data)
+
+        default_permission_data = {
+            k: data[k] for k in ["default_workflow_permissions", "can_approve_pull_request_reviews"] if k in data
+        }
+        if len(default_permission_data) > 0:
+            self._update_org_default_workflow_permissions(org_id, default_permission_data)
+
+        print_debug(f"updated {len(data)} workflow setting(s)")
+
+    def _get_selected_repositories_for_org_workflow_settings(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug("retrieving selected repositories for org workflow settings")
+
+        try:
+            response = self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/repositories")
+            return response["repositories"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+
+    def _update_selected_repositories_for_org_workflow_settings(
+        self, org_id: str, selected_repository_ids: list[int]
+    ) -> None:
+        print_debug("updating selected repositories for org workflow settings")
+
+        data = {"selected_repository_ids": selected_repository_ids}
+        response = self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/actions/permissions/repositories", json.dumps(data)
+        )
+
+        if response.status_code == 204:
+            print_debug(f"updated selected repositories for workflow settings of org '{org_id}'")
+        else:
+            raise RuntimeError(
+                f"failed updating selected repositories for workflow settings of org '{org_id}'"
+                f"\n{response.status_code}: {response.text}"
+            )
+
+    def _get_selected_actions_for_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
+        print_debug(f"retrieving allowed actions for org '{org_id}'")
+
+        try:
+            return self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/selected-actions")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving allowed actions for org '{org_id}':\n{ex}").with_traceback(tb)
+
+    def _update_selected_actions_for_org_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating allowed actions for org '{org_id}'")
+
+        response = self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/actions/permissions/selected-actions", json.dumps(data)
+        )
+
+        if response.status_code == 204:
+            print_debug(f"updated allowed actions for org '{org_id}'")
+        else:
+            raise RuntimeError(
+                f"failed updating allowed actions for org '{org_id}'" f"\n{response.status_code}: {response.text}"
+            )
+
+    def _get_org_default_workflow_permissions(self, org_id: str) -> dict[str, Any]:
+        print_debug(f"retrieving default workflow permissions for org '{org_id}'")
+
+        try:
+            return self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/workflow")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)
+
+    def _update_org_default_workflow_permissions(self, org_id: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating default workflow permissions for org '{org_id}'")
+
+        response = self.requester.request_raw("PUT", f"/orgs/{org_id}/actions/permissions/workflow", json.dumps(data))
+
+        if response.status_code == 204:
+            print_debug(f"updated default workflow permissions for org '{org_id}'")
+        else:
+            raise RuntimeError(
+                f"failed updating default workflow permissions for org '{org_id}'"
+                f"\n{response.status_code}: {response.text}"
+            )

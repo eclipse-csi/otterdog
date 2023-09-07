@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for workflow settings for an organization. ([#62](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/62))
 - Added operation `list-apps` to display current app installations for an organization. ([#101](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/101))
 - Added validation for secrets to not start with restricted prefix "GITHUB_". ([#100](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/100))
 - Added operation `dispatch-workflow` to dispatch a workflow in a specified repository.
@@ -17,6 +18,7 @@
 
 ### Removed
 
+- Removed organization setting `default_workflow_permissions` which is now part of the workflow settings.
 - Removed organization setting `members_can_create_pages` which is a read-only setting.
 - Removed organization setting `organization_projects_enabled` which encodes the same information as `has_organization_projects`.
 

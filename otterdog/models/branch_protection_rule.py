@@ -279,8 +279,12 @@ class BranchProtectionRule(ModelObject):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))
 
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping["requires_pull_request"] = OptionalS("requiresApprovingReviews", default=UNSET)
 
         def transform_app(x):
@@ -301,11 +305,10 @@ class BranchProtectionRule(ModelObject):
         mapping["required_status_checks"] = OptionalS("requiredStatusChecks", default=[]) >> Forall(
             lambda x: transform_app(x)
         )
-
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             snake_to_camel_case(field.name): S(field.name)
             for field in cls.provider_fields()
@@ -376,7 +379,7 @@ class BranchProtectionRule(ModelObject):
 
                 mapping["requiredStatusChecks"] = K(transformed_checks)
 
-        return bend(mapping, data)
+        return mapping
 
     def to_jsonnet(
         self,

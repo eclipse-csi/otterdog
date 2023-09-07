@@ -115,6 +115,9 @@ class GitHubProvider:
         if len(web_fields) > 0:
             self.web_client.update_org_settings(org_id, web_fields)
 
+    def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
+        self.rest_api.org.update_org_workflow_settings(org_id, workflow_settings)
+
     def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         return self.rest_api.org.get_org_webhooks(org_id)
 

@@ -65,17 +65,21 @@ class Secret(ModelObject, abc.ABC):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        # the provider will never send the value itself, use a dummy secret.
-        mapping["value"] = K("********")
+        mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = {
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        # the provider will never send the value itself, use a dummy secret.
+        mapping["value"] = K("********")
+        return mapping
+
+    @classmethod
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+        return {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
-        return bend(mapping, data)
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         secret_value = self.value

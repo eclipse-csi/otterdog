@@ -14,6 +14,7 @@ from otterdog.config import OtterdogConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.environment import Environment
 from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.organization_webhook import OrganizationWebhook
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.repository import Repository
@@ -42,6 +43,7 @@ class ApplyOperation(PlanOperation):
         self._delete_resources = delete_resources
 
         self._org_settings_to_update: dict[str, Change[Any]] = {}
+        self._org_workflow_settings_to_update: dict[str, Change[Any]] = {}
         self._modified_org_webhooks: dict[int, OrganizationWebhook]
         self._added_org_webhooks: list[OrganizationWebhook]
         self._deleted_org_webhooks: list[OrganizationWebhook]
@@ -75,6 +77,7 @@ class ApplyOperation(PlanOperation):
 
     def _reset(self) -> None:
         self._org_settings_to_update = {}
+        self._org_workflow_settings_to_update = {}
         self._modified_org_webhooks = {}
         self._added_org_webhooks = []
         self._deleted_org_webhooks = []
@@ -176,11 +179,26 @@ class ApplyOperation(PlanOperation):
 
         if isinstance(current_object, OrganizationSettings):
             self._org_settings_to_update = modified_object
+        elif isinstance(current_object, OrganizationWorkflowSettings):
+            # FIXME: needed to add this hack to ensure that enabled_repositories is also present in
+            #        the modified data as GitHub has made this property required.
+            if "allowed_actions" in modified_object:
+                enabled_repositories = cast(OrganizationWorkflowSettings, expected_object).enabled_repositories
+                modified_object["enabled_repositories"] = Change(enabled_repositories, enabled_repositories)
+
+            self._org_workflow_settings_to_update = modified_object
         elif isinstance(current_object, OrganizationWebhook):
             self._modified_org_webhooks[current_object.id] = cast(OrganizationWebhook, expected_object)
         elif isinstance(current_object, OrganizationSecret):
             self._modified_org_secrets[current_object.name] = cast(OrganizationSecret, expected_object)
         elif isinstance(current_object, Repository):
+            # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
+            #        the modified data as GitHub needs the path as well when the branch is changed.
+            #        this needs to make clean to support making the diff operation generic as possible.
+            if "gh_pages_source_branch" in modified_object:
+                gh_pages_source_path = cast(Repository, expected_object).gh_pages_source_path
+                modified_object["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
+
             self._modified_repos[current_object.name] = modified_object
         elif isinstance(current_object, RepositoryWebhook):
             repo_name = cast(Repository, parent_object).name
@@ -239,6 +257,12 @@ class ApplyOperation(PlanOperation):
                     org_id, self._org_settings_to_update, self.gh_client
                 )
                 self.gh_client.update_org_settings(org_id, github_settings)
+
+            if len(self._org_workflow_settings_to_update) > 0:
+                github_settings = OrganizationWorkflowSettings.changes_to_provider(
+                    org_id, self._org_workflow_settings_to_update, self.gh_client
+                )
+                self.gh_client.update_org_workflow_settings(org_id, github_settings)
 
             # update organization webhooks
             for webhook_id, org_webhook in self._modified_org_webhooks.items():

@@ -86,6 +86,11 @@ class Environment(ModelObject):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Environment:
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def transform_reviewers(x):
@@ -125,11 +130,10 @@ class Environment(ModelObject):
                 "branch_policies": OptionalS("branch_policies", default=[]) >> Forall(lambda x: x["name"]),
             }
         )
-
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -168,7 +172,7 @@ class Environment(ModelObject):
 
             mapping["deployment_branch_policy"] = deployment_branch_policy_mapping
 
-        return bend(mapping, data)
+        return mapping
 
     def to_jsonnet(
         self,

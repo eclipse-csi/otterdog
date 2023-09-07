@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any, Optional, Iterator, cast
 
-from jsonbender import bend, S, OptionalS  # type: ignore
+from jsonbender import bend, S, OptionalS, F, K, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, ValidationContext, FailureType
@@ -24,6 +24,8 @@ from otterdog.utils import (
     IndentingPrinter,
     write_patch_object_as_json,
 )
+
+from .organization_workflow_settings import OrganizationWorkflowSettings
 
 
 @dataclasses.dataclass
@@ -64,8 +66,10 @@ class OrganizationSettings(ModelObject):
     packages_containers_public: bool
     packages_containers_internal: bool
     members_can_change_project_visibility: bool
-    default_workflow_permissions: str
     security_managers: list[str]
+
+    # nested model fields
+    workflows: OrganizationWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
 
     @property
     def model_object_name(self) -> str:
@@ -122,14 +126,6 @@ class OrganizationSettings(ModelObject):
                 "setting 'discussion_source_repository' requires a repository in '<owner>/<repo-name>' format.",
             )
 
-        if is_set_and_valid(self.default_workflow_permissions):
-            if self.default_workflow_permissions not in {"read", "write"}:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"'default_workflow_permissions' has value '{self.default_workflow_permissions}', "
-                    f"only values ('read' | 'write') are allowed.",
-                )
-
         if is_set_and_valid(self.default_repository_permission):
             if self.default_repository_permission not in {"none", "read", "write", "admin"}:
                 context.add_failure(
@@ -138,23 +134,66 @@ class OrganizationSettings(ModelObject):
                     f"only values ('none' | 'read' | 'write' | 'admin') are allowed.",
                 )
 
+        if is_set_and_present(self.workflows):
+            self.workflows.validate(context, self)
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        if is_set_and_present(self.workflows):
+            yield self.workflows, self
+            yield from self.workflows.get_model_objects()
+
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+
+        mapping.update(
+            {
+                "workflows": If(
+                    OptionalS("workflows", default=None) == K(None),
+                    K(UNSET),
+                    S("workflows") >> F(lambda x: OrganizationWorkflowSettings.from_model_data(x)),
+                ),
+            }
+        )
+
         return cls(**bend(mapping, data))
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> OrganizationSettings:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
+        mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping.update(
+            {
+                "plan": OptionalS("plan", "name", default=UNSET),
+                "workflows": If(
+                    OptionalS("workflows", default=None) == K(None),
+                    K(UNSET),
+                    S("workflows") >> F(lambda x: OrganizationWorkflowSettings.from_provider_data(org_id, x)),
+                ),
+            }
+        )
+        return mapping
+
+    @classmethod
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
-        return bend(mapping, data)
+
+        if "workflows" in data:
+            mapping.update(
+                {
+                    "workflows": K(
+                        OrganizationWorkflowSettings.dict_to_provider_data(org_id, data["workflows"], provider)
+                    )
+                }
+            )
+
+        return mapping
 
     def to_jsonnet(
         self,
@@ -165,5 +204,14 @@ class OrganizationSettings(ModelObject):
     ) -> None:
         patch = self.get_patch_to(default_object)
         write_patch_object_as_json(patch, printer, False)
+
+        if is_set_and_present(self.workflows):
+            default_workflow_settings = cast(OrganizationSettings, default_object).workflows
+
+            patch = self.workflows.get_patch_to(default_workflow_settings)
+            if len(patch) > 0:
+                printer.print("workflows+:")
+                self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
+
         printer.level_down()
         printer.println("},")

@@ -85,6 +85,11 @@ class Webhook(ModelObject, abc.ABC):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update(
             {
@@ -94,10 +99,10 @@ class Webhook(ModelObject, abc.ABC):
                 "secret": OptionalS("config", "secret", default=None),
             }
         )
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -111,7 +116,7 @@ class Webhook(ModelObject, abc.ABC):
         if len(config_mapping) > 0:
             mapping["config"] = config_mapping
 
-        return bend(mapping, data)
+        return mapping
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         webhook_secret = self.secret

@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Any, Optional, Iterator, Callable
 
 from colorama import Style
+from jsonbender import bend  # type: ignore
 
 from otterdog.providers.github import GitHubProvider
 from otterdog.jsonnet import JsonnetConfig
@@ -224,16 +225,26 @@ class ModelObject(ABC):
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
         pass
 
+    @classmethod
+    @abstractmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        pass
+
     def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
-        return self._to_provider_data(org_id, self.to_model_dict(), provider)
+        return self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
 
     @classmethod
     def changes_to_provider(cls, org_id: str, data: dict[str, Change[Any]], provider: GitHubProvider) -> dict[str, Any]:
-        return cls._to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
+        return cls.dict_to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
+
+    @classmethod
+    def dict_to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+        mapping = cls.get_mapping_to_provider(org_id, data, provider)
+        return bend(mapping, data)
 
     @classmethod
     @abstractmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         pass
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

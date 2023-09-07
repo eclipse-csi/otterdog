@@ -71,6 +71,11 @@ class OrganizationSecret(Secret):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update(
             {
@@ -84,10 +89,10 @@ class OrganizationSecret(Secret):
                 "value": K("********"),
             }
         )
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -99,7 +104,7 @@ class OrganizationSecret(Secret):
             mapping.pop("selected_repositories")
             mapping["selected_repository_ids"] = K(provider.get_repo_ids(org_id, data["selected_repositories"]))
 
-        return bend(mapping, data)
+        return mapping
 
     def to_jsonnet(
         self,

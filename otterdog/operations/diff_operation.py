@@ -195,6 +195,24 @@ class DiffOperation(Operation):
                 expected_org_settings,
             )
 
+        if is_set_and_valid(expected_org_settings.workflows):
+            expected_workflow_settings = expected_org_settings.workflows
+            current_workflow_settings = current_org_settings.workflows
+
+            modified_workflow_settings: dict[str, Change[Any]] = expected_workflow_settings.get_difference_from(
+                current_workflow_settings
+            )
+
+            if len(modified_workflow_settings) > 0:
+                diff_status.differences += self.handle_modified_object(
+                    github_id,
+                    modified_workflow_settings,
+                    False,
+                    current_workflow_settings,
+                    expected_workflow_settings,
+                )
+                modified_settings.update(modified_workflow_settings)
+
         return modified_settings
 
     def _process_org_webhooks(
@@ -260,14 +278,6 @@ class DiffOperation(Operation):
             # TODO: make this cleaner
             if "has_projects" in modified_repo and has_organization_projects_disabled:
                 modified_repo.pop("has_projects")
-
-            # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
-            #        the modified data as GitHub needs the path as well when the branch is changed.
-            #        this needs to make clean to support making the diff operation generic as possible.
-            if "gh_pages_source_branch" in modified_repo:
-                modified_repo["gh_pages_source_path"] = Change(
-                    expected_repo.gh_pages_source_path, expected_repo.gh_pages_source_path
-                )
 
             if len(modified_repo) > 0:
                 diff_status.differences += self.handle_modified_object(

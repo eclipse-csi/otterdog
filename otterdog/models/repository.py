@@ -329,6 +329,11 @@ class Repository(ModelObject):
 
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Repository:
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         def status_to_bool(status):
@@ -368,11 +373,10 @@ class Repository(ModelObject):
                 "template_repository": OptionalS("template_repository", "full_name", default=None),
             }
         )
-
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
-    def _to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -423,7 +427,7 @@ class Repository(ModelObject):
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
-        return bend(mapping, data)
+        return mapping
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         for webhook in self.webhooks:
