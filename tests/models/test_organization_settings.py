@@ -70,7 +70,6 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.has_organization_projects is True
         assert settings.has_repository_projects is True
         assert settings.default_branch_name == "main"
-        assert settings.default_repository_permission == "read"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
         assert settings.dependabot_alerts_enabled_for_new_repositories is True

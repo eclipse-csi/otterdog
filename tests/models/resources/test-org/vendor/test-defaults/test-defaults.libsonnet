@@ -170,8 +170,6 @@ local newOrg(id) = {
 
     members_can_change_project_visibility: false,
 
-    default_workflow_permissions: "read",
-
     security_managers: ["eclipsefdn-security"]
   },
 
