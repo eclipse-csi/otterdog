@@ -35,6 +35,12 @@ class Secret(ModelObject, abc.ABC):
                 f"{self.get_model_header()} will be skipped during processing:\n"
                 f"only a dummy value '{self.value}' is provided in the configuration.",
             )
+        else:
+            if ":" not in self.value:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header()} has a value '{self.value}' that does not use a credential provider.",
+                )
 
         if self.name.startswith("GITHUB_"):
             context.add_failure(

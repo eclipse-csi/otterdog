@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added validation for secrets and webhooks to issue a warning if a value is provided that does not use a credential provider.
 - Added operation `delete-file` to delete files in a repo of an organization.
 - Added support for workflow settings for an organization. ([#62](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/62))
 - Added operation `list-apps` to display current app installations for an organization. ([#101](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/101))
