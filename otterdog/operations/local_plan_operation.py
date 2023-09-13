@@ -50,4 +50,4 @@ class LocalPlanOperation(PlanOperation):
         if not os.path.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-        return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config, False)
+        return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)

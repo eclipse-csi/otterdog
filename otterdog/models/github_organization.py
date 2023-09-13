@@ -57,6 +57,12 @@ class GitHubOrganization:
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
+    _secrets_resolved: bool = False
+
+    @property
+    def secrets_resolved(self) -> bool:
+        return self._secrets_resolved
+
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
 
@@ -159,6 +165,8 @@ class GitHubOrganization:
         for repo in self.repositories:
             repo.resolve_secrets(secret_resolver)
 
+        self._secrets_resolved = True
+
     def copy_secrets(self, other_org: GitHubOrganization) -> None:
         for webhook in self.webhooks:
             other_webhook = other_org.get_webhook(webhook.url)
@@ -255,7 +263,7 @@ class GitHubOrganization:
         github_id: str,
         config_file: str,
         config: OtterdogConfig,
-        resolve_secrets: bool = True,
+        resolve_secrets: bool = False,
     ) -> GitHubOrganization:
         if not os.path.exists(config_file):
             msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"

@@ -84,7 +84,7 @@ class ImportOperation(Operation):
             if sync_secrets_from_previous_config:
                 self.printer.println("Copying secrets from previous configuration.")
 
-                previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
+                previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
 
                 organization.copy_secrets(previous_organization)
 

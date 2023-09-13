@@ -27,10 +27,9 @@ class GitHubOrganizationTest(unittest.TestCase):
         self.jsonnet_config.init_template()
 
     def test_load_from_file(self):
-        organization = GitHubOrganization.load_from_file(self.TEST_ORG,
-                                                         self.jsonnet_config.org_config_file,
-                                                         self.otterdog_config,
-                                                         False)
+        organization = GitHubOrganization.load_from_file(
+            self.TEST_ORG, self.jsonnet_config.org_config_file, self.otterdog_config
+        )
 
         assert organization.github_id == "test-org"
         assert len(organization.webhooks) == 1

@@ -46,7 +46,7 @@ class DeleteFileOperation(Operation):
                 return 1
 
             try:
-                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
                 print_error(f"failed to load configuration: {str(ex)}")
                 return 1

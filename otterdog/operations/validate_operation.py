@@ -43,7 +43,7 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config, False)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
                 print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
@@ -82,6 +82,9 @@ class ValidateOperation(Operation):
 
     @staticmethod
     def validate(organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
+        if organization.secrets_resolved is True:
+            raise RuntimeError("validation requires a non-resolved model.")
+
         context = organization.validate(template_dir)
 
         validation_infos = 0

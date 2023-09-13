@@ -134,6 +134,10 @@ class DiffOperation(Operation):
                 f"enable verbose output with '-v' to to display them."
             )
 
+        # after validation has completed we can resolve any secret if necessary
+        if self.resolve_secrets():
+            expected_org.resolve_secrets(self.config.get_secret)
+
         try:
             current_org = self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
@@ -166,7 +170,7 @@ class DiffOperation(Operation):
         return 0
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
-        return GitHubOrganization.load_from_file(github_id, org_file_name, self.config, self.resolve_secrets())
+        return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
 
     def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         return GitHubOrganization.load_from_provider(

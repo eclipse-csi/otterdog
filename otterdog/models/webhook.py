@@ -16,7 +16,7 @@ from jsonbender import bend, S, OptionalS  # type: ignore
 
 from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, is_set_and_present
 
 
 @dataclasses.dataclass
@@ -63,11 +63,11 @@ class Webhook(ModelObject, abc.ABC):
                 f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
                 f"the configuration.",
             )
-        # elif is_set_and_present(self.secret) and ":" not in self.secret:
-        #     context.add_failure(
-        #         FailureType.WARNING,
-        #         f"{self.get_model_header()} has a secret '{self.secret}' that does not use a credential provider.",
-        #     )
+        elif is_set_and_present(self.secret) and ":" not in self.secret:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{self.get_model_header()} has a secret '{self.secret}' that does not use a credential provider.",
+            )
 
         if is_set_and_valid(self.content_type):
             if self.content_type not in {"json", "form"}:
