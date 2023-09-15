@@ -63,15 +63,29 @@ class DiffOperation(Operation):
         self.update_filter = update_filter
         self._gh_client: Optional[GitHubProvider] = None
         self._validator = ValidateOperation()
+        self._template_dir: Optional[str] = None
+        self._org_config: Optional[OrganizationConfig] = None
+
+    @property
+    def template_dir(self) -> str:
+        assert self._template_dir is not None
+        return self._template_dir
+
+    @property
+    def org_config(self) -> OrganizationConfig:
+        assert self._org_config is not None
+        return self._org_config
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
         self._validator.init(config, printer)
 
     def execute(self, org_config: OrganizationConfig) -> int:
-        github_id = org_config.github_id
+        self._org_config = org_config
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]"
+        )
 
         try:
             self._gh_client = self.setup_github_client(org_config)
@@ -104,6 +118,7 @@ class DiffOperation(Operation):
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
+        self._template_dir = jsonnet_config.template_dir
 
         org_file_name = jsonnet_config.org_config_file
 

@@ -6,11 +6,12 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+import os
 from typing import Any, Optional, cast
 
 from colorama import Style
 
-from otterdog.config import OtterdogConfig
+from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.environment import Environment
 from otterdog.models.organization_settings import OrganizationSettings
@@ -129,6 +130,8 @@ class ApplyOperation(PlanOperation):
             self._added_rules.append((repo_name, repo_node_id, model_object))
         else:
             raise ValueError(f"unexpected model_object of type '{type(model_object)}'")
+
+        self.execute_custom_hook_if_present(self.org_config, model_object, "pre-add-object-hook.py")
 
     def handle_delete_object(
         self,
@@ -386,3 +389,10 @@ class ApplyOperation(PlanOperation):
             )
         finally:
             self._reset()
+
+    def execute_custom_hook_if_present(
+        self, org_config: OrganizationConfig, model_object: ModelObject, filename: str
+    ) -> None:
+        hook_script = os.path.join(self.template_dir, filename)
+        if os.path.exists(hook_script):
+            exec(open(hook_script).read())
