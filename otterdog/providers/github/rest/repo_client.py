@@ -276,6 +276,32 @@ class RepoClient(RestClient):
     def _update_github_pages_config_for_repo(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
         print_debug(f"updating github pages config for '{org_id}/{repo_name}'")
 
+        # special handling for repos hosting the organization site
+        if repo_name.lower() == f"{org_id}.github.io".lower():
+            current_repo_data: dict[str, Any] = {}
+            for i in range(1, 4):
+                self._fill_github_pages_config_for_repo(org_id, repo_name, current_repo_data)
+                if "gh_pages" in current_repo_data:
+                    break
+
+                print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 3")
+                import time
+
+                time.sleep(1)
+
+            current_gh_pages = current_repo_data.get("gh_pages", None)
+            if current_gh_pages is not None:
+                has_changes = False
+                for k, v in gh_pages.items():
+                    if current_gh_pages.get(k, None) != v:
+                        has_changes = True
+                        break
+
+                # if there are no changes to the current config, we do not need to do anything
+                if has_changes is False:
+                    print_trace(f"github pages config for '{org_id}/{repo_name}' is already up-to-date")
+                    return
+
         build_type = gh_pages.get("build_type", None)
         if build_type == "disabled":
             self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")

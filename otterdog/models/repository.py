@@ -240,7 +240,35 @@ class Repository(ModelObject):
                     f"rules will be ignored.",
                 )
 
-        if is_set_and_valid(self.gh_pages_build_type):
+        if self.name.lower() == f"{github_id}.github.io".lower():
+            if self.gh_pages_build_type == "disabled":
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has"
+                    f" 'gh_pages_build_type' disabled but the repo hosts the organization site and"
+                    f" GitHub pages will be enabled automatically.\n"
+                    f" Add the following snippet to your repo configuration:\n\n"
+                    f"   gh_pages_build_type: \"legacy\",\n"
+                    f"   gh_pages_source_branch: \"main\",\n"
+                    f"   gh_pages_source_path: \"/\",",
+                )
+
+            if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} hosts the organization site"
+                    f" but no corresponding 'github-pages' environment, please add such an environment.\n"
+                    f" Add the following snippet to the repo configuration:\n\n"
+                    f"   environments: [\n"
+                    f"     orgs.newEnvironment('github-pages') {{\n"
+                    f"       branch_policies+: [\n"
+                    f"         \"main\"\n"
+                    f"       ],\n"
+                    f"       deployment_branch_policy: \"selected\",\n"
+                    f"     }},\n"
+                    f"   ],",
+                )
+        elif is_set_and_valid(self.gh_pages_build_type):
             if self.gh_pages_build_type not in {"disabled", "legacy", "workflow"}:
                 context.add_failure(
                     FailureType.ERROR,

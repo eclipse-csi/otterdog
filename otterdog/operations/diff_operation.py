@@ -567,10 +567,14 @@ class DiffOperation(Operation):
 
             expected_env = expected_environments_by_name.get(env_name)
             if expected_env is None:
+                # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
+                # as it is automatically created, there is a validation rule to warn the user about it.
+                if expected_repo.name.lower() == f"{org_id}.github.io".lower() and current_env.name == "github-pages":
+                    continue
                 # if it's a github-pages environment and gh pages are enabled, ignore it.
                 # GitHub automatically creates it, a validation warning is output if it is missing
                 # in the configuration.
-                if current_env.name == "github-pages" and expected_repo.gh_pages_build_type != "disabled":
+                elif current_env.name == "github-pages" and expected_repo.gh_pages_build_type != "disabled":
                     continue
                 else:
                     self.handle_delete_object(org_id, current_env, current_repo)
