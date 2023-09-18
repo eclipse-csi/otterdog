@@ -9,14 +9,22 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, Optional
 
 from jsonbender import S, Forall, If, K  # type: ignore
 
-from otterdog.models import ValidationContext, FailureType
+from otterdog.models import (
+    ValidationContext,
+    FailureType,
+    ModelObject,
+    LivePatchHandler,
+    LivePatch,
+    LivePatchContext,
+    LivePatchType,
+)
 from otterdog.models.workflow_settings import WorkflowSettings
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_set_and_valid
+from otterdog.utils import is_set_and_valid, Change
 
 
 @dataclasses.dataclass
@@ -91,3 +99,42 @@ class OrganizationWorkflowSettings(WorkflowSettings):
             mapping["selected_repository_ids"] = K(provider.get_repo_ids(org_id, data["selected_repositories"]))
 
         return mapping
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        assert isinstance(expected_object, OrganizationWorkflowSettings)
+        assert isinstance(current_object, OrganizationWorkflowSettings)
+
+        modified_workflow_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        # FIXME: needed to add this hack to ensure that enabled_repositories is also present in
+        #        the modified data as GitHub has made this property required.
+        if "allowed_actions" in modified_workflow_settings:
+            enabled_repositories = expected_object.enabled_repositories
+            modified_workflow_settings["enabled_repositories"] = Change(enabled_repositories, enabled_repositories)
+
+        if len(modified_workflow_settings) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_workflow_settings,
+                    parent_object,
+                    False,
+                    cls.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        assert patch.patch_type == LivePatchType.CHANGE
+        assert patch.changes is not None
+        github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
+        provider.update_org_workflow_settings(org_id, github_settings)

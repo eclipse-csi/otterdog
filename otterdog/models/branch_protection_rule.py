@@ -15,7 +15,15 @@ from typing import Any, Optional, cast
 from jsonbender import bend, S, OptionalS, Forall, K  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import (
+    ModelObject,
+    ValidationContext,
+    FailureType,
+    LivePatch,
+    LivePatchType,
+    LivePatchContext,
+    LivePatchHandler,
+)
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
@@ -25,6 +33,7 @@ from otterdog.utils import (
     IndentingPrinter,
     write_patch_object_as_json,
     associate_by_key,
+    Change,
 )
 
 
@@ -392,3 +401,99 @@ class BranchProtectionRule(ModelObject):
         patch.pop("pattern")
         printer.print(f"orgs.{jsonnet_config.create_branch_protection_rule}('{self.pattern}')")
         write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, BranchProtectionRule)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
+        if expected_object is None:
+            assert isinstance(current_object, BranchProtectionRule)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, BranchProtectionRule)
+        assert isinstance(current_object, BranchProtectionRule)
+
+        modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        if len(modified_rule) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_rule,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_rules: list[BranchProtectionRule],
+        current_rules: list[BranchProtectionRule],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_rules_by_pattern = associate_by_key(expected_rules, lambda x: x.pattern)
+
+        for current_rule in current_rules:
+            rule_pattern = current_rule.pattern
+
+            expected_rule = expected_rules_by_pattern.get(rule_pattern)
+            if expected_rule is None:
+                cls.generate_live_patch(None, current_rule, parent_object, context, handler)
+                continue
+
+            cls.generate_live_patch(expected_rule, current_rule, parent_object, context, handler)
+
+            expected_rules_by_pattern.pop(rule_pattern)
+
+        for rule_pattern, rule in expected_rules_by_pattern.items():
+            cls.generate_live_patch(rule, None, parent_object, context, handler)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        from .repository import Repository
+
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, BranchProtectionRule)
+                assert isinstance(patch.parent_object, Repository)
+                provider.add_branch_protection_rule(
+                    org_id,
+                    patch.parent_object.name,
+                    patch.parent_object.node_id,
+                    patch.expected_object.to_provider_data(org_id, provider),
+                )
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, BranchProtectionRule)
+                assert isinstance(patch.parent_object, Repository)
+                provider.delete_branch_protection_rule(
+                    org_id, patch.parent_object.name, patch.current_object.pattern, patch.current_object.id
+                )
+
+            case LivePatchType.CHANGE:
+                assert patch.changes is not None
+                assert isinstance(patch.current_object, BranchProtectionRule)
+                assert isinstance(patch.parent_object, Repository)
+                provider.update_branch_protection_rule(
+                    org_id,
+                    patch.parent_object.name,
+                    patch.current_object.pattern,
+                    patch.current_object.id,
+                    cls.changes_to_provider(org_id, patch.changes, provider),
+                )

@@ -14,9 +14,26 @@ from typing import Any, ClassVar, Optional, Iterator, cast, Callable
 from jsonbender import bend, S, OptionalS, K, Forall, If, F  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import (
+    ModelObject,
+    ValidationContext,
+    FailureType,
+    LivePatchContext,
+    LivePatchHandler,
+    LivePatch,
+    LivePatchType,
+)
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
+from otterdog.utils import (
+    UNSET,
+    is_unset,
+    is_set_and_valid,
+    IndentingPrinter,
+    write_patch_object_as_json,
+    multi_associate_by_key,
+    associate_by_key,
+    Change,
+)
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
@@ -562,3 +579,148 @@ class Repository(ModelObject):
         # close the repo object
         printer.level_down()
         printer.println("},")
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, Repository)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+        elif expected_object is None:
+            assert isinstance(current_object, Repository)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+        else:
+            assert isinstance(expected_object, Repository)
+            assert isinstance(current_object, Repository)
+
+            has_organization_projects_disabled = (
+                context.expected_org_settings.get("has_organization_projects", None) is False
+            )
+
+            # special handling for some keys that can be set organization wide
+            if "web_commit_signoff_required" in context.modified_org_settings:
+                change = context.modified_org_settings["web_commit_signoff_required"]
+                if change.to_value is True:
+                    current_object.web_commit_signoff_required = change.to_value
+
+            modified_repo: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+            # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
+            #        the modified data as GitHub needs the path as well when the branch is changed.
+            #        this needs to make clean to support making the diff operation generic as possible.
+            if "gh_pages_source_branch" in modified_repo:
+                gh_pages_source_path = cast(Repository, expected_object).gh_pages_source_path
+                modified_repo["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
+
+            # special handling for some keys that can be disabled on organization level
+            if "has_projects" in modified_repo and has_organization_projects_disabled:
+                modified_repo.pop("has_projects")
+
+            if len(modified_repo) > 0:
+                handler(
+                    LivePatch.of_changes(
+                        expected_object,
+                        current_object,
+                        modified_repo,
+                        parent_object,
+                        False,
+                        expected_object.apply_live_patch,
+                    )
+                )
+
+        parent_repo = expected_object if current_object is None else current_object
+
+        RepositoryWebhook.generate_live_patch_of_list(
+            expected_object.webhooks,
+            current_object.webhooks if current_object is not None else [],
+            parent_repo,
+            context,
+            handler,
+        )
+
+        RepositorySecret.generate_live_patch_of_list(
+            expected_object.secrets,
+            current_object.secrets if current_object is not None else [],
+            parent_repo,
+            context,
+            handler,
+        )
+
+        Environment.generate_live_patch_of_list(
+            expected_object.environments,
+            current_object.environments if current_object is not None else [],
+            parent_repo,
+            context,
+            handler,
+        )
+
+        # only take branch protection rules of non-archive projects into account
+        if expected_object.archived is False:
+            BranchProtectionRule.generate_live_patch_of_list(
+                expected_object.branch_protection_rules,
+                current_object.branch_protection_rules if current_object is not None else [],
+                parent_repo,
+                context,
+                handler,
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_repos: list[Repository],
+        current_repos: list[Repository],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_repos_by_all_names = multi_associate_by_key(expected_repos, Repository.get_all_names)
+        expected_repos_by_name = associate_by_key(expected_repos, lambda x: x.name)
+
+        for current_repo in current_repos:
+            current_repo_name = current_repo.name
+            expected_repo = expected_repos_by_all_names.get(current_repo_name)
+
+            if expected_repo is None:
+                cls.generate_live_patch(None, current_repo, None, context, handler)
+                continue
+
+            cls.generate_live_patch(expected_repo, current_repo, None, context, handler)
+
+            # pop the already handled repos
+            for name in expected_repo.get_all_names():
+                expected_repos_by_all_names.pop(name)
+            expected_repos_by_name.pop(expected_repo.name)
+
+        for repo_name, repo in expected_repos_by_name.items():
+            cls.generate_live_patch(repo, None, None, context, handler)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, Repository)
+                provider.add_repo(
+                    org_id,
+                    patch.expected_object.to_provider_data(org_id, provider),
+                    patch.expected_object.template_repository,
+                    patch.expected_object.post_process_template_content,
+                    patch.expected_object.auto_init,
+                )
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, Repository)
+                provider.delete_repo(org_id, patch.current_object.name)
+
+            case LivePatchType.CHANGE:
+                assert patch.changes is not None
+                assert isinstance(patch.expected_object, Repository)
+                assert isinstance(patch.current_object, Repository)
+                provider.update_repo(
+                    org_id, patch.current_object.name, cls.changes_to_provider(org_id, patch.changes, provider)
+                )

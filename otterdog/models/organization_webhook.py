@@ -11,8 +11,9 @@ from __future__ import annotations
 import dataclasses
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject
+from otterdog.models import ModelObject, LivePatch, LivePatchType
 from otterdog.models.webhook import Webhook
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import IndentingPrinter, write_patch_object_as_json
 
 
@@ -37,3 +38,21 @@ class OrganizationWebhook(Webhook):
         patch.pop("url")
         printer.print(f"orgs.{jsonnet_config.create_org_webhook}('{self.url}')")
         write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, OrganizationWebhook)
+                provider.add_org_webhook(org_id, patch.expected_object.to_provider_data(org_id, provider))
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, OrganizationWebhook)
+                provider.delete_org_webhook(org_id, patch.current_object.id, patch.current_object.url)
+
+            case LivePatchType.CHANGE:
+                assert isinstance(patch.expected_object, OrganizationWebhook)
+                assert isinstance(patch.current_object, OrganizationWebhook)
+                provider.update_org_webhook(
+                    org_id, patch.current_object.id, patch.expected_object.to_provider_data(org_id, provider)
+                )

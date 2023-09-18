@@ -11,7 +11,7 @@ from typing import Any, Optional
 from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
-from otterdog.models import ModelObject
+from otterdog.models import ModelObject, LivePatch
 from otterdog.models.secret import Secret
 from otterdog.models.webhook import Webhook
 from otterdog.utils import IndentingPrinter, Change
@@ -110,7 +110,7 @@ class PlanOperation(DiffOperation):
 
         return settings_to_change
 
-    def handle_finish(self, org_id: str, diff_status: DiffStatus) -> None:
+    def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
         self.printer.println(
             f"\n{Style.BRIGHT}Plan:{Style.RESET_ALL} {diff_status.additions} to add, "
             f"{diff_status.differences} to change, "

@@ -5,6 +5,7 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
+
 import time
 from abc import abstractmethod
 from typing import Protocol, Optional
@@ -45,8 +46,8 @@ class Credentials:
 class CredentialProvider(Protocol):
     @abstractmethod
     def get_credentials(self, eclipse_project: Optional[str], data: dict[str, str]) -> Credentials:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def get_secret(self, data: str) -> str:
-        raise NotImplementedError
+        ...

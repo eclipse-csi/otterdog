@@ -14,7 +14,15 @@ from typing import Any, Optional, Iterator, cast
 from jsonbender import bend, S, OptionalS, F, K, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import (
+    ModelObject,
+    ValidationContext,
+    FailureType,
+    LivePatch,
+    LivePatchHandler,
+    LivePatchContext,
+    LivePatchType,
+)
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
@@ -23,6 +31,7 @@ from otterdog.utils import (
     is_set_and_present,
     IndentingPrinter,
     write_patch_object_as_json,
+    Change,
 )
 
 from .organization_workflow_settings import OrganizationWorkflowSettings
@@ -215,3 +224,37 @@ class OrganizationSettings(ModelObject):
 
         printer.level_down()
         printer.println("},")
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        assert isinstance(expected_object, OrganizationSettings)
+        assert isinstance(current_object, OrganizationSettings)
+
+        modified_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+        if len(modified_settings) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object, current_object, modified_settings, parent_object, False, cls.apply_live_patch
+                )
+            )
+
+        context.modified_org_settings = modified_settings
+
+        if is_set_and_valid(expected_object.workflows):
+            OrganizationWorkflowSettings.generate_live_patch(
+                expected_object.workflows, current_object.workflows, expected_object, context, handler
+            )
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        assert patch.patch_type == LivePatchType.CHANGE
+        assert patch.changes is not None
+        github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
+        provider.update_org_settings(org_id, github_settings)

@@ -10,13 +10,24 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, Optional, cast, Callable
+import re
+from typing import Any, Optional, cast, Callable, TypeVar
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatchContext, LivePatchHandler, LivePatch
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, is_set_and_present
+from otterdog.utils import (
+    UNSET,
+    is_unset,
+    is_set_and_valid,
+    is_set_and_present,
+    Change,
+    multi_associate_by_key,
+    associate_by_key,
+)
+
+WT = TypeVar("WT", bound="Webhook")
 
 
 @dataclasses.dataclass
@@ -131,3 +142,118 @@ class Webhook(ModelObject, abc.ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
             self.secret = cast(Webhook, other_object).secret
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, Webhook)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
+        if expected_object is None:
+            assert isinstance(current_object, Webhook)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, Webhook)
+        assert isinstance(current_object, Webhook)
+
+        # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
+        if (
+            context.update_webhooks
+            and is_set_and_valid(expected_object.secret)
+            and re.match(context.update_filter, expected_object.url)
+        ):
+            model_dict = expected_object.to_model_dict()
+            modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
+
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_webhook,
+                    parent_object,
+                    True,
+                    expected_object.apply_live_patch,
+                )
+            )
+            return
+
+        modified_webhook = expected_object.get_difference_from(current_object)
+
+        if not is_unset(expected_object.secret):
+            # special handling for secrets:
+            #   if a secret was present by now its gone or vice-versa,
+            #   include it in the diff view.
+            expected_secret = expected_object.secret
+            current_secret = current_object.secret
+
+            def has_unresolved_secret(secret: Optional[str]):
+                return secret is not None and context.resolve_secrets is False
+
+            # if there are different unresolved secrets, display changes
+            has_different_unresolved_secrets = (
+                has_unresolved_secret(expected_secret)
+                and has_unresolved_secret(current_secret)
+                and expected_secret != current_secret
+            )
+
+            if (
+                (expected_secret is not None and current_secret is None)
+                or (expected_secret is None and current_secret is not None)
+                or has_different_unresolved_secrets
+            ):
+                modified_webhook["secret"] = Change(current_secret, expected_secret)
+
+        if len(modified_webhook) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_webhook,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_webhooks: list[WT],
+        current_webhooks: list[WT],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_webhooks_by_all_urls = multi_associate_by_key(expected_webhooks, Webhook.get_all_urls)
+        expected_webhooks_by_url = associate_by_key(expected_webhooks, lambda x: x.url)
+
+        for current_webhook in current_webhooks:
+            webhook_url = current_webhook.url
+
+            expected_webhook = expected_webhooks_by_all_urls.get(webhook_url)
+            if expected_webhook is None:
+                cls.generate_live_patch(None, current_webhook, parent_object, context, handler)
+                continue
+
+            # pop the already handled webhooks
+            for url in expected_webhook.get_all_urls():
+                expected_webhooks_by_all_urls.pop(url)
+            expected_webhooks_by_url.pop(expected_webhook.url)
+
+            # any webhook that contains a dummy secret will be skipped.
+            if expected_webhook.has_dummy_secret():
+                continue
+
+            cls.generate_live_patch(expected_webhook, current_webhook, parent_object, context, handler)
+
+        for webhook_url, webhook in expected_webhooks_by_url.items():
+            cls.generate_live_patch(webhook, None, parent_object, context, handler)

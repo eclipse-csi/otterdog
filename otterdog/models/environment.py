@@ -9,12 +9,20 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, Optional
 
 from jsonbender import bend, S, OptionalS, K, F, Filter, Forall, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import (
+    ModelObject,
+    ValidationContext,
+    FailureType,
+    LivePatch,
+    LivePatchType,
+    LivePatchContext,
+    LivePatchHandler,
+)
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
@@ -22,6 +30,8 @@ from otterdog.utils import (
     is_set_and_valid,
     IndentingPrinter,
     write_patch_object_as_json,
+    associate_by_key,
+    Change,
 )
 
 
@@ -185,3 +195,113 @@ class Environment(ModelObject):
         patch.pop("name")
         printer.print(f"orgs.{jsonnet_config.create_environment}('{self.name}')")
         write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, Environment)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
+        if expected_object is None:
+            assert isinstance(current_object, Environment)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, Environment)
+        assert isinstance(current_object, Environment)
+
+        modified_env: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        if len(modified_env) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_env,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_environments: list[Environment],
+        current_environments: list[Environment],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_environments_by_name = associate_by_key(expected_environments, lambda x: x.name)
+
+        from .repository import Repository
+
+        assert isinstance(parent_object, Repository)
+
+        for current_env in current_environments:
+            env_name = current_env.name
+
+            expected_env = expected_environments_by_name.get(env_name)
+            if expected_env is None:
+                # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
+                # as it is automatically created, there is a validation rule to warn the user about it.
+                if (
+                    parent_object.name.lower() == f"{context.org_id}.github.io".lower()
+                    and current_env.name == "github-pages"
+                ):
+                    continue
+                # if it's a github-pages environment and gh pages are enabled, ignore it.
+                # GitHub automatically creates it, a validation warning is output if it is missing
+                # in the configuration.
+                elif current_env.name == "github-pages" and parent_object.gh_pages_build_type != "disabled":
+                    continue
+                else:
+                    cls.generate_live_patch(None, current_env, parent_object, context, handler)
+                    continue
+
+            cls.generate_live_patch(expected_env, current_env, parent_object, context, handler)
+
+            expected_environments_by_name.pop(env_name)
+
+        for env_name, env in expected_environments_by_name.items():
+            cls.generate_live_patch(env, None, parent_object, context, handler)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        from .repository import Repository
+
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, Environment)
+                assert isinstance(patch.parent_object, Repository)
+                provider.add_repo_environment(
+                    org_id,
+                    patch.parent_object.name,
+                    patch.expected_object.name,
+                    patch.expected_object.to_provider_data(org_id, provider),
+                )
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, Environment)
+                assert isinstance(patch.parent_object, Repository)
+                provider.delete_repo_environment(org_id, patch.parent_object.name, patch.current_object.name)
+
+            case LivePatchType.CHANGE:
+                assert patch.changes is not None
+                assert isinstance(patch.current_object, Environment)
+                assert isinstance(patch.parent_object, Repository)
+                provider.update_repo_environment(
+                    org_id,
+                    patch.parent_object.name,
+                    patch.current_object.name,
+                    cls.changes_to_provider(org_id, patch.changes, provider),
+                )

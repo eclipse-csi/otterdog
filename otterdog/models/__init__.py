@@ -12,7 +12,7 @@ import os
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Iterator, Callable, cast
+from typing import Any, Optional, Iterator, Callable, cast, Protocol
 
 from colorama import Style
 from jsonbender import bend  # type: ignore
@@ -52,6 +52,73 @@ class ValidationContext(object):
             )
 
 
+class LivePatchType(Enum):
+    ADD = 1
+    REMOVE = 2
+    CHANGE = 3
+
+
+class LivePatchApplyFn(Protocol):
+    def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        ...
+
+
+@dataclasses.dataclass(frozen=True)
+class LivePatch:
+    patch_type: LivePatchType
+    expected_object: Optional[ModelObject]
+    current_object: Optional[ModelObject]
+    changes: Optional[dict[str, Change]]
+    parent_object: Optional[ModelObject]
+    forced_update: bool
+    fn: LivePatchApplyFn
+
+    @classmethod
+    def of_addition(
+        cls, expected_object: ModelObject, parent_object: Optional[ModelObject], fn: LivePatchApplyFn
+    ) -> LivePatch:
+        return LivePatch(LivePatchType.ADD, expected_object, None, None, parent_object, False, fn)
+
+    @classmethod
+    def of_deletion(
+        cls, current_object: ModelObject, parent_object: Optional[ModelObject], fn: LivePatchApplyFn
+    ) -> LivePatch:
+        return LivePatch(LivePatchType.REMOVE, None, current_object, None, parent_object, False, fn)
+
+    @classmethod
+    def of_changes(
+        cls,
+        expected_object: ModelObject,
+        current_object: ModelObject,
+        changes: dict[str, Change],
+        parent_object: Optional[ModelObject],
+        forced_update: bool,
+        fn: LivePatchApplyFn,
+    ) -> LivePatch:
+        return LivePatch(
+            LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
+        )
+
+    def apply(self, org_id: str, provider: GitHubProvider) -> None:
+        self.fn(self, org_id, provider)
+
+
+@dataclasses.dataclass
+class LivePatchContext(object):
+    org_id: str
+    update_webhooks: bool
+    update_secrets: bool
+    update_filter: str
+    resolve_secrets: bool
+    expected_org_settings: dict[str, Any]
+    modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
+
+
+class LivePatchHandler(Protocol):
+    def __call__(self, patch: LivePatch) -> None:
+        ...
+
+
 @dataclasses.dataclass
 class ModelObject(ABC):
     """
@@ -73,7 +140,7 @@ class ModelObject(ABC):
     @property
     @abstractmethod
     def model_object_name(self) -> str:
-        pass
+        ...
 
     def is_keyed(self) -> bool:
         return any(field.metadata.get("key", False) for field in self.all_fields())
@@ -91,7 +158,7 @@ class ModelObject(ABC):
 
     @abstractmethod
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        pass
+        ...
 
     # noinspection PyMethodMayBeStatic
     def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
@@ -222,17 +289,17 @@ class ModelObject(ABC):
     @classmethod
     @abstractmethod
     def from_model_data(cls, data: dict[str, Any]):
-        pass
+        ...
 
     @classmethod
     @abstractmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        pass
+        ...
 
     @classmethod
     @abstractmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        pass
+        ...
 
     def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
         return self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
@@ -249,7 +316,7 @@ class ModelObject(ABC):
     @classmethod
     @abstractmethod
     def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        pass
+        ...
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True
@@ -318,4 +385,19 @@ class ModelObject(ABC):
         extend: bool,
         default_object: ModelObject,
     ) -> None:
-        pass
+        ...
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        ...
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        ...

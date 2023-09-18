@@ -32,7 +32,7 @@ from otterdog.utils import (
     is_info_enabled,
 )
 
-from . import ValidationContext, ModelObject
+from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .organization_secret import OrganizationSecret
@@ -256,6 +256,25 @@ class GitHubOrganization:
         printer.println("}")
 
         return output.getvalue()
+
+    def generate_live_patch(
+        self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
+    ) -> None:
+        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
+
+        OrganizationWebhook.generate_live_patch_of_list(
+            self.webhooks,
+            current_organization.webhooks,
+            None,
+            context,
+            handler,
+        )
+
+        OrganizationSecret.generate_live_patch_of_list(
+            self.secrets, current_organization.secrets, None, context, handler
+        )
+
+        Repository.generate_live_patch_of_list(self.repositories, current_organization.repositories, context, handler)
 
     @classmethod
     def load_from_file(

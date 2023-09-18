@@ -14,7 +14,7 @@ from typing import Any, cast
 from jsonbender import bend, S, OptionalS, K, Forall, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatch, LivePatchType
 from otterdog.models.secret import Secret
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -117,3 +117,21 @@ class OrganizationSecret(Secret):
         patch.pop("name")
         printer.print(f"orgs.{jsonnet_config.create_org_secret}('{self.name}')")
         write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, OrganizationSecret)
+                provider.add_org_secret(org_id, patch.expected_object.to_provider_data(org_id, provider))
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, OrganizationSecret)
+                provider.delete_org_secret(org_id, patch.current_object.name)
+
+            case LivePatchType.CHANGE:
+                assert isinstance(patch.expected_object, OrganizationSecret)
+                assert isinstance(patch.current_object, OrganizationSecret)
+                provider.update_org_secret(
+                    org_id, patch.current_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                )

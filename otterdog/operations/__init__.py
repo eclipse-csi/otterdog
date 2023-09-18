@@ -42,11 +42,11 @@ class Operation(ABC):
 
     @abstractmethod
     def pre_execute(self) -> None:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def execute(self, org_config: OrganizationConfig) -> int:
-        raise NotImplementedError
+        ...
 
     def post_execute(self) -> None:
         pass

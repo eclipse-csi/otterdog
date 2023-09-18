@@ -10,13 +10,16 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, cast, Callable
+import re
+from typing import Any, cast, Callable, TypeVar, Optional
 
 from jsonbender import bend, S, OptionalS, K  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatchContext, LivePatchHandler, LivePatch
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, Change, associate_by_key
+
+ST = TypeVar("ST", bound="Secret")
 
 
 @dataclasses.dataclass
@@ -95,3 +98,102 @@ class Secret(ModelObject, abc.ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
             self.value = cast(Secret, other_object).value
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Optional[ModelObject],
+        current_object: Optional[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, Secret)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
+        if expected_object is None:
+            assert isinstance(current_object, Secret)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, Secret)
+        assert isinstance(current_object, Secret)
+
+        # if secrets shall be updated and the secret contains a valid secret perform a forced update.
+        if context.update_secrets and re.match(context.update_filter, expected_object.name):
+            model_dict = expected_object.to_model_dict()
+            modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
+
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_secret,
+                    parent_object,
+                    True,
+                    expected_object.apply_live_patch,
+                )
+            )
+            return
+
+        modified_secret = expected_object.get_difference_from(current_object)
+
+        if not is_unset(expected_object.value):
+            expected_secret_value = expected_object.value
+            current_secret_value = current_object.value
+
+            def has_unresolved_secret(secret_value: Optional[str]):
+                return secret_value is not None and context.resolve_secrets is False
+
+            # if there are different unresolved secrets, display changes
+            if (
+                has_unresolved_secret(expected_secret_value)
+                and has_unresolved_secret(current_secret_value)
+                and expected_secret_value != current_secret_value
+            ):
+                modified_secret["value"] = Change(current_secret_value, expected_secret_value)
+
+        if len(modified_secret) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_secret,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_secrets: list[ST],
+        current_secrets: list[ST],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_secrets_by_name = associate_by_key(expected_secrets, lambda x: x.name)
+
+        for current_secret in current_secrets:
+            secret_name = current_secret.name
+
+            expected_secret = expected_secrets_by_name.get(secret_name)
+            if expected_secret is None:
+                cls.generate_live_patch(None, current_secret, parent_object, context, handler)
+                continue
+
+            # pop the already handled secret
+            expected_secrets_by_name.pop(expected_secret.name)
+
+            # any secret that contains a dummy value will be skipped.
+            if expected_secret.has_dummy_secret():
+                continue
+
+            cls.generate_live_patch(expected_secret, current_secret, parent_object, context, handler)
+
+        for secret_name, secret in expected_secrets_by_name.items():
+            cls.generate_live_patch(secret, None, parent_object, context, handler)

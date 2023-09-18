@@ -11,8 +11,9 @@ from __future__ import annotations
 import dataclasses
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject
+from otterdog.models import ModelObject, LivePatch, LivePatchType
 from otterdog.models.webhook import Webhook
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import IndentingPrinter, write_patch_object_as_json
 
 
@@ -37,3 +38,33 @@ class RepositoryWebhook(Webhook):
         patch.pop("url")
         printer.print(f"orgs.{jsonnet_config.create_repo_webhook}('{self.url}')")
         write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        from .repository import Repository
+
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, RepositoryWebhook)
+                assert isinstance(patch.parent_object, Repository)
+                provider.add_repo_webhook(
+                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                )
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, RepositoryWebhook)
+                assert isinstance(patch.parent_object, Repository)
+                provider.delete_repo_webhook(
+                    org_id, patch.parent_object.name, patch.current_object.id, patch.current_object.url
+                )
+
+            case LivePatchType.CHANGE:
+                assert isinstance(patch.expected_object, RepositoryWebhook)
+                assert isinstance(patch.current_object, RepositoryWebhook)
+                assert isinstance(patch.parent_object, Repository)
+                provider.update_repo_webhook(
+                    org_id,
+                    patch.parent_object.name,
+                    patch.current_object.id,
+                    patch.expected_object.to_provider_data(org_id, provider),
+                )
