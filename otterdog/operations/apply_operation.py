@@ -83,7 +83,7 @@ class ApplyOperation(PlanOperation):
             self.printer.println("No changes required.")
             if not self._delete_resources and diff_status.deletions > 0:
                 self.printer.println(
-                    f"{diff_status.deletions} resource(s) would be deleted with " f"flag '--delete-resources'."
+                    f"{diff_status.deletions} resource(s) would be deleted with flag '--delete-resources'."
                 )
             return
 
