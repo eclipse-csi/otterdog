@@ -279,9 +279,10 @@ class WebClient:
                 if verify_button is not None:
                     verify_button.click()
 
-                    confirm_button = page.get_by_role("button", name="Confirm")
-                    if confirm_button is not None:
-                        confirm_button.click()
+                    if page.is_visible('button[text="Confirm"]'):
+                        confirm_button = page.get_by_role("button", name="Confirm")
+                        if confirm_button is not None:
+                            confirm_button.click()
 
                     page.type("#app_totp", self.credentials.get_totp())
 
