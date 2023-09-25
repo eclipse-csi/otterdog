@@ -74,6 +74,10 @@ class WorkflowSettings(ModelObject, abc.ABC):
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        if field.name in self._selected_action_properties:
+            if self.__getattribute__(field.name) is None:
+                return False
+
         return True
 
     @classmethod
