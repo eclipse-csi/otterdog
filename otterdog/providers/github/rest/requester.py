@@ -15,20 +15,23 @@ from requests_cache import CachedSession
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.utils import print_trace
 
+from .auth import AuthStrategy
+
 
 class Requester:
-    def __init__(self, token: str, base_url: str, api_version: str):
+    def __init__(self, auth_strategy: AuthStrategy, base_url: str, api_version: str):
         self._base_url = base_url
+        self._auth = auth_strategy.get_auth()
 
         self._headers = {
             "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
             "X-GitHub-Api-Version": api_version,
             "X-Github-Next-Global-ID": "1",
         }
 
         # enable logging for requests_cache
         # import logging
+        #
         # logging.basicConfig(level='DEBUG')
 
         self._session: CachedSession = CachedSession(
@@ -38,6 +41,8 @@ class Requester:
             cache_control=True,
             allowable_methods=["GET"],
         )
+
+        self._session.auth = self._auth
 
     def _build_url(self, url_path: str) -> str:
         return f"{self._base_url}{url_path}"
@@ -93,7 +98,7 @@ class Requester:
     ) -> Response:
         assert method in ["GET", "PATCH", "POST", "PUT", "DELETE"]
 
-        print_trace(f"'{method}' url = {url_path}, data = {data}")
+        print_trace(f"'{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 
         response = self._session.request(
             method,

@@ -6,6 +6,8 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
+from typing import Any
+
 from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
@@ -15,6 +17,15 @@ from ..exception import GitHubException
 class AppClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
+
+    def get_authenticated_app(self) -> dict[str, Any]:
+        print_debug("retrieving authenticated app")
+
+        try:
+            return self.requester.request_json("GET", "/app")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
 
     def get_app_ids(self, app_slug: str) -> tuple[int, str]:
         print_debug("retrieving app node id")

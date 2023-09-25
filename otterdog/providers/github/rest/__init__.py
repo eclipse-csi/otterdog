@@ -11,6 +11,7 @@ from __future__ import annotations
 from abc import ABC
 from functools import cached_property
 
+from .auth import AuthStrategy
 from .requester import Requester
 
 
@@ -19,8 +20,8 @@ class RestApi:
     _GH_API_VERSION = "2022-11-28"
     _GH_API_URL_ROOT = "https://api.github.com"
 
-    def __init__(self, token: str):
-        self._requester = Requester(token, self._GH_API_URL_ROOT, self._GH_API_VERSION)
+    def __init__(self, auth_strategy: AuthStrategy):
+        self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
     @property
     def requester(self) -> Requester:
