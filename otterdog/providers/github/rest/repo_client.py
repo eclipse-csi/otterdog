@@ -32,9 +32,9 @@ class RepoClient(RestClient):
 
         try:
             repo_data = self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
-            self._fill_github_pages_config_for_repo(org_id, repo_name, repo_data)
-            self._fill_vulnerability_report_for_repo(org_id, repo_name, repo_data)
-            self._fill_topics_for_repo(org_id, repo_name, repo_data)
+            self._fill_github_pages_config(org_id, repo_name, repo_data)
+            self._fill_vulnerability_report(org_id, repo_name, repo_data)
+            self._fill_topics(org_id, repo_name, repo_data)
             return repo_data
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -75,11 +75,11 @@ class RepoClient(RestClient):
                     self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
 
                 if vulnerability_reports is not None:
-                    self._update_vulnerability_report_for_repo(org_id, repo_name, vulnerability_reports)
+                    self._update_vulnerability_report(org_id, repo_name, vulnerability_reports)
                 if topics is not None:
-                    self._update_topics_for_repo(org_id, repo_name, topics)
+                    self._update_topics(org_id, repo_name, topics)
                 if gh_pages is not None:
-                    self._update_github_pages_config_for_repo(org_id, repo_name, gh_pages)
+                    self._update_github_pages_config(org_id, repo_name, gh_pages)
 
                 print_debug(f"updated {changes} repo setting(s) for repo '{repo_name}'")
             except GitHubException as ex:
@@ -126,7 +126,7 @@ class RepoClient(RestClient):
                 if len(post_process_template_content) > 0:
                     for i in range(1, 4):
                         try:
-                            self.get_readme_of_repo(org_id, repo_name)
+                            self.get_readme(org_id, repo_name)
                             break
                         except GitHubException:
                             print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 3")
@@ -178,7 +178,7 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+    def get_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving webhooks for repo '{org_id}/{repo_name}'")
 
         try:
@@ -195,7 +195,7 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
+    def update_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         print_debug(f"updating repo webhook '{webhook_id}' for repo '{org_id}/{repo_name}'")
 
         try:
@@ -205,7 +205,7 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to update repo webhook {webhook_id}:\n{ex}").with_traceback(tb)
 
-    def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+    def add_webhook(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         url = data["config"]["url"]
         print_debug(f"adding repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
 
@@ -219,7 +219,7 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo webhook with url '{url}':\n{ex}").with_traceback(tb)
 
-    def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
+    def delete_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
         print_debug(f"deleting repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
 
         response = self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/hooks/{webhook_id}")
@@ -235,7 +235,7 @@ class RepoClient(RestClient):
 
         return chevron.render(content, variables)
 
-    def get_readme_of_repo(self, org_id: str, repo_name: str) -> dict[str, Any]:
+    def get_readme(self, org_id: str, repo_name: str) -> dict[str, Any]:
         print_debug(f"getting readme for repo '{org_id}/{repo_name}'")
 
         try:
@@ -266,21 +266,21 @@ class RepoClient(RestClient):
                     print_debug(f"omitting setting '{key}' as it is already set")
                     update_data.pop(key)
 
-    def _fill_github_pages_config_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+    def _fill_github_pages_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving github pages config for '{org_id}/{repo_name}'")
 
         response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
         if response.status_code == 200:
             repo_data["gh_pages"] = response.json()
 
-    def _update_github_pages_config_for_repo(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
+    def _update_github_pages_config(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
         print_debug(f"updating github pages config for '{org_id}/{repo_name}'")
 
         # special handling for repos hosting the organization site
         if repo_name.lower() == f"{org_id}.github.io".lower():
             current_repo_data: dict[str, Any] = {}
             for i in range(1, 4):
-                self._fill_github_pages_config_for_repo(org_id, repo_name, current_repo_data)
+                self._fill_github_pages_config(org_id, repo_name, current_repo_data)
                 if "gh_pages" in current_repo_data:
                     break
 
@@ -315,7 +315,7 @@ class RepoClient(RestClient):
                 if source is not None:
                     branch = source.get("branch", None)
                     if branch is not None:
-                        existing_branches = self.get_repo_branches(org_id, repo_name)
+                        existing_branches = self.get_branches(org_id, repo_name)
                         existing_branch_names = list(map(lambda x: x["name"], existing_branches))
                         if branch not in existing_branch_names:
                             gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
@@ -334,7 +334,7 @@ class RepoClient(RestClient):
                 else:
                     print_debug(f"updated github pages config for repo '{repo_name}'")
 
-    def _fill_vulnerability_report_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+    def _fill_vulnerability_report(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
 
         response_vulnerability = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
@@ -344,7 +344,7 @@ class RepoClient(RestClient):
         else:
             repo_data["dependabot_alerts_enabled"] = False
 
-    def _update_vulnerability_report_for_repo(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
+    def _update_vulnerability_report(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
         print_debug(f"updating repo vulnerability report status for '{org_id}/{repo_name}'")
 
         if vulnerability_reports is True:
@@ -359,7 +359,7 @@ class RepoClient(RestClient):
         else:
             print_debug(f"updated vulnerability_reports for repo '{repo_name}'")
 
-    def _fill_topics_for_repo(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+    def _fill_topics(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo topics for '{org_id}/{repo_name}'")
 
         try:
@@ -371,14 +371,14 @@ class RepoClient(RestClient):
         except GitHubException:
             repo_data["topics"] = []
 
-    def _update_topics_for_repo(self, org_id: str, repo_name: str, topics: list[str]) -> None:
+    def _update_topics(self, org_id: str, repo_name: str, topics: list[str]) -> None:
         print_debug(f"updating repo topics for '{org_id}/{repo_name}'")
 
         data = {"names": topics}
         self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/topics", data=data)
         print_debug(f"updated topics for repo '{repo_name}'")
 
-    def get_repo_branches(self, org_id: str, repo_name) -> list[dict[str, Any]]:
+    def get_branches(self, org_id: str, repo_name) -> list[dict[str, Any]]:
         print_debug(f"retrieving branches for repo '{org_id}/{repo_name}'")
 
         try:
@@ -387,7 +387,7 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+    def get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving environments for repo '{org_id}/{repo_name}'")
 
         try:
@@ -407,7 +407,7 @@ class RepoClient(RestClient):
             # querying the environments might fail for private repos, ignore exceptions
             return []
 
-    def update_repo_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
+    def update_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
         print_debug(f"updating repo environment '{env_name}' for repo '{org_id}/{repo_name}'")
 
         if "name" in env:
@@ -429,12 +429,12 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to update repo environment '{env_name}':\n{ex}").with_traceback(tb)
 
-    def add_repo_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]) -> None:
+    def add_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]) -> None:
         print_debug(f"adding repo environment '{env_name}' for repo '{org_id}/{repo_name}'")
-        self.update_repo_environment(org_id, repo_name, env_name, data)
+        self.update_environment(org_id, repo_name, env_name, data)
         print_debug(f"added repo environment '{env_name}'")
 
-    def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
+    def delete_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         print_debug(f"deleting repo environment '{env_name} for repo '{org_id}/{repo_name}'")
 
         response = self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/environments/{env_name}")
@@ -505,7 +505,7 @@ class RepoClient(RestClient):
         else:
             print_debug(f"deleted deployment branch policy for env '{env_name}'")
 
-    def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+    def get_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving secrets for repo '{org_id}/{repo_name}'")
 
         try:
@@ -522,13 +522,13 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
-    def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
+    def update_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
         print_debug(f"updating repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
 
         if "name" in secret:
             secret.pop("name")
 
-        self.encrypt_repo_secret_inplace(org_id, repo_name, secret)
+        self.encrypt_secret_inplace(org_id, repo_name, secret)
 
         response = self.requester.request_raw(
             "PUT",
@@ -540,11 +540,11 @@ class RepoClient(RestClient):
         else:
             print_debug(f"updated repo secret '{secret_name}'")
 
-    def add_repo_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+    def add_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         secret_name = data.pop("name")
         print_debug(f"adding repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
 
-        self.encrypt_repo_secret_inplace(org_id, repo_name, data)
+        self.encrypt_secret_inplace(org_id, repo_name, data)
 
         response = self.requester.request_raw(
             "PUT",
@@ -556,13 +556,13 @@ class RepoClient(RestClient):
         else:
             print_debug(f"added repo secret '{secret_name}'")
 
-    def encrypt_repo_secret_inplace(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+    def encrypt_secret_inplace(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         value = data.pop("value")
-        key_id, public_key = self.get_repo_public_key(org_id, repo_name)
+        key_id, public_key = self.get_public_key(org_id, repo_name)
         data["encrypted_value"] = encrypt_value(public_key, value)
         data["key_id"] = key_id
 
-    def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+    def delete_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         print_debug(f"deleting repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
 
         response = self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}")
@@ -571,7 +571,115 @@ class RepoClient(RestClient):
 
         print_debug(f"removed repo secret '{secret_name}'")
 
-    def get_repo_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
+    def get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"retrieving workflow settings for repo '{org_id}/{repo_name}'")
+
+        workflow_settings: dict[str, Any] = {}
+
+        try:
+            permissions = self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions")
+            workflow_settings.update(permissions)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+        allowed_actions = permissions.get("allowed_actions", "none")
+        if allowed_actions == "selected":
+            workflow_settings.update(self._get_selected_actions_for_workflow_settings(org_id, repo_name))
+
+        if permissions.get("enabled", False) is not False:
+            workflow_settings.update(self._get_default_workflow_permissions(org_id, repo_name))
+
+        return workflow_settings
+
+    def update_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating workflow settings for repo '{org_id}/{repo_name}'")
+
+        permission_data = {k: data[k] for k in ["enabled", "allowed_actions"] if k in data}
+        if len(permission_data) > 0:
+            response = self.requester.request_raw(
+                "PUT", f"/repos/{org_id}/{repo_name}/actions/permissions", json.dumps(permission_data)
+            )
+
+            if response.status_code == 204:
+                print_debug(f"updated workflow settings for repo '{org_id}/{repo_name}'")
+            else:
+                raise RuntimeError(
+                    f"failed to update workflow settings for repo '{org_id}/{repo_name}'"
+                    f"\n{response.status_code}: {response.text}"
+                )
+
+        allowed_action_data = {
+            k: data[k] for k in ["github_owned_allowed", "verified_allowed", "patterns_allowed"] if k in data
+        }
+        if len(allowed_action_data) > 0:
+            self._update_selected_actions_for_workflow_settings(org_id, repo_name, allowed_action_data)
+
+        default_permission_data = {
+            k: data[k] for k in ["default_workflow_permissions", "can_approve_pull_request_reviews"] if k in data
+        }
+        if len(default_permission_data) > 0:
+            self._update_default_workflow_permissions(org_id, repo_name, default_permission_data)
+
+        print_debug(f"updated {len(data)} workflow setting(s)")
+
+    def _get_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"retrieving allowed actions for org '{org_id}'")
+
+        try:
+            return self.requester.request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/permissions/selected-actions"
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving allowed actions for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+    def _update_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating allowed actions for repo '{org_id}/{repo_name}'")
+
+        response = self.requester.request_raw(
+            "PUT", f"/repos/{org_id}/{repo_name}/actions/permissions/selected-actions", json.dumps(data)
+        )
+
+        if response.status_code == 204:
+            print_debug(f"updated allowed actions for repo '{org_id}/{repo_name}'")
+        else:
+            raise RuntimeError(
+                f"failed updating allowed actions for repo '{org_id}/{repo_name}'"
+                f"\n{response.status_code}: {response.text}"
+            )
+
+    def _get_default_workflow_permissions(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"retrieving default workflow permissions for repo '{org_id}/{repo_name}'")
+
+        try:
+            return self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving default workflow permissions for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+    def _update_default_workflow_permissions(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating default workflow permissions for repo '{org_id}/{repo_name}'")
+
+        response = self.requester.request_raw(
+            "PUT", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow", json.dumps(data)
+        )
+
+        if response.status_code == 204:
+            print_debug(f"updated default workflow permissions for repo '{org_id}/{repo_name}'")
+        else:
+            raise RuntimeError(
+                f"failed updating default workflow permissions for repo '{org_id}/{repo_name}'"
+                f"\n{response.status_code}: {response.text}"
+            )
+
+    def get_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
         print_debug(f"retrieving repo public key for repo '{org_id}/{repo_name}'")
 
         try:

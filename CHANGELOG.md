@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for workflow settings of a repository. ([#113](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/113))
 - Added possibility to define custom hooks in the default configuration when adding new resource. ([#106](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/106))
 - Added validation for repos hosting the organization site, i.e. <org-id>.github.io. ([#83](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/83))
 - Added validation for secrets and webhooks to issue a warning if a value is provided that does not use a credential provider.

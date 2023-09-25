@@ -37,6 +37,7 @@ class FailureType(Enum):
 
 @dataclasses.dataclass
 class ValidationContext(object):
+    root_object: Any
     template_dir: str
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 

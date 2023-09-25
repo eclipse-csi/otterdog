@@ -33,12 +33,14 @@ from otterdog.utils import (
     multi_associate_by_key,
     associate_by_key,
     Change,
+    is_set_and_present,
 )
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .repo_secret import RepositorySecret
 from .repo_webhook import RepositoryWebhook
+from .repo_workflow_settings import RepositoryWorkflowSettings
 
 
 @dataclasses.dataclass
@@ -82,6 +84,8 @@ class Repository(ModelObject):
     gh_pages_build_type: str
     gh_pages_source_branch: Optional[str]
     gh_pages_source_path: Optional[str]
+
+    workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -313,6 +317,9 @@ class Repository(ModelObject):
                         f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
+        if is_set_and_valid(self.workflows):
+            self.workflows.validate(context, self)
+
         for secret in self.secrets:
             secret.validate(context, self)
 
@@ -355,6 +362,9 @@ class Repository(ModelObject):
             yield env, self
             yield from env.get_model_objects()
 
+        if is_set_and_valid(self.workflows):
+            yield self.workflows, self
+
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Repository:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
@@ -367,6 +377,11 @@ class Repository(ModelObject):
                 >> Forall(lambda x: BranchProtectionRule.from_model_data(x)),
                 "environments": OptionalS("environments", default=[])
                 >> Forall(lambda x: Environment.from_model_data(x)),
+                "workflows": If(
+                    OptionalS("workflows", default=None) == K(None),
+                    K(UNSET),
+                    S("workflows") >> F(lambda x: RepositoryWorkflowSettings.from_model_data(x)),
+                ),
             }
         )
 
@@ -522,6 +537,14 @@ class Repository(ModelObject):
 
         write_patch_object_as_json(patch, printer, close_object=False)
 
+        if is_set_and_present(self.workflows):
+            default_workflow_settings = cast(Repository, default_object).workflows
+
+            patch = self.workflows.get_patch_to(default_workflow_settings)
+            if len(patch) > 0:
+                printer.print("workflows+:")
+                self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
+
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
             default_repo_webhook = RepositoryWebhook.from_model_data(jsonnet_config.default_repo_webhook_config)
@@ -636,6 +659,11 @@ class Repository(ModelObject):
                 )
 
         parent_repo = expected_object if current_object is None else current_object
+
+        if is_set_and_valid(expected_object.workflows) and current_object is not None:
+            RepositoryWorkflowSettings.generate_live_patch(
+                expected_object.workflows, current_object.workflows, expected_object, context, handler
+            )
 
         RepositoryWebhook.generate_live_patch_of_list(
             expected_object.webhooks,

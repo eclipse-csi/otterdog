@@ -81,7 +81,7 @@ class GitHubProvider:
     def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
         # first, get supported settings via the rest api.
         required_rest_keys = {x for x in included_keys if x in self._settings_restapi_keys}
-        merged_settings = self.rest_api.org.get_org_settings(org_id, required_rest_keys)
+        merged_settings = self.rest_api.org.get_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings, unless --no-web-ui is specified.
@@ -111,30 +111,30 @@ class GitHubProvider:
 
         # update any settings via the rest api
         if len(rest_fields) > 0:
-            self.rest_api.org.update_org_settings(org_id, rest_fields)
+            self.rest_api.org.update_settings(org_id, rest_fields)
 
         # update any settings via the web interface
         if len(web_fields) > 0:
             self.web_client.update_org_settings(org_id, web_fields)
 
     def get_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
-        return self.rest_api.org.get_org_workflow_settings(org_id)
+        return self.rest_api.org.get_workflow_settings(org_id)
 
     def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
-        self.rest_api.org.update_org_workflow_settings(org_id, workflow_settings)
+        self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
 
     def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
-        return self.rest_api.org.get_org_webhooks(org_id)
+        return self.rest_api.org.get_webhooks(org_id)
 
     def update_org_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
-            self.rest_api.org.update_org_webhook(org_id, webhook_id, webhook)
+            self.rest_api.org.update_webhook(org_id, webhook_id, webhook)
 
     def add_org_webhook(self, org_id: str, data: dict[str, str]) -> None:
-        self.rest_api.org.add_org_webhook(org_id, data)
+        self.rest_api.org.add_webhook(org_id, data)
 
     def delete_org_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
-        self.rest_api.org.delete_org_webhook(org_id, webhook_id, url)
+        self.rest_api.org.delete_webhook(org_id, webhook_id, url)
 
     def get_repos(self, org_id: str) -> list[str]:
         # filter out repos which are created to work on GitHub Security Advisories
@@ -201,56 +201,62 @@ class GitHubProvider:
         self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
 
     def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return self.rest_api.repo.get_repo_webhooks(org_id, repo_name)
+        return self.rest_api.repo.get_webhooks(org_id, repo_name)
 
     def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
-            self.rest_api.repo.update_repo_webhook(org_id, repo_name, webhook_id, webhook)
+            self.rest_api.repo.update_webhook(org_id, repo_name, webhook_id, webhook)
 
     def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        self.rest_api.repo.add_repo_webhook(org_id, repo_name, data)
+        self.rest_api.repo.add_webhook(org_id, repo_name, data)
 
     def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
-        self.rest_api.repo.delete_repo_webhook(org_id, repo_name, webhook_id, url)
+        self.rest_api.repo.delete_webhook(org_id, repo_name, webhook_id, url)
 
     def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return self.rest_api.repo.get_repo_environments(org_id, repo_name)
+        return self.rest_api.repo.get_environments(org_id, repo_name)
 
     def update_repo_environment(self, org_id: str, repo_name: str, env_name: str, env: dict[str, Any]) -> None:
         if len(env) > 0:
-            self.rest_api.repo.update_repo_environment(org_id, repo_name, env_name, env)
+            self.rest_api.repo.update_environment(org_id, repo_name, env_name, env)
 
     def add_repo_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
-        self.rest_api.repo.add_repo_environment(org_id, repo_name, env_name, data)
+        self.rest_api.repo.add_environment(org_id, repo_name, env_name, data)
 
     def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
-        self.rest_api.repo.delete_repo_environment(org_id, repo_name, env_name)
+        self.rest_api.repo.delete_environment(org_id, repo_name, env_name)
+
+    def get_repo_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        return self.rest_api.repo.get_workflow_settings(org_id, repo_name)
+
+    def update_repo_workflow_settings(self, org_id: str, repo_name: str, workflow_settings: dict[str, Any]) -> None:
+        self.rest_api.repo.update_workflow_settings(org_id, repo_name, workflow_settings)
 
     def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
-        return self.rest_api.org.get_org_secrets(org_id)
+        return self.rest_api.org.get_secrets(org_id)
 
     def update_org_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
         if len(secret) > 0:
-            self.rest_api.org.update_org_secret(org_id, secret_name, secret)
+            self.rest_api.org.update_secret(org_id, secret_name, secret)
 
     def add_org_secret(self, org_id: str, data: dict[str, str]) -> None:
-        self.rest_api.org.add_org_secret(org_id, data)
+        self.rest_api.org.add_secret(org_id, data)
 
     def delete_org_secret(self, org_id: str, secret_name: str) -> None:
-        self.rest_api.org.delete_org_secret(org_id, secret_name)
+        self.rest_api.org.delete_secret(org_id, secret_name)
 
     def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return self.rest_api.repo.get_repo_secrets(org_id, repo_name)
+        return self.rest_api.repo.get_secrets(org_id, repo_name)
 
     def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
         if len(secret) > 0:
-            self.rest_api.repo.update_repo_secret(org_id, repo_name, secret_name, secret)
+            self.rest_api.repo.update_secret(org_id, repo_name, secret_name, secret)
 
     def add_repo_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        self.rest_api.repo.add_repo_secret(org_id, repo_name, data)
+        self.rest_api.repo.add_secret(org_id, repo_name, data)
 
     def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        self.rest_api.repo.delete_repo_secret(org_id, repo_name, secret_name)
+        self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
 
     def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)

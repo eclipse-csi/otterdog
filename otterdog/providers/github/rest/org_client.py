@@ -20,7 +20,7 @@ class OrgClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
+    def get_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
         print_debug(f"retrieving settings for org '{org_id}'")
 
         try:
@@ -41,7 +41,7 @@ class OrgClient(RestClient):
 
         return result
 
-    def update_org_settings(self, org_id: str, data: dict[str, Any]) -> None:
+    def update_settings(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating settings for organization '{org_id}'")
 
         try:
@@ -112,7 +112,7 @@ class OrgClient(RestClient):
         else:
             print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
-    def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
+    def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving org webhooks for org '{org_id}'")
 
         try:
@@ -121,7 +121,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def update_org_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
+    def update_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         print_debug(f"updating org webhook '{webhook_id}' for organization {org_id}")
 
         try:
@@ -131,7 +131,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to update org webhook {webhook_id}:\n{ex}").with_traceback(tb)
 
-    def add_org_webhook(self, org_id: str, data: dict[str, Any]) -> None:
+    def add_webhook(self, org_id: str, data: dict[str, Any]) -> None:
         url = data["config"]["url"]
         print_debug(f"adding org webhook with url '{url}'")
 
@@ -145,7 +145,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add org webhook with url '{url}':\n{ex}").with_traceback(tb)
 
-    def delete_org_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
+    def delete_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
         print_debug(f"deleting org webhook with url '{url}'")
 
         response = self.requester.request_raw("DELETE", f"/orgs/{org_id}/hooks/{webhook_id}")
@@ -166,7 +166,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to retrieve repos for organization '{org_id}':\n{ex}").with_traceback(tb)
 
-    def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
+    def get_secrets(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving secrets for org '{org_id}'")
 
         try:
@@ -175,15 +175,13 @@ class OrgClient(RestClient):
             secrets = response["secrets"]
             for secret in secrets:
                 if secret["visibility"] == "selected":
-                    secret["selected_repositories"] = self._get_selected_repositories_for_org_secret(
-                        org_id, secret["name"]
-                    )
+                    secret["selected_repositories"] = self._get_selected_repositories_for_secret(org_id, secret["name"])
             return secrets
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def _get_selected_repositories_for_org_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
+    def _get_selected_repositories_for_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving selected repositories secret '{secret_name}'")
 
         try:
@@ -194,13 +192,13 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
 
-    def update_org_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+    def update_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
         print_debug(f"updating org secret '{secret_name}'")
 
         if "name" in secret:
             secret.pop("name")
 
-        self.encrypt_org_secret_inplace(org_id, secret)
+        self.encrypt_secret_inplace(org_id, secret)
 
         response = self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
@@ -210,11 +208,11 @@ class OrgClient(RestClient):
         else:
             print_debug(f"updated org secret '{secret_name}'")
 
-    def add_org_secret(self, org_id: str, data: dict[str, str]) -> None:
+    def add_secret(self, org_id: str, data: dict[str, str]) -> None:
         secret_name = data.pop("name")
         print_debug(f"adding org secret '{secret_name}'")
 
-        self.encrypt_org_secret_inplace(org_id, data)
+        self.encrypt_secret_inplace(org_id, data)
 
         response = self.requester.request_raw("PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(data))
         if response.status_code != 201:
@@ -222,13 +220,13 @@ class OrgClient(RestClient):
         else:
             print_debug(f"added org secret '{secret_name}'")
 
-    def encrypt_org_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
+    def encrypt_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
         value = data.pop("value")
-        key_id, public_key = self.get_org_public_key(org_id)
+        key_id, public_key = self.get_public_key(org_id)
         data["encrypted_value"] = encrypt_value(public_key, value)
         data["key_id"] = key_id
 
-    def delete_org_secret(self, org_id: str, secret_name: str) -> None:
+    def delete_secret(self, org_id: str, secret_name: str) -> None:
         print_debug(f"deleting org secret '{secret_name}'")
 
         response = self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/secrets/{secret_name}")
@@ -237,7 +235,7 @@ class OrgClient(RestClient):
 
         print_debug(f"removed org secret '{secret_name}'")
 
-    def get_org_public_key(self, org_id: str) -> tuple[str, str]:
+    def get_public_key(self, org_id: str) -> tuple[str, str]:
         print_debug(f"retrieving org public key for org '{org_id}'")
 
         try:
@@ -268,7 +266,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting app installations for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def get_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
+    def get_workflow_settings(self, org_id: str) -> dict[str, Any]:
         print_debug(f"retrieving workflow settings for org '{org_id}'")
 
         workflow_settings: dict[str, Any] = {}
@@ -281,22 +279,20 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed retrieving workflow settings for org '{org_id}':\n{ex}").with_traceback(tb)
 
         if permissions["enabled_repositories"] == "selected":
-            workflow_settings["selected_repositories"] = self._get_selected_repositories_for_org_workflow_settings(
-                org_id
-            )
+            workflow_settings["selected_repositories"] = self._get_selected_repositories_for_workflow_settings(org_id)
         else:
             workflow_settings["selected_repositories"] = None
 
         allowed_actions = permissions.get("allowed_actions", "none")
         if allowed_actions == "selected":
-            workflow_settings.update(self._get_selected_actions_for_org_workflow_settings(org_id))
+            workflow_settings.update(self._get_selected_actions_for_workflow_settings(org_id))
 
         if allowed_actions != "none":
-            workflow_settings.update(self._get_org_default_workflow_permissions(org_id))
+            workflow_settings.update(self._get_default_workflow_permissions(org_id))
 
         return workflow_settings
 
-    def update_org_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
+    def update_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating workflow settings for org '{org_id}'")
 
         permission_data = {k: data[k] for k in ["enabled_repositories", "allowed_actions"] if k in data}
@@ -314,23 +310,23 @@ class OrgClient(RestClient):
                 )
 
         if "selected_repository_ids" in data:
-            self._update_selected_repositories_for_org_workflow_settings(org_id, data["selected_repository_ids"])
+            self._update_selected_repositories_for_workflow_settings(org_id, data["selected_repository_ids"])
 
         allowed_action_data = {
             k: data[k] for k in ["github_owned_allowed", "verified_allowed", "patterns_allowed"] if k in data
         }
         if len(allowed_action_data) > 0:
-            self._update_selected_actions_for_org_workflow_settings(org_id, allowed_action_data)
+            self._update_selected_actions_for_workflow_settings(org_id, allowed_action_data)
 
         default_permission_data = {
             k: data[k] for k in ["default_workflow_permissions", "can_approve_pull_request_reviews"] if k in data
         }
         if len(default_permission_data) > 0:
-            self._update_org_default_workflow_permissions(org_id, default_permission_data)
+            self._update_default_workflow_permissions(org_id, default_permission_data)
 
         print_debug(f"updated {len(data)} workflow setting(s)")
 
-    def _get_selected_repositories_for_org_workflow_settings(self, org_id: str) -> list[dict[str, Any]]:
+    def _get_selected_repositories_for_workflow_settings(self, org_id: str) -> list[dict[str, Any]]:
         print_debug("retrieving selected repositories for org workflow settings")
 
         try:
@@ -340,7 +336,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
 
-    def _update_selected_repositories_for_org_workflow_settings(
+    def _update_selected_repositories_for_workflow_settings(
         self, org_id: str, selected_repository_ids: list[int]
     ) -> None:
         print_debug("updating selected repositories for org workflow settings")
@@ -358,7 +354,7 @@ class OrgClient(RestClient):
                 f"\n{response.status_code}: {response.text}"
             )
 
-    def _get_selected_actions_for_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
+    def _get_selected_actions_for_workflow_settings(self, org_id: str) -> dict[str, Any]:
         print_debug(f"retrieving allowed actions for org '{org_id}'")
 
         try:
@@ -367,7 +363,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving allowed actions for org '{org_id}':\n{ex}").with_traceback(tb)
 
-    def _update_selected_actions_for_org_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
+    def _update_selected_actions_for_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating allowed actions for org '{org_id}'")
 
         response = self.requester.request_raw(
@@ -381,7 +377,7 @@ class OrgClient(RestClient):
                 f"failed updating allowed actions for org '{org_id}'" f"\n{response.status_code}: {response.text}"
             )
 
-    def _get_org_default_workflow_permissions(self, org_id: str) -> dict[str, Any]:
+    def _get_default_workflow_permissions(self, org_id: str) -> dict[str, Any]:
         print_debug(f"retrieving default workflow permissions for org '{org_id}'")
 
         try:
@@ -390,7 +386,7 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)
 
-    def _update_org_default_workflow_permissions(self, org_id: str, data: dict[str, Any]) -> None:
+    def _update_default_workflow_permissions(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating default workflow permissions for org '{org_id}'")
 
         response = self.requester.request_raw("PUT", f"/orgs/{org_id}/actions/permissions/workflow", json.dumps(data))

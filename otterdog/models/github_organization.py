@@ -42,6 +42,7 @@ from .organization_webhook import OrganizationWebhook
 from .repository import Repository
 from .repo_secret import RepositorySecret
 from .repo_webhook import RepositoryWebhook
+from .repo_workflow_settings import RepositoryWorkflowSettings
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
@@ -104,7 +105,7 @@ class GitHubOrganization:
         self.repositories = repos
 
     def validate(self, template_dir: str) -> ValidationContext:
-        context = ValidationContext(template_dir)
+        context = ValidationContext(self, template_dir)
         self.settings.validate(context, self)
 
         for webhook in self.webhooks:
@@ -366,6 +367,9 @@ def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_name: s
     # get repo data
     github_repo_data = gh_client.get_repo_data(github_id, repo_name)
     repo = Repository.from_provider_data(github_id, github_repo_data)
+
+    github_repo_workflow_data = gh_client.get_repo_workflow_settings(github_id, repo_name)
+    repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
 
     # get branch protection rules of the repo
     rules = gh_client.get_branch_protection_rules(github_id, repo_name)

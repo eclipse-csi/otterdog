@@ -91,8 +91,8 @@ class WorkflowSettings(ModelObject, abc.ABC):
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         mapping.update(
             {
-                "allow_github_owned_actions": OptionalS("github_owned_allowed", default=UNSET),
-                "allow_verified_creator_actions": OptionalS("verified_allowed", default=UNSET),
+                "allow_github_owned_actions": OptionalS("github_owned_allowed", default=None),
+                "allow_verified_creator_actions": OptionalS("verified_allowed", default=None),
                 "allow_action_patterns": OptionalS("patterns_allowed", default=[]),
                 "actions_can_approve_pull_request_reviews": OptionalS(
                     "can_approve_pull_request_reviews", default=UNSET
