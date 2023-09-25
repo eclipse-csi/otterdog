@@ -53,6 +53,7 @@ nav:
         - Organization Secret: reference/organization/secret.md
         - Repository:
           - reference/organization/repository/index.md
+          - Workflow Settings: reference/organization/repository/workflow-settings.md
           - Repository Webhook: reference/organization/repository/webhook.md
           - Repository Secret: reference/organization/repository/secret.md
           - Environment: reference/organization/repository/environment.md
