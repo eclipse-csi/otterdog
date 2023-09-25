@@ -142,7 +142,6 @@
       "items": { "type": "string" }
     },
     "workflows": {
-      "provider": "restapi",
       "$ref": "org-workflow-settings.json"
     }
   },

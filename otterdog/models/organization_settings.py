@@ -175,16 +175,7 @@ class OrganizationSettings(ModelObject):
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        mapping.update(
-            {
-                "plan": OptionalS("plan", "name", default=UNSET),
-                "workflows": If(
-                    OptionalS("workflows", default=None) == K(None),
-                    K(UNSET),
-                    S("workflows") >> F(lambda x: OrganizationWorkflowSettings.from_provider_data(org_id, x)),
-                ),
-            }
-        )
+        mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return mapping
 
     @classmethod
@@ -192,16 +183,6 @@ class OrganizationSettings(ModelObject):
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
-
-        if "workflows" in data:
-            mapping.update(
-                {
-                    "workflows": K(
-                        OrganizationWorkflowSettings.dict_to_provider_data(org_id, data["workflows"], provider)
-                    )
-                }
-            )
-
         return mapping
 
     def to_jsonnet(

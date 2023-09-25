@@ -37,6 +37,7 @@ from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .organization_secret import OrganizationSecret
 from .organization_settings import OrganizationSettings
+from .organization_workflow_settings import OrganizationWorkflowSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
 from .repo_secret import RepositorySecret
@@ -322,6 +323,11 @@ class GitHubOrganization:
             printer.println(f"organization settings: Read complete after {(end - start).total_seconds()}s")
 
         settings = OrganizationSettings.from_provider_data(github_id, github_settings)
+
+        if "workflows" in included_keys:
+            workflow_settings = client.get_org_workflow_settings(github_id)
+            settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
+
         org = cls(github_id, settings)
 
         start = datetime.now()

@@ -33,10 +33,6 @@ class OrgClient(RestClient):
             security_managers = self.list_security_managers(org_id)
             settings["security_managers"] = security_managers
 
-        if "workflows" in included_keys:
-            workflow_settings = self.get_org_workflow_settings(org_id)
-            settings["workflows"] = workflow_settings
-
         result = {}
         for k, v in settings.items():
             if k in included_keys:
