@@ -195,6 +195,12 @@ class Repository(ModelObject):
         allow_forking = self.allow_forking is True
         disallow_forking = self.allow_forking is False
 
+        if is_set_and_present(self.description) and len(self.description) > 350:
+            context.add_failure(
+                FailureType.ERROR,
+                "setting 'description' exceeds maximum allowed length of 350 chars.",
+            )
+
         if is_public and disallow_forking:
             context.add_failure(
                 FailureType.WARNING,
