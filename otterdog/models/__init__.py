@@ -284,6 +284,13 @@ class ModelObject(ABC):
                 )
 
             header = header + "]"
+        elif isinstance(parent_object, ModelObject):
+            header = header + "["
+            header = (
+                header + f"{parent_object.model_object_name}="
+                f'{Style.BRIGHT}"{parent_object.get_key_value()}"{Style.RESET_ALL}'
+            )
+            header = header + "]"
 
         return header
 

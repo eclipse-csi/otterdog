@@ -107,6 +107,8 @@ class Repository(ModelObject):
     ]
 
     _unavailable_fields_in_archived_repos: ClassVar[set[str]] = {
+        "description",
+        "homepage",
         "allow_auto_merge",
         "allow_merge_commit",
         "allow_rebase_merge",
@@ -119,7 +121,11 @@ class Repository(ModelObject):
         "squash_merge_commit_title",
         "dependabot_alerts_enabled",
         "dependabot_security_updates_enabled",
+        "secret_scanning",
         "secret_scanning_push_protection",
+        "has_issues",
+        "has_wiki",
+        "has_projects",
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
@@ -668,7 +674,7 @@ class Repository(ModelObject):
 
         if is_set_and_valid(expected_object.workflows) and current_object is not None:
             RepositoryWorkflowSettings.generate_live_patch(
-                expected_object.workflows, current_object.workflows, expected_object, context, handler
+                expected_object.workflows, current_object.workflows, parent_repo, context, handler
             )
 
         RepositoryWebhook.generate_live_patch_of_list(
