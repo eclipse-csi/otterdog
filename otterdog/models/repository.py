@@ -198,7 +198,7 @@ class Repository(ModelObject):
         if is_set_and_present(self.description) and len(self.description) > 350:
             context.add_failure(
                 FailureType.ERROR,
-                "setting 'description' exceeds maximum allowed length of 350 chars.",
+                f"{self.get_model_header()} has 'description' that exceeds the maximum allowed length of 350 chars.",
             )
 
         if is_public and disallow_forking:
