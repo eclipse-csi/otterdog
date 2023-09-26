@@ -48,7 +48,8 @@ class GitHubProvider:
         self.close()
 
     def close(self) -> None:
-        self.rest_api.close()
+        if self._credentials is not None:
+            self.rest_api.close()
 
     def _init_clients(self):
         from .rest.auth.token import TokenAuthStrategy
