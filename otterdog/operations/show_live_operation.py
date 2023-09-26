@@ -39,17 +39,16 @@ class ShowLiveOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
+            with GitHubProvider(credentials) as provider:
+                if self.no_web_ui is True:
+                    print_warn(
+                        "the Web UI will not be queried as '--no-web-ui' has been specified, "
+                        "the resulting config will be incomplete"
+                    )
 
-            if self.no_web_ui is True:
-                print_warn(
-                    "the Web UI will not be queried as '--no-web-ui' has been specified, "
-                    "the resulting config will be incomplete"
+                organization = GitHubOrganization.load_from_provider(
+                    github_id, jsonnet_config, provider, self.no_web_ui, self.printer
                 )
-
-            organization = GitHubOrganization.load_from_provider(
-                github_id, jsonnet_config, gh_client, self.no_web_ui, self.printer
-            )
 
             for model_object, parent_object in organization.get_model_objects():
                 self.printer.println()

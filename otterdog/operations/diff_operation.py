@@ -88,6 +88,7 @@ class DiffOperation(Operation):
             return self._generate_diff(org_config)
         finally:
             self.printer.level_down()
+            self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
         return GitHubProvider(self.config.get_credentials(org_config))

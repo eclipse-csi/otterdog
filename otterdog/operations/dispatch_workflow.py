@@ -39,13 +39,14 @@ class DispatchWorkflowOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
-
-            success = gh_client.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
-            if success is True:
-                self.printer.println(f"workflow '{self.workflow_name}' dispatched for repo '{self.repo_name}'")
-            else:
-                self.printer.println(f"failed to dispatch workflow '{self.workflow_name}' for repo '{self.repo_name}'")
+            with GitHubProvider(credentials) as provider:
+                success = provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
+                if success is True:
+                    self.printer.println(f"workflow '{self.workflow_name}' dispatched for repo '{self.repo_name}'")
+                else:
+                    self.printer.println(
+                        f"failed to dispatch workflow '{self.workflow_name}' for repo '{self.repo_name}'"
+                    )
 
             return 0
         finally:

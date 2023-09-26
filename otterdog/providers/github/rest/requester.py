@@ -44,6 +44,9 @@ class Requester:
 
         self._session.auth = self._auth
 
+    def close(self) -> None:
+        self._session.close()
+
     def _build_url(self, url_path: str) -> str:
         return f"{self._base_url}{url_path}"
 

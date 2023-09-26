@@ -49,8 +49,8 @@ class ListAppsOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
-            apps = gh_client.rest_api.org.get_app_installations(github_id)
+            with GitHubProvider(credentials) as provider:
+                apps = provider.rest_api.org.get_app_installations(github_id)
 
             if not self.json_output:
                 for app in apps:

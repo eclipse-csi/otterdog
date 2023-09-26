@@ -23,6 +23,9 @@ class RestApi:
     def __init__(self, auth_strategy: AuthStrategy):
         self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
+    def close(self) -> None:
+        self._requester.close()
+
     @property
     def requester(self) -> Requester:
         return self._requester

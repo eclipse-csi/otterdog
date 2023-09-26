@@ -41,6 +41,15 @@ class GitHubProvider:
         if credentials is not None:
             self._init_clients()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        self.close()
+
+    def close(self) -> None:
+        self.rest_api.close()
+
     def _init_clients(self):
         from .rest.auth.token import TokenAuthStrategy
 

@@ -58,25 +58,24 @@ class FetchOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
+            with GitHubProvider(credentials) as provider:
+                try:
+                    if self.pull_request is not None:
+                        ref = provider.get_ref_for_pull_request(
+                            org_config.github_id, org_config.config_repo, self.pull_request
+                        )
+                    else:
+                        ref = None
 
-            try:
-                if self.pull_request is not None:
-                    ref = gh_client.get_ref_for_pull_request(
-                        org_config.github_id, org_config.config_repo, self.pull_request
+                    definition = provider.get_content(
+                        org_config.github_id,
+                        org_config.config_repo,
+                        f"otterdog/{github_id}.jsonnet",
+                        ref,
                     )
-                else:
-                    ref = None
-
-                definition = gh_client.get_content(
-                    org_config.github_id,
-                    org_config.config_repo,
-                    f"otterdog/{github_id}.jsonnet",
-                    ref,
-                )
-            except RuntimeError:
-                print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
-                return 1
+                except RuntimeError:
+                    print_error(f"failed to fetch definition from repo '{org_config.config_repo}'")
+                    return 1
 
             output_dir = jsonnet_config.org_dir
             if not os.path.exists(output_dir):

@@ -68,24 +68,21 @@ class ImportOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
-
             if self.no_web_ui is True:
                 print_warn(
                     "the Web UI will not be queried as '--no-web-ui' has been specified, "
                     "the resulting config will be incomplete"
                 )
 
-            organization = GitHubOrganization.load_from_provider(
-                github_id, jsonnet_config, gh_client, self.no_web_ui, self.printer
-            )
+            with GitHubProvider(credentials) as provider:
+                organization = GitHubOrganization.load_from_provider(
+                    github_id, jsonnet_config, provider, self.no_web_ui, self.printer
+                )
 
             # copy secrets from existing configuration if it is present.
             if sync_secrets_from_previous_config:
                 self.printer.println("Copying secrets from previous configuration.")
-
                 previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
-
                 organization.copy_secrets(previous_organization)
 
             output = organization.to_jsonnet(jsonnet_config)

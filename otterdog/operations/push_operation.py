@@ -49,38 +49,36 @@ class PushOperation(Operation):
             with open(jsonnet_config.jsonnet_bundle_file, "r") as file:
                 bundle_content = file.read()
 
-            gh_client = GitHubProvider(credentials)
+            with GitHubProvider(credentials) as provider:
+                try:
+                    updated = provider.update_content(
+                        org_config.github_id,
+                        org_config.config_repo,
+                        f"otterdog/{github_id}.jsonnet",
+                        content,
+                        self.push_message,
+                    )
 
-            try:
-                updated = gh_client.update_content(
-                    org_config.github_id,
-                    org_config.config_repo,
-                    f"otterdog/{github_id}.jsonnet",
-                    content,
-                    self.push_message,
-                )
+                    updated |= provider.update_content(
+                        org_config.github_id,
+                        org_config.config_repo,
+                        "otterdog/jsonnetfile.json",
+                        bundle_content,
+                        self.push_message,
+                    )
 
-                updated |= gh_client.update_content(
-                    org_config.github_id,
-                    org_config.config_repo,
-                    "otterdog/jsonnetfile.json",
-                    bundle_content,
-                    self.push_message,
-                )
-
-                updated |= gh_client.update_content(
-                    org_config.github_id,
-                    org_config.config_repo,
-                    "otterdog/jsonnetfile.lock.json",
-                    "",
-                    self.push_message,
-                )
-
-            except RuntimeError as e:
-                print_error(
-                    f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {str(e)}"
-                )
-                return 1
+                    updated |= provider.update_content(
+                        org_config.github_id,
+                        org_config.config_repo,
+                        "otterdog/jsonnetfile.lock.json",
+                        "",
+                        self.push_message,
+                    )
+                except RuntimeError as e:
+                    print_error(
+                        f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {str(e)}"
+                    )
+                    return 1
 
             if updated:
                 self.printer.println(

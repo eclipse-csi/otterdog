@@ -36,8 +36,8 @@ class WebLoginOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            gh_client = GitHubProvider(credentials)
-            gh_client.open_browser_with_logged_in_user(github_id)
+            with GitHubProvider(credentials) as provider:
+                provider.open_browser_with_logged_in_user(github_id)
 
             return 0
         finally:

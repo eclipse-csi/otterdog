@@ -57,23 +57,24 @@ class DeleteFileOperation(Operation):
                 print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            rest_api = GitHubProvider(credentials).rest_api
+            with GitHubProvider(credentials) as provider:
+                rest_api = provider.rest_api
 
-            for repo in organization.repositories:
-                if repo.archived is True:
-                    continue
+                for repo in organization.repositories:
+                    if repo.archived is True:
+                        continue
 
-                if repo.name != self._repo:
-                    continue
+                    if repo.name != self._repo:
+                        continue
 
-                self.printer.println(f'Deleting file in {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
+                    self.printer.println(f'Deleting file in {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
 
-                deleted_file = rest_api.content.delete_content(github_id, repo.name, self._path, self._message)
+                    deleted_file = rest_api.content.delete_content(github_id, repo.name, self._path, self._message)
 
-                if deleted_file is True:
-                    self.printer.level_up()
-                    self.printer.println(f"deleted file '{self._path}'")
-                    self.printer.level_down()
+                    if deleted_file is True:
+                        self.printer.level_up()
+                        self.printer.println(f"deleted file '{self._path}'")
+                        self.printer.level_down()
 
             return 0
 
