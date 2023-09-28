@@ -36,6 +36,9 @@ class PlanOperation(DiffOperation):
         self.printer.println(f"  {Fore.MAGENTA}!{Style.RESET_ALL} forced update")
         self.printer.println(f"  {Fore.RED}-{Style.RESET_ALL} delete")
 
+    def resolve_secrets(self) -> bool:
+        return False
+
     def handle_add_object(
         self,
         org_id: str,
