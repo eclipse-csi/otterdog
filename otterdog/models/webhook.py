@@ -195,13 +195,13 @@ class Webhook(ModelObject, abc.ABC):
             expected_secret = expected_object.secret
             current_secret = current_object.secret
 
-            def has_unresolved_secret(secret: Optional[str]):
-                return secret is not None and context.resolve_secrets is False
+            def has_valid_secret(webhook: Webhook):
+                return webhook.secret is not None and not webhook.has_dummy_secret()
 
             # if there are different unresolved secrets, display changes
             has_different_unresolved_secrets = (
-                has_unresolved_secret(expected_secret)
-                and has_unresolved_secret(current_secret)
+                has_valid_secret(expected_object)
+                and has_valid_secret(current_object)
                 and expected_secret != current_secret
             )
 

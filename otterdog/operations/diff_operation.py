@@ -139,10 +139,6 @@ class DiffOperation(Operation):
                 f"enable verbose output with '-v' to to display them."
             )
 
-        # after validation has completed we can resolve any secret if necessary
-        if self.resolve_secrets():
-            expected_org.resolve_secrets(self.config.get_secret)
-
         try:
             current_org = self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
@@ -185,7 +181,6 @@ class DiffOperation(Operation):
             self.update_webhooks,
             self.update_secrets,
             self.update_filter,
-            self.resolve_secrets(),
             expected_org.settings.to_model_dict(False, False),
         )
         expected_org.generate_live_patch(current_org, context, handle)
@@ -203,6 +198,12 @@ class DiffOperation(Operation):
                         "You need to run otterdog another time to fully ensure "
                         "that the correct configuration is applied."
                     )
+
+        # resolve secrets for collected patches
+        if self.resolve_secrets():
+            for patch in live_patches:
+                if patch.expected_object is not None:
+                    patch.expected_object.resolve_secrets(self.config.get_secret)
 
         self.handle_finish(github_id, diff_status, live_patches)
         return 0

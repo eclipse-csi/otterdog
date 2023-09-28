@@ -144,13 +144,13 @@ class Secret(ModelObject, abc.ABC):
             expected_secret_value = expected_object.value
             current_secret_value = current_object.value
 
-            def has_unresolved_secret(secret_value: Optional[str]):
-                return secret_value is not None and context.resolve_secrets is False
+            def has_valid_secret(secret: Secret):
+                return secret.value is not None and not secret.has_dummy_secret()
 
             # if there are different unresolved secrets, display changes
             if (
-                has_unresolved_secret(expected_secret_value)
-                and has_unresolved_secret(current_secret_value)
+                has_valid_secret(expected_object)
+                and has_valid_secret(current_object)
                 and expected_secret_value != current_secret_value
             ):
                 modified_secret["value"] = Change(current_secret_value, expected_secret_value)

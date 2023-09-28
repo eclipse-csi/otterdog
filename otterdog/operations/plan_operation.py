@@ -12,7 +12,6 @@ from colorama import Fore, Style
 
 from otterdog.config import OtterdogConfig
 from otterdog.models import ModelObject, LivePatch
-from otterdog.models.secret import Secret
 from otterdog.models.webhook import Webhook
 from otterdog.utils import IndentingPrinter, Change
 
@@ -78,16 +77,7 @@ class PlanOperation(DiffOperation):
     ) -> int:
         self.printer.println()
         model_header = current_object.get_model_header(parent_object)
-
-        # FIXME: this code should be moved to the model class.
-        if isinstance(expected_object, Secret):
-            redacted_keys = {"value"} if self.resolve_secrets() is True else set()
-        elif isinstance(expected_object, Webhook):
-            redacted_keys = {"secret"} if self.resolve_secrets() is True else set()
-        else:
-            redacted_keys = set()
-
-        self.print_modified_dict(modified_object, model_header, redacted_keys, forced_update)
+        self.print_modified_dict(modified_object, model_header, set(), forced_update)
 
         # FIXME: this code should be moved to the Webhook model class.
         if isinstance(current_object, Webhook):

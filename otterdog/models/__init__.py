@@ -110,7 +110,6 @@ class LivePatchContext(object):
     update_webhooks: bool
     update_secrets: bool
     update_filter: str
-    resolve_secrets: bool
     expected_org_settings: dict[str, Any]
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 
