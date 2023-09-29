@@ -7,10 +7,18 @@
 # *******************************************************************************
 
 from abc import ABC, abstractmethod
+from typing import MutableMapping, Any
+
 from requests.auth import AuthBase
+
+
+class AuthImpl(AuthBase):
+    @abstractmethod
+    def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None:
+        ...
 
 
 class AuthStrategy(ABC):
     @abstractmethod
-    def get_auth(self) -> AuthBase:
+    def get_auth(self) -> AuthImpl:
         ...

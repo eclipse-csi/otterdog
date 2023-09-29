@@ -11,13 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta, datetime, timezone
 
-from requests.auth import AuthBase
-from typing import Optional
+from typing import Optional, MutableMapping, Any
 
 from jwt import JWT, jwk_from_pem
 from jwt.utils import get_int_from_datetime
 
-from . import AuthStrategy
+from . import AuthStrategy, AuthImpl
 
 
 @dataclass(frozen=True)
@@ -29,12 +28,12 @@ class AppAuthStrategy(AuthStrategy):
     app_id: str
     private_key: str
 
-    def get_auth(self) -> AuthBase:
+    def get_auth(self) -> AuthImpl:
         return _AppAuth(self.app_id, self.private_key)
 
 
 @dataclass
-class _AppAuth(AuthBase):
+class _AppAuth(AuthImpl):
     app_id: str
     private_key: str
 
@@ -73,5 +72,8 @@ class _AppAuth(AuthBase):
         return self._jwt
 
     def __call__(self, r):
-        r.headers["Authorization"] = f"Bearer {self.get_jwt()}"
+        self.update_headers_with_authorization(r.headers)
         return r
+
+    def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None:
+        headers["Authorization"] = f"Bearer {self.get_jwt()}"

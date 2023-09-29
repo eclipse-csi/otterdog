@@ -8,12 +8,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 import os
-from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
-from functools import partial
 from io import StringIO
 from typing import Any, Optional, Iterator, Callable
 
@@ -30,6 +29,7 @@ from otterdog.utils import (
     print_debug,
     jsonnet_evaluate_file,
     is_info_enabled,
+    is_debug_enabled,
 )
 
 from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext
@@ -117,6 +117,7 @@ class GitHubOrganization:
         for repo in self.repositories:
             repo.validate(context, self)
 
+        print("validation done")
         return context
 
     @staticmethod
@@ -363,33 +364,38 @@ class GitHubOrganization:
         return org
 
 
-def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_name: str) -> tuple[str, Repository]:
+async def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_name: str) -> tuple[str, Repository]:
+    rest_api = gh_client.rest_api
+
     # get repo data
-    github_repo_data = gh_client.get_repo_data(github_id, repo_name)
+    github_repo_data = await rest_api.repo.async_get_repo_data(github_id, repo_name)
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
-    github_repo_workflow_data = gh_client.get_repo_workflow_settings(github_id, repo_name)
+    github_repo_workflow_data = await rest_api.repo.async_get_workflow_settings(github_id, repo_name)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
 
     # get branch protection rules of the repo
-    rules = gh_client.get_branch_protection_rules(github_id, repo_name)
+    rules = await gh_client.get_branch_protection_rules(github_id, repo_name)
     for github_rule in rules:
         repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
 
     # get webhooks of the repo
-    webhooks = gh_client.get_repo_webhooks(github_id, repo_name)
+    webhooks = await rest_api.repo.async_get_webhooks(github_id, repo_name)
     for github_webhook in webhooks:
         repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
 
     # get secrets of the repo
-    secrets = gh_client.get_repo_secrets(github_id, repo_name)
+    secrets = await rest_api.repo.async_get_secrets(github_id, repo_name)
     for github_secret in secrets:
         repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
 
     # get environments of the repo
-    environments = gh_client.get_repo_environments(github_id, repo_name)
+    environments = await rest_api.repo.async_get_environments(github_id, repo_name)
     for github_environment in environments:
         repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+
+    if is_debug_enabled():
+        print_debug(f"done retrieving data for repo '{repo_name}'")
 
     return repo_name, repo
 
@@ -403,16 +409,15 @@ def _load_repos_from_provider(
 
     repo_names = client.get_repos(github_id)
 
-    # retrieve repo_data and branch_protection_rules in parallel using a pool.
+    async def gather():
+        return await asyncio.gather(*[_process_single_repo(client, github_id, repo_name) for repo_name in repo_names])
+
+    result = asyncio.run(gather())
+
     github_repos = []
-    # partially apply the github_client and the github_id to get a function that only takes one parameter
-    process_repo = partial(_process_single_repo, client, github_id)
-    # use a process pool executor: tests show that this is faster than a ThreadPoolExecutor
-    # due to the global interpreter lock.
-    with ProcessPoolExecutor() as pool:
-        data = pool.map(process_repo, repo_names)
-        for _, repo_data in data:
-            github_repos.append(repo_data)
+    for data in result:
+        _, repo_data = data
+        github_repos.append(repo_data)
 
     if printer is not None and is_info_enabled():
         end = datetime.now()

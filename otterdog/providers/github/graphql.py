@@ -9,6 +9,7 @@
 import json
 from typing import Any
 
+from aiohttp.client import ClientSession
 import jq  # type: ignore
 from importlib_resources import files
 
@@ -29,35 +30,35 @@ class GraphQLClient:
             "X-Github-Next-Global-ID": "1",
         }
 
-    def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        utils.print_debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
+    async def async_get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        utils.print_debug(f"async retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
-        branch_protection_rules = self._run_paged_query(variables, "get-branch-protection-rules.gql")
+        branch_protection_rules = await self._async_run_paged_query(variables, "get-branch-protection-rules.gql")
 
         for branch_protection_rule in branch_protection_rules:
-            self._fill_paged_results_if_not_empty(
+            await self._async_fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "pushAllowances",
                 "pushRestrictions",
                 "get-push-allowances.gql",
             )
 
-            self._fill_paged_results_if_not_empty(
+            await self._async_fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "reviewDismissalAllowances",
                 "reviewDismissalAllowances",
                 "get-review-dismissal-allowances.gql",
             )
 
-            self._fill_paged_results_if_not_empty(
+            await self._async_fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "bypassPullRequestAllowances",
                 "bypassPullRequestAllowances",
                 "get-bypass-pull-request-allowances.gql",
             )
 
-            self._fill_paged_results_if_not_empty(
+            await self._async_fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "bypassForcePushAllowances",
                 "bypassForcePushAllowances",
@@ -66,7 +67,7 @@ class GraphQLClient:
 
         return branch_protection_rules
 
-    def _fill_paged_results_if_not_empty(
+    async def _async_fill_paged_results_if_not_empty(
         self,
         branch_protection_rule: dict[str, Any],
         input_key: str,
@@ -79,7 +80,7 @@ class GraphQLClient:
 
         if total_count > 0:
             variables = {"branchProtectionRuleId": branch_protection_rule["id"]}
-            actors = self._run_paged_query(variables, query_file, f".data.node.{input_key}")
+            actors = await self._async_run_paged_query(variables, query_file, f".data.node.{input_key}")
             branch_protection_rule[output_key] = self._transform_actors(actors)
         else:
             branch_protection_rule[output_key] = []
@@ -184,13 +185,13 @@ class GraphQLClient:
 
         utils.print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
-    def _run_paged_query(
+    async def _async_run_paged_query(
         self,
         input_variables: dict[str, Any],
         query_file: str,
         prefix_selector: str = ".data.repository.branchProtectionRules",
     ) -> list[dict[str, Any]]:
-        utils.print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
+        utils.print_debug(f"running async graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = files(resources).joinpath(f"graphql/{query_file}").read_text()
 
@@ -202,17 +203,26 @@ class GraphQLClient:
             variables = {"endCursor": end_cursor}
             variables.update(input_variables)
 
-            response = requests.post(
-                url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                headers=self._headers,
-                json={"query": query, "variables": variables},
-            )
-            utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
+            async with ClientSession() as session:
+                async with session.post(
+                    url=f"{self._GH_GRAPHQL_URL_ROOT}",
+                    headers=self._headers,
+                    json={"query": query, "variables": variables},
+                ) as response:
+                    if utils.is_debug_enabled():
+                        utils.print_debug(
+                            f"graphql query '{query_file}' with input '{json.dumps(input_variables)}': "
+                            f"rate-linit-used = {response.headers.get('x-ratelimit-used', None)}"
+                        )
 
-            if not response.ok:
-                raise RuntimeError(f"failed running query '{query_file}'")
+                    if utils.is_trace_enabled():
+                        utils.print_trace(f"graphql result = ({response.status}, {await response.text()})")
 
-            json_data = response.json()
+                    if not response.ok:
+                        raise RuntimeError(f"failed running query '{query_file}'")
+
+                    json_data = await response.json()
+
             if "data" in json_data:
                 rules_result = jq.compile(prefix_selector + ".nodes").input(json_data).first()
 

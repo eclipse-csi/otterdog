@@ -180,8 +180,8 @@ class GitHubProvider:
     def delete_repo(self, org_id: str, repo_name: str) -> None:
         self.rest_api.repo.delete_repo(org_id, repo_name)
 
-    def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
-        return self.graphql_client.get_branch_protection_rules(org_id, repo)
+    async def get_branch_protection_rules(self, org_id: str, repo: str) -> list[dict[str, Any]]:
+        return await self.graphql_client.async_get_branch_protection_rules(org_id, repo)
 
     def update_branch_protection_rule(
         self,

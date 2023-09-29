@@ -40,6 +40,19 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving data for repo '{repo_name}':\n{ex}").with_traceback(tb)
 
+    async def async_get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"async retrieving org repo data for '{org_id}/{repo_name}'")
+
+        try:
+            repo_data = await self.requester.async_request_json("GET", f"/repos/{org_id}/{repo_name}")
+            await self._async_fill_github_pages_config(org_id, repo_name, repo_data)
+            await self._async_fill_vulnerability_report(org_id, repo_name, repo_data)
+            await self._async_fill_topics(org_id, repo_name, repo_data)
+            return repo_data
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving data for repo '{repo_name}':\n{ex}").with_traceback(tb)
+
     def get_repo_by_id(self, repo_id: int) -> dict[str, Any]:
         print_debug(f"retrieving repo by id for '{repo_id}'")
 
@@ -195,6 +208,23 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
+    async def async_get_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving webhooks for repo '{org_id}/{repo_name}'")
+
+        try:
+            # special handling due to temporary private forks for security advisories.
+            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            # currently it is not possible via the api to determine such repos, but when
+            # requesting hooks for such a repo, you would get a 404 response.
+            response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/hooks")
+            if response.status == 200:
+                return await response.json()
+            else:
+                return []
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
     def update_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         print_debug(f"updating repo webhook '{webhook_id}' for repo '{org_id}/{repo_name}'")
 
@@ -273,6 +303,13 @@ class RepoClient(RestClient):
         if response.status_code == 200:
             repo_data["gh_pages"] = response.json()
 
+    async def _async_fill_github_pages_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"async retrieving github pages config for '{org_id}/{repo_name}'")
+
+        response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
+        if response.status == 200:
+            repo_data["gh_pages"] = await response.json()
+
     def _update_github_pages_config(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
         print_debug(f"updating github pages config for '{org_id}/{repo_name}'")
 
@@ -344,6 +381,18 @@ class RepoClient(RestClient):
         else:
             repo_data["dependabot_alerts_enabled"] = False
 
+    async def _async_fill_vulnerability_report(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"async retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
+
+        response_vulnerability = await self.requester.async_request_raw(
+            "GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts"
+        )
+
+        if response_vulnerability.status == 204:
+            repo_data["dependabot_alerts_enabled"] = True
+        else:
+            repo_data["dependabot_alerts_enabled"] = False
+
     def _update_vulnerability_report(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
         print_debug(f"updating repo vulnerability report status for '{org_id}/{repo_name}'")
 
@@ -367,6 +416,18 @@ class RepoClient(RestClient):
             # ignore exceptions, example repo that fails:
             # https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
             response = self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
+            repo_data["topics"] = response.get("names", [])
+        except GitHubException:
+            repo_data["topics"] = []
+
+    async def _async_fill_topics(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"async retrieving repo topics for '{org_id}/{repo_name}'")
+
+        try:
+            # querying the topics might fail for temporary private forks,
+            # ignore exceptions, example repo that fails:
+            # https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            response = await self.requester.async_request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
             repo_data["topics"] = response.get("names", [])
         except GitHubException:
             repo_data["topics"] = []
@@ -402,6 +463,28 @@ class RepoClient(RestClient):
 
                 if has_branch_policies:
                     env["branch_policies"] = self._get_deployment_branch_policies(org_id, repo_name, env_name)
+            return environments
+        except GitHubException:
+            # querying the environments might fail for private repos, ignore exceptions
+            return []
+
+    async def async_get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving environments for repo '{org_id}/{repo_name}'")
+
+        try:
+            response = await self.requester.async_request_json("GET", f"/repos/{org_id}/{repo_name}/environments")
+
+            environments = response["environments"]
+            for env in environments:
+                env_name = env["name"]
+                has_branch_policies = (
+                    jq.compile(".deployment_branch_policy.custom_branch_policies // false").input(env).first()
+                )
+
+                if has_branch_policies:
+                    env["branch_policies"] = await self._async_get_deployment_branch_policies(
+                        org_id, repo_name, env_name
+                    )
             return environments
         except GitHubException:
             # querying the environments might fail for private repos, ignore exceptions
@@ -449,6 +532,19 @@ class RepoClient(RestClient):
         try:
             url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
             response = self.requester.request_json("GET", url)
+            return response["branch_policies"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}").with_traceback(tb)
+
+    async def _async_get_deployment_branch_policies(
+        self, org_id: str, repo_name: str, env_name: str
+    ) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving deployment branch policies for env '{env_name}'")
+
+        try:
+            url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
+            response = await self.requester.async_request_json("GET", url)
             return response["branch_policies"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -516,6 +612,23 @@ class RepoClient(RestClient):
             response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
             if response.status_code == 200:
                 return response.json()["secrets"]
+            else:
+                return []
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    async def async_get_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving secrets for repo '{org_id}/{repo_name}'")
+
+        try:
+            # special handling due to temporary private forks for security advisories.
+            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
+            # currently it is not possible via the api to determine such repos, but when
+            # requesting hooks for such a repo, you would get a 404 response.
+            response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
+            if response.status == 200:
+                return (await response.json())["secrets"]
             else:
                 return []
         except GitHubException as ex:
@@ -594,6 +707,31 @@ class RepoClient(RestClient):
 
         return workflow_settings
 
+    async def async_get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"async retrieving workflow settings for repo '{org_id}/{repo_name}'")
+
+        workflow_settings: dict[str, Any] = {}
+
+        try:
+            permissions = await self.requester.async_request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/permissions"
+            )
+            workflow_settings.update(permissions)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+        allowed_actions = permissions.get("allowed_actions", "none")
+        if allowed_actions == "selected":
+            workflow_settings.update(await self._async_get_selected_actions_for_workflow_settings(org_id, repo_name))
+
+        if permissions.get("enabled", False) is not False:
+            workflow_settings.update(await self._async_get_default_workflow_permissions(org_id, repo_name))
+
+        return workflow_settings
+
     def update_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating workflow settings for repo '{org_id}/{repo_name}'")
 
@@ -638,6 +776,19 @@ class RepoClient(RestClient):
                 f"failed retrieving allowed actions for repo '{org_id}/{repo_name}':\n{ex}"
             ).with_traceback(tb)
 
+    async def _async_get_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"async retrieving allowed actions for org '{org_id}'")
+
+        try:
+            return await self.requester.async_request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/permissions/selected-actions"
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving allowed actions for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
     def _update_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating allowed actions for repo '{org_id}/{repo_name}'")
 
@@ -658,6 +809,19 @@ class RepoClient(RestClient):
 
         try:
             return self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving default workflow permissions for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+    async def _async_get_default_workflow_permissions(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"async retrieving default workflow permissions for repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.async_request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow"
+            )
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(
@@ -767,7 +931,6 @@ class RepoClient(RestClient):
 
         try:
             response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/zipball/{ref}", stream=True)
-
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
 

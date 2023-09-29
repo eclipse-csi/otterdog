@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from requests.auth import AuthBase
+from typing import Any, MutableMapping
 
-from . import AuthStrategy
+from . import AuthStrategy, AuthImpl
 
 
 @dataclass(frozen=True)
@@ -22,14 +22,17 @@ class TokenAuthStrategy(AuthStrategy):
 
     token: str
 
-    def get_auth(self) -> AuthBase:
+    def get_auth(self) -> AuthImpl:
         return _TokenAuth(self.token)
 
 
 @dataclass(frozen=True)
-class _TokenAuth(AuthBase):
+class _TokenAuth(AuthImpl):
     token: str
 
     def __call__(self, r):
-        r.headers["Authorization"] = f"Bearer {self.token}"
+        self.update_headers_with_authorization(r.headers)
         return r
+
+    def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None:
+        headers["Authorization"] = f"Bearer {self.token}"
