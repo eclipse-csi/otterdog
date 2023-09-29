@@ -201,9 +201,9 @@ class DiffOperation(Operation):
 
         # resolve secrets for collected patches
         if self.resolve_secrets():
-            for patch in live_patches:
-                if patch.expected_object is not None:
-                    patch.expected_object.resolve_secrets(self.config.get_secret)
+            for live_patch in live_patches:
+                if live_patch.expected_object is not None:
+                    live_patch.expected_object.resolve_secrets(self.config.get_secret)
 
         self.handle_finish(github_id, diff_status, live_patches)
         return 0
