@@ -117,7 +117,6 @@ class GitHubOrganization:
         for repo in self.repositories:
             repo.validate(context, self)
 
-        print("validation done")
         return context
 
     @staticmethod
