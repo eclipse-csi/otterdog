@@ -283,7 +283,7 @@ class ModelObject(ABC):
                 )
 
             header = header + "]"
-        elif isinstance(parent_object, ModelObject):
+        elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
             header = header + "["
             header = (
                 header + f"{parent_object.model_object_name}="
