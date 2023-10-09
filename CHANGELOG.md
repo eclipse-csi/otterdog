@@ -38,6 +38,7 @@
 
 ### Fixed
 
+- Made retrieval of organization setting `readers_can_create_discussions` optional as it's not available for empty organizations. ([#116](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/116))
 - Fixed resetting apply operation when running it on multiple organizations at the same time.
 - Fixed retrieving repository secrets for temporary private clone repositories.
 

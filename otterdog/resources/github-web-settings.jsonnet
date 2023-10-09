@@ -1,23 +1,25 @@
-local newInput(type, valueSelector, name, inputName = name) = {
+local newInput(type, valueSelector, name, inputName = name, optional = false) = {
   name: name,
   type: type,
+  optional: optional,
   preSelector: null,
   valueSelector: valueSelector,
   selector: 'input[type="%s"][name="%s"]' % [type, inputName],
   save: 'form:has(%s) button[type="submit"]' % self.selector
 };
 
-local newCheckbox(name, inputName = name) =
-  newInput('checkbox', 'checked', name, inputName);
+local newCheckbox(name, inputName = name, optional = false) =
+  newInput('checkbox', 'checked', name, inputName, optional);
 
-local newTextInput(name, inputName = name) =
-  newInput('text', 'value', name, inputName);
+local newTextInput(name, inputName = name, optional = false) =
+  newInput('text', 'value', name, inputName, optional);
 
-local newRadioInput(name, inputName = name) =
-  newInput('radio', 'value', name, inputName);
+local newRadioInput(name, inputName = name, optional = false) =
+  newInput('radio', 'value', name, inputName, optional);
 
-local newSelectMenuInput(name, inputName, saveInputName, preSelector = null) = {
+local newSelectMenuInput(name, inputName, saveInputName, preSelector = null, optional = false) = {
   name: name,
+  optional: optional,
   type: 'select-menu',
   preSelector: preSelector,
   valueSelector: 'innerText',
@@ -31,7 +33,7 @@ local newSelectMenuInput(name, inputName, saveInputName, preSelector = null) = {
     newCheckbox('members_can_change_repo_visibility'),
     newCheckbox('members_can_delete_repositories'),
     newCheckbox('members_can_delete_issues'),
-    newCheckbox('readers_can_create_discussions'),
+    newCheckbox('readers_can_create_discussions', optional = true),
     newCheckbox('members_can_create_teams')
   ],
 

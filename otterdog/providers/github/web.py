@@ -67,6 +67,7 @@ class WebClient:
 
             for setting_def in page_def:
                 setting = setting_def["name"]
+                optional = setting_def["optional"]
                 utils.print_trace(f"checking setting '{setting}'")
 
                 if setting not in included_keys:
@@ -115,6 +116,9 @@ class WebClient:
                     utils.print_trace(f"retrieved setting for '{setting}' = '{value}'")
 
                 except Exception as e:
+                    if optional:
+                        continue
+
                     if utils.is_debug_enabled():
                         page_name = page_url.split("/")[-1]
                         screenshot_file = f"screenshot_{page_name}.png"
