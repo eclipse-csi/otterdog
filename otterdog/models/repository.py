@@ -552,10 +552,11 @@ class Repository(ModelObject):
         if is_set_and_present(self.workflows):
             default_workflow_settings = cast(Repository, default_object).workflows
 
-            patch = self.workflows.get_patch_to(default_workflow_settings)
-            if len(patch) > 0:
-                printer.print("workflows+:")
-                self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
+            if is_set_and_valid(default_workflow_settings):
+                patch = self.workflows.get_patch_to(default_workflow_settings)
+                if len(patch) > 0:
+                    printer.print("workflows+:")
+                    self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
 
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
