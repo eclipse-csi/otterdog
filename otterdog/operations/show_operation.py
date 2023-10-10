@@ -93,8 +93,14 @@ class ShowOperation(Operation):
         self.printer.println("# Current configuration")
         self.printer.println('=== "Organization Settings"')
         self.printer.level_up()
-        self._print_model_object(organization.settings, True)
+        self._print_model_object(organization.settings)
         self.printer.level_down()
+
+        if is_set_and_valid(organization.settings.workflows):
+            self.printer.println('=== "Workflow Settings"')
+            self.printer.level_up()
+            self._print_model_object(organization.settings.workflows)
+            self.printer.level_down()
 
         self.printer.println('=== "Organization Webhooks"')
         self.printer.level_up()
@@ -176,6 +182,12 @@ class ShowOperation(Operation):
         self.printer.level_up()
         self._print_model_object(repo)
         self.printer.level_down()
+
+        if is_set_and_valid(repo.workflows):
+            self.printer.println('=== "Workflows"')
+            self.printer.level_up()
+            self._print_model_object(repo.workflows)
+            self.printer.level_down()
 
         self.printer.println('=== "Webhooks"')
         self.printer.level_up()
