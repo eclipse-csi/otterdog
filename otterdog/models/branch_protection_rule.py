@@ -272,6 +272,10 @@ class BranchProtectionRule(ModelObject):
             if field.name in ["required_deployment_environments"]:
                 return False
 
+        if self.restricts_pushes is False:
+            if field.name in ["push_restrictions"]:
+                return False
+
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
@@ -330,9 +334,9 @@ class BranchProtectionRule(ModelObject):
 
         if "push_restrictions" in data:
             mapping.pop("pushRestrictions")
-            restricts_pushes = data["push_restrictions"]
-            if is_set_and_valid(restricts_pushes):
-                actor_ids = provider.get_actor_node_ids(restricts_pushes)
+            push_restrictions = data["push_restrictions"]
+            if is_set_and_valid(push_restrictions):
+                actor_ids = provider.get_actor_node_ids(push_restrictions)
                 mapping["pushActorIds"] = K(actor_ids)
 
         if "review_dismissal_allowances" in data:
