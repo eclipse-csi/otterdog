@@ -186,7 +186,7 @@ class Repository(ModelObject):
 
         free_plan = org_settings.plan == "free"
 
-        org_has_projects_disabled = org_settings.has_organization_projects is False
+        org_has_projects_disabled = org_settings.has_repository_projects is False
         org_web_commit_signoff_required = org_settings.web_commit_signoff_required is True
         org_members_cannot_fork_private_repositories = org_settings.members_can_fork_private_repositories is False
 
@@ -235,7 +235,7 @@ class Repository(ModelObject):
             context.add_failure(
                 FailureType.INFO,
                 f"{self.get_model_header()} has 'has_projects' enabled "
-                f"while the organization disables 'has_organization_projects', setting will be ignored.",
+                f"while the organization disables 'has_repository_projects', setting will be ignored.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:
