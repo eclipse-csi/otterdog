@@ -146,6 +146,7 @@ class Requester:
         data: Optional[str] = None,
         params: Optional[dict[str, str]] = None,
         stream: bool = False,
+        force_refresh: bool = False,
     ) -> Response:
         print_trace(f"'{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 
@@ -154,6 +155,7 @@ class Requester:
             url=self._build_url(url_path),
             headers=self._headers,
             refresh=True,
+            force_refresh=force_refresh,
             params=params,
             data=data,
             stream=stream,

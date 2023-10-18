@@ -938,7 +938,11 @@ class RepoClient(RestClient):
         print_debug(f"downloading repository archive for '{org_id}/{repo_name}'")
 
         try:
-            response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/zipball/{ref}", stream=True)
+            # FIXME: explicitly force a refresh as streamed responses might not be iterated in some cases
+            #        https://github.com/requests-cache/requests-cache/issues/893
+            response = self.requester.request_raw(
+                "GET", f"/repos/{org_id}/{repo_name}/zipball/{ref}", stream=True, force_refresh=True
+            )
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
 
