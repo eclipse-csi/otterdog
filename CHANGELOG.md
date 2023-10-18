@@ -38,6 +38,7 @@
 
 ### Fixed
 
+- Made creating of repositories from a template more resilient to errors. ([#124](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/124))
 - Do not take `push_restrictions` into account for diff calculation when `restricts_pushes` is disabled. ([#121](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/121))
 - Made retrieval of organization setting `readers_can_create_discussions` optional as it's not available for empty organizations. ([#116](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/116))
 - Fixed resetting apply operation when running it on multiple organizations at the same time.

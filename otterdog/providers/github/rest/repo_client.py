@@ -137,15 +137,23 @@ class RepoClient(RestClient):
 
                 # wait till the repo is initialized, this might take a while.
                 if len(post_process_template_content) > 0:
-                    for i in range(1, 4):
+                    initialized = False
+                    for i in range(1, 11):
                         try:
                             self.get_readme(org_id, repo_name)
+                            initialized = True
                             break
-                        except GitHubException:
-                            print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 3")
+                        except RuntimeError:
+                            print_trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 10")
                             import time
 
                             time.sleep(1)
+
+                    if initialized is False:
+                        raise RuntimeError(
+                            f"failed to create repo from template '{template_repository}': "
+                            f"repo not initialized after 5s"
+                        )
 
                 # if there is template content which shall be post-processed,
                 # use chevron to expand some variables that might be used there.
