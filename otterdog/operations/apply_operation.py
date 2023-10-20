@@ -40,6 +40,9 @@ class ApplyOperation(PlanOperation):
         self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
         self.print_legend()
 
+    def resolve_secrets(self) -> bool:
+        return True
+
     def handle_add_object(
         self,
         org_id: str,
