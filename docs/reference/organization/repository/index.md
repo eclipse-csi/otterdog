@@ -69,7 +69,10 @@ Definition of a Repository for a GitHub organization, the following properties a
 
 ## Validation rules
 
-- TODO
+- TODO: complete
+
+- specifying more than 20 topics triggers an error (maximum number of supported topics by GitHub)
+
 
 !!! note
 
