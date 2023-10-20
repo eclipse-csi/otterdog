@@ -288,7 +288,7 @@ def import_command(organizations: list[str], force, no_web_ui):
     is_flag=True,
     show_default=True,
     default=False,
-    help="updates webhook with secrets regardless of changes",
+    help="updates secrets regardless of changes",
 )
 @click.option(
     "--update-filter",
@@ -332,7 +332,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
     is_flag=True,
     show_default=True,
     default=False,
-    help="updates webhook with secrets regardless of changes",
+    help="updates secrets regardless of changes",
 )
 @click.option(
     "--update-filter",
@@ -382,7 +382,7 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     is_flag=True,
     show_default=True,
     default=False,
-    help="updates webhook with secrets regardless of changes",
+    help="updates secrets regardless of changes",
 )
 @click.option(
     "--update-filter",
