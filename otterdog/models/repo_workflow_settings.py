@@ -83,6 +83,11 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         handler: LivePatchHandler,
     ) -> None:
         assert isinstance(expected_object, RepositoryWorkflowSettings)
+
+        if current_object is None:
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
         assert isinstance(current_object, RepositoryWorkflowSettings)
 
         modified_workflow_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
@@ -109,7 +114,18 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         from .repository import Repository
 
         assert isinstance(patch.parent_object, Repository)
-        assert patch.patch_type == LivePatchType.CHANGE
-        assert patch.changes is not None
-        github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
-        provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
+
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, RepositoryWorkflowSettings)
+                provider.update_repo_workflow_settings(
+                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                )
+
+            case LivePatchType.CHANGE:
+                assert patch.changes is not None
+                github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
+                provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
+
+            case _:
+                raise RuntimeError(f"unexpected patch type '{patch.patch_type}'")

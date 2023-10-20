@@ -38,6 +38,7 @@
 
 ### Fixed
 
+- Apply repository workflow settings when creating a new repository. ([#130](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/130))
 - Added validation for the maximum number of supported `topics` defined for a repository. ([#129](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/129))
 - Prevent `sync-template` operation to fail in some cases due to cached responses. ([#125](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/125))
 - Made creating of repositories from a template more resilient to errors. ([#124](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/124))

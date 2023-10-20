@@ -679,9 +679,13 @@ class Repository(ModelObject):
 
         parent_repo = expected_object if current_object is None else current_object
 
-        if is_set_and_valid(expected_object.workflows) and current_object is not None:
+        if is_set_and_valid(expected_object.workflows):
             RepositoryWorkflowSettings.generate_live_patch(
-                expected_object.workflows, current_object.workflows, parent_repo, context, handler
+                expected_object.workflows,
+                current_object.workflows if current_object is not None else None,
+                parent_repo,
+                context,
+                handler,
             )
 
         RepositoryWebhook.generate_live_patch_of_list(
