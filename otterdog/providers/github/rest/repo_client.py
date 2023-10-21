@@ -393,13 +393,14 @@ class RepoClient(RestClient):
     def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
         print_debug(f"updating default branch for '{org_id}/{repo_name}'")
         existing_branches = self.get_branches(org_id, repo_name)
+        existing_branch_names = list(map(lambda x: x["name"], existing_branches))
 
         if len(existing_branches) == 0:
             print_debug(f"skip updating of default branch for empty repo '{org_id}/{repo_name}'")
             return
 
         try:
-            if new_default_branch in existing_branches:
+            if new_default_branch in existing_branch_names:
                 data = {"default_branch": new_default_branch}
                 self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
                 print_debug(f"updated default branch for '{org_id}/{repo_name}'")

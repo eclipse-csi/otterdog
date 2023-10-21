@@ -162,7 +162,7 @@ class Requester:
         )
 
         if is_debug_enabled():
-            print_debug(f"'{method}' {url_path}: rate-linit-used = {response.headers.get('x-ratelimit-used', None)}")
+            print_debug(f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}")
 
         if is_trace_enabled():
             print_trace(f"'{method}' result = ({response.status_code}, {response.text})")

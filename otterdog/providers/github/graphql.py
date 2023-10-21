@@ -212,7 +212,7 @@ class GraphQLClient:
                     if utils.is_debug_enabled():
                         utils.print_debug(
                             f"graphql query '{query_file}' with input '{json.dumps(input_variables)}': "
-                            f"rate-linit-used = {response.headers.get('x-ratelimit-used', None)}"
+                            f"rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
                         )
 
                     if utils.is_trace_enabled():
