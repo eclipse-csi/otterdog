@@ -160,9 +160,9 @@ class ShowOperation(Operation):
             file.write(writer.getvalue())
 
         for repo in organization.repositories:
-            self._print_repo_markdown(repo)
+            self._print_repo_markdown(organization, repo)
 
-    def _print_repo_markdown(self, repo: Repository) -> None:
+    def _print_repo_markdown(self, organization: GitHubOrganization, repo: Repository) -> None:
         writer = StringIO()
         self.printer = IndentingPrinter(writer, spaces_per_level=4)
 
@@ -177,7 +177,7 @@ class ShowOperation(Operation):
             )
         )
 
-        self.printer.println(f"# Repo {repo.name}")
+        self.printer.println(f"# Repo [{repo.name}](https://github.com/{organization.github_id}/{repo.name})")
         self.printer.println('=== "Settings"')
         self.printer.level_up()
         self._print_model_object(repo)
