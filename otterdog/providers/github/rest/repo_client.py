@@ -82,6 +82,11 @@ class RepoClient(RestClient):
         else:
             gh_pages = None
 
+        if "default_branch" in data:
+            default_branch = data.pop("default_branch")
+        else:
+            default_branch = None
+
         if changes > 0:
             try:
                 if len(data) > 0:
@@ -93,6 +98,8 @@ class RepoClient(RestClient):
                     self._update_topics(org_id, repo_name, topics)
                 if gh_pages is not None:
                     self._update_github_pages_config(org_id, repo_name, gh_pages)
+                if default_branch is not None:
+                    self._update_default_branch(org_id, repo_name, default_branch)
 
                 print_debug(f"updated {changes} repo setting(s) for repo '{repo_name}'")
             except GitHubException as ex:
@@ -181,6 +188,10 @@ class RepoClient(RestClient):
             "topics",
             "gh_pages",
         ]
+
+        if auto_init_repo is True:
+            update_keys.append("default_branch")
+
         update_data = {}
 
         for update_key in update_keys:
@@ -378,6 +389,33 @@ class RepoClient(RestClient):
                     raise RuntimeError(f"failed to update github pages config for repo '{repo_name}': {response.text}")
                 else:
                     print_debug(f"updated github pages config for repo '{repo_name}'")
+
+    def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
+        print_debug(f"updating default branch for '{org_id}/{repo_name}'")
+        existing_branches = self.get_branches(org_id, repo_name)
+
+        if len(existing_branches) == 0:
+            print_debug(f"skip updating of default branch for empty repo '{org_id}/{repo_name}'")
+            return
+
+        try:
+            if new_default_branch in existing_branches:
+                data = {"default_branch": new_default_branch}
+                self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+                print_debug(f"updated default branch for '{org_id}/{repo_name}'")
+            else:
+                repo = self.get_repo_data(org_id, repo_name)
+                default_branch = repo["default_branch"]
+                data = {"new_name": new_default_branch}
+                self.requester.request_json(
+                    "POST", f"/repos/{org_id}/{repo_name}/branches/{default_branch}/rename", data
+                )
+                print_debug(f"renamed default branch for '{org_id}/{repo_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed to update default branch for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
 
     def _fill_vulnerability_report(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")

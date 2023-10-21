@@ -29,6 +29,7 @@
 
 ### Changed
 
+- Support renaming the current `default_branch` if the new branch does not exist yet. ([#76](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/76))
 - Use async io for to speed up retrieval of current resources from GitHub. ([#114](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/114))
 - Changed Operation `canonical-diff` to ignore ordering of keys.
 - Support setting a non-existing branch as source branch for GitHub Pages deployment. ([#96](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/96))
