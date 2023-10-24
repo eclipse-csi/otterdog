@@ -40,6 +40,7 @@ from .organization_settings import OrganizationSettings
 from .organization_workflow_settings import OrganizationWorkflowSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
+from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
@@ -331,39 +332,55 @@ class GitHubOrganization:
 
         org = cls(github_id, settings)
 
-        start = datetime.now()
         if printer is not None and is_info_enabled():
+            start = datetime.now()
             printer.println("\nwebhooks: Reading...")
 
-        github_webhooks = client.get_org_webhooks(github_id)
+        if jsonnet_config.default_org_webhook_config is not None:
+            github_webhooks = client.get_org_webhooks(github_id)
 
-        if printer is not None and is_info_enabled():
-            end = datetime.now()
-            printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+            if printer is not None and is_info_enabled():
+                end = datetime.now()
+                printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
 
-        for webhook in github_webhooks:
-            org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
+            for webhook in github_webhooks:
+                org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
+        else:
+            print_debug("not reading org webhooks, no default config available")
 
-        start = datetime.now()
-        if printer is not None and is_info_enabled():
-            printer.println("\nsecrets: Reading...")
+        if jsonnet_config.default_org_secret_config is not None:
+            start = datetime.now()
+            if printer is not None and is_info_enabled():
+                printer.println("\nsecrets: Reading...")
 
-        github_secrets = client.get_org_secrets(github_id)
+            github_secrets = client.get_org_secrets(github_id)
 
-        if printer is not None and is_info_enabled():
-            end = datetime.now()
-            printer.println(f"secrets: Read complete after {(end - start).total_seconds()}s")
+            if printer is not None and is_info_enabled():
+                end = datetime.now()
+                printer.println(f"secrets: Read complete after {(end - start).total_seconds()}s")
 
-        for secret in github_secrets:
-            org.add_secret(OrganizationSecret.from_provider_data(github_id, secret))
+            for secret in github_secrets:
+                org.add_secret(OrganizationSecret.from_provider_data(github_id, secret))
+        else:
+            print_debug("not reading org secrets, no default config available")
 
-        for repo in _load_repos_from_provider(github_id, client, printer):
-            org.add_repository(repo)
+        if jsonnet_config.default_repo_config is not None:
+            for repo in _load_repos_from_provider(github_id, client, jsonnet_config, printer):
+                org.add_repository(repo)
+        else:
+            print_debug("not reading repos, no default config available")
 
         return org
 
 
-async def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_name: str) -> tuple[str, Repository]:
+async def _process_single_repo(
+    gh_client: GitHubProvider,
+    github_id: str,
+    repo_name: str,
+    jsonnet_config: JsonnetConfig,
+    teams: dict[str, Any],
+    app_installations: dict[str, str],
+) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
     # get repo data
@@ -373,25 +390,66 @@ async def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_n
     github_repo_workflow_data = await rest_api.repo.async_get_workflow_settings(github_id, repo_name)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
 
-    # get branch protection rules of the repo
-    rules = await gh_client.get_branch_protection_rules(github_id, repo_name)
-    for github_rule in rules:
-        repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
+    if jsonnet_config.default_branch_protection_rule_config is not None:
+        # get branch protection rules of the repo
+        rules = await gh_client.get_branch_protection_rules(github_id, repo_name)
+        for github_rule in rules:
+            repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
+    else:
+        print_debug("not reading branch protection rules, no default config available")
 
-    # get webhooks of the repo
-    webhooks = await rest_api.repo.async_get_webhooks(github_id, repo_name)
-    for github_webhook in webhooks:
-        repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
+    if jsonnet_config.default_repo_ruleset_config is not None:
+        # get rulesets of the repo
+        rulesets = await rest_api.repo.async_get_rulesets(github_id, repo_name)
+        for github_ruleset in rulesets:
+            # FIXME: need to associate an app id to its slug
+            #        GitHub does not support that atm, so we lookup the currently installed
+            #        apps for an organization which provide a mapping from id to slug.
+            for actor in github_ruleset.get("bypass_actors", []):
+                if actor.get("actor_type", None) == "Integration":
+                    actor_id = str(actor.get("actor_id", 0))
+                    if actor_id in app_installations:
+                        actor["app_slug"] = app_installations[actor_id]
+                elif actor.get("actor_type", None) == "Team":
+                    actor_id = str(actor.get("actor_id", 0))
+                    if actor_id in teams:
+                        actor["team_slug"] = teams[actor_id]
 
-    # get secrets of the repo
-    secrets = await rest_api.repo.async_get_secrets(github_id, repo_name)
-    for github_secret in secrets:
-        repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
+            for rule in github_ruleset.get("rules", []):
+                if rule.get("type", None) == "required_status_checks":
+                    required_status_checks = rule.get("parameters", {}).get("required_status_checks", [])
+                    for status_check in required_status_checks:
+                        integration_id = str(status_check.get("integration_id", 0))
+                        if integration_id in app_installations:
+                            status_check["app_slug"] = app_installations[integration_id]
 
-    # get environments of the repo
-    environments = await rest_api.repo.async_get_environments(github_id, repo_name)
-    for github_environment in environments:
-        repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+            repo.add_ruleset(RepositoryRuleset.from_provider_data(github_id, github_ruleset))
+    else:
+        print_debug("not reading repo rulesets, no default config available")
+
+    if jsonnet_config.default_org_webhook_config is not None:
+        # get webhooks of the repo
+        webhooks = await rest_api.repo.async_get_webhooks(github_id, repo_name)
+        for github_webhook in webhooks:
+            repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
+    else:
+        print_debug("not reading repo webhooks, no default config available")
+
+    if jsonnet_config.default_repo_secret_config is not None:
+        # get secrets of the repo
+        secrets = await rest_api.repo.async_get_secrets(github_id, repo_name)
+        for github_secret in secrets:
+            repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
+    else:
+        print_debug("not reading repo secrets, no default config available")
+
+    if jsonnet_config.default_environment_config is not None:
+        # get environments of the repo
+        environments = await rest_api.repo.async_get_environments(github_id, repo_name)
+        for github_environment in environments:
+            repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+    else:
+        print_debug("not reading environments, no default config available")
 
     if is_debug_enabled():
         print_debug(f"done retrieving data for repo '{repo_name}'")
@@ -400,7 +458,7 @@ async def _process_single_repo(gh_client: GitHubProvider, github_id: str, repo_n
 
 
 def _load_repos_from_provider(
-    github_id: str, client: GitHubProvider, printer: Optional[IndentingPrinter] = None
+    github_id: str, client: GitHubProvider, jsonnet_config: JsonnetConfig, printer: Optional[IndentingPrinter] = None
 ) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():
@@ -408,8 +466,20 @@ def _load_repos_from_provider(
 
     repo_names = client.get_repos(github_id)
 
+    teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in client.rest_api.org.get_teams(github_id)}
+
+    app_installations = {
+        str(installation["app_id"]): installation["app_slug"]
+        for installation in client.rest_api.org.get_app_installations(github_id)
+    }
+
     async def gather():
-        return await asyncio.gather(*[_process_single_repo(client, github_id, repo_name) for repo_name in repo_names])
+        return await asyncio.gather(
+            *[
+                _process_single_repo(client, github_id, repo_name, jsonnet_config, teams, app_installations)
+                for repo_name in repo_names
+            ]
+        )
 
     result = asyncio.run(gather())
 

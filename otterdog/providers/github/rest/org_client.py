@@ -256,6 +256,15 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving team node id:\n{ex}").with_traceback(tb)
 
+    def get_teams(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving teams for org '{org_id}'")
+
+        try:
+            return self.requester.request_json("GET", f"/orgs/{org_id}/teams")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}").with_traceback(tb)
+
     def get_app_installations(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving app installations for org '{org_id}'")
 

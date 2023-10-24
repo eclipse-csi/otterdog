@@ -52,6 +52,10 @@
       "type": "array",
       "items": { "$ref": "branch-protection-rule.json" }
     },
+    "rulesets": {
+      "type": "array",
+      "items": { "$ref": "repository-ruleset.json" }
+    },
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }

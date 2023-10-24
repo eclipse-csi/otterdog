@@ -40,6 +40,7 @@ class Requester:
         # enable logging for requests_cache
         # import logging
         #
+        #
         # logging.basicConfig(level='DEBUG')
 
         self._session: CachedSession = CachedSession(
@@ -183,8 +184,9 @@ class Requester:
 
         async with AsyncCachedSession(cache=FileBackend(cache_name=_AIOHTTP_CACHE_DIR, use_temp=False)) as session:
             url = self._build_url(url_path)
-            key = session.cache.create_key(method, url)
+            key = session.cache.create_key(method, url, params=params)
             cached_response = await session.cache.get_response(key)
+
             if cached_response is not None and method == "GET":
                 # if the url is present in the cache, try to refresh it from the server
                 refresh_headers = headers.copy()
@@ -242,7 +244,7 @@ class Requester:
                 if is_debug_enabled():
                     if not response.from_cache:  # type: ignore
                         print_debug(
-                            f"'{method}' {url_path}: rate-linit-used = {response.headers.get('x-ratelimit-used', None)}"
+                            f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
                         )
 
                 if is_trace_enabled():

@@ -210,6 +210,16 @@ class GitHubProvider:
     def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
         self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
 
+    def update_repo_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, ruleset: dict[str, Any]) -> None:
+        if len(ruleset) > 0:
+            self.rest_api.repo.update_ruleset(org_id, repo_name, ruleset_id, ruleset)
+
+    def add_repo_ruleset(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        self.rest_api.repo.add_ruleset(org_id, repo_name, data)
+
+    def delete_repo_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, name: str) -> None:
+        self.rest_api.repo.delete_ruleset(org_id, repo_name, ruleset_id, name)
+
     def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_api.repo.get_webhooks(org_id, repo_name)
 
@@ -309,6 +319,9 @@ class GitHubProvider:
 
     def get_app_node_ids(self, app_names: set[str]) -> dict[str, str]:
         return {app_name: self.rest_api.app.get_app_ids(app_name)[1] for app_name in app_names}
+
+    def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
+        return {app_name: self.rest_api.app.get_app_ids(app_name)[0] for app_name in app_names}
 
     def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)

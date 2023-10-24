@@ -1,0 +1,64 @@
+{
+  "$id": "repository-ruleset.json",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "enforcement": { "type": "string" },
+
+    "bypass_actors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "include_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exclude_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "allows_creations": { "type": "boolean" },
+    "allows_deletions": { "type": "boolean" },
+    "allows_updates": { "type": "boolean" },
+
+    "allows_force_pushes": { "type": "boolean" },
+
+    "requires_commit_signatures": { "type": "boolean" },
+    "requires_linear_history": { "type": "boolean" },
+
+    "requires_pull_request": { "type": "boolean" },
+    "required_approving_review_count": { "$ref": "#/definitions/integer_or_null" },
+    "dismisses_stale_reviews": { "type": "boolean" },
+    "requires_code_owner_review": { "type": "boolean" },
+    "requires_last_push_approval": { "type": "boolean" },
+    "requires_review_thread_resolution": { "type": "boolean" },
+
+    "requires_deployments": { "type":  "boolean" },
+    "required_deployment_environments": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "requires_status_checks": { "type": "boolean" },
+    "requires_strict_status_checks": { "type": "boolean" },
+    "required_status_checks": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+
+  "required": [ "name", "enforcement" ],
+  "additionalProperties": false,
+
+  "definitions": {
+    "integer_or_null": {
+      "anyOf": [
+          { "type": "integer" },
+          { "type": "null" }
+        ]
+    }
+  }
+}

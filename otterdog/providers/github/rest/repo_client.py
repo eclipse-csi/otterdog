@@ -278,6 +278,69 @@ class RepoClient(RestClient):
 
         print_debug(f"removed repo webhook with url '{url}'")
 
+    async def async_get_rulesets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving rulesets for repo '{org_id}/{repo_name}'")
+
+        try:
+            result = []
+            params = {"includes_parents": str(False)}
+            response = await self.requester.async_request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/rulesets", params=params
+            )
+            for ruleset in response:
+                result.append(await self.async_get_ruleset(org_id, repo_name, str(ruleset["id"])))
+            return result
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving rulesets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    async def async_get_ruleset(self, org_id: str, repo_name: str, ruleset_id: str) -> dict[str, Any]:
+        print_debug(f"async retrieving ruleset '{ruleset_id}' for repo '{org_id}/{repo_name}'")
+
+        try:
+            params = {"includes_parents": str(False)}
+            return await self.requester.async_request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}", params=params
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving ruleset for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    def update_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, ruleset: dict[str, Any]) -> None:
+        print_debug(f"updating repo ruleset '{ruleset_id}' for repo '{org_id}/{repo_name}'")
+
+        try:
+            self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}", ruleset)
+            print_debug(f"updated repo ruleset '{ruleset_id}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to update repo ruleset {ruleset_id}:\n{ex}").with_traceback(tb)
+
+    def add_ruleset(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        name = data["name"]
+        print_debug(f"adding repo ruleset with name '{name}' for repo '{org_id}/{repo_name}'")
+
+        # TODO: currently we only support rulesets targetting branches
+        data["target"] = "branch"
+        print(data)
+
+        try:
+            self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/rulesets", data)
+            print_debug(f"added repo ruleset with name '{name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to add repo ruleset with name '{name}':\n{ex}").with_traceback(tb)
+
+    def delete_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, name: str) -> None:
+        print_debug(f"deleting repo ruleset with name '{name}' for repo '{org_id}/{repo_name}'")
+
+        response = self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}")
+
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete repo ruleset with name '{name}'")
+
+        print_debug(f"removed repo ruleset with name '{name}'")
+
     @staticmethod
     def _render_template_content(org_id: str, repo_name: str, content: str) -> str:
         variables = {"org": org_id, "repo": repo_name}

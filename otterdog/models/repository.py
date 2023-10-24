@@ -38,6 +38,7 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
+from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
@@ -98,6 +99,7 @@ class Repository(ModelObject):
     branch_protection_rules: list[BranchProtectionRule] = dataclasses.field(
         metadata={"nested_model": True}, default_factory=list
     )
+    rulesets: list[RepositoryRuleset] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     environments: list[Environment] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     _security_properties: ClassVar[list[str]] = [
@@ -145,6 +147,12 @@ class Repository(ModelObject):
 
     def set_branch_protection_rules(self, rules: list[BranchProtectionRule]) -> None:
         self.branch_protection_rules = rules
+
+    def add_ruleset(self, rule: RepositoryRuleset) -> None:
+        self.rulesets.append(rule)
+
+    def set_rulesets(self, rules: list[RepositoryRuleset]) -> None:
+        self.rulesets = rules
 
     def add_webhook(self, webhook: RepositoryWebhook) -> None:
         self.webhooks.append(webhook)
@@ -344,6 +352,9 @@ class Repository(ModelObject):
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
+        for rule in self.rulesets:
+            rule.validate(context, self)
+
         for env in self.environments:
             env.validate(context, self)
 
@@ -372,9 +383,13 @@ class Repository(ModelObject):
             yield secret, self
             yield from secret.get_model_objects()
 
-        for rule in self.branch_protection_rules:
-            yield rule, self
-            yield from rule.get_model_objects()
+        for bpr in self.branch_protection_rules:
+            yield bpr, self
+            yield from bpr.get_model_objects()
+
+        for ruleset in self.rulesets:
+            yield ruleset, self
+            yield from ruleset.get_model_objects()
 
         for env in self.environments:
             yield env, self
@@ -393,6 +408,7 @@ class Repository(ModelObject):
                 "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: RepositorySecret.from_model_data(x)),
                 "branch_protection_rules": OptionalS("branch_protection_rules", default=[])
                 >> Forall(lambda x: BranchProtectionRule.from_model_data(x)),
+                "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: RepositoryRuleset.from_model_data(x)),
                 "environments": OptionalS("environments", default=[])
                 >> Forall(lambda x: Environment.from_model_data(x)),
                 "workflows": If(
@@ -436,6 +452,7 @@ class Repository(ModelObject):
                 "webhooks": K([]),
                 "secrets": K([]),
                 "branch_protection_rules": K([]),
+                "rulesets": K([]),
                 "environments": K([]),
                 "secret_scanning": OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
                 "secret_scanning_push_protection": OptionalS(
@@ -539,6 +556,7 @@ class Repository(ModelObject):
         has_webhooks = len(self.webhooks) > 0
         has_secrets = len(self.secrets) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
+        has_rulesets = len(self.rulesets) > 0
         has_environments = len(self.environments) > 0
 
         # FIXME: take webhooks, branch protection rules and environments into account once
@@ -593,13 +611,28 @@ class Repository(ModelObject):
         # FIXME: support overriding branch protection rules for repos coming from
         #        the default configuration.
         if has_branch_protection_rules and not extend:
-            default_org_rule = BranchProtectionRule.from_model_data(jsonnet_config.default_branch_config)
+            default_org_rule = BranchProtectionRule.from_model_data(
+                jsonnet_config.default_branch_protection_rule_config
+            )
 
             printer.println("branch_protection_rules: [")
             printer.level_up()
 
             for rule in self.branch_protection_rules:
                 rule.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
+
+            printer.level_down()
+            printer.println("],")
+
+        # FIXME: support overriding rulesets for repos coming from the default configuration.
+        if has_rulesets and not extend:
+            default_org_rule = RepositoryRuleset.from_model_data(jsonnet_config.default_repo_ruleset_config)
+
+            printer.println("rulesets: [")
+            printer.level_up()
+
+            for ruleset in self.rulesets:
+                ruleset.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
 
             printer.level_down()
             printer.println("],")
@@ -717,6 +750,14 @@ class Repository(ModelObject):
             BranchProtectionRule.generate_live_patch_of_list(
                 expected_object.branch_protection_rules,
                 current_object.branch_protection_rules if current_object is not None else [],
+                parent_repo,
+                context,
+                handler,
+            )
+
+            RepositoryRuleset.generate_live_patch_of_list(
+                expected_object.rulesets,
+                current_object.rulesets if current_object is not None else [],
                 parent_repo,
                 context,
                 handler,
