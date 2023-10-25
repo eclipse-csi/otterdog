@@ -374,6 +374,20 @@ class Repository(ModelObject):
 
         return True
 
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        # private repos don't support security analysis.
+        if self.private is True:
+            if field.name in self._security_properties:
+                return False
+
+        if self.gh_pages_build_type in ["disabled", "workflow"]:
+            if field.name in self._gh_pages_properties:
+                return False
+
+        # when generating a patch, capture all the current configuration, even for
+        # archived repos, the properties might be used when the repo gets unarchived.
+        return True
+
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         for webhook in self.webhooks:
             yield webhook, self
