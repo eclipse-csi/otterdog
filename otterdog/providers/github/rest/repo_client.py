@@ -859,11 +859,13 @@ class RepoClient(RestClient):
                     f"\n{response.status_code}: {response.text}"
                 )
 
-        allowed_action_data = {
-            k: data[k] for k in ["github_owned_allowed", "verified_allowed", "patterns_allowed"] if k in data
-        }
-        if len(allowed_action_data) > 0:
-            self._update_selected_actions_for_workflow_settings(org_id, repo_name, allowed_action_data)
+        # only update the selected actions if needed
+        if data.get("allowed_actions", "selected") == "selected":
+            allowed_action_data = {
+                k: data[k] for k in ["github_owned_allowed", "verified_allowed", "patterns_allowed"] if k in data
+            }
+            if len(allowed_action_data) > 0:
+                self._update_selected_actions_for_workflow_settings(org_id, repo_name, allowed_action_data)
 
         default_permission_data = {
             k: data[k] for k in ["default_workflow_permissions", "can_approve_pull_request_reviews"] if k in data
