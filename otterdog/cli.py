@@ -498,8 +498,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
         sys.exit(exit_code)
 
     except Exception as e:
-        if is_debug_enabled():
-            traceback.print_exception(e)
+        traceback.print_exception(e)
 
         print_error(str(e))
         sys.exit(2)
