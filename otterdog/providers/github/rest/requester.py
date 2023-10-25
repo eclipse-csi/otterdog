@@ -12,7 +12,7 @@ from typing import Optional, Any
 from requests import Response
 from requests_cache import CachedSession
 
-from aiohttp import ClientSession, ClientResponse
+from aiohttp import ClientSession
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_client_cache.backends import FileBackend
 from aiohttp_client_cache.cache_control import CacheActions
@@ -136,9 +136,9 @@ class Requester:
         if data is not None:
             input_data = json.dumps(data)
 
-        response = await self.async_request_raw(method, url_path, input_data, params)
-        self._check_response(str(response.url), response.status, await response.text())
-        return await response.json()
+        status, body = await self.async_request_raw(method, url_path, input_data, params)
+        self._check_response(url_path, status, body)
+        return json.loads(body)
 
     def request_raw(
         self,
@@ -176,7 +176,7 @@ class Requester:
         url_path: str,
         data: Optional[str] = None,
         params: Optional[dict[str, str]] = None,
-    ) -> ClientResponse:
+    ) -> tuple[int, str]:
         print_trace(f"async '{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 
         headers = self._headers.copy()
@@ -227,7 +227,7 @@ class Requester:
                                 f"refreshing cache"
                             )
 
-                        return response
+                        return response.status, await response.text()
                     else:
                         # in all other cases, remove the item from the cache
                         await session.cache.delete(key)
@@ -238,23 +238,25 @@ class Requester:
                                 f"deleting from cache"
                             )
 
-                        return response
+                        return response.status, await response.text()
 
-            async with session.request(method, url=url, headers=headers, params=params, data=data) as response:
-                if is_debug_enabled():
-                    if not response.from_cache:  # type: ignore
-                        print_debug(
-                            f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
-                        )
+            response = await session.request(method, url=url, headers=headers, params=params, data=data)
+            if is_debug_enabled():
+                if not response.from_cache:  # type: ignore
+                    print_debug(
+                        f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
+                    )
 
-                if is_trace_enabled():
-                    print_trace(f"async '{method}' result = ({response.status}, {await response.text()})")
+            if is_trace_enabled():
+                print_trace(f"async '{method}' result = ({response.status}, {await response.text()})")
 
-                return response
+            text = await response.text()
+            response.close()
+            return response.status, text
 
-    def _check_response(self, url: str, status_code: int, body: str) -> None:
+    def _check_response(self, url_path: str, status_code: int, body: str) -> None:
         if status_code >= 400:
-            self._create_exception(url, status_code, body)
+            self._create_exception(self._build_url(url_path), status_code, body)
 
     @staticmethod
     def _create_exception(url: str, status_code: int, body: str):

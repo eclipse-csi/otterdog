@@ -235,9 +235,9 @@ class RepoClient(RestClient):
             #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
             # currently it is not possible via the api to determine such repos, but when
             # requesting hooks for such a repo, you would get a 404 response.
-            response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/hooks")
-            if response.status == 200:
-                return await response.json()
+            status, body = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/hooks")
+            if status == 200:
+                return json.loads(body)
             else:
                 return []
         except GitHubException as ex:
@@ -388,9 +388,9 @@ class RepoClient(RestClient):
     async def _async_fill_github_pages_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"async retrieving github pages config for '{org_id}/{repo_name}'")
 
-        response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
-        if response.status == 200:
-            repo_data["gh_pages"] = await response.json()
+        status, body = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
+        if status == 200:
+            repo_data["gh_pages"] = json.loads(body)
 
     def _update_github_pages_config(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
         print_debug(f"updating github pages config for '{org_id}/{repo_name}'")
@@ -494,11 +494,8 @@ class RepoClient(RestClient):
     async def _async_fill_vulnerability_report(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"async retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
 
-        response_vulnerability = await self.requester.async_request_raw(
-            "GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts"
-        )
-
-        if response_vulnerability.status == 204:
+        status, _ = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
+        if status == 204:
             repo_data["dependabot_alerts_enabled"] = True
         else:
             repo_data["dependabot_alerts_enabled"] = False
@@ -736,9 +733,9 @@ class RepoClient(RestClient):
             #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
             # currently it is not possible via the api to determine such repos, but when
             # requesting hooks for such a repo, you would get a 404 response.
-            response = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
-            if response.status == 200:
-                return (await response.json())["secrets"]
+            status, body = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
+            if status == 200:
+                return json.loads(body)["secrets"]
             else:
                 return []
         except GitHubException as ex:
