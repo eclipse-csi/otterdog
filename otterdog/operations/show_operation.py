@@ -135,11 +135,13 @@ class ShowOperation(Operation):
         self.printer.println('=== "Repositories"')
         self.printer.level_up()
 
-        self.printer.println("| Repository | Branch Protection Rules | Secrets | Webhooks | Secret Scanning |")
-        self.printer.println("| :--------- | :---------------------: | :-----: | :------: | :-------------: |")
+        self.printer.println("| Repository | Branch Protections | Secrets | Webhooks | Secret Scanning |")
+        self.printer.println("| :--------- | :----------------: | :-----: | :------: | :-------------: |")
 
         for repo in organization.repositories:
-            has_bpr = ":white_check_mark:" if len(repo.branch_protection_rules) > 0 else ":x:"
+            has_branch_protections = (
+                ":white_check_mark:" if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0 else ":x:"
+            )
             has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":regional_indicator_x:"
             has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":regional_indicator_x:"
             secret_scanning = ":white_check_mark:" if repo.secret_scanning == "enabled" else ":x:"
@@ -150,7 +152,7 @@ class ShowOperation(Operation):
             self.printer.println(
                 f"| [{repo.name}](repo-{repo.name}.md) {label} "
                 f"[:octicons-link-external-16:]({github_url}){{:target='_blank'}} | "
-                f"{has_bpr} | {has_secrets} | {has_webhooks} | "
+                f"{has_branch_protections} | {has_secrets} | {has_webhooks} | "
                 f"{secret_scanning} |"
             )
 
@@ -228,6 +230,15 @@ class ShowOperation(Operation):
                 self._print_model_object(bpr)
         else:
             self.printer.println("No branch protection rules.")
+        self.printer.level_down()
+
+        self.printer.println('=== "Rulesets"')
+        self.printer.level_up()
+        if len(repo.rulesets) > 0:
+            for ruleset in repo.rulesets:
+                self._print_model_object(ruleset)
+        else:
+            self.printer.println("No rulesets.")
         self.printer.level_down()
 
         with open(os.path.join(self.output_dir, f"repo-{repo.name}.md"), "w") as file:

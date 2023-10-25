@@ -91,6 +91,19 @@ class ShowDefaultOperation(Operation):
             )
             self._print_footer()
 
+            default_ruleset = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo_ruleset}('<name>')")
+            self.printer.println()
+            self._print_header("Repository Ruleset")
+            self.print_dict(
+                default_ruleset,
+                f"orgs.{jsonnet_config.create_repo_ruleset}('<name>') =",
+                "",
+                Fore.BLACK,
+                ":",
+                ",",
+            )
+            self._print_footer()
+
             default_repo_webhook = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo_webhook}('<url>')")
             self.printer.println()
             self._print_header("Repository Webhook")
