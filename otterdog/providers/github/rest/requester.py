@@ -12,10 +12,8 @@ from typing import Optional, Any
 from requests import Response
 from requests_cache import CachedSession
 
-from aiohttp import ClientSession
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_client_cache.backends import FileBackend
-from aiohttp_client_cache.cache_control import CacheActions
 
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.utils import print_debug, print_trace, is_debug_enabled, is_trace_enabled
@@ -184,75 +182,22 @@ class Requester:
 
         async with AsyncCachedSession(cache=FileBackend(cache_name=_AIOHTTP_CACHE_DIR, use_temp=False)) as session:
             url = self._build_url(url_path)
-            key = session.cache.create_key(method, url, params=params)
-            cached_response = await session.cache.get_response(key)
+            async with session.request(
+                method, url=url, headers=headers, params=params, data=data, refresh=True
+            ) as response:
+                text = await response.text()
+                status = response.status
 
-            if cached_response is not None and method == "GET":
-                # if the url is present in the cache, try to refresh it from the server
-                refresh_headers = headers.copy()
-
-                if "ETag" in cached_response.headers:
-                    refresh_headers["If-None-Match"] = cached_response.headers["ETag"]
-
-                if "Last-Modified" in cached_response.headers:
-                    refresh_headers["If-Modified-Since"] = cached_response.headers["Last-Modified"]
-
-                # the actual refresh must happen without a cache
-                # we initialize a new client session as the current version of the cache has a bug
-                # where responses are modify the cache even if it is disabled.
-                async with ClientSession() as nocache_session:
-                    response = await nocache_session.request(
-                        method,
-                        url=url,
-                        headers=refresh_headers,
-                        params=params,
-                        data=data,
-                    )
-
-                    if response.status == 304:
-                        # we received a not-modified response, re-request the item from the cache
-                        print_trace(
-                            f"async '{method}' result = ({response.status}, {await response.text()}), "
-                            f"not-modified, requesting from cache"
+                if is_debug_enabled():
+                    if not response.from_cache:  # type: ignore
+                        print_debug(
+                            f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
                         )
-                        pass
-                    elif response.status == 200:
-                        # update the cache with the received response and return it
-                        actions = CacheActions.from_headers(key, response.headers)
-                        await session.cache.save_response(response, key, actions.expires)
 
-                        if is_trace_enabled():
-                            print_trace(
-                                f"async '{method}' result = ({response.status}, {await response.text()}), "
-                                f"refreshing cache"
-                            )
+                if is_trace_enabled():
+                    print_trace(f"async '{method}' result = ({status}, {text})")
 
-                        return response.status, await response.text()
-                    else:
-                        # in all other cases, remove the item from the cache
-                        await session.cache.delete(key)
-
-                        if is_trace_enabled():
-                            print_trace(
-                                f"async '{method}' result = ({response.status}, {await response.text()}), "
-                                f"deleting from cache"
-                            )
-
-                        return response.status, await response.text()
-
-            response = await session.request(method, url=url, headers=headers, params=params, data=data)
-            if is_debug_enabled():
-                if not response.from_cache:  # type: ignore
-                    print_debug(
-                        f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
-                    )
-
-            if is_trace_enabled():
-                print_trace(f"async '{method}' result = ({response.status}, {await response.text()})")
-
-            text = await response.text()
-            response.close()
-            return response.status, text
+                return status, text
 
     def _check_response(self, url_path: str, status_code: int, body: str) -> None:
         if status_code >= 400:

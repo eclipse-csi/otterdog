@@ -30,6 +30,7 @@
 
 ### Changed
 
+- Updated library `aiohttp-client-cache` to v0.10.0 to support conditional requests natively. ([#139](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/139))
 - Support renaming the current `default_branch` if the new branch does not exist yet. ([#76](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/76))
 - Use async io for to speed up retrieval of current resources from GitHub. ([#114](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/114))
 - Changed Operation `canonical-diff` to ignore ordering of keys.
