@@ -398,7 +398,9 @@ async def _process_single_repo(
     else:
         print_debug("not reading branch protection rules, no default config available")
 
-    if jsonnet_config.default_repo_ruleset_config is not None:
+    # repository rulesets are not available for private repos and free plan
+    # TODO: support rulesets in private repos with enterprise plan
+    if jsonnet_config.default_repo_ruleset_config is not None and repo.private is False:
         # get rulesets of the repo
         rulesets = await rest_api.repo.async_get_rulesets(github_id, repo_name)
         for github_ruleset in rulesets:
