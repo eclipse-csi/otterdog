@@ -290,8 +290,8 @@ class WebClient:
 
                     page.type("#app_totp", self.credentials.get_totp())
 
-        except Error:
-            raise RuntimeError("could not log in to web UI")
+        except Error as e:
+            raise RuntimeError(f"could not log in to web UI: {str(e)}")
 
     def _logout(self, page: Page) -> None:
         actor = self._logged_in_as(page)
