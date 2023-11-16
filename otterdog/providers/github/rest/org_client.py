@@ -407,3 +407,13 @@ class OrgClient(RestClient):
                 f"failed updating default workflow permissions for org '{org_id}'"
                 f"\n{response.status_code}: {response.text}"
             )
+
+    def list_members(self, org_id: str, two_factor_disabled: bool) -> list[dict[str, Any]]:
+        print_debug(f"retrieving list of organization members for org '{org_id}'")
+
+        try:
+            params = "?filter=2fa_disabled" if two_factor_disabled is True else ""
+            return self.requester.request_paged_json("GET", f"/orgs/{org_id}/members{params}")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)

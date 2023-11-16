@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `list-members` to display the amount of members for an organization.
 - Added support for repository rulesets. ([#53](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/53))
 - Added support for workflow settings of a repository. ([#113](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/113))
 - Added possibility to define custom hooks in the default configuration when adding new resource. ([#106](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/106))

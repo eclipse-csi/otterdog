@@ -21,6 +21,7 @@ from .operations.canonical_diff_operation import CanonicalDiffOperation
 from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_operation import FetchOperation
 from .operations.list_apps_operation import ListAppsOperation
+from .operations.list_members_operation import ListMembersOperation
 from .operations.import_operation import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan_operation import PlanOperation
@@ -241,6 +242,15 @@ def list_apps(organizations: list[str], json):
     Lists all app installations for the organization.
     """
     _execute_operation(organizations, ListAppsOperation(json))
+
+
+@cli.command(cls=StdCommand)
+@click.option("--two-factor-disabled", is_flag=True, help="show members that have two factor authentication disabled")
+def list_members(organizations: list[str], two_factor_disabled: bool):
+    """
+    Lists members of the organization.
+    """
+    _execute_operation(organizations, ListMembersOperation(two_factor_disabled))
 
 
 @cli.command(cls=StdCommand, name="import")
