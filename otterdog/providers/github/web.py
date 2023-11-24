@@ -288,8 +288,12 @@ class WebClient:
                         if confirm_button is not None:
                             confirm_button.click()
 
-                    page.type("#app_totp", self.credentials.get_totp())
+                    if page.title() == "Confirm your account recovery settings":
+                        confirm_button = page.get_by_role("button", name="Confirm")
+                        if confirm_button is not None:
+                            confirm_button.click()
 
+                    page.type("#app_totp", self.credentials.get_totp())
         except Error as e:
             raise RuntimeError(f"could not log in to web UI: {str(e)}")
 
