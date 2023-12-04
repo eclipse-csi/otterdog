@@ -244,7 +244,9 @@ class OrgClient(RestClient):
             secrets = response["variables"]
             for secret in secrets:
                 if secret["visibility"] == "selected":
-                    secret["selected_repositories"] = self._get_selected_repositories_for_secret(org_id, secret["name"])
+                    secret["selected_repositories"] = self._get_selected_repositories_for_variable(
+                        org_id, secret["name"]
+                    )
             return secrets
         except GitHubException as ex:
             tb = ex.__traceback__
