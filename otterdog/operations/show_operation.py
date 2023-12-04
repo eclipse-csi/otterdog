@@ -147,14 +147,15 @@ class ShowOperation(Operation):
         self.printer.println('=== "Repositories"')
         self.printer.level_up()
 
-        self.printer.println("| Repository | Branch Protections | Secrets | Webhooks | Secret Scanning |")
-        self.printer.println("| :--------- | :----------------: | :-----: | :------: | :-------------: |")
+        self.printer.println("| Repository | Branch Protections | Secrets | Variables | Webhooks | Secret Scanning |")
+        self.printer.println("| :--------- | :----------------: | :-----: | :-------: | :------: | :-------------: |")
 
         for repo in organization.repositories:
             has_branch_protections = (
                 ":white_check_mark:" if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0 else ":x:"
             )
             has_secrets = ":white_check_mark:" if len(repo.secrets) > 0 else ":regional_indicator_x:"
+            has_variables = ":white_check_mark:" if len(repo.variables) > 0 else ":regional_indicator_x:"
             has_webhooks = ":white_check_mark:" if len(repo.webhooks) > 0 else ":regional_indicator_x:"
             secret_scanning = ":white_check_mark:" if repo.secret_scanning == "enabled" else ":x:"
 
@@ -164,7 +165,7 @@ class ShowOperation(Operation):
             self.printer.println(
                 f"| [{repo.name}](repo-{repo.name}.md) {label} "
                 f"[:octicons-link-external-16:]({github_url}){{:target='_blank'}} | "
-                f"{has_branch_protections} | {has_secrets} | {has_webhooks} | "
+                f"{has_branch_protections} | {has_secrets} | {has_variables} | {has_webhooks} | "
                 f"{secret_scanning} |"
             )
 
