@@ -69,6 +69,7 @@ nav:
         - Validate: reference/operations/validate.md
 - User Guide:
     - Renaming of Resources: userguide/renaming.md
+    - Unsupported Settings: userguide/unsupported.md
 
 - Contribute: contributing.md
 
