@@ -240,7 +240,7 @@ class ShowOperation(Operation):
         self.printer.level_up()
         if len(repo.variables) > 0:
             self.printer.println("| Name | Value |")
-            self.printer.println("| :--- | :---: |")
+            self.printer.println("| :--- | :---- |")
 
             for variable in repo.variables:
                 self.printer.println(f"| {variable.name} | {variable.value} |")
