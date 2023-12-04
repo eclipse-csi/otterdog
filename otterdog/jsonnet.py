@@ -22,10 +22,12 @@ class JsonnetConfig:
     create_org = "newOrg"
     create_org_webhook = "newOrgWebhook"
     create_org_secret = "newOrgSecret"
+    create_org_variable = "newOrgVariable"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
     create_repo_secret = "newRepoSecret"
+    create_repo_variable = "newRepoVariable"
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
@@ -50,9 +52,11 @@ class JsonnetConfig:
         self._default_org_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
         self._default_org_secret_config: dict[str, Any] | None = None
+        self._default_org_variable_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_repo_secret_config: dict[str, Any] | None = None
+        self._default_repo_variable_config: dict[str, Any] | None = None
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
@@ -95,6 +99,14 @@ class JsonnetConfig:
             self._default_org_secret_config = None
 
         try:
+            # load the default org variable config
+            org_variable_snippet = f"(import '{template_file}').{self.create_org_variable}('default')"
+            self._default_org_variable_config = jsonnet_evaluate_snippet(org_variable_snippet)
+        except RuntimeError:
+            print_warn("no default org variable config found, variables will be skipped")
+            self._default_org_variable_config = None
+
+        try:
             # load the default repo config
             repo_snippet = f"(import '{template_file}').{self.create_repo}('default')"
             self._default_repo_config = jsonnet_evaluate_snippet(repo_snippet)
@@ -117,6 +129,14 @@ class JsonnetConfig:
         except RuntimeError:
             print_warn("no default repo secret config found, secrets will be skipped")
             self._default_repo_secret_config = None
+
+        try:
+            # load the default repo variable config
+            repo_variable_snippet = f"(import '{template_file}').{self.create_repo_variable}('default')"
+            self._default_repo_variable_config = jsonnet_evaluate_snippet(repo_variable_snippet)
+        except RuntimeError:
+            print_warn("no default repo variable config found, variables will be skipped")
+            self._default_repo_variable_config = None
 
         try:
             # load the default branch protection rule config
@@ -165,6 +185,10 @@ class JsonnetConfig:
         return self._default_org_secret_config
 
     @property
+    def default_org_variable_config(self):
+        return self._default_org_variable_config
+
+    @property
     def default_repo_config(self):
         return self._default_repo_config
 
@@ -175,6 +199,10 @@ class JsonnetConfig:
     @property
     def default_repo_secret_config(self):
         return self._default_repo_secret_config
+
+    @property
+    def default_repo_variable_config(self):
+        return self._default_repo_variable_config
 
     @property
     def default_branch_protection_rule_config(self):

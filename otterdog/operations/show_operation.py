@@ -132,6 +132,18 @@ class ShowOperation(Operation):
             self.printer.println("No secrets.")
         self.printer.level_down()
 
+        self.printer.println('=== "Organization Variables"')
+        self.printer.level_up()
+        if len(organization.variables) > 0:
+            self.printer.println("| Name | Value |")
+            self.printer.println("| :--- | :---: |")
+
+            for variable in organization.variables:
+                self.printer.println(f"| {variable.name} | {variable.value} |")
+        else:
+            self.printer.println("No variables.")
+        self.printer.level_down()
+
         self.printer.println('=== "Repositories"')
         self.printer.level_up()
 
@@ -221,6 +233,18 @@ class ShowOperation(Operation):
                 self.printer.println(f"| {secret.name} | {resolved_secret} |")
         else:
             self.printer.println("No secrets.")
+        self.printer.level_down()
+
+        self.printer.println('=== "Variables"')
+        self.printer.level_up()
+        if len(repo.variables) > 0:
+            self.printer.println("| Name | Value |")
+            self.printer.println("| :--- | :---: |")
+
+            for variable in repo.variables:
+                self.printer.println(f"| {variable.name} | {variable.value} |")
+        else:
+            self.printer.println("No variables.")
         self.printer.level_down()
 
         self.printer.println('=== "Branch Protection Rules"')

@@ -8,14 +8,16 @@ This resource represents a GitHub organization with all supported settings and n
         settings+: { ... }, // (1)!
         webhooks+: [ ... ], // (2)!
         secrets+: [ ... ], // (3)!
-        _repositories+:: [ ... ], // (4)!
+        variables+: [ ... ], // (4)!
+        _repositories+:: [ ... ], // (5)!
     }
     ```
 
     1. see [Organization Settings](settings.md)
     2. see [Organization Webhook](webhook.md)
     3. see [Organization Secret](secret.md)
-    4. see [Repository](repository/index.md)
+    4. see [Organization Variable](variable.md)
+    5. see [Repository](repository/index.md)
 
 !!! note
 
@@ -64,6 +66,11 @@ The configuration of a GitHub Organization is considered to be valid if all nest
       secrets+: [
         orgs.newOrgSecret('ADOPTIUM_AQAVIT_BOT_TOKEN') {
           value: "pass:bots/adoptium.aqavit/github.com/project-token",
+        },
+      ],
+      variables+: [
+        orgs.newOrgVariable('SONAR_USERNAME') {
+          value: "xxxxx",
         },
       ],
       _repositories+:: [

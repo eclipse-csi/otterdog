@@ -42,6 +42,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _workflows_                           | [WorkflowSettings](workflow-settings.md)                  | Workflow settings on organizational level                                               |                                                                                          |
 | _webhooks_                            | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                          |
 | _secrets_                             | list\[[RepositorySecret](secret.md)\]                     | secrets defined for this repo, see section below for details                            |                                                                                          |
+| _variables_                           | list\[[RepositoryVariable](variable.md)\]                 | variables defined for this repo, see section below for details                          |                                                                                          |
 | _environments_                        | list\[[Environment](environment.md)\]                     | environments defined for this repo, see section below for details                       |                                                                                          |
 | _branch_protection_rules_             | list\[[BranchProtectionRule](branch-protection-rule.md)\] | branch protection rules of the repo, see section below for details                      |                                                                                          |
 
@@ -71,8 +72,9 @@ Definition of a Repository for a GitHub organization, the following properties a
 
 - TODO: complete
 
+- specifying a description of more than 350 characters triggers an error (maximum supported length by GitHub)
 - specifying more than 20 topics triggers an error (maximum number of supported topics by GitHub)
-
+- disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
 
 !!! note
 

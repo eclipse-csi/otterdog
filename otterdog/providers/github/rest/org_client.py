@@ -182,7 +182,7 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}").with_traceback(tb)
 
     def _get_selected_repositories_for_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
-        print_debug(f"retrieving selected repositories secret '{secret_name}'")
+        print_debug(f"retrieving selected repositories for secret '{secret_name}'")
 
         try:
             url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
@@ -234,6 +234,65 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to delete org secret '{secret_name}'")
 
         print_debug(f"removed org secret '{secret_name}'")
+
+    def get_variables(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving variables for org '{org_id}'")
+
+        try:
+            response = self.requester.request_json("GET", f"/orgs/{org_id}/actions/variables")
+
+            secrets = response["variables"]
+            for secret in secrets:
+                if secret["visibility"] == "selected":
+                    secret["selected_repositories"] = self._get_selected_repositories_for_secret(org_id, secret["name"])
+            return secrets
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed getting variables for org '{org_id}':\n{ex}").with_traceback(tb)
+
+    def _get_selected_repositories_for_variable(self, org_id: str, variable_name: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving selected repositories for variable '{variable_name}'")
+
+        try:
+            url = f"/orgs/{org_id}/actions/variables/{variable_name}/repositories"
+            response = self.requester.request_json("GET", url)
+            return response["repositories"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+
+    def update_variable(self, org_id: str, variable_name: str, variable: dict[str, Any]) -> None:
+        print_debug(f"updating org variable '{variable_name}'")
+
+        if "name" in variable:
+            variable.pop("name")
+
+        response = self.requester.request_raw(
+            "PATCH", f"/orgs/{org_id}/actions/variables/{variable_name}", json.dumps(variable)
+        )
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to update org variable '{variable_name}': {response.text}")
+        else:
+            print_debug(f"updated org variable '{variable_name}'")
+
+    def add_variable(self, org_id: str, data: dict[str, str]) -> None:
+        variable_name = data.get("name")
+        print_debug(f"adding org variable '{variable_name}'")
+
+        response = self.requester.request_raw("POST", f"/orgs/{org_id}/actions/variables", json.dumps(data))
+        if response.status_code != 201:
+            raise RuntimeError(f"failed to add org variable '{variable_name}': {response.text}")
+        else:
+            print_debug(f"added org variable '{variable_name}'")
+
+    def delete_variable(self, org_id: str, variable_name: str) -> None:
+        print_debug(f"deleting org variable '{variable_name}'")
+
+        response = self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/variables/{variable_name}")
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete org variable '{variable_name}': {response.text}")
+
+        print_debug(f"removed org variable '{variable_name}'")
 
     def get_public_key(self, org_id: str) -> tuple[str, str]:
         print_debug(f"retrieving org public key for org '{org_id}'")

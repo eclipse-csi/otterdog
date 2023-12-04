@@ -36,12 +36,14 @@ from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .organization_secret import OrganizationSecret
+from .organization_variable import OrganizationVariable
 from .organization_settings import OrganizationSettings
 from .organization_workflow_settings import OrganizationWorkflowSettings
 from .organization_webhook import OrganizationWebhook
 from .repository import Repository
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
+from .repo_variable import RepositoryVariable
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
 
@@ -58,6 +60,7 @@ class GitHubOrganization:
     settings: OrganizationSettings
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
+    variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     _secrets_resolved: bool = False
@@ -70,11 +73,7 @@ class GitHubOrganization:
         self.webhooks.append(webhook)
 
     def get_webhook(self, url: str) -> Optional[OrganizationWebhook]:
-        for webhook in self.webhooks:
-            if webhook.url == url:
-                return webhook
-
-        return None
+        return next(filter(lambda x: x.url == url, self.webhooks))
 
     def set_webhooks(self, webhooks: list[OrganizationWebhook]) -> None:
         self.webhooks = webhooks
@@ -83,24 +82,25 @@ class GitHubOrganization:
         self.secrets.append(secret)
 
     def get_secret(self, name: str) -> Optional[OrganizationSecret]:
-        for secret in self.secrets:
-            if secret.name == name:
-                return secret
-
-        return None
+        return next(filter(lambda x: x.name == name, self.secrets))
 
     def set_secrets(self, secrets: list[OrganizationSecret]) -> None:
         self.secrets = secrets
+
+    def add_variable(self, variable: OrganizationVariable) -> None:
+        self.variables.append(variable)
+
+    def get_variable(self, name: str) -> Optional[OrganizationVariable]:
+        return next(filter(lambda x: x.name == name, self.variables))
+
+    def set_variables(self, variables: list[OrganizationVariable]) -> None:
+        self.variables = variables
 
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
 
     def get_repository(self, repo_name: str) -> Optional[Repository]:
-        for repo in self.repositories:
-            if repo.name == repo_name:
-                return repo
-
-        return None
+        return next(filter(lambda x: x.name == repo_name, self.repositories))
 
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
@@ -139,6 +139,10 @@ class GitHubOrganization:
             yield secret, None
             yield from secret.get_model_objects()
 
+        for variable in self.variables:
+            yield variable, None
+            yield from variable.get_model_objects()
+
         for repo in self.repositories:
             yield repo, None
             yield from repo.get_model_objects()
@@ -153,6 +157,7 @@ class GitHubOrganization:
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
             "webhooks": S("webhooks") >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": S("secrets") >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
+            "variables": S("variables") >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
             "repositories": S("repositories") >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
@@ -227,6 +232,19 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        # print organization variables
+        if len(self.variables) > 0:
+            default_org_variable = OrganizationVariable.from_model_data(config.default_org_variable_config)
+
+            printer.println("variables+: [")
+            printer.level_up()
+
+            for variable in self.variables:
+                variable.to_jsonnet(printer, config, False, default_org_variable)
+
+            printer.level_down()
+            printer.println("],")
+
         # print repositories
         if len(self.repositories) > 0:
             repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
@@ -277,6 +295,10 @@ class GitHubOrganization:
             self.secrets, current_organization.secrets, None, context, handler
         )
 
+        OrganizationVariable.generate_live_patch_of_list(
+            self.variables, current_organization.variables, None, context, handler
+        )
+
         Repository.generate_live_patch_of_list(self.repositories, current_organization.repositories, context, handler)
 
     @classmethod
@@ -306,7 +328,7 @@ class GitHubOrganization:
         cls,
         github_id: str,
         jsonnet_config: JsonnetConfig,
-        client: GitHubProvider,
+        provider: GitHubProvider,
         no_web_ui: bool = False,
         printer: Optional[IndentingPrinter] = None,
     ) -> GitHubOrganization:
@@ -318,7 +340,7 @@ class GitHubOrganization:
         #        for now this is the same for organization settings, but there might be cases where it is different.
         default_settings = jsonnet_config.default_org_config["settings"]
         included_keys = set(default_settings.keys())
-        github_settings = client.get_org_settings(github_id, included_keys, no_web_ui)
+        github_settings = provider.get_org_settings(github_id, included_keys, no_web_ui)
 
         if printer is not None and is_info_enabled():
             end = datetime.now()
@@ -327,7 +349,7 @@ class GitHubOrganization:
         settings = OrganizationSettings.from_provider_data(github_id, github_settings)
 
         if "workflows" in included_keys:
-            workflow_settings = client.get_org_workflow_settings(github_id)
+            workflow_settings = provider.get_org_workflow_settings(github_id)
             settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
 
         org = cls(github_id, settings)
@@ -337,7 +359,7 @@ class GitHubOrganization:
             printer.println("\nwebhooks: Reading...")
 
         if jsonnet_config.default_org_webhook_config is not None:
-            github_webhooks = client.get_org_webhooks(github_id)
+            github_webhooks = provider.get_org_webhooks(github_id)
 
             if printer is not None and is_info_enabled():
                 end = datetime.now()
@@ -353,7 +375,7 @@ class GitHubOrganization:
             if printer is not None and is_info_enabled():
                 printer.println("\nsecrets: Reading...")
 
-            github_secrets = client.get_org_secrets(github_id)
+            github_secrets = provider.get_org_secrets(github_id)
 
             if printer is not None and is_info_enabled():
                 end = datetime.now()
@@ -364,8 +386,24 @@ class GitHubOrganization:
         else:
             print_debug("not reading org secrets, no default config available")
 
+        if jsonnet_config.default_org_variable_config is not None:
+            start = datetime.now()
+            if printer is not None and is_info_enabled():
+                printer.println("\nvariables: Reading...")
+
+            github_variables = provider.get_org_variables(github_id)
+
+            if printer is not None and is_info_enabled():
+                end = datetime.now()
+                printer.println(f"variables: Read complete after {(end - start).total_seconds()}s")
+
+            for variable in github_variables:
+                org.add_variable(OrganizationVariable.from_provider_data(github_id, variable))
+        else:
+            print_debug("not reading org secrets, no default config available")
+
         if jsonnet_config.default_repo_config is not None:
-            for repo in _load_repos_from_provider(github_id, client, jsonnet_config, printer):
+            for repo in _load_repos_from_provider(github_id, provider, jsonnet_config, printer):
                 org.add_repository(repo)
         else:
             print_debug("not reading repos, no default config available")
@@ -444,6 +482,14 @@ async def _process_single_repo(
             repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
     else:
         print_debug("not reading repo secrets, no default config available")
+
+    if jsonnet_config.default_repo_variable_config is not None:
+        # get variables of the repo
+        variables = await rest_api.repo.async_get_variables(github_id, repo_name)
+        for github_variable in variables:
+            repo.add_variable(RepositoryVariable.from_provider_data(github_id, github_variable))
+    else:
+        print_debug("not reading repo variables, no default config available")
 
     if jsonnet_config.default_environment_config is not None:
         # get environments of the repo

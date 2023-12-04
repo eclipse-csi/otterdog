@@ -265,6 +265,19 @@ class GitHubProvider:
     def delete_org_secret(self, org_id: str, secret_name: str) -> None:
         self.rest_api.org.delete_secret(org_id, secret_name)
 
+    def get_org_variables(self, org_id: str) -> list[dict[str, Any]]:
+        return self.rest_api.org.get_variables(org_id)
+
+    def update_org_variable(self, org_id: str, variable_name: str, variable: dict[str, Any]) -> None:
+        if len(variable) > 0:
+            self.rest_api.org.update_secret(org_id, variable_name, variable)
+
+    def add_org_variable(self, org_id: str, data: dict[str, str]) -> None:
+        self.rest_api.org.add_variable(org_id, data)
+
+    def delete_org_variable(self, org_id: str, variable_name: str) -> None:
+        self.rest_api.org.delete_variable(org_id, variable_name)
+
     def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return self.rest_api.repo.get_secrets(org_id, repo_name)
 
@@ -277,6 +290,19 @@ class GitHubProvider:
 
     def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
+
+    def get_repo_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return self.rest_api.repo.get_variables(org_id, repo_name)
+
+    def update_repo_variable(self, org_id: str, repo_name: str, variable_name: str, variable: dict[str, Any]) -> None:
+        if len(variable) > 0:
+            self.rest_api.repo.update_variable(org_id, repo_name, variable_name, variable)
+
+    def add_repo_variable(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        self.rest_api.repo.add_variable(org_id, repo_name, data)
+
+    def delete_repo_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
+        self.rest_api.repo.delete_variable(org_id, repo_name, variable_name)
 
     def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)

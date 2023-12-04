@@ -40,6 +40,7 @@ from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
+from .repo_variable import RepositoryVariable
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
 
@@ -96,6 +97,7 @@ class Repository(ModelObject):
     # nested model fields
     webhooks: list[RepositoryWebhook] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     secrets: list[RepositorySecret] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    variables: list[RepositoryVariable] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     branch_protection_rules: list[BranchProtectionRule] = dataclasses.field(
         metadata={"nested_model": True}, default_factory=list
     )
@@ -158,11 +160,7 @@ class Repository(ModelObject):
         self.webhooks.append(webhook)
 
     def get_webhook(self, url: str) -> Optional[RepositoryWebhook]:
-        for webhook in self.webhooks:
-            if webhook.url == url:
-                return webhook
-
-        return None
+        return next(filter(lambda x: x.url == url, self.webhooks))
 
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
         self.webhooks = webhooks
@@ -171,14 +169,19 @@ class Repository(ModelObject):
         self.secrets.append(secret)
 
     def get_secret(self, name: str) -> Optional[RepositorySecret]:
-        for secret in self.secrets:
-            if secret.name == name:
-                return secret
-
-        return None
+        return next(filter(lambda x: x.name == name, self.secrets))
 
     def set_secrets(self, secrets: list[RepositorySecret]) -> None:
         self.secrets = secrets
+
+    def add_variable(self, variable: RepositoryVariable) -> None:
+        self.variables.append(variable)
+
+    def get_variable(self, name: str) -> Optional[RepositoryVariable]:
+        return next(filter(lambda x: x.name == name, self.variables))
+
+    def set_variables(self, variables: list[RepositoryVariable]) -> None:
+        self.variables = variables
 
     def add_environment(self, environment: Environment) -> None:
         self.environments.append(environment)
@@ -349,6 +352,9 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.validate(context, self)
 
+        for variable in self.variables:
+            variable.validate(context, self)
+
         for bpr in self.branch_protection_rules:
             bpr.validate(context, self)
 
@@ -397,6 +403,10 @@ class Repository(ModelObject):
             yield secret, self
             yield from secret.get_model_objects()
 
+        for variable in self.variables:
+            yield variable, self
+            yield from variable.get_model_objects()
+
         for bpr in self.branch_protection_rules:
             yield bpr, self
             yield from bpr.get_model_objects()
@@ -420,6 +430,8 @@ class Repository(ModelObject):
             {
                 "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: RepositoryWebhook.from_model_data(x)),
                 "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: RepositorySecret.from_model_data(x)),
+                "variables": OptionalS("variables", default=[])
+                >> Forall(lambda x: RepositoryVariable.from_model_data(x)),
                 "branch_protection_rules": OptionalS("branch_protection_rules", default=[])
                 >> Forall(lambda x: BranchProtectionRule.from_model_data(x)),
                 "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: RepositoryRuleset.from_model_data(x)),
@@ -465,6 +477,7 @@ class Repository(ModelObject):
             {
                 "webhooks": K([]),
                 "secrets": K([]),
+                "variables": K([]),
                 "branch_protection_rules": K([]),
                 "rulesets": K([]),
                 "environments": K([]),
@@ -569,6 +582,7 @@ class Repository(ModelObject):
 
         has_webhooks = len(self.webhooks) > 0
         has_secrets = len(self.secrets) > 0
+        has_variables = len(self.variables) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
         has_rulesets = len(self.rulesets) > 0
         has_environments = len(self.environments) > 0
@@ -618,6 +632,19 @@ class Repository(ModelObject):
 
             for secret in self.secrets:
                 secret.to_jsonnet(printer, jsonnet_config, False, default_repo_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        # FIXME: support overriding variables for repos coming from the default configuration.
+        if has_variables and not extend:
+            default_repo_variable = RepositoryVariable.from_model_data(jsonnet_config.default_repo_variable_config)
+
+            printer.println("variables: [")
+            printer.level_up()
+
+            for variable in self.variables:
+                variable.to_jsonnet(printer, jsonnet_config, False, default_repo_variable)
 
             printer.level_down()
             printer.println("],")
@@ -746,6 +773,14 @@ class Repository(ModelObject):
         RepositorySecret.generate_live_patch_of_list(
             expected_object.secrets,
             current_object.secrets if current_object is not None else [],
+            parent_repo,
+            context,
+            handler,
+        )
+
+        RepositoryVariable.generate_live_patch_of_list(
+            expected_object.variables,
+            current_object.variables if current_object is not None else [],
             parent_repo,
             context,
             handler,

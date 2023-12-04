@@ -70,6 +70,19 @@ class ShowDefaultOperation(Operation):
             )
             self._print_footer()
 
+            default_org_variable = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org_variable}('<name>')")
+            self.printer.println()
+            self._print_header("Organization Variable")
+            self.print_dict(
+                default_org_variable,
+                f"orgs.{jsonnet_config.create_org_variable}('<name>') =",
+                "",
+                Fore.BLACK,
+                ":",
+                ",",
+            )
+            self._print_footer()
+
             default_repo = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo}('<repo-name>')")
             self.printer.println()
             self._print_header("Repository")
@@ -123,6 +136,19 @@ class ShowDefaultOperation(Operation):
             self.print_dict(
                 default_repo_secret,
                 f"orgs.{jsonnet_config.create_repo_secret}('<name>') =",
+                "",
+                Fore.BLACK,
+                ":",
+                ",",
+            )
+            self._print_footer()
+
+            default_repo_variable = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo_variable}('<name>')")
+            self.printer.println()
+            self._print_header("Repository Variable")
+            self.print_dict(
+                default_repo_variable,
+                f"orgs.{jsonnet_config.create_repo_variable}('<name>') =",
                 "",
                 Fore.BLACK,
                 ":",

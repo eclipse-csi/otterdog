@@ -712,10 +712,6 @@ class RepoClient(RestClient):
         print_debug(f"retrieving secrets for repo '{org_id}/{repo_name}'")
 
         try:
-            # special handling due to temporary private forks for security advisories.
-            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
-            # currently it is not possible via the api to determine such repos, but when
-            # requesting hooks for such a repo, you would get a 404 response.
             response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
             if response.status_code == 200:
                 return response.json()["secrets"]
@@ -729,10 +725,6 @@ class RepoClient(RestClient):
         print_debug(f"async retrieving secrets for repo '{org_id}/{repo_name}'")
 
         try:
-            # special handling due to temporary private forks for security advisories.
-            #  example repo: https://github.com/eclipse-cbi/jiro-ghsa-wqjm-x66q-r2c6
-            # currently it is not possible via the api to determine such repos, but when
-            # requesting hooks for such a repo, you would get a 404 response.
             status, body = await self.requester.async_request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
             if status == 200:
                 return json.loads(body)["secrets"]
@@ -790,6 +782,75 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed to delete repo secret '{secret_name}'")
 
         print_debug(f"removed repo secret '{secret_name}'")
+
+    def get_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving variables for repo '{org_id}/{repo_name}'")
+
+        try:
+            response = self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/variables")
+            if response.status_code == 200:
+                return response.json()["variables"]
+            else:
+                return []
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving variables for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    async def async_get_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving variables for repo '{org_id}/{repo_name}'")
+
+        try:
+            status, body = await self.requester.async_request_raw(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/variables"
+            )
+            if status == 200:
+                return json.loads(body)["variables"]
+            else:
+                return []
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving variables for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+
+    def update_variable(self, org_id: str, repo_name: str, variable_name: str, variable: dict[str, Any]) -> None:
+        print_debug(f"updating repo variable '{variable_name}' for repo '{org_id}/{repo_name}'")
+
+        if "name" in variable:
+            variable.pop("name")
+
+        response = self.requester.request_raw(
+            "PATCH",
+            f"/repos/{org_id}/{repo_name}/actions/variables/{variable_name}",
+            json.dumps(variable),
+        )
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to update repo variable '{variable_name}': {response.text}")
+        else:
+            print_debug(f"updated repo variable '{variable_name}'")
+
+    def add_variable(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        variable_name = data.get("name")
+        print_debug(f"adding repo variable '{variable_name}' for repo '{org_id}/{repo_name}'")
+
+        response = self.requester.request_raw(
+            "POST",
+            f"/repos/{org_id}/{repo_name}/actions/variables",
+            json.dumps(data),
+        )
+        if response.status_code != 201:
+            raise RuntimeError(f"failed to add repo variable '{variable_name}': {response.text}")
+        else:
+            print_debug(f"added repo variable '{variable_name}'")
+
+    def delete_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
+        print_debug(f"deleting repo variable '{variable_name}' for repo '{org_id}/{repo_name}'")
+
+        response = self.requester.request_raw(
+            "DELETE", f"/repos/{org_id}/{repo_name}/actions/variables/{variable_name}"
+        )
+        if response.status_code != 204:
+            raise RuntimeError(f"failed to delete repo variable '{variable_name}'")
+
+        print_debug(f"removed repo variable '{variable_name}'")
 
     def get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
         print_debug(f"retrieving workflow settings for repo '{org_id}/{repo_name}'")

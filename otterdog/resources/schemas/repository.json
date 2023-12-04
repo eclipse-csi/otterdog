@@ -64,6 +64,10 @@
       "type": "array",
       "items": { "$ref": "repo-secret.json" }
     },
+    "variables": {
+      "type": "array",
+      "items": { "$ref": "repo-variable.json" }
+    },
     "environments": {
       "type": "array",
       "items": { "$ref": "environment.json" }

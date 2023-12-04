@@ -13,6 +13,10 @@
       "type": "array",
       "items": { "$ref": "org-secret.json" }
     },
+    "variables": {
+      "type": "array",
+      "items": { "$ref": "org-variable.json" }
+    },
     "repositories": {
       "type": "array",
       "items": { "$ref": "repository.json" }
