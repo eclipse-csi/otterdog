@@ -51,11 +51,13 @@ nav:
         - Organization Workflow Settings: reference/organization/workflow-settings.md
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
+        - Organization Variable: reference/organization/variable.md
         - Repository:
           - reference/organization/repository/index.md
           - Workflow Settings: reference/organization/repository/workflow-settings.md
           - Repository Webhook: reference/organization/repository/webhook.md
           - Repository Secret: reference/organization/repository/secret.md
+          - Repository Variable: reference/organization/repository/variable.md
           - Environment: reference/organization/repository/environment.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
           - Ruleset: reference/organization/repository/ruleset.md
