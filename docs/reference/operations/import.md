@@ -1,5 +1,5 @@
 The `import` operation will retrieve the current live settings for the specified GitHub organization and store
-them locally in a file `<github-id>.jsonnet` in the organization specific working directory.
+them locally in a file `<github-id>/<github-id>.jsonnet` in the organization specific working directory.
 
 ## Options
 

@@ -1,17 +1,17 @@
-The `apply` operation will apply changes of the current local configuration to the current live settings on GitHub.
+The `apply` operation will apply changes of the local configuration to the current live settings on GitHub.
 
 When the `apply` operation is executed, the following happens:
 
 - first the local configuration is [validated](validate.md)
 - the current live configuration is retrieved
 - the current changes are [planned](plan.md)
-- if approved, the changes are applied to GitHub
+- if approved, the changes are applied
 
 !!! note
 
     In general, resources that are present on GitHub but not contained in the local configuration would be marked
-    for deletion, however, by default otterdog will not remove any resources unless option `--delete-resources` has
-    been specified.
+    for deletion, however, by default `otterdog` will not remove any resources unless the option `--delete-resources`
+    has been specified.
 
 ## Options
 
@@ -32,8 +32,9 @@ When the `apply` operation is executed, the following happens:
 !!! note
 
     As otterdog does not maintain any local state, it can not determine if secret values need to be updated as
-    GitHub will not disclose secret values via their APIs anymore after they have been set. As a consequence, otterdog
-    will not update secret values by default unless `--update-secrets` or `--update-webhooks` has been specified.
+    GitHub will not disclose secret values via their APIs anymore after they have been set. As a consequence, 
+    `otterdog` will not update secret values by default unless `--update-secrets` or `--update-webhooks` 
+    has been specified.
 
 ## Example
 
