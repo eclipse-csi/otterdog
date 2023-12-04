@@ -136,7 +136,7 @@ class ShowOperation(Operation):
         self.printer.level_up()
         if len(organization.variables) > 0:
             self.printer.println("| Name | Value |")
-            self.printer.println("| :--- | :---: |")
+            self.printer.println("| :--- | :---- |")
 
             for variable in organization.variables:
                 self.printer.println(f"| {variable.name} | {variable.value} |")
