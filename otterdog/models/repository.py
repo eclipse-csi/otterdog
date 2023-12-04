@@ -160,7 +160,7 @@ class Repository(ModelObject):
         self.webhooks.append(webhook)
 
     def get_webhook(self, url: str) -> Optional[RepositoryWebhook]:
-        return next(filter(lambda x: x.url == url, self.webhooks))
+        return next(filter(lambda x: x.url == url, self.webhooks), None)  # type: ignore
 
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
         self.webhooks = webhooks
@@ -169,7 +169,7 @@ class Repository(ModelObject):
         self.secrets.append(secret)
 
     def get_secret(self, name: str) -> Optional[RepositorySecret]:
-        return next(filter(lambda x: x.name == name, self.secrets))
+        return next(filter(lambda x: x.name == name, self.secrets), None)  # type: ignore
 
     def set_secrets(self, secrets: list[RepositorySecret]) -> None:
         self.secrets = secrets
@@ -178,7 +178,7 @@ class Repository(ModelObject):
         self.variables.append(variable)
 
     def get_variable(self, name: str) -> Optional[RepositoryVariable]:
-        return next(filter(lambda x: x.name == name, self.variables))
+        return next(filter(lambda x: x.name == name, self.variables), None)  # type: ignore
 
     def set_variables(self, variables: list[RepositoryVariable]) -> None:
         self.variables = variables

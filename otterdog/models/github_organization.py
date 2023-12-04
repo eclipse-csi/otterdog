@@ -73,7 +73,7 @@ class GitHubOrganization:
         self.webhooks.append(webhook)
 
     def get_webhook(self, url: str) -> Optional[OrganizationWebhook]:
-        return next(filter(lambda x: x.url == url, self.webhooks))
+        return next(filter(lambda x: x.url == url, self.webhooks), None)  # type: ignore
 
     def set_webhooks(self, webhooks: list[OrganizationWebhook]) -> None:
         self.webhooks = webhooks
@@ -82,7 +82,7 @@ class GitHubOrganization:
         self.secrets.append(secret)
 
     def get_secret(self, name: str) -> Optional[OrganizationSecret]:
-        return next(filter(lambda x: x.name == name, self.secrets))
+        return next(filter(lambda x: x.name == name, self.secrets), None)  # type: ignore
 
     def set_secrets(self, secrets: list[OrganizationSecret]) -> None:
         self.secrets = secrets
@@ -91,7 +91,7 @@ class GitHubOrganization:
         self.variables.append(variable)
 
     def get_variable(self, name: str) -> Optional[OrganizationVariable]:
-        return next(filter(lambda x: x.name == name, self.variables))
+        return next(filter(lambda x: x.name == name, self.variables), None)  # type: ignore
 
     def set_variables(self, variables: list[OrganizationVariable]) -> None:
         self.variables = variables
@@ -100,7 +100,7 @@ class GitHubOrganization:
         self.repositories.append(repo)
 
     def get_repository(self, repo_name: str) -> Optional[Repository]:
-        return next(filter(lambda x: x.name == repo_name, self.repositories))
+        return next(filter(lambda x: x.name == repo_name, self.repositories), None)  # type: ignore
 
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
