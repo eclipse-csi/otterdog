@@ -470,7 +470,7 @@ class RepoClient(RestClient):
                     if branch is not None:
                         existing_branches = self.get_branches(org_id, repo_name)
                         existing_branch_names = list(map(lambda x: x["name"], existing_branches))
-                        if branch not in existing_branch_names:
+                        if branch not in existing_branch_names and len(existing_branches) > 0:
                             gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
                             gh_pages["source"]["branch"] = existing_branch_names[0]
                             gh_pages_data.insert(0, (json.dumps(gh_pages), "POST", 201))
