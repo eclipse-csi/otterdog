@@ -5,6 +5,7 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
+
 import os.path
 from typing import Optional
 
@@ -55,29 +56,39 @@ class PushOperation(Operation):
 
             with GitHubProvider(credentials) as provider:
                 try:
-                    updated = provider.update_content(
+                    updated_files = []
+                    updated = False
+
+                    if provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         f"otterdog/{github_id}.jsonnet",
                         content,
                         self.push_message,
-                    )
+                    ):
+                        updated_files.append(f"otterdog/{github_id}.jsonnet")
+                        updated = True
 
-                    updated |= provider.update_content(
+                    if provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         "otterdog/jsonnetfile.json",
                         bundle_content,
                         self.push_message,
-                    )
+                    ):
+                        updated_files.append("otterdog/jsonnetfile.json")
+                        updated |= True
 
-                    updated |= provider.update_content(
+                    if provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         "otterdog/jsonnetfile.lock.json",
                         "",
                         self.push_message,
-                    )
+                    ):
+                        updated_files.append("otterdog/jsonnetfile.lock.json")
+                        updated |= True
+
                 except RuntimeError as e:
                     print_error(
                         f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {str(e)}"
@@ -86,8 +97,10 @@ class PushOperation(Operation):
 
             if updated:
                 self.printer.println(
-                    f"organization definition pushed to repo '{org_config.github_id}/{org_config.config_repo}'"
+                    f"organization definition pushed to repo '{org_config.github_id}/{org_config.config_repo}': "
                 )
+                for updated_file in updated_files:
+                    self.printer.println(f"  - '{updated_file}'")
             else:
                 self.printer.println("no changes, nothing pushed")
 
