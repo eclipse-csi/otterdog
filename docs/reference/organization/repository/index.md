@@ -37,7 +37,9 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _secret_scanning_push_protection_     | string                                                    | If secret scanning push protection is "enabled" or "disabled"                           |                                                                                          |
 | _squash_merge_commit_message_         | string                                                    | Can be PR_BODY, COMMIT_MESSAGES, or BLANK for a default squash merge commit message     |                                                                                          |
 | _squash_merge_commit_title_           | string                                                    | Can be PR_TITLE or COMMIT_OR_PR_TITLE for a default squash merge commit title           |                                                                                          |
-| _template_repository_                 | string or null                                            | The template repository to use when creating the repo                                   | read-only                                                                                |
+| _template_repository_                 | string or null                                            | The template repository to use when creating the repo                                   | read-only, only considered during creation                                               |
+| _forked_repository_                   | string or null                                            | The repository to fork when creating the repo                                           | only considered during creation                                                          |
+| _fork_default_branch_only_            | boolean                                                   | When creating a fork, whether only the default branch will be included in the fork      | only considered during creation                                                          |
 | _web_commit_signoff_required_         | boolean                                                   | If the repo requires web commit signoff                                                 |                                                                                          |
 | _workflows_                           | [WorkflowSettings](workflow-settings.md)                  | Workflow settings on organizational level                                               |                                                                                          |
 | _webhooks_                            | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                          |
@@ -75,6 +77,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 - specifying a description of more than 350 characters triggers an error (maximum supported length by GitHub)
 - specifying more than 20 topics triggers an error (maximum number of supported topics by GitHub)
 - disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
+- specifying a `template_repository` and `forked_repository` at the same time triggers an error
 
 !!! note
 
