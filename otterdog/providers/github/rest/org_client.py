@@ -192,20 +192,53 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
 
+    def _set_selected_repositories_for_secret(
+        self, org_id: str, secret_name: str, selected_repository_ids: list[str]
+    ) -> None:
+        print_debug(f"setting selected repositories for secret '{secret_name}'")
+
+        try:
+            params = {"selected_repository_ids": selected_repository_ids}
+
+            url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
+            response = self.requester.request_json("PUT", url, params=params)
+            if response.status_code != 204:
+                raise RuntimeError(f"failed to update selected repositories for secret '{secret_name}'")
+            else:
+                print_debug(f"updated selected repositories for secret '{secret_name}'")
+
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+
     def update_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
         print_debug(f"updating org secret '{secret_name}'")
 
         if "name" in secret:
             secret.pop("name")
 
+        if "visibility" in secret:
+            visibility = secret["visibility"]
+        else:
+            visibility = None
+
+        if "selected_repository_ids" in secret:
+            selected_repository_ids = secret.pop("selected_repository_ids")
+        else:
+            selected_repository_ids = None
+
         self.encrypt_secret_inplace(org_id, secret)
 
         response = self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
         )
+
         if response.status_code != 204:
             raise RuntimeError(f"failed to update org secret '{secret_name}'")
         else:
+            if selected_repository_ids is not None and (visibility is None or visibility == "selected"):
+                self._set_selected_repositories_for_secret(org_id, secret_name, selected_repository_ids)
+
             print_debug(f"updated org secret '{secret_name}'")
 
     def add_secret(self, org_id: str, data: dict[str, str]) -> None:
@@ -221,10 +254,11 @@ class OrgClient(RestClient):
             print_debug(f"added org secret '{secret_name}'")
 
     def encrypt_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
-        value = data.pop("value")
-        key_id, public_key = self.get_public_key(org_id)
-        data["encrypted_value"] = encrypt_value(public_key, value)
-        data["key_id"] = key_id
+        if "value" in data:
+            value = data.pop("value")
+            key_id, public_key = self.get_public_key(org_id)
+            data["encrypted_value"] = encrypt_value(public_key, value)
+            data["key_id"] = key_id
 
     def delete_secret(self, org_id: str, secret_name: str) -> None:
         print_debug(f"deleting org secret '{secret_name}'")
@@ -263,11 +297,40 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
 
+    def _set_selected_repositories_for_variable(
+        self, org_id: str, variable_name: str, selected_repository_ids: list[str]
+    ) -> None:
+        print_debug(f"setting selected repositories for variable '{variable_name}'")
+
+        try:
+            params = {"selected_repository_ids": selected_repository_ids}
+
+            url = f"/orgs/{org_id}/actions/variables/{variable_name}/repositories"
+            response = self.requester.request_json("PUT", url, params=params)
+            if response.status_code != 204:
+                raise RuntimeError(f"failed to update selected repositories for variable '{variable_name}'")
+            else:
+                print_debug(f"updated selected repositories for variable '{variable_name}'")
+
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+
     def update_variable(self, org_id: str, variable_name: str, variable: dict[str, Any]) -> None:
         print_debug(f"updating org variable '{variable_name}'")
 
         if "name" in variable:
             variable.pop("name")
+
+        if "visibility" in variable:
+            visibility = variable["visibility"]
+        else:
+            visibility = None
+
+        if "selected_repository_ids" in variable:
+            selected_repository_ids = variable.pop("selected_repository_ids")
+        else:
+            selected_repository_ids = None
 
         response = self.requester.request_raw(
             "PATCH", f"/orgs/{org_id}/actions/variables/{variable_name}", json.dumps(variable)
@@ -275,6 +338,9 @@ class OrgClient(RestClient):
         if response.status_code != 204:
             raise RuntimeError(f"failed to update org variable '{variable_name}': {response.text}")
         else:
+            if selected_repository_ids is not None and (visibility is None or visibility == "selected"):
+                self._set_selected_repositories_for_variable(org_id, variable_name, selected_repository_ids)
+
             print_debug(f"updated org variable '{variable_name}'")
 
     def add_variable(self, org_id: str, data: dict[str, str]) -> None:
