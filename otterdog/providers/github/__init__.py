@@ -167,6 +167,8 @@ class GitHubProvider:
         data: dict[str, str],
         template_repository: Optional[str],
         post_process_template_content: list[str],
+        forked_repository: Optional[str],
+        fork_default_branch_only: bool,
         auto_init_repo: bool,
     ) -> None:
         self.rest_api.repo.add_repo(
@@ -174,6 +176,8 @@ class GitHubProvider:
             data,
             template_repository,
             post_process_template_content,
+            forked_repository,
+            fork_default_branch_only,
             auto_init_repo,
         )
 
@@ -270,7 +274,7 @@ class GitHubProvider:
 
     def update_org_variable(self, org_id: str, variable_name: str, variable: dict[str, Any]) -> None:
         if len(variable) > 0:
-            self.rest_api.org.update_secret(org_id, variable_name, variable)
+            self.rest_api.org.update_variable(org_id, variable_name, variable)
 
     def add_org_variable(self, org_id: str, data: dict[str, str]) -> None:
         self.rest_api.org.add_variable(org_id, data)

@@ -21,6 +21,8 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "forked_repository": { "$ref": "#/definitions/string_or_null" },
+    "fork_default_branch_only": { "type": "boolean" },
     "auto_init": { "type": "boolean" },
     "topics": {
       "type": "array",

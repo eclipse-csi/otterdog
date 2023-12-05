@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added support for creating new repositories as fork. ([#153](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/153))
+- Added support for action variables on organizational and repository level. ([#150](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/150))
 - Added operation `list-members` to display the amount of members for an organization.
 - Added support for repository rulesets. ([#53](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/53))
 - Added support for workflow settings of a repository. ([#113](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/113))

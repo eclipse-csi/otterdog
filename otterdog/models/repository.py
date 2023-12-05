@@ -87,6 +87,9 @@ class Repository(ModelObject):
     gh_pages_source_branch: Optional[str]
     gh_pages_source_path: Optional[str]
 
+    forked_repository: Optional[str] = dataclasses.field(metadata={"model_only": True})
+    fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
+
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
 
     # model only fields
@@ -277,6 +280,12 @@ class Repository(ModelObject):
                 FailureType.ERROR,
                 f"{self.get_model_header()} has 'secret_scanning' disabled while "
                 f"'secret_scanning_push_protection' is enabled.",
+            )
+
+        if is_set_and_valid(self.template_repository) and is_set_and_valid(self.forked_repository):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header()} has 'template_repository' and 'forked_repository' set at the same time.",
             )
 
         for webhook in self.webhooks:
@@ -851,6 +860,8 @@ class Repository(ModelObject):
                     patch.expected_object.to_provider_data(org_id, provider),
                     patch.expected_object.template_repository,
                     patch.expected_object.post_process_template_content,
+                    patch.expected_object.forked_repository,
+                    patch.expected_object.fork_default_branch_only,
                     patch.expected_object.auto_init,
                 )
 

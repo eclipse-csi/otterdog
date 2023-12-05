@@ -112,9 +112,43 @@ class RepoClient(RestClient):
         data: dict[str, Any],
         template_repository: Optional[str],
         post_process_template_content: list[str],
+        forked_repository: Optional[str],
+        fork_default_branch_only: bool,
         auto_init_repo: bool,
     ) -> None:
         repo_name = data["name"]
+
+        if is_set_and_present(forked_repository):
+            print_debug(f"forking repo '{forked_repository}' to '{org_id}/{repo_name}'")
+            upstream_owner, upstream_repo = re.split("/", forked_repository, 1)
+
+            try:
+                fork_data = {
+                    "organization": org_id,
+                    "name": repo_name,
+                    "default_branch_only": fork_default_branch_only,
+                }
+
+                self.requester.request_json(
+                    "POST",
+                    f"/repos/{upstream_owner}/{upstream_repo}/forks",
+                    fork_data,
+                )
+
+                print_debug(f"created repo with name '{repo_name}' from template '{template_repository}'")
+
+                # get all the data for the created repo to avoid setting values that can not be changed due
+                # to defaults from the organization (like web_commit_signoff_required)
+                current_data = self.get_repo_data(org_id, repo_name)
+                self._remove_already_active_settings(data, current_data)
+                self.update_repo(org_id, repo_name, data)
+
+                return
+            except GitHubException as ex:
+                tb = ex.__traceback__
+                raise RuntimeError(
+                    f"failed to fork repo '{repo_name}' from repo '{forked_repository}':\n{ex}"
+                ).with_traceback(tb)
 
         if is_set_and_present(template_repository):
             print_debug(f"creating repo '{org_id}/{repo_name}' with template '{template_repository}'")
