@@ -5,7 +5,7 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
-
+import os.path
 from typing import Optional
 
 from colorama import Style
@@ -33,6 +33,10 @@ class PushOperation(Operation):
         self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
+
+        if not os.path.exists(org_file_name):
+            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first")
+            return 1
 
         self.printer.level_up()
 
