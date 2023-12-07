@@ -11,6 +11,7 @@ by the means of `otterdog`. The following non-exhaustive list outlines settings 
 - enabling private vulnerability reporting [#27](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/27)
 - tag protections [#143](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/143)
 - supporting merge queue settings for a branch protection rule [#86](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/86)
+- transfer a repo from one organization to another organization
 
 Most of the unsupported settings are only accessible via the Web UI of GitHub. 
 In case you would like to have a specific feature of GitHub being supported by `otterdog`,
