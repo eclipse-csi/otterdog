@@ -508,7 +508,7 @@ class Repository(ModelObject):
 
     @classmethod
     def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = {
+        mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
 
@@ -829,7 +829,7 @@ class Repository(ModelObject):
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        expected_repos_by_all_names = multi_associate_by_key(expected_repos, Repository.get_all_names)
+        expected_repos_by_all_names = multi_associate_by_key(expected_repos, lambda r: r.get_all_names())
         expected_repos_by_name = associate_by_key(expected_repos, lambda x: x.name)
 
         for current_repo in current_repos:

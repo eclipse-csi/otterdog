@@ -153,7 +153,7 @@ class OrganizationSettings(ModelObject):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         mapping.update(
             {

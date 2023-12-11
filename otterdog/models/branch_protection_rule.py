@@ -283,7 +283,7 @@ class BranchProtectionRule(ModelObject):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
 
         if "requires_approving_reviews" in data:
             mapping["requires_pull_request"] = S("requires_approving_reviews")
@@ -322,7 +322,7 @@ class BranchProtectionRule(ModelObject):
 
     @classmethod
     def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = {
+        mapping: dict[str, Any] = {
             snake_to_camel_case(field.name): S(field.name)
             for field in cls.provider_fields()
             if not is_unset(data.get(field.name, UNSET))

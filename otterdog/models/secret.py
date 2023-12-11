@@ -79,7 +79,7 @@ class Secret(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
         # the provider will never send the value itself, use a dummy secret.
         mapping["value"] = K("********")
         return mapping

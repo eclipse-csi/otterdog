@@ -93,7 +93,7 @@ class OrganizationSecret(Secret):
 
     @classmethod
     def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = {
+        mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
 

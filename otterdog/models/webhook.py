@@ -119,7 +119,7 @@ class Webhook(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = {
+        mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
 
@@ -233,7 +233,7 @@ class Webhook(ModelObject, abc.ABC):
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        expected_webhooks_by_all_urls = multi_associate_by_key(expected_webhooks, Webhook.get_all_urls)
+        expected_webhooks_by_all_urls = multi_associate_by_key(expected_webhooks, lambda w: w.get_all_urls())
         expected_webhooks_by_url = associate_by_key(expected_webhooks, lambda x: x.url)
 
         for current_webhook in current_webhooks:
