@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional, cast
 
+from jsonbender import S  # type: ignore
+
 from otterdog.models import (
     ModelObject,
     LivePatchHandler,
@@ -72,6 +74,13 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 return False
 
         return super().include_field_for_diff_computation(field)
+
+    @classmethod
+    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+        if "enabled" in data and data["enabled"] is False:
+            return {"enabled": S("enabled")}
+        else:
+            return super().get_mapping_to_provider(org_id, data, provider)
 
     @classmethod
     def generate_live_patch(
