@@ -92,7 +92,7 @@ class BranchProtectionRule(ModelObject):
         if self.requires_pull_request is False:
             if is_set_and_valid(self.required_approving_review_count):
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{self.get_model_header(parent_object)} has"
                     f" 'requires_pull_request' disabled but 'required_approving_review_count' "
                     f"is set to '{self.required_approving_review_count}', setting will be ignored.",
@@ -144,7 +144,7 @@ class BranchProtectionRule(ModelObject):
             and len(review_dismissal_allowances) > 0
         ):
             context.add_failure(
-                FailureType.WARNING,
+                FailureType.INFO,
                 f"{self.get_model_header(parent_object)} has"
                 f" 'restricts_review_dismissals' disabled but "
                 f"'review_dismissal_allowances' is set to '{self.review_dismissal_allowances}', "
@@ -158,7 +158,7 @@ class BranchProtectionRule(ModelObject):
             and len(self.bypass_force_push_allowances) > 0
         ):
             context.add_failure(
-                FailureType.WARNING,
+                FailureType.INFO,
                 f"{self.get_model_header(parent_object)} has"
                 f" 'allows_force_pushes' enabled but "
                 f"'bypass_force_push_allowances' is set to '{self.bypass_force_push_allowances}', "

@@ -56,6 +56,9 @@ class OrganizationSettings(ModelObject):
     has_discussions: bool
     discussion_source_repository: Optional[str]
     has_organization_projects: bool
+    # setting does not seem to be taken into account as the name might suggest,
+    # instead has_organization_projects is used to control whether repo can have projects
+    # deprecate and schedule for removal
     has_repository_projects: bool
     default_branch_name: str
     default_repository_permission: str
