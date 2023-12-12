@@ -15,6 +15,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import print_error, sort_jsonnet, strip_trailing_commas
 
 from . import Operation
+from ..models import PatchContext
 
 
 class CanonicalDiffOperation(Operation):
@@ -50,7 +51,8 @@ class CanonicalDiffOperation(Operation):
             sort_jsonnet(list(filter(lambda x: not x.strip().startswith("#"), original_config.split("\n"))))
         )
 
-        canonical_config = organization.to_jsonnet(jsonnet_config)
+        context = PatchContext(github_id, organization.settings)
+        canonical_config = organization.to_jsonnet(jsonnet_config, context)
         canonical_config_as_lines = strip_trailing_commas(sort_jsonnet(canonical_config.split("\n")))
 
         for line in self._diff(original_config_without_comments, canonical_config_as_lines, "original", "canonical"):
