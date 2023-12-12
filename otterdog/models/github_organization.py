@@ -18,7 +18,7 @@ from typing import Any, Optional, Iterator, Callable
 
 import jsonschema
 from importlib_resources import files, as_file
-from jsonbender import bend, S, F, Forall  # type: ignore
+from jsonbender import bend, S, OptionalS, F, Forall  # type: ignore
 
 from otterdog import resources
 from otterdog.config import OtterdogConfig, JsonnetConfig
@@ -155,10 +155,11 @@ class GitHubOrganization:
         mapping = {
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
-            "webhooks": S("webhooks") >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
-            "secrets": S("secrets") >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
-            "variables": S("variables") >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
-            "repositories": S("repositories") >> Forall(lambda x: Repository.from_model_data(x)),
+            "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
+            "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
+            "variables": OptionalS("variables", default=[])
+            >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
+            "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
         return cls(**bend(mapping, data))
