@@ -15,9 +15,15 @@ from typing import Any, ClassVar
 from jsonbender import bend, S, OptionalS  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import ModelObject, ValidationContext, FailureType, PatchContext
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, IndentingPrinter, write_patch_object_as_json
+from otterdog.utils import (
+    UNSET,
+    is_unset,
+    is_set_and_valid,
+    IndentingPrinter,
+    write_patch_object_as_json,
+)
 
 
 @dataclasses.dataclass
@@ -38,6 +44,26 @@ class WorkflowSettings(ModelObject, abc.ABC):
         "allow_verified_creator_actions",
         "allow_action_patterns",
     ]
+
+    _allowed_actions_level: ClassVar[dict[str, int]] = {
+        "all": 1,
+        "local_only": 3,
+        "selected": 2,
+    }
+
+    @classmethod
+    def get_allowed_actions_level(cls, allowed_actions: str) -> int:
+        if is_set_and_valid(allowed_actions):
+            return cls._allowed_actions_level[allowed_actions]
+        else:
+            return 0
+
+    def are_actions_more_restricted(self, repo_allowed_actions: str) -> bool:
+        if is_set_and_valid(self.allowed_actions):
+            org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
+            repo_level = WorkflowSettings.get_allowed_actions_level(repo_allowed_actions)
+            return org_level >= repo_level
+        return False
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if is_set_and_valid(self.allowed_actions):
@@ -133,6 +159,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:

@@ -22,9 +22,11 @@ from otterdog.models import (
     ValidationContext,
     FailureType,
 )
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.workflow_settings import WorkflowSettings
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, is_set_and_valid
+from otterdog.utils import Change, is_set_and_valid, UNSET
 
 
 @dataclasses.dataclass
@@ -38,6 +40,21 @@ class RepositoryWorkflowSettings(WorkflowSettings):
     @property
     def model_object_name(self) -> str:
         return "repo_workflow_settings"
+
+    def coerce_from_org_settings(
+        self, org_workflow_settings: OrganizationWorkflowSettings
+    ) -> RepositoryWorkflowSettings:
+        copy = dataclasses.replace(self)
+
+        if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
+            copy.allowed_actions = UNSET  # type: ignore
+            for prop in self._selected_action_properties:
+                copy.__setattr__(prop, UNSET)
+
+        if org_workflow_settings.default_workflow_permissions == "read":
+            copy.default_workflow_permissions = UNSET  # type: ignore
+
+        return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         super().validate(context, parent_object)
@@ -93,23 +110,26 @@ class RepositoryWorkflowSettings(WorkflowSettings):
     ) -> None:
         assert isinstance(expected_object, RepositoryWorkflowSettings)
 
+        expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
+        coerced_object = expected_object.coerce_from_org_settings(expected_org_settings.workflows)
+
         if current_object is None:
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            handler(LivePatch.of_addition(expected_object, parent_object, coerced_object.apply_live_patch))
             return
 
         assert isinstance(current_object, RepositoryWorkflowSettings)
 
-        modified_workflow_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+        modified_workflow_settings: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
         # FIXME: needed to add this hack to ensure that enabled is also present in
         #        the modified data as GitHub has made this property required.
         if "allowed_actions" in modified_workflow_settings:
-            modified_workflow_settings["enabled"] = Change(expected_object.enabled, expected_object.enabled)
+            modified_workflow_settings["enabled"] = Change(coerced_object.enabled, coerced_object.enabled)
 
         if len(modified_workflow_settings) > 0:
             handler(
                 LivePatch.of_changes(
-                    expected_object,
+                    coerced_object,
                     current_object,
                     modified_workflow_settings,
                     parent_object,

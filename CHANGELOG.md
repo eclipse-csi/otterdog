@@ -2,7 +2,9 @@
 
 ## [0.4.0] - unreleased
 
-### Added
+### Changed
+
+- Coerce repository workflow settings from organization workflow settings that are more restrictive. ([#135](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/135))
 
 
 ## [0.3.0] - 05/12/2023

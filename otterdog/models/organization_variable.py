@@ -14,7 +14,7 @@ from typing import Any, cast
 from jsonbender import bend, S, OptionalS, K, Forall, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatch, LivePatchType
+from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatch, LivePatchType, PatchContext
 from otterdog.models.variable import Variable
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -108,6 +108,7 @@ class OrganizationVariable(Variable):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:

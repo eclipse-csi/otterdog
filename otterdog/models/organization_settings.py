@@ -22,6 +22,7 @@ from otterdog.models import (
     LivePatchHandler,
     LivePatchContext,
     LivePatchType,
+    PatchContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -189,6 +190,7 @@ class OrganizationSettings(ModelObject):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:
@@ -201,7 +203,7 @@ class OrganizationSettings(ModelObject):
             patch = self.workflows.get_patch_to(default_workflow_settings)
             if len(patch) > 0:
                 printer.print("workflows+:")
-                self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
+                self.workflows.to_jsonnet(printer, jsonnet_config, context, False, default_workflow_settings)
 
         printer.level_down()
         printer.println("},")

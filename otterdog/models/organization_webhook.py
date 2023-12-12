@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, LivePatch, LivePatchType
+from otterdog.models import ModelObject, LivePatch, LivePatchType, PatchContext
 from otterdog.models.webhook import Webhook
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import IndentingPrinter, write_patch_object_as_json
@@ -31,6 +31,7 @@ class OrganizationWebhook(Webhook):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:

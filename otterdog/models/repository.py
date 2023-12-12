@@ -22,6 +22,7 @@ from otterdog.models import (
     LivePatchHandler,
     LivePatch,
     LivePatchType,
+    PatchContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -38,6 +39,7 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
+from .organization_settings import OrganizationSettings
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
@@ -584,6 +586,7 @@ class Repository(ModelObject):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:
@@ -614,10 +617,13 @@ class Repository(ModelObject):
             default_workflow_settings = cast(Repository, default_object).workflows
 
             if is_set_and_valid(default_workflow_settings):
-                patch = self.workflows.get_patch_to(default_workflow_settings)
+                coerced_settings = self.workflows.coerce_from_org_settings(
+                    cast(OrganizationSettings, context.org_settings).workflows
+                )
+                patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
                     printer.print("workflows+:")
-                    self.workflows.to_jsonnet(printer, jsonnet_config, False, default_workflow_settings)
+                    coerced_settings.to_jsonnet(printer, jsonnet_config, context, False, default_workflow_settings)
 
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
@@ -627,7 +633,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for webhook in self.webhooks:
-                webhook.to_jsonnet(printer, jsonnet_config, False, default_repo_webhook)
+                webhook.to_jsonnet(printer, jsonnet_config, context, False, default_repo_webhook)
 
             printer.level_down()
             printer.println("],")
@@ -640,7 +646,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for secret in self.secrets:
-                secret.to_jsonnet(printer, jsonnet_config, False, default_repo_secret)
+                secret.to_jsonnet(printer, jsonnet_config, context, False, default_repo_secret)
 
             printer.level_down()
             printer.println("],")
@@ -653,7 +659,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for variable in self.variables:
-                variable.to_jsonnet(printer, jsonnet_config, False, default_repo_variable)
+                variable.to_jsonnet(printer, jsonnet_config, context, False, default_repo_variable)
 
             printer.level_down()
             printer.println("],")
@@ -669,7 +675,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for rule in self.branch_protection_rules:
-                rule.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
+                rule.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
 
             printer.level_down()
             printer.println("],")
@@ -682,7 +688,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for ruleset in self.rulesets:
-                ruleset.to_jsonnet(printer, jsonnet_config, False, default_org_rule)
+                ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
 
             printer.level_down()
             printer.println("],")
@@ -696,7 +702,7 @@ class Repository(ModelObject):
             printer.level_up()
 
             for env in self.environments:
-                env.to_jsonnet(printer, jsonnet_config, False, default_environment)
+                env.to_jsonnet(printer, jsonnet_config, context, False, default_environment)
 
             printer.level_down()
             printer.println("],")
@@ -725,8 +731,11 @@ class Repository(ModelObject):
             assert isinstance(expected_object, Repository)
             assert isinstance(current_object, Repository)
 
+            has_organization_projects = cast(
+                OrganizationSettings, context.expected_org_settings
+            ).has_organization_projects
             has_organization_projects_disabled = (
-                context.expected_org_settings.get("has_organization_projects", None) is False
+                is_set_and_present(has_organization_projects) and has_organization_projects is False
             )
 
             # special handling for some keys that can be set organization wide

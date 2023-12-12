@@ -17,6 +17,7 @@ from otterdog.providers.github import GitHubProvider
 from otterdog.utils import print_warn, print_error, get_approval
 
 from . import Operation
+from ..models import PatchContext
 
 
 class ImportOperation(Operation):
@@ -85,7 +86,8 @@ class ImportOperation(Operation):
                 previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
                 organization.copy_secrets(previous_organization)
 
-            output = organization.to_jsonnet(jsonnet_config)
+            context = PatchContext(github_id, organization.settings)
+            output = organization.to_jsonnet(jsonnet_config, context)
 
             output_dir = jsonnet_config.org_dir
             if not os.path.exists(output_dir):

@@ -177,11 +177,7 @@ class DiffOperation(Operation):
                     )
 
         context = LivePatchContext(
-            github_id,
-            self.update_webhooks,
-            self.update_secrets,
-            self.update_filter,
-            expected_org.settings.to_model_dict(False, False),
+            github_id, self.update_webhooks, self.update_secrets, self.update_filter, expected_org.settings
         )
         expected_org.generate_live_patch(current_org, context, handle)
 

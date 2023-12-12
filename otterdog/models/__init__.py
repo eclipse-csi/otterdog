@@ -105,12 +105,18 @@ class LivePatch:
 
 
 @dataclasses.dataclass
+class PatchContext(object):
+    org_id: str
+    org_settings: ModelObject
+
+
+@dataclasses.dataclass
 class LivePatchContext(object):
     org_id: str
     update_webhooks: bool
     update_secrets: bool
     update_filter: str
-    expected_org_settings: dict[str, Any]
+    expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 
 
@@ -389,6 +395,7 @@ class ModelObject(ABC):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:

@@ -32,7 +32,7 @@ from otterdog.utils import (
     is_debug_enabled,
 )
 
-from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext
+from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext, PatchContext
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
 from .organization_secret import OrganizationSecret
@@ -191,7 +191,7 @@ class GitHubOrganization:
             if other_repo is not None:
                 repo.copy_secrets(other_repo)
 
-    def to_jsonnet(self, config: JsonnetConfig) -> str:
+    def to_jsonnet(self, config: JsonnetConfig, context: PatchContext) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config_for_org_id(self.github_id))
 
         output = StringIO()
@@ -204,7 +204,7 @@ class GitHubOrganization:
 
         # print organization settings
         printer.print("settings+:")
-        self.settings.to_jsonnet(printer, config, False, default_org.settings)
+        self.settings.to_jsonnet(printer, config, context, False, default_org.settings)
 
         # print organization webhooks
         if len(self.webhooks) > 0:
@@ -214,7 +214,7 @@ class GitHubOrganization:
             printer.level_up()
 
             for webhook in self.webhooks:
-                webhook.to_jsonnet(printer, config, False, default_org_webhook)
+                webhook.to_jsonnet(printer, config, context, False, default_org_webhook)
 
             printer.level_down()
             printer.println("],")
@@ -227,7 +227,7 @@ class GitHubOrganization:
             printer.level_up()
 
             for secret in self.secrets:
-                secret.to_jsonnet(printer, config, False, default_org_secret)
+                secret.to_jsonnet(printer, config, context, False, default_org_secret)
 
             printer.level_down()
             printer.println("],")
@@ -240,7 +240,7 @@ class GitHubOrganization:
             printer.level_up()
 
             for variable in self.variables:
-                variable.to_jsonnet(printer, config, False, default_org_variable)
+                variable.to_jsonnet(printer, config, context, False, default_org_variable)
 
             printer.level_down()
             printer.println("],")
@@ -268,7 +268,7 @@ class GitHubOrganization:
                     other_repo = default_org_repo
                     extend = False
 
-                repo.to_jsonnet(printer, config, extend, other_repo)
+                repo.to_jsonnet(printer, config, context, extend, other_repo)
 
             printer.level_down()
             printer.println("],")

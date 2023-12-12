@@ -23,6 +23,7 @@ from otterdog.models import (
     LivePatchType,
     LivePatchContext,
     LivePatchHandler,
+    PatchContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -398,6 +399,7 @@ class BranchProtectionRule(ModelObject):
         self,
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
+        context: PatchContext,
         extend: bool,
         default_object: ModelObject,
     ) -> None:
