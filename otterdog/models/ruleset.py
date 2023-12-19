@@ -126,7 +126,7 @@ class Ruleset(ModelObject, abc.ABC):
             }:
                 if self.__getattribute__(key) is True:
                     context.add_failure(
-                        FailureType.WARNING,
+                        FailureType.INFO,
                         f"{self.get_model_header(parent_object)} has"
                         f" 'requires_pull_request' disabled but '{key}' "
                         f"is enabled, setting will be ignored.",
