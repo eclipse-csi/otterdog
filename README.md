@@ -20,6 +20,8 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 ### System requirements:
 
 * python3.10 (mandatory): install using `apt install python3`
+* poetry (mandatory): install using `curl -sSL https://install.python-poetry.org | python3 -` or `pipx install poetry`
+* go (mandatory for installing jsonnet-bundler): install using `apt install golang`
 * jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
@@ -42,7 +44,7 @@ to access their GitHub settings has to be placed in a json file (default: __otte
 with the __-c__ flag):
 
 ```json
-{ 
+{
   ...
   "organizations": [
     {
@@ -62,7 +64,7 @@ with the __-c__ flag):
 
 Otterdog needs certain credentials to access information from an organization and its repositories on GitHub:
 
-* username / password / 2FA seed 
+* username / password / 2FA seed
 * API token
 
 The login / username / 2FA seed are required to access the web interface of GitHub in order to retrieve certain
@@ -83,7 +85,7 @@ The credentials can be stored in different providers (bitwarden, pass).
 When using **bitwarden** to store the credentials, you need to enter a valid __item id__ as additional credential data:
 
 ```json
-{ 
+{
   ...
   "organizations": [
     {
@@ -133,7 +135,7 @@ When using **pass** to store the credentials, you need to enter fully qualified 
 required credential data:
 
 ```json
-{ 
+{
   ...
   "organizations": [
     {
@@ -194,7 +196,7 @@ $ otterdog.sh apply <organization>
 * (Recommended) a directory orgs
 
 
-## Bulding Container Image
+## Building Container Image
 * Creating a container local image
 ```console
 make container_build
@@ -205,7 +207,7 @@ make container_build
 make container_build_dev
 ```
 
-## Running otterdog in a container 
+## Running otterdog in a container
 
 ### Using Bitwarden client
 * Firstly you need to login and unlock your Bitwarden session by executing the command below
@@ -225,7 +227,7 @@ export BW_SESSION="ffdsajklloremipsumfxs000f000r0loremipsum"
 * Activate otterdog environment will create an alias ```otterdog```
 ```console
 source scripts/bin/active-otterdog
-``` 
+```
 * Checking otterdog alias
 ```console
 otterdog -h
@@ -258,16 +260,16 @@ otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs apply -f
 * Please bear in mind that all command need to drop **.sh**
 
 ### Activating Development Otterdog Container Runtime
-* Activating developemnt otterdog environment will run eclipse/otterdog:dev. Thus it can be used container shell. Please find below an example
+* Activating development otterdog environment will run eclipse/otterdog:dev. Thus it can be used container shell. Please find below an example
 ```console
 export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
 otterdog /bin/bash
-``` 
-* To activate development otterdog environment with arbument
+```
+* To activate development otterdog environment with argument
 ```console
 export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
 otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs /bin/bash
-``` 
+```
 
 * Checking otterdog environment
 ```console
