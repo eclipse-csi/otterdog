@@ -259,7 +259,7 @@ class Repository(ModelObject):
             context.add_failure(
                 FailureType.ERROR,
                 f"{self.get_model_header()} has 'has_projects' enabled "
-                f"while the organization disables 'has_organization_projects', setting will be ignored.",
+                f"while the organization disables 'has_organization_projects'.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:

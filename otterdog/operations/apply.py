@@ -9,14 +9,12 @@
 import os
 from typing import Any, Optional
 
-from colorama import Style
-
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter, Change, get_approval
+from otterdog.models import ModelObject, LivePatch, LivePatchType
+from otterdog.utils import IndentingPrinter, Change, get_approval, style
 
 from .diff_operation import DiffStatus
 from .plan import PlanOperation
-from ..models import ModelObject, LivePatch, LivePatchType
 
 
 class ApplyOperation(PlanOperation):
@@ -95,26 +93,30 @@ class ApplyOperation(PlanOperation):
                 self.printer.println("No resource will be removed, use flag '--delete-resources' to delete them.\n")
 
             self.printer.println(
-                f"{Style.BRIGHT}Do you want to perform these actions?\n"
-                f"  Only 'yes' or 'y' will be accepted to approve.\n"
+                "Do you want to perform these actions? (Only 'yes' or 'y' will be accepted to approve)\n"
             )
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
+            self.printer.print(f"{style('Enter a value', bright=True)}: ")
             if not get_approval():
                 self.printer.println("\nApply cancelled.")
                 return
 
         # apply patches
-        for patch in patches:
-            if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
-                continue
-            else:
-                patch.apply(org_id, self.gh_client)
+        import click
+
+        self.printer.println("\nApplying changes:\n")
+
+        with click.progressbar(patches) as bar:
+            for patch in bar:
+                if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
+                    continue
+                else:
+                    patch.apply(org_id, self.gh_client)
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
 
         self.printer.println(
-            f"{Style.BRIGHT}Executed plan:{Style.RESET_ALL} {diff_status.additions} added, "
+            f"\n{style('Executed plan', bright=True)}: {diff_status.additions} added, "
             f"{diff_status.differences} changed, "
             f"{diff_status.deletions} {delete_snippet}."
         )

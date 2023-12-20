@@ -14,19 +14,11 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Optional, Iterator, Callable, cast, Protocol
 
-from colorama import Style
 from jsonbender import bend  # type: ignore
 
 from otterdog.providers.github import GitHubProvider
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.utils import (
-    patch_to_other,
-    is_unset,
-    T,
-    is_different_ignoring_order,
-    Change,
-    IndentingPrinter,
-)
+from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change, IndentingPrinter, style
 
 
 class FailureType(Enum):
@@ -276,24 +268,26 @@ class ModelObject(ABC):
         yield from []
 
     def get_model_header(self, parent_object: Optional[ModelObject] = None) -> str:
-        header = f"{Style.BRIGHT}{self.model_object_name}{Style.RESET_ALL}"
+        header = style(self.model_object_name, bright=True)
 
         if self.is_keyed():
             key = self.get_key()
-            header = header + f'[{key}={Style.BRIGHT}"{self.get_key_value()}"{Style.RESET_ALL}'
+            header = header + f'[{key}="{style(self.get_key_value(), bright=True)}"'
 
             if isinstance(parent_object, ModelObject):
                 header = (
-                    header + f", {parent_object.model_object_name}="
-                    f'{Style.BRIGHT}"{parent_object.get_key_value()}"{Style.RESET_ALL}'
+                    header
+                    + f", {parent_object.model_object_name}="
+                    + f'"{style(parent_object.get_key_value(), bright=True)}"'
                 )
 
             header = header + "]"
         elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
             header = header + "["
             header = (
-                header + f"{parent_object.model_object_name}="
-                f'{Style.BRIGHT}"{parent_object.get_key_value()}"{Style.RESET_ALL}'
+                header
+                + f"{parent_object.model_object_name}="
+                + f'"{style(parent_object.get_key_value(), bright=True)}"'
             )
             header = header + "]"
 

@@ -43,7 +43,7 @@ class FetchOperation(Operation):
             self.printer.println("  Performing this action will overwrite its contents.")
             self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
 
-            self.printer.print(f"  {style('Enter a value:', bright=True)} ")
+            self.printer.print(f"{style('Enter a value:', bright=True)} ")
             if not get_approval():
                 self.printer.println("\nFetch cancelled.")
                 return 1
