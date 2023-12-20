@@ -16,23 +16,23 @@ from click.shell_completion import CompletionItem
 
 from .config import OtterdogConfig
 from .operations import Operation
-from .operations.apply_operation import ApplyOperation
-from .operations.canonical_diff_operation import CanonicalDiffOperation
+from .operations.apply import ApplyOperation
+from .operations.canonical_diff import CanonicalDiffOperation
 from .operations.dispatch_workflow import DispatchWorkflowOperation
-from .operations.fetch_operation import FetchOperation
-from .operations.list_apps_operation import ListAppsOperation
-from .operations.list_members_operation import ListMembersOperation
-from .operations.import_operation import ImportOperation
+from .operations.fetch_config import FetchOperation
+from .operations.list_apps import ListAppsOperation
+from .operations.list_members import ListMembersOperation
+from .operations.import_configuration import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
-from .operations.plan_operation import PlanOperation
-from .operations.push_operation import PushOperation
-from .operations.show_live_operation import ShowLiveOperation
-from .operations.show_operation import ShowOperation
-from .operations.show_default_operation import ShowDefaultOperation
-from .operations.sync_template_operation import SyncTemplateOperation
-from .operations.delete_file_operation import DeleteFileOperation
-from .operations.validate_operation import ValidateOperation
-from .operations.web_login_operation import WebLoginOperation
+from .operations.plan import PlanOperation
+from .operations.push_config import PushOperation
+from .operations.show_live import ShowLiveOperation
+from .operations.show import ShowOperation
+from .operations.show_default import ShowDefaultOperation
+from .operations.sync_template import SyncTemplateOperation
+from .operations.delete_file import DeleteFileOperation
+from .operations.validate import ValidateOperation
+from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"

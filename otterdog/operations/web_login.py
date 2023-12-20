@@ -6,16 +6,18 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error
+from otterdog.utils import print_error, style
 
 from . import Operation
 
 
 class WebLoginOperation(Operation):
+    """
+    Opens up a logged in browser for an organization.
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -25,8 +27,7 @@ class WebLoginOperation(Operation):
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
-
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:

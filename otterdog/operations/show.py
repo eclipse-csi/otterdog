@@ -10,26 +10,36 @@ import os
 import textwrap
 from io import StringIO
 
-from colorama import Style, Fore
-
 from otterdog.config import OrganizationConfig
 from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
-from otterdog.utils import print_error, IndentingPrinter, is_set_and_valid
+from otterdog.utils import print_error, IndentingPrinter, is_set_and_valid, style
 
 from . import Operation
 
 
 class ShowOperation(Operation):
+    """
+    Shows the local configuration of an organization.
+    """
+
     def __init__(self, markdown: bool, output_dir: str):
         super().__init__()
-        self.markdown = markdown
-        self.output_dir = output_dir
+        self._markdown = markdown
+        self._output_dir = output_dir
+
+    @property
+    def markdown(self) -> bool:
+        return self._markdown
+
+    @property
+    def output_dir(self) -> str:
+        return self._output_dir
 
     def pre_execute(self) -> None:
         if not self.markdown:
-            self.printer.println(f"Showing resources defined in configuration '{self.config.config_file}'")
+            self.printer.println("Showing organization resources:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -37,7 +47,7 @@ class ShowOperation(Operation):
         jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+            self.printer.println(f"\nOrganization {style(org_config.name)}[id={github_id}]")
             self.printer.level_up()
 
         try:
@@ -45,7 +55,7 @@ class ShowOperation(Operation):
 
             if not os.path.exists(org_file_name):
                 print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
+                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import first'"
                 )
                 return 1
 
@@ -70,7 +80,7 @@ class ShowOperation(Operation):
         for model_object, parent_object in organization.get_model_objects():
             self.printer.println()
             model_header = model_object.get_model_header(parent_object)
-            self.print_dict(model_object.to_model_dict(), model_header, "", Fore.BLACK)
+            self.print_dict(model_object.to_model_dict(), model_header, "", "black")
 
     def _print_markdown(self, organization: GitHubOrganization) -> None:
         if not os.path.exists(self.output_dir):

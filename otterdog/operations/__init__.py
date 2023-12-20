@@ -9,10 +9,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from colorama import Fore, Style
-
 from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter, Change, is_unset
+from otterdog.utils import IndentingPrinter, Change, is_unset, style
 
 
 class Operation(ABC):
@@ -60,8 +58,8 @@ class Operation(ABC):
         key_value_separator: str = "=",
         value_separator: str = "",
     ) -> None:
-        prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
-        closing_prefix = f"{color}{action}{Style.RESET_ALL} " if action else ""
+        prefix = f"{style(action, fg=color)} " if action else ""
+        closing_prefix = prefix
 
         if item_header:
             self.printer.print(f"{prefix}{item_header} ")
@@ -133,11 +131,9 @@ class Operation(ABC):
         redacted_keys: Optional[set[str]] = None,
         forced_update: bool = False,
     ) -> None:
-        action = f"{Fore.MAGENTA}!" if forced_update else f"{Fore.YELLOW}~"
-        color = f"{Fore.MAGENTA}" if forced_update else f"{Fore.YELLOW}"
-
-        prefix = f"{action} {Style.RESET_ALL}" if action else ""
-        closing_prefix = f"{action} {Style.RESET_ALL}" if action else ""
+        prefix = style("! ", fg="magenta") if forced_update else style("~ ", fg="yellow")
+        closing_prefix = prefix
+        color = "magenta" if forced_update else "yellow"
 
         self.printer.println(f"\n{prefix}{item_header} {{")
         self.printer.level_up()
@@ -157,7 +153,7 @@ class Operation(ABC):
                     if v != c_v:
                         self.printer.println(
                             f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                            f' {self._get_value(c_v)} {color}->{Style.RESET_ALL} {self._get_value(v)}'
+                            f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(v)}'
                         )
 
                     processed_keys.add(k)
@@ -166,8 +162,7 @@ class Operation(ABC):
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
                             self.printer.println(
-                                f"{Fore.RED}- {Style.RESET_ALL}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                f' {self._get_value(v)}'
+                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f' {self._get_value(v)}'
                             )
 
                 self.printer.println("}")
@@ -188,7 +183,7 @@ class Operation(ABC):
 
                 self.printer.println(
                     f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                    f' {self._get_value(c_v)} {color}->{Style.RESET_ALL} {self._get_value(e_v)}'
+                    f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(e_v)}'
                 )
 
         self.printer.level_down()

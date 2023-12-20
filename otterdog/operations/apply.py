@@ -15,7 +15,7 @@ from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.utils import IndentingPrinter, Change, get_approval
 
 from .diff_operation import DiffStatus
-from .plan_operation import PlanOperation
+from .plan import PlanOperation
 from ..models import ModelObject, LivePatch, LivePatchType
 
 
@@ -37,7 +37,7 @@ class ApplyOperation(PlanOperation):
         super().init(config, printer)
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Apply changes for configuration at '{self.config.config_file}'")
+        self.printer.println("Applying changes:")
         self.print_legend()
 
     def resolve_secrets(self) -> bool:

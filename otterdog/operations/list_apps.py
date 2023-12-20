@@ -9,16 +9,18 @@
 import json
 from typing import Any
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, is_info_enabled
+from otterdog.utils import print_error, is_info_enabled, style
 
 from . import Operation
 
 
 class ListAppsOperation(Operation):
+    """
+    Lists installed GitHub apps for an organization.
+    """
+
     def __init__(self, json_output: bool):
         super().__init__()
         self.all_apps: dict[str, Any] = {}
@@ -26,7 +28,7 @@ class ListAppsOperation(Operation):
 
     def pre_execute(self) -> None:
         if not self.json_output or is_info_enabled():
-            self.printer.println(f"Listing app installations for configuration at '{self.config.config_file}'")
+            self.printer.println("Listing app installations:")
 
     def post_execute(self) -> None:
         if self.json_output is True:
@@ -39,7 +41,7 @@ class ListAppsOperation(Operation):
         github_id = org_config.github_id
 
         if not self.json_output or is_info_enabled():
-            self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+            self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
             self.printer.level_up()
 
         try:
@@ -56,7 +58,7 @@ class ListAppsOperation(Operation):
                 for app in apps:
                     filtered = {key: app[key] for key in ["app_id", "permissions"]}
                     self.printer.println()
-                    self.print_dict(filtered, f"app['{app['app_slug']}']", "", "")
+                    self.print_dict(filtered, f"app['{app['app_slug']}']", "", "black")
             else:
                 if is_info_enabled():
                     self.printer.println(f"Found {len(apps)} app installations.")

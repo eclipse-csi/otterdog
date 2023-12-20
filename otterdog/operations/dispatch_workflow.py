@@ -6,30 +6,40 @@
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error
+from otterdog.utils import print_error, style
 
 from . import Operation
 
 
 class DispatchWorkflowOperation(Operation):
+    """
+    Dispatches a specified workflow for an organization repo.
+    """
+
     def __init__(self, repo_name: str, workflow_name: str):
         super().__init__()
-        self.repo_name = repo_name
-        self.workflow_name = workflow_name
+        self._repo_name = repo_name
+        self._workflow_name = workflow_name
+
+    @property
+    def repo_name(self) -> str:
+        return self._repo_name
+
+    @property
+    def workflow_name(self) -> str:
+        return self._workflow_name
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Dispatching workflows for the configuration at '{self.config.config_file}'")
+        self.printer.println(f"Dispatching workflow '{self.workflow_name}' in organization repo '{self.repo_name}':")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:

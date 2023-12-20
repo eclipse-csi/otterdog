@@ -12,10 +12,11 @@ import json
 import re
 from argparse import Namespace
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard, TextIO
+from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard, TextIO, Union, Tuple
 from urllib.parse import urlparse
 
-from colorama import init as colorama_init, Fore, Style
+import click
+from colorama import Style
 
 T = TypeVar("T")
 
@@ -31,7 +32,6 @@ _verbose_level = 0
 def init(verbose: int) -> None:
     global _verbose_level
     _verbose_level = verbose
-    colorama_init()
 
 
 def is_info_enabled() -> bool:
@@ -46,43 +46,64 @@ def is_trace_enabled() -> bool:
     return _verbose_level >= 3
 
 
+def style(
+    text: str,
+    fg: Optional[Union[int, Tuple[int, int, int], str]] = None,
+    bg: Optional[Union[int, Tuple[int, int, int], str]] = None,
+    bold: Optional[bool] = None,
+    bright: Optional[bool] = None,
+    dim: Optional[bool] = None,
+    underline: Optional[bool] = None,
+    overline: Optional[bool] = None,
+    italic: Optional[bool] = None,
+    blink: Optional[bool] = None,
+    reverse: Optional[bool] = None,
+    strikethrough: Optional[bool] = None,
+    reset: bool = True,
+) -> str:
+    if bright is True:
+        text = f"{Style.BRIGHT}{text}"
+    return click.style(text, fg, bg, bold, dim, underline, overline, italic, blink, reverse, strikethrough, reset)
+
+
 def print_info(msg: str) -> None:
     if is_info_enabled():
-        _print_message(msg, Fore.GREEN, "Info")
+        _print_message(msg, 'green', "Info")
 
 
 def print_debug(msg: str) -> None:
     if is_debug_enabled():
-        print(f"{Fore.CYAN}[DEBUG]{Style.RESET_ALL} " + msg)
+        print(f"{style('[DEBUG]', fg='cyan')} {msg}")
 
 
 def print_trace(msg: str) -> None:
     if is_trace_enabled():
-        print(f"{Fore.MAGENTA}[TRACE]{Style.RESET_ALL} " + msg)
+        print(f"{style('[TRACE]', fg='magenta')} {msg}")
 
 
 def print_warn(msg: str) -> None:
-    _print_message(msg, Fore.YELLOW, "Warning")
+    _print_message(msg, 'yellow', "Warning")
 
 
 def print_error(msg: str) -> None:
-    _print_message(msg, Fore.RED, "Error")
+    _print_message(msg, 'red', "Error")
 
 
 def _print_message(msg: str, color: str, level: str) -> None:
-    print(f"{color}╷")
+    print(style("╷", fg=color))
 
     lines = msg.splitlines()
+    level_prefix = style(f"│ {level}:", fg=color)
 
     if len(lines) > 1:
-        print(f"│ {level}:{Style.RESET_ALL} {Style.BRIGHT}{lines[0]}{Style.RESET_ALL}")
-        print(f"{color}│{Style.RESET_ALL}")
+        print(f"{level_prefix} {lines[0]}")
+        print(style("│", fg=color))
         for line in lines[1:]:
-            print(f"{color}│{Style.RESET_ALL}    {line}")
+            print(f"{style('│', fg=color)}    {line}")
     else:
-        print(f"│ {level}:{Style.RESET_ALL} {msg}")
+        print(f"{level_prefix} {msg}")
 
-    print(f"{color}╵{Style.RESET_ALL}")
+    print(style("╵", fg=color))
 
 
 class _Unset:

@@ -8,43 +8,42 @@
 
 import os
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, get_approval
+from otterdog.utils import print_error, get_approval, style
 
 from . import Operation
 
 
 class FetchOperation(Operation):
+    """
+    Fetches the current configuration from the meta-data repository of an organization.
+    """
+
     def __init__(self, force_processing: bool, pull_request: str):
         super().__init__()
         self.force_processing = force_processing
         self.pull_request = pull_request
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Fetching organization definitions for configuration at '{self.config.config_file}'")
+        self.printer.println("Fetching organization configurations:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.println(
-                f"\n{Style.BRIGHT}Definition already exists{Style.RESET_ALL} at "
-                f"'{org_file_name}'.\n"
-                f"  Performing this action will overwrite its contents.\n"
-                f"  Do you want to continue?\n"
-                f"  Only 'yes' or 'y' will be accepted to approve.\n"
-            )
+            self.printer.println()
+            self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
+            self.printer.println("  Performing this action will overwrite its contents.")
+            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
+            self.printer.print(f"  {style('Enter a value:', bright=True)} ")
             if not get_approval():
                 self.printer.println("\nFetch cancelled.")
                 return 1

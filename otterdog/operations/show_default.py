@@ -8,22 +8,28 @@
 
 import textwrap
 
-from colorama import Style, Fore
-
 from otterdog.config import OrganizationConfig
+from otterdog.utils import jsonnet_evaluate_snippet, style
 
 from . import Operation
-from ..utils import jsonnet_evaluate_snippet
 
 
 class ShowDefaultOperation(Operation):
+    """
+    Shows the default configuration for organizations.
+    """
+
     def __init__(self, markdown: bool):
         super().__init__()
-        self.markdown = markdown
+        self._markdown = markdown
+
+    @property
+    def markdown(self) -> bool:
+        return self._markdown
 
     def pre_execute(self) -> None:
         if not self.markdown:
-            self.printer.println(f"Showing defaults defined in configuration '{self.config.config_file}'")
+            self.printer.println("Showing defaults configurations:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
@@ -31,7 +37,7 @@ class ShowDefaultOperation(Operation):
         jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+            self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
             self.printer.level_up()
 
         try:
@@ -40,7 +46,7 @@ class ShowDefaultOperation(Operation):
             self.printer.println()
             self._print_header("Organization Settings")
             self.print_dict(
-                default_org_settings, f"orgs.{jsonnet_config.create_org}('<github-id>') =", "", Fore.RED, ":", ","
+                default_org_settings, f"orgs.{jsonnet_config.create_org}('<github-id>') =", "", "red", ":", ","
             )
             self._print_footer()
 
@@ -51,7 +57,7 @@ class ShowDefaultOperation(Operation):
                 default_org_webhook,
                 f"orgs.{jsonnet_config.create_org_webhook}('<url>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -64,7 +70,7 @@ class ShowDefaultOperation(Operation):
                 default_org_secret,
                 f"orgs.{jsonnet_config.create_org_secret}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -77,7 +83,7 @@ class ShowDefaultOperation(Operation):
                 default_org_variable,
                 f"orgs.{jsonnet_config.create_org_variable}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -86,9 +92,7 @@ class ShowDefaultOperation(Operation):
             default_repo = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo}('<repo-name>')")
             self.printer.println()
             self._print_header("Repository")
-            self.print_dict(
-                default_repo, f"orgs.{jsonnet_config.create_repo}('<repo-name>') =", "", Fore.BLACK, ":", ","
-            )
+            self.print_dict(default_repo, f"orgs.{jsonnet_config.create_repo}('<repo-name>') =", "", "black", ":", ",")
             self._print_footer()
 
             default_bpr = self.evaluate(jsonnet_config, f"{jsonnet_config.create_branch_protection_rule}('<pattern>')")
@@ -98,7 +102,7 @@ class ShowDefaultOperation(Operation):
                 default_bpr,
                 f"orgs.{jsonnet_config.create_branch_protection_rule}('<pattern>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -111,7 +115,7 @@ class ShowDefaultOperation(Operation):
                 default_ruleset,
                 f"orgs.{jsonnet_config.create_repo_ruleset}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -124,7 +128,7 @@ class ShowDefaultOperation(Operation):
                 default_repo_webhook,
                 f"orgs.{jsonnet_config.create_repo_webhook}('<url>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -137,7 +141,7 @@ class ShowDefaultOperation(Operation):
                 default_repo_secret,
                 f"orgs.{jsonnet_config.create_repo_secret}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -150,7 +154,7 @@ class ShowDefaultOperation(Operation):
                 default_repo_variable,
                 f"orgs.{jsonnet_config.create_repo_variable}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )
@@ -163,7 +167,7 @@ class ShowDefaultOperation(Operation):
                 default_repo_env,
                 f"orgs.{jsonnet_config.create_environment}('<name>') =",
                 "",
-                Fore.BLACK,
+                "black",
                 ":",
                 ",",
             )

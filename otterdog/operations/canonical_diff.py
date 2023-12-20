@@ -8,29 +8,32 @@
 
 import os
 
-from colorama import Style, Fore
-
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import print_error, sort_jsonnet, strip_trailing_commas
+from otterdog.utils import print_error, sort_jsonnet, strip_trailing_commas, style
 
 from . import Operation
 from ..models import PatchContext
 
 
 class CanonicalDiffOperation(Operation):
+    """
+    Performs a canonical diff for organization configurations, i.e. comparing the current configuration
+    with a canonical version and showing the unified diff of it.
+    """
+
     def __init__(self):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Showing diff to a canonical version of the configuration at '{self.config.config_file}'")
+        self.printer.println("Showing canonical diff:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
@@ -55,11 +58,13 @@ class CanonicalDiffOperation(Operation):
         canonical_config = organization.to_jsonnet(jsonnet_config, context)
         canonical_config_as_lines = strip_trailing_commas(sort_jsonnet(canonical_config.split("\n")))
 
-        for line in self._diff(original_config_without_comments, canonical_config_as_lines, "original", "canonical"):
+        self.printer.println()
+
+        for line in self._diff(canonical_config_as_lines, original_config_without_comments, "canonical", "original"):
             if line.startswith("+"):
-                self.printer.println(f"{Fore.GREEN}{line}{Style.RESET_ALL}")
+                self.printer.println(style(line, fg='green'))
             elif line.startswith("-"):
-                self.printer.println(f"{Fore.RED}{line}{Style.RESET_ALL}")
+                self.printer.println(style(line, fg='red'))
             else:
                 self.printer.println(line)
 

@@ -9,45 +9,52 @@
 import os
 import shutil
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
+from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_warn, print_error, get_approval
+from otterdog.utils import print_warn, print_error, get_approval, style
 
 from . import Operation
-from ..models import PatchContext
 
 
 class ImportOperation(Operation):
+    """
+    Imports the current live configuration for organizations.
+    """
+
     def __init__(self, force_processing: bool, no_web_ui: bool):
         super().__init__()
-        self.force_processing = force_processing
-        self.no_web_ui = no_web_ui
+        self._force_processing = force_processing
+        self._no_web_ui = no_web_ui
+
+    @property
+    def force_processing(self) -> bool:
+        return self._force_processing
+
+    @property
+    def no_web_ui(self) -> bool:
+        return self._no_web_ui
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Importing resources for configuration at '{self.config.config_file}'")
+        self.printer.println("Importing resources:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
         if os.path.exists(org_file_name) and not self.force_processing:
-            self.printer.println(
-                f"\nDefinition already exists at "
-                f"{Style.BRIGHT}'{org_file_name}'{Style.RESET_ALL}.\n"
-                f"  Performing this action will overwrite its contents.\n"
-                f"  Do you want to continue?\n"
-                f"  Only 'yes' or 'y' will be accepted to approve.\n"
-            )
+            self.printer.println()
+            self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
+            self.printer.println("  Performing this action will overwrite its contents.")
+            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
 
-            self.printer.print(f"  {Style.BRIGHT}Enter a value:{Style.RESET_ALL} ")
+            self.printer.print(f"  {style('Enter a value:', bright=True)} ")
             if not get_approval():
                 self.printer.println("\nImport cancelled.")
                 return 1
@@ -56,7 +63,7 @@ class ImportOperation(Operation):
             sync_secrets_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
             shutil.copy(org_file_name, backup_file)
-            self.printer.println(f"\nExisting definition copied to {Style.BRIGHT}'{backup_file}'{Style.RESET_ALL}.\n")
+            self.printer.println(f"\nExisting definition copied to '{style(backup_file, bright=True)}'.\n")
         else:
             sync_secrets_from_previous_config = False
 
@@ -72,7 +79,7 @@ class ImportOperation(Operation):
             if self.no_web_ui is True:
                 print_warn(
                     "the Web UI will not be queried as '--no-web-ui' has been specified, "
-                    "the resulting config will be incomplete"
+                    "the resulting config will be incomplete."
                 )
 
             with GitHubProvider(credentials) as provider:

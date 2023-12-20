@@ -5,26 +5,37 @@
 # which is available at https://spdx.org/licenses/MIT.html
 # SPDX-License-Identifier: MIT
 # *******************************************************************************
+
 import os
 
-from colorama import Style, Fore
-
 from otterdog.config import OrganizationConfig
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, is_info_enabled
+from otterdog.utils import print_error, is_info_enabled, style
 
 from . import Operation
-from ..models.github_organization import GitHubOrganization
 
 
 class ListMembersOperation(Operation):
+    """
+    Prints statistical information about members of the organization.
+    """
+
     def __init__(self, two_factor_disabled: bool):
         super().__init__()
-        self.two_factor_disabled = two_factor_disabled
+        self._two_factor_disabled = two_factor_disabled
+
+    @property
+    def two_factor_disabled(self) -> bool:
+        return self._two_factor_disabled
+
+    @property
+    def two_factor_enabled(self) -> bool:
+        return self._two_factor_disabled
 
     def pre_execute(self) -> None:
         if is_info_enabled():
-            self.printer.println(f"Listing members for configuration at '{self.config.config_file}'")
+            self.printer.println("Listing organization members:")
 
     def post_execute(self) -> None:
         pass
@@ -34,7 +45,7 @@ class ListMembersOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -64,15 +75,13 @@ class ListMembersOperation(Operation):
             if self.two_factor_disabled is True:
                 all_members = provider.rest_api.org.list_members(github_id, False)
                 two_factor_status = (
-                    f"{Fore.GREEN}enabled{Style.RESET_ALL}"
+                    style("enabled", fg="green")
                     if organization.settings.two_factor_requirement is True
-                    else f"{Fore.RED}disabled{Style.RESET_ALL}"
+                    else style("disabled", fg="red")
                 )
 
                 member_status = (
-                    f"{Fore.GREEN}{len(members)}{Style.RESET_ALL}"
-                    if len(members) == 0
-                    else f"{Fore.RED}{len(members)}{Style.RESET_ALL}"
+                    style(str(len(members)), fg="green") if len(members) == 0 else style(str(len(members)), fg="red")
                 )
 
                 self.printer.println(

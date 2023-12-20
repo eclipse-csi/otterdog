@@ -9,29 +9,35 @@
 import os.path
 from typing import Optional
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error
+from otterdog.utils import print_error, style
 
 from . import Operation
 
 
 class PushOperation(Operation):
+    """
+    Pushes a local configuration of an organization to its meta-data repository.
+    """
+
     def __init__(self, push_message: Optional[str]):
         super().__init__()
-        self.push_message = push_message
+        self._push_message = push_message
+
+    @property
+    def push_message(self) -> str:
+        return self._push_message
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Pushing organization definitions for configuration at '{self.config.config_file}'")
+        self.printer.println("Pushing organization configurations:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 

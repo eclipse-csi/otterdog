@@ -8,30 +8,36 @@
 
 import os
 
-from colorama import Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_set_and_present, print_error
+from otterdog.utils import is_set_and_present, print_error, style, associate_by_key
 
 from . import Operation
 
 
 class SyncTemplateOperation(Operation):
+    """
+    Syncs the contents of repositories created from a template repository.
+    """
+
     def __init__(self, repo: str):
         super().__init__()
         self._repo = repo
 
+    @property
+    def repo(self) -> str:
+        return self._repo
+
     def pre_execute(self) -> None:
-        self.printer.println(f"Syncing template repos for configuration at '{self.config.config_file}'")
+        self.printer.println(f"Syncing organization repos '{self.repo}' from template master:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -58,15 +64,11 @@ class SyncTemplateOperation(Operation):
             with GitHubProvider(credentials) as provider:
                 rest_api = provider.rest_api
 
-                for repo in organization.repositories:
-                    if repo.archived is True:
-                        continue
-
-                    if repo.name != self._repo:
-                        continue
-
+                repositories_by_name = associate_by_key(organization.repositories, lambda r: r.name)
+                repo = repositories_by_name.get(self.repo)
+                if repo is not None and repo.archived is False:
                     if is_set_and_present(repo.template_repository):
-                        self.printer.println(f'Syncing {Style.BRIGHT}repository["{repo.name}"]{Style.RESET_ALL}')
+                        self.printer.println(f'Syncing repository["{style(repo.name, bright=True)}"]')
                         updated_files = rest_api.repo.sync_from_template_repository(
                             github_id,
                             repo.name,

@@ -14,7 +14,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 
-from .plan_operation import PlanOperation
+from .plan import PlanOperation
 
 
 class LocalPlanOperation(PlanOperation):
@@ -32,7 +32,7 @@ class LocalPlanOperation(PlanOperation):
         return self._other_org
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Printing local diff for configuration at '{self.config.config_file}'")
+        self.printer.println("Printing local diff:")
         self.print_legend()
 
     def verbose_output(self):

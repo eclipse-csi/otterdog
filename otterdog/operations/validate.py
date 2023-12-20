@@ -8,29 +8,31 @@
 
 import os
 
-from colorama import Fore, Style
-
 from otterdog.config import OrganizationConfig
 from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import print_error, print_warn, print_info, is_info_enabled
+from otterdog.utils import print_error, print_warn, print_info, is_info_enabled, style
 
 from . import Operation
 
 
 class ValidateOperation(Operation):
+    """
+    Validates local organization configurations.
+    """
+
     def __init__(self):
         super().__init__()
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Validating configuration at '{self.config.config_file}'")
+        self.printer.println("Validating organization configurations:")
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={github_id}]")
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:
@@ -38,7 +40,7 @@ class ValidateOperation(Operation):
 
             if not os.path.exists(org_file_name):
                 print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
+                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first"
                 )
                 return 1
 
@@ -54,17 +56,17 @@ class ValidateOperation(Operation):
             validation_count = validation_infos + validation_warnings + validation_errors
 
             if validation_count == 0:
-                self.printer.println(f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}")
+                self.printer.println(style("Validation succeeded", fg="green"))
             else:
                 if validation_errors == 0:
                     self.printer.println(
-                        f"{Fore.GREEN}Validation succeeded{Style.RESET_ALL}: "
+                        f"{style('Validation succeeded', fg='green')}: "
                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
                         f"{validation_errors} error(s)"
                     )
                 else:
                     self.printer.println(
-                        f"{Fore.RED}Validation failed{Style.RESET_ALL}: "
+                        f"{style('Validation failed', fg='red')}: "
                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
                         f"{validation_errors} error(s)"
                     )
@@ -72,7 +74,7 @@ class ValidateOperation(Operation):
             if validation_infos > 0 and not is_info_enabled():
                 self.printer.level_up()
                 self.printer.println(
-                    "in order to print validation infos, enable printing info message by " "adding '-v' flag."
+                    "in order to print validation infos, enable printing info messages by adding '-v' flag."
                 )
                 self.printer.level_down()
 
@@ -83,7 +85,7 @@ class ValidateOperation(Operation):
     @staticmethod
     def validate(organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
         if organization.secrets_resolved is True:
-            raise RuntimeError("validation requires a non-resolved model.")
+            raise RuntimeError("validation requires an unresolved model.")
 
         context = organization.validate(template_dir)
 

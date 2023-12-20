@@ -10,23 +10,15 @@ import os
 from abc import abstractmethod
 from typing import Any, Optional
 
-from colorama import Style
-
 from otterdog.config import OtterdogConfig, OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject, LivePatch, LivePatchType, LivePatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import (
-    IndentingPrinter,
-    print_warn,
-    print_error,
-    Change,
-    is_info_enabled,
-)
+from otterdog.utils import IndentingPrinter, print_warn, print_error, Change, is_info_enabled, style
 
 from . import Operation
-from .validate_operation import ValidateOperation
+from .validate import ValidateOperation
 
 
 class DiffStatus:
@@ -72,9 +64,7 @@ class DiffOperation(Operation):
     def execute(self, org_config: OrganizationConfig) -> int:
         self._org_config = org_config
 
-        self.printer.println(
-            f"\nOrganization {Style.BRIGHT}{org_config.name}{Style.RESET_ALL}[id={org_config.github_id}]"
-        )
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]")
 
         try:
             self._gh_client = self.setup_github_client(org_config)
