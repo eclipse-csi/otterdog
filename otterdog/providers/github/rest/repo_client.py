@@ -356,7 +356,6 @@ class RepoClient(RestClient):
 
         # TODO: currently we only support rulesets targetting branches
         data["target"] = "branch"
-        print(data)
 
         try:
             self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/rulesets", data)
