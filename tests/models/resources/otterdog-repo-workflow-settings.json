@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "allowed_actions": "all",
+  "allow_github_owned_actions": true,
+  "allow_verified_creator_actions": true,
+  "allow_action_patterns": [],
+  "default_workflow_permissions": "read",
+  "actions_can_approve_pull_request_reviews": true
+}

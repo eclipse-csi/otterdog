@@ -21,6 +21,7 @@ class ModelTest(ABC, unittest.TestCase):
     def org_id(self) -> str:
         return "OtterdogTest"
 
+    @property
     @abstractmethod
     def model_data(self):
         pass

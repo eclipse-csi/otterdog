@@ -194,6 +194,17 @@ class Repository(ModelObject):
     def set_environments(self, environments: list[Environment]) -> None:
         self.environments = environments
 
+    def coerce_from_org_settings(self, org_settings: OrganizationSettings) -> Repository:
+        copy = dataclasses.replace(self)
+
+        if org_settings.has_organization_projects is False:
+            copy.has_projects = UNSET  # type: ignore
+
+        if org_settings.web_commit_signoff_required is True:
+            copy.web_commit_signoff_required = UNSET  # type: ignore
+
+        return copy
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         from .github_organization import GitHubOrganization
 
@@ -241,7 +252,7 @@ class Repository(ModelObject):
                 FailureType.WARNING,
                 f"private {self.get_model_header()} has 'has_wiki' enabled which"
                 f"requires at least GitHub Team billing, "
-                f'currently using "{org_settings.plan}" plan.',
+                f"currently using '{org_settings.plan}' plan.",
             )
 
         has_discussions_disabled = self.has_discussions is False
@@ -252,14 +263,13 @@ class Repository(ModelObject):
                 f"while the organization uses this repo as source repository for discussions.",
             )
 
-        # it seems that 'has_repository_projects' is not really taken into account and the
-        # setting 'has_organization_projects' is used to control whether repos can have projects as well.
-        has_projects = self.has_projects is True
-        if has_projects and org_has_projects_disabled:
+        # it seems that 'has_repository_projects' is not really taken into account,
+        # the setting 'has_organization_projects' is used to control whether repos can actually have projects.
+        if self.has_projects is True and org_has_projects_disabled:
             context.add_failure(
-                FailureType.ERROR,
+                FailureType.WARNING,
                 f"{self.get_model_header()} has 'has_projects' enabled "
-                f"while the organization disables 'has_organization_projects'.",
+                f"while the organization disables 'has_organization_projects', setting will be ignored.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:
@@ -269,12 +279,11 @@ class Repository(ModelObject):
                 f"while the organization disables 'members_can_fork_private_repositories'.",
             )
 
-        repo_web_commit_signoff_not_required = self.web_commit_signoff_required is False
-        if repo_web_commit_signoff_not_required and org_web_commit_signoff_required:
+        if self.web_commit_signoff_required is False and org_web_commit_signoff_required:
             context.add_failure(
-                FailureType.ERROR,
+                FailureType.WARNING,
                 f"{self.get_model_header()} has 'web_commit_signoff_required' disabled while "
-                f"the organization requires it.",
+                f"the organization requires it, setting will be ignored.",
             )
 
         secret_scanning_disabled = self.secret_scanning == "disabled"
@@ -722,60 +731,47 @@ class Repository(ModelObject):
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        if current_object is None:
-            assert isinstance(expected_object, Repository)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-        elif expected_object is None:
+        if expected_object is None:
             assert isinstance(current_object, Repository)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
+
+        assert isinstance(expected_object, Repository)
+
+        expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
+        coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
+
+        if current_object is None:
+            handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
         else:
-            assert isinstance(expected_object, Repository)
             assert isinstance(current_object, Repository)
 
-            has_organization_projects = cast(
-                OrganizationSettings, context.expected_org_settings
-            ).has_organization_projects
-            has_organization_projects_disabled = (
-                is_set_and_present(has_organization_projects) and has_organization_projects is False
-            )
-
-            # special handling for some keys that can be set organization wide
-            if "web_commit_signoff_required" in context.modified_org_settings:
-                change = context.modified_org_settings["web_commit_signoff_required"]
-                if change.to_value is True:
-                    current_object.web_commit_signoff_required = change.to_value
-
-            modified_repo: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+            modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
             # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
             #        the modified data as GitHub needs the path as well when the branch is changed.
             #        this needs to make clean to support making the diff operation generic as possible.
             if "gh_pages_source_branch" in modified_repo:
-                gh_pages_source_path = cast(Repository, expected_object).gh_pages_source_path
+                gh_pages_source_path = cast(Repository, coerced_object).gh_pages_source_path
                 modified_repo["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
-
-            # special handling for some keys that can be disabled on organization level
-            if "has_projects" in modified_repo and has_organization_projects_disabled:
-                modified_repo.pop("has_projects")
 
             if len(modified_repo) > 0:
                 handler(
                     LivePatch.of_changes(
-                        expected_object,
+                        coerced_object,
                         current_object,
                         modified_repo,
                         parent_object,
                         False,
-                        expected_object.apply_live_patch,
+                        coerced_object.apply_live_patch,
                     )
                 )
 
-        parent_repo = expected_object if current_object is None else current_object
+        parent_repo = coerced_object if current_object is None else current_object
 
-        if is_set_and_valid(expected_object.workflows):
+        if is_set_and_valid(coerced_object.workflows):
             RepositoryWorkflowSettings.generate_live_patch(
-                expected_object.workflows,
+                coerced_object.workflows,
                 current_object.workflows if current_object is not None else None,
                 parent_repo,
                 context,
@@ -783,7 +779,7 @@ class Repository(ModelObject):
             )
 
         RepositoryWebhook.generate_live_patch_of_list(
-            expected_object.webhooks,
+            coerced_object.webhooks,
             current_object.webhooks if current_object is not None else [],
             parent_repo,
             context,
@@ -791,7 +787,7 @@ class Repository(ModelObject):
         )
 
         RepositorySecret.generate_live_patch_of_list(
-            expected_object.secrets,
+            coerced_object.secrets,
             current_object.secrets if current_object is not None else [],
             parent_repo,
             context,
@@ -799,7 +795,7 @@ class Repository(ModelObject):
         )
 
         RepositoryVariable.generate_live_patch_of_list(
-            expected_object.variables,
+            coerced_object.variables,
             current_object.variables if current_object is not None else [],
             parent_repo,
             context,
@@ -807,7 +803,7 @@ class Repository(ModelObject):
         )
 
         Environment.generate_live_patch_of_list(
-            expected_object.environments,
+            coerced_object.environments,
             current_object.environments if current_object is not None else [],
             parent_repo,
             context,
@@ -815,9 +811,9 @@ class Repository(ModelObject):
         )
 
         # only take branch protection rules of non-archive projects into account
-        if expected_object.archived is False:
+        if coerced_object.archived is False:
             BranchProtectionRule.generate_live_patch_of_list(
-                expected_object.branch_protection_rules,
+                coerced_object.branch_protection_rules,
                 current_object.branch_protection_rules if current_object is not None else [],
                 parent_repo,
                 context,
@@ -825,7 +821,7 @@ class Repository(ModelObject):
             )
 
             RepositoryRuleset.generate_live_patch_of_list(
-                expected_object.rulesets,
+                coerced_object.rulesets,
                 current_object.rulesets if current_object is not None else [],
                 parent_repo,
                 context,

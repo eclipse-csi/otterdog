@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Improvie coercing of organization settings for repository settings. ([#161](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/161))
 - Coerce repository workflow settings from organization workflow settings that are more restrictive. ([#135](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/135))
 
 ### Fixed

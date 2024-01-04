@@ -26,7 +26,7 @@ from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.workflow_settings import WorkflowSettings
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, is_set_and_valid, UNSET
+from otterdog.utils import Change, is_set_and_valid, UNSET, is_unset
 
 
 @dataclasses.dataclass
@@ -42,14 +42,28 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         return "repo_workflow_settings"
 
     def coerce_from_org_settings(
-        self, org_workflow_settings: OrganizationWorkflowSettings
+        self, parent_object: ModelObject, org_workflow_settings: OrganizationWorkflowSettings
     ) -> RepositoryWorkflowSettings:
         copy = dataclasses.replace(self)
 
+        if org_workflow_settings.enabled_repositories == "none":
+            copy.enabled = UNSET
+
+        from otterdog.models.repository import Repository
+
+        repository_name = cast(Repository, parent_object).name
+
+        if (
+            org_workflow_settings.enabled_repositories == "selected"
+            and repository_name not in org_workflow_settings.selected_repositories
+        ):
+            copy.enabled = UNSET
+
         if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
-            copy.allowed_actions = UNSET  # type: ignore
-            for prop in self._selected_action_properties:
-                copy.__setattr__(prop, UNSET)
+            copy.allowed_actions = org_workflow_settings.allowed_actions  # type: ignore
+            if org_workflow_settings.allowed_actions == "local_only":
+                for prop in self._selected_action_properties:
+                    copy.__setattr__(prop, UNSET)
 
         if org_workflow_settings.default_workflow_permissions == "read":
             copy.default_workflow_permissions = UNSET  # type: ignore
@@ -69,9 +83,25 @@ class RepositoryWorkflowSettings(WorkflowSettings):
 
             if org_workflow_settings.enabled_repositories == "none" and self.enabled is True:
                 context.add_failure(
-                    FailureType.ERROR,
+                    FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has enabled workflows, "
-                    f"while on organization level it disabled for all repositories.",
+                    f"while on organization level it disabled for all repositories, setting will be ignored.",
+                )
+
+            from otterdog.models.repository import Repository
+
+            repository_name = cast(Repository, parent_object).name
+
+            if (
+                org_workflow_settings.enabled_repositories == "selected"
+                and repository_name not in org_workflow_settings.selected_repositories
+                and self.enabled is True
+            ):
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} has enabled workflows, "
+                    f"while on organization level it is only enabled for selected repositories, "
+                    f"setting will be ignored.",
                 )
 
             if (
@@ -97,6 +127,9 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        if is_unset(self.enabled):
+            return False
+
         if self.enabled is False:
             if field.name == "enabled":
                 return True
@@ -124,10 +157,10 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         assert isinstance(expected_object, RepositoryWorkflowSettings)
 
         expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
-        coerced_object = expected_object.coerce_from_org_settings(expected_org_settings.workflows)
+        coerced_object = expected_object.coerce_from_org_settings(parent_object, expected_org_settings.workflows)
 
         if current_object is None:
-            handler(LivePatch.of_addition(expected_object, parent_object, coerced_object.apply_live_patch))
+            handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
             return
 
         assert isinstance(current_object, RepositoryWorkflowSettings)
@@ -136,8 +169,14 @@ class RepositoryWorkflowSettings(WorkflowSettings):
 
         # FIXME: needed to add this hack to ensure that enabled is also present in
         #        the modified data as GitHub has made this property required.
-        if "allowed_actions" in modified_workflow_settings:
-            modified_workflow_settings["enabled"] = Change(coerced_object.enabled, coerced_object.enabled)
+        if len(modified_workflow_settings) > 0:
+            if coerced_object.enabled is True and coerced_object.allowed_actions == "local_only":
+                modified_workflow_settings["allowed_actions"] = Change(
+                    current_object.allowed_actions, coerced_object.allowed_actions
+                )
+
+            if "allowed_actions" in modified_workflow_settings:
+                modified_workflow_settings["enabled"] = Change(current_object.enabled, coerced_object.enabled)
 
         if len(modified_workflow_settings) > 0:
             handler(
