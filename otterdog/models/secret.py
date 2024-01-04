@@ -17,7 +17,7 @@ from jsonbender import bend, S, OptionalS, K  # type: ignore
 
 from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatchContext, LivePatchHandler, LivePatch
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, Change, associate_by_key
+from otterdog.utils import UNSET, is_unset, is_set_and_valid, Change
 
 ST = TypeVar("ST", bound="Secret")
 
@@ -66,6 +66,9 @@ class Secret(ModelObject, abc.ABC):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
+
+    def include_for_live_patch(self) -> bool:
+        return not self.has_dummy_secret()
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]):
@@ -166,34 +169,3 @@ class Secret(ModelObject, abc.ABC):
                     expected_object.apply_live_patch,
                 )
             )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_secrets: list[ST],
-        current_secrets: list[ST],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_secrets_by_name = associate_by_key(expected_secrets, lambda x: x.name)
-
-        for current_secret in current_secrets:
-            secret_name = current_secret.name
-
-            expected_secret = expected_secrets_by_name.get(secret_name)
-            if expected_secret is None:
-                cls.generate_live_patch(None, current_secret, parent_object, context, handler)
-                continue
-
-            # pop the already handled secret
-            expected_secrets_by_name.pop(expected_secret.name)
-
-            # any secret that contains a dummy value will be skipped.
-            if expected_secret.has_dummy_secret():
-                continue
-
-            cls.generate_live_patch(expected_secret, current_secret, parent_object, context, handler)
-
-        for secret_name, secret in expected_secrets_by_name.items():
-            cls.generate_live_patch(secret, None, parent_object, context, handler)

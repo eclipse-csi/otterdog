@@ -23,8 +23,6 @@ from otterdog.utils import (
     is_set_and_valid,
     is_set_and_present,
     Change,
-    multi_associate_by_key,
-    associate_by_key,
 )
 
 WT = TypeVar("WT", bound="Webhook")
@@ -50,6 +48,9 @@ class Webhook(ModelObject, abc.ABC):
     def get_all_urls(self) -> list[str]:
         return [self.url] + self.aliases
 
+    def get_all_key_values(self) -> list[Any]:
+        return self.get_all_urls()
+
     def has_dummy_secret(self) -> bool:
         if is_set_and_valid(self.secret) and all(ch == "*" for ch in self.secret):  # type: ignore
             return True
@@ -65,6 +66,9 @@ class Webhook(ModelObject, abc.ABC):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
+
+    def include_for_live_patch(self) -> bool:
+        return not self.has_dummy_secret()
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
@@ -223,37 +227,3 @@ class Webhook(ModelObject, abc.ABC):
                     expected_object.apply_live_patch,
                 )
             )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_webhooks: list[WT],
-        current_webhooks: list[WT],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_webhooks_by_all_urls = multi_associate_by_key(expected_webhooks, lambda w: w.get_all_urls())
-        expected_webhooks_by_url = associate_by_key(expected_webhooks, lambda x: x.url)
-
-        for current_webhook in current_webhooks:
-            webhook_url = current_webhook.url
-
-            expected_webhook = expected_webhooks_by_all_urls.get(webhook_url)
-            if expected_webhook is None:
-                cls.generate_live_patch(None, current_webhook, parent_object, context, handler)
-                continue
-
-            # pop the already handled webhooks
-            for url in expected_webhook.get_all_urls():
-                expected_webhooks_by_all_urls.pop(url)
-            expected_webhooks_by_url.pop(expected_webhook.url)
-
-            # any webhook that contains a dummy secret will be skipped.
-            if expected_webhook.has_dummy_secret():
-                continue
-
-            cls.generate_live_patch(expected_webhook, current_webhook, parent_object, context, handler)
-
-        for webhook_url, webhook in expected_webhooks_by_url.items():
-            cls.generate_live_patch(webhook, None, parent_object, context, handler)

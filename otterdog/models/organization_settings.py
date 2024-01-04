@@ -189,6 +189,9 @@ class OrganizationSettings(ModelObject):
         }
         return mapping
 
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return None
+
     def to_jsonnet(
         self,
         printer: IndentingPrinter,

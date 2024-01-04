@@ -60,10 +60,9 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             copy.enabled = UNSET
 
         if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
-            copy.allowed_actions = org_workflow_settings.allowed_actions  # type: ignore
-            if org_workflow_settings.allowed_actions == "local_only":
-                for prop in self._selected_action_properties:
-                    copy.__setattr__(prop, UNSET)
+            copy.allowed_actions = UNSET  # type: ignore
+            for prop in self._selected_action_properties:
+                copy.__setattr__(prop, UNSET)
 
         if org_workflow_settings.default_workflow_permissions == "read":
             copy.default_workflow_permissions = UNSET  # type: ignore
@@ -170,10 +169,8 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         # FIXME: needed to add this hack to ensure that enabled is also present in
         #        the modified data as GitHub has made this property required.
         if len(modified_workflow_settings) > 0:
-            if coerced_object.enabled is True and coerced_object.allowed_actions == "local_only":
-                modified_workflow_settings["allowed_actions"] = Change(
-                    current_object.allowed_actions, coerced_object.allowed_actions
-                )
+            if coerced_object.enabled is True and expected_org_settings.workflows.allowed_actions == "local_only":
+                modified_workflow_settings["allowed_actions"] = Change(current_object.allowed_actions, "local_only")
 
             if "allowed_actions" in modified_workflow_settings:
                 modified_workflow_settings["enabled"] = Change(current_object.enabled, coerced_object.enabled)

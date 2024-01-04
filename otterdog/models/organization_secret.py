@@ -9,17 +9,15 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, cast
+from typing import Any, cast, Optional
 
 from jsonbender import bend, S, OptionalS, K, Forall, If  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatch, LivePatchType, PatchContext
+from otterdog.models import ValidationContext, FailureType, LivePatch, LivePatchType
 from otterdog.models.secret import Secret
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
-    IndentingPrinter,
-    write_patch_object_as_json,
     is_unset,
     is_set_and_valid,
     UNSET,
@@ -106,18 +104,8 @@ class OrganizationSecret(Secret):
 
         return mapping
 
-    def to_jsonnet(
-        self,
-        printer: IndentingPrinter,
-        jsonnet_config: JsonnetConfig,
-        context: PatchContext,
-        extend: bool,
-        default_object: ModelObject,
-    ) -> None:
-        patch = self.get_patch_to(default_object)
-        patch.pop("name")
-        printer.print(f"orgs.{jsonnet_config.create_org_secret}('{self.name}')")
-        write_patch_object_as_json(patch, printer)
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return f"orgs.{jsonnet_config.create_org_secret}"
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:

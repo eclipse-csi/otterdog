@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 from jsonbender import bend, S, OptionalS  # type: ignore
 
@@ -154,6 +154,9 @@ class WorkflowSettings(ModelObject, abc.ABC):
             mapping["can_approve_pull_request_reviews"] = S("actions_can_approve_pull_request_reviews")
 
         return mapping
+
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return None
 
     def to_jsonnet(
         self,

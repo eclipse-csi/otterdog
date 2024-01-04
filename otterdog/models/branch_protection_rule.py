@@ -21,9 +21,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchType,
-    LivePatchContext,
-    LivePatchHandler,
-    PatchContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -31,10 +28,7 @@ from otterdog.utils import (
     is_unset,
     is_set_and_valid,
     snake_to_camel_case,
-    IndentingPrinter,
-    write_patch_object_as_json,
     associate_by_key,
-    Change,
 )
 
 
@@ -395,80 +389,8 @@ class BranchProtectionRule(ModelObject):
 
         return mapping
 
-    def to_jsonnet(
-        self,
-        printer: IndentingPrinter,
-        jsonnet_config: JsonnetConfig,
-        context: PatchContext,
-        extend: bool,
-        default_object: ModelObject,
-    ) -> None:
-        patch = self.get_patch_to(default_object)
-        patch.pop("pattern")
-        printer.print(f"orgs.{jsonnet_config.create_branch_protection_rule}('{self.pattern}')")
-        write_patch_object_as_json(patch, printer)
-
-    @classmethod
-    def generate_live_patch(
-        cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        if current_object is None:
-            assert isinstance(expected_object, BranchProtectionRule)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
-
-        if expected_object is None:
-            assert isinstance(current_object, BranchProtectionRule)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
-
-        assert isinstance(expected_object, BranchProtectionRule)
-        assert isinstance(current_object, BranchProtectionRule)
-
-        modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
-
-        if len(modified_rule) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_rule,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
-            )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_rules: list[BranchProtectionRule],
-        current_rules: list[BranchProtectionRule],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_rules_by_pattern = associate_by_key(expected_rules, lambda x: x.pattern)
-
-        for current_rule in current_rules:
-            rule_pattern = current_rule.pattern
-
-            expected_rule = expected_rules_by_pattern.get(rule_pattern)
-            if expected_rule is None:
-                cls.generate_live_patch(None, current_rule, parent_object, context, handler)
-                continue
-
-            cls.generate_live_patch(expected_rule, current_rule, parent_object, context, handler)
-
-            expected_rules_by_pattern.pop(rule_pattern)
-
-        for rule_pattern, rule in expected_rules_by_pattern.items():
-            cls.generate_live_patch(rule, None, parent_object, context, handler)
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return f"orgs.{jsonnet_config.create_branch_protection_rule}"
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:

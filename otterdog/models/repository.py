@@ -31,8 +31,6 @@ from otterdog.utils import (
     is_set_and_valid,
     IndentingPrinter,
     write_patch_object_as_json,
-    multi_associate_by_key,
-    associate_by_key,
     Change,
     is_set_and_present,
 )
@@ -148,6 +146,9 @@ class Repository(ModelObject):
 
     def get_all_names(self) -> list[str]:
         return [self.name] + self.aliases
+
+    def get_all_key_values(self) -> list[Any]:
+        return self.get_all_names()
 
     def add_branch_protection_rule(self, rule: BranchProtectionRule) -> None:
         self.branch_protection_rules.append(rule)
@@ -593,6 +594,9 @@ class Repository(ModelObject):
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
 
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
+
     def to_jsonnet(
         self,
         printer: IndentingPrinter,
@@ -619,7 +623,7 @@ class Repository(ModelObject):
         if "name" in patch:
             patch.pop("name")
 
-        function = f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
+        function = self.get_jsonnet_template_function(jsonnet_config, extend)
         printer.print(f"{function}('{self.name}')")
 
         write_patch_object_as_json(patch, printer, close_object=False)
@@ -629,7 +633,7 @@ class Repository(ModelObject):
 
             if is_set_and_valid(default_workflow_settings):
                 coerced_settings = self.workflows.coerce_from_org_settings(
-                    cast(OrganizationSettings, context.org_settings).workflows
+                    self, cast(OrganizationSettings, context.org_settings).workflows
                 )
                 patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
@@ -827,35 +831,6 @@ class Repository(ModelObject):
                 context,
                 handler,
             )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_repos: list[Repository],
-        current_repos: list[Repository],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_repos_by_all_names = multi_associate_by_key(expected_repos, lambda r: r.get_all_names())
-        expected_repos_by_name = associate_by_key(expected_repos, lambda x: x.name)
-
-        for current_repo in current_repos:
-            current_repo_name = current_repo.name
-            expected_repo = expected_repos_by_all_names.get(current_repo_name)
-
-            if expected_repo is None:
-                cls.generate_live_patch(None, current_repo, None, context, handler)
-                continue
-
-            cls.generate_live_patch(expected_repo, current_repo, None, context, handler)
-
-            # pop the already handled repos
-            for name in expected_repo.get_all_names():
-                expected_repos_by_all_names.pop(name)
-            expected_repos_by_name.pop(expected_repo.name)
-
-        for repo_name, repo in expected_repos_by_name.items():
-            cls.generate_live_patch(repo, None, None, context, handler)
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:

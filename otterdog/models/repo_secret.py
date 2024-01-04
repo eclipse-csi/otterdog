@@ -9,12 +9,12 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, LivePatch, LivePatchType, PatchContext
+from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.secret import Secret
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import IndentingPrinter, write_patch_object_as_json
 
 
 @dataclasses.dataclass
@@ -27,18 +27,8 @@ class RepositorySecret(Secret):
     def model_object_name(self) -> str:
         return "repo_secret"
 
-    def to_jsonnet(
-        self,
-        printer: IndentingPrinter,
-        jsonnet_config: JsonnetConfig,
-        context: PatchContext,
-        extend: bool,
-        default_object: ModelObject,
-    ) -> None:
-        patch = self.get_patch_to(default_object)
-        patch.pop("name")
-        printer.print(f"orgs.{jsonnet_config.create_repo_secret}('{self.name}')")
-        write_patch_object_as_json(patch, printer)
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return f"orgs.{jsonnet_config.create_repo_secret}"
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:

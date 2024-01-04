@@ -18,7 +18,18 @@ from jsonbender import bend  # type: ignore
 
 from otterdog.providers.github import GitHubProvider
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.utils import patch_to_other, is_unset, T, is_different_ignoring_order, Change, IndentingPrinter, style
+from otterdog.utils import (
+    patch_to_other,
+    is_unset,
+    T,
+    is_different_ignoring_order,
+    Change,
+    IndentingPrinter,
+    style,
+    associate_by_key,
+    multi_associate_by_key,
+    write_patch_object_as_json,
+)
 
 
 class FailureType(Enum):
@@ -141,9 +152,12 @@ class ModelObject(ABC):
         ...
 
     def is_keyed(self) -> bool:
+        """Indicates whether the ModelObject is keyed by a property"""
         return any(field.metadata.get("key", False) for field in self.all_fields())
 
     def get_key(self) -> str:
+        """Returns the key property of this ModelObject if it keyed"""
+        assert self.is_keyed()
         return next(
             filter(
                 lambda field: field.metadata.get("key", False) is True,
@@ -152,7 +166,12 @@ class ModelObject(ABC):
         ).name
 
     def get_key_value(self) -> Any:
+        """Returns the value of the key property"""
         return self.__getattribute__(self.get_key())
+
+    def get_all_key_values(self) -> list[Any]:
+        """Returns a list of all values by which this ModelObject is keyed"""
+        return [self.get_key_value()]
 
     @abstractmethod
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -331,6 +350,23 @@ class ModelObject(ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
+    def include_for_live_patch(self) -> bool:
+        """
+        Indicates if this ModelObject should be considered when generating a live patch.
+
+        This method can be overridden if certain object should be ignored depending on their values,
+        e.g. secrets that contain only a dummy secret
+        """
+        return True
+
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject) -> bool:
+        """
+        Indicates if this live ModelObject should be considered when generating a live patch.
+
+        This method can be overridden if certain live objects should be ignored in some cases, e.g. environments
+        """
+        return True
+
     def keys(
         self,
         for_diff: bool = False,
@@ -385,6 +421,9 @@ class ModelObject(ABC):
         pass
 
     @abstractmethod
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        ...
+
     def to_jsonnet(
         self,
         printer: IndentingPrinter,
@@ -393,7 +432,18 @@ class ModelObject(ABC):
         extend: bool,
         default_object: ModelObject,
     ) -> None:
-        ...
+        patch = self.get_patch_to(default_object)
+
+        template_function = self.get_jsonnet_template_function(jsonnet_config, False)
+        assert template_function is not None
+
+        if self.is_keyed():
+            key = patch.pop(self.get_key())
+            printer.print(f"{template_function}('{key}')")
+        else:
+            printer.print(f"{template_function}")
+
+        write_patch_object_as_json(patch, printer)
 
     @classmethod
     def generate_live_patch(
@@ -404,7 +454,64 @@ class ModelObject(ABC):
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        ...
+        if current_object is None:
+            assert isinstance(expected_object, cls)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
+
+        if expected_object is None:
+            assert isinstance(current_object, cls)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, cls)
+        assert isinstance(current_object, cls)
+
+        modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        if len(modified_rule) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_rule,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_objects: list[ModelObject],
+        current_objects: list[ModelObject],
+        parent_object: Optional[ModelObject],
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
+        expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
+
+        for current_object in current_objects:
+            key = current_object.get_key_value()
+
+            expected_object = expected_objects_by_all_keys.get(key)
+            if expected_object is None:
+                if current_object.include_existing_object_for_live_patch(context.org_id, parent_object):
+                    cls.generate_live_patch(None, current_object, parent_object, context, handler)
+                continue
+
+            if expected_object.include_for_live_patch():
+                cls.generate_live_patch(expected_object, current_object, parent_object, context, handler)
+
+            for k in expected_object.get_all_key_values():
+                expected_objects_by_all_keys.pop(k)
+            expected_objects_by_key.pop(key)
+
+        for _, expected_object in expected_objects_by_key.items():
+            if expected_object.include_for_live_patch():
+                cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:

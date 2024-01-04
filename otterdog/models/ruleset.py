@@ -15,9 +15,9 @@ from typing import Any, TypeVar, Optional, cast, ClassVar
 
 from jsonbender import bend, S, OptionalS, K  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, LivePatchContext, LivePatchHandler, FailureType, LivePatch
+from otterdog.models import ModelObject, ValidationContext, FailureType
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, associate_by_key, is_set_and_valid, print_warn, Change
+from otterdog.utils import UNSET, is_unset, associate_by_key, is_set_and_valid, print_warn
 
 RS = TypeVar("RS", bound="Ruleset")
 
@@ -505,66 +505,3 @@ class Ruleset(ModelObject, abc.ABC):
             mapping["rules"] = rules
 
         return mapping
-
-    @classmethod
-    def generate_live_patch(
-        cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        if current_object is None:
-            assert isinstance(expected_object, Ruleset)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
-
-        if expected_object is None:
-            assert isinstance(current_object, Ruleset)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
-
-        assert isinstance(expected_object, Ruleset)
-        assert isinstance(current_object, Ruleset)
-
-        modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
-
-        if len(modified_rule) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_rule,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
-            )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_rulesets: list[RS],
-        current_rulesets: list[RS],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_rulesets_by_name = associate_by_key(expected_rulesets, lambda x: x.name)
-
-        for current_ruleset in current_rulesets:
-            ruleset_name = current_ruleset.name
-
-            expected_ruleset = expected_rulesets_by_name.get(ruleset_name)
-            if expected_ruleset is None:
-                cls.generate_live_patch(None, current_ruleset, parent_object, context, handler)
-                continue
-
-            # pop the already handled secret
-            expected_rulesets_by_name.pop(expected_ruleset.name)
-
-            cls.generate_live_patch(expected_ruleset, current_ruleset, parent_object, context, handler)
-
-        for ruleset_name, ruleset in expected_rulesets_by_name.items():
-            cls.generate_live_patch(ruleset, None, parent_object, context, handler)

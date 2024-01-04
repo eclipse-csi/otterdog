@@ -300,7 +300,9 @@ class GitHubOrganization:
             self.variables, current_organization.variables, None, context, handler
         )
 
-        Repository.generate_live_patch_of_list(self.repositories, current_organization.repositories, context, handler)
+        Repository.generate_live_patch_of_list(
+            self.repositories, current_organization.repositories, None, context, handler
+        )
 
     @classmethod
     def load_from_file(

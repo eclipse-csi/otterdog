@@ -20,19 +20,12 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchType,
-    LivePatchContext,
-    LivePatchHandler,
-    PatchContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     is_unset,
     is_set_and_valid,
-    IndentingPrinter,
-    write_patch_object_as_json,
-    associate_by_key,
-    Change,
 )
 
 
@@ -89,6 +82,23 @@ class Environment(ModelObject):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
+
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject) -> bool:
+        from .repository import Repository
+
+        assert isinstance(parent_object, Repository)
+
+        # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
+        # as it is automatically created, there is a validation rule to warn the user about it.
+        if parent_object.name.lower() == f"{org_id}.github.io".lower() and self.name == "github-pages":
+            return False
+        # if it's a github-pages environment and gh pages are enabled, ignore it.
+        # GitHub automatically creates it, a validation warning is output if it is missing
+        # in the configuration.
+        elif self.name == "github-pages" and parent_object.gh_pages_build_type != "disabled":
+            return False
+        else:
+            return True
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Environment:
@@ -185,97 +195,8 @@ class Environment(ModelObject):
 
         return mapping
 
-    def to_jsonnet(
-        self,
-        printer: IndentingPrinter,
-        jsonnet_config: JsonnetConfig,
-        context: PatchContext,
-        extend: bool,
-        default_object: ModelObject,
-    ) -> None:
-        patch = self.get_patch_to(default_object)
-        patch.pop("name")
-        printer.print(f"orgs.{jsonnet_config.create_environment}('{self.name}')")
-        write_patch_object_as_json(patch, printer)
-
-    @classmethod
-    def generate_live_patch(
-        cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        if current_object is None:
-            assert isinstance(expected_object, Environment)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
-
-        if expected_object is None:
-            assert isinstance(current_object, Environment)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
-
-        assert isinstance(expected_object, Environment)
-        assert isinstance(current_object, Environment)
-
-        modified_env: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
-
-        if len(modified_env) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_env,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
-            )
-
-    @classmethod
-    def generate_live_patch_of_list(
-        cls,
-        expected_environments: list[Environment],
-        current_environments: list[Environment],
-        parent_object: Optional[ModelObject],
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_environments_by_name = associate_by_key(expected_environments, lambda x: x.name)
-
-        from .repository import Repository
-
-        assert isinstance(parent_object, Repository)
-
-        for current_env in current_environments:
-            env_name = current_env.name
-
-            expected_env = expected_environments_by_name.get(env_name)
-            if expected_env is None:
-                # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
-                # as it is automatically created, there is a validation rule to warn the user about it.
-                if (
-                    parent_object.name.lower() == f"{context.org_id}.github.io".lower()
-                    and current_env.name == "github-pages"
-                ):
-                    continue
-                # if it's a github-pages environment and gh pages are enabled, ignore it.
-                # GitHub automatically creates it, a validation warning is output if it is missing
-                # in the configuration.
-                elif current_env.name == "github-pages" and parent_object.gh_pages_build_type != "disabled":
-                    continue
-                else:
-                    cls.generate_live_patch(None, current_env, parent_object, context, handler)
-                    continue
-
-            cls.generate_live_patch(expected_env, current_env, parent_object, context, handler)
-
-            expected_environments_by_name.pop(env_name)
-
-        for env_name, env in expected_environments_by_name.items():
-            cls.generate_live_patch(env, None, parent_object, context, handler)
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+        return f"orgs.{jsonnet_config.create_environment}"
 
     @classmethod
     def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
