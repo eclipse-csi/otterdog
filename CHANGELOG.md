@@ -6,6 +6,10 @@
 
 - Coerce repository workflow settings from organization workflow settings that are more restrictive. ([#135](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/135))
 
+### Fixed
+
+- Correctly coerce workflow setting `actions_can_approve_pull_request_reviews` and add a validation rule. ([#166](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/166))
+
 
 ## [0.3.0] - 05/12/2023
 
