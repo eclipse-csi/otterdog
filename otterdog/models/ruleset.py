@@ -463,7 +463,9 @@ class Ruleset(ModelObject, abc.ABC):
                     for check in required_status_checks:
                         if ":" in check:
                             app_slug, context = re.split(":", check, 1)
-                            app_slugs.add(app_slug)
+
+                            if app_slug != "any":
+                                app_slugs.add(app_slug)
 
                     app_ids = provider.get_app_ids(app_slugs)
 
@@ -471,6 +473,9 @@ class Ruleset(ModelObject, abc.ABC):
                     for check in required_status_checks:
                         if ":" in check:
                             app_slug, context = re.split(":", check, 1)
+
+                            if app_slug == "any":
+                                app_slug = None
                         else:
                             app_slug = None
                             context = check
