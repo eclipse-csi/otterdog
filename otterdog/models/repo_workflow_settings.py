@@ -108,7 +108,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and self.default_workflow_permissions == "write"
             ):
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{self.get_model_header(parent_object)} has 'default_workflow_permissions' of value "
                     f"'{self.default_workflow_permissions}', "
                     f"while on organization level it is restricted to "
@@ -120,7 +120,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and self.actions_can_approve_pull_request_reviews is True
             ):
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{self.get_model_header(parent_object)} has 'actions_can_approve_pull_request_reviews' "
                     "enabled, while on organization level it is disabled, setting will be ignored.",
                 )
