@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from __future__ import annotations
 
@@ -179,13 +179,13 @@ class OtterdogConfig:
 
         return provider
 
-    def get_credentials(self, org_config: OrganizationConfig) -> credentials.Credentials:
+    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> credentials.Credentials:
         provider_type = org_config.credential_data.get("provider")
         if provider_type is None:
             raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
 
         provider = self._get_credential_provider(provider_type)
-        return provider.get_credentials(org_config.eclipse_project, org_config.credential_data)
+        return provider.get_credentials(org_config.eclipse_project, org_config.credential_data, only_token)
 
     def get_secret(self, secret_data: str) -> str:
         if secret_data and ":" in secret_data:

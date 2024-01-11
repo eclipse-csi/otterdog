@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import os
 import subprocess
@@ -38,13 +38,21 @@ class PassVault(CredentialProvider):
         if status > 0:
             raise RuntimeError("pass vault is not accessible")
 
-    def get_credentials(self, eclipse_project: Optional[str], data: dict[str, str]) -> Credentials:
+    def get_credentials(
+        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, eclipse_project, data)
-        username = self._retrieve_key(self.KEY_USERNAME, eclipse_project, data)
-        password = self._retrieve_key(self.KEY_PASSWORD, eclipse_project, data)
-        totp_secret = self._retrieve_key(self.KEY_2FA_SEED, eclipse_project, data)
 
-        return Credentials(username, password, github_token, totp_secret)
+        if only_token is False:
+            username = self._retrieve_key(self.KEY_USERNAME, eclipse_project, data)
+            password = self._retrieve_key(self.KEY_PASSWORD, eclipse_project, data)
+            totp_secret = self._retrieve_key(self.KEY_2FA_SEED, eclipse_project, data)
+        else:
+            username = None
+            password = None
+            totp_secret = None
+
+        return Credentials(username, password, totp_secret, github_token)
 
     def get_secret(self, key_data: str) -> str:
         return self._retrieve_resolved_key(key_data)
@@ -88,5 +96,5 @@ class PassVault(CredentialProvider):
 
         return secret
 
-    def __str__(self):
+    def __repr__(self):
         return "PassVault()"

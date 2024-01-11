@@ -1,17 +1,17 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import json
 from typing import Any
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, is_info_enabled, style
+from otterdog.utils import is_info_enabled, style
 
 from . import Operation
 
@@ -46,9 +46,9 @@ class ListAppsOperation(Operation):
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config)
+                credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             with GitHubProvider(credentials) as provider:

@@ -1,14 +1,14 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, style
+from otterdog.utils import style
 
 from . import Operation
 
@@ -36,17 +36,15 @@ class DispatchWorkflowOperation(Operation):
 
     def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
-        jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init_template()
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config)
+                credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             with GitHubProvider(credentials) as provider:

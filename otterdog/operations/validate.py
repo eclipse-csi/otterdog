@@ -11,7 +11,7 @@ import os
 from otterdog.config import OrganizationConfig
 from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import print_error, print_warn, print_info, is_info_enabled, style
+from otterdog.utils import is_info_enabled, style
 
 from . import Operation
 
@@ -39,15 +39,15 @@ class ValidateOperation(Operation):
             org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
-                print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first"
+                self.printer.print_error(
+                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first."
                 )
                 return 1
 
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
+                self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
                 return 1
 
             validation_infos, validation_warnings, validation_errors = self.validate(
@@ -82,8 +82,7 @@ class ValidateOperation(Operation):
         finally:
             self.printer.level_down()
 
-    @staticmethod
-    def validate(organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
+    def validate(self, organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
@@ -96,15 +95,15 @@ class ValidateOperation(Operation):
         for failure_type, message in context.validation_failures:
             match failure_type:
                 case FailureType.INFO:
-                    print_info(message)
+                    self.printer.print_info(message)
                     validation_infos += 1
 
                 case FailureType.WARNING:
-                    print_warn(message)
+                    self.printer.print_warn(message)
                     validation_warnings += 1
 
                 case FailureType.ERROR:
-                    print_error(message)
+                    self.printer.print_error(message)
                     validation_errors += 1
 
         return validation_infos, validation_warnings, validation_errors

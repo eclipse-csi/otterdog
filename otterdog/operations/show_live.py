@@ -9,7 +9,7 @@
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, print_warn, style
+from otterdog.utils import style
 
 from . import Operation
 
@@ -42,12 +42,12 @@ class ShowLiveOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             with GitHubProvider(credentials) as provider:
                 if self.no_web_ui is True:
-                    print_warn(
+                    self.printer.print_warn(
                         "the Web UI will not be queried as '--no-web-ui' has been specified, "
                         "the resulting config will be incomplete."
                     )

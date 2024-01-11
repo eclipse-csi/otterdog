@@ -1,17 +1,17 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import os.path
 from typing import Optional
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_error, style
+from otterdog.utils import style
 
 from . import Operation
 
@@ -42,16 +42,18 @@ class PushOperation(Operation):
         org_file_name = jsonnet_config.org_config_file
 
         if not os.path.exists(org_file_name):
-            print_error(f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first")
+            self.printer.print_error(
+                f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
+            )
             return 1
 
         self.printer.level_up()
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config)
+                credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             with open(org_file_name, "r") as file:
@@ -96,7 +98,7 @@ class PushOperation(Operation):
                         updated |= True
 
                 except RuntimeError as e:
-                    print_error(
+                    self.printer.print_error(
                         f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {str(e)}"
                     )
                     return 1

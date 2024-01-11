@@ -13,7 +13,7 @@ from otterdog.config import OrganizationConfig
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import print_warn, print_error, get_approval, style
+from otterdog.utils import get_approval, style
 
 from . import Operation
 
@@ -73,11 +73,11 @@ class ImportOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
             if self.no_web_ui is True:
-                print_warn(
+                self.printer.print_warn(
                     "the Web UI will not be queried as '--no-web-ui' has been specified, "
                     "the resulting config will be incomplete."
                 )

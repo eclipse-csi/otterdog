@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import json
 import re
@@ -35,7 +35,9 @@ class BitwardenVault(CredentialProvider):
     def is_unlocked(self) -> bool:
         return self._status == 0
 
-    def get_credentials(self, eclipse_project: Optional[str], data: dict[str, str]) -> Credentials:
+    def get_credentials(
+        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         assert self.is_unlocked()
 
         item_id = data.get("item_id")
@@ -61,19 +63,24 @@ class BitwardenVault(CredentialProvider):
         if github_token is None:
             raise RuntimeError(f"field with key '{api_token_key}' is empty in item with id '{item_id}'")
 
-        username = item["login"]["username"]
-        if username is None:
-            raise RuntimeError(f"no username specified in item with id '{item_id}'")
+        if only_token is False:
+            username = item["login"]["username"]
+            if username is None:
+                raise RuntimeError(f"no username specified in item with id '{item_id}'")
 
-        password = item["login"]["password"]
-        if password is None:
-            raise RuntimeError(f"no password specified in item with id '{item_id}'")
+            password = item["login"]["password"]
+            if password is None:
+                raise RuntimeError(f"no password specified in item with id '{item_id}'")
 
-        totp_secret = item["login"]["totp"]
-        if totp_secret is None:
-            raise RuntimeError(f"totp is empty in item with id '{item_id}'")
+            totp_secret = item["login"]["totp"]
+            if totp_secret is None:
+                raise RuntimeError(f"totp is empty in item with id '{item_id}'")
+        else:
+            username = None
+            password = None
+            totp_secret = None
 
-        return Credentials(username, password, github_token, totp_secret)
+        return Credentials(username, password, totp_secret, github_token)
 
     def get_secret(self, data: str) -> str:
         try:
@@ -101,5 +108,5 @@ class BitwardenVault(CredentialProvider):
         except ValueError:
             raise RuntimeError(f"failed to parse secret data '{data}'")
 
-    def __str__(self):
+    def __repr__(self):
         return f"BitWardenVault(unlocked={self.is_unlocked()})"

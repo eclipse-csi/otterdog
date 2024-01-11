@@ -1,14 +1,14 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 import json
 from importlib_resources import files
-from typing import Any, Union, Optional
+from typing import Any, Optional
 
 from otterdog import resources
 from otterdog import utils
@@ -22,7 +22,7 @@ _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.js
 
 
 class GitHubProvider:
-    def __init__(self, credentials: Union[Credentials, None]):
+    def __init__(self, credentials: Optional[Credentials]):
         self._credentials = credentials
 
         self._settings_schema = _ORG_SETTINGS_SCHEMA

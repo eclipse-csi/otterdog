@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from argparse import Namespace
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard, TextIO, Union, Tuple
 from urllib.parse import urlparse
 
@@ -66,44 +68,44 @@ def style(
     return click.style(text, fg, bg, bold, dim, underline, overline, italic, blink, reverse, strikethrough, reset)
 
 
-def print_info(msg: str) -> None:
+def print_info(msg: str, printer: TextIO = sys.stdout) -> None:
     if is_info_enabled():
-        _print_message(msg, 'green', "Info")
+        _print_message(msg, "green", "Info", printer)
 
 
-def print_debug(msg: str) -> None:
+def print_debug(msg: str, printer: TextIO = sys.stdout) -> None:
     if is_debug_enabled():
-        print(f"{style('[DEBUG]', fg='cyan')} {msg}")
+        printer.write(f"{style('[DEBUG]', fg='cyan')} {msg}\n")
 
 
-def print_trace(msg: str) -> None:
+def print_trace(msg: str, printer: TextIO = sys.stdout) -> None:
     if is_trace_enabled():
-        print(f"{style('[TRACE]', fg='magenta')} {msg}")
+        printer.write(f"{style('[TRACE]', fg='magenta')} {msg}\n")
 
 
-def print_warn(msg: str) -> None:
-    _print_message(msg, 'yellow', "Warning")
+def print_warn(msg: str, printer: TextIO = sys.stdout) -> None:
+    _print_message(msg, "yellow", "Warning", printer)
 
 
-def print_error(msg: str) -> None:
-    _print_message(msg, 'red', "Error")
+def print_error(msg: str, printer: TextIO = sys.stdout) -> None:
+    _print_message(msg, "red", "Error", printer)
 
 
-def _print_message(msg: str, color: str, level: str) -> None:
-    print(style("╷", fg=color))
+def _print_message(msg: str, color: str, level: str, printer: TextIO) -> None:
+    printer.write(style("╷\n", fg=color))
 
     lines = msg.splitlines()
     level_prefix = style(f"│ {level}:", fg=color)
 
     if len(lines) > 1:
-        print(f"{level_prefix} {lines[0]}")
-        print(style("│", fg=color))
+        printer.write(f"{level_prefix} {lines[0]}\n")
+        printer.write(style("│\n", fg=color))
         for line in lines[1:]:
-            print(f"{style('│', fg=color)}    {line}")
+            printer.write(f"{style('│', fg=color)}    {line}\n")
     else:
-        print(f"{level_prefix} {msg}")
+        printer.write(f"{level_prefix} {msg}\n")
 
-    print(style("╵", fg=color))
+    printer.write(style("╵\n", fg=color))
 
 
 class _Unset:
@@ -255,13 +257,22 @@ def multi_associate_by_key(input_list: list[T], key_func: Callable[[T], list[str
     return result
 
 
+class LogLevel(Enum):
+    GLOBAL = 0
+    INFO = 1
+    WARN = 2
+
+
 class IndentingPrinter:
-    def __init__(self, writer: TextIO, initial_offset: int = 0, spaces_per_level: int = 2):
+    def __init__(
+        self, writer: TextIO, initial_offset: int = 0, spaces_per_level: int = 2, log_level: LogLevel = LogLevel.GLOBAL
+    ):
         self._writer = writer
         self._initial_offset = " " * initial_offset
         self._level = 0
         self._spaces_per_level = spaces_per_level
         self._indented_line = False
+        self._log_level = log_level
 
     @property
     def _current_indentation(self) -> str:
@@ -291,6 +302,26 @@ class IndentingPrinter:
         if not self._indented_line:
             self._writer.write(self._current_indentation)
             self._indented_line = True
+
+    def _is_logging_enabled(self, level: int, global_fn: Callable[[], bool]) -> bool:
+        match self._log_level:
+            case LogLevel.GLOBAL:
+                return global_fn()
+
+            case _:
+                return self._log_level.value <= level
+
+    def print_info(self, msg: str) -> None:
+        if self._is_logging_enabled(1, is_info_enabled):
+            _print_message(msg, "green", "Info", self._writer)
+
+    def print_warn(self, msg: str) -> None:
+        if self._is_logging_enabled(2, lambda: True):
+            _print_message(msg, "yellow", "Warning", self._writer)
+
+    def print_error(self, msg: str) -> None:
+        if self._is_logging_enabled(3, lambda: True):
+            _print_message(msg, "red", "Error", self._writer)
 
     def level_up(self) -> None:
         self._level += 1

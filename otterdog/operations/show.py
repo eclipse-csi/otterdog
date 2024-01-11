@@ -14,7 +14,7 @@ from otterdog.config import OrganizationConfig
 from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
-from otterdog.utils import print_error, IndentingPrinter, is_set_and_valid, style
+from otterdog.utils import IndentingPrinter, is_set_and_valid, style
 
 from . import Operation
 
@@ -54,7 +54,7 @@ class ShowOperation(Operation):
             org_file_name = jsonnet_config.org_config_file
 
             if not os.path.exists(org_file_name):
-                print_error(
+                self.printer.print_error(
                     f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import first'"
                 )
                 return 1
@@ -62,7 +62,7 @@ class ShowOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                print_error(f"failed to load configuration: {str(ex)}")
+                self.printer.print_error(f"failed to load configuration: {str(ex)}")
                 return 1
 
             if not self.markdown:

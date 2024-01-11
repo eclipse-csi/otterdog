@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from functools import cached_property
 from typing import Any
@@ -272,7 +272,7 @@ class WebClient:
         page.click('input[name="commit"]')
 
         page.goto("https://github.com/sessions/two-factor")
-        page.type("#app_totp", self.credentials.get_totp())
+        page.type("#app_totp", self.credentials.totp)
 
         try:
             actor = page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
@@ -293,7 +293,7 @@ class WebClient:
                         if confirm_button is not None:
                             confirm_button.click()
 
-                    page.type("#app_totp", self.credentials.get_totp())
+                    page.type("#app_totp", self.credentials.totp)
         except Error as e:
             raise RuntimeError(f"could not log in to web UI: {str(e)}")
 
