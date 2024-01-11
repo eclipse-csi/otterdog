@@ -1,11 +1,16 @@
-A [Branch Protection Rule](branch-protection-rule.md) allows to reference certain status checks
-that are required to pass before a pull request can be merged into the target branch.
+A [Branch Protection Rule](branch-protection-rule.md) or [Ruleset](ruleset.md) allows to reference certain
+status checks that are required to pass before a pull request can be merged into the target branch.
 
 | Source   | Format                     | Example                                 |
 |----------|----------------------------|-----------------------------------------|
 | Workflow | `<job-name>`               | `Run CI`                                |
 | App      | `<app-slug>:<status-name>` | `eclipse-eca-validation:eclipsefdn/eca` |
 | Any      | `any:<status-name>`        | `any:Run CI`                            |
+
+!!! note
+
+    [Rulesets](ruleset.md) do not make any distinction between `Any` or `Workflow` as source and thus
+    specifying `any:` is not needed for them and will give the same result as omitting it.
 
 ## Workflows as Required Status Checks
 
