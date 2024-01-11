@@ -3,6 +3,64 @@ that are required to pass before a pull request can be merged into the target br
 
 | Source   | Format                     | Example                                 |
 |----------|----------------------------|-----------------------------------------|
-| Workflow | `<status-name>`            | `Run CI`                                |
+| Workflow | `<job-name>`               | `Run CI`                                |
 | App      | `<app-slug>:<status-name>` | `eclipse-eca-validation:eclipsefdn/eca` |
 | Any      | `any:<status-name>`        | `any:Run CI`                            |
+
+## Workflows as Required Status Checks
+
+Given the following workflows `.github/workflows/ci.yaml` and `.github/workflows/job-legal.yaml` in a GitHub repository:
+
+```yaml
+name: ci
+
+on:
+  pull_request:
+    ...
+
+jobs:
+  build:
+    ...
+
+  test:
+    name: testing
+    ...
+
+  call-legal:
+    uses: ./.github/workflows/job-legal.yaml
+```
+
+```yaml
+name: legal
+on:
+  workflow_call:  # allow this workflow to be called from other workflows
+    ...
+
+jobs:
+  legal:
+    name: Legal Checks
+    ...
+```
+
+Based on these workflow files, the following status checks would be available:
+
+- `build`: references the job build in the ci workflow by its id as it has no name specified
+- `testing`: references the job test in the ci workflow by its name testing
+- `call-legal / Legal Checks`: references the job legal by its name `Legal Checks` in the workflow job-legal.yaml that is called from the job legal in the ci workflow
+
+Rules for translating jobs to stats-checks:
+
+- if a job has no name specified, use its id
+- if reusable workflows are called, join the jobs in their call hierarchy with ` / `.
+
+Now, as an example to protect the `main` branch by enforcing specific status checks to pass before a pull request can be merged into it, 
+you can add the status checks as below:
+
+```jsonnet
+orgs.newBranchProtectionRule('main') {
+    required_status_checks+: [
+        "build",
+        "call-legal / Legal Checks"
+    ]
+}
+```
