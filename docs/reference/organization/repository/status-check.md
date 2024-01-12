@@ -14,38 +14,42 @@ status checks that are required to pass before a pull request can be merged into
 
 ## Workflows as Required Status Checks
 
-Given the following workflows `.github/workflows/ci.yaml` and `.github/workflows/job-legal.yaml` in a GitHub repository:
+Given the following workflows `ci.yaml` and `job-legal.yaml` in a GitHub repository:
 
-```yaml
-name: ci
+=== "ci.yaml"
 
-on:
-  pull_request:
-    ...
+    ```yaml
+    name: ci
+    
+    on:
+      pull_request:
+        ...
+    
+    jobs:
+      build:
+        ...
+    
+      test:
+        name: testing
+        ...
+    
+      call-legal:
+        uses: ./.github/workflows/job-legal.yaml
+    ```
 
-jobs:
-  build:
-    ...
+=== "job-legal.yaml"
 
-  test:
-    name: testing
-    ...
-
-  call-legal:
-    uses: ./.github/workflows/job-legal.yaml
-```
-
-```yaml
-name: legal
-on:
-  workflow_call:  # allow this workflow to be called from other workflows
-    ...
-
-jobs:
-  legal:
-    name: Legal Checks
-    ...
-```
+    ```yaml
+    name: legal
+    on:
+      workflow_call:  # allow this workflow to be called from other workflows
+        ...
+    
+    jobs:
+      legal:
+        name: Legal Checks
+        ...
+    ```
 
 Based on these workflow files, the following status checks would be available:
 

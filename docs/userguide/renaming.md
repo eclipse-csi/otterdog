@@ -36,7 +36,7 @@ but it can be left for traceability to know what the previous identifiers or a r
 ## Supported resources
 
 - [Organization Webhook](../reference/organization/webhook.md)
-- [Repository](../reference/organization/repository)
+- [Repository](../reference/organization/repository/index.md)
 - [Repository Webhook](../reference/organization/repository/webhook.md)
 
 ## Example usage

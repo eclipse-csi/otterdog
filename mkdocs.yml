@@ -61,6 +61,11 @@ nav:
           - Environment: reference/organization/repository/environment.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
           - Ruleset: reference/organization/repository/ruleset.md
+          - Referenced Types:
+             - Actor: reference/organization/repository/actor.md
+             - Bypass Actor: reference/organization/repository/bypass-actor.md
+             - Ref Matcher: reference/organization/repository/ref-matcher.md
+             - Status Check: reference/organization/repository/status-check.md
     - CLI Operations:
         - reference/operations/index.md
         - Import: reference/operations/import.md
