@@ -507,7 +507,7 @@ class ModelObject(ABC):
 
             for k in expected_object.get_all_key_values():
                 expected_objects_by_all_keys.pop(k)
-            expected_objects_by_key.pop(key)
+            expected_objects_by_key.pop(expected_object.get_key_value())
 
         for _, expected_object in expected_objects_by_key.items():
             if expected_object.include_for_live_patch():
