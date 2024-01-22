@@ -16,6 +16,7 @@ from otterdog.credentials import Credentials
 
 from .graphql import GraphQLClient
 from .rest import RestApi
+from .rest.auth import token_auth
 from .web import WebClient
 
 _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
@@ -52,9 +53,7 @@ class GitHubProvider:
             self.rest_api.close()
 
     def _init_clients(self):
-        from .rest.auth.token import TokenAuthStrategy
-
-        self.rest_api = RestApi(TokenAuthStrategy(self._credentials.github_token))
+        self.rest_api = RestApi(token_auth(self._credentials.github_token))
         self.web_client = WebClient(self._credentials)
         self.graphql_client = GraphQLClient(self._credentials.github_token)
 

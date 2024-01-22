@@ -16,7 +16,10 @@ from typing import Any, Optional
 import jq  # type: ignore
 
 from . import credentials
-from .credentials import CredentialProvider, bitwarden_provider, pass_provider
+from .credentials import CredentialProvider
+from .credentials.bitwarden_provider import BitwardenVault
+from .credentials.pass_provider import PassVault
+from .credentials.inmemory_provider import InmemoryVault
 from .jsonnet import JsonnetConfig
 
 
@@ -60,6 +63,10 @@ class OrganizationConfig:
     @property
     def credential_data(self) -> dict[str, Any]:
         return self._credential_data
+
+    @credential_data.setter
+    def credential_data(self, data: dict[str, Any]) -> None:
+        self._credential_data = data
 
     def __repr__(self) -> str:
         return (
@@ -130,6 +137,10 @@ class OtterdogConfig:
     def jsonnet_base_dir(self) -> str:
         return self._jsonnet_base_dir
 
+    @jsonnet_base_dir.setter
+    def jsonnet_base_dir(self, jsonnet_base_dir: str) -> None:
+        self._jsonnet_base_dir = jsonnet_base_dir
+
     @property
     def local_mode(self) -> bool:
         return self._local_mode
@@ -163,7 +174,7 @@ class OtterdogConfig:
                         .first()
                     )
 
-                    provider = bitwarden_provider.BitwardenVault(api_token_key)
+                    provider = BitwardenVault(api_token_key)
                     self._credential_providers[provider_type] = provider
 
                 case "pass":
@@ -171,7 +182,11 @@ class OtterdogConfig:
                         jq.compile('.defaults.pass.password_store_dir // ""').input(self._configuration).first()
                     )
 
-                    provider = pass_provider.PassVault(password_store_dir)
+                    provider = PassVault(password_store_dir)
+                    self._credential_providers[provider_type] = provider
+
+                case "inmemory":
+                    provider = InmemoryVault()
                     self._credential_providers[provider_type] = provider
 
                 case _:
