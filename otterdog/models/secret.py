@@ -67,7 +67,7 @@ class Secret(ModelObject, abc.ABC):
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         match field.name:
             case "value":
-                return False
+                return not self.has_dummy_secret()
             case _:
                 return True
 

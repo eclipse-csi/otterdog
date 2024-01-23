@@ -24,7 +24,7 @@ from .operations.fetch_config import FetchOperation
 from .operations.import_configuration import ImportOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
-from .operations.local_plan_operation import LocalPlanOperation
+from .operations.local_plan import LocalPlanOperation
 from .operations.plan import PlanOperation
 from .operations.push_config import PushOperation
 from .operations.show import ShowOperation
