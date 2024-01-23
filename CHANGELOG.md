@@ -2,6 +2,10 @@
 
 ## [0.4.0] - unreleased
 
+### Added
+
+- Added operation `install-deps` in order to install required runtime dependencies (firefox browser).
+
 ### Changed
 
 - Improve coercing of organization-level settings for repository settings. ([#161](https://github.com/eclipse-csi/otterdog/issues/161))

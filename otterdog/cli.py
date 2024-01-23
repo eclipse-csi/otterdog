@@ -482,6 +482,25 @@ def web_login(organizations: list[str]):
     _execute_operation(organizations, WebLoginOperation())
 
 
+@cli.command(short_help="Installs required dependencies.")
+def install_deps():
+    """
+    Installs required dependencies.
+    """
+
+    import subprocess
+
+    process = subprocess.Popen(args=["playwright", "install", "firefox"], stdout=subprocess.PIPE)
+    for c in iter(lambda: process.stdout.read(1), b""):
+        sys.stdout.buffer.write(c)
+    sys.stdout.flush()
+
+    status = process.wait()
+
+    if status != 0:
+        print_error(f"could not install required dependencies: {status}")
+
+
 def _execute_operation(organizations: list[str], operation: Operation):
     printer = IndentingPrinter(sys.stdout)
     printer.println()
@@ -508,7 +527,8 @@ def _execute_operation(organizations: list[str], operation: Operation):
         sys.exit(exit_code)
 
     except Exception as e:
-        traceback.print_exception(e)
+        if is_debug_enabled():
+            traceback.print_exception(e)
 
         print_error(str(e))
         sys.exit(2)

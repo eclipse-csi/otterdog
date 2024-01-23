@@ -10,7 +10,8 @@ from functools import cached_property
 from typing import Any
 
 from importlib_resources import files
-from playwright.sync_api import Error, Page, sync_playwright
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page, sync_playwright
 
 from otterdog import resources, utils
 from otterdog.credentials import Credentials
@@ -36,7 +37,14 @@ class WebClient:
         utils.print_debug("retrieving settings via web interface")
 
         with sync_playwright() as playwright:
-            browser = playwright.firefox.launch()
+            try:
+                browser = playwright.firefox.launch()
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
 
             page = browser.new_page()
             page.set_default_timeout(self._DEFAULT_TIMEOUT)
@@ -132,7 +140,14 @@ class WebClient:
         utils.print_debug("updating settings via web interface")
 
         with sync_playwright() as playwright:
-            browser = playwright.firefox.launch()
+            try:
+                browser = playwright.firefox.launch()
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
 
             page = browser.new_page()
             page.set_default_timeout(self._DEFAULT_TIMEOUT)
@@ -221,7 +236,15 @@ class WebClient:
         utils.print_debug("opening browser window")
 
         with sync_playwright() as playwright:
-            browser = playwright.firefox.launch(headless=False)
+            try:
+                browser = playwright.firefox.launch(headless=False)
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
+
             context = browser.new_context(no_viewport=True)
 
             page = context.new_page()
@@ -255,7 +278,7 @@ class WebClient:
 
         try:
             actor = page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
-        except Error:
+        except PlaywrightError:
             actor = None
 
         return actor
@@ -293,7 +316,7 @@ class WebClient:
                             confirm_button.click()
 
                     page.type("#app_totp", self.credentials.totp)
-        except Error as e:
+        except PlaywrightError as e:
             raise RuntimeError(f"could not log in to web UI: {str(e)}")
 
     def _logout(self, page: Page) -> None:

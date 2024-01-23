@@ -33,10 +33,13 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 ### Building Steps
 
 * Create a virtual python environment and install necessary python dependencies using poetry:
+
 ```console
 $ make init
 ```
+
 * Testing build
+
 ```console
 $ ./otterdog.sh -h
 ```
