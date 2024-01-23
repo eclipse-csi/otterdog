@@ -1,4 +1,6 @@
-![EPLv2 License](https://img.shields.io/github/license/eclipse-csi/otterdog)
+[![Build](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yaml/badge.svg)](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yaml)
+[![Documentation status](https://readthedocs.org/projects/otterdog/badge/?version=latest)](https://otterdog.readthedocs.io/en/latest/?badge=latest)
+[![EPLv2 License](https://img.shields.io/github/license/eclipse-csi/otterdog)](https://github.com/eclipse-csi/otterdog/blob/main/LICENSE)
 
 # Otterdog
 
