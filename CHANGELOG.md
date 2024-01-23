@@ -8,7 +8,7 @@
 
 ### Changed
 
-- Include changes to secret values in `Webhooks` and `Secret` resources in plan operations. (#168)
+- Include changes to secret values in `Webhooks` and `Secret` resources in plan operations. ([#168](https://github.com/eclipse-csi/otterdog/issues/168))
 - Improve coercing of organization-level settings for repository settings. ([#161](https://github.com/eclipse-csi/otterdog/issues/161))
 - Coerce repository workflow settings from organization workflow settings that are more restrictive. ([#135](https://github.com/eclipse-csi/otterdog/issues/135))
 
