@@ -11,7 +11,7 @@ import os
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import style, associate_by_key
+from otterdog.utils import associate_by_key, style
 
 from . import Operation
 

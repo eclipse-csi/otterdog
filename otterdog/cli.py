@@ -18,19 +18,19 @@ from .config import OtterdogConfig
 from .operations import Operation
 from .operations.apply import ApplyOperation
 from .operations.canonical_diff import CanonicalDiffOperation
+from .operations.delete_file import DeleteFileOperation
 from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_config import FetchOperation
+from .operations.import_configuration import ImportOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
-from .operations.import_configuration import ImportOperation
 from .operations.local_plan_operation import LocalPlanOperation
 from .operations.plan import PlanOperation
 from .operations.push_config import PushOperation
-from .operations.show_live import ShowLiveOperation
 from .operations.show import ShowOperation
 from .operations.show_default import ShowDefaultOperation
+from .operations.show_live import ShowLiveOperation
 from .operations.sync_template import SyncTemplateOperation
-from .operations.delete_file import DeleteFileOperation
 from .operations.validate import ValidateOperation
 from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error

@@ -9,30 +9,30 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, Optional, Iterator, cast, Callable
+from typing import Any, Callable, ClassVar, Iterator, Optional, cast
 
-from jsonbender import bend, S, OptionalS, K, Forall, If, F  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
-    ModelObject,
-    ValidationContext,
     FailureType,
+    LivePatch,
     LivePatchContext,
     LivePatchHandler,
-    LivePatch,
     LivePatchType,
+    ModelObject,
     PatchContext,
+    ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
-    is_unset,
-    is_set_and_valid,
-    IndentingPrinter,
-    write_patch_object_as_json,
     Change,
+    IndentingPrinter,
     is_set_and_present,
+    is_set_and_valid,
+    is_unset,
+    write_patch_object_as_json,
 )
 
 from .branch_protection_rule import BranchProtectionRule
@@ -321,9 +321,9 @@ class Repository(ModelObject):
                     f" 'gh_pages_build_type' disabled but the repo hosts the organization site and"
                     f" GitHub pages will be enabled automatically.\n"
                     f" Add the following snippet to your repo configuration:\n\n"
-                    f"   gh_pages_build_type: \"legacy\",\n"
-                    f"   gh_pages_source_branch: \"main\",\n"
-                    f"   gh_pages_source_path: \"/\",",
+                    f'   gh_pages_build_type: "legacy",\n'
+                    f'   gh_pages_source_branch: "main",\n'
+                    f'   gh_pages_source_path: "/",',
                 )
 
             if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
@@ -335,9 +335,9 @@ class Repository(ModelObject):
                     f"   environments: [\n"
                     f"     orgs.newEnvironment('github-pages') {{\n"
                     f"       branch_policies+: [\n"
-                    f"         \"main\"\n"
+                    f'         "main"\n'
                     f"       ],\n"
-                    f"       deployment_branch_policy: \"selected\",\n"
+                    f'       deployment_branch_policy: "selected",\n'
                     f"     }},\n"
                     f"   ],",
                 )

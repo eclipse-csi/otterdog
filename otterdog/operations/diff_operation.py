@@ -10,12 +10,12 @@ import os
 from abc import abstractmethod
 from typing import Any, Optional
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, LivePatch, LivePatchType, LivePatchContext
+from otterdog.models import LivePatch, LivePatchContext, LivePatchType, ModelObject
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import IndentingPrinter, Change, is_info_enabled, style
+from otterdog.utils import Change, IndentingPrinter, is_info_enabled, style
 
 from . import Operation
 from .validate import ValidateOperation

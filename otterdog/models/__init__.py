@@ -8,28 +8,30 @@
 
 from __future__ import annotations
 
-import os
 import dataclasses
+import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, Iterator, Callable, cast, Protocol
+from typing import Any, Callable, Iterator, Optional, Protocol, Sequence, TypeVar, cast
 
 from jsonbender import bend  # type: ignore
 
-from otterdog.providers.github import GitHubProvider
 from otterdog.jsonnet import JsonnetConfig
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
-    patch_to_other,
-    is_unset,
-    T,
-    is_different_ignoring_order,
     Change,
     IndentingPrinter,
-    style,
+    T,
     associate_by_key,
+    is_different_ignoring_order,
+    is_unset,
     multi_associate_by_key,
+    patch_to_other,
+    style,
     write_patch_object_as_json,
 )
+
+MT = TypeVar("MT", bound="ModelObject")
 
 
 class FailureType(Enum):
@@ -359,7 +361,7 @@ class ModelObject(ABC):
         """
         return True
 
-    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject) -> bool:
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: Optional[ModelObject]) -> bool:
         """
         Indicates if this live ModelObject should be considered when generating a live patch.
 
@@ -484,9 +486,9 @@ class ModelObject(ABC):
     @classmethod
     def generate_live_patch_of_list(
         cls,
-        expected_objects: list[ModelObject],
-        current_objects: list[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_objects: Sequence[MT],
+        current_objects: Sequence[MT],
+        parent_object: Optional[MT],
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

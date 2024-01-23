@@ -14,19 +14,19 @@ from typing import Any, Optional, cast
 from jsonbender import S  # type: ignore
 
 from otterdog.models import (
-    ModelObject,
-    LivePatchHandler,
+    FailureType,
     LivePatch,
     LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
+    ModelObject,
     ValidationContext,
-    FailureType,
 )
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.workflow_settings import WorkflowSettings
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, is_set_and_valid, UNSET, is_unset
+from otterdog.utils import UNSET, Change, is_set_and_valid, is_unset
 
 
 @dataclasses.dataclass
@@ -42,12 +42,12 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         return "repo_workflow_settings"
 
     def coerce_from_org_settings(
-        self, parent_object: ModelObject, org_workflow_settings: OrganizationWorkflowSettings
+        self, parent_object: Optional[ModelObject], org_workflow_settings: OrganizationWorkflowSettings
     ) -> RepositoryWorkflowSettings:
         copy = dataclasses.replace(self)
 
         if org_workflow_settings.enabled_repositories == "none":
-            copy.enabled = UNSET
+            copy.enabled = UNSET  # type: ignore
 
         from otterdog.models.repository import Repository
 
@@ -57,7 +57,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             org_workflow_settings.enabled_repositories == "selected"
             and repository_name not in org_workflow_settings.selected_repositories
         ):
-            copy.enabled = UNSET
+            copy.enabled = UNSET  # type: ignore
 
         if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
             copy.allowed_actions = UNSET  # type: ignore

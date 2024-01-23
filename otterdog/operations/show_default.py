@@ -183,10 +183,10 @@ class ShowDefaultOperation(Operation):
         if self.markdown:
             self.printer.println(
                 textwrap.dedent(
-                    f'''\
+                    f"""\
                 === "{resource_name}"
                     ``` jsonnet\
-                '''
+                """
                 )
             )
             self.printer.level_up()

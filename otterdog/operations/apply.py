@@ -9,9 +9,9 @@
 import os
 from typing import Any, Optional
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.models import ModelObject, LivePatch, LivePatchType
-from otterdog.utils import IndentingPrinter, Change, get_approval, style
+from otterdog.config import OrganizationConfig, OtterdogConfig
+from otterdog.models import LivePatch, LivePatchType, ModelObject
+from otterdog.utils import Change, IndentingPrinter, get_approval, style
 
 from .diff_operation import DiffStatus
 from .plan import PlanOperation

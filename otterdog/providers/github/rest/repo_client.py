@@ -13,15 +13,19 @@ import pathlib
 import re
 import tempfile
 import zipfile
-from typing import Optional, Any, IO
+from typing import IO, Any, Optional
 
 import chevron
 import jq  # type: ignore
 
-from otterdog.utils import print_debug, is_set_and_present, print_trace, associate_by_key
-
-from . import RestApi, RestClient, encrypt_value
-from ..exception import GitHubException
+from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
+from otterdog.utils import (
+    associate_by_key,
+    is_set_and_present,
+    print_debug,
+    print_trace,
+)
 
 
 class RepoClient(RestClient):

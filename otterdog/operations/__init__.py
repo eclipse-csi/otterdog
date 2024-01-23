@@ -9,8 +9,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from otterdog.config import OtterdogConfig, OrganizationConfig
-from otterdog.utils import IndentingPrinter, Change, is_unset, style
+from otterdog.config import OrganizationConfig, OtterdogConfig
+from otterdog.utils import Change, IndentingPrinter, is_unset, style
 
 
 class Operation(ABC):
@@ -162,7 +162,7 @@ class Operation(ABC):
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
                             self.printer.println(
-                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f' {self._get_value(v)}'
+                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f" {self._get_value(v)}"
                             )
 
                 self.printer.println("}")

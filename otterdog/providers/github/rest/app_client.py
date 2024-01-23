@@ -10,8 +10,8 @@ from typing import Any
 
 from otterdog.utils import print_debug
 
-from . import RestApi, RestClient
 from ..exception import GitHubException
+from . import RestApi, RestClient
 
 
 class AppClient(RestClient):

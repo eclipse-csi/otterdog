@@ -14,38 +14,43 @@ import json
 import os
 from datetime import datetime
 from io import StringIO
-from typing import Any, Optional, Iterator, Callable
+from typing import Any, Callable, Iterator, Optional
 
 import jsonschema
-from importlib_resources import files, as_file
-from jsonbender import bend, S, OptionalS, F, Forall  # type: ignore
+from importlib_resources import as_file, files
+from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 
 from otterdog import resources
-from otterdog.config import OtterdogConfig, JsonnetConfig
+from otterdog.config import JsonnetConfig, OtterdogConfig
+from otterdog.models import (
+    LivePatchContext,
+    LivePatchHandler,
+    ModelObject,
+    PatchContext,
+    ValidationContext,
+)
+from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.environment import Environment
+from otterdog.models.organization_secret import OrganizationSecret
+from otterdog.models.organization_settings import OrganizationSettings
+from otterdog.models.organization_variable import OrganizationVariable
+from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
+from otterdog.models.repo_ruleset import RepositoryRuleset
+from otterdog.models.repo_secret import RepositorySecret
+from otterdog.models.repo_variable import RepositoryVariable
+from otterdog.models.repo_webhook import RepositoryWebhook
+from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
+from otterdog.models.repository import Repository
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
-    print_debug,
-    jsonnet_evaluate_file,
-    is_info_enabled,
     is_debug_enabled,
+    is_info_enabled,
+    jsonnet_evaluate_file,
+    print_debug,
 )
-
-from . import ValidationContext, ModelObject, LivePatchHandler, LivePatchContext, PatchContext
-from .branch_protection_rule import BranchProtectionRule
-from .environment import Environment
-from .organization_secret import OrganizationSecret
-from .organization_variable import OrganizationVariable
-from .organization_settings import OrganizationSettings
-from .organization_workflow_settings import OrganizationWorkflowSettings
-from .organization_webhook import OrganizationWebhook
-from .repository import Repository
-from .repo_ruleset import RepositoryRuleset
-from .repo_secret import RepositorySecret
-from .repo_variable import RepositoryVariable
-from .repo_webhook import RepositoryWebhook
-from .repo_workflow_settings import RepositoryWorkflowSettings
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 

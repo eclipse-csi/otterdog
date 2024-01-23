@@ -12,9 +12,9 @@ import abc
 import dataclasses
 from typing import Any, TypeVar
 
-from jsonbender import bend, S, OptionalS  # type: ignore
+from jsonbender import OptionalS, S, bend  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import FailureType, ModelObject, ValidationContext
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, is_unset
 

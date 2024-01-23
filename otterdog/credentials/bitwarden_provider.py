@@ -9,11 +9,10 @@
 import json
 import re
 import subprocess
-
 from typing import Optional
 
-from otterdog.credentials import Credentials, CredentialProvider
 from otterdog import utils
+from otterdog.credentials import CredentialProvider, Credentials
 
 
 class BitwardenVault(CredentialProvider):

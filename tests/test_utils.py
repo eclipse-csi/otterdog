@@ -9,13 +9,13 @@
 import pytest
 
 from otterdog.utils import (
-    is_different_ignoring_order,
     UNSET,
+    camel_to_snake_case,
+    is_different_ignoring_order,
+    is_ghsa_repo,
+    parse_template_url,
     patch_to_other,
     snake_to_camel_case,
-    camel_to_snake_case,
-    parse_template_url,
-    is_ghsa_repo,
 )
 
 

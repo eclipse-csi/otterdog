@@ -11,22 +11,18 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional
 
-from jsonbender import bend, S, OptionalS, K, F, Filter, Forall, If  # type: ignore
+from jsonbender import F, Filter, Forall, If, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
-    ModelObject,
-    ValidationContext,
     FailureType,
     LivePatch,
     LivePatchType,
+    ModelObject,
+    ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import (
-    UNSET,
-    is_unset,
-    is_set_and_valid,
-)
+from otterdog.utils import UNSET, is_set_and_valid, is_unset
 
 
 @dataclasses.dataclass
@@ -83,7 +79,7 @@ class Environment(ModelObject):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject) -> bool:
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: Optional[ModelObject]) -> bool:
         from .repository import Repository
 
         assert isinstance(parent_object, Repository)

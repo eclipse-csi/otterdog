@@ -26,7 +26,7 @@ class PushOperation(Operation):
         self._push_message = push_message
 
     @property
-    def push_message(self) -> str:
+    def push_message(self) -> Optional[str]:
         return self._push_message
 
     def pre_execute(self) -> None:

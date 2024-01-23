@@ -79,6 +79,7 @@ def encrypt_value(public_key: str, secret_value: str) -> str:
     Encrypt a Unicode string using a public key.
     """
     from base64 import b64encode
+
     from nacl import encoding, public
 
     public_key_obj = public.PublicKey(public_key.encode("utf-8"), encoding.Base64Encoder)

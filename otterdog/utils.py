@@ -1,10 +1,10 @@
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the MIT License
+#  which is available at https://spdx.org/licenses/MIT.html
+#  SPDX-License-Identifier: MIT
+#  *******************************************************************************
 
 from __future__ import annotations
 
@@ -14,7 +14,19 @@ import sys
 from argparse import Namespace
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Literal, TypeVar, Generic, Optional, TypeGuard, TextIO, Union, Tuple
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Optional,
+    Sequence,
+    TextIO,
+    Tuple,
+    TypeGuard,
+    TypeVar,
+    Union,
+)
 from urllib.parse import urlparse
 
 import click
@@ -230,7 +242,7 @@ def write_patch_object_as_json(
         printer.println("},")
 
 
-def associate_by_key(input_list: list[T], key_func: Callable[[T], str]) -> dict[str, T]:
+def associate_by_key(input_list: Sequence[T], key_func: Callable[[T], str]) -> dict[str, T]:
     result = {}
     for item in input_list:
         key = key_func(item)
@@ -243,7 +255,7 @@ def associate_by_key(input_list: list[T], key_func: Callable[[T], str]) -> dict[
     return result
 
 
-def multi_associate_by_key(input_list: list[T], key_func: Callable[[T], list[str]]) -> dict[str, T]:
+def multi_associate_by_key(input_list: Sequence[T], key_func: Callable[[T], list[str]]) -> dict[str, T]:
     result = {}
     for item in input_list:
         keys = key_func(item)

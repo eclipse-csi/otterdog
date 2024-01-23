@@ -9,11 +9,9 @@
 import json
 import os
 import unittest
-
-from unittest.mock import MagicMock
-
 from abc import ABC, abstractmethod
 from typing import Any
+from unittest.mock import MagicMock
 
 
 class ModelTest(ABC, unittest.TestCase):

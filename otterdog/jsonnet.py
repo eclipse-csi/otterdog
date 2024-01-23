@@ -9,10 +9,15 @@
 import json
 import os
 import subprocess
-
 from typing import Any
 
-from .utils import jsonnet_evaluate_snippet, parse_template_url, print_debug, print_trace, print_warn
+from .utils import (
+    jsonnet_evaluate_snippet,
+    parse_template_url,
+    print_debug,
+    print_trace,
+    print_warn,
+)
 
 
 class JsonnetConfig:

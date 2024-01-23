@@ -9,14 +9,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta, datetime, timezone
-
-from typing import Optional, MutableMapping, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, MutableMapping, Optional
 
 from jwt import JWT, jwk_from_pem
 from jwt.utils import get_int_from_datetime
 
-from . import AuthStrategy, AuthImpl
+from . import AuthImpl, AuthStrategy
 
 
 @dataclass(frozen=True)
@@ -47,7 +46,7 @@ class _AppAuth(AuthImpl):
         """
 
         # Open PEM
-        with open(self.private_key, 'rb') as pem_file:
+        with open(self.private_key, "rb") as pem_file:
             signing_key = jwk_from_pem(pem_file.read())
 
         # use a start time slightly in the past
@@ -56,12 +55,12 @@ class _AppAuth(AuthImpl):
         expire_time = start_time + timedelta(minutes=10)
 
         payload = {
-            'iat': get_int_from_datetime(start_time),
-            'exp': get_int_from_datetime(expire_time),
-            'iss': self.app_id,
+            "iat": get_int_from_datetime(start_time),
+            "exp": get_int_from_datetime(expire_time),
+            "iss": self.app_id,
         }
 
-        return JWT().encode(payload, signing_key, alg='RS256'), start_time, expire_time
+        return JWT().encode(payload, signing_key, alg="RS256"), start_time, expire_time
 
     def get_jwt(self) -> str:
         now = datetime.now(timezone.utc)

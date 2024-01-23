@@ -9,30 +9,30 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional, Iterator, cast
+from typing import Any, Iterator, Optional, cast
 
-from jsonbender import bend, S, OptionalS, F, K, If  # type: ignore
+from jsonbender import F, If, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
-    ModelObject,
-    ValidationContext,
     FailureType,
     LivePatch,
-    LivePatchHandler,
     LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
+    ModelObject,
     PatchContext,
+    ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
-    is_unset,
-    is_set_and_valid,
-    is_set_and_present,
-    IndentingPrinter,
-    write_patch_object_as_json,
     Change,
+    IndentingPrinter,
+    is_set_and_present,
+    is_set_and_valid,
+    is_unset,
+    write_patch_object_as_json,
 )
 
 from .organization_workflow_settings import OrganizationWorkflowSettings

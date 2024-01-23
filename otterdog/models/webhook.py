@@ -11,19 +11,20 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, Optional, cast, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar, cast
 
-from jsonbender import bend, S, OptionalS  # type: ignore
+from jsonbender import OptionalS, S, bend  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatchContext, LivePatchHandler, LivePatch
-from otterdog.providers.github import GitHubProvider
-from otterdog.utils import (
-    UNSET,
-    is_unset,
-    is_set_and_valid,
-    is_set_and_present,
-    Change,
+from otterdog.models import (
+    FailureType,
+    LivePatch,
+    LivePatchContext,
+    LivePatchHandler,
+    ModelObject,
+    ValidationContext,
 )
+from otterdog.providers.github import GitHubProvider
+from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset
 
 WT = TypeVar("WT", bound="Webhook")
 

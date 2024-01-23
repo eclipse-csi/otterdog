@@ -9,14 +9,12 @@
 import json
 from typing import Any
 
-from aiohttp.client import ClientSession
 import jq  # type: ignore
+import requests
+from aiohttp.client import ClientSession
 from importlib_resources import files
 
-import requests
-
-from otterdog import resources
-from otterdog import utils
+from otterdog import resources, utils
 
 
 class GraphQLClient:

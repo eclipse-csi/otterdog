@@ -10,10 +10,9 @@ from functools import cached_property
 from typing import Any
 
 from importlib_resources import files
-from playwright.sync_api import sync_playwright, Page, Error
+from playwright.sync_api import Error, Page, sync_playwright
 
-from otterdog import resources
-from otterdog import utils
+from otterdog import resources, utils
 from otterdog.credentials import Credentials
 
 
@@ -98,10 +97,10 @@ class WebClient:
                         case _:
                             raise RuntimeError(f"not supported setting type '{setting_type}'")
 
-                    pre_selector = setting_def['preSelector']
+                    pre_selector = setting_def["preSelector"]
                     if pre_selector is not None:
                         page.click(pre_selector)
-                        page.wait_for_selector(selector, state='attached')
+                        page.wait_for_selector(selector, state="attached")
 
                     value = page.eval_on_selector(
                         selector,
@@ -181,11 +180,11 @@ class WebClient:
                             page.set_checked(f"{setting_def['selector']}[value='{new_value}']", True)
 
                         case "select-menu":
-                            pre_selector = setting_def['preSelector']
+                            pre_selector = setting_def["preSelector"]
                             page.click(pre_selector)
 
                             selector = f"{setting_def['saveSelector']}"
-                            page.wait_for_selector(selector, state='attached')
+                            page.wait_for_selector(selector, state="attached")
                             handles = page.query_selector_all(selector)
                             for handle in handles:
                                 if new_value == handle.inner_text().strip():
@@ -231,7 +230,7 @@ class WebClient:
             self._login_if_required(page)
 
             page.goto("https://github.com/{}".format(org_id))
-            input('Enter anything to logout and close browser.\n')
+            input("Enter anything to logout and close browser.\n")
 
             self._logout(page)
 

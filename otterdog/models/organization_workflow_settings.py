@@ -11,20 +11,20 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional
 
-from jsonbender import S, Forall, If, K  # type: ignore
+from jsonbender import Forall, If, K, S  # type: ignore
 
 from otterdog.models import (
-    ValidationContext,
     FailureType,
-    ModelObject,
-    LivePatchHandler,
     LivePatch,
     LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
+    ModelObject,
+    ValidationContext,
 )
 from otterdog.models.workflow_settings import WorkflowSettings
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_set_and_valid, Change
+from otterdog.utils import Change, is_set_and_valid
 
 
 @dataclasses.dataclass

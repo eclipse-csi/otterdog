@@ -12,16 +12,16 @@ import abc
 import dataclasses
 from typing import Any, ClassVar, Optional
 
-from jsonbender import bend, S, OptionalS  # type: ignore
+from jsonbender import OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject, ValidationContext, FailureType, PatchContext
+from otterdog.models import FailureType, ModelObject, PatchContext, ValidationContext
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
-    is_unset,
-    is_set_and_valid,
     IndentingPrinter,
+    is_set_and_valid,
+    is_unset,
     write_patch_object_as_json,
 )
 

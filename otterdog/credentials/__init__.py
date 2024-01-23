@@ -9,7 +9,7 @@
 import dataclasses
 import time
 from abc import abstractmethod
-from typing import Protocol, Optional
+from typing import Optional, Protocol
 
 import mintotp  # type: ignore
 

@@ -84,8 +84,8 @@ class BranchProtectionRuleTest(ModelTest):
         assert provider_data["pattern"] == "main"
         assert provider_data["pushActorIds"] == ["id_netomi"]
         assert provider_data["requiredStatusChecks"] == [
-            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'},
-            {'appId': 'any', 'context': 'Run CI'},
+            {"appId": "id_eclipse-eca-validation", "context": "eclipsefdn/eca"},
+            {"appId": "any", "context": "Run CI"},
         ]
 
     def test_changes_to_provider(self):
@@ -101,8 +101,8 @@ class BranchProtectionRuleTest(ModelTest):
         assert len(provider_data) == 2
         assert provider_data["requiresApprovingReviews"] is True
         assert provider_data["requiredStatusChecks"] == [
-            {'appId': 'id_eclipse-eca-validation', 'context': 'eclipsefdn/eca'},
-            {'appId': 'any', 'context': 'Run CI'},
+            {"appId": "id_eclipse-eca-validation", "context": "eclipsefdn/eca"},
+            {"appId": "any", "context": "Run CI"},
         ]
 
     def test_patch(self):

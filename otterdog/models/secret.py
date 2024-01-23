@@ -11,13 +11,20 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, cast, Callable, TypeVar, Optional
+from typing import Any, Callable, Optional, TypeVar, cast
 
-from jsonbender import bend, S, OptionalS, K  # type: ignore
+from jsonbender import K, OptionalS, S, bend  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType, LivePatchContext, LivePatchHandler, LivePatch
+from otterdog.models import (
+    FailureType,
+    LivePatch,
+    LivePatchContext,
+    LivePatchHandler,
+    ModelObject,
+    ValidationContext,
+)
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, is_set_and_valid, Change
+from otterdog.utils import UNSET, Change, is_set_and_valid, is_unset
 
 ST = TypeVar("ST", bound="Secret")
 

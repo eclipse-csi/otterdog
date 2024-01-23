@@ -12,23 +12,23 @@ import dataclasses
 import re
 from typing import Any, Optional, cast
 
-from jsonbender import bend, S, OptionalS, Forall, K  # type: ignore
+from jsonbender import Forall, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
-    ModelObject,
-    ValidationContext,
     FailureType,
     LivePatch,
     LivePatchType,
+    ModelObject,
+    ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
-    is_unset,
-    is_set_and_valid,
-    snake_to_camel_case,
     associate_by_key,
+    is_set_and_valid,
+    is_unset,
+    snake_to_camel_case,
 )
 
 

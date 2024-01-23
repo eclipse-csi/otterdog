@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 from otterdog.models.organization_settings import OrganizationSettings
-from otterdog.utils import Change, UNSET
+from otterdog.utils import UNSET, Change
 
 from . import ModelTest
 

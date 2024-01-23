@@ -96,8 +96,9 @@ class RepositoryTest(ModelTest):
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data.get("description") is None
 
-        assert jq.compile('.security_and_analysis.secret_scanning.status // ""').input(
-            provider_data).first() == "enabled"
+        assert (
+            jq.compile('.security_and_analysis.secret_scanning.status // ""').input(provider_data).first() == "enabled"
+        )
 
     def test_changes_to_provider(self):
         current = Repository.from_model_data(self.model_data)
@@ -113,8 +114,9 @@ class RepositoryTest(ModelTest):
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data["has_wiki"] is True
-        assert jq.compile('.security_and_analysis.secret_scanning.status // ""').input(
-            provider_data).first() == "enabled"
+        assert (
+            jq.compile('.security_and_analysis.secret_scanning.status // ""').input(provider_data).first() == "enabled"
+        )
 
     def test_patch(self):
         current = Repository.from_model_data(self.model_data)

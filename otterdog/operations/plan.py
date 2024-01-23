@@ -9,9 +9,9 @@
 from typing import Any, Optional
 
 from otterdog.config import OtterdogConfig
-from otterdog.models import ModelObject, LivePatch
+from otterdog.models import LivePatch, ModelObject
 from otterdog.models.webhook import Webhook
-from otterdog.utils import IndentingPrinter, Change, style
+from otterdog.utils import Change, IndentingPrinter, style
 
 from .diff_operation import DiffOperation, DiffStatus
 

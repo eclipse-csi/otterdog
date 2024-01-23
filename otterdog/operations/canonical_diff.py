@@ -12,8 +12,8 @@ from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import sort_jsonnet, strip_trailing_commas, style
 
-from . import Operation
 from ..models import PatchContext
+from . import Operation
 
 
 class CanonicalDiffOperation(Operation):
@@ -64,9 +64,9 @@ class CanonicalDiffOperation(Operation):
 
         for line in self._diff(canonical_config_as_lines, original_config_without_comments, "canonical", "original"):
             if line.startswith("+"):
-                self.printer.println(style(line, fg='green'))
+                self.printer.println(style(line, fg="green"))
             elif line.startswith("-"):
-                self.printer.println(style(line, fg='red'))
+                self.printer.println(style(line, fg="red"))
             else:
                 self.printer.println(line)
 
@@ -74,14 +74,14 @@ class CanonicalDiffOperation(Operation):
 
     @staticmethod
     def _diff(a, b, name_a, name_b):
+        from subprocess import PIPE, Popen
         from tempfile import NamedTemporaryFile
-        from subprocess import Popen, PIPE
 
         with NamedTemporaryFile() as file:
             file.write(bytes("\n".join(a), "utf-8"))
             file.flush()
             p = Popen(
-                ['diff', '--label', name_a, '--label', name_b, '-u', '-w', '-', file.name], stdin=PIPE, stdout=PIPE
+                ["diff", "--label", name_a, "--label", name_b, "-u", "-w", "-", file.name], stdin=PIPE, stdout=PIPE
             )
             out, err = p.communicate(bytes("\n".join(b), "utf-8"))
 

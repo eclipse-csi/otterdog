@@ -54,8 +54,8 @@ class EnvironmentTest(ModelTest):
         assert len(provider_data) == 5
         assert provider_data["wait_timer"] == 15
 
-        assert jq.compile('.reviewers[0].id').input(provider_data).first() == "id_netomi"
-        assert jq.compile('.reviewers[1].id').input(provider_data).first() == "id_OtterdogTest/eclipsefdn-security"
+        assert jq.compile(".reviewers[0].id").input(provider_data).first() == "id_netomi"
+        assert jq.compile(".reviewers[1].id").input(provider_data).first() == "id_OtterdogTest/eclipsefdn-security"
 
-        assert jq.compile('.deployment_branch_policy.protected_branches').input(provider_data).first() is False
+        assert jq.compile(".deployment_branch_policy.protected_branches").input(provider_data).first() is False
         assert jq.compile(".deployment_branch_policy.custom_branch_policies").input(provider_data).first() is True

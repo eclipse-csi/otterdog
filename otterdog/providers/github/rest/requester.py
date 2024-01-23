@@ -7,16 +7,15 @@
 #  *******************************************************************************
 
 import json
-from typing import Optional, Any
+from typing import Any, Optional
 
+from aiohttp_client_cache.backends import FileBackend
+from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from requests import Response
 from requests_cache import CachedSession
 
-from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
-from aiohttp_client_cache.backends import FileBackend
-
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
-from otterdog.utils import print_debug, print_trace, is_debug_enabled, is_trace_enabled
+from otterdog.utils import is_debug_enabled, is_trace_enabled, print_debug, print_trace
 
 from .auth import AuthStrategy
 

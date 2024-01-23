@@ -1,71 +1,77 @@
 [tool.poetry]
-name = "otterdog"
-version = "0.4.0.dev"
+name        = "otterdog"
+version     = "0.4.0.dev"
 description = "Tool to manage GitHub organizations and their repositories."
-authors = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
-readme = "README.md"
-packages = [{include = "otterdog"}]
+authors     = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
+readme      = "README.md"
+packages    = [{include = "otterdog"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-playwright = "^1.38"
-jq = "^1.6"
-colorama = "^0.4"
-mintotp = "^0.3"
-requests = "^2.30"
-jsonschema = "^4.19"
-JSONBender = "^0.9"
-importlib_resources = "^5.12"
-requests-cache = "^1.1"
-gojsonnet = "^0.20"
-click = "^8.1"
-chevron = "^0.14"
-PyNaCl = "^1.5"
-jwt = "^1.3"
-aiohttp = "^3.8"
+python               = "^3.10"
+aiofiles             = "^23.2"
+aiohttp              = "^3.8"
 aiohttp-client-cache = "^0.10"
-aiofiles = "^23.2"
-aiosqlite = "^0.19"
+aiosqlite            = "^0.19"
+chevron              = "^0.14"
+click                = "^8.1"
+colorama             = "^0.4"
+gojsonnet            = "^0.20"
+importlib_resources  = "^5.12"
+jq                   = "^1.6"
+jsonschema           = "^4.19"
+jwt                  = "^1.3"
+mintotp              = "^0.3"
+playwright           = "^1.38"
+requests             = "^2.30"
+requests-cache       = "^1.1"
+JSONBender           = "^0.9"
+PyNaCl               = "^1.5"
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^6.0"
+black      = "^23.3"
+flake8     = "^6.0"
+mypy       = "^1.8"
 pre-commit = "^3.3"
-black = "^23.3"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.3"
 
 [tool.poetry.group.typing.dependencies]
-mypy = "^1.3"
-types-colorama = "^0.4"
-types-requests = "^2.30"
+types-colorama   = "^0.4"
+types-requests   = "^2.31"
 types-jsonschema = "^4.17"
-types-chevron = "^0.14"
+types-chevron    = "^0.14"
 
 [tool.poetry.group.docs]
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-mkdocs = "^1.4"
+mkdocs          = "^1.4"
 mkdocs-material = "^9.4"
-mkdocs-exclude = "^1.0"
-jinja2 = "3.0.3"
+mkdocs-exclude  = "^1.0"
+jinja2          = "3.0.3"
 
 [tool.poetry.scripts]
-otterdog = "otterdog.cli:cli"
+otterdog     = "otterdog.cli:cli"
 otterdog-app = "otterdog.app:run"
 
 [build-system]
-requires = ["poetry-core"]
+requires      = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 minversion = "7.2"
-testpaths = ["tests"]
+testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
 
 [tool.black]
-color = true
-line-length = 120
-target-version = ['py310']
-skip-string-normalization = true
+color                     = true
+line-length               = 120
+target-version            = ['py310']
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.10"
+exclude        = ["scripts", "docs", "tests"]

@@ -12,8 +12,8 @@ from typing import Any
 
 from otterdog.utils import print_debug, print_trace, print_warn
 
-from . import RestApi, RestClient, encrypt_value
 from ..exception import GitHubException
+from . import RestApi, RestClient, encrypt_value
 
 
 class OrgClient(RestClient):

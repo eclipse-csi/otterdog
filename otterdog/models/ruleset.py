@@ -11,13 +11,19 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, TypeVar, Optional, cast, ClassVar
+from typing import Any, ClassVar, Optional, TypeVar, cast
 
-from jsonbender import bend, S, OptionalS, K  # type: ignore
+from jsonbender import K, OptionalS, S, bend  # type: ignore
 
-from otterdog.models import ModelObject, ValidationContext, FailureType
+from otterdog.models import FailureType, ModelObject, ValidationContext
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_unset, associate_by_key, is_set_and_valid, print_warn
+from otterdog.utils import (
+    UNSET,
+    associate_by_key,
+    is_set_and_valid,
+    is_unset,
+    print_warn,
+)
 
 RS = TypeVar("RS", bound="Ruleset")
 
@@ -259,7 +265,7 @@ class Ruleset(ModelObject, abc.ABC):
                 actor_type = actor["actor_type"]
 
                 if actor_type == "RepositoryRole" or actor_type == "OrganizationAdmin":
-                    role = cls._roles.get(str(actor['actor_id']), None)
+                    role = cls._roles.get(str(actor["actor_id"]), None)
                     if role is None:
                         print_warn(f"fail to map repository role '{actor['actor_id']}', skipping")
                         continue

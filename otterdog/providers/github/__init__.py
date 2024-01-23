@@ -7,11 +7,11 @@
 #  *******************************************************************************
 
 import json
-from importlib_resources import files
 from typing import Any, Optional
 
-from otterdog import resources
-from otterdog import utils
+from importlib_resources import files
+
+from otterdog import resources, utils
 from otterdog.credentials import Credentials
 
 from .graphql import GraphQLClient
