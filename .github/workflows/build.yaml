@@ -40,7 +40,7 @@ jobs:
           key: venv-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: poetry install -v --only-root
+        run: poetry install -v --without dev,typing,docs
 
       # Run tests
       - name: Run tests
