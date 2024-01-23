@@ -1,3 +1,5 @@
+![EPLv2 License](https://img.shields.io/github/license/eclipse-csi/otterdog)
+
 # Otterdog
 
 ## Introduction
