@@ -1,10 +1,39 @@
 [tool.poetry]
-name        = "otterdog"
-version     = "0.4.0.dev"
-description = "Tool to manage GitHub organizations and their repositories."
-authors     = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
-readme      = "README.md"
-packages    = [{include = "otterdog"}]
+name          = "otterdog"
+version       = "0.4.0.dev"
+description   = "Tool to manage GitHub organizations and their repositories."
+authors       = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
+readme        = "README.md"
+license       = "Eclipse Public License - v2.0"
+homepage      = "https://github.com/eclipse-csi/otterdog"
+repository    = "https://github.com/eclipse-csi/otterdog"
+documentation = "https://otterdog.readthedocs.io"
+keywords      = ["infrastructure-as-code", "supply-chain-security", "github", "gitops"]
+
+packages      = [
+    { include = "otterdog" }
+]
+
+include       = [
+    "CHANGELOG.md"
+]
+
+classifiers   = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
+    "Operating System :: Unix",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Environment :: Console",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
+]
 
 [tool.poetry.dependencies]
 python               = "^3.10"
@@ -65,9 +94,9 @@ testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
 
 [tool.black]
-color                     = true
-line-length               = 120
-target-version            = ['py310']
+color          = true
+line-length    = 120
+target-version = ['py310']
 
 [tool.isort]
 profile = "black"
