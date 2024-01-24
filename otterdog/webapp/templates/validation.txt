@@ -1,0 +1,12 @@
+This is your friendly self-service bot. Please find below the validation of the requested configuration changes:
+
+<details>
+<summary>Diff for {{ sha }}</summary>
+
+```diff
+{{ result }}
+```
+
+</details>
+
+Add a comment `/help` to get a list of available commands.

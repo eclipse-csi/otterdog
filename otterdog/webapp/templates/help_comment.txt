@@ -1,0 +1,4 @@
+This is your friendly self-service bot. The following commands are supported:
+
+- `/validate`: validates the configuration change if this PR touches the configuration
+- `/validate info`: validates the configuration change, printing also validation infos

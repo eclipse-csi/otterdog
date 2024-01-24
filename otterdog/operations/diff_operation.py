@@ -81,7 +81,7 @@ class DiffOperation(Operation):
             self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.config.get_credentials(org_config))
+        return GitHubProvider(self.config.get_credentials(org_config, only_token=self.no_web_ui))
 
     @property
     def gh_client(self) -> GitHubProvider:

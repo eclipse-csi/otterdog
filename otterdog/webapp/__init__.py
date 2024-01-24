@@ -1,9 +1,9 @@
 #  *******************************************************************************
 #  Copyright (c) 2023-2024 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
 from importlib import import_module
@@ -13,7 +13,7 @@ from quart import Quart
 
 from .config import AppConfig
 
-_BLUEPRINT_MODULES = []
+_BLUEPRINT_MODULES: list[str] = []
 
 
 def register_github_webhook(app) -> None:

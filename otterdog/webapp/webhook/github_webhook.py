@@ -1,30 +1,19 @@
 #  *******************************************************************************
 #  Copyright (c) 2024 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ----------------------------- END-OF-FILE -----------------------------------
+# Original code from https://github.com/go-build-it/quart-github-webhook
+# licensed under Apache License Version 2.0
 
 import collections
 import hashlib
 import hmac
-import logging
 import json
+import logging
 
 from quart import abort, request
 
@@ -51,7 +40,7 @@ class GitHubWebhook(object):
         app.add_url_rule(
             rule=self._endpoint,
             endpoint=self._endpoint,
-            view_func=self._postreceive,
+            view_func=self._post_receive,
             methods=["POST"],
         )
 
@@ -75,7 +64,7 @@ class GitHubWebhook(object):
         if self._secret:
             return hmac.new(self._secret, await request.data, hashlib.sha1).hexdigest()
 
-    async def _postreceive(self):
+    async def _post_receive(self):
         """Callback from Flask"""
 
         digest = await self._get_digest()

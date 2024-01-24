@@ -1,9 +1,9 @@
 #  *******************************************************************************
 #  Copyright (c) 2023-2024 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
 from datetime import datetime
@@ -11,11 +11,14 @@ from typing import Optional
 
 from quart import current_app
 
+from otterdog.config import OtterdogConfig
 from otterdog.providers.github.rest import RestApi
 from otterdog.providers.github.rest.auth import app_auth, token_auth
 
 _APP_REST_API: Optional[RestApi] = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
+
+_OTTERDOG_CONFIG: Optional[OtterdogConfig] = None
 
 
 def _create_rest_api_for_app() -> RestApi:
@@ -46,3 +49,14 @@ def get_rest_api_for_installation(installation_id: int) -> RestApi:
     rest_api = RestApi(token_auth(token))
     _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
     return rest_api
+
+
+def get_otterdog_config() -> OtterdogConfig:
+    global _OTTERDOG_CONFIG
+
+    if _OTTERDOG_CONFIG is None:
+        app_root = current_app.config["APP_ROOT"]
+        config_file = current_app.config["OTTERDOG_CONFIG"]
+        _OTTERDOG_CONFIG = OtterdogConfig(config_file, False, app_root)
+
+    return _OTTERDOG_CONFIG

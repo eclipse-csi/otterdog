@@ -18,8 +18,8 @@ import jq  # type: ignore
 from . import credentials
 from .credentials import CredentialProvider
 from .credentials.bitwarden_provider import BitwardenVault
-from .credentials.pass_provider import PassVault
 from .credentials.inmemory_provider import InmemoryVault
+from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
 
 
@@ -102,9 +102,25 @@ class OrganizationConfig:
 
         return cls(name, github_id, eclipse_project, config_repo, jsonnet_config, data)
 
+    @classmethod
+    def of(
+        cls, github_id: str, credential_data: dict[str, Any], work_dir: str, otterdog_config: OtterdogConfig
+    ) -> OrganizationConfig:
+        config_repo = otterdog_config.default_config_repo
+        base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
+
+        jsonnet_config = JsonnetConfig(
+            github_id,
+            base_dir,
+            otterdog_config.default_base_template,
+            otterdog_config.local_mode,
+        )
+
+        return cls(github_id, github_id, None, config_repo, jsonnet_config, credential_data)
+
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, local_mode: bool):
+    def __init__(self, config_file: str, local_mode: bool, working_dir: Optional[str] = None):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -120,7 +136,12 @@ class OtterdogConfig:
         self._jsonnet_config = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
         self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
 
-        self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
+        if working_dir is None:
+            self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
+        else:
+            self._jsonnet_base_dir = os.path.join(working_dir, self._jsonnet_config.get("config_dir", "orgs"))
+            if not os.path.exists(self._jsonnet_base_dir):
+                os.makedirs(self._jsonnet_base_dir)
 
         organizations = self._configuration.get("organizations", [])
 
@@ -136,10 +157,6 @@ class OtterdogConfig:
     @property
     def jsonnet_base_dir(self) -> str:
         return self._jsonnet_base_dir
-
-    @jsonnet_base_dir.setter
-    def jsonnet_base_dir(self, jsonnet_base_dir: str) -> None:
-        self._jsonnet_base_dir = jsonnet_base_dir
 
     @property
     def local_mode(self) -> bool:

@@ -1,0 +1,5 @@
+Changes have been applied:
+
+```diff
+{{ result }}
+```
