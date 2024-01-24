@@ -199,7 +199,7 @@ class ModelObject(ABC):
             to_value = self.__getattribute__(key)
             from_value = other.__getattribute__(key)
 
-            if not other.include_field_for_diff_computation(other._get_field(key)):
+            if not other.is_key_valid_for_diff_computation(key):
                 continue
 
             if is_unset(from_value):
@@ -223,9 +223,6 @@ class ModelObject(ABC):
         ):
             value = self.__getattribute__(key)
             other_value = other.__getattribute__(key)
-
-            if not other.include_field_for_patch_computation(other._get_field(key)):
-                continue
 
             if is_unset(other_value):
                 continue
@@ -353,6 +350,9 @@ class ModelObject(ABC):
         ...
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        return True
+
+    def is_key_valid_for_diff_computation(self, key: str) -> bool:
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:

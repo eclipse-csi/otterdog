@@ -65,11 +65,13 @@ class Secret(ModelObject, abc.ABC):
             return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        match field.name:
-            case "value":
-                return not self.has_dummy_secret()
-            case _:
-                return True
+        return self.is_key_valid_for_diff_computation(field.name)
+
+    def is_key_valid_for_diff_computation(self, key: str) -> bool:
+        if key == "value":
+            return not self.has_dummy_secret()
+        else:
+            return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
