@@ -188,7 +188,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             )
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         from .repository import Repository
 
         assert isinstance(patch.parent_object, Repository)
@@ -196,14 +196,14 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, RepositoryWorkflowSettings)
-                provider.update_repo_workflow_settings(
+                await provider.update_repo_workflow_settings(
                     org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
                 )
 
             case LivePatchType.CHANGE:
                 assert patch.changes is not None
                 github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
-                provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
+                await provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
 
             case _:
                 raise RuntimeError(f"unexpected patch type '{patch.patch_type}'")

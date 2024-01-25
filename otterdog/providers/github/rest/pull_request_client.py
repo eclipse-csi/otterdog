@@ -1,9 +1,9 @@
 #  *******************************************************************************
 #  Copyright (c) 2024 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
 from typing import Any
@@ -18,11 +18,13 @@ class PullRequestClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    def get_pull_request(self, org_id: str, repo_name: str, pull_request_number: str) -> dict[str, Any]:
+    async def get_pull_request(self, org_id: str, repo_name: str, pull_request_number: str) -> dict[str, Any]:
         print_debug(f"getting pull request with number '{pull_request_number}' from repo '{org_id}/{repo_name}'")
 
         try:
-            return self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
+            return await self.requester.async_request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}"
+            )
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull request:\n{ex}").with_traceback(tb)

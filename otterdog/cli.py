@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import importlib.metadata
 import sys
 import traceback
@@ -521,7 +522,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
 
         for organization in organizations:
             org_config = config.get_organization_config(organization)
-            exit_code = max(exit_code, operation.execute(org_config))
+            exit_code = max(exit_code, asyncio.run(operation.execute(org_config)))
 
         operation.post_execute()
         sys.exit(exit_code)

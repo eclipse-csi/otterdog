@@ -332,7 +332,7 @@ class GitHubOrganization:
         return org
 
     @classmethod
-    def load_from_provider(
+    async def load_from_provider(
         cls,
         github_id: str,
         jsonnet_config: JsonnetConfig,
@@ -348,7 +348,7 @@ class GitHubOrganization:
         #        for now this is the same for organization settings, but there might be cases where it is different.
         default_settings = jsonnet_config.default_org_config["settings"]
         included_keys = set(default_settings.keys())
-        github_settings = provider.get_org_settings(github_id, included_keys, no_web_ui)
+        github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
         if printer is not None and is_info_enabled():
             end = datetime.now()
@@ -357,7 +357,7 @@ class GitHubOrganization:
         settings = OrganizationSettings.from_provider_data(github_id, github_settings)
 
         if "workflows" in included_keys:
-            workflow_settings = provider.get_org_workflow_settings(github_id)
+            workflow_settings = await provider.get_org_workflow_settings(github_id)
             settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
 
         org = cls(github_id, settings)
@@ -367,7 +367,7 @@ class GitHubOrganization:
             printer.println("\nwebhooks: Reading...")
 
         if jsonnet_config.default_org_webhook_config is not None:
-            github_webhooks = provider.get_org_webhooks(github_id)
+            github_webhooks = await provider.get_org_webhooks(github_id)
 
             if printer is not None and is_info_enabled():
                 end = datetime.now()
@@ -383,7 +383,7 @@ class GitHubOrganization:
             if printer is not None and is_info_enabled():
                 printer.println("\nsecrets: Reading...")
 
-            github_secrets = provider.get_org_secrets(github_id)
+            github_secrets = await provider.get_org_secrets(github_id)
 
             if printer is not None and is_info_enabled():
                 end = datetime.now()
@@ -399,7 +399,7 @@ class GitHubOrganization:
             if printer is not None and is_info_enabled():
                 printer.println("\nvariables: Reading...")
 
-            github_variables = provider.get_org_variables(github_id)
+            github_variables = await provider.get_org_variables(github_id)
 
             if printer is not None and is_info_enabled():
                 end = datetime.now()
@@ -411,7 +411,7 @@ class GitHubOrganization:
             print_debug("not reading org secrets, no default config available")
 
         if jsonnet_config.default_repo_config is not None:
-            for repo in _load_repos_from_provider(github_id, provider, jsonnet_config, printer):
+            for repo in await _load_repos_from_provider(github_id, provider, jsonnet_config, printer):
                 org.add_repository(repo)
         else:
             print_debug("not reading repos, no default config available")
@@ -430,10 +430,10 @@ async def _process_single_repo(
     rest_api = gh_client.rest_api
 
     # get repo data
-    github_repo_data = await rest_api.repo.async_get_repo_data(github_id, repo_name)
+    github_repo_data = await rest_api.repo.get_repo_data(github_id, repo_name)
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
-    github_repo_workflow_data = await rest_api.repo.async_get_workflow_settings(github_id, repo_name)
+    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
 
     if jsonnet_config.default_branch_protection_rule_config is not None:
@@ -448,7 +448,7 @@ async def _process_single_repo(
     # TODO: support rulesets in private repos with enterprise plan
     if jsonnet_config.default_repo_ruleset_config is not None and repo.private is False:
         # get rulesets of the repo
-        rulesets = await rest_api.repo.async_get_rulesets(github_id, repo_name)
+        rulesets = await rest_api.repo.get_rulesets(github_id, repo_name)
         for github_ruleset in rulesets:
             # FIXME: need to associate an app id to its slug
             #        GitHub does not support that atm, so we lookup the currently installed
@@ -477,7 +477,7 @@ async def _process_single_repo(
 
     if jsonnet_config.default_org_webhook_config is not None:
         # get webhooks of the repo
-        webhooks = await rest_api.repo.async_get_webhooks(github_id, repo_name)
+        webhooks = await rest_api.repo.get_webhooks(github_id, repo_name)
         for github_webhook in webhooks:
             repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
     else:
@@ -485,7 +485,7 @@ async def _process_single_repo(
 
     if jsonnet_config.default_repo_secret_config is not None:
         # get secrets of the repo
-        secrets = await rest_api.repo.async_get_secrets(github_id, repo_name)
+        secrets = await rest_api.repo.get_secrets(github_id, repo_name)
         for github_secret in secrets:
             repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
     else:
@@ -493,7 +493,7 @@ async def _process_single_repo(
 
     if jsonnet_config.default_repo_variable_config is not None:
         # get variables of the repo
-        variables = await rest_api.repo.async_get_variables(github_id, repo_name)
+        variables = await rest_api.repo.get_variables(github_id, repo_name)
         for github_variable in variables:
             repo.add_variable(RepositoryVariable.from_provider_data(github_id, github_variable))
     else:
@@ -501,7 +501,7 @@ async def _process_single_repo(
 
     if jsonnet_config.default_environment_config is not None:
         # get environments of the repo
-        environments = await rest_api.repo.async_get_environments(github_id, repo_name)
+        environments = await rest_api.repo.get_environments(github_id, repo_name)
         for github_environment in environments:
             repo.add_environment(Environment.from_provider_data(github_id, github_environment))
     else:
@@ -513,31 +513,30 @@ async def _process_single_repo(
     return repo_name, repo
 
 
-def _load_repos_from_provider(
-    github_id: str, client: GitHubProvider, jsonnet_config: JsonnetConfig, printer: Optional[IndentingPrinter] = None
+async def _load_repos_from_provider(
+    github_id: str, provider: GitHubProvider, jsonnet_config: JsonnetConfig, printer: Optional[IndentingPrinter] = None
 ) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():
         printer.println("\nrepositories: Reading...")
 
-    repo_names = client.get_repos(github_id)
+    repo_names = await provider.get_repos(github_id)
 
-    teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in client.rest_api.org.get_teams(github_id)}
+    teams = {
+        str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.rest_api.org.get_teams(github_id)
+    }
 
     app_installations = {
         str(installation["app_id"]): installation["app_slug"]
-        for installation in client.rest_api.org.get_app_installations(github_id)
+        for installation in await provider.rest_api.org.get_app_installations(github_id)
     }
 
-    async def gather():
-        return await asyncio.gather(
-            *[
-                _process_single_repo(client, github_id, repo_name, jsonnet_config, teams, app_installations)
-                for repo_name in repo_names
-            ]
-        )
-
-    result = asyncio.run(gather())
+    result = await asyncio.gather(
+        *[
+            _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
+            for repo_name in repo_names
+        ]
+    )
 
     github_repos = []
     for data in result:

@@ -102,19 +102,19 @@ class OrganizationVariable(Variable):
         return f"orgs.{jsonnet_config.create_org_variable}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, OrganizationVariable)
-                provider.add_org_variable(org_id, patch.expected_object.to_provider_data(org_id, provider))
+                await provider.add_org_variable(org_id, patch.expected_object.to_provider_data(org_id, provider))
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, OrganizationVariable)
-                provider.delete_org_variable(org_id, patch.current_object.name)
+                await provider.delete_org_variable(org_id, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert isinstance(patch.expected_object, OrganizationVariable)
                 assert isinstance(patch.current_object, OrganizationVariable)
-                provider.update_org_variable(
+                await provider.update_org_variable(
                     org_id, patch.current_object.name, patch.expected_object.to_provider_data(org_id, provider)
                 )

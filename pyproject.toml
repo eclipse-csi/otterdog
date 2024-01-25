@@ -87,7 +87,6 @@ mkdocs-exclude  = "^1.0"
 
 [tool.poetry.scripts]
 otterdog     = "otterdog.cli:cli"
-otterdog-app = "otterdog.app:run"
 
 [build-system]
 requires      = ["poetry-core"]

@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import os
 from sys import exit
 
 from decouple import config  # type: ignore
@@ -26,10 +27,17 @@ except KeyError:
 
 app = create_app(app_config)  # type: ignore
 
+if os.path.exists(app_config.APP_ROOT):
+    os.chdir(app_config.APP_ROOT)
+else:
+    app.logger.error(f"APP_ROOT '{app_config.APP_ROOT}' does not exist, exiting.")
+    exit(1)
+
 if DEBUG:
     app.logger.info("DEBUG           = " + str(DEBUG))
     app.logger.info("Environment     = " + config_mode)
     app.logger.info("QUART_APP       = " + app_config.QUART_APP)
+    app.logger.info("APP_ROOT        = " + app_config.APP_ROOT)
     app.logger.info("OTTERDOG_CONFIG = " + app_config.OTTERDOG_CONFIG)
 
 

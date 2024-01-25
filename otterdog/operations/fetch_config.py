@@ -28,7 +28,7 @@ class FetchOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Fetching organization configurations:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
 
@@ -59,13 +59,13 @@ class FetchOperation(Operation):
             with GitHubProvider(credentials) as provider:
                 try:
                     if self.pull_request is not None:
-                        ref = provider.get_ref_for_pull_request(
+                        ref = await provider.get_ref_for_pull_request(
                             org_config.github_id, org_config.config_repo, self.pull_request
                         )
                     else:
                         ref = None
 
-                    definition = provider.get_content(
+                    definition = await provider.get_content(
                         org_config.github_id,
                         org_config.config_repo,
                         f"otterdog/{github_id}.jsonnet",

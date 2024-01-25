@@ -42,7 +42,7 @@ class DeleteFileOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println(f"Deleting file '{self._path}' in organization repository '{self.repo}':")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -85,7 +85,9 @@ class DeleteFileOperation(Operation):
                     )
 
                     try:
-                        deleted_file = rest_api.content.delete_content(github_id, repo.name, self.path, self.message)
+                        deleted_file = await rest_api.content.delete_content(
+                            github_id, repo.name, self.path, self.message
+                        )
                     except RuntimeError as e:
                         collected_error = e
 

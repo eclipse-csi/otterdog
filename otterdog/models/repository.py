@@ -833,11 +833,11 @@ class Repository(ModelObject):
             )
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, Repository)
-                provider.add_repo(
+                await provider.add_repo(
                     org_id,
                     patch.expected_object.to_provider_data(org_id, provider),
                     patch.expected_object.template_repository,
@@ -849,12 +849,12 @@ class Repository(ModelObject):
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, Repository)
-                provider.delete_repo(org_id, patch.current_object.name)
+                await provider.delete_repo(org_id, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert patch.changes is not None
                 assert isinstance(patch.expected_object, Repository)
                 assert isinstance(patch.current_object, Repository)
-                provider.update_repo(
+                await provider.update_repo(
                     org_id, patch.current_object.name, cls.changes_to_provider(org_id, patch.changes, provider)
                 )

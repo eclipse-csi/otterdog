@@ -12,8 +12,8 @@ from typing import Optional
 from quart import current_app
 
 from otterdog.config import OtterdogConfig
+from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.rest import RestApi
-from otterdog.providers.github.rest.auth import app_auth, token_auth
 
 _APP_REST_API: Optional[RestApi] = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}

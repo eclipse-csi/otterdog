@@ -9,8 +9,8 @@
 from datetime import datetime
 from typing import Any
 
-from otterdog.utils import print_debug
 from otterdog.providers.github.exception import GitHubException
+from otterdog.utils import print_debug
 
 from . import RestApi, RestClient, parse_date_string
 
@@ -19,29 +19,31 @@ class AppClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    def get_authenticated_app(self) -> dict[str, Any]:
+    async def get_authenticated_app(self) -> dict[str, Any]:
         print_debug("retrieving authenticated app")
 
         try:
-            return self.requester.request_json("GET", "/app")
+            return await self.requester.async_request_json("GET", "/app")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
 
-    def get_app_installations(self) -> list[dict[str, Any]]:
+    async def get_app_installations(self) -> list[dict[str, Any]]:
         print_debug("retrieving app installations")
 
         try:
-            return self.requester.request_paged_json("GET", "/app/installations")
+            return await self.requester.async_request_paged_json("GET", "/app/installations")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
 
-    def create_installation_access_token(self, installation_id: str) -> tuple[str, datetime]:
+    async def create_installation_access_token(self, installation_id: str) -> tuple[str, datetime]:
         print_debug(f"creating an installation access token for installation '{installation_id}'")
 
         try:
-            response = self.requester.request_json("POST", f"/app/installations/{installation_id}/access_tokens")
+            response = await self.requester.async_request_json(
+                "POST", f"/app/installations/{installation_id}/access_tokens"
+            )
             return response["token"], parse_date_string(response["expires_at"])
         except GitHubException as ex:
             tb = ex.__traceback__

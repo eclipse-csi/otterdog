@@ -13,7 +13,8 @@ from datetime import datetime
 from functools import cached_property
 from typing import Optional
 
-from .auth import AuthStrategy
+from otterdog.providers.github.auth import AuthStrategy
+
 from .requester import Requester
 
 
@@ -28,7 +29,7 @@ class RestApi:
 
     @property
     def token(self) -> Optional[str]:
-        from .auth.token import TokenAuthStrategy
+        from otterdog.providers.github.auth.token import TokenAuthStrategy
 
         if isinstance(self._auth_strategy, TokenAuthStrategy):
             return self._auth_strategy.token

@@ -105,7 +105,7 @@ class PlanOperation(DiffOperation):
 
         return settings_to_change
 
-    def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
         self.printer.println(
             f"\n{style('Plan', bright=True)}: {diff_status.additions} to add, "
             f"{diff_status.differences} to change, "

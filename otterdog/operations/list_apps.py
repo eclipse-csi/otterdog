@@ -37,7 +37,7 @@ class ListAppsOperation(Operation):
             apps = [v for k, v in sorted(self.all_apps.items())]
             self.printer.println(json.dumps(apps, indent=2))
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
         if not self.json_output or is_info_enabled():
@@ -52,7 +52,7 @@ class ListAppsOperation(Operation):
                 return 1
 
             with GitHubProvider(credentials) as provider:
-                apps = provider.rest_api.org.get_app_installations(github_id)
+                apps = await provider.rest_api.org.get_app_installations(github_id)
 
             if not self.json_output:
                 for app in apps:

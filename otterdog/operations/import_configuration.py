@@ -39,7 +39,7 @@ class ImportOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Importing resources:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -83,7 +83,7 @@ class ImportOperation(Operation):
                 )
 
             with GitHubProvider(credentials) as provider:
-                organization = GitHubOrganization.load_from_provider(
+                organization = await GitHubOrganization.load_from_provider(
                     github_id, jsonnet_config, provider, self.no_web_ui, self.printer
                 )
 

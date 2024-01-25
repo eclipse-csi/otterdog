@@ -195,14 +195,14 @@ class Environment(ModelObject):
         return f"orgs.{jsonnet_config.create_environment}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         from .repository import Repository
 
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, Environment)
                 assert isinstance(patch.parent_object, Repository)
-                provider.add_repo_environment(
+                await provider.add_repo_environment(
                     org_id,
                     patch.parent_object.name,
                     patch.expected_object.name,
@@ -212,13 +212,13 @@ class Environment(ModelObject):
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, Environment)
                 assert isinstance(patch.parent_object, Repository)
-                provider.delete_repo_environment(org_id, patch.parent_object.name, patch.current_object.name)
+                await provider.delete_repo_environment(org_id, patch.parent_object.name, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert patch.changes is not None
                 assert isinstance(patch.current_object, Environment)
                 assert isinstance(patch.parent_object, Repository)
-                provider.update_repo_environment(
+                await provider.update_repo_environment(
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.name,

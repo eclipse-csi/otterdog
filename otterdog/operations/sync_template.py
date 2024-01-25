@@ -32,7 +32,7 @@ class SyncTemplateOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println(f"Syncing organization repos '{self.repo}' from template master:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -69,7 +69,7 @@ class SyncTemplateOperation(Operation):
                 if repo is not None and repo.archived is False:
                     if is_set_and_present(repo.template_repository):
                         self.printer.println(f'Syncing repository["{style(repo.name, bright=True)}"]')
-                        updated_files = rest_api.repo.sync_from_template_repository(
+                        updated_files = await rest_api.repo.sync_from_template_repository(
                             github_id,
                             repo.name,
                             repo.template_repository,

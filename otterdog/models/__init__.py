@@ -65,7 +65,7 @@ class LivePatchType(Enum):
 
 
 class LivePatchApplyFn(Protocol):
-    def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         ...
 
 
@@ -105,8 +105,8 @@ class LivePatch:
             LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
         )
 
-    def apply(self, org_id: str, provider: GitHubProvider) -> None:
-        self.fn(self, org_id, provider)
+    async def apply(self, org_id: str, provider: GitHubProvider) -> None:
+        await self.fn(self, org_id, provider)
 
 
 @dataclasses.dataclass
@@ -522,5 +522,5 @@ class ModelObject(ABC):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         ...

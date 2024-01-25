@@ -28,7 +28,7 @@ class CanonicalDiffOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Showing canonical diff:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()

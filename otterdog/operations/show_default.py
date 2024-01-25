@@ -31,7 +31,7 @@ class ShowDefaultOperation(Operation):
         if not self.markdown:
             self.printer.println("Showing defaults configurations:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()

@@ -273,6 +273,7 @@ class LogLevel(Enum):
     GLOBAL = 0
     INFO = 1
     WARN = 2
+    ERROR = 3
 
 
 class IndentingPrinter:
@@ -285,6 +286,10 @@ class IndentingPrinter:
         self._spaces_per_level = spaces_per_level
         self._indented_line = False
         self._log_level = log_level
+
+    @property
+    def writer(self) -> TextIO:
+        return self._writer
 
     @property
     def _current_indentation(self) -> str:

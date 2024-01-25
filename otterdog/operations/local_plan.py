@@ -44,7 +44,7 @@ class LocalPlanOperation(PlanOperation):
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
         return GitHubProvider(None)
 
-    def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
+    async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         other_org_file_name = jsonnet_config.org_config_file + self.suffix
 
         if not os.path.exists(other_org_file_name):

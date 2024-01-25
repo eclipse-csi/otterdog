@@ -40,7 +40,7 @@ class ListMembersOperation(Operation):
     def post_execute(self) -> None:
         pass
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -70,10 +70,10 @@ class ListMembersOperation(Operation):
                 return 1
 
             with GitHubProvider(credentials) as provider:
-                members = provider.rest_api.org.list_members(github_id, self.two_factor_disabled)
+                members = await provider.rest_api.org.list_members(github_id, self.two_factor_disabled)
 
             if self.two_factor_disabled is True:
-                all_members = provider.rest_api.org.list_members(github_id, False)
+                all_members = await provider.rest_api.org.list_members(github_id, False)
                 two_factor_status = (
                     style("enabled", fg="green")
                     if organization.settings.two_factor_requirement is True

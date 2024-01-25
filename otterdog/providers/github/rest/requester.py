@@ -14,10 +14,9 @@ from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from requests import Response
 from requests_cache import CachedSession
 
+from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.utils import is_debug_enabled, is_trace_enabled, print_debug, print_trace
-
-from .auth import AuthStrategy
 
 _AIOHTTP_CACHE_DIR = ".cache/async_http"
 _REQUESTS_CACHE_DIR = ".cache/http"
@@ -142,7 +141,7 @@ class Requester:
         method: str,
         url_path: str,
         data: Optional[str] = None,
-        params: Optional[dict[str, str]] = None,
+        params: Optional[dict[str, Any]] = None,
         stream: bool = False,
         force_refresh: bool = False,
     ) -> Response:
@@ -172,7 +171,7 @@ class Requester:
         method: str,
         url_path: str,
         data: Optional[str] = None,
-        params: Optional[dict[str, str]] = None,
+        params: Optional[dict[str, Any]] = None,
     ) -> tuple[int, str]:
         print_trace(f"async '{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 

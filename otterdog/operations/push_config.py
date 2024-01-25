@@ -32,7 +32,7 @@ class PushOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Pushing organization configurations:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -67,7 +67,7 @@ class PushOperation(Operation):
                     updated_files = []
                     updated = False
 
-                    if provider.update_content(
+                    if await provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         f"otterdog/{github_id}.jsonnet",
@@ -77,7 +77,7 @@ class PushOperation(Operation):
                         updated_files.append(f"otterdog/{github_id}.jsonnet")
                         updated = True
 
-                    if provider.update_content(
+                    if await provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         "otterdog/jsonnetfile.json",
@@ -87,7 +87,7 @@ class PushOperation(Operation):
                         updated_files.append("otterdog/jsonnetfile.json")
                         updated |= True
 
-                    if provider.update_content(
+                    if await provider.update_content(
                         org_config.github_id,
                         org_config.config_repo,
                         "otterdog/jsonnetfile.lock.json",

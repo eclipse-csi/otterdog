@@ -30,7 +30,7 @@ class ShowLiveOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Showing live resources:")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -52,7 +52,7 @@ class ShowLiveOperation(Operation):
                         "the resulting config will be incomplete."
                     )
 
-                organization = GitHubOrganization.load_from_provider(
+                organization = await GitHubOrganization.load_from_provider(
                     github_id, jsonnet_config, provider, self.no_web_ui, self.printer
                 )
 

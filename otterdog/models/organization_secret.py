@@ -104,19 +104,19 @@ class OrganizationSecret(Secret):
         return f"orgs.{jsonnet_config.create_org_secret}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, OrganizationSecret)
-                provider.add_org_secret(org_id, patch.expected_object.to_provider_data(org_id, provider))
+                await provider.add_org_secret(org_id, patch.expected_object.to_provider_data(org_id, provider))
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, OrganizationSecret)
-                provider.delete_org_secret(org_id, patch.current_object.name)
+                await provider.delete_org_secret(org_id, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert isinstance(patch.expected_object, OrganizationSecret)
                 assert isinstance(patch.current_object, OrganizationSecret)
-                provider.update_org_secret(
+                await provider.update_org_secret(
                     org_id, patch.current_object.name, patch.expected_object.to_provider_data(org_id, provider)
                 )

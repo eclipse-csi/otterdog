@@ -77,7 +77,7 @@ class ApplyOperation(PlanOperation):
         )
         return modified
 
-    def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
         self.printer.println()
 
         if diff_status.total_changes(self._delete_resources) == 0:
@@ -105,13 +105,12 @@ class ApplyOperation(PlanOperation):
         import click
 
         self.printer.println("\nApplying changes:\n")
-
-        with click.progressbar(patches) as bar:
+        with click.progressbar(patches, file=self.printer.writer) as bar:
             for patch in bar:
                 if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
                     continue
                 else:
-                    patch.apply(org_id, self.gh_client)
+                    await patch.apply(org_id, self.gh_client)
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
 

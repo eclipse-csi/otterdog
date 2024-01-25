@@ -393,14 +393,14 @@ class BranchProtectionRule(ModelObject):
         return f"orgs.{jsonnet_config.create_branch_protection_rule}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         from .repository import Repository
 
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, BranchProtectionRule)
                 assert isinstance(patch.parent_object, Repository)
-                provider.add_branch_protection_rule(
+                await provider.add_branch_protection_rule(
                     org_id,
                     patch.parent_object.name,
                     patch.parent_object.node_id,
@@ -410,7 +410,7 @@ class BranchProtectionRule(ModelObject):
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, BranchProtectionRule)
                 assert isinstance(patch.parent_object, Repository)
-                provider.delete_branch_protection_rule(
+                await provider.delete_branch_protection_rule(
                     org_id, patch.parent_object.name, patch.current_object.pattern, patch.current_object.id
                 )
 
@@ -418,7 +418,7 @@ class BranchProtectionRule(ModelObject):
                 assert patch.changes is not None
                 assert isinstance(patch.current_object, BranchProtectionRule)
                 assert isinstance(patch.parent_object, Repository)
-                provider.update_branch_protection_rule(
+                await provider.update_branch_protection_rule(
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.pattern,

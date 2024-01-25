@@ -64,7 +64,7 @@ async def apply_changes(
 
         # get config from merge commit sha
         head_file = jsonnet_config.org_config_file
-        get_config(
+        await get_config(
             rest_api,
             org_id,
             org_id,
@@ -74,11 +74,11 @@ async def apply_changes(
         )
 
         output = StringIO()
-        printer = IndentingPrinter(output, log_level=LogLevel.WARN)
+        printer = IndentingPrinter(output, log_level=LogLevel.ERROR)
         operation = ApplyOperation(True, True, False, False, "", True)
         operation.init(otterdog_config, printer)
 
-        operation.execute(org_config)
+        await operation.execute(org_config)
 
         text = output.getvalue()
         logger.info(text)

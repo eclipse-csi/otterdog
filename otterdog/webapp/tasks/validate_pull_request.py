@@ -68,11 +68,18 @@ async def validate_pull_request(
 
         # get BASE config
         base_file = jsonnet_config.org_config_file + "-BASE"
-        get_config(rest_api, org_id, org_id, otterdog_config.default_config_repo, base_file, pull_request.base.ref)
+        await get_config(
+            rest_api,
+            org_id,
+            org_id,
+            otterdog_config.default_config_repo,
+            base_file,
+            pull_request.base.ref,
+        )
 
         # get HEAD config from PR
         head_file = jsonnet_config.org_config_file
-        get_config(
+        await get_config(
             rest_api,
             org_id,
             pull_request.head.repo.owner.login,
@@ -90,7 +97,7 @@ async def validate_pull_request(
         operation = LocalPlanOperation("-BASE", False, False, "")
         operation.init(otterdog_config, printer)
 
-        operation.execute(org_config)
+        await operation.execute(org_config)
 
         text = output.getvalue()
         logger.info(text)
@@ -100,9 +107,9 @@ async def validate_pull_request(
         rest_api.issue.create_comment(org_id, otterdog_config.default_config_repo, pull_request_number, result)
 
 
-def get_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):
+async def get_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):
     path = f"otterdog/{org_id}.jsonnet"
-    content = rest_api.content.get_content(
+    content = await rest_api.content.get_content(
         owner,
         repo,
         path,
