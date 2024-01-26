@@ -34,7 +34,7 @@ class DispatchWorkflowOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println(f"Dispatching workflow '{self.workflow_name}' in organization repo '{self.repo_name}':")
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
@@ -48,7 +48,7 @@ class DispatchWorkflowOperation(Operation):
                 return 1
 
             with GitHubProvider(credentials) as provider:
-                success = provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
+                success = await provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
                 if success is True:
                     self.printer.println(f"workflow '{self.workflow_name}' dispatched for repo '{self.repo_name}'")
                 else:

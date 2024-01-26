@@ -61,7 +61,7 @@ class DiffOperation(Operation):
         super().init(config, printer)
         self._validator.init(config, printer)
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         self._org_config = org_config
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]")
@@ -75,13 +75,13 @@ class DiffOperation(Operation):
         self.printer.level_up()
 
         try:
-            return self._generate_diff(org_config)
+            return await self._generate_diff(org_config)
         finally:
             self.printer.level_down()
             self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.config.get_credentials(org_config))
+        return GitHubProvider(self.config.get_credentials(org_config, only_token=self.no_web_ui))
 
     @property
     def gh_client(self) -> GitHubProvider:
@@ -94,7 +94,7 @@ class DiffOperation(Operation):
     def resolve_secrets(self) -> bool:
         return True
 
-    def _generate_diff(self, org_config: OrganizationConfig) -> int:
+    async def _generate_diff(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         jsonnet_config.init_template()
@@ -132,7 +132,7 @@ class DiffOperation(Operation):
             )
 
         try:
-            current_org = self.load_current_org(github_id, jsonnet_config)
+            current_org = await self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load current configuration\n{str(e)}")
             return 1
@@ -193,14 +193,14 @@ class DiffOperation(Operation):
                 if live_patch.expected_object is not None:
                     live_patch.expected_object.resolve_secrets(self.config.get_secret)
 
-        self.handle_finish(github_id, diff_status, live_patches)
+        await self.handle_finish(github_id, diff_status, live_patches)
         return 0
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
 
-    def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
-        return GitHubOrganization.load_from_provider(
+    async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
+        return await GitHubOrganization.load_from_provider(
             github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.printer
         )
 
@@ -235,5 +235,5 @@ class DiffOperation(Operation):
         ...
 
     @abstractmethod
-    def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
         ...

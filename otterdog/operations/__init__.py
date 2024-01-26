@@ -43,7 +43,7 @@ class Operation(ABC):
         ...
 
     @abstractmethod
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         ...
 
     def post_execute(self) -> None:

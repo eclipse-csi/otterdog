@@ -31,21 +31,23 @@ class RepositoryWebhook(Webhook):
         return f"orgs.{jsonnet_config.create_repo_webhook}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         from .repository import Repository
 
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, RepositoryWebhook)
                 assert isinstance(patch.parent_object, Repository)
-                provider.add_repo_webhook(
-                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                await provider.add_repo_webhook(
+                    org_id,
+                    patch.parent_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, RepositoryWebhook)
                 assert isinstance(patch.parent_object, Repository)
-                provider.delete_repo_webhook(
+                await provider.delete_repo_webhook(
                     org_id, patch.parent_object.name, patch.current_object.id, patch.current_object.url
                 )
 
@@ -53,9 +55,9 @@ class RepositoryWebhook(Webhook):
                 assert isinstance(patch.expected_object, RepositoryWebhook)
                 assert isinstance(patch.current_object, RepositoryWebhook)
                 assert isinstance(patch.parent_object, Repository)
-                provider.update_repo_webhook(
+                await provider.update_repo_webhook(
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.id,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

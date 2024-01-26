@@ -16,7 +16,10 @@ from typing import Any, Optional
 import jq  # type: ignore
 
 from . import credentials
-from .credentials import CredentialProvider, bitwarden_provider, pass_provider
+from .credentials import CredentialProvider
+from .credentials.bitwarden_provider import BitwardenVault
+from .credentials.inmemory_provider import InmemoryVault
+from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
 
 
@@ -25,14 +28,12 @@ class OrganizationConfig:
         self,
         name: str,
         github_id: str,
-        eclipse_project: Optional[str],
         config_repo: str,
         jsonnet_config: JsonnetConfig,
         credential_data: dict[str, Any],
     ):
         self._name = name
         self._github_id = github_id
-        self._eclipse_project = eclipse_project
         self._config_repo = config_repo
         self._jsonnet_config = jsonnet_config
         self._credential_data = credential_data
@@ -46,10 +47,6 @@ class OrganizationConfig:
         return self._github_id
 
     @property
-    def eclipse_project(self) -> Optional[str]:
-        return self._eclipse_project
-
-    @property
     def config_repo(self) -> str:
         return self._config_repo
 
@@ -61,9 +58,13 @@ class OrganizationConfig:
     def credential_data(self) -> dict[str, Any]:
         return self._credential_data
 
+    @credential_data.setter
+    def credential_data(self, data: dict[str, Any]) -> None:
+        self._credential_data = data
+
     def __repr__(self) -> str:
         return (
-            f"OrganizationConfig('{self.name}', '{self.github_id}', '{self.eclipse_project}', "
+            f"OrganizationConfig('{self.name}', '{self.github_id}', "
             f"'{self.config_repo}', {json.dumps(self.credential_data)})"
         )
 
@@ -76,8 +77,6 @@ class OrganizationConfig:
         github_id = data.get("github_id")
         if github_id is None:
             raise RuntimeError(f"missing required github_id for organization config with name '{name}'")
-
-        eclipse_project = data.get("eclipse_project")
 
         config_repo = data.get("config_repo", otterdog_config.default_config_repo)
         base_template = data.get("base_template", otterdog_config.default_base_template)
@@ -93,11 +92,27 @@ class OrganizationConfig:
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, eclipse_project, config_repo, jsonnet_config, data)
+        return cls(name, github_id, config_repo, jsonnet_config, data)
+
+    @classmethod
+    def of(
+        cls, github_id: str, credential_data: dict[str, Any], work_dir: str, otterdog_config: OtterdogConfig
+    ) -> OrganizationConfig:
+        config_repo = otterdog_config.default_config_repo
+        base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
+
+        jsonnet_config = JsonnetConfig(
+            github_id,
+            base_dir,
+            otterdog_config.default_base_template,
+            otterdog_config.local_mode,
+        )
+
+        return cls(github_id, github_id, config_repo, jsonnet_config, credential_data)
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, local_mode: bool):
+    def __init__(self, config_file: str, local_mode: bool, working_dir: Optional[str] = None):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -112,8 +127,16 @@ class OtterdogConfig:
 
         self._jsonnet_config = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
         self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
+        self._default_credential_provider = (
+            jq.compile('.defaults.credentials.provider // ""').input(self._configuration).first()
+        )
 
-        self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
+        if working_dir is None:
+            self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
+        else:
+            self._jsonnet_base_dir = os.path.join(working_dir, self._jsonnet_config.get("config_dir", "orgs"))
+            if not os.path.exists(self._jsonnet_base_dir):
+                os.makedirs(self._jsonnet_base_dir)
 
         organizations = self._configuration.get("organizations", [])
 
@@ -121,6 +144,7 @@ class OtterdogConfig:
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org, self)
             self._organizations[org_config.name] = org_config
+            self._organizations[org_config.github_id] = org_config
 
     @property
     def config_file(self) -> str:
@@ -149,7 +173,7 @@ class OtterdogConfig:
     def get_organization_config(self, organization_name: str) -> OrganizationConfig:
         org_config = self._organizations.get(organization_name)
         if org_config is None:
-            raise RuntimeError(f"unknown organization with name '{organization_name}'")
+            raise RuntimeError(f"unknown organization with name / github_id '{organization_name}'")
         return org_config
 
     def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider:
@@ -163,7 +187,7 @@ class OtterdogConfig:
                         .first()
                     )
 
-                    provider = bitwarden_provider.BitwardenVault(api_token_key)
+                    provider = BitwardenVault(api_token_key)
                     self._credential_providers[provider_type] = provider
 
                 case "pass":
@@ -171,7 +195,29 @@ class OtterdogConfig:
                         jq.compile('.defaults.pass.password_store_dir // ""').input(self._configuration).first()
                     )
 
-                    provider = pass_provider.PassVault(password_store_dir)
+                    username_pattern = (
+                        jq.compile('.defaults.pass.username_pattern // ""').input(self._configuration).first()
+                    )
+
+                    password_pattern = (
+                        jq.compile('.defaults.pass.password_pattern // ""').input(self._configuration).first()
+                    )
+
+                    twofa_seed_pattern = (
+                        jq.compile('.defaults.pass.twofa_seed_pattern // ""').input(self._configuration).first()
+                    )
+
+                    api_token_pattern = (
+                        jq.compile('.defaults.pass.username_pattern // ""').input(self._configuration).first()
+                    )
+
+                    provider = PassVault(
+                        password_store_dir, username_pattern, password_pattern, twofa_seed_pattern, api_token_pattern
+                    )
+                    self._credential_providers[provider_type] = provider
+
+                case "inmemory":
+                    provider = InmemoryVault()
                     self._credential_providers[provider_type] = provider
 
                 case _:
@@ -181,11 +227,15 @@ class OtterdogConfig:
 
     def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> credentials.Credentials:
         provider_type = org_config.credential_data.get("provider")
+
         if provider_type is None:
+            provider_type = self._default_credential_provider
+
+        if not provider_type:
             raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
 
         provider = self._get_credential_provider(provider_type)
-        return provider.get_credentials(org_config.eclipse_project, org_config.credential_data, only_token)
+        return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
 
     def get_secret(self, secret_data: str) -> str:
         if secret_data and ":" in secret_data:

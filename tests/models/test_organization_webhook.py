@@ -45,12 +45,12 @@ class OrganizationWebhookTest(ModelTest):
         assert webhook.url == "https://www.example.org"
         assert webhook.insecure_ssl == "0"
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         webhook = OrganizationWebhook.from_model_data(self.model_data)
 
         webhook.secret = UNSET
 
-        provider_data = webhook.to_provider_data(self.org_id, self.provider)
+        provider_data = await webhook.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 3
         assert provider_data["active"] is True
@@ -61,7 +61,7 @@ class OrganizationWebhookTest(ModelTest):
         assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
         assert jq.compile(".config.content_type").input(provider_data).first() == "form"
 
-    def test_changes_to_provider(self):
+    async def test_changes_to_provider(self):
         current = OrganizationWebhook.from_model_data(self.model_data)
         other = OrganizationWebhook.from_model_data(self.model_data)
 
@@ -69,7 +69,7 @@ class OrganizationWebhookTest(ModelTest):
         other.insecure_ssl = "1"
 
         changes = current.get_difference_from(other)
-        provider_data = OrganizationWebhook.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await OrganizationWebhook.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["active"] is True

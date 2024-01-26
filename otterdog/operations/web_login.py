@@ -24,7 +24,7 @@ class WebLoginOperation(Operation):
     def pre_execute(self) -> None:
         pass
 
-    def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
@@ -38,7 +38,7 @@ class WebLoginOperation(Operation):
                 return 1
 
             with GitHubProvider(credentials) as provider:
-                provider.open_browser_with_logged_in_user(github_id)
+                await provider.web_client.open_browser_with_logged_in_user(github_id)
 
             return 0
         finally:

@@ -85,12 +85,12 @@ class RepositoryTest(ModelTest):
         assert repo.secret_scanning_push_protection == "disabled"
         assert repo.dependabot_alerts_enabled is True
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         repo = Repository.from_model_data(self.model_data)
 
         repo.description = UNSET
 
-        provider_data = repo.to_provider_data(self.org_id, self.provider)
+        provider_data = await repo.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 22
         assert provider_data["name"] == "otterdog-defaults"
@@ -100,7 +100,7 @@ class RepositoryTest(ModelTest):
             jq.compile('.security_and_analysis.secret_scanning.status // ""').input(provider_data).first() == "enabled"
         )
 
-    def test_changes_to_provider(self):
+    async def test_changes_to_provider(self):
         current = Repository.from_model_data(self.model_data)
         other = Repository.from_model_data(self.model_data)
 
@@ -109,7 +109,7 @@ class RepositoryTest(ModelTest):
         other.secret_scanning = "disabled"
 
         changes = current.get_difference_from(other)
-        provider_data = Repository.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await Repository.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"

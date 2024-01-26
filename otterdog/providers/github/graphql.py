@@ -10,53 +10,53 @@ import json
 from typing import Any
 
 import jq  # type: ignore
-import requests
 from aiohttp.client import ClientSession
 from importlib_resources import files
 
-from otterdog import resources, utils
+from otterdog import resources
+from otterdog.providers.github.auth import AuthStrategy
+from otterdog.utils import is_debug_enabled, is_trace_enabled, print_debug, print_trace
 
 
 class GraphQLClient:
     _GH_GRAPHQL_URL_ROOT = "https://api.github.com/graphql"
 
-    def __init__(self, token: str):
-        self._token = token
+    def __init__(self, auth_strategy: AuthStrategy):
+        self._auth = auth_strategy.get_auth()
 
         self._headers = {
-            "Authorization": f"Bearer {token}",
             "X-Github-Next-Global-ID": "1",
         }
 
-    async def async_get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        utils.print_debug(f"async retrieving branch protection rules for repo '{org_id}/{repo_name}'")
+    async def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        print_debug(f"async retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
         branch_protection_rules = await self._async_run_paged_query(variables, "get-branch-protection-rules.gql")
 
         for branch_protection_rule in branch_protection_rules:
-            await self._async_fill_paged_results_if_not_empty(
+            await self._fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "pushAllowances",
                 "pushRestrictions",
                 "get-push-allowances.gql",
             )
 
-            await self._async_fill_paged_results_if_not_empty(
+            await self._fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "reviewDismissalAllowances",
                 "reviewDismissalAllowances",
                 "get-review-dismissal-allowances.gql",
             )
 
-            await self._async_fill_paged_results_if_not_empty(
+            await self._fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "bypassPullRequestAllowances",
                 "bypassPullRequestAllowances",
                 "get-bypass-pull-request-allowances.gql",
             )
 
-            await self._async_fill_paged_results_if_not_empty(
+            await self._fill_paged_results_if_not_empty(
                 branch_protection_rule,
                 "bypassForcePushAllowances",
                 "bypassForcePushAllowances",
@@ -65,7 +65,7 @@ class GraphQLClient:
 
         return branch_protection_rules
 
-    async def _async_fill_paged_results_if_not_empty(
+    async def _fill_paged_results_if_not_empty(
         self,
         branch_protection_rule: dict[str, Any],
         input_key: str,
@@ -83,7 +83,7 @@ class GraphQLClient:
         else:
             branch_protection_rule[output_key] = []
 
-    def update_branch_protection_rule(
+    async def update_branch_protection_rule(
         self,
         org_id: str,
         repo_name: str,
@@ -91,7 +91,7 @@ class GraphQLClient:
         rule_id: str,
         data: dict[str, Any],
     ) -> None:
-        utils.print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
+        print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["branchProtectionRuleId"] = rule_id
         variables = {"ruleInput": data}
@@ -104,26 +104,22 @@ class GraphQLClient:
            }
         }"""
 
-        response = requests.post(
-            url=f"{self._GH_GRAPHQL_URL_ROOT}",
-            headers=self._headers,
-            json={"query": query, "variables": variables},
-        )
-        utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
+        status, body = await self._async_request_raw("POST", query=query, variables=variables)
 
-        if not response.ok:
-            msg = f"failed updating branch protection rule '{rule_pattern}' for repo '{repo_name}'"
-            raise RuntimeError(msg)
+        if status >= 400:
+            raise RuntimeError(f"failed updating branch protection rule '{rule_pattern}' for repo '{repo_name}'")
 
-        json_data = response.json()
-        if "data" in json_data:
-            utils.print_debug(f"successfully updated branch protection rule '{rule_pattern}'")
-        else:
+        json_data = json.loads(body)
+        if "data" not in json_data:
             raise RuntimeError(f"failed to update branch protection rule '{rule_pattern}'")
 
-    def add_branch_protection_rule(self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]) -> None:
+        print_debug(f"successfully updated branch protection rule '{rule_pattern}'")
+
+    async def add_branch_protection_rule(
+        self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]
+    ) -> None:
         rule_pattern = data["pattern"]
-        utils.print_debug(
+        print_debug(
             f"creating branch_protection_rule with pattern '{rule_pattern}' " f"for repo '{org_id}/{repo_name}'"
         )
 
@@ -139,28 +135,19 @@ class GraphQLClient:
            }
         }"""
 
-        utils.print_trace(query)
-        utils.print_trace(json.dumps(variables))
+        status, body = await self._async_request_raw("POST", query, variables)
 
-        response = requests.post(
-            url=f"{self._GH_GRAPHQL_URL_ROOT}",
-            headers=self._headers,
-            json={"query": query, "variables": variables},
-        )
-        utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
+        if status >= 400:
+            raise RuntimeError(f"failed creating branch protection rule '{rule_pattern}' for repo '{repo_name}'")
 
-        if not response.ok:
-            msg = f"failed creating branch protection rule '{rule_pattern}' for repo '{repo_name}'"
-            raise RuntimeError(msg)
-
-        json_data = response.json()
-        if "data" in json_data:
-            utils.print_debug(f"successfully created branch protection rule '{rule_pattern}'")
-        else:
+        json_data = json.loads(body)
+        if "data" not in json_data:
             raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}'")
 
-    def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
-        utils.print_debug(f"deleting branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
+        print_debug(f"successfully created branch protection rule '{rule_pattern}'")
+
+    async def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
+        print_debug(f"deleting branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         variables = {"ruleInput": {"branchProtectionRuleId": rule_id}}
 
@@ -170,18 +157,12 @@ class GraphQLClient:
            }
         }"""
 
-        response = requests.post(
-            url=f"{self._GH_GRAPHQL_URL_ROOT}",
-            headers=self._headers,
-            json={"query": query, "variables": variables},
-        )
-        utils.print_trace(f"graphql result = ({response.status_code}, {response.text})")
+        status, body = await self._async_request_raw("POST", query, variables)
 
-        if not response.ok:
-            msg = f"failed removing branch protection rule '{rule_pattern}' for repo '{repo_name}'"
-            raise RuntimeError(msg)
+        if status >= 400:
+            raise RuntimeError(f"failed removing branch protection rule '{rule_pattern}' for repo '{repo_name}'")
 
-        utils.print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
+        print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
     async def _async_run_paged_query(
         self,
@@ -189,7 +170,7 @@ class GraphQLClient:
         query_file: str,
         prefix_selector: str = ".data.repository.branchProtectionRules",
     ) -> list[dict[str, Any]]:
-        utils.print_debug(f"running async graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
+        print_debug(f"running async graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = files(resources).joinpath(f"graphql/{query_file}").read_text()
 
@@ -202,19 +183,22 @@ class GraphQLClient:
             variables.update(input_variables)
 
             async with ClientSession() as session:
+                headers = self._headers.copy()
+                self._auth.update_headers_with_authorization(headers)
+
                 async with session.post(
                     url=f"{self._GH_GRAPHQL_URL_ROOT}",
-                    headers=self._headers,
+                    headers=headers,
                     json={"query": query, "variables": variables},
                 ) as response:
-                    if utils.is_debug_enabled():
-                        utils.print_debug(
+                    if is_debug_enabled():
+                        print_debug(
                             f"graphql query '{query_file}' with input '{json.dumps(input_variables)}': "
                             f"rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
                         )
 
-                    if utils.is_trace_enabled():
-                        utils.print_trace(f"graphql result = ({response.status}, {await response.text()})")
+                    if is_trace_enabled():
+                        print_trace(f"graphql result = ({response.status}, {await response.text()})")
 
                     if not response.ok:
                         raise RuntimeError(f"failed running query '{query_file}'")
@@ -237,6 +221,27 @@ class GraphQLClient:
                 raise RuntimeError(f"failed running graphql query '{query_file}'")
 
         return result
+
+    async def _async_request_raw(self, method: str, query: str, variables: dict[str, Any]) -> tuple[int, str]:
+        print_trace(f"async '{method}', query = {query}, variables = {variables}")
+
+        headers = self._headers.copy()
+        self._auth.update_headers_with_authorization(headers)
+
+        async with ClientSession() as session:
+            async with session.request(
+                method,
+                url=self._GH_GRAPHQL_URL_ROOT,
+                headers=headers,
+                json={"query": query, "variables": variables},
+            ) as response:
+                text = await response.text()
+                status = response.status
+
+                if is_trace_enabled():
+                    print_trace(f"async '{method}' result = ({status}, {text})")
+
+                return status, text
 
     @staticmethod
     def _transform_actors(actors: list[dict[str, Any]]) -> list[str]:

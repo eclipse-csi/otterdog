@@ -86,7 +86,9 @@ class OrganizationSecret(Secret):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -96,7 +98,7 @@ class OrganizationSecret(Secret):
 
         if "selected_repositories" in mapping:
             mapping.pop("selected_repositories")
-            mapping["selected_repository_ids"] = K(provider.get_repo_ids(org_id, data["selected_repositories"]))
+            mapping["selected_repository_ids"] = K(await provider.get_repo_ids(org_id, data["selected_repositories"]))
 
         return mapping
 
@@ -104,19 +106,24 @@ class OrganizationSecret(Secret):
         return f"orgs.{jsonnet_config.create_org_secret}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, OrganizationSecret)
-                provider.add_org_secret(org_id, patch.expected_object.to_provider_data(org_id, provider))
+                await provider.add_org_secret(
+                    org_id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
+                )
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, OrganizationSecret)
-                provider.delete_org_secret(org_id, patch.current_object.name)
+                await provider.delete_org_secret(org_id, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert isinstance(patch.expected_object, OrganizationSecret)
                 assert isinstance(patch.current_object, OrganizationSecret)
-                provider.update_org_secret(
-                    org_id, patch.current_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                await provider.update_org_secret(
+                    org_id,
+                    patch.current_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

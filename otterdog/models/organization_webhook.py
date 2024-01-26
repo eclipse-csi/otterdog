@@ -31,19 +31,24 @@ class OrganizationWebhook(Webhook):
         return f"orgs.{jsonnet_config.create_org_webhook}"
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, OrganizationWebhook)
-                provider.add_org_webhook(org_id, patch.expected_object.to_provider_data(org_id, provider))
+                await provider.add_org_webhook(
+                    org_id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
+                )
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, OrganizationWebhook)
-                provider.delete_org_webhook(org_id, patch.current_object.id, patch.current_object.url)
+                await provider.delete_org_webhook(org_id, patch.current_object.id, patch.current_object.url)
 
             case LivePatchType.CHANGE:
                 assert isinstance(patch.expected_object, OrganizationWebhook)
                 assert isinstance(patch.current_object, OrganizationWebhook)
-                provider.update_org_webhook(
-                    org_id, patch.current_object.id, patch.expected_object.to_provider_data(org_id, provider)
+                await provider.update_org_webhook(
+                    org_id,
+                    patch.current_object.id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

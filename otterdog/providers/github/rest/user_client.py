@@ -16,11 +16,11 @@ class UserClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    def get_user_ids(self, login: str) -> tuple[int, str]:
+    async def get_user_ids(self, login: str) -> tuple[int, str]:
         print_debug(f"retrieving user ids for user '{login}'")
 
         try:
-            response = self.requester.request_json("GET", f"/users/{login}")
+            response = await self.requester.async_request_json("GET", f"/users/{login}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__

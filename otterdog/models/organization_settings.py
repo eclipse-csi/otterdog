@@ -183,7 +183,9 @@ class OrganizationSettings(ModelObject):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -242,8 +244,8 @@ class OrganizationSettings(ModelObject):
             )
 
     @classmethod
-    def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         assert patch.patch_type == LivePatchType.CHANGE
         assert patch.changes is not None
-        github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
-        provider.update_org_settings(org_id, github_settings)
+        github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
+        await provider.update_org_settings(org_id, github_settings)

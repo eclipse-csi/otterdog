@@ -22,3 +22,15 @@ class AuthStrategy(ABC):
     @abstractmethod
     def get_auth(self) -> AuthImpl:
         ...
+
+
+def app_auth(app_id: str, private_key: str) -> AuthStrategy:
+    from .app import AppAuthStrategy
+
+    return AppAuthStrategy(app_id, private_key)
+
+
+def token_auth(github_token: str) -> AuthStrategy:
+    from .token import TokenAuthStrategy
+
+    return TokenAuthStrategy(github_token)

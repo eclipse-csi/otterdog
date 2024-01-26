@@ -43,9 +43,9 @@ class RepositoryWorkflowSettingsTest(ModelTest):
         assert workflow_settings.default_workflow_permissions == "read"
         assert workflow_settings.actions_can_approve_pull_request_reviews is True
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         workflow_settings = RepositoryWorkflowSettings.from_model_data(self.model_data)
-        provider_data = workflow_settings.to_provider_data(self.org_id, self.provider)
+        provider_data = await workflow_settings.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 7
         assert provider_data["allowed_actions"] == "all"
@@ -55,14 +55,14 @@ class RepositoryWorkflowSettingsTest(ModelTest):
         assert provider_data["patterns_allowed"] == []
         assert provider_data["can_approve_pull_request_reviews"] is True
 
-    def test_changes_to_provider(self):
+    async def test_changes_to_provider(self):
         current = RepositoryWorkflowSettings.from_model_data(self.model_data)
         other = RepositoryWorkflowSettings.from_model_data(self.model_data)
 
         other.enabled = False
 
         changes = current.get_difference_from(other)
-        provider_data = RepositoryWorkflowSettings.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await RepositoryWorkflowSettings.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 1
         assert provider_data["enabled"] is True

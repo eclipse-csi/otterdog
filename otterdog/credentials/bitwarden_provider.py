@@ -9,7 +9,7 @@
 import json
 import re
 import subprocess
-from typing import Optional
+from typing import Any
 
 from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
@@ -34,9 +34,7 @@ class BitwardenVault(CredentialProvider):
     def is_unlocked(self) -> bool:
         return self._status == 0
 
-    def get_credentials(
-        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
-    ) -> Credentials:
+    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         assert self.is_unlocked()
 
         item_id = data.get("item_id")
