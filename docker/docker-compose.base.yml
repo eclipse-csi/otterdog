@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   webapp:
-    container_name: webapp
     restart: always
     env_file: ../.env
     build:
@@ -13,7 +12,6 @@ services:
       - 5000:5000
     volumes:
       - ../github-app:/app/work/config
-      - ../otterdog-app.json:/app/work/config/otterdog-app.json
 
 #  nginx:
 #    container_name: nginx
