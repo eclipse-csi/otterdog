@@ -208,7 +208,7 @@ class OtterdogConfig:
                     )
 
                     api_token_pattern = (
-                        jq.compile('.defaults.pass.username_pattern // ""').input(self._configuration).first()
+                        jq.compile('.defaults.pass.api_token_pattern // ""').input(self._configuration).first()
                     )
 
                     provider = PassVault(
