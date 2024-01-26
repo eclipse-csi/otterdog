@@ -1,5 +1,0 @@
-bind = "0.0.0.0:5000"
-workers = 1
-accesslog = '-'
-loglevel = 'info'
-h11_max_incomplete_size = 4
