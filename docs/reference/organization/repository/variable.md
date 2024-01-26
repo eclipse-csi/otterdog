@@ -27,7 +27,7 @@ orgs.newRepoVariable('<name>') {
         ...
         orgs.newRepo('test-repo') {
           ...
-          secrets+: [
+          variables+: [
             orgs.newRepoVariable('TEST_VARIABLE') {
               value: "TESTVALUE",
             },
