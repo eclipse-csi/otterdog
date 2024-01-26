@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  webapp:
+    container_name: webapp
+    restart: always
+    env_file: ../.env
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ./start-webapp
+    ports:
+      - 5000:5000
+    volumes:
+      - ../github-app:/app/work/config
+      - ../otterdog-app.json:/app/work/config/otterdog-app.json
+
+#  nginx:
+#    container_name: nginx
+#    restart: always
+#    image: "nginx:latest"
+#    ports:
+#      - "80:80"
+#    volumes:
+#      - ./nginx:/etc/nginx/conf.d
+#    depends_on:
+#      - webapp

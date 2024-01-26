@@ -1,0 +1,7 @@
+version: '3.8'
+
+services:
+  webapp:
+    volumes:
+      - ../otterdog:/app/otterdog
+      - ../approot:/app/work

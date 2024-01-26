@@ -16,10 +16,10 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=1.7.1
 
-COPY ../otterdog ./otterdog
-COPY ../pyproject.toml ../poetry.lock ../README.md ./hypercorn-cfg.toml ./
-COPY ./entrypoint.sh ./docker/entrypoint.sh
-COPY ./start-webapp ./docker/start-webapp
+COPY ./otterdog ./otterdog
+COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
+COPY ./docker/entrypoint.sh ./docker/entrypoint.sh
+COPY ./docker/start-webapp ./docker/start-webapp
 
 RUN pip install "poetry==$POETRY_VERSION"
 
