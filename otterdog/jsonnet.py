@@ -41,10 +41,6 @@ class JsonnetConfig:
         self._org_id = org_id
         self._base_dir = base_dir
 
-        # create base directory if it does not exist yet
-        if not os.path.exists(self.org_dir):
-            os.makedirs(self.org_dir)
-
         repo_url, file, ref = parse_template_url(base_template_url)
 
         self._base_template_repo_url = repo_url
@@ -257,6 +253,10 @@ class JsonnetConfig:
         return f"{self.org_dir}/jsonnetfile.lock.json"
 
     def _init_base_template(self) -> None:
+        # create base directory if it does not exist yet
+        if not os.path.exists(self.org_dir):
+            os.makedirs(self.org_dir)
+
         content = {
             "version": 1,
             "dependencies": [

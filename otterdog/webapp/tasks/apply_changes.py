@@ -46,13 +46,14 @@ async def apply_changes(
 
     logger.info("applying merged pull request #%d for repo '%s'", pull_request.number, repository.full_name)
 
+    project_name = otterdog_config.get_project_name(org_id) or org_id
     pull_request_number = str(pull_request.number)
 
     rest_api = await get_rest_api_for_installation(installation_id)
 
     with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
         org_config = OrganizationConfig.of(
-            org_id, {"provider": "inmemory", "api_token": rest_api.token}, work_dir, otterdog_config
+            project_name, org_id, {"provider": "inmemory", "api_token": rest_api.token}, work_dir, otterdog_config
         )
 
         jsonnet_config = org_config.jsonnet_config

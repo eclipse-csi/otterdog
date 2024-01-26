@@ -14,7 +14,7 @@ from otterdog.utils import Change, IndentingPrinter, is_unset, style
 
 
 class Operation(ABC):
-    _DEFAULT_WIDTH: int = 56
+    _DEFAULT_WIDTH: int = 32
 
     def __init__(self) -> None:
         self._config: Optional[OtterdogConfig] = None

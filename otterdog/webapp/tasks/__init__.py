@@ -6,7 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import os.path
 from datetime import datetime
+from logging import getLogger
 from typing import Optional
 
 from quart import current_app
@@ -19,6 +21,8 @@ _APP_REST_API: Optional[RestApi] = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
 
 _OTTERDOG_CONFIG: Optional[OtterdogConfig] = None
+
+logger = getLogger(__name__)
 
 
 def _create_rest_api_for_app() -> RestApi:
@@ -55,8 +59,21 @@ def get_otterdog_config() -> OtterdogConfig:
     global _OTTERDOG_CONFIG
 
     if _OTTERDOG_CONFIG is None:
-        app_root = current_app.config["APP_ROOT"]
-        config_file = current_app.config["OTTERDOG_CONFIG"]
-        _OTTERDOG_CONFIG = OtterdogConfig(config_file, False, app_root)
+        _OTTERDOG_CONFIG = load_otterdog_config()
 
     return _OTTERDOG_CONFIG
+
+
+def load_otterdog_config() -> OtterdogConfig:
+    app_root = current_app.config["APP_ROOT"]
+    config_file_url = current_app.config["OTTERDOG_CONFIG_URL"]
+
+    import requests
+
+    with requests.get(config_file_url) as response:
+        config_file = os.path.join(app_root, "otterdog.json")
+        logger.info(f"writing otterdog configuration to '{config_file}'")
+        with open(config_file, "w") as file:
+            file.write(response.text)
+
+    return OtterdogConfig(config_file, False, app_root)

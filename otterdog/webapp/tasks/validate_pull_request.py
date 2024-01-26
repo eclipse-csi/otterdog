@@ -50,6 +50,7 @@ async def validate_pull_request(
         pull_request = cast(PullRequest, pull_request_or_number)
 
     pull_request_number = str(pull_request.number)
+    project_name = otterdog_config.get_project_name(org_id) or org_id
 
     logger.info(
         "validating pull request #%d for repo '%s' with level %s", pull_request.number, repository.full_name, log_level
@@ -57,7 +58,7 @@ async def validate_pull_request(
 
     with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
         org_config = OrganizationConfig.of(
-            org_id, {"provider": "inmemory", "api_token": rest_api.token}, work_dir, otterdog_config
+            project_name, org_id, {"provider": "inmemory", "api_token": rest_api.token}, work_dir, otterdog_config
         )
 
         jsonnet_config = org_config.jsonnet_config

@@ -18,7 +18,9 @@ class AppConfig(object):
     if not os.path.exists(APP_ROOT):
         os.makedirs(APP_ROOT)
 
-    OTTERDOG_CONFIG = config("OTTERDOG_CONFIG", default="otterdog-app.json")
+    OTTERDOG_CONFIG_URL = config("OTTERDOG_CONFIG_URL", default=None)
+    OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
+    OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)
 
     # Set up the App SECRET_KEY
     SECRET_KEY = config("SECRET_KEY")

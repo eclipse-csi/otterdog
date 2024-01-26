@@ -96,7 +96,12 @@ class OrganizationConfig:
 
     @classmethod
     def of(
-        cls, github_id: str, credential_data: dict[str, Any], work_dir: str, otterdog_config: OtterdogConfig
+        cls,
+        project_name: str,
+        github_id: str,
+        credential_data: dict[str, Any],
+        work_dir: str,
+        otterdog_config: OtterdogConfig,
     ) -> OrganizationConfig:
         config_repo = otterdog_config.default_config_repo
         base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
@@ -108,7 +113,7 @@ class OrganizationConfig:
             otterdog_config.local_mode,
         )
 
-        return cls(github_id, github_id, config_repo, jsonnet_config, credential_data)
+        return cls(project_name, github_id, config_repo, jsonnet_config, credential_data)
 
 
 class OtterdogConfig:
@@ -175,6 +180,13 @@ class OtterdogConfig:
     @property
     def organization_names(self) -> list[str]:
         return list(map(lambda config: config.name, self._organizations))
+
+    def get_project_name(self, github_id: str) -> Optional[str]:
+        organization = self._organizations_map.get(github_id)
+        if organization is not None:
+            return organization.name
+        else:
+            return None
 
     def get_organization_config(self, organization_name: str) -> OrganizationConfig:
         org_config = self._organizations_map.get(organization_name)
