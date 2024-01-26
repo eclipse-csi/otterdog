@@ -48,7 +48,7 @@ async def apply_changes(
 
     pull_request_number = str(pull_request.number)
 
-    rest_api = get_rest_api_for_installation(installation_id)
+    rest_api = await get_rest_api_for_installation(installation_id)
 
     with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
         org_config = OrganizationConfig.of(
@@ -85,4 +85,4 @@ async def apply_changes(
 
         result = await render_template("applied_changes.txt", result=escape_for_github(text))
 
-        rest_api.issue.create_comment(org_id, otterdog_config.default_config_repo, pull_request_number, result)
+        await rest_api.issue.create_comment(org_id, otterdog_config.default_config_repo, pull_request_number, result)

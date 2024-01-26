@@ -150,7 +150,9 @@ class Environment(ModelObject):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -161,7 +163,7 @@ class Environment(ModelObject):
             for actor_type, (
                 actor_id,
                 actor_node_id,
-            ) in provider.get_actor_ids_with_type(reviewers):
+            ) in await provider.get_actor_ids_with_type(reviewers):
                 reviewer_mapping.append({"type": actor_type, "id": actor_id})
             mapping["reviewers"] = reviewer_mapping
 
@@ -206,7 +208,7 @@ class Environment(ModelObject):
                     org_id,
                     patch.parent_object.name,
                     patch.expected_object.name,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
@@ -222,5 +224,5 @@ class Environment(ModelObject):
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.name,
-                    cls.changes_to_provider(org_id, patch.changes, provider),
+                    await cls.changes_to_provider(org_id, patch.changes, provider),
                 )

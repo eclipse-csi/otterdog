@@ -36,7 +36,7 @@ def get_rest_api_for_app() -> RestApi:
     return _APP_REST_API
 
 
-def get_rest_api_for_installation(installation_id: int) -> RestApi:
+async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     global _INSTALLATION_REST_APIS
     installation = str(installation_id)
 
@@ -45,7 +45,7 @@ def get_rest_api_for_installation(installation_id: int) -> RestApi:
         if expires_at > datetime.now():
             return current_api
 
-    token, expires_at = get_rest_api_for_app().app.create_installation_access_token(installation)
+    token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(installation)
     rest_api = RestApi(token_auth(token))
     _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
     return rest_api

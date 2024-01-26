@@ -341,7 +341,9 @@ class Ruleset(ModelObject, abc.ABC):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -388,11 +390,11 @@ class Ruleset(ModelObject, abc.ABC):
                 elif actor.startswith("@"):
                     team, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
                     actor_type = "Team"
-                    actor_id = provider.rest_api.org.get_team_ids(team)[0]
+                    actor_id = (await provider.rest_api.org.get_team_ids(team))[0]
                 else:
                     app, bypass_mode = extract_actor_and_bypass_mode(actor)
                     actor_type = "Integration"
-                    actor_id = provider.rest_api.app.get_app_ids(app)[0]
+                    actor_id = (await provider.rest_api.app.get_app_ids(app))[0]
 
                 transformed_actors.append(
                     {"actor_id": K(int(actor_id)), "actor_type": K(actor_type), "bypass_mode": K(bypass_mode)}
@@ -473,7 +475,7 @@ class Ruleset(ModelObject, abc.ABC):
                             if app_slug != "any":
                                 app_slugs.add(app_slug)
 
-                    app_ids = provider.get_app_ids(app_slugs)
+                    app_ids = await provider.get_app_ids(app_slugs)
 
                     transformed_checks = []
                     for check in required_status_checks:

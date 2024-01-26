@@ -91,12 +91,14 @@ class OrganizationWorkflowSettings(WorkflowSettings):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = super().get_mapping_to_provider(org_id, data, provider)
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         if "selected_repositories" in data:
             mapping.pop("selected_repositories")
-            mapping["selected_repository_ids"] = K(provider.get_repo_ids(org_id, data["selected_repositories"]))
+            mapping["selected_repository_ids"] = K(await provider.get_repo_ids(org_id, data["selected_repositories"]))
 
         return mapping
 
@@ -136,5 +138,5 @@ class OrganizationWorkflowSettings(WorkflowSettings):
     async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         assert patch.patch_type == LivePatchType.CHANGE
         assert patch.changes is not None
-        github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
+        github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
         await provider.update_org_workflow_settings(org_id, github_settings)

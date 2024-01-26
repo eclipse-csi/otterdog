@@ -14,6 +14,7 @@ from quart import Response, current_app
 
 from otterdog.utils import LogLevel
 from otterdog.webapp.tasks import get_otterdog_config
+from otterdog.webapp.tasks.apply_changes import apply_changes
 from otterdog.webapp.tasks.help_comment import create_help_comment
 from otterdog.webapp.tasks.validate_pull_request import validate_pull_request
 
@@ -51,18 +52,18 @@ async def on_pull_request_received(data):
 
         current_app.add_background_task(validate)
 
-    # elif event.action in ["closed"] and event.pull_request.merged is True:
-    #
-    #     async def apply():
-    #         await apply_changes(
-    #             event.organization.login,
-    #             event.installation.id,
-    #             event.pull_request,
-    #             event.repository,
-    #             otterdog_config,
-    #         )
-    #
-    #     current_app.add_background_task(apply)
+    elif event.action in ["closed"] and event.pull_request.merged is True:
+
+        async def apply():
+            await apply_changes(
+                event.organization.login,
+                event.installation.id,
+                event.pull_request,
+                event.repository,
+                otterdog_config,
+            )
+
+        current_app.add_background_task(apply)
 
     return success()
 

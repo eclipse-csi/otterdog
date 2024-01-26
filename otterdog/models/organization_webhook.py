@@ -35,7 +35,10 @@ class OrganizationWebhook(Webhook):
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, OrganizationWebhook)
-                await provider.add_org_webhook(org_id, patch.expected_object.to_provider_data(org_id, provider))
+                await provider.add_org_webhook(
+                    org_id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
+                )
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, OrganizationWebhook)
@@ -45,5 +48,7 @@ class OrganizationWebhook(Webhook):
                 assert isinstance(patch.expected_object, OrganizationWebhook)
                 assert isinstance(patch.current_object, OrganizationWebhook)
                 await provider.update_org_webhook(
-                    org_id, patch.current_object.id, patch.expected_object.to_provider_data(org_id, provider)
+                    org_id,
+                    patch.current_object.id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

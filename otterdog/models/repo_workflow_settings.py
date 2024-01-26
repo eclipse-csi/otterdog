@@ -138,11 +138,13 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         return super().include_field_for_diff_computation(field)
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         if "enabled" in data and data["enabled"] is False:
             return {"enabled": S("enabled")}
         else:
-            return super().get_mapping_to_provider(org_id, data, provider)
+            return await super().get_mapping_to_provider(org_id, data, provider)
 
     @classmethod
     def generate_live_patch(
@@ -197,12 +199,14 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, RepositoryWorkflowSettings)
                 await provider.update_repo_workflow_settings(
-                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                    org_id,
+                    patch.parent_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.CHANGE:
                 assert patch.changes is not None
-                github_settings = cls.changes_to_provider(org_id, patch.changes, provider)
+                github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
                 await provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
 
             case _:

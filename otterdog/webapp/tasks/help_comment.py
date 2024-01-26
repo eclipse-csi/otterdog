@@ -12,6 +12,6 @@ from otterdog.webapp.tasks import get_rest_api_for_installation
 
 
 async def create_help_comment(org_id: str, installation_id: int, repo_name: str, pull_request_number: int) -> None:
-    rest_api = get_rest_api_for_installation(installation_id)
+    rest_api = await get_rest_api_for_installation(installation_id)
     comment = await render_template("help_comment.txt")
-    rest_api.issue.create_comment(org_id, repo_name, str(pull_request_number), comment)
+    await rest_api.issue.create_comment(org_id, repo_name, str(pull_request_number), comment)

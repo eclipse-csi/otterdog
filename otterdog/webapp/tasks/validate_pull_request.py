@@ -37,10 +37,10 @@ async def validate_pull_request(
 ) -> None:
     """Validates a PR and adds the result as a comment."""
 
-    rest_api = get_rest_api_for_installation(installation_id)
+    rest_api = await get_rest_api_for_installation(installation_id)
 
     if isinstance(pull_request_or_number, int):
-        response = rest_api.pull_request.get_pull_request(org_id, repository.name, str(pull_request_or_number))
+        response = await rest_api.pull_request.get_pull_request(org_id, repository.name, str(pull_request_or_number))
         try:
             pull_request = PullRequest.model_validate(response)
         except ValidationError:
@@ -104,7 +104,7 @@ async def validate_pull_request(
 
         result = await render_template("validation.txt", sha=pull_request.head.sha, result=escape_for_github(text))
 
-        rest_api.issue.create_comment(org_id, otterdog_config.default_config_repo, pull_request_number, result)
+        await rest_api.issue.create_comment(org_id, otterdog_config.default_config_repo, pull_request_number, result)
 
 
 async def get_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):

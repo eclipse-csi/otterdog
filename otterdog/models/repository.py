@@ -521,7 +521,9 @@ class Repository(ModelObject):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping: dict[str, Any] = {
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
@@ -839,7 +841,7 @@ class Repository(ModelObject):
                 assert isinstance(patch.expected_object, Repository)
                 await provider.add_repo(
                     org_id,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                     patch.expected_object.template_repository,
                     patch.expected_object.post_process_template_content,
                     patch.expected_object.forked_repository,
@@ -856,5 +858,7 @@ class Repository(ModelObject):
                 assert isinstance(patch.expected_object, Repository)
                 assert isinstance(patch.current_object, Repository)
                 await provider.update_repo(
-                    org_id, patch.current_object.name, cls.changes_to_provider(org_id, patch.changes, provider)
+                    org_id,
+                    patch.current_object.name,
+                    await cls.changes_to_provider(org_id, patch.changes, provider),
                 )

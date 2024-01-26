@@ -49,11 +49,11 @@ class AppClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed creating installation access token:\n{ex}").with_traceback(tb)
 
-    def get_app_ids(self, app_slug: str) -> tuple[int, str]:
+    async def get_app_ids(self, app_slug: str) -> tuple[int, str]:
         print_debug("retrieving app node id")
 
         try:
-            response = self.requester.request_json("GET", f"/apps/{app_slug}")
+            response = await self.requester.async_request_json("GET", f"/apps/{app_slug}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__

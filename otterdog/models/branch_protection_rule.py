@@ -316,7 +316,9 @@ class BranchProtectionRule(ModelObject):
         return mapping
 
     @classmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         mapping: dict[str, Any] = {
             snake_to_camel_case(field.name): S(field.name)
             for field in cls.provider_fields()
@@ -331,28 +333,28 @@ class BranchProtectionRule(ModelObject):
             mapping.pop("pushRestrictions")
             push_restrictions = data["push_restrictions"]
             if is_set_and_valid(push_restrictions):
-                actor_ids = provider.get_actor_node_ids(push_restrictions)
+                actor_ids = await provider.get_actor_node_ids(push_restrictions)
                 mapping["pushActorIds"] = K(actor_ids)
 
         if "review_dismissal_allowances" in data:
             mapping.pop("reviewDismissalAllowances")
             review_dismissal_allowances = data["review_dismissal_allowances"]
             if is_set_and_valid(review_dismissal_allowances):
-                actor_ids = provider.get_actor_node_ids(review_dismissal_allowances)
+                actor_ids = await provider.get_actor_node_ids(review_dismissal_allowances)
                 mapping["reviewDismissalActorIds"] = K(actor_ids)
 
         if "bypass_pull_request_allowances" in data:
             mapping.pop("bypassPullRequestAllowances")
             bypass_pull_request_allowances = data["bypass_pull_request_allowances"]
             if is_set_and_valid(bypass_pull_request_allowances):
-                actor_ids = provider.get_actor_node_ids(bypass_pull_request_allowances)
+                actor_ids = await provider.get_actor_node_ids(bypass_pull_request_allowances)
                 mapping["bypassPullRequestActorIds"] = K(actor_ids)
 
         if "bypass_force_push_allowances" in data:
             mapping.pop("bypassForcePushAllowances")
             bypass_force_push_allowances = data["bypass_force_push_allowances"]
             if is_set_and_valid(bypass_force_push_allowances):
-                actor_ids = provider.get_actor_node_ids(bypass_force_push_allowances)
+                actor_ids = await provider.get_actor_node_ids(bypass_force_push_allowances)
                 mapping["bypassForcePushActorIds"] = K(actor_ids)
 
         if "required_status_checks" in data:
@@ -370,7 +372,7 @@ class BranchProtectionRule(ModelObject):
                     else:
                         app_slugs.add("github-actions")
 
-                app_ids = provider.get_app_node_ids(app_slugs)
+                app_ids = await provider.get_app_node_ids(app_slugs)
 
                 transformed_checks = []
                 for check in required_status_checks:
@@ -404,7 +406,7 @@ class BranchProtectionRule(ModelObject):
                     org_id,
                     patch.parent_object.name,
                     patch.parent_object.node_id,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
@@ -423,5 +425,5 @@ class BranchProtectionRule(ModelObject):
                     patch.parent_object.name,
                     patch.current_object.pattern,
                     patch.current_object.id,
-                    cls.changes_to_provider(org_id, patch.changes, provider),
+                    await cls.changes_to_provider(org_id, patch.changes, provider),
                 )

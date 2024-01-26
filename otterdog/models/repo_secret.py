@@ -39,7 +39,9 @@ class RepositorySecret(Secret):
                 assert isinstance(patch.expected_object, RepositorySecret)
                 assert isinstance(patch.parent_object, Repository)
                 await provider.add_repo_secret(
-                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                    org_id,
+                    patch.parent_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
@@ -55,5 +57,5 @@ class RepositorySecret(Secret):
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.name,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

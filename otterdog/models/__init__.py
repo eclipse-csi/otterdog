@@ -332,21 +332,25 @@ class ModelObject(ABC):
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         ...
 
-    def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
-        return self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
+    async def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
+        return await self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
 
     @classmethod
-    def changes_to_provider(cls, org_id: str, data: dict[str, Change[Any]], provider: GitHubProvider) -> dict[str, Any]:
-        return cls.dict_to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
+    async def changes_to_provider(
+        cls, org_id: str, data: dict[str, Change[Any]], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        return await cls.dict_to_provider_data(org_id, {key: change.to_value for key, change in data.items()}, provider)
 
     @classmethod
-    def dict_to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
-        mapping = cls.get_mapping_to_provider(org_id, data, provider)
+    async def dict_to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+        mapping = await cls.get_mapping_to_provider(org_id, data, provider)
         return bend(mapping, data)
 
     @classmethod
     @abstractmethod
-    def get_mapping_to_provider(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
         ...
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

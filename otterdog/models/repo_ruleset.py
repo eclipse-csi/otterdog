@@ -39,7 +39,9 @@ class RepositoryRuleset(Ruleset):
                 assert isinstance(patch.expected_object, RepositoryRuleset)
                 assert isinstance(patch.parent_object, Repository)
                 await provider.add_repo_ruleset(
-                    org_id, patch.parent_object.name, patch.expected_object.to_provider_data(org_id, provider)
+                    org_id,
+                    patch.parent_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
@@ -57,5 +59,5 @@ class RepositoryRuleset(Ruleset):
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.id,
-                    patch.expected_object.to_provider_data(org_id, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

@@ -205,7 +205,7 @@ class GitHubProvider:
     ) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
         if not repo_node_id:
-            repo_data = self.rest_api.repo.get_repo_data(org_id, repo_name)
+            repo_data = await self.rest_api.repo.get_repo_data(org_id, repo_name)
             repo_node_id = repo_data["node_id"]
 
         await self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_node_id, data)
@@ -321,10 +321,10 @@ class GitHubProvider:
             repo_ids.append(repo_data["id"])
         return repo_ids
 
-    def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
-        return list(map(lambda x: x[1][1], self.get_actor_ids_with_type(actor_names)))
+    async def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
+        return list(map(lambda x: x[1][1], await self.get_actor_ids_with_type(actor_names)))
 
-    def get_actor_ids_with_type(self, actor_names: list[str]) -> list[tuple[str, tuple[int, str]]]:
+    async def get_actor_ids_with_type(self, actor_names: list[str]) -> list[tuple[str, tuple[int, str]]]:
         result = []
         for actor in actor_names:
             if actor.startswith("@"):
@@ -333,28 +333,28 @@ class GitHubProvider:
                 #    - user-names are not allowed to contain a /
                 if "/" in actor:
                     try:
-                        result.append(("Team", self.rest_api.org.get_team_ids(actor[1:])))
+                        result.append(("Team", await self.rest_api.org.get_team_ids(actor[1:])))
                     except RuntimeError:
                         utils.print_warn(f"team '{actor[1:]}' does not exist, skipping")
                 else:
                     try:
-                        result.append(("User", self.rest_api.user.get_user_ids(actor[1:])))
+                        result.append(("User", await self.rest_api.user.get_user_ids(actor[1:])))
                     except RuntimeError:
                         utils.print_warn(f"user '{actor[1:]}' does not exist, skipping")
             else:
                 # it's an app
                 try:
-                    result.append(("App", self.rest_api.app.get_app_ids(actor)))
+                    result.append(("App", await self.rest_api.app.get_app_ids(actor)))
                 except RuntimeError:
                     utils.print_warn(f"app '{actor}' does not exist, skipping")
 
         return result
 
-    def get_app_node_ids(self, app_names: set[str]) -> dict[str, str]:
-        return {app_name: self.rest_api.app.get_app_ids(app_name)[1] for app_name in app_names}
+    async def get_app_node_ids(self, app_names: set[str]) -> dict[str, str]:
+        return {app_name: (await self.rest_api.app.get_app_ids(app_name))[1] for app_name in app_names}
 
-    def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
-        return {app_name: self.rest_api.app.get_app_ids(app_name)[0] for app_name in app_names}
+    async def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
+        return {app_name: (await self.rest_api.app.get_app_ids(app_name))[0] for app_name in app_names}
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return await self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)
