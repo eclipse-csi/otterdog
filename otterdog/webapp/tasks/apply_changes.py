@@ -76,9 +76,21 @@ async def apply_changes(
 
         output = StringIO()
         printer = IndentingPrinter(output, log_level=LogLevel.ERROR)
-        operation = ApplyOperation(True, True, False, False, "", True)
+
+        # let's create an apply operation that forces processing but does not update
+        # any web UI settings and resources using credentials
+        operation = ApplyOperation(
+            force_processing=True,
+            no_web_ui=True,
+            update_webhooks=False,
+            update_secrets=False,
+            update_filter="",
+            delete_resources=True,
+            resolve_secrets=False,
+        )
         operation.init(otterdog_config, printer)
 
+        # TODO: we need to exclude any change that requires credentials or the web ui
         await operation.execute(org_config)
 
         text = output.getvalue()

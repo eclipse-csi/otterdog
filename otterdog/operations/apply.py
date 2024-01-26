@@ -26,10 +26,12 @@ class ApplyOperation(PlanOperation):
         update_secrets: bool,
         update_filter: str,
         delete_resources: bool,
+        resolve_secrets: bool = True,
     ):
         super().__init__(no_web_ui, update_webhooks, update_secrets, update_filter)
         self._force_processing = force_processing
         self._delete_resources = delete_resources
+        self._resolve_secrets = resolve_secrets
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
@@ -39,7 +41,7 @@ class ApplyOperation(PlanOperation):
         self.print_legend()
 
     def resolve_secrets(self) -> bool:
-        return True
+        return self._resolve_secrets
 
     def handle_add_object(
         self,
