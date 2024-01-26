@@ -9,7 +9,7 @@
 import dataclasses
 import time
 from abc import abstractmethod
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 import mintotp  # type: ignore
 
@@ -72,9 +72,7 @@ class Credentials:
 
 class CredentialProvider(Protocol):
     @abstractmethod
-    def get_credentials(
-        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
-    ) -> Credentials:
+    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         ...
 
     @abstractmethod

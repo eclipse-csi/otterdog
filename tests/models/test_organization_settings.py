@@ -88,17 +88,17 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.packages_containers_internal is False
         assert settings.members_can_change_project_visibility is False
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         settings = OrganizationSettings.from_model_data(self.model_data)
 
         settings.description = UNSET
 
-        provider_data = settings.to_provider_data(self.org_id, self.provider)
+        provider_data = await settings.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 27
         assert provider_data["billing_email"] == settings.billing_email
 
-    def test_changes_to_provider(self):
+    async def test_changes_to_provider(self):
         current = OrganizationSettings.from_model_data(self.model_data)
         other = OrganizationSettings.from_model_data(self.model_data)
 
@@ -106,7 +106,7 @@ class OrganizationSettingsTest(ModelTest):
         other.default_repository_permission = "none"
 
         changes = current.get_difference_from(other)
-        provider_data = OrganizationSettings.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await OrganizationSettings.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["billing_email"] == current.billing_email

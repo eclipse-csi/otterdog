@@ -46,10 +46,10 @@ class EnvironmentTest(ModelTest):
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         env = Environment.from_model_data(self.model_data)
 
-        provider_data = env.to_provider_data(self.org_id, self.provider)
+        provider_data = await env.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 5
         assert provider_data["wait_timer"] == 15

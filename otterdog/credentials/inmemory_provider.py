@@ -1,14 +1,14 @@
 #  *******************************************************************************
 #  Copyright (c) 2024 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
-#  under the terms of the MIT License
-#  which is available at https://spdx.org/licenses/MIT.html
-#  SPDX-License-Identifier: MIT
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Optional
+from typing import Any
 
-from otterdog.credentials import Credentials, CredentialProvider
+from otterdog.credentials import CredentialProvider, Credentials
 
 
 class InmemoryVault(CredentialProvider):
@@ -18,9 +18,7 @@ class InmemoryVault(CredentialProvider):
 
     KEY_API_TOKEN = "api_token"
 
-    def get_credentials(
-        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
-    ) -> Credentials:
+    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         if only_token is not True:
             raise RuntimeError("in-memory vault only contains github tokens")
 

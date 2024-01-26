@@ -75,10 +75,10 @@ class BranchProtectionRuleTest(ModelTest):
         assert bpr.review_dismissal_allowances == ["@netomi"]
         assert bpr.required_status_checks == ["any:Run CI"]
 
-    def test_to_provider(self):
+    async def test_to_provider(self):
         bpr = BranchProtectionRule.from_model_data(self.model_data)
 
-        provider_data = bpr.to_provider_data(self.org_id, self.provider)
+        provider_data = await bpr.to_provider_data(self.org_id, self.provider)
 
         assert len(provider_data) == 24
         assert provider_data["pattern"] == "main"
@@ -88,7 +88,7 @@ class BranchProtectionRuleTest(ModelTest):
             {"appId": "any", "context": "Run CI"},
         ]
 
-    def test_changes_to_provider(self):
+    async def test_changes_to_provider(self):
         current = BranchProtectionRule.from_model_data(self.model_data)
         other = BranchProtectionRule.from_model_data(self.model_data)
 
@@ -96,7 +96,7 @@ class BranchProtectionRuleTest(ModelTest):
         other.required_status_checks = ["eclipse-eca-validation:eclipsefdn/eca"]
 
         changes = current.get_difference_from(other)
-        provider_data = BranchProtectionRule.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await BranchProtectionRule.changes_to_provider(self.org_id, changes, self.provider)
 
         assert len(provider_data) == 2
         assert provider_data["requiresApprovingReviews"] is True

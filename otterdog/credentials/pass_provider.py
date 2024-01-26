@@ -8,7 +8,7 @@
 
 import os
 import subprocess
-from typing import Optional
+from typing import Any
 
 from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
@@ -24,28 +24,38 @@ class PassVault(CredentialProvider):
     KEY_PASSWORD = "password"
     KEY_2FA_SEED = "2fa_seed"
 
-    def __init__(self, password_store_dir: str):
+    def __init__(
+        self,
+        password_store_dir: str,
+        username_pattern: str,
+        password_pattern: str,
+        twofa_seed_pattern: str,
+        api_token_pattern: str,
+    ):
         utils.print_debug("accessing pass vault")
         status, output = subprocess.getstatusoutput("pass ls")
         if status != 0:
             raise RuntimeError(f"could not access pass vault:\n{output}")
 
         if password_store_dir:
-            utils.print_debug(f"setting password store dir to {password_store_dir}")
+            utils.print_debug(f"setting password store dir to '{password_store_dir}'")
             os.environ["PASSWORD_STORE_DIR"] = password_store_dir
+
+        self._username_pattern = username_pattern
+        self._password_pattern = password_pattern
+        self._twofa_seed_pattern = twofa_seed_pattern
+        self._api_token_pattern = api_token_pattern
 
         if status > 0:
             raise RuntimeError("pass vault is not accessible")
 
-    def get_credentials(
-        self, eclipse_project: Optional[str], data: dict[str, str], only_token: bool = False
-    ) -> Credentials:
-        github_token = self._retrieve_key(self.KEY_API_TOKEN, eclipse_project, data)
+    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
+        github_token = self._retrieve_key(self.KEY_API_TOKEN, org_name, data)
 
         if only_token is False:
-            username = self._retrieve_key(self.KEY_USERNAME, eclipse_project, data)
-            password = self._retrieve_key(self.KEY_PASSWORD, eclipse_project, data)
-            totp_secret = self._retrieve_key(self.KEY_2FA_SEED, eclipse_project, data)
+            username = self._retrieve_key(self.KEY_USERNAME, org_name, data)
+            password = self._retrieve_key(self.KEY_PASSWORD, org_name, data)
+            totp_secret = self._retrieve_key(self.KEY_2FA_SEED, org_name, data)
         else:
             username = None
             password = None
@@ -56,29 +66,31 @@ class PassVault(CredentialProvider):
     def get_secret(self, key_data: str) -> str:
         return self._retrieve_resolved_key(key_data)
 
-    @staticmethod
-    def _retrieve_key(key: str, eclipse_project: Optional[str], data: dict[str, str]) -> str:
+    def _retrieve_key(self, key: str, org_name: str, data: dict[str, str]) -> str:
         resolved_key = data.get(key)
         strict = True
 
-        # custom handling for eclipse projects, the keys are organized in the format
-        #    bots/<eclipse-project>/github.com/<key>
-        if resolved_key is None and eclipse_project is not None:
+        if resolved_key is None:
             match key:
-                case PassVault.KEY_API_TOKEN:
-                    query_key = "otterdog-token"
-                    strict = False
+                case PassVault.KEY_USERNAME:
+                    pattern = self._username_pattern
+                case PassVault.KEY_PASSWORD:
+                    pattern = self._password_pattern
                 case PassVault.KEY_2FA_SEED:
-                    query_key = "2FA-seed"
+                    pattern = self._twofa_seed_pattern
+                case PassVault.KEY_API_TOKEN:
+                    pattern = self._api_token_pattern
+                    strict = False
                 case _:
-                    query_key = key
+                    raise RuntimeError(f"unexpected key '{key}'")
 
-            return PassVault._retrieve_resolved_key(f"bots/{eclipse_project}/github.com/{query_key}", strict)
+            if pattern:
+                resolved_key = pattern.format(org_name)
 
         if resolved_key is None:
-            raise RuntimeError(f"required key '{key}' not found in authorization data")
+            raise RuntimeError(f"required key '{key}' not found in credential data")
 
-        return PassVault._retrieve_resolved_key(resolved_key)
+        return PassVault._retrieve_resolved_key(resolved_key, strict)
 
     @staticmethod
     def _retrieve_resolved_key(key: str, strict: bool = True) -> str:
