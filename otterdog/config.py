@@ -140,11 +140,13 @@ class OtterdogConfig:
 
         organizations = self._configuration.get("organizations", [])
 
-        self._organizations = {}
+        self._organizations_map = {}
+        self._organizations = []
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org, self)
-            self._organizations[org_config.name] = org_config
-            self._organizations[org_config.github_id] = org_config
+            self._organizations.append(org_config)
+            self._organizations_map[org_config.name] = org_config
+            self._organizations_map[org_config.github_id] = org_config
 
     @property
     def config_file(self) -> str:
@@ -168,10 +170,14 @@ class OtterdogConfig:
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:
-        return self._organizations
+        return self._organizations_map
+
+    @property
+    def organization_names(self) -> list[str]:
+        return list(map(lambda config: config.name, self._organizations))
 
     def get_organization_config(self, organization_name: str) -> OrganizationConfig:
-        org_config = self._organizations.get(organization_name)
+        org_config = self._organizations_map.get(organization_name)
         if org_config is None:
             raise RuntimeError(f"unknown organization with name / github_id '{organization_name}'")
         return org_config

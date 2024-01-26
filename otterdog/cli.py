@@ -518,7 +518,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
         # if no organization has been specified as argument,
         # process all organizations found in the configuration.
         if len(organizations) == 0:
-            organizations = list(config.organization_configs.keys())
+            organizations = config.organization_names
 
         for organization in organizations:
             org_config = config.get_organization_config(organization)
