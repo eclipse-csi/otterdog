@@ -332,6 +332,9 @@ class IndentingPrinter:
         if self._is_logging_enabled(1, is_info_enabled):
             _print_message(msg, "green", "Info", self._writer)
 
+    def is_info_enabled(self) -> bool:
+        return self._is_logging_enabled(1, is_info_enabled)
+
     def print_warn(self, msg: str) -> None:
         if self._is_logging_enabled(2, lambda: True):
             _print_message(msg, "yellow", "Warning", self._writer)

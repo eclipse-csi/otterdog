@@ -100,9 +100,8 @@ async def on_issue_comment_received(data):
         log_level_str = m.group(1)
         log_level = LogLevel.WARN
 
-        match log_level_str:
-            case "info":
-                log_level = LogLevel.INFO
+        if log_level_str is not None and log_level_str.strip() == "info":
+            log_level = LogLevel.INFO
 
         async def validate():
             await validate_pull_request(

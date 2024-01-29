@@ -204,10 +204,10 @@ class OrgClient(RestClient):
         print_debug(f"setting selected repositories for secret '{secret_name}'")
 
         try:
-            params = {"selected_repository_ids": selected_repository_ids}
+            data = {"selected_repository_ids": selected_repository_ids}
 
             url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
-            status, _ = await self.requester.async_request_raw("PUT", url, params=params)
+            status, _ = await self.requester.async_request_raw("PUT", url, json.dumps(data))
             if status != 204:
                 raise RuntimeError(f"failed to update selected repositories for secret '{secret_name}'")
             else:
@@ -312,10 +312,10 @@ class OrgClient(RestClient):
         print_debug(f"setting selected repositories for variable '{variable_name}'")
 
         try:
-            params = {"selected_repository_ids": selected_repository_ids}
+            data = {"selected_repository_ids": selected_repository_ids}
 
             url = f"/orgs/{org_id}/actions/variables/{variable_name}/repositories"
-            status, _ = await self.requester.async_request_raw("PUT", url, params=params)
+            status, _ = await self.requester.async_request_raw("PUT", url, json.dumps(data))
             if status != 204:
                 raise RuntimeError(f"failed to update selected repositories for variable '{variable_name}'")
 

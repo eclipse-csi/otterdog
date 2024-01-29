@@ -15,7 +15,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType, ModelObject
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, IndentingPrinter, is_info_enabled, style
+from otterdog.utils import Change, IndentingPrinter, style
 
 from . import Operation
 from .validate import ValidateOperation
@@ -125,7 +125,7 @@ class DiffOperation(Operation):
             self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
 
-        if validation_infos > 0 and not is_info_enabled():
+        if validation_infos > 0 and not self.printer.is_info_enabled():
             self.printer.println(
                 f"there have been {validation_infos} validation infos, "
                 f"enable verbose output with '-v' to to display them."

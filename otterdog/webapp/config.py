@@ -27,6 +27,7 @@ class AppConfig(object):
 
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")
     GITHUB_WEBHOOK_SECRET = config("GITHUB_WEBHOOK_SECRET", default=None)
+    GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-check")
 
     # GitHub App config
     GITHUB_APP_ID = config("GITHUB_APP_ID")

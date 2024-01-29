@@ -50,6 +50,12 @@ class RestApi:
         return AppClient(self)
 
     @cached_property
+    def commits(self):
+        from .commits_client import CommitsClient
+
+        return CommitsClient(self)
+
+    @cached_property
     def content(self):
         from .content_client import ContentClient
 
