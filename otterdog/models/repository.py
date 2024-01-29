@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from typing import Any, Callable, ClassVar, Iterator, Optional, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
@@ -235,11 +236,20 @@ class Repository(ModelObject):
                 f"{self.get_model_header()} has 'description' that exceeds the maximum allowed length of 350 chars.",
             )
 
-        if is_set_and_valid(self.topics) and len(self.topics) > 20:
-            context.add_failure(
-                FailureType.ERROR,
-                f"{self.get_model_header()} has more than 20 'topics' defined.",
-            )
+        if is_set_and_valid(self.topics):
+            if len(self.topics) > 20:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header()} has more than 20 'topics' defined.",
+                )
+
+            for topic in self.topics:
+                if not self._valid_topic(topic):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header()} has defined an invalid topic '{topic}'. "
+                        f"Only lower-case, numbers and '-' are allowed characters.",
+                    )
 
         if is_public and disallow_forking:
             context.add_failure(
@@ -386,6 +396,10 @@ class Repository(ModelObject):
 
         for env in self.environments:
             env.validate(context, self)
+
+    @staticmethod
+    def _valid_topic(topic, search=re.compile(r"[^a-z0-9\-]").search):
+        return not bool(search(topic))
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
