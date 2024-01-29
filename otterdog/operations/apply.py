@@ -27,11 +27,13 @@ class ApplyOperation(PlanOperation):
         update_filter: str,
         delete_resources: bool,
         resolve_secrets: bool = True,
+        include_resources_with_secrets: bool = True,
     ):
         super().__init__(no_web_ui, update_webhooks, update_secrets, update_filter)
         self._force_processing = force_processing
         self._delete_resources = delete_resources
         self._resolve_secrets = resolve_secrets
+        self._include_resources_with_secrets = include_resources_with_secrets
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
@@ -39,6 +41,9 @@ class ApplyOperation(PlanOperation):
     def pre_execute(self) -> None:
         self.printer.println("Applying changes:")
         self.print_legend()
+
+    def include_resources_with_secrets(self) -> bool:
+        return self._include_resources_with_secrets
 
     def resolve_secrets(self) -> bool:
         return self._resolve_secrets
@@ -112,9 +117,15 @@ class ApplyOperation(PlanOperation):
                 if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
                     continue
                 else:
-                    await patch.apply(org_id, self.gh_client)
+                    try:
+                        await patch.apply(org_id, self.gh_client)
+                    except RuntimeError as ex:
+                        self.printer.println()
+                        self.printer.print_error(f"failed to apply patch: {patch!r}\n{ex}")
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
+
+        self.printer.println("\nDone.")
 
         self.printer.println(
             f"\n{style('Executed plan', bright=True)}: {diff_status.additions} added, "

@@ -104,6 +104,9 @@ class Secret(ModelObject, abc.ABC):
             field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
         }
 
+    def contains_secrets(self) -> bool:
+        return True
+
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         secret_value = self.value
         if not is_unset(secret_value) and secret_value is not None:

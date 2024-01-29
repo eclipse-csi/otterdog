@@ -143,6 +143,9 @@ class Webhook(ModelObject, abc.ABC):
 
         return mapping
 
+    def contains_secrets(self) -> bool:
+        return self.secret is not None
+
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         webhook_secret = self.secret
         if not is_unset(webhook_secret) and webhook_secret is not None:

@@ -87,10 +87,10 @@ async def apply_changes(
             update_filter="",
             delete_resources=True,
             resolve_secrets=False,
+            include_resources_with_secrets=False,
         )
         operation.init(otterdog_config, printer)
 
-        # TODO: we need to exclude any change that requires credentials or the web ui
         await operation.execute(org_config)
 
         text = output.getvalue()

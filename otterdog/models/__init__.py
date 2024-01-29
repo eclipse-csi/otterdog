@@ -108,6 +108,11 @@ class LivePatch:
     async def apply(self, org_id: str, provider: GitHubProvider) -> None:
         await self.fn(self, org_id, provider)
 
+    def __repr__(self) -> str:
+        obj = self.expected_object if self.expected_object is not None else self.current_object
+        assert obj is not None
+        return f"{self.patch_type.name} - {obj.get_model_header(self.parent_object)}"
+
 
 @dataclasses.dataclass
 class PatchContext(object):
@@ -425,6 +430,9 @@ class ModelObject(ABC):
                 result[key] = value
 
         return result
+
+    def contains_secrets(self) -> bool:
+        return False
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         pass

@@ -91,6 +91,9 @@ class DiffOperation(Operation):
     def verbose_output(self):
         return True
 
+    def include_resources_with_secrets(self) -> bool:
+        return True
+
     def resolve_secrets(self) -> bool:
         return True
 
@@ -146,8 +149,9 @@ class DiffOperation(Operation):
             match patch.patch_type:
                 case LivePatchType.ADD:
                     assert patch.expected_object is not None
-                    self.handle_add_object(github_id, patch.expected_object, patch.parent_object)
-                    diff_status.additions += 1
+                    if self.include_resources_with_secrets() or not patch.expected_object.contains_secrets():
+                        self.handle_add_object(github_id, patch.expected_object, patch.parent_object)
+                        diff_status.additions += 1
 
                 case LivePatchType.REMOVE:
                     assert patch.current_object is not None
@@ -159,14 +163,15 @@ class DiffOperation(Operation):
                     assert patch.current_object is not None
                     assert patch.expected_object is not None
 
-                    diff_status.differences += self.handle_modified_object(
-                        github_id,
-                        patch.changes,
-                        False,
-                        patch.current_object,
-                        patch.expected_object,
-                        patch.parent_object,
-                    )
+                    if self.include_resources_with_secrets() or not patch.expected_object.contains_secrets():
+                        diff_status.differences += self.handle_modified_object(
+                            github_id,
+                            patch.changes,
+                            False,
+                            patch.current_object,
+                            patch.expected_object,
+                            patch.parent_object,
+                        )
 
         context = LivePatchContext(
             github_id, self.update_webhooks, self.update_secrets, self.update_filter, expected_org.settings
