@@ -7,9 +7,11 @@
 #  *******************************************************************************
 
 import os.path
+from abc import ABC, abstractmethod
 from datetime import datetime
-from logging import getLogger
-from typing import Optional
+from functools import cached_property
+from logging import Logger, getLogger
+from typing import Generic, Optional, TypeVar, Union
 
 from quart import current_app
 
@@ -23,6 +25,44 @@ _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
 _OTTERDOG_CONFIG: Optional[OtterdogConfig] = None
 
 logger = getLogger(__name__)
+
+T = TypeVar("T")
+
+
+class Task(ABC, Generic[T]):
+    @cached_property
+    def logger(self) -> Logger:
+        return getLogger(type(self).__name__)
+
+    @staticmethod
+    async def get_rest_api(installation_id: int) -> RestApi:
+        return await get_rest_api_for_installation(installation_id)
+
+    async def execute(self) -> None:
+        self.logger.debug(f"executing task '{self!r}'")
+
+        await self._pre_execute()
+
+        try:
+            result = await self._execute()
+            await self._post_execute(result)
+        except RuntimeError as ex:
+            self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
+            await self._post_execute(ex)
+
+    async def _pre_execute(self) -> None:
+        pass
+
+    async def _post_execute(self, result_or_exception: Union[T, Exception]) -> None:
+        pass
+
+    @abstractmethod
+    async def _execute(self) -> T:
+        pass
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        pass
 
 
 def _create_rest_api_for_app() -> RestApi:

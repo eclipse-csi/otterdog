@@ -1,0 +1,5 @@
+This is your friendly self-service bot. The following changes have been applied:
+
+```diff
+{{ result }}
+```

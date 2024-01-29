@@ -5,7 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-
+import logging
 import os
 from sys import exit
 
@@ -26,6 +26,8 @@ except KeyError:
     exit("Error: Invalid <config_mode>. Expected values [Debug, Production] ")
 
 app = create_app(app_config)  # type: ignore
+
+logging.basicConfig(level=logging.INFO)
 
 if os.path.exists(app_config.APP_ROOT):
     os.chdir(app_config.APP_ROOT)

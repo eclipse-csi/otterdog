@@ -14,9 +14,10 @@ from quart import Response, current_app
 
 from otterdog.utils import LogLevel
 from otterdog.webapp.tasks import get_otterdog_config
-from otterdog.webapp.tasks.apply_changes import apply_changes
-from otterdog.webapp.tasks.help_comment import create_help_comment
-from otterdog.webapp.tasks.validate_pull_request import validate_pull_request
+from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
+from otterdog.webapp.tasks.help_comment import HelpCommentTask
+from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
+from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 
 from .github_models import IssueCommentEvent, PullRequestEvent
 from .github_webhook import GitHubWebhook
@@ -39,31 +40,35 @@ async def on_pull_request_received(data):
     if event.repository.name != otterdog_config.default_config_repo:
         return success()
 
-    if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
-
-        async def validate():
-            await validate_pull_request(
-                event.organization.login,
+    if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
+        current_app.add_background_task(
+            RetrieveTeamMembershipTask(
                 event.installation.id,
-                event.pull_request,
+                event.organization.login,
                 event.repository,
-                otterdog_config,
-            )
+                event.issue.number,
+            ).execute
+        )
 
-        current_app.add_background_task(validate)
+    if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
+        current_app.add_background_task(
+            ValidatePullRequestTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository,
+                event.pull_request,
+            ).execute
+        )
 
     elif event.action in ["closed"] and event.pull_request.merged is True:
-
-        async def apply():
-            await apply_changes(
-                event.organization.login,
+        current_app.add_background_task(
+            ApplyChangesTask(
                 event.installation.id,
-                event.pull_request,
+                event.organization.login,
                 event.repository,
-                otterdog_config,
-            )
-
-        current_app.add_background_task(apply)
+                event.pull_request,
+            ).execute
+        )
 
     return success()
 
@@ -86,11 +91,24 @@ async def on_issue_comment_received(data):
         installation_id = event.installation.id
 
         if re.match(r"\s*/help\s*", event.comment.body) is not None:
-
-            async def help_comment():
-                await create_help_comment(org_id, installation_id, event.repository.name, event.issue.number)
-
-            current_app.add_background_task(help_comment)
+            current_app.add_background_task(
+                HelpCommentTask(
+                    installation_id,
+                    org_id,
+                    event.repository.name,
+                    event.issue.number,
+                ).execute
+            )
+            return success()
+        elif re.match(r"\s*/team-info\s*", event.comment.body) is not None:
+            current_app.add_background_task(
+                RetrieveTeamMembershipTask(
+                    installation_id,
+                    org_id,
+                    event.repository,
+                    event.issue.number,
+                ).execute
+            )
             return success()
 
         m = re.match(r"\s*/validate(\s+info)?\s*", event.comment.body)
@@ -103,17 +121,15 @@ async def on_issue_comment_received(data):
         if log_level_str is not None and log_level_str.strip() == "info":
             log_level = LogLevel.INFO
 
-        async def validate():
-            await validate_pull_request(
-                org_id,
+        current_app.add_background_task(
+            ValidatePullRequestTask(
                 installation_id,
-                event.issue.number,
+                org_id,
                 event.repository,
-                otterdog_config,
-                log_level=log_level,
-            )
-
-        current_app.add_background_task(validate)
+                event.issue.number,
+                log_level,
+            ).execute
+        )
 
     return success()
 

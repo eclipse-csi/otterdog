@@ -14,7 +14,7 @@ from otterdog.utils import print_debug
 from . import RestApi, RestClient
 
 
-class CommitsClient(RestClient):
+class CommitClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 

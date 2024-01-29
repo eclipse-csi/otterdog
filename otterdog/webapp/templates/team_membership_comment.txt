@@ -1,0 +1,10 @@
+This is your friendly self-service bot.
+{% if (teams is defined) and teams %}
+The author ([{{ user }}](https://github.com/{{ user }})) of this PR is a member of the following teams:
+
+{% for team in teams %}
+- [{{ team.0 }}]({{ team.1 }})
+{% endfor %}
+{% else %}
+The author ([{{ user }}](https://github.com/{{ user }})) of this PR is not a member of this organization.
+{% endif %}
