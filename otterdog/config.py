@@ -29,12 +29,14 @@ class OrganizationConfig:
         name: str,
         github_id: str,
         config_repo: str,
+        base_template: str,
         jsonnet_config: JsonnetConfig,
         credential_data: dict[str, Any],
     ):
         self._name = name
         self._github_id = github_id
         self._config_repo = config_repo
+        self._base_template = base_template
         self._jsonnet_config = jsonnet_config
         self._credential_data = credential_data
 
@@ -49,6 +51,10 @@ class OrganizationConfig:
     @property
     def config_repo(self) -> str:
         return self._config_repo
+
+    @property
+    def base_template(self) -> str:
+        return self._base_template
 
     @property
     def jsonnet_config(self) -> JsonnetConfig:
@@ -92,7 +98,7 @@ class OrganizationConfig:
         if data is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, config_repo, jsonnet_config, data)
+        return cls(name, github_id, config_repo, base_template, jsonnet_config, data)
 
     @classmethod
     def of(
@@ -103,17 +109,22 @@ class OrganizationConfig:
         work_dir: str,
         otterdog_config: OtterdogConfig,
     ) -> OrganizationConfig:
-        config_repo = otterdog_config.default_config_repo
+        # get the default organization config to retrieve some properties
+        org_config = otterdog_config.get_organization_config(project_name)
+        config_repo = org_config.config_repo
+        base_template = org_config.base_template
+
+        # construct a custom jsonnet config based on the given work_dir
         base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
 
         jsonnet_config = JsonnetConfig(
             github_id,
             base_dir,
-            otterdog_config.default_base_template,
+            base_template,
             otterdog_config.local_mode,
         )
 
-        return cls(project_name, github_id, config_repo, jsonnet_config, credential_data)
+        return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)
 
 
 class OtterdogConfig:
