@@ -3,3 +3,4 @@ This is your friendly self-service bot. The following commands are supported:
 - `/team-info`: checks the team / org membership for the PR author
 - `/validate`: validates the configuration change if this PR touches the configuration
 - `/validate info`: validates the configuration change, printing also validation infos
+- `/check-sync`: checks if the base ref is in sync with live settings

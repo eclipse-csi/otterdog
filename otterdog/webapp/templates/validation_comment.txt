@@ -10,4 +10,15 @@ Please find below the validation of the requested configuration changes:
 
 </details>
 
+{% if (warnings is defined) and warnings %}
+### Warnings
+
+{% for warning in warnings %}
+- {{ warning }}
+{% endfor %}
+
+cc @{{ admin_team }}
+
+{% endif %}
+
 Add a comment `/help` to get a list of available commands.

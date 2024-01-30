@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import dataclasses
 import filecmp
 import os
@@ -18,6 +20,8 @@ from pydantic import ValidationError
 from quart import current_app, render_template
 
 from otterdog.config import OrganizationConfig
+from otterdog.models import LivePatch
+from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
@@ -25,8 +29,15 @@ from otterdog.webapp.tasks import Task, get_otterdog_config
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
+@dataclasses.dataclass
+class ValidationResult:
+    plan_output: str = ""
+    validation_success: bool = True
+    requires_secrets: bool = False
+
+
 @dataclasses.dataclass(repr=False)
-class ValidatePullRequestTask(Task[int]):
+class ValidatePullRequestTask(Task[ValidationResult]):
     """Validates a PR and adds the result as a comment."""
 
     installation_id: int
@@ -34,6 +45,10 @@ class ValidatePullRequestTask(Task[int]):
     repository: Repository
     pull_request_or_number: PullRequest | int
     log_level: LogLevel = LogLevel.WARN
+
+    @property
+    def check_base_config(self) -> bool:
+        return True
 
     async def _pre_execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
@@ -59,7 +74,18 @@ class ValidatePullRequestTask(Task[int]):
 
         await self._create_pending_status(rest_api)
 
-    async def _post_execute(self, result_or_exception: Union[int, Exception]) -> None:
+        from .check_sync import CheckConfigurationInSyncTask
+
+        check_task = CheckConfigurationInSyncTask(
+            self.installation_id,
+            self.org_id,
+            self.repository,
+            self.pull_request_or_number,
+        )
+
+        current_app.add_background_task(check_task.execute)
+
+    async def _post_execute(self, result_or_exception: Union[ValidationResult, Exception]) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
 
         if isinstance(result_or_exception, Exception):
@@ -67,7 +93,7 @@ class ValidatePullRequestTask(Task[int]):
         else:
             await self._update_final_status(rest_api, result_or_exception)
 
-    async def _execute(self) -> int:
+    async def _execute(self) -> ValidationResult:
         otterdog_config = get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
         project_name = otterdog_config.get_project_name(self.org_id) or self.org_id
@@ -111,29 +137,47 @@ class ValidatePullRequestTask(Task[int]):
                 self.pull_request.head.ref,
             )
 
+            validation_result = ValidationResult()
+
             if filecmp.cmp(base_file, head_file):
-                self.logger.info("head and base config are identical, no need to validate")
-                return 0
+                self.logger.debug("head and base config are identical, no need to validate")
+                validation_result.plan_output = "No changes."
+                validation_result.validation_success = True
+            else:
+                output = StringIO()
+                printer = IndentingPrinter(output, log_level=self.log_level)
+                operation = LocalPlanOperation("-BASE", False, False, "")
 
-            output = StringIO()
-            printer = IndentingPrinter(output, log_level=self.log_level)
-            operation = LocalPlanOperation("-BASE", False, False, "")
-            operation.init(otterdog_config, printer)
+                def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
+                    validation_result.requires_secrets = any(list(map(lambda x: x.requires_secrets(), patches)))
 
-            plan_result = await operation.execute(org_config)
+                operation.set_callback(callback)
+                operation.init(otterdog_config, printer)
 
-            text = output.getvalue()
-            self.logger.info(text)
+                plan_result = await operation.execute(org_config)
 
-            result = await render_template(
-                "validation_comment.txt", sha=self.pull_request.head.sha, result=escape_for_github(text)
+                validation_result.plan_output = output.getvalue()
+                validation_result.validation_success = plan_result == 0
+                self.logger.info("local plan:" + validation_result.plan_output)
+
+            warnings = []
+            if validation_result.requires_secrets:
+                warnings.append("some of requested changes require secrets, need to apply these changes manually")
+
+            comment = await render_template(
+                "validation_comment.txt",
+                sha=self.pull_request.head.sha,
+                result=escape_for_github(validation_result.plan_output),
+                warnings=warnings,
+                admin_team=f"{self.org_id}/{get_admin_team()}",
             )
+
             # add a comment about the validation result to the PR
             await rest_api.issue.create_comment(
-                self.org_id, otterdog_config.default_config_repo, pull_request_number, result
+                self.org_id, otterdog_config.default_config_repo, pull_request_number, comment
             )
 
-            return plan_result
+            return validation_result
 
     async def _create_pending_status(self, rest_api: RestApi):
         await rest_api.commit.create_commit_status(
@@ -141,7 +185,7 @@ class ValidatePullRequestTask(Task[int]):
             self.repository.name,
             self.pull_request.head.sha,
             "pending",
-            _get_webhook_context(),
+            _get_webhook_validation_context(),
             "validating configuration change using otterdog",
         )
 
@@ -151,23 +195,24 @@ class ValidatePullRequestTask(Task[int]):
             self.repository.name,
             self.pull_request.head.sha,
             "failure",
-            _get_webhook_context(),
+            _get_webhook_validation_context(),
             "otterdog validation failed, please contact an admin",
         )
 
-    async def _update_final_status(self, rest_api: RestApi, execution_result: int) -> None:
-        desc = (
-            "otterdog validation completed successfully"
-            if execution_result == 0
-            else "otterdog validation failed, check validation result in comment history"
-        )
+    async def _update_final_status(self, rest_api: RestApi, validation_result: ValidationResult) -> None:
+        if validation_result.validation_success is True:
+            desc = "otterdog validation completed successfully"
+            status = "success"
+        else:
+            desc = "otterdog validation failed, check validation result in comment history"
+            status = "error"
 
         await rest_api.commit.create_commit_status(
             self.org_id,
             self.repository.name,
             self.pull_request.head.sha,
-            "success" if execution_result == 0 else "error",
-            _get_webhook_context(),
+            status,
+            _get_webhook_validation_context(),
             desc,
         )
 
@@ -180,8 +225,12 @@ class ValidatePullRequestTask(Task[int]):
         return f"ValidatePullRequestTask(repo={self.repository.full_name}, pull_request={pull_request_number})"
 
 
-def _get_webhook_context() -> str:
+def _get_webhook_validation_context() -> str:
     return current_app.config["GITHUB_WEBHOOK_VALIDATION_CONTEXT"]
+
+
+def get_admin_team() -> str:
+    return current_app.config["GITHUB_ADMIN_TEAM"]
 
 
 async def get_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):

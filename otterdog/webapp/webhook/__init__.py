@@ -15,6 +15,7 @@ from quart import Response, current_app
 from otterdog.utils import LogLevel
 from otterdog.webapp.tasks import get_otterdog_config
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
+from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
@@ -103,6 +104,16 @@ async def on_issue_comment_received(data):
         elif re.match(r"\s*/team-info\s*", event.comment.body) is not None:
             current_app.add_background_task(
                 RetrieveTeamMembershipTask(
+                    installation_id,
+                    org_id,
+                    event.repository,
+                    event.issue.number,
+                ).execute
+            )
+            return success()
+        elif re.match(r"\s*/check-sync\s*", event.comment.body) is not None:
+            current_app.add_background_task(
+                CheckConfigurationInSyncTask(
                     installation_id,
                     org_id,
                     event.repository,

@@ -105,6 +105,19 @@ class LivePatch:
             LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
         )
 
+    def requires_secrets(self) -> bool:
+        match self.patch_type:
+            case LivePatchType.ADD:
+                assert self.expected_object is not None
+                return self.expected_object.contains_secrets()
+
+            case LivePatchType.REMOVE:
+                return False
+
+            case LivePatchType.CHANGE:
+                assert self.expected_object is not None
+                return self.expected_object.contains_secrets()
+
     async def apply(self, org_id: str, provider: GitHubProvider) -> None:
         await self.fn(self, org_id, provider)
 

@@ -6,9 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import os
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
@@ -34,6 +36,11 @@ class DiffStatus:
             return self.additions + self.differences
 
 
+class CallbackFn(Protocol):
+    def __call__(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
+        ...
+
+
 class DiffOperation(Operation):
     def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool, update_filter: str):
         super().__init__()
@@ -46,6 +53,7 @@ class DiffOperation(Operation):
         self._validator = ValidateOperation()
         self._template_dir: Optional[str] = None
         self._org_config: Optional[OrganizationConfig] = None
+        self._callback: Optional[CallbackFn] = None
 
     @property
     def template_dir(self) -> str:
@@ -56,6 +64,9 @@ class DiffOperation(Operation):
     def org_config(self) -> OrganizationConfig:
         assert self._org_config is not None
         return self._org_config
+
+    def set_callback(self, fn: CallbackFn) -> None:
+        self._callback = fn
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)
@@ -144,14 +155,16 @@ class DiffOperation(Operation):
         live_patches = []
 
         def handle(patch: LivePatch) -> None:
+            if not self.include_resources_with_secrets() and patch.requires_secrets():
+                return
+
             live_patches.append(patch)
 
             match patch.patch_type:
                 case LivePatchType.ADD:
                     assert patch.expected_object is not None
-                    if self.include_resources_with_secrets() or not patch.expected_object.contains_secrets():
-                        self.handle_add_object(github_id, patch.expected_object, patch.parent_object)
-                        diff_status.additions += 1
+                    self.handle_add_object(github_id, patch.expected_object, patch.parent_object)
+                    diff_status.additions += 1
 
                 case LivePatchType.REMOVE:
                     assert patch.current_object is not None
@@ -162,16 +175,14 @@ class DiffOperation(Operation):
                     assert patch.changes is not None
                     assert patch.current_object is not None
                     assert patch.expected_object is not None
-
-                    if self.include_resources_with_secrets() or not patch.expected_object.contains_secrets():
-                        diff_status.differences += self.handle_modified_object(
-                            github_id,
-                            patch.changes,
-                            False,
-                            patch.current_object,
-                            patch.expected_object,
-                            patch.parent_object,
-                        )
+                    diff_status.differences += self.handle_modified_object(
+                        github_id,
+                        patch.changes,
+                        False,
+                        patch.current_object,
+                        patch.expected_object,
+                        patch.parent_object,
+                    )
 
         context = LivePatchContext(
             github_id, self.update_webhooks, self.update_secrets, self.update_filter, expected_org.settings
@@ -199,6 +210,10 @@ class DiffOperation(Operation):
                     live_patch.expected_object.resolve_secrets(self.config.get_secret)
 
         await self.handle_finish(github_id, diff_status, live_patches)
+
+        if self._callback is not None:
+            self._callback(github_id, diff_status, live_patches)
+
         return 0
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:

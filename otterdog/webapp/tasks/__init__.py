@@ -38,7 +38,7 @@ class Task(ABC, Generic[T]):
     async def get_rest_api(installation_id: int) -> RestApi:
         return await get_rest_api_for_installation(installation_id)
 
-    async def execute(self) -> None:
+    async def execute(self) -> Optional[T]:
         self.logger.debug(f"executing task '{self!r}'")
 
         await self._pre_execute()
@@ -46,9 +46,11 @@ class Task(ABC, Generic[T]):
         try:
             result = await self._execute()
             await self._post_execute(result)
+            return result
         except RuntimeError as ex:
             self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
             await self._post_execute(ex)
+            return None
 
     async def _pre_execute(self) -> None:
         pass

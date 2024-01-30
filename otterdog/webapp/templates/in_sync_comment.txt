@@ -1,0 +1,1 @@
+This is your friendly self-service bot. The current configuration is in-sync with the live settings. :rocket:

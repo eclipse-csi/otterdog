@@ -25,9 +25,11 @@ class AppConfig(object):
     # Set up the App SECRET_KEY
     SECRET_KEY = config("SECRET_KEY")
 
+    GITHUB_ADMIN_TEAM = config("GITHUB_ADMIN_TEAM", default="otterdog-admins")
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")
     GITHUB_WEBHOOK_SECRET = config("GITHUB_WEBHOOK_SECRET", default=None)
-    GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-check")
+    GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-validate")
+    GITHUB_WEBHOOK_SYNC_CONTEXT = config("GITHUB_WEBHOOK_SYNC_CONTEXT", default="otterdog-sync")
 
     # GitHub App config
     GITHUB_APP_ID = config("GITHUB_APP_ID")

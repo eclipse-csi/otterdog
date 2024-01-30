@@ -125,7 +125,7 @@ class ApplyOperation(PlanOperation):
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
 
-        self.printer.println("\nDone.")
+        self.printer.println("Done.")
 
         self.printer.println(
             f"\n{style('Executed plan', bright=True)}: {diff_status.additions} added, "

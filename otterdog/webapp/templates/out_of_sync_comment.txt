@@ -1,0 +1,12 @@
+This is your friendly self-service bot. The current configuration is out-of-sync with the live settings:
+
+<details>
+<summary>Diff to live settings</summary>
+
+```diff
+{{ result }}
+```
+
+</details>
+
+The current configuration needs to be updated to reflect the live settings otherwise they would be overwritten when this PR gets merged. cc @{{ admin_team }}
