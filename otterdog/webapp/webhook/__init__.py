@@ -13,14 +13,14 @@ from pydantic import ValidationError
 from quart import Response, current_app
 
 from otterdog.utils import LogLevel
-from otterdog.webapp.tasks import get_otterdog_config
+from otterdog.webapp.tasks import get_otterdog_config, refresh_otterdog_config
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 
-from .github_models import IssueCommentEvent, PullRequestEvent
+from .github_models import IssueCommentEvent, PullRequestEvent, PushEvent
 from .github_webhook import GitHubWebhook
 
 webhook = GitHubWebhook()
@@ -36,6 +36,9 @@ async def on_pull_request_received(data):
         logger.error("failed to load pull request event data", exc_info=True)
         return success()
 
+    if event.installation is None or event.organization is None:
+        return success()
+
     otterdog_config = get_otterdog_config()
 
     if event.repository.name != otterdog_config.default_config_repo:
@@ -47,7 +50,7 @@ async def on_pull_request_received(data):
                 event.installation.id,
                 event.organization.login,
                 event.repository,
-                event.issue.number,
+                event.pull_request,
             ).execute
         )
 
@@ -80,6 +83,9 @@ async def on_issue_comment_received(data):
         event = IssueCommentEvent.model_validate(data)
     except ValidationError:
         logger.error("failed to load issue comment event data", exc_info=True)
+        return success()
+
+    if event.installation is None or event.organization is None:
         return success()
 
     otterdog_config = get_otterdog_config()
@@ -142,6 +148,27 @@ async def on_issue_comment_received(data):
             ).execute
         )
 
+    return success()
+
+
+@webhook.hook("push")
+async def on_push_received(data):
+    try:
+        event = PushEvent.model_validate(data)
+    except ValidationError:
+        logger.error("failed to load push event data", exc_info=True)
+        return success()
+
+    if (
+        event.repository.name != current_app.config["OTTERDOG_CONFIG_REPO"]
+        or event.repository.owner.login != current_app.config["OTTERDOG_CONFIG_OWNER"]
+    ):
+        return success()
+
+    if event.ref != f"refs/heads/{event.repository.default_branch}":
+        return success()
+
+    current_app.add_background_task(refresh_otterdog_config)
     return success()
 
 

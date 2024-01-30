@@ -72,10 +72,10 @@ class PullRequest(BaseModel):
     state: str
     locked: bool
     title: str
-    body: Optional[str]
+    body: Optional[str] = None
     draft: bool
     merged: bool
-    merge_commit_sha: Optional[str]
+    merge_commit_sha: Optional[str] = None
     user: Actor
 
     head: Ref
@@ -108,15 +108,15 @@ class Issue(BaseModel):
 class Event(ABC, BaseModel):
     """Base class of events"""
 
-    action: str
-    installation: Installation
-    organization: Organization
+    installation: Optional[Installation] = None
+    organization: Optional[Organization] = None
     sender: Actor
 
 
 class PullRequestEvent(Event):
     """A payload sent for pull request specific events."""
 
+    action: str
     number: int
     pull_request: PullRequest
     repository: Repository
@@ -139,6 +139,7 @@ class PushEvent(Event):
 class IssueCommentEvent(Event):
     """A payload sent for issue comment events."""
 
+    action: str
     issue: Issue
     comment: Comment
     repository: Repository

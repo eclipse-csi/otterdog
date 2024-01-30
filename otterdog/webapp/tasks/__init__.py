@@ -101,20 +101,26 @@ def get_otterdog_config() -> OtterdogConfig:
     global _OTTERDOG_CONFIG
 
     if _OTTERDOG_CONFIG is None:
-        _OTTERDOG_CONFIG = load_otterdog_config()
+        _OTTERDOG_CONFIG = _load_otterdog_config()
 
     return _OTTERDOG_CONFIG
 
 
-def load_otterdog_config() -> OtterdogConfig:
+def refresh_otterdog_config():
+    global _OTTERDOG_CONFIG
+    _OTTERDOG_CONFIG = _load_otterdog_config()
+
+
+def _load_otterdog_config() -> OtterdogConfig:
     app_root = current_app.config["APP_ROOT"]
     config_file_url = current_app.config["OTTERDOG_CONFIG_URL"]
+
+    logger.info(f"loading otterdog config from url '{config_file_url}'")
 
     import requests
 
     with requests.get(config_file_url) as response:
         config_file = os.path.join(app_root, "otterdog.json")
-        logger.info(f"writing otterdog configuration to '{config_file}'")
         with open(config_file, "w") as file:
             file.write(response.text)
 
