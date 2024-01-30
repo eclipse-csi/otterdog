@@ -4,6 +4,7 @@
 
 ### Added
 
+- Support running otterdog as a GitHub app. ([#16](https://github.com/eclipse-csi/otterdog/issues/16))
 - Added operation `install-deps` in order to install required runtime dependencies (firefox browser).
 
 ### Changed
