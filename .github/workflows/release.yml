@@ -1,0 +1,179 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+      version-fragment:
+        description: 'Version fragment to increase for next development cycle'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+env:
+  BOT_USER_NAME: eclipse-csi-bot
+  BOT_EMAIL: csi-bot@eclipse.org
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  precheck:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    if: github.repository == 'eclipse-csi/otterdog'
+    steps:
+      - name: Check ref
+        shell: bash
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Release shall only be made from 'main' branch, triggered branch '${{ github.ref_name }}', aborting."
+            exit 1
+          fi
+
+  release:
+    runs-on: ubuntu-22.04
+    needs: ['precheck']
+    permissions:
+      contents: write
+    outputs:
+      release-version: ${{ steps.prepare-release.outputs.RELEASE_VERSION }}
+      release-tag: ${{ steps.prepare-release.outputs.RELEASE_TAG }}
+    steps:
+      - name: Setup Git User
+        run: |
+          git config --global user.name '${{ env.BOT_USER_NAME }}'
+          git config --global user.email '${{ env.BOT_EMAIL }}'
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3
+        with:
+          virtualenvs-in-project: true
+          version: 1.7.1
+
+      - name: Install dependencies
+        run: poetry install -v --without dev,typing,docs
+
+      - name: Run tests
+        run: |
+          source $VENV
+          pytest -rs tests
+
+      - name: Prepare release
+        id: prepare-release
+        shell: bash
+        run: |
+          PROJECT_VERSION="$(poetry version -s)"
+          RELEASE_VERSION="${{ github.event.inputs.version }}"
+
+          echo "PROJECT_VERSION=$(echo $PROJECT_VERSION)" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Project version: $PROJECT_VERSION"
+          echo "Release version: $RELEASE_VERSION"
+
+          if git show-ref --tags --verify --quiet "refs/tags/v${RELEASE_VERSION}"; then
+            echo "Release Tag 'v${RELEASE_VERSION}' already exists, aborting."
+            exit 1
+          fi
+
+          if [ "$PROJECT_VERSION" != "$RELEASE_VERSION" ]; then
+            poetry version $RELEASE_VERSION
+            git commit -a -m "Releasing version $RELEASE_VERSION"
+            git push origin ${{ github.ref }}
+          fi
+          
+          echo "RELEASE_TAG=v$RELEASE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Tag release
+        id: tag-release
+        shell: bash
+        run: |
+          git tag ${{ steps.prepare-release.outputs.RELEASE_TAG }}
+          git push origin --tags
+
+  build-and-push-image:
+    runs-on: ubuntu-22.04
+    needs: ['release']
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ needs.release.outputs.release-tag }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          tags: |
+            ${{ needs.release.outputs.release-version }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.release.outputs.release-version }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.release-version }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  prepare-for-next-development-cycle:
+    runs-on: ubuntu-22.04
+    needs: ['precheck', 'release', 'build-and-push-image']
+    permissions:
+      contents: write
+    steps:
+      - name: Setup Git User
+        run: |
+          git config --global user.name '${{ env.BOT_USER_NAME }}'
+          git config --global user.email '${{ env.BOT_EMAIL }}'
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3
+        with:
+          virtualenvs-in-project: true
+          version: 1.7.1
+
+      - name: Update next development version
+        run: |
+          NEXT_VERSION="$(poetry version ${{ github.event.inputs.version-fragment }} -s)"
+          poetry version "$NEXT_VERSION".dev0
+
+          git commit -a -m "Prepare for next development cycle"
+          git push origin ${{ github.ref }}
