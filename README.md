@@ -1,5 +1,7 @@
 [![Build](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg)](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml)
 [![Documentation status](https://readthedocs.org/projects/otterdog/badge/?version=latest)](https://otterdog.readthedocs.io/en/latest/?badge=latest)
+[![PyPI](https://img.shields.io/pypi/v/otterdog?color=blue)](https://pypi.org/project/otterdog)
+[![PyPI - Python Versions](https://img.shields.io/pypi/pyversions/otterdog)](https://pypi.org/project/otterdog)
 [![EPLv2 License](https://img.shields.io/github/license/eclipse-csi/otterdog)](https://github.com/eclipse-csi/otterdog/blob/main/LICENSE)
 
 # Otterdog
