@@ -14,7 +14,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 
-class ModelTest(ABC, unittest.TestCase):
+class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):
     @property
     def org_id(self) -> str:
         return "OtterdogTest"
@@ -31,13 +31,13 @@ class ModelTest(ABC, unittest.TestCase):
 
     @property
     def provider(self):
-        def get_actor_node_ids(actors):
+        async def get_actor_node_ids(actors):
             return [f"id_{actor[1:]}" for actor in actors]
 
-        def get_app_node_ids(app_names):
+        async def get_app_node_ids(app_names):
             return {app: f"id_{app}" for app in app_names}
 
-        def get_actor_ids_with_type(actors):
+        async def get_actor_ids_with_type(actors):
             result = []
             for actor in actors:
                 if "/" in actor:
