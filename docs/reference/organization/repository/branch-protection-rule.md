@@ -28,9 +28,9 @@ Definition of a Branch Protection Rule, the following properties are supported:
 | _allows_force_pushes_              | boolean                                | If enabled, actors with push permission can force push to matching branches                                                                                                                 | This property takes precedence over `bypass_force_push_allowances` if enabled, allowing all users with write access to force push                                                                                                                                                                                    |
 | _bypass_force_push_allowances_     | list\[[Actor](actor.md)\]              | List of actors able to force push to matching branches                                                                                                                                      | This property is only taken into account when `allows_force_pushes` is disabled                                                                                                                                                                                                                                      |
 | _allows_deletions_                 | boolean                                | If enabled, allows actors with push permission to delete matching branches                                                                                                                  |                                                                                                                                                                                                                                                                                                                      |
- 
+
 !!! note
-    
+
     Property `allows_force_pushes` takes precedence of `bypass_force_push_allowances`. If it is enabled, any actor with
     write permissions can force push to matching branches. If you want to specify a list of actors that are allowed to
     force push, set `allows_force_pushes` to `false` and specify the allowed list of actors in `bypass_force_push_allowances`.

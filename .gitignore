@@ -8,11 +8,12 @@ __pycache__/
 .vscode
 
 dist
+site
 .venv/
 .cache/
 
 ### Ignoring otterdog out directory orgs
-orgs*
+orgs/
 
 ### Ignoring data to test
 data

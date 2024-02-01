@@ -52,7 +52,7 @@ activate-otterdog(){
     then
         export PATH=${__SCRIPT_DIR}:${PATH}
         __og_alias.set $__SCRIPT_DIR/otterdog
-        
+
     fi
 }
 

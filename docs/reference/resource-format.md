@@ -14,7 +14,7 @@ The following example illustrates the basic structure used by otterdog:
 local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet'; // (1)!
 
 orgs.newOrg('adoptium') { // (2)!
-  settings+: { 
+  settings+: {
     blog: "https://adoptium.net", // (3)!
     ...
   },
@@ -59,7 +59,7 @@ local newOrg(id) = {
 }
 ```
 
-It defines a json object with various properties and their respective values, e.g. `.settings.name` = `null`. 
+It defines a json object with various properties and their respective values, e.g. `.settings.name` = `null`.
 
 ### Concatenation
 
@@ -68,13 +68,13 @@ properties that are already defined by a function while inheriting every other o
 
 ``` jsonnet linenums="1" hl_lines="2"
 orgs.newOrg('adoptium') {
-  settings+: { 
+  settings+: {
     name: "Eclipse Adoptium",
   }
 }
 ```
 
-The resulting json object will inherit all properties defined by the function `orgs.newOrg`, but will override 
+The resulting json object will inherit all properties defined by the function `orgs.newOrg`, but will override
 the specific property `.settings.name` to the value `Eclipse Adoptium`.
 
 ``` jsonnet
@@ -96,13 +96,13 @@ On the contrary, if we would not use the `+` operator but instead use the functi
 
 ``` jsonnet linenums="1" hl_lines="2"
 orgs.newOrg('adoptium') {
-  settings: { 
+  settings: {
     name: "Eclipse Adoptium",
   }
 }
 ```
 
-the resulting json object would not include any properties in `.settings` as the whole nested 
+the resulting json object would not include any properties in `.settings` as the whole nested
 structure was replaced:
 
 ``` jsonnet
@@ -120,4 +120,3 @@ structure was replaced:
     Otterdog will use the `+` operator by default when importing the current live configuration
     of a GitHub organization. In general it is strongly discouraged to remove the `+` operator
     as it might lead to incomplete configurations due to missing properties.
-    

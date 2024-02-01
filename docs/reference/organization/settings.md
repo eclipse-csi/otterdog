@@ -49,7 +49,7 @@ The following table captures all supported settings on organization level:
 === "jsonnet"
     ``` jsonnet
     orgs.newOrg('adoptium') {
-        settings+: { 
+        settings+: {
             blog: "https://adoptium.net",
             default_repository_permission: "none",
             description: "The Adoptium Working Group ...",

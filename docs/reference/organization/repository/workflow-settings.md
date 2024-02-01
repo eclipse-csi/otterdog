@@ -21,7 +21,7 @@ Definition of workflow settings on repository level, the following properties ar
     ``` jsonnet
     orgs.newRepo('jdk21u') {
         ...
-        workflows+: { 
+        workflows+: {
             enabled: false,
         },
         ...

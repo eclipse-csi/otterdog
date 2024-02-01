@@ -101,7 +101,7 @@ __og_arguments.read(){
     case ${opt} in
       p )
         export __OG_PASSWORD_STORE_PATH=$(dirname $OPTARG)
-        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value 
+        __og_num_parameters=$((__og_num_parameters+2)) ### 2 = Option + Value
         ;;
       g )
         export __OG_GNUPG_PATH=$(readlink -f $OPTARG)

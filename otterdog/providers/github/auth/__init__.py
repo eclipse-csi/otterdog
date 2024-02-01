@@ -14,14 +14,12 @@ from requests.auth import AuthBase
 
 class AuthImpl(AuthBase):
     @abstractmethod
-    def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None:
-        ...
+    def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None: ...
 
 
 class AuthStrategy(ABC):
     @abstractmethod
-    def get_auth(self) -> AuthImpl:
-        ...
+    def get_auth(self) -> AuthImpl: ...
 
 
 def app_auth(app_id: str, private_key: str) -> AuthStrategy:

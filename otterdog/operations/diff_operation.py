@@ -37,8 +37,7 @@ class DiffStatus:
 
 
 class CallbackFn(Protocol):
-    def __call__(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
-        ...
+    def __call__(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None: ...
 
 
 class DiffOperation(Operation):
@@ -230,8 +229,7 @@ class DiffOperation(Operation):
         org_id: str,
         model_object: ModelObject,
         parent_object: Optional[ModelObject] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
     def handle_delete_object(
@@ -239,8 +237,7 @@ class DiffOperation(Operation):
         org_id: str,
         model_object: ModelObject,
         parent_object: Optional[ModelObject] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
     def handle_modified_object(
@@ -251,9 +248,7 @@ class DiffOperation(Operation):
         current_object: ModelObject,
         expected_object: ModelObject,
         parent_object: Optional[ModelObject] = None,
-    ) -> int:
-        ...
+    ) -> int: ...
 
     @abstractmethod
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
-        ...
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None: ...

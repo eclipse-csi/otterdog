@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
-# *******************************************************************************
-# Copyright (c) 2023 Eclipse Foundation and others.
-# This program and the accompanying materials are made available
-# under the terms of the MIT License
-# which is available at https://spdx.org/licenses/MIT.html
-# SPDX-License-Identifier: MIT
-# *******************************************************************************
+#
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
+#  *******************************************************************************
+#
 
 # resolve the program directory
 PRG="$0"
 while [ -h "$PRG" ] ; do
-  ls=`ls -ld "$PRG"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
+  ls=$(ls -ld "$PRG")
+  link=$(expr "$ls" : '.*-> \(.*\)$')
   if expr "$link" : '/.*' > /dev/null; then
     PRG="$link"
   else
-    PRG=`dirname "$PRG"`/"$link"
+    PRG=$(dirname "$PRG")/"$link"
   fi
 done
-PRGDIR=`dirname "$PRG"`
+PRGDIR=$(dirname "$PRG")
 
 if ! command -v poetry &> /dev/null
 then
     # activate virtual environment
-    source $PRGDIR/.venv/bin/activate
+    # shellcheck source=/dev/null
+    source "$PRGDIR"/.venv/bin/activate
     PYTHONPATH=$PYTHONPATH:$PRGDIR python3 -m otterdog.cli "$@"
 else
-    poetry -C $PRGDIR run otterdog "$@"
+    poetry -C "$PRGDIR" run otterdog "$@"
 fi

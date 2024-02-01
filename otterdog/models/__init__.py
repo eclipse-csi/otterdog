@@ -65,8 +65,7 @@ class LivePatchType(Enum):
 
 
 class LivePatchApplyFn(Protocol):
-    async def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-        ...
+    async def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...
 
 
 @dataclasses.dataclass(frozen=True)
@@ -144,8 +143,7 @@ class LivePatchContext(object):
 
 
 class LivePatchHandler(Protocol):
-    def __call__(self, patch: LivePatch) -> None:
-        ...
+    def __call__(self, patch: LivePatch) -> None: ...
 
 
 @dataclasses.dataclass
@@ -168,8 +166,7 @@ class ModelObject(ABC):
 
     @property
     @abstractmethod
-    def model_object_name(self) -> str:
-        ...
+    def model_object_name(self) -> str: ...
 
     def is_keyed(self) -> bool:
         """Indicates whether the ModelObject is keyed by a property"""
@@ -194,8 +191,7 @@ class ModelObject(ABC):
         return [self.get_key_value()]
 
     @abstractmethod
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        ...
+    def validate(self, context: ValidationContext, parent_object: Any) -> None: ...
 
     # noinspection PyMethodMayBeStatic
     def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
@@ -337,18 +333,15 @@ class ModelObject(ABC):
 
     @classmethod
     @abstractmethod
-    def from_model_data(cls, data: dict[str, Any]):
-        ...
+    def from_model_data(cls, data: dict[str, Any]): ...
 
     @classmethod
     @abstractmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        ...
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]): ...
 
     @classmethod
     @abstractmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        ...
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]: ...
 
     async def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
         return await self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
@@ -368,8 +361,7 @@ class ModelObject(ABC):
     @abstractmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]:
-        ...
+    ) -> dict[str, Any]: ...
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True
@@ -454,8 +446,7 @@ class ModelObject(ABC):
         pass
 
     @abstractmethod
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
-        ...
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]: ...
 
     def to_jsonnet(
         self,
@@ -547,5 +538,4 @@ class ModelObject(ABC):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-        ...
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...

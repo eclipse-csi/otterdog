@@ -7,8 +7,8 @@ them locally in a file `<github-id>/<github-id>.jsonnet` in the organization spe
   -c, --config FILE  configuration file to use  [default: otterdog.json]
   -f, --force        skips interactive approvals
   -n, --no-web-ui    skip settings retrieved via web ui
-  
-  --local            work in local mode, not updating the referenced default config  
+
+  --local            work in local mode, not updating the referenced default config
 
   -v, --verbose      enable verbose output (-vvv for more verbose output)
   -h, --help         Show this message and exit.

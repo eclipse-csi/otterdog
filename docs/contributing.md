@@ -77,7 +77,7 @@ TODO
 
 ## Documentation style
 
-Documentation is written in Markdown and built using [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/). 
+Documentation is written in Markdown and built using [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/).
 
 ### Code documentation
 
@@ -125,4 +125,3 @@ You may include example code in docstrings. This code should be complete, self-c
     Class attributes should be documented in the class docstring.
 
     Instance attributes should be documented as "Args" in the `__init__` docstring.
-

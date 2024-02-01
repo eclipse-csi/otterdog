@@ -48,7 +48,7 @@ apt install pass
 
 ## Build instructions
 
-After installing the required system dependencies, a virtual python environment needs to be setup 
+After installing the required system dependencies, a virtual python environment needs to be setup
 and populated with all python dependencies:
 
 ```console
@@ -61,7 +61,7 @@ You should be set to finally run otterdog:
 $ ./otterdog.sh --version
 ```
 
-Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`, so you can also run it like that: 
+Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`, so you can also run it like that:
 
 ```console
 $ otterdog --version
@@ -81,5 +81,5 @@ To enable shell completion, add the following snippet to your shell configuratio
     eval "$(_OTTERDOG_COMPLETE=zsh_source otterdog)"
     ```
 
-When running `otterdog` in a directory that contains a `otterdog.json` file, shell completion will be able to suggest 
+When running `otterdog` in a directory that contains a `otterdog.json` file, shell completion will be able to suggest
 organizations found in the `otterdog.json` file.

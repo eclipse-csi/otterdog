@@ -8,7 +8,7 @@
 # *******************************************************************************
 
 
-__og_alias.set(){    
+__og_alias.set(){
     alias otterdog=$1
     export PATH=$PATH:$__SCRIPT_DIR
     export PS1="[${__OG_WORKING_ENV}] ${__OG_OLD_PROMPT}"

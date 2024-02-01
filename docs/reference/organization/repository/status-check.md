@@ -20,19 +20,19 @@ Given the following workflows `ci.yaml` and `job-legal.yaml` in a GitHub reposit
 
     ```yaml
     name: ci
-    
+
     on:
       pull_request:
         ...
-    
+
     jobs:
       build:
         ...
-    
+
       test:
         name: testing
         ...
-    
+
       call-legal:
         uses: ./.github/workflows/job-legal.yaml
     ```
@@ -44,7 +44,7 @@ Given the following workflows `ci.yaml` and `job-legal.yaml` in a GitHub reposit
     on:
       workflow_call:  # allow this workflow to be called from other workflows
         ...
-    
+
     jobs:
       legal:
         name: Legal Checks
@@ -62,7 +62,7 @@ Rules for translating jobs to stats-checks:
 - if a job has no name specified, use its id
 - if reusable workflows are called, join the jobs in their call hierarchy with ` / `.
 
-Now, as an example to protect the `main` branch by enforcing specific status checks to pass before a pull request can be merged into it, 
+Now, as an example to protect the `main` branch by enforcing specific status checks to pass before a pull request can be merged into it,
 you can add the status checks as below:
 
 ```jsonnet

@@ -32,14 +32,14 @@ When the `apply` operation is executed, the following happens:
 !!! note
 
     As otterdog does not maintain any local state, it can not determine if secret values need to be updated as
-    GitHub will not disclose secret values via their APIs anymore after they have been set. As a consequence, 
-    `otterdog` will not update secret values by default unless `--update-secrets` or `--update-webhooks` 
+    GitHub will not disclose secret values via their APIs anymore after they have been set. As a consequence,
+    `otterdog` will not update secret values by default unless `--update-secrets` or `--update-webhooks`
     has been specified.
 
 ## Example
 
 ```shell
-tn@proteus:~/.../otterdog-configs$ otterdog apply adoptium 
+tn@proteus:~/.../otterdog-configs$ otterdog apply adoptium
 
 Apply changes for configuration at '.../otterdog-configs/otterdog.json'
 
@@ -51,7 +51,7 @@ Actions are indicated with the following symbols:
 
 Organization adoptium[id=adoptium]
   there have been 4 validation infos, enable verbose output with '-v' to to display them.
-  
+
   ~ settings {
     ~ name                                                     = "Eclipse Adoptium" -> "Eclipse Adoptium Project"
     }

@@ -39,12 +39,10 @@ class Operation(ABC):
         self._printer = value
 
     @abstractmethod
-    def pre_execute(self) -> None:
-        ...
+    def pre_execute(self) -> None: ...
 
     @abstractmethod
-    async def execute(self, org_config: OrganizationConfig) -> int:
-        ...
+    async def execute(self, org_config: OrganizationConfig) -> int: ...
 
     def post_execute(self) -> None:
         pass

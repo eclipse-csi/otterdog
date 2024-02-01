@@ -22,7 +22,7 @@ Definition of workflow settings on organization level, the following properties 
 === "jsonnet"
     ``` jsonnet
     orgs.newOrg('adoptium') {
-        settings+: { 
+        settings+: {
             blog: "https://adoptium.net",
             default_repository_permission: "none",
             description: "The Adoptium Working Group ...",

@@ -14,7 +14,7 @@ __og-environment.unset(){
         unset $i
     done
     for i in $(declare -F | grep -iE 'otterdog|_og_' | awk '{print $3}')
-    do 
+    do
         unset -f $i
     done
 }

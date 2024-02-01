@@ -46,7 +46,7 @@ container_build_dev:
 container_clean:
 	$(call CONTAINER_CLEANER,$(image_version))
 
-container_clean_dev: 
+container_clean_dev:
 	$(call CONTAINER_CLEANER,"dev")
 
 define CONTAINER_BUILDER

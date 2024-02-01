@@ -1,6 +1,6 @@
-In general, changing the unique identifier (e.g. the name of a repo, url of a webhook) of a resource 
+In general, changing the unique identifier (e.g. the name of a repo, url of a webhook) of a resource
 in the configuration will result in the situation that the existing resource with the identifier will
-get deleted and a new resource with the new identifier gets created. See an example of the output of 
+get deleted and a new resource with the new identifier gets created. See an example of the output of
 a `plan` operation where the `url` of a webhook has been changed:
 
 ``` diff
@@ -25,8 +25,8 @@ a `plan` operation where the `url` of a webhook has been changed:
 + }
 ```
 
-In some cases, re-creation of a resource is not an idempotent operation (especially in the case of a Repository) 
-as some content of the resource would be lost in the process. Some resources support a list of `aliases`, which 
+In some cases, re-creation of a resource is not an idempotent operation (especially in the case of a Repository)
+as some content of the resource would be lost in the process. Some resources support a list of `aliases`, which
 allows to specify previous identifiers of the same resource that will be used to associate current live resources
 with entries in the configuration.
 
@@ -63,7 +63,7 @@ The result of the `plan` operation for the Webhook would look like this now:
 ~ }
 ```
 
-Analogously, the `aliases` property can also be specified for a repository, e.g. to rename an existing 
+Analogously, the `aliases` property can also be specified for a repository, e.g. to rename an existing
 repository named `oldreponame` to `newreponame`:
 
 === "Repository"

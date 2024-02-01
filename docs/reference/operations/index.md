@@ -37,5 +37,3 @@ Commands:
 When running `otterdog`, all used data is stored and accessed locally. The configuration files for each
 organization are expected to be at location `$CWD/<config-dir>/<github-id>/`, where `<config-dir>` can be configured
 in `otterdog.json` and defaults to `orgs`.
-
-

@@ -30,9 +30,9 @@ Rulesets can be used for use-cases (e.g. to support auto merging of pull request
 - define a set of required status checks
 - define a set of users that can bypass pull requests
 
-Branch Protection Rules always consider the required status checks, even when directly pushing to the branch, e.g. when no pull request 
+Branch Protection Rules always consider the required status checks, even when directly pushing to the branch, e.g. when no pull request
 is required, or you can push due to a bypass allowance. This can be modelled with Rulesets though, as the bypass actors as defined for a Ruleset
-are taken into account for all settings (except `allows_force_pushes`), while the bypass allowance for Branch Protection Rules only apply for 
+are taken into account for all settings (except `allows_force_pushes`), while the bypass allowance for Branch Protection Rules only apply for
 pull requests in general.
 
 ## Jsonnet Function

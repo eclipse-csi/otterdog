@@ -26,4 +26,3 @@ _otterdog_completion_setup() {
 }
 
 _otterdog_completion_setup;
-

@@ -99,7 +99,7 @@ jobs:
             git commit -a -m "Releasing version $RELEASE_VERSION"
             git push origin ${{ github.ref }}
           fi
-          
+
           echo "RELEASE_TAG=v$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Tag release

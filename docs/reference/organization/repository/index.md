@@ -32,7 +32,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _is_template_                         | boolean                                                   | If the repo is can be used as a template repository                                     |                                                                                          |
 | _merge_commit_message_                | string                                                    | Can be PR_BODY, PR_TITLE, or BLANK for a default merge commit message                   |                                                                                          |
 | _merge_commit_title_                  | string                                                    | Can be PR_TITLE or MERGE_MESSAGE for a default merge commit title                       |                                                                                          |
-| _post_process_template_content_       | list[string]                                              | A list of content paths in a template repository that shall be processed after creation | only considered during creation                                                          | 
+| _post_process_template_content_       | list[string]                                              | A list of content paths in a template repository that shall be processed after creation | only considered during creation                                                          |
 | _secret_scanning_                     | string                                                    | If secret scanning is "enabled" or "disabled"                                           |                                                                                          |
 | _secret_scanning_push_protection_     | string                                                    | If secret scanning push protection is "enabled" or "disabled"                           |                                                                                          |
 | _squash_merge_commit_message_         | string                                                    | Can be PR_BODY, COMMIT_MESSAGES, or BLANK for a default squash merge commit message     |                                                                                          |
@@ -67,7 +67,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 !!! note
 
     In general, you will only ever use `orgs.newRepo` as this function will define a new repository with default
-    values. However, in some cases it might be needed to change properties for a repo that has already been defined 
+    values. However, in some cases it might be needed to change properties for a repo that has already been defined
     in the default configuration. In such situation, you should use `orgs.extendRepo`.
 
 ## Validation rules
