@@ -50,22 +50,20 @@ $ ./otterdog.sh -h
 
 The general configuration for supported organizations and their corresponding credentials in order
 to access their GitHub settings has to be placed in a json file (default: __otterdog.json__, can be changed
-with the __-c__ flag):
+with the __-c__ flag), e.g.:
 
 ```json
 {
-  ...
   "organizations": [
     {
       "name": "<org name>",
       "github_id": "<github org id>",
       "credentials": {
         "provider": "<bitwarden | pass>",
-        ... // provider specific data
+        "item_id" : "39adacc9-2b51-41a9-a27e-ac7c00eea6a5"
       }
     }
   ]
-  ...
 }
 ```
 
@@ -95,7 +93,6 @@ When using **bitwarden** to store the credentials, you need to enter a valid __i
 
 ```json
 {
-  ...
   "organizations": [
     {
       "name": "<org name>",
@@ -106,7 +103,6 @@ When using **bitwarden** to store the credentials, you need to enter a valid __i
       }
     }
   ]
-  ...
 }
 ```
 
@@ -145,7 +141,6 @@ required credential data:
 
 ```json
 {
-  ...
   "organizations": [
     {
       "name": "<org name>",
@@ -159,7 +154,6 @@ required credential data:
       }
     }
   ]
-  ...
 }
 ```
 
@@ -197,102 +191,3 @@ Run **apply** operation to reflect the written configuration on github itself:
 ```console
 $ otterdog.sh apply <organization>
 ```
-
-# Container Runtime (Linux/MacOS)
-
-## Requirements
-* An otterdog.json already in your current directory
-* (Recommended) a directory orgs
-
-
-## Building Container Image
-* Creating a container local image
-```console
-make container_build
-```
-## Building a Development Container Image
-* Creating a container development local image
-```console
-make container_build_dev
-```
-
-## Running otterdog in a container
-
-### Using Bitwarden client
-* Firstly you need to login and unlock your Bitwarden session by executing the command below
-```console
-bw login
-bw unlock
-```
-* As result, you will get a token session. Please follow example below to make available in your terminal (Linux/MacOS)
-```console
-export BW_SESSION="ffdsajklloremipsumfxs000f000r0loremipsum"
-```
-
-### Using pass client
-* Pass needs to be already installed as well as configured with all data needed in [otterdog.json](./otterdog.json) by executing ```pass``` in your profile
-
-### Activating Otterdog Container Runtime
-* Activate otterdog environment will create an alias ```otterdog```
-```console
-source scripts/bin/active-otterdog
-```
-* Checking otterdog alias
-```console
-otterdog -h
-```
-* Deactivating otterdog environment
-```console
-deactivate-otterdog
-```
-
-### otterdog container Arguments
-
-* An table arguments
-
-| Argument                     | Description                                                                           |
-|------------------------------|---------------------------------------------------------------------------------------|
-| -g                           | .gnupg directory PATH by default $HOME/.gnupg if it is not provided                   |
-| -o                           | Output ORGS directory path by default $PWD/orgs if it is not provided                 |
-| -c                           | otterdog json file path by default $PWD/otterdog.json if it is not provided           |
-| -p                           | .password-store directory PATH by default $HOME/.password-store if it is not provided |
-| -h                           | Help about container arguments and otterdog                                           |
-
-* Please find below an example to show configuration
-```console
-otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs apply -f
-```
-
-
-### Usage Otterdog Container Runtime
-* Please follow the section [Usage](#usage)
-* Please bear in mind that all command need to drop **.sh**
-
-### Activating Development Otterdog Container Runtime
-* Activating development otterdog environment will run eclipse/otterdog:dev. Thus it can be used container shell. Please find below an example
-```console
-export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
-otterdog /bin/bash
-```
-* To activate development otterdog environment with argument
-```console
-export OTTERDOG_DEV=1; source scripts/bin/active-otterdog
-otterdog -c $PWD/otterdog.json -g $HOME/.gnupg -o $PWD/orgs /bin/bash
-```
-
-* Checking otterdog environment
-```console
-/app/otterdog.sh -h
-```
-* Deactivating development otterdog runtime type ```exit``` then ```deactivate-otterdog```
-
-### Usage Development Otterdog Container Runtime
-* Please follow the section [Usage](#usage)
-
-## Cleaning container environment
-* Please use the macro below
-```console
-make container_clean
-```
-
-## Known issues
