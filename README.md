@@ -13,6 +13,14 @@ It is actively developed by the Eclipse Foundation and used to manage its numero
 
 ## Quickstart
 
+To install and use the cli part of otterdog you have to install the following:
+
+* otterdog (mandatory): install using `pipx install otterdog`
+* go (mandatory for installing jsonnet-bundler): install using `apt install golang`
+* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
+* bitwarden cli tool (optional): install using `snap install bw`
+* pass cli tool (optional): install using `apt install pass`
+
 [Otterdog Presentation @ Open Source Summit 2023](https://docs.google.com/presentation/d/1lLqbhDQf9s5U2A2TkcoFYA39qtODcSot2308vnKbkbA/edit?usp=sharing)
 
 [Default Configuration used @ Eclipse Foundation](https://github.com/EclipseFdn/otterdog-defaults/)
