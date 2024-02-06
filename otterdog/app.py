@@ -10,10 +10,12 @@ import logging
 import os
 from sys import exit
 
+import hypercorn
 from decouple import config  # type: ignore
 
 from otterdog.webapp import create_app
 from otterdog.webapp.config import config_dict
+from otterdog.webapp.utils import SaneLogger
 
 # WARNING: Don't run with debug turned on in production!
 DEBUG: bool = config("DEBUG", default=True, cast=bool)
@@ -28,8 +30,16 @@ except KeyError:
 
 app = create_app(app_config)  # type: ignore
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("hypercorn.access").disabled = True
+# patch logger_class used by hypercorn to avoid duplicate access log entries
+hypercorn.config.Config.logger_class = SaneLogger
+
+logging.basicConfig(
+    format="[%(asctime)s.%(msecs)03d  ] [%(process)d] [%(levelname)s] %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+# logging.getLogger("hypercorn.access").disabled = True
 
 if os.path.exists(app_config.APP_ROOT):
     os.chdir(app_config.APP_ROOT)
