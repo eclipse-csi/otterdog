@@ -93,6 +93,13 @@ class Comment(BaseModel):
     updated_at: str
 
 
+class AssociatedPullRequest(BaseModel):
+    """Indicates the associated pull request for an issue comment."""
+
+    url: str
+    html_url: str
+
+
 class Issue(BaseModel):
     """Represents an issue"""
 
@@ -100,8 +107,9 @@ class Issue(BaseModel):
     node_id: str
     title: str
     state: str
-    draft: bool
-    body: Optional[str]
+    draft: Optional[bool] = None
+    body: Optional[str] = None
+    pull_request: Optional[AssociatedPullRequest] = None
     html_url: str
 
 

@@ -88,12 +88,16 @@ async def on_issue_comment_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
+    # currently we only handle comments to pull requests
+    if event.issue.pull_request is None:
+        return success()
+
     otterdog_config = get_otterdog_config()
 
     if event.repository.name != otterdog_config.default_config_repo:
         return success()
 
-    if event.action in ["created", "edited"] and "/pull/" in event.issue.html_url:
+    if event.action in ["created", "edited"]:
         org_id = event.organization.login
         installation_id = event.installation.id
 
