@@ -13,12 +13,12 @@ from pydantic import ValidationError
 from quart import Response, current_app
 
 from otterdog.utils import LogLevel
-from otterdog.webapp.tasks import get_otterdog_config, refresh_otterdog_config
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
+from otterdog.webapp.utils import get_otterdog_config, refresh_otterdog_config
 
 from .github_models import IssueCommentEvent, PullRequestEvent, PushEvent
 from .github_webhook import GitHubWebhook

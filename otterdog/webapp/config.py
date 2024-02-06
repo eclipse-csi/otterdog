@@ -7,6 +7,8 @@
 #  *******************************************************************************
 
 import os
+import random
+import string
 
 from decouple import config  # type: ignore
 
@@ -14,16 +16,29 @@ from decouple import config  # type: ignore
 class AppConfig(object):
     QUART_APP = "otterdog.webapp"
 
+    # Assets Management
+    ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
+
     APP_ROOT = config("APP_ROOT")
     if not os.path.exists(APP_ROOT):
         os.makedirs(APP_ROOT)
+
+    # This will create a sqlite db in <app-root>/db FOLDER
+    DB_ROOT = os.path.join(APP_ROOT, "db")
+    if not os.path.exists(DB_ROOT):
+        os.makedirs(DB_ROOT)
+
+    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(DB_ROOT, "otterdog-db.sqlite3")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     OTTERDOG_CONFIG_URL = config("OTTERDOG_CONFIG_URL", default=None)
     OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
     OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)
 
     # Set up the App SECRET_KEY
-    SECRET_KEY = config("SECRET_KEY")
+    SECRET_KEY = config("SECRET_KEY", default=None)
+    if not SECRET_KEY:
+        SECRET_KEY = "".join(random.choice(string.ascii_lowercase) for i in range(32))
 
     GITHUB_ADMIN_TEAM = config("GITHUB_ADMIN_TEAM", default="otterdog-admins")
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")

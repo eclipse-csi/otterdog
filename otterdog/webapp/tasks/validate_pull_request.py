@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 import filecmp
 import os
-import re
 from io import StringIO
 from tempfile import TemporaryDirectory
 from typing import Union, cast
@@ -25,7 +24,9 @@ from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.tasks import Task, get_otterdog_config
+from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.tasks import Task
+from otterdog.webapp.utils import escape_for_github, fetch_config, get_otterdog_config
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
@@ -49,6 +50,15 @@ class ValidatePullRequestTask(Task[ValidationResult]):
     @property
     def check_base_config(self) -> bool:
         return True
+
+    def create_db_task(self):
+        return DBTask(
+            type="ValidatePullRequestTask",
+            org_id=self.org_id,
+            repo_name=self.repository.name,
+            pull_request=self.pull_request.number,
+            status="created",
+        )
 
     async def _pre_execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
@@ -117,7 +127,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
             # get BASE config
             base_file = jsonnet_config.org_config_file + "-BASE"
-            await get_config(
+            await fetch_config(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -128,7 +138,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
             # get HEAD config from PR
             head_file = jsonnet_config.org_config_file
-            await get_config(
+            await fetch_config(
                 rest_api,
                 self.org_id,
                 self.pull_request.head.repo.owner.login,
@@ -165,7 +175,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 warnings.append("some of requested changes require secrets, need to apply these changes manually")
 
             comment = await render_template(
-                "validation_comment.txt",
+                "comment/validation_comment.txt",
                 sha=self.pull_request.head.sha,
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
@@ -231,34 +241,3 @@ def _get_webhook_validation_context() -> str:
 
 def get_admin_team() -> str:
     return current_app.config["GITHUB_ADMIN_TEAM"]
-
-
-async def get_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):
-    path = f"otterdog/{org_id}.jsonnet"
-    content = await rest_api.content.get_content(
-        owner,
-        repo,
-        path,
-        ref,
-    )
-    with open(filename, "w") as file:
-        file.write(content)
-
-
-def escape_for_github(text: str) -> str:
-    lines = text.splitlines()
-
-    output = []
-    for line in lines:
-        ansi_escape = re.compile(r"(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]")
-        line = ansi_escape.sub("", line)
-
-        diff_escape = re.compile(r"(\s+)([-+!])(\s+)")
-        line = diff_escape.sub(r"\g<2>\g<1>", line)
-
-        diff_escape2 = re.compile(r"(\s+)(~)")
-        line = diff_escape2.sub(r"!\g<1>", line)
-
-        output.append(line)
-
-    return "\n".join(output)

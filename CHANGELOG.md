@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.5.0] - unreleased
+
+### Added
+
+
 ## [0.4.0] - 31/01/2024
 
 ### Added

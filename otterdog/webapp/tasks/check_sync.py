@@ -23,12 +23,10 @@ from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.tasks import Task, get_otterdog_config
-from otterdog.webapp.tasks.validate_pull_request import (
-    escape_for_github,
-    get_admin_team,
-    get_config,
-)
+from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks.validate_pull_request import get_admin_team
+from otterdog.webapp.utils import escape_for_github, fetch_config, get_otterdog_config
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
@@ -40,6 +38,15 @@ class CheckConfigurationInSyncTask(Task[bool]):
     org_id: str
     repository: Repository
     pull_request_or_number: PullRequest | int
+
+    def create_db_task(self):
+        return DBTask(
+            type="CheckConfigurationInSyncTask",
+            org_id=self.org_id,
+            repo_name=self.repository.name,
+            pull_request=self.pull_request.number,
+            status="created",
+        )
 
     async def _pre_execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
@@ -96,7 +103,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
             # get BASE config
             base_file = jsonnet_config.org_config_file
-            await get_config(
+            await fetch_config(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -125,12 +132,12 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
             if config_in_sync is False:
                 comment = await render_template(
-                    "out_of_sync_comment.txt",
+                    "comment/out_of_sync_comment.txt",
                     result=escape_for_github(sync_output),
                     admin_team=f"{self.org_id}/{get_admin_team()}",
                 )
             else:
-                comment = await render_template("in_sync_comment.txt")
+                comment = await render_template("comment/in_sync_comment.txt")
 
             await rest_api.issue.create_comment(
                 self.org_id, otterdog_config.default_config_repo, pull_request_number, comment

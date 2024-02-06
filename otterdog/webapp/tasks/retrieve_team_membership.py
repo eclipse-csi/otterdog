@@ -12,6 +12,7 @@ from typing import cast
 from pydantic import ValidationError
 from quart import render_template
 
+from otterdog.webapp.db.models import DBTask
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
@@ -22,6 +23,15 @@ class RetrieveTeamMembershipTask(Task[None]):
     org_id: str
     repository: Repository
     pull_request_or_number: PullRequest | int
+
+    def create_db_task(self):
+        return DBTask(
+            type="RetrieveTeamMembershipTask",
+            org_id=self.org_id,
+            repo_name=self.repository.name,
+            pull_request=self.pull_request.number,
+            status="created",
+        )
 
     async def _pre_execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
@@ -57,7 +67,7 @@ class RetrieveTeamMembershipTask(Task[None]):
                 team_membership.append(team_slug)
 
         teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
-        comment = await render_template("team_membership_comment.txt", user=user, teams=teams)
+        comment = await render_template("comment/team_membership_comment.txt", user=user, teams=teams)
         await rest_api.issue.create_comment(self.org_id, self.repository.name, str(self.pull_request.number), comment)
 
     def __repr__(self) -> str:

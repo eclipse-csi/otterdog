@@ -16,10 +16,10 @@ from quart import render_template
 from otterdog.config import OrganizationConfig
 from otterdog.operations.apply import ApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.tasks import Task, get_otterdog_config
+from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.tasks import Task
+from otterdog.webapp.utils import escape_for_github, fetch_config, get_otterdog_config
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
-
-from .validate_pull_request import escape_for_github, get_config
 
 
 @dataclasses.dataclass(repr=False)
@@ -30,6 +30,15 @@ class ApplyChangesTask(Task[None]):
     org_id: str
     repository: Repository
     pull_request: PullRequest
+
+    def create_db_task(self):
+        return DBTask(
+            type="ApplyChangesTask",
+            org_id=self.org_id,
+            repo_name=self.repository.name,
+            pull_request=self.pull_request.number,
+            status="created",
+        )
 
     async def _execute(self) -> None:
         if self.pull_request.base.ref != self.repository.default_branch:
@@ -71,7 +80,7 @@ class ApplyChangesTask(Task[None]):
 
             # get config from merge commit sha
             head_file = jsonnet_config.org_config_file
-            await get_config(
+            await fetch_config(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -102,7 +111,7 @@ class ApplyChangesTask(Task[None]):
             text = output.getvalue()
             self.logger.info(text)
 
-            result = await render_template("applied_changes_comment.txt", result=escape_for_github(text))
+            result = await render_template("comment/applied_changes_comment.txt", result=escape_for_github(text))
 
             await rest_api.issue.create_comment(
                 self.org_id, otterdog_config.default_config_repo, pull_request_number, result

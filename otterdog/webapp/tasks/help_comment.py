@@ -10,6 +10,7 @@ import dataclasses
 
 from quart import render_template
 
+from otterdog.webapp.db.models import DBTask
 from otterdog.webapp.tasks import Task
 
 
@@ -19,6 +20,15 @@ class HelpCommentTask(Task[None]):
     org_id: str
     repo_name: str
     pull_request_number: int
+
+    def create_db_task(self):
+        return DBTask(
+            type="HelpCommentTask",
+            org_id=self.org_id,
+            repo_name=self.repo_name,
+            pull_request=self.pull_request_number,
+            status="created",
+        )
 
     async def _pre_execute(self) -> None:
         self.logger.info(
@@ -30,7 +40,7 @@ class HelpCommentTask(Task[None]):
 
     async def _execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
-        comment = await render_template("help_comment.txt")
+        comment = await render_template("comment/help_comment.txt")
         await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
     def __repr__(self) -> str:
