@@ -110,9 +110,14 @@ class OrganizationConfig:
         otterdog_config: OtterdogConfig,
     ) -> OrganizationConfig:
         # get the default organization config to retrieve some properties
-        org_config = otterdog_config.get_organization_config(project_name)
-        config_repo = org_config.config_repo
-        base_template = org_config.base_template
+        try:
+            org_config = otterdog_config.get_organization_config(project_name)
+            config_repo = org_config.config_repo
+            base_template = org_config.base_template
+        except RuntimeError:
+            # if no organization config can be found for the project, assume the defaults
+            config_repo = otterdog_config.default_config_repo
+            base_template = otterdog_config.default_base_template
 
         # construct a custom jsonnet config based on the given work_dir
         base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
