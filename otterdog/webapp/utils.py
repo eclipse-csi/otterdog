@@ -83,7 +83,7 @@ async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    rest_api = RestApi()  # do not use authentication for retrieving the config file
+    rest_api = RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]))
     content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
     import aiofiles
 

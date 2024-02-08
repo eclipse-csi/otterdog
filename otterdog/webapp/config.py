@@ -33,6 +33,7 @@ class AppConfig(object):
     OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
     OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)
     OTTERDOG_CONFIG_PATH = config("OTTERDOG_CONFIG_PATH", default=None)
+    OTTERDOG_CONFIG_TOKEN = config("OTTERDOG_CONFIG_TOKEN", default=None)
 
     # Set up the App SECRET_KEY
     SECRET_KEY = config("SECRET_KEY", default=None)
