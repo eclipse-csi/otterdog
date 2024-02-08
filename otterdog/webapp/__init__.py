@@ -60,4 +60,18 @@ def create_app(app_config: AppConfig):
     register_blueprints(app)
     configure_database(app)
 
+    @app.template_filter("status")
+    def status_color(status):
+        from otterdog.webapp.db.models import InstallationStatus
+
+        match status:
+            case InstallationStatus.installed:
+                return "success"
+            case InstallationStatus.not_installed:
+                return "danger"
+            case InstallationStatus.suspended:
+                return "warning"
+            case _:
+                return "info"
+
     return app

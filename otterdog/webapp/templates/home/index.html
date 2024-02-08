@@ -62,7 +62,37 @@
           </div>
           <!-- ./col -->
         </div>
+
+        <div class="row">
+          {% for org in organizations %}
+          <div class="col-md-3">
+            <div class="card">
+              <div class="card-header bg-{{ org.installation_status|status }}">
+                <h3 class="card-title">{{ org.project_name }}</h3>
+              </div>
+              <div class="card-body">
+                <a href="https://github.com/{{ org.github_id }}"><i class="fab fa-github">&nbsp;{{ org.github_id }}</i></a>
+              </div>
+              <div class="card-footer p-0">
+                {% if org.installation_status|status == 'success' %}
+                <ul class="nav flex-column">
+                  <li class="nav-item">
+                    <a href="#" class="nav-link">
+                      Repositories <span class="float-right badge bg-primary">N/A</span>
+                    </a>
+                  </li>
+                </ul>
+                {% endif %}
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          {% endfor %}
+          <!-- /.col -->
+        </div>
         <!-- /.row -->
+
       </div><!-- /.container-fluid -->
     </section>
     <!-- /.content -->

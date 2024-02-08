@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  webapp:
+    restart: always
+    depends_on:
+      - mongodb
+    env_file: ../.env-prod
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ./start-webapp
+    ports:
+      - 5000:5000
+    volumes:
+      - ../github-app:/app/work/config
+
+  init-webapp:
+    image: curlimages/curl:8.2.1
+    command: sh /init_webapp.sh webapp 5000
+    volumes:
+      - ./init_webapp.sh:/init_webapp.sh
+    depends_on:
+      webapp:
+          condition: service_started
+
+  mongodb:
+    image: mongo:7.0.5
+    command: mongod --quiet --logpath /dev/null
+    ports:
+      - 27017:27017

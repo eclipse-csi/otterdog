@@ -9,11 +9,7 @@
 from jinja2 import TemplateNotFound
 from quart import make_response, redirect, render_template, request, url_for
 
-from otterdog.webapp.db.service import (
-    get_organization_count,
-    get_organizations,
-    get_tasks,
-)
+from otterdog.webapp.db.service import get_organizations, get_tasks
 
 from . import blueprint
 
@@ -25,8 +21,8 @@ def route_default():
 
 @blueprint.route("/index.html")
 async def index():
-    org_count = await get_organization_count()
-    return await render_template("home/index.html", segment="index", org_count=org_count)
+    orgs = await get_organizations()
+    return await render_template("home/index.html", segment="index", org_count=len(orgs), organizations=orgs)
 
 
 @blueprint.route("/organizations.html")
