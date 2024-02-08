@@ -21,7 +21,7 @@ class Installation(BaseModel):
     """The installation that is associated with the event."""
 
     id: int
-    node_id: str
+    node_id: Optional[str] = None
 
 
 class Organization(BaseModel):
@@ -151,3 +151,9 @@ class IssueCommentEvent(Event):
     issue: Issue
     comment: Comment
     repository: Repository
+
+
+class InstallationEvent(Event):
+    """A payload sent for installation events."""
+
+    action: str

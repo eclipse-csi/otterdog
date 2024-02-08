@@ -28,12 +28,11 @@ class AppConfig(object):
     if not os.path.exists(DB_ROOT):
         os.makedirs(DB_ROOT)
 
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(DB_ROOT, "otterdog-db.sqlite3")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MONGO_URI = config("MONGO_URI", default="mongodb://mongodb:27017/otterdog")
 
-    OTTERDOG_CONFIG_URL = config("OTTERDOG_CONFIG_URL", default=None)
     OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
     OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)
+    OTTERDOG_CONFIG_PATH = config("OTTERDOG_CONFIG_PATH", default=None)
 
     # Set up the App SECRET_KEY
     SECRET_KEY = config("SECRET_KEY", default=None)

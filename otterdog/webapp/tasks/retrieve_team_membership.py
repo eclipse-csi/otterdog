@@ -12,7 +12,7 @@ from typing import cast
 from pydantic import ValidationError
 from quart import render_template
 
-from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
@@ -24,8 +24,8 @@ class RetrieveTeamMembershipTask(Task[None]):
     repository: Repository
     pull_request_or_number: PullRequest | int
 
-    def create_db_task(self):
-        return DBTask(
+    def create_task_model(self):
+        return TaskModel(
             type="RetrieveTeamMembershipTask",
             org_id=self.org_id,
             repo_name=self.repository.name,

@@ -105,28 +105,16 @@ class OrganizationConfig:
         cls,
         project_name: str,
         github_id: str,
+        config_repo: str,
+        base_template: str,
         credential_data: dict[str, Any],
         work_dir: str,
-        otterdog_config: OtterdogConfig,
     ) -> OrganizationConfig:
-        # get the default organization config to retrieve some properties
-        try:
-            org_config = otterdog_config.get_organization_config(project_name)
-            config_repo = org_config.config_repo
-            base_template = org_config.base_template
-        except RuntimeError:
-            # if no organization config can be found for the project, assume the defaults
-            config_repo = otterdog_config.default_config_repo
-            base_template = otterdog_config.default_base_template
-
-        # construct a custom jsonnet config based on the given work_dir
-        base_dir = os.path.join(otterdog_config.jsonnet_base_dir, work_dir)
-
         jsonnet_config = JsonnetConfig(
             github_id,
-            base_dir,
+            work_dir,
             base_template,
-            otterdog_config.local_mode,
+            False,
         )
 
         return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)

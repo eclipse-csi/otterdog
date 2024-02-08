@@ -56,6 +56,7 @@
                   <thead>
                   <tr>
                     <th>Installation ID</th>
+                    <th>Installation Status</th>
                     <th>Project Name</th>
                     <th>GitHub Organization</th>
                   </tr>
@@ -64,8 +65,8 @@
                     {% for org in organizations %}
                     <tr>
                       <td>{{ org.installation_id }}</td>
+                      <td>{{ org.installation_status }}</td>
                       <td>{{ org.project_name }}</td>
-<!--                      <td><a href="/organizations/{{ org.github_id }}">{{ org.github_id }}</a></td>-->
                       <td><a href="https://github.com/{{ org.github_id }}" target="_blank"><i class="fab fa-github"></i> &nbsp; {{ org.github_id }}</a></td>
                     </tr>
                     {% endfor %}

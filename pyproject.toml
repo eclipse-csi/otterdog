@@ -65,7 +65,7 @@ pydantic          = "^2.6"
 Flask-Minify      = "^0.42"
 quart-auth        = "^0.9"
 quart-wtforms     = "^1.0"
-flask-sqlalchemy  = "^3.0"
+odmantic          = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
 black      = "^23.3"
@@ -81,6 +81,8 @@ types-colorama   = "^0.4"
 types-requests   = "^2.31"
 types-jsonschema = "^4.17"
 types-chevron    = "^0.14"
+types-aiofiles   = "^23.2"
+motor-types      = ">=1.0.0b4"
 
 [tool.poetry.group.docs]
 optional = true

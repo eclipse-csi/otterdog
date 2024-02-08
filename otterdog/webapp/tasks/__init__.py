@@ -7,13 +7,14 @@
 #  *******************************************************************************
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from functools import cached_property
 from logging import Logger, getLogger
 from typing import Generic, Optional, TypeVar, Union
 
 from otterdog.providers.github.rest import RestApi
-from otterdog.webapp import db
-from otterdog.webapp.db.models import DBTask
+from otterdog.webapp import mongo
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.utils import get_rest_api_for_installation
 
 logger = getLogger(__name__)
@@ -31,7 +32,7 @@ class Task(ABC, Generic[T]):
         return await get_rest_api_for_installation(installation_id)
 
     @abstractmethod
-    def create_db_task(self) -> DBTask:
+    def create_task_model(self) -> TaskModel:
         pass
 
     async def execute(self) -> Optional[T]:
@@ -39,24 +40,25 @@ class Task(ABC, Generic[T]):
 
         await self._pre_execute()
 
-        db_task = self.create_db_task()
-        db.session.add(db_task)
-        db.session.commit()
+        task_model = self.create_task_model()
+        await mongo.odm.save(task_model)
 
         try:
             result = await self._execute()
             await self._post_execute(result)
 
-            db_task.status = "success"
-            db.session.commit()
+            task_model.status = "success"
+            task_model.updated_at = datetime.utcnow()
+            await mongo.odm.save(task_model)
 
             return result
         except RuntimeError as ex:
             self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
             await self._post_execute(ex)
 
-            db_task.status = f"failure: {str(ex)}"
-            db.session.commit()
+            task_model.status = f"failure: {str(ex)}"
+            task_model.updated_at = datetime.utcnow()
+            await mongo.odm.save(task_model)
 
             return None
 

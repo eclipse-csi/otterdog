@@ -13,6 +13,10 @@ from pydantic import ValidationError
 from quart import Response, current_app
 
 from otterdog.utils import LogLevel
+from otterdog.webapp.db.service import (
+    update_installation_status,
+    update_organization_configs,
+)
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
@@ -20,7 +24,12 @@ from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershi
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import get_otterdog_config, refresh_otterdog_config
 
-from .github_models import IssueCommentEvent, PullRequestEvent, PushEvent
+from .github_models import (
+    InstallationEvent,
+    IssueCommentEvent,
+    PullRequestEvent,
+    PushEvent,
+)
 from .github_webhook import GitHubWebhook
 
 webhook = GitHubWebhook()
@@ -39,7 +48,7 @@ async def on_pull_request_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
-    otterdog_config = get_otterdog_config()
+    otterdog_config = await get_otterdog_config()
 
     if event.repository.name != otterdog_config.default_config_repo:
         return success()
@@ -92,7 +101,7 @@ async def on_issue_comment_received(data):
     if event.issue.pull_request is None:
         return success()
 
-    otterdog_config = get_otterdog_config()
+    otterdog_config = await get_otterdog_config()
 
     if event.repository.name != otterdog_config.default_config_repo:
         return success()
@@ -172,7 +181,20 @@ async def on_push_received(data):
     if event.ref != f"refs/heads/{event.repository.default_branch}":
         return success()
 
-    current_app.add_background_task(refresh_otterdog_config)
+    await refresh_otterdog_config(event.after)
+    current_app.add_background_task(update_organization_configs)
+    return success()
+
+
+@webhook.hook("installation")
+async def on_installation_received(data):
+    try:
+        event = InstallationEvent.model_validate(data)
+    except ValidationError:
+        logger.error("failed to load installation event data", exc_info=True)
+        return success()
+
+    current_app.add_background_task(update_installation_status, event.installation.id, event.action)
     return success()
 
 

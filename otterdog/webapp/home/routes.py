@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 from jinja2 import TemplateNotFound
-from quart import redirect, render_template, request, url_for
+from quart import make_response, redirect, render_template, request, url_for
 
 from otterdog.webapp.db.service import (
     get_organization_count,
@@ -25,20 +25,33 @@ def route_default():
 
 @blueprint.route("/index.html")
 async def index():
-    org_count = get_organization_count()
+    org_count = await get_organization_count()
     return await render_template("home/index.html", segment="index", org_count=org_count)
 
 
 @blueprint.route("/organizations.html")
 async def organizations():
-    orgs = get_organizations()
+    orgs = await get_organizations()
     return await render_template("home/organizations.html", segment="organizations", organizations=orgs)
 
 
 @blueprint.route("/tasks.html")
 async def tasks():
-    latest_tasks = get_tasks(100)
+    latest_tasks = await get_tasks(100)
     return await render_template("home/tasks.html", segment="tasks", tasks=latest_tasks)
+
+
+@blueprint.route("/health")
+async def health():
+    return await make_response({}, 200)
+
+
+@blueprint.route("/init")
+async def init():
+    from otterdog.webapp.db.service import update_organization_configs
+
+    await update_organization_configs()
+    return await make_response({}, 200)
 
 
 @blueprint.route("/<template>")

@@ -37,7 +37,7 @@ class ContentClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    async def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str]) -> str:
+    async def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode("utf-8")
 

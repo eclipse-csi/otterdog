@@ -3,6 +3,8 @@ version: '3.8'
 services:
   webapp:
     restart: always
+    depends_on:
+      - mongodb
     env_file: ../.env
     build:
       context: ..
@@ -13,13 +15,17 @@ services:
     volumes:
       - ../github-app:/app/work/config
 
-#  nginx:
-#    container_name: nginx
-#    restart: always
-#    image: "nginx:latest"
-#    ports:
-#      - "80:80"
-#    volumes:
-#      - ./nginx:/etc/nginx/conf.d
-#    depends_on:
-#      - webapp
+  init-webapp:
+    image: curlimages/curl:8.2.1
+    command: sh /init_webapp.sh webapp 5000
+    volumes:
+      - ./init_webapp.sh:/init_webapp.sh
+    depends_on:
+      webapp:
+          condition: service_started
+
+  mongodb:
+    image: mongo:7.0.5
+    command: mongod --quiet --logpath /dev/null
+    ports:
+      - 27017:27017

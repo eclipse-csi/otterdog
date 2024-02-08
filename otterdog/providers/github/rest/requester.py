@@ -23,9 +23,9 @@ _REQUESTS_CACHE_DIR = ".cache/http"
 
 
 class Requester:
-    def __init__(self, auth_strategy: AuthStrategy, base_url: str, api_version: str):
+    def __init__(self, auth_strategy: Optional[AuthStrategy], base_url: str, api_version: str):
         self._base_url = base_url
-        self._auth = auth_strategy.get_auth()
+        self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
         self._headers = {
             "Accept": "application/vnd.github+json",
@@ -176,7 +176,8 @@ class Requester:
         print_trace(f"async '{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 
         headers = self._headers.copy()
-        self._auth.update_headers_with_authorization(headers)
+        if self._auth is not None:
+            self._auth.update_headers_with_authorization(headers)
 
         async with AsyncCachedSession(cache=FileBackend(cache_name=_AIOHTTP_CACHE_DIR, use_temp=False)) as session:
             url = self._build_url(url_path)

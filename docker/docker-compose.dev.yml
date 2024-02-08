@@ -3,5 +3,10 @@ version: '3.8'
 services:
   webapp:
     volumes:
+      - ../docker/hypercorn-cfg.toml:/app/hypercorn-cfg.toml
       - ../otterdog:/app/otterdog
       - ../approot:/app/work
+
+  mongodb:
+    volumes:
+      - ../approot/db:/data/db

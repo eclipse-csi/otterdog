@@ -23,7 +23,7 @@ class RestApi:
     _GH_API_VERSION = "2022-11-28"
     _GH_API_URL_ROOT = "https://api.github.com"
 
-    def __init__(self, auth_strategy: AuthStrategy):
+    def __init__(self, auth_strategy: Optional[AuthStrategy] = None):
         self._auth_strategy = auth_strategy
         self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 

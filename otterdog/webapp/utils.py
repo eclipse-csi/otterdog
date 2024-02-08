@@ -6,19 +6,19 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os.path
 import re
 from datetime import datetime
 from logging import getLogger
-from typing import Optional
+from typing import Optional, cast
 
 from hypercorn.logging import Logger as HypercornLogger
 from hypercorn.typing import ResponseSummary, WWWScope
 from quart import current_app
 
-from otterdog.config import OtterdogConfig
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.rest import RestApi
+from otterdog.webapp.db.models import OrganizationConfigModel
 
 logger = getLogger(__name__)
 
@@ -58,34 +58,55 @@ async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     return rest_api
 
 
-def get_otterdog_config() -> OtterdogConfig:
+async def get_otterdog_config() -> OtterdogConfig:
     global _OTTERDOG_CONFIG
 
     if _OTTERDOG_CONFIG is None:
-        _OTTERDOG_CONFIG = _load_otterdog_config()
+        _OTTERDOG_CONFIG = await _load_otterdog_config()
 
     return _OTTERDOG_CONFIG
 
 
-def refresh_otterdog_config():
+async def refresh_otterdog_config(sha: str):
     global _OTTERDOG_CONFIG
-    _OTTERDOG_CONFIG = _load_otterdog_config()
+    _OTTERDOG_CONFIG = await _load_otterdog_config(sha)
 
 
-def _load_otterdog_config() -> OtterdogConfig:
+async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
     app_root = current_app.config["APP_ROOT"]
-    config_file_url = current_app.config["OTTERDOG_CONFIG_URL"]
+    config_file_owner = current_app.config["OTTERDOG_CONFIG_OWNER"]
+    config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
+    config_file_path = current_app.config["OTTERDOG_CONFIG_PATH"]
 
-    logger.info(f"loading otterdog config from url '{config_file_url}'")
+    logger.info(
+        f"loading otterdog config from url "
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+    )
 
-    import requests
+    rest_api = RestApi()  # do not use authentication for retrieving the config file
+    content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
+    import aiofiles
 
-    with requests.get(config_file_url) as response:
-        config_file = os.path.join(app_root, "otterdog.json")
-        with open(config_file, "w") as file:
-            file.write(response.text)
+    async with aiofiles.tempfile.NamedTemporaryFile("wt") as file:
+        name = cast(str, file.name)
+        await file.write(content)
+        await file.flush()
+        return OtterdogConfig(name, False, app_root)
 
-    return OtterdogConfig(config_file, False, app_root)
+
+async def get_organization_config(org_model: OrganizationConfigModel, token: str, work_dir: str) -> OrganizationConfig:
+    assert org_model.project_name is not None
+    assert org_model.config_repo is not None
+    assert org_model.base_template is not None
+
+    return OrganizationConfig.of(
+        org_model.project_name,
+        org_model.github_id,
+        org_model.config_repo,
+        org_model.base_template,
+        {"provider": "inmemory", "api_token": token},
+        work_dir,
+    )
 
 
 async def fetch_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):

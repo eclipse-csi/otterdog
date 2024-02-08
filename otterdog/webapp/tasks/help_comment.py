@@ -10,7 +10,7 @@ import dataclasses
 
 from quart import render_template
 
-from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
 
 
@@ -21,8 +21,8 @@ class HelpCommentTask(Task[None]):
     repo_name: str
     pull_request_number: int
 
-    def create_db_task(self):
-        return DBTask(
+    def create_task_model(self):
+        return TaskModel(
             type="HelpCommentTask",
             org_id=self.org_id,
             repo_name=self.repo_name,

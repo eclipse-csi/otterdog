@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import dataclasses
-import os
 from io import StringIO
 from tempfile import TemporaryDirectory
 from typing import Union, cast
@@ -17,16 +16,21 @@ from typing import Union, cast
 from pydantic import ValidationError
 from quart import current_app, render_template
 
-from otterdog.config import OrganizationConfig
 from otterdog.models import LivePatch
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.db.models import DBTask
+from otterdog.webapp.db.models import TaskModel
+from otterdog.webapp.db.service import get_organization_config_by_installation_id
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.tasks.validate_pull_request import get_admin_team
-from otterdog.webapp.utils import escape_for_github, fetch_config, get_otterdog_config
+from otterdog.webapp.utils import (
+    escape_for_github,
+    fetch_config,
+    get_organization_config,
+    get_otterdog_config,
+)
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
@@ -39,8 +43,8 @@ class CheckConfigurationInSyncTask(Task[bool]):
     repository: Repository
     pull_request_or_number: PullRequest | int
 
-    def create_db_task(self):
-        return DBTask(
+    def create_task_model(self):
+        return TaskModel(
             type="CheckConfigurationInSyncTask",
             org_id=self.org_id,
             repo_name=self.repository.name,
@@ -80,25 +84,20 @@ class CheckConfigurationInSyncTask(Task[bool]):
             await self._update_final_status(rest_api, result_or_exception)
 
     async def _execute(self) -> bool:
-        otterdog_config = get_otterdog_config()
+        otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
-        project_name = otterdog_config.get_project_name(self.org_id) or self.org_id
+
+        organization_config_model = await get_organization_config_by_installation_id(self.installation_id)
+        if organization_config_model is None:
+            raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
 
         rest_api = await self.get_rest_api(self.installation_id)
 
         with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
-            org_config = OrganizationConfig.of(
-                project_name,
-                self.org_id,
-                {"provider": "inmemory", "api_token": rest_api.token},
-                work_dir,
-                otterdog_config,
-            )
+            assert rest_api.token is not None
+            org_config = await get_organization_config(organization_config_model, rest_api.token, work_dir)
 
             jsonnet_config = org_config.jsonnet_config
-            if not os.path.exists(jsonnet_config.org_dir):
-                os.makedirs(jsonnet_config.org_dir)
-
             jsonnet_config.init_template()
 
             # get BASE config

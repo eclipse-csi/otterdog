@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#
+#  *******************************************************************************
+#  Copyright (c) 2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
+#  *******************************************************************************
+#
+
+# exits if any of your variables is not set
+set -o nounset
+
+HOST="${1:-webapp}"
+PORT="${2:-5000}"
+DELAY_BETWEEN_ATTEMPTS=1
+
+HEAL_URL="http://${HOST}:${PORT}/health"
+INIT_URL="http://${HOST}:${PORT}/init"
+
+while true; do
+  echo "Checking health url ${HEAL_URL}..."
+
+  status_code=$(curl -s -I "${HEAL_URL}" -o /dev/null -w "%{http_code}")
+  if [ "${status_code}" == "200" ]; then
+    echo "Triggering init via ${INIT_URL}..."
+    curl -s "${INIT_URL}"
+    exit 0
+  fi
+
+  sleep "${DELAY_BETWEEN_ATTEMPTS}"
+done

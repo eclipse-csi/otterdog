@@ -6,8 +6,40 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+import re
+from typing import Optional
+
+from motor.motor_asyncio import AsyncIOMotorClient
+from odmantic import AIOEngine
+from quart import Quart
 
 
-class Base(MappedAsDataclass, DeclarativeBase):
-    pass
+class Mongo:
+    def __init__(self) -> None:
+        self._client: Optional[AsyncIOMotorClient] = None
+        self._engine: Optional[AIOEngine] = None
+
+    def init_app(self, app: Quart) -> None:
+        connection_uri = app.config["MONGO_URI"]
+
+        m = re.match(r"^((mongodb:(?:/{2})?)((\w+?):(\w+?)@|:?@?)(\w+?):(\d+)/)(\w+?)$", connection_uri)
+
+        if m is not None:
+            server_uri = m.group(1)
+            database = m.group(8)
+        else:
+            raise RuntimeError(f"failed to parse mongo connection uri: '{connection_uri}'")
+
+        self._client = AsyncIOMotorClient(server_uri)
+        self._engine = AIOEngine(client=self._client, database=database)
+
+    @property
+    def odm(self) -> AIOEngine:
+        assert self._engine is not None
+        return self._engine
+
+
+async def init_mongo_database(mongo: Mongo) -> None:
+    from .models import OrganizationConfigModel, TaskModel
+
+    await mongo.odm.configure_database([OrganizationConfigModel, TaskModel])  # type: ignore

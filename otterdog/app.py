@@ -57,7 +57,6 @@ if DEBUG:
     app.logger.info("Environment = " + config_mode)
     app.logger.info("QUART_APP   = " + app_config.QUART_APP)
     app.logger.info("APP_ROOT    = " + app_config.APP_ROOT)
-    app.logger.info("DB          = " + app_config.SQLALCHEMY_DATABASE_URI)
 
 
 def run():
