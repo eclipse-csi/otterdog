@@ -6,9 +6,8 @@ RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
 FROM docker.io/library/python:3.10.10-slim as builder-python3
 
 RUN apt-get update \
-    && apt-get --no-install-recommends install -y \
-        golang \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y \
+        golang gcc
 
 WORKDIR /app
 
@@ -33,7 +32,7 @@ RUN poetry config virtualenvs.in-project true && \
 FROM python:3.10.10-slim
 
 RUN apt-get update \
-    && apt-get --no-install-recommends install -y \
+    && apt-get install -y --no-install-recommends \
         git \
         curl \
     && rm -rf /var/lib/apt/lists/*
