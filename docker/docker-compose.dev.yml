@@ -5,8 +5,3 @@ services:
     volumes:
       - ../docker/hypercorn-cfg-dev.toml:/app/hypercorn-cfg.toml
       - ../otterdog:/app/otterdog
-      - ../approot:/app/work
-
-  mongodb:
-    volumes:
-      - ../approot/db:/data/db
