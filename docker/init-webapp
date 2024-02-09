@@ -24,7 +24,7 @@ while true; do
   echo "Checking health url ${HEAL_URL}..."
 
   status_code=$(curl -s -I "${HEAL_URL}" -o /dev/null -w "%{http_code}")
-  if [ "${status_code}" == "200" ]; then
+  if [ "${status_code}" = "200" ]; then
     echo "Triggering init via ${INIT_URL}..."
     curl -s "${INIT_URL}"
     exit 0
