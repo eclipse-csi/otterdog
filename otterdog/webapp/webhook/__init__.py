@@ -13,10 +13,7 @@ from pydantic import ValidationError
 from quart import Response, current_app
 
 from otterdog.utils import LogLevel
-from otterdog.webapp.db.service import (
-    update_installation_status,
-    update_organization_configs,
-)
+from otterdog.webapp.db.service import update_installation_status, update_installations
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
@@ -182,7 +179,7 @@ async def on_push_received(data):
         return success()
 
     await refresh_otterdog_config(event.after)
-    current_app.add_background_task(update_organization_configs)
+    current_app.add_background_task(update_installations)
     return success()
 
 

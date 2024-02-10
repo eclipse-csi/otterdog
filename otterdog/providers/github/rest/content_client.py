@@ -41,6 +41,12 @@ class ContentClient(RestClient):
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode("utf-8")
 
+    async def get_content_with_sha(
+        self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None
+    ) -> tuple[str, str]:
+        json_response = await self.get_content_object(org_id, repo_name, path, ref)
+        return base64.b64decode(json_response["content"]).decode("utf-8"), json_response["sha"]
+
     async def update_content(
         self,
         org_id: str,

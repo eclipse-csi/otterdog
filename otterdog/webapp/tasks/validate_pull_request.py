@@ -11,9 +11,9 @@ from __future__ import annotations
 import dataclasses
 import filecmp
 from io import StringIO
-from tempfile import TemporaryDirectory
 from typing import Union, cast
 
+import aiofiles
 from pydantic import ValidationError
 from quart import current_app, render_template
 
@@ -23,7 +23,7 @@ from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import get_organization_config_by_installation_id
+from otterdog.webapp.db.service import get_installation
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.utils import (
     escape_for_github,
@@ -111,15 +111,15 @@ class ValidatePullRequestTask(Task[ValidationResult]):
         otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
 
-        organization_config_model = await get_organization_config_by_installation_id(self.installation_id)
-        if organization_config_model is None:
+        installation = await get_installation(self.installation_id)
+        if installation is None:
             raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
 
         rest_api = await self.get_rest_api(self.installation_id)
 
-        with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
+        async with aiofiles.tempfile.TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
             assert rest_api.token is not None
-            org_config = await get_organization_config(organization_config_model, rest_api.token, work_dir)
+            org_config = await get_organization_config(installation, rest_api.token, work_dir)
 
             jsonnet_config = org_config.jsonnet_config
             jsonnet_config.init_template()
@@ -130,7 +130,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 rest_api,
                 self.org_id,
                 self.org_id,
-                otterdog_config.default_config_repo,
+                org_config.config_repo,
                 base_file,
                 self.pull_request.base.ref,
             )

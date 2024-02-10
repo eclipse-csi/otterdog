@@ -24,7 +24,7 @@ class InstallationStatus(str, Enum):
         return self.name
 
 
-class OrganizationConfigModel(Model):
+class InstallationModel(Model):
     github_id: str = Field(primary_field=True)
     project_name: Optional[str] = Field(unique=True, index=True)
     installation_id: int = Field(index=True, default=0)
@@ -41,3 +41,10 @@ class TaskModel(Model):
     status: str
     created_at: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
+
+
+class ConfigurationModel(Model):
+    github_id: str = Field(primary_field=True)
+    project_name: Optional[str] = Field(unique=True, index=True)
+    config: dict
+    sha: str

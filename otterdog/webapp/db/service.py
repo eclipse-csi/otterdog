@@ -16,20 +16,9 @@ from odmantic import query
 from otterdog.webapp import mongo
 from otterdog.webapp.utils import get_otterdog_config, get_rest_api_for_app
 
-from .models import InstallationStatus, OrganizationConfigModel, TaskModel
+from .models import ConfigurationModel, InstallationModel, InstallationStatus, TaskModel
 
 logger = getLogger(__name__)
-
-
-async def get_organization_config_by_installation_id(installation_id: int) -> Optional[OrganizationConfigModel]:
-    config = await mongo.odm.find_one(
-        OrganizationConfigModel, OrganizationConfigModel.installation_id == installation_id
-    )
-
-    if config is None:
-        logger.error(f"did not find an OrganizationConfig document for installation_id '{installation_id}'")
-
-    return config
 
 
 async def update_installation_status(installation_id: int, action: str) -> None:
@@ -37,14 +26,14 @@ async def update_installation_status(installation_id: int, action: str) -> None:
 
     match action:
         case "created":
-            await update_organization_configs()
+            await update_installations()
 
         case "deleted":
-            await update_organization_configs()
+            await update_installations()
 
         case "suspend":
             installation = await mongo.odm.find_one(
-                OrganizationConfigModel, OrganizationConfigModel.installation_id == installation_id
+                InstallationModel, InstallationModel.installation_id == installation_id
             )
 
             if installation is not None:
@@ -53,7 +42,7 @@ async def update_installation_status(installation_id: int, action: str) -> None:
 
         case "unsuspend":
             installation = await mongo.odm.find_one(
-                OrganizationConfigModel, OrganizationConfigModel.installation_id == installation_id
+                InstallationModel, InstallationModel.installation_id == installation_id
             )
 
             if installation is not None:
@@ -64,8 +53,8 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             pass
 
 
-async def update_organization_configs() -> None:
-    logger.info("updating all organization configs")
+async def update_installations() -> None:
+    logger.info("updating all installations")
 
     rest_api = get_rest_api_for_app()
     otterdog_config = await get_otterdog_config()
@@ -74,7 +63,7 @@ async def update_organization_configs() -> None:
 
     async with mongo.odm.session() as session:
         existing_organizations: set[str] = set()
-        async for org in session.find(OrganizationConfigModel):
+        async for org in session.find(InstallationModel):
             existing_organizations.add(org.github_id)
 
         for app_installation in all_installations:
@@ -94,7 +83,7 @@ async def update_organization_configs() -> None:
                 config_repo = None
                 base_template = None
 
-            model = OrganizationConfigModel(  # type: ignore
+            model = InstallationModel(  # type: ignore
                 installation_id=installation_id,
                 installation_status=installation_status,
                 project_name=project_name,
@@ -112,11 +101,9 @@ async def update_organization_configs() -> None:
         for github_id in existing_organizations:
             project_name = otterdog_config.get_project_name(github_id)
             if project_name is None:
-                await session.remove(OrganizationConfigModel, OrganizationConfigModel.github_id == github_id)
+                await session.remove(InstallationModel, InstallationModel.github_id == github_id)
             else:
-                existing_model = await mongo.odm.find_one(
-                    OrganizationConfigModel, OrganizationConfigModel.github_id == github_id
-                )
+                existing_model = await mongo.odm.find_one(InstallationModel, InstallationModel.github_id == github_id)
 
                 if existing_model is not None:
                     existing_model.project_name = project_name
@@ -128,7 +115,7 @@ async def update_organization_configs() -> None:
             config = otterdog_config.get_organization_config(name)
 
             if config is not None:
-                model = OrganizationConfigModel(  # type: ignore
+                model = InstallationModel(  # type: ignore
                     installation_status=InstallationStatus.not_installed,
                     project_name=config.name,
                     github_id=config.github_id,
@@ -139,13 +126,35 @@ async def update_organization_configs() -> None:
                 await mongo.odm.save(model)
 
 
-async def get_organization_count() -> int:
-    return await mongo.odm.count(OrganizationConfigModel)
+async def get_installation(installation_id: int) -> Optional[InstallationModel]:
+    return await mongo.odm.find_one(InstallationModel, InstallationModel.installation_id == installation_id)
 
 
-async def get_organizations() -> list[OrganizationConfigModel]:
-    return await mongo.odm.find(OrganizationConfigModel)
+async def get_all_organization_count() -> int:
+    return await mongo.odm.count(InstallationModel)
+
+
+async def get_organizations() -> list[InstallationModel]:
+    return await mongo.odm.find(InstallationModel)
+
+
+async def get_active_organizations() -> list[InstallationModel]:
+    return await mongo.odm.find(
+        InstallationModel, InstallationModel.installation_status == InstallationStatus.installed
+    )
 
 
 async def get_tasks(limit: int) -> list[TaskModel]:
     return await mongo.odm.find(TaskModel, limit=limit, sort=query.desc(TaskModel.created_at))
+
+
+async def get_configurations() -> list[ConfigurationModel]:
+    return await mongo.odm.find(ConfigurationModel)
+
+
+async def get_configuration_by_github_id(github_id: str) -> Optional[ConfigurationModel]:
+    return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.github_id == github_id)
+
+
+async def get_configuration_by_project_name(project_name: str) -> Optional[ConfigurationModel]:
+    return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.project_name == project_name)

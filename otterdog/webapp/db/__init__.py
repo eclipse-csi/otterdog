@@ -40,6 +40,6 @@ class Mongo:
 
 
 async def init_mongo_database(mongo: Mongo) -> None:
-    from .models import OrganizationConfigModel, TaskModel
+    from .models import ConfigurationModel, InstallationModel, TaskModel
 
-    await mongo.odm.configure_database([OrganizationConfigModel, TaskModel])  # type: ignore
+    await mongo.odm.configure_database([InstallationModel, TaskModel, ConfigurationModel])  # type: ignore

@@ -18,7 +18,7 @@ from quart import current_app
 from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.rest import RestApi
-from otterdog.webapp.db.models import OrganizationConfigModel
+from otterdog.webapp.db.models import InstallationModel
 
 logger = getLogger(__name__)
 
@@ -94,7 +94,7 @@ async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
         return OtterdogConfig(name, False, app_root)
 
 
-async def get_organization_config(org_model: OrganizationConfigModel, token: str, work_dir: str) -> OrganizationConfig:
+async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:
     assert org_model.project_name is not None
     assert org_model.config_repo is not None
     assert org_model.base_template is not None
@@ -109,16 +109,28 @@ async def get_organization_config(org_model: OrganizationConfigModel, token: str
     )
 
 
-async def fetch_config(rest_api: RestApi, org_id: str, owner: str, repo: str, filename: str, ref: str):
+async def fetch_config(
+    rest_api: RestApi,
+    org_id: str,
+    owner: str,
+    repo: str,
+    filename: str,
+    ref: Optional[str] = None,
+) -> str:
     path = f"otterdog/{org_id}.jsonnet"
-    content = await rest_api.content.get_content(
+    content, sha = await rest_api.content.get_content_with_sha(
         owner,
         repo,
         path,
         ref,
     )
-    with open(filename, "w") as file:
-        file.write(content)
+
+    import aiofiles
+
+    async with aiofiles.open(filename, "w") as file:
+        await file.write(content)
+
+    return sha
 
 
 def escape_for_github(text: str) -> str:

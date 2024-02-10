@@ -31,9 +31,11 @@ class Task(ABC, Generic[T]):
     async def get_rest_api(installation_id: int) -> RestApi:
         return await get_rest_api_for_installation(installation_id)
 
-    @abstractmethod
-    def create_task_model(self) -> TaskModel:
-        pass
+    def create_task_model(self) -> Optional[TaskModel]:
+        return None
+
+    async def __call__(self, *args, **kwargs):
+        await self.execute()
 
     async def execute(self) -> Optional[T]:
         self.logger.debug(f"executing task '{self!r}'")
@@ -41,24 +43,27 @@ class Task(ABC, Generic[T]):
         await self._pre_execute()
 
         task_model = self.create_task_model()
-        await mongo.odm.save(task_model)
+        if task_model is not None:
+            await mongo.odm.save(task_model)
 
         try:
             result = await self._execute()
             await self._post_execute(result)
 
-            task_model.status = "success"
-            task_model.updated_at = datetime.utcnow()
-            await mongo.odm.save(task_model)
+            if task_model is not None:
+                task_model.status = "success"
+                task_model.updated_at = datetime.utcnow()
+                await mongo.odm.save(task_model)
 
             return result
         except RuntimeError as ex:
             self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
             await self._post_execute(ex)
 
-            task_model.status = f"failure: {str(ex)}"
-            task_model.updated_at = datetime.utcnow()
-            await mongo.odm.save(task_model)
+            if task_model is not None:
+                task_model.status = f"failure: {str(ex)}"
+                task_model.updated_at = datetime.utcnow()
+                await mongo.odm.save(task_model)
 
             return None
 

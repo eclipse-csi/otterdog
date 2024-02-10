@@ -7,9 +7,16 @@
 #  *******************************************************************************
 
 from jinja2 import TemplateNotFound
-from quart import make_response, redirect, render_template, request, url_for
+from quart import current_app, redirect, render_template, request, url_for
 
-from otterdog.webapp.db.service import get_organizations, get_tasks
+from otterdog.utils import associate_by_key
+from otterdog.webapp.db.service import (
+    get_active_organizations,
+    get_configurations,
+    get_organizations,
+    get_tasks,
+)
+from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
 from . import blueprint
 
@@ -22,7 +29,11 @@ def route_default():
 @blueprint.route("/index.html")
 async def index():
     orgs = await get_organizations()
-    return await render_template("home/index.html", segment="index", org_count=len(orgs), organizations=orgs)
+    configs = await get_configurations()
+    configs_by_key = associate_by_key(configs, lambda x: x.github_id)
+    return await render_template(
+        "home/index.html", segment="index", org_count=len(orgs), organizations=orgs, configurations=configs_by_key
+    )
 
 
 @blueprint.route("/organizations.html")
@@ -39,15 +50,19 @@ async def tasks():
 
 @blueprint.route("/health")
 async def health():
-    return await make_response({}, 200)
+    return {}, 200
 
 
 @blueprint.route("/init")
 async def init():
-    from otterdog.webapp.db.service import update_organization_configs
+    from otterdog.webapp.db.service import update_installations
 
-    await update_organization_configs()
-    return await make_response({}, 200)
+    await update_installations()
+
+    for org in await get_active_organizations():
+        current_app.add_background_task(FetchConfigTask(org.installation_id, org.github_id, org.config_repo))
+
+    return {}, 200
 
 
 @blueprint.route("/<template>")

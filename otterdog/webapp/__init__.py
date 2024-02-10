@@ -16,7 +16,7 @@ from quart_auth import QuartAuth
 from .config import AppConfig
 from .db import Mongo, init_mongo_database
 
-_BLUEPRINT_MODULES: list[str] = ["home"]
+_BLUEPRINT_MODULES: list[str] = ["home", "api"]
 
 mongo = Mongo()
 auth_manager = QuartAuth()
