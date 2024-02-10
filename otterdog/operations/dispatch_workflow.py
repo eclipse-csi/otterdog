@@ -47,7 +47,7 @@ class DispatchWorkflowOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 success = await provider.dispatch_workflow(github_id, self.repo_name, self.workflow_name)
                 if success is True:
                     self.printer.println(f"workflow '{self.workflow_name}' dispatched for repo '{self.repo_name}'")

@@ -6,8 +6,10 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os.path
 from typing import Optional
+
+import aiofiles
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
@@ -41,7 +43,7 @@ class PushOperation(Operation):
 
         org_file_name = jsonnet_config.org_config_file
 
-        if not os.path.exists(org_file_name):
+        if not await aiofiles.ospath.exists(org_file_name):
             self.printer.print_error(
                 f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
             )
@@ -56,13 +58,13 @@ class PushOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with open(org_file_name, "r") as file:
-                content = file.read()
+            async with aiofiles.open(org_file_name, "r") as file:
+                content = await file.read()
 
-            with open(jsonnet_config.jsonnet_bundle_file, "r") as file:
-                bundle_content = file.read()
+            async with aiofiles.open(jsonnet_config.jsonnet_bundle_file, "r") as file:
+                bundle_content = await file.read()
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 try:
                     updated_files = []
                     updated = False

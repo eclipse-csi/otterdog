@@ -22,9 +22,7 @@ class PullRequestClient(RestClient):
         print_debug(f"getting pull request with number '{pull_request_number}' from repo '{org_id}/{repo_name}'")
 
         try:
-            return await self.requester.async_request_json(
-                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}"
-            )
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull request:\n{ex}").with_traceback(tb)

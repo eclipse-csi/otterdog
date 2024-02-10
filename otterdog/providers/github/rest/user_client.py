@@ -20,7 +20,7 @@ class UserClient(RestClient):
         print_debug(f"retrieving user ids for user '{login}'")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/users/{login}")
+            response = await self.requester.request_json("GET", f"/users/{login}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__

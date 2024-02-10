@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.models.github_organization import GitHubOrganization
@@ -53,7 +53,7 @@ class DeleteFileOperation(Operation):
         try:
             org_file_name = jsonnet_config.org_config_file
 
-            if not os.path.exists(org_file_name):
+            if not await aiofiles.ospath.exists(org_file_name):
                 self.printer.print_error(
                     f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first."
                 )
@@ -71,7 +71,7 @@ class DeleteFileOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 rest_api = provider.rest_api
 
                 repositories_by_name = associate_by_key(organization.repositories, lambda r: r.name)

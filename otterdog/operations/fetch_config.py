@@ -6,7 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
+import aiofiles
+import aiofiles.os
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
@@ -36,7 +38,7 @@ class FetchOperation(Operation):
 
         org_file_name = jsonnet_config.org_config_file
 
-        if os.path.exists(org_file_name) and not self.force_processing:
+        if await aiofiles.ospath.exists(org_file_name) and not self.force_processing:
             self.printer.println()
             self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
             self.printer.println("  Performing this action will overwrite its contents.")
@@ -56,7 +58,7 @@ class FetchOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 try:
                     if self.pull_request is not None:
                         ref = await provider.get_ref_for_pull_request(
@@ -76,11 +78,11 @@ class FetchOperation(Operation):
                     return 1
 
             output_dir = jsonnet_config.org_dir
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+            if not await aiofiles.ospath.exists(output_dir):
+                await aiofiles.os.makedirs(output_dir)
 
-            with open(org_file_name, "w") as file:
-                file.write(definition)
+            async with aiofiles.open(org_file_name, "w") as file:
+                await file.write(definition)
 
             if ref is not None:
                 self.printer.println(

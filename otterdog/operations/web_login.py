@@ -37,7 +37,7 @@ class WebLoginOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 await provider.web_client.open_browser_with_logged_in_user(github_id)
 
             return 0

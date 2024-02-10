@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.models import FailureType
@@ -38,7 +38,7 @@ class ValidateOperation(Operation):
         try:
             org_file_name = jsonnet_config.org_config_file
 
-            if not os.path.exists(org_file_name):
+            if not await aiofiles.ospath.exists(org_file_name):
                 self.printer.print_error(
                     f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first."
                 )

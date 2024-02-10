@@ -29,7 +29,7 @@ class GraphQLClient:
         }
 
     async def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        print_debug(f"async retrieving branch protection rules for repo '{org_id}/{repo_name}'")
+        print_debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
         branch_protection_rules = await self._async_run_paged_query(variables, "get-branch-protection-rules.gql")
@@ -170,7 +170,7 @@ class GraphQLClient:
         query_file: str,
         prefix_selector: str = ".data.repository.branchProtectionRules",
     ) -> list[dict[str, Any]]:
-        print_debug(f"running async graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
+        print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = files(resources).joinpath(f"graphql/{query_file}").read_text()
 

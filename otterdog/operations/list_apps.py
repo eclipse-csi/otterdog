@@ -51,7 +51,7 @@ class ListAppsOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 apps = await provider.rest_api.org.get_app_installations(github_id)
 
             if not self.json_output:

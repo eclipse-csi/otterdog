@@ -27,6 +27,12 @@ class RestApi:
         self._auth_strategy = auth_strategy
         self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exception_type, exception_value, exception_traceback):
+        await self.close()
+
     @property
     def token(self) -> Optional[str]:
         from otterdog.providers.github.auth.token import TokenAuthStrategy
@@ -36,8 +42,8 @@ class RestApi:
         else:
             return None
 
-    def close(self) -> None:
-        self._requester.close()
+    async def close(self) -> None:
+        await self._requester.close()
 
     @property
     def requester(self) -> Requester:

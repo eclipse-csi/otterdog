@@ -23,7 +23,7 @@ class AppClient(RestClient):
         print_debug("retrieving authenticated app")
 
         try:
-            return await self.requester.async_request_json("GET", "/app")
+            return await self.requester.request_json("GET", "/app")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
@@ -32,7 +32,7 @@ class AppClient(RestClient):
         print_debug("retrieving app installations")
 
         try:
-            return await self.requester.async_request_paged_json("GET", "/app/installations")
+            return await self.requester.request_paged_json("GET", "/app/installations")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
@@ -41,9 +41,7 @@ class AppClient(RestClient):
         print_debug(f"creating an installation access token for installation '{installation_id}'")
 
         try:
-            response = await self.requester.async_request_json(
-                "POST", f"/app/installations/{installation_id}/access_tokens"
-            )
+            response = await self.requester.request_json("POST", f"/app/installations/{installation_id}/access_tokens")
             return response["token"], parse_date_string(response["expires_at"])
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -53,7 +51,7 @@ class AppClient(RestClient):
         print_debug("retrieving app node id")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/apps/{app_slug}")
+            response = await self.requester.request_json("GET", f"/apps/{app_slug}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__

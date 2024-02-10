@@ -31,7 +31,7 @@ class CommitClient(RestClient):
         print_debug(f"creating a commit status for sha '{sha}'")
 
         data = {"state": state, "target_url": target_url, "description": description, "context": context}
-        status, body = await self.requester.async_request_raw(
+        status, body = await self.requester.request_raw(
             "POST", f"/repos/{org_id}/{repo_name}/statuses/{sha}", data=json.dumps(data)
         )
 

@@ -30,7 +30,7 @@ class ContentClient(RestClient):
             else:
                 params = None
 
-            return await self.requester.async_request_json(
+            return await self.requester.request_json(
                 "GET", f"/repos/{org_id}/{repo_name}/contents/{path}", params=params
             )
         except GitHubException as ex:
@@ -87,7 +87,7 @@ class ContentClient(RestClient):
             data["sha"] = old_sha
 
         try:
-            await self.requester.async_request_json("PUT", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
+            await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
             return True
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -119,7 +119,7 @@ class ContentClient(RestClient):
         data = {"message": push_message, "sha": old_sha}
 
         try:
-            await self.requester.async_request_json("DELETE", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
+            await self.requester.request_json("DELETE", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
             return True
         except GitHubException as ex:
             tb = ex.__traceback__

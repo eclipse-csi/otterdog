@@ -45,7 +45,7 @@ class ShowLiveOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
-            with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
                 if self.no_web_ui is True:
                     self.printer.print_warn(
                         "the Web UI will not be queried as '--no-web-ui' has been specified, "

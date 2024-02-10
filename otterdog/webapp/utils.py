@@ -51,6 +51,8 @@ async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     if current_api is not None and expires_at is not None:
         if expires_at > datetime.now():
             return current_api
+        else:
+            await current_api.close()
 
     token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(installation)
     rest_api = RestApi(token_auth(token))
@@ -83,15 +85,15 @@ async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    rest_api = RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]))
-    content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
-    import aiofiles
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"])) as rest_api:
+        content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
+        import aiofiles
 
-    async with aiofiles.tempfile.NamedTemporaryFile("wt") as file:
-        name = cast(str, file.name)
-        await file.write(content)
-        await file.flush()
-        return OtterdogConfig(name, False, app_root)
+        async with aiofiles.tempfile.NamedTemporaryFile("wt") as file:
+            name = cast(str, file.name)
+            await file.write(content)
+            await file.flush()
+            return OtterdogConfig(name, False, app_root)
 
 
 async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:

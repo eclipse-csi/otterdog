@@ -24,7 +24,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving settings for org '{org_id}'")
 
         try:
-            settings = await self.requester.async_request_json("GET", f"/orgs/{org_id}")
+            settings = await self.requester.request_json("GET", f"/orgs/{org_id}")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving settings for organization '{org_id}':\n{ex}").with_traceback(tb)
@@ -45,7 +45,7 @@ class OrgClient(RestClient):
         print_debug(f"updating settings for organization '{org_id}'")
 
         try:
-            await self.requester.async_request_json("PATCH", f"/orgs/{org_id}", data)
+            await self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed to update settings for organization '{org_id}':\n{ex}").with_traceback(tb)
@@ -59,7 +59,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving security managers for organization {org_id}")
 
         try:
-            result = await self.requester.async_request_json("GET", f"/orgs/{org_id}/security-managers")
+            result = await self.requester.request_json("GET", f"/orgs/{org_id}/security-managers")
             return list(map(lambda x: x["slug"], result))
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -86,9 +86,7 @@ class OrgClient(RestClient):
     async def add_security_manager_team(self, org_id: str, team_slug: str) -> None:
         print_debug(f"adding team {team_slug} to security managers for organization {org_id}")
 
-        status, body = await self.requester.async_request_raw(
-            "PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}"
-        )
+        status, body = await self.requester.request_raw("PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
 
         if status == 204:
             print_debug(f"added team {team_slug} to security managers for organization {org_id}")
@@ -105,9 +103,7 @@ class OrgClient(RestClient):
     async def remove_security_manager_team(self, org_id: str, team_slug: str) -> None:
         print_debug(f"removing team {team_slug} from security managers for organization {org_id}")
 
-        status, body = await self.requester.async_request_raw(
-            "DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}"
-        )
+        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
         if status != 204:
             raise RuntimeError(
                 f"failed removing team '{team_slug}' from security managers of organization '{org_id}'"
@@ -120,7 +116,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving org webhooks for org '{org_id}'")
 
         try:
-            return await self.requester.async_request_json("GET", f"/orgs/{org_id}/hooks")
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/hooks")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}").with_traceback(tb)
@@ -129,7 +125,7 @@ class OrgClient(RestClient):
         print_debug(f"updating org webhook '{webhook_id}' for organization {org_id}")
 
         try:
-            await self.requester.async_request_json("PATCH", f"/orgs/{org_id}/hooks/{webhook_id}", webhook)
+            await self.requester.request_json("PATCH", f"/orgs/{org_id}/hooks/{webhook_id}", webhook)
             print_debug(f"updated webhook {webhook_id}")
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -143,7 +139,7 @@ class OrgClient(RestClient):
         data["name"] = "web"
 
         try:
-            await self.requester.async_request_json("POST", f"/orgs/{org_id}/hooks", data)
+            await self.requester.request_json("POST", f"/orgs/{org_id}/hooks", data)
             print_debug(f"added org webhook with url '{url}'")
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -152,7 +148,7 @@ class OrgClient(RestClient):
     async def delete_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
         print_debug(f"deleting org webhook with url '{url}'")
 
-        status, _ = await self.requester.async_request_raw("DELETE", f"/orgs/{org_id}/hooks/{webhook_id}")
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/hooks/{webhook_id}")
 
         if status != 204:
             raise RuntimeError(f"failed to delete org webhook with url '{url}'")
@@ -164,7 +160,7 @@ class OrgClient(RestClient):
 
         params = {"type": "all"}
         try:
-            repos = await self.requester.async_request_paged_json("GET", f"/orgs/{org_id}/repos", params)
+            repos = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params)
             return [repo["name"] for repo in repos]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -174,7 +170,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving secrets for org '{org_id}'")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/orgs/{org_id}/actions/secrets")
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/secrets")
 
             secrets = response["secrets"]
             for secret in secrets:
@@ -192,7 +188,7 @@ class OrgClient(RestClient):
 
         try:
             url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
-            response = await self.requester.async_request_json("GET", url)
+            response = await self.requester.request_json("GET", url)
             return response["repositories"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -207,7 +203,7 @@ class OrgClient(RestClient):
             data = {"selected_repository_ids": selected_repository_ids}
 
             url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
-            status, _ = await self.requester.async_request_raw("PUT", url, json.dumps(data))
+            status, _ = await self.requester.request_raw("PUT", url, json.dumps(data))
             if status != 204:
                 raise RuntimeError(f"failed to update selected repositories for secret '{secret_name}'")
             else:
@@ -235,7 +231,7 @@ class OrgClient(RestClient):
 
         await self._encrypt_secret_inplace(org_id, secret)
 
-        status, _ = await self.requester.async_request_raw(
+        status, _ = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
         )
 
@@ -253,7 +249,7 @@ class OrgClient(RestClient):
 
         await self._encrypt_secret_inplace(org_id, data)
 
-        status, _ = await self.requester.async_request_raw(
+        status, _ = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(data)
         )
 
@@ -272,7 +268,7 @@ class OrgClient(RestClient):
     async def delete_secret(self, org_id: str, secret_name: str) -> None:
         print_debug(f"deleting org secret '{secret_name}'")
 
-        status, _ = await self.requester.async_request_raw("DELETE", f"/orgs/{org_id}/actions/secrets/{secret_name}")
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/secrets/{secret_name}")
         if status != 204:
             raise RuntimeError(f"failed to delete org secret '{secret_name}'")
 
@@ -282,7 +278,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving variables for org '{org_id}'")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/orgs/{org_id}/actions/variables")
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/variables")
 
             secrets = response["variables"]
             for secret in secrets:
@@ -300,7 +296,7 @@ class OrgClient(RestClient):
 
         try:
             url = f"/orgs/{org_id}/actions/variables/{variable_name}/repositories"
-            response = await self.requester.async_request_json("GET", url)
+            response = await self.requester.request_json("GET", url)
             return response["repositories"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -315,7 +311,7 @@ class OrgClient(RestClient):
             data = {"selected_repository_ids": selected_repository_ids}
 
             url = f"/orgs/{org_id}/actions/variables/{variable_name}/repositories"
-            status, _ = await self.requester.async_request_raw("PUT", url, json.dumps(data))
+            status, _ = await self.requester.request_raw("PUT", url, json.dumps(data))
             if status != 204:
                 raise RuntimeError(f"failed to update selected repositories for variable '{variable_name}'")
 
@@ -341,7 +337,7 @@ class OrgClient(RestClient):
         else:
             selected_repository_ids = None
 
-        status, body = await self.requester.async_request_raw(
+        status, body = await self.requester.request_raw(
             "PATCH", f"/orgs/{org_id}/actions/variables/{variable_name}", json.dumps(variable)
         )
         if status != 204:
@@ -356,9 +352,7 @@ class OrgClient(RestClient):
         variable_name = data.get("name")
         print_debug(f"adding org variable '{variable_name}'")
 
-        status, body = await self.requester.async_request_raw(
-            "POST", f"/orgs/{org_id}/actions/variables", json.dumps(data)
-        )
+        status, body = await self.requester.request_raw("POST", f"/orgs/{org_id}/actions/variables", json.dumps(data))
 
         if status != 201:
             raise RuntimeError(f"failed to add org variable '{variable_name}': {body}")
@@ -368,9 +362,7 @@ class OrgClient(RestClient):
     async def delete_variable(self, org_id: str, variable_name: str) -> None:
         print_debug(f"deleting org variable '{variable_name}'")
 
-        status, body = await self.requester.async_request_raw(
-            "DELETE", f"/orgs/{org_id}/actions/variables/{variable_name}"
-        )
+        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/variables/{variable_name}")
 
         if status != 204:
             raise RuntimeError(f"failed to delete org variable '{variable_name}': {body}")
@@ -381,7 +373,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving org public key for org '{org_id}'")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/orgs/{org_id}/actions/secrets/public-key")
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/secrets/public-key")
             return response["key_id"], response["key"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -392,7 +384,7 @@ class OrgClient(RestClient):
         org_id, team_slug = re.split("/", combined_slug)
 
         try:
-            response = await self.requester.async_request_json("GET", f"/orgs/{org_id}/teams/{team_slug}")
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/teams/{team_slug}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -402,7 +394,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving teams for org '{org_id}'")
 
         try:
-            return await self.requester.async_request_json("GET", f"/orgs/{org_id}/teams")
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/teams")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}").with_traceback(tb)
@@ -411,7 +403,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving app installations for org '{org_id}'")
 
         try:
-            response = await self.requester.async_request_json("GET", f"/orgs/{org_id}/installations")
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/installations")
             return response["installations"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -423,7 +415,7 @@ class OrgClient(RestClient):
         workflow_settings: dict[str, Any] = {}
 
         try:
-            permissions = await self.requester.async_request_json("GET", f"/orgs/{org_id}/actions/permissions")
+            permissions = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions")
             workflow_settings.update(permissions)
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -450,7 +442,7 @@ class OrgClient(RestClient):
 
         permission_data = {k: data[k] for k in ["enabled_repositories", "allowed_actions"] if k in data}
         if len(permission_data) > 0:
-            status, body = await self.requester.async_request_raw(
+            status, body = await self.requester.request_raw(
                 "PUT", f"/orgs/{org_id}/actions/permissions", json.dumps(permission_data)
             )
 
@@ -480,9 +472,7 @@ class OrgClient(RestClient):
         print_debug("retrieving selected repositories for org workflow settings")
 
         try:
-            response = await self.requester.async_request_json(
-                "GET", f"/orgs/{org_id}/actions/permissions/repositories"
-            )
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/repositories")
             return response["repositories"]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -494,7 +484,7 @@ class OrgClient(RestClient):
         print_debug("updating selected repositories for org workflow settings")
 
         data = {"selected_repository_ids": selected_repository_ids}
-        status, body = await self.requester.async_request_raw(
+        status, body = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/permissions/repositories", json.dumps(data)
         )
 
@@ -509,9 +499,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving allowed actions for org '{org_id}'")
 
         try:
-            return await self.requester.async_request_json(
-                "GET", f"/orgs/{org_id}/actions/permissions/selected-actions"
-            )
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/selected-actions")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving allowed actions for org '{org_id}':\n{ex}").with_traceback(tb)
@@ -519,7 +507,7 @@ class OrgClient(RestClient):
     async def _update_selected_actions_for_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating allowed actions for org '{org_id}'")
 
-        status, body = await self.requester.async_request_raw(
+        status, body = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/permissions/selected-actions", json.dumps(data)
         )
 
@@ -532,7 +520,7 @@ class OrgClient(RestClient):
         print_debug(f"retrieving default workflow permissions for org '{org_id}'")
 
         try:
-            return await self.requester.async_request_json("GET", f"/orgs/{org_id}/actions/permissions/workflow")
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/workflow")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)
@@ -540,7 +528,7 @@ class OrgClient(RestClient):
     async def _update_default_workflow_permissions(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating default workflow permissions for org '{org_id}'")
 
-        status, body = await self.requester.async_request_raw(
+        status, body = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/actions/permissions/workflow", json.dumps(data)
         )
 
@@ -554,7 +542,7 @@ class OrgClient(RestClient):
 
         try:
             params = "?filter=2fa_disabled" if two_factor_disabled is True else ""
-            return await self.requester.async_request_paged_json("GET", f"/orgs/{org_id}/members{params}")
+            return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/members{params}")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)

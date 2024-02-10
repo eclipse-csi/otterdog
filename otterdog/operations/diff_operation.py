@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
-import os
 from abc import abstractmethod
 from typing import Any, Optional, Protocol
+
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
@@ -88,7 +89,7 @@ class DiffOperation(Operation):
             return await self._generate_diff(org_config)
         finally:
             self.printer.level_down()
-            self._gh_client.close()
+            await self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
         return GitHubProvider(self.config.get_credentials(org_config, only_token=self.no_web_ui))
@@ -115,7 +116,7 @@ class DiffOperation(Operation):
 
         org_file_name = jsonnet_config.org_config_file
 
-        if not os.path.exists(org_file_name):
+        if not await aiofiles.ospath.exists(org_file_name):
             self.printer.print_error(
                 f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first."
             )

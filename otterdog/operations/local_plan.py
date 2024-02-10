@@ -6,8 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
 from typing import Optional
+
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
@@ -47,7 +48,7 @@ class LocalPlanOperation(PlanOperation):
     async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         other_org_file_name = jsonnet_config.org_config_file + self.suffix
 
-        if not os.path.exists(other_org_file_name):
+        if not await aiofiles.ospath.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
         return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)

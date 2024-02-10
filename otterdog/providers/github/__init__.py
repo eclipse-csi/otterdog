@@ -42,15 +42,15 @@ class GitHubProvider:
         if credentials is not None:
             self._init_clients()
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, exception_type, exception_value, exception_traceback):
-        self.close()
+    async def __aexit__(self, exception_type, exception_value, exception_traceback):
+        await self.close()
 
-    def close(self) -> None:
+    async def close(self) -> None:
         if self._credentials is not None:
-            self.rest_api.close()
+            await self.rest_api.close()
 
     def _init_clients(self):
         self.rest_api = RestApi(token_auth(self._credentials.github_token))

@@ -10,6 +10,9 @@ import os
 import textwrap
 from io import StringIO
 
+import aiofiles.os
+import aiofiles.ospath
+
 from otterdog.config import OrganizationConfig
 from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
@@ -53,7 +56,7 @@ class ShowOperation(Operation):
         try:
             org_file_name = jsonnet_config.org_config_file
 
-            if not os.path.exists(org_file_name):
+            if not await aiofiles.ospath.exists(org_file_name):
                 self.printer.print_error(
                     f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import first'"
                 )
@@ -68,7 +71,7 @@ class ShowOperation(Operation):
             if not self.markdown:
                 self._print_classic(organization)
             else:
-                self._print_markdown(organization)
+                await self._print_markdown(organization)
 
             return 0
 
@@ -82,9 +85,9 @@ class ShowOperation(Operation):
             model_header = model_object.get_model_header(parent_object)
             self.print_dict(model_object.to_model_dict(), model_header, "", "black")
 
-    def _print_markdown(self, organization: GitHubOrganization) -> None:
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir, exist_ok=True)
+    async def _print_markdown(self, organization: GitHubOrganization) -> None:
+        if not await aiofiles.ospath.exists(self.output_dir):
+            await aiofiles.os.makedirs(self.output_dir, exist_ok=True)
 
         writer = StringIO()
         self.printer = IndentingPrinter(writer, spaces_per_level=4)
@@ -181,8 +184,8 @@ class ShowOperation(Operation):
 
         self.printer.level_down()
 
-        with open(os.path.join(self.output_dir, "configuration.md"), "w") as file:
-            file.write(writer.getvalue())
+        async with aiofiles.open(os.path.join(self.output_dir, "configuration.md"), "w") as file:
+            await file.write(writer.getvalue())
 
         for repo in organization.repositories:
             self._print_repo_markdown(organization, repo)
