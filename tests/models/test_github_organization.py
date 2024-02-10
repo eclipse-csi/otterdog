@@ -13,18 +13,18 @@ from otterdog.config import OtterdogConfig
 from otterdog.models.github_organization import GitHubOrganization
 
 
-class GitHubOrganizationTest(unittest.TestCase):
+class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
     TEST_ORG = "test-org"
     BASE_TEMPLATE_URL = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main"
 
-    def setUp(self):
+    async def asyncSetUp(self):
         base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources")
         otterdog_config_file = os.path.join(base_dir, "otterdog.json")
 
         self.otterdog_config = OtterdogConfig(otterdog_config_file, True)
         self.org_config = self.otterdog_config.get_organization_config(self.TEST_ORG)
         self.jsonnet_config = self.org_config.jsonnet_config
-        self.jsonnet_config.init_template()
+        await self.jsonnet_config.init_template()
 
     def test_load_from_file(self):
         organization = GitHubOrganization.load_from_file(

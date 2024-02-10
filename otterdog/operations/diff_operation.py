@@ -111,7 +111,7 @@ class DiffOperation(Operation):
     async def _generate_diff(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init_template()
+        await jsonnet_config.init_template()
         self._template_dir = jsonnet_config.template_dir
 
         org_file_name = jsonnet_config.org_config_file

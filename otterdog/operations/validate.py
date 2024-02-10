@@ -30,7 +30,7 @@ class ValidateOperation(Operation):
     async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init_template()
+        await jsonnet_config.init_template()
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
         self.printer.level_up()

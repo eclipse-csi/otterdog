@@ -6,13 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
+import asyncio
+
+import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
+from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import sort_jsonnet, strip_trailing_commas, style
 
-from ..models import PatchContext
 from . import Operation
 
 
@@ -31,13 +33,13 @@ class CanonicalDiffOperation(Operation):
     async def execute(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
-        jsonnet_config.init_template()
+        await jsonnet_config.init_template()
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
 
-        if not os.path.exists(org_file_name):
+        if not await aiofiles.ospath.exists(org_file_name):
             self.printer.print_error(
                 f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first."
             )
@@ -49,8 +51,8 @@ class CanonicalDiffOperation(Operation):
             self.printer.print_error(f"failed to load configuration: {str(ex)}")
             return 1
 
-        with open(org_file_name, "r") as file:
-            original_config = file.read()
+        async with aiofiles.open(org_file_name, "r") as file:
+            original_config = await file.read()
 
         original_config_without_comments: list[str] = strip_trailing_commas(
             sort_jsonnet(list(filter(lambda x: not x.strip().startswith("#"), original_config.split("\n"))))
@@ -62,7 +64,9 @@ class CanonicalDiffOperation(Operation):
 
         self.printer.println()
 
-        for line in self._diff(canonical_config_as_lines, original_config_without_comments, "canonical", "original"):
+        async for line in self._diff(
+            canonical_config_as_lines, original_config_without_comments, "canonical", "original"
+        ):
             if line.startswith("+"):
                 self.printer.println(style(line, fg="green"))
             elif line.startswith("-"):
@@ -73,17 +77,24 @@ class CanonicalDiffOperation(Operation):
         return 0
 
     @staticmethod
-    def _diff(a, b, name_a, name_b):
-        from subprocess import PIPE, Popen
-        from tempfile import NamedTemporaryFile
+    async def _diff(a, b, name_a, name_b):
+        async with aiofiles.tempfile.NamedTemporaryFile() as file:
+            await file.write(bytes("\n".join(a), "utf-8"))
+            await file.flush()
 
-        with NamedTemporaryFile() as file:
-            file.write(bytes("\n".join(a), "utf-8"))
-            file.flush()
-            p = Popen(
-                ["diff", "--label", name_a, "--label", name_b, "-u", "-w", "-", file.name], stdin=PIPE, stdout=PIPE
-            )
-            out, err = p.communicate(bytes("\n".join(b), "utf-8"))
+            try:
+                cmd = f"diff --label {name_a} --label {name_b} -u -w - {file.name}"
+                proc = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
 
-            for line in out.decode("utf-8").split("\n"):
-                yield line
+                out, _ = await proc.communicate(bytes("\n".join(b), "utf-8"))
+
+                for line in out.decode("utf-8").split("\n"):
+                    yield line
+            except BrokenPipeError as ex:
+                print(type(ex))
+                raise RuntimeError(f"failed to run diff command: {str(ex)}")

@@ -8,8 +8,10 @@
 
 import json
 import os
-import subprocess
 from typing import Any
+
+import aiofiles.os
+import aiofiles.ospath
 
 from .utils import (
     jsonnet_evaluate_snippet,
@@ -17,6 +19,7 @@ from .utils import (
     print_debug,
     print_trace,
     print_warn,
+    run_command,
 )
 
 
@@ -68,16 +71,16 @@ class JsonnetConfig:
     def org_id(self) -> str:
         return self._org_id
 
-    def init_template(self) -> None:
+    async def init_template(self) -> None:
         if self._initialized is True:
             return
 
         if not self._local_only:
-            self._init_base_template()
+            await self._init_base_template()
 
         template_file = self.template_file
         print_debug(f"loading template file '{template_file}'")
-        if not os.path.exists(self.template_file):
+        if not await aiofiles.ospath.exists(self.template_file):
             raise RuntimeError(f"template file '{template_file}' does not exist")
 
         # load the default settings for the organization
@@ -252,10 +255,10 @@ class JsonnetConfig:
     def jsonnet_bundle_lock_file(self) -> str:
         return f"{self.org_dir}/jsonnetfile.lock.json"
 
-    def _init_base_template(self) -> None:
+    async def _init_base_template(self) -> None:
         # create base directory if it does not exist yet
-        if not os.path.exists(self.org_dir):
-            os.makedirs(self.org_dir)
+        if not await aiofiles.ospath.exists(self.org_dir):
+            await aiofiles.os.makedirs(self.org_dir)
 
         content = {
             "version": 1,
@@ -273,25 +276,25 @@ class JsonnetConfig:
             "legacyImports": True,
         }
 
-        with open(self.jsonnet_bundle_file, "w") as file:
-            file.write(json.dumps(content, indent=2))
+        async with aiofiles.open(self.jsonnet_bundle_file, "w") as file:
+            await file.write(json.dumps(content, indent=2))
 
         # create an empty lock file if it does not exist yet
         lock_file = self.jsonnet_bundle_lock_file
-        if not os.path.exists(lock_file):
-            with open(lock_file, "w") as file:
-                file.write("")
+        if not await aiofiles.ospath.exists(lock_file):
+            async with aiofiles.open(lock_file, "w") as file:
+                await file.write("")
 
         print_debug("running jsonnet-bundler update")
         cwd = os.getcwd()
 
         try:
             os.chdir(self.org_dir)
-            status, result = subprocess.getstatusoutput("jb update")
-            print_trace(f"result = ({status}, {result})")
+            status, stdout, stderr = await run_command("jb", "update")
+            print_trace(f"result = ({status}, {stdout})")
 
             if status != 0:
-                raise RuntimeError(result)
+                raise RuntimeError(f"failed to run jsonnet-bundler update:\n{stdout}\n{stderr}")
 
         finally:
             os.chdir(cwd)

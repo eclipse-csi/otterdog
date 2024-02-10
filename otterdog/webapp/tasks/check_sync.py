@@ -98,7 +98,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
             org_config = await get_organization_config(installation, rest_api.token, work_dir)
 
             jsonnet_config = org_config.jsonnet_config
-            jsonnet_config.init_template()
+            await jsonnet_config.init_template()
 
             # get BASE config
             base_file = jsonnet_config.org_config_file

@@ -351,6 +351,19 @@ class IndentingPrinter:
         assert self._level >= 0
 
 
+async def run_command(cmd: str, *args: str) -> tuple[int, str, str]:
+    import asyncio
+
+    process = await asyncio.create_subprocess_exec(
+        cmd, *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+
+    stdout = await process.stdout.read()  # type: ignore
+    stderr = await process.stderr.read()  # type: ignore
+    await process.wait()
+    return process.returncode, stdout.decode("utf-8"), stderr.decode("utf-8")  # type: ignore
+
+
 def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
     import _gojsonnet  # type: ignore
 
