@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from logging import getLogger
 from typing import Optional
 
@@ -16,7 +17,13 @@ from odmantic import query
 from otterdog.webapp import mongo
 from otterdog.webapp.utils import get_otterdog_config, get_rest_api_for_app
 
-from .models import ConfigurationModel, InstallationModel, InstallationStatus, TaskModel
+from .models import (
+    ConfigurationModel,
+    InstallationModel,
+    InstallationStatus,
+    TaskModel,
+    TaskStatus,
+)
 
 logger = getLogger(__name__)
 
@@ -37,7 +44,7 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             )
 
             if installation is not None:
-                installation.installation_status = InstallationStatus.suspended
+                installation.installation_status = InstallationStatus.SUSPENDED
                 await mongo.odm.save(installation)
 
         case "unsuspend":
@@ -46,7 +53,7 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             )
 
             if installation is not None:
-                installation.installation_status = InstallationStatus.installed
+                installation.installation_status = InstallationStatus.INSTALLED
                 await mongo.odm.save(installation)
 
         case _:
@@ -71,7 +78,7 @@ async def update_installations() -> None:
             github_id = app_installation["account"]["login"]
             project_name = otterdog_config.get_project_name(github_id)
             suspended_at = app_installation["suspended_at"]
-            installation_status = InstallationStatus.installed if suspended_at is None else InstallationStatus.suspended
+            installation_status = InstallationStatus.INSTALLED if suspended_at is None else InstallationStatus.SUSPENDED
 
             if project_name is not None:
                 org_config = otterdog_config.get_organization_config(project_name)
@@ -107,7 +114,7 @@ async def update_installations() -> None:
 
                 if existing_model is not None:
                     existing_model.project_name = project_name
-                    existing_model.installation_status = InstallationStatus.not_installed
+                    existing_model.installation_status = InstallationStatus.NOT_INSTALLED
                     await mongo.odm.save(existing_model)
 
         # finally add all organizations that are in the config but have the app not installed yet
@@ -116,7 +123,7 @@ async def update_installations() -> None:
 
             if config is not None:
                 model = InstallationModel(  # type: ignore
-                    installation_status=InstallationStatus.not_installed,
+                    installation_status=InstallationStatus.NOT_INSTALLED,
                     project_name=config.name,
                     github_id=config.github_id,
                     config_repo=config.config_repo,
@@ -140,7 +147,7 @@ async def get_organizations() -> list[InstallationModel]:
 
 async def get_active_organizations() -> list[InstallationModel]:
     return await mongo.odm.find(
-        InstallationModel, InstallationModel.installation_status == InstallationStatus.installed
+        InstallationModel, InstallationModel.installation_status == InstallationStatus.INSTALLED
     )
 
 
@@ -158,3 +165,24 @@ async def get_configuration_by_github_id(github_id: str) -> Optional[Configurati
 
 async def get_configuration_by_project_name(project_name: str) -> Optional[ConfigurationModel]:
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.project_name == project_name)
+
+
+async def create_task(task: TaskModel) -> None:
+    await mongo.odm.save(task)
+
+
+async def finish_task(task: TaskModel) -> None:
+    task.status = TaskStatus.FINISHED
+    task.updated_at = datetime.utcnow()
+    await mongo.odm.save(task)
+
+
+async def fail_task(task: TaskModel, exception: Exception) -> None:
+    task.status = TaskStatus.FAILED
+    task.updated_at = datetime.utcnow()
+    task.log = str(exception)
+    await mongo.odm.save(task)
+
+
+async def save_config(config: ConfigurationModel) -> None:
+    await mongo.odm.save(config)

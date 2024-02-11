@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import dataclasses
 from io import StringIO
-from tempfile import TemporaryDirectory
 from typing import Union, cast
 
 from pydantic import ValidationError
@@ -22,13 +21,11 @@ from otterdog.operations.plan import PlanOperation
 from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import get_installation
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.tasks.validate_pull_request import get_admin_team
 from otterdog.webapp.utils import (
     escape_for_github,
-    fetch_config,
-    get_organization_config,
+    fetch_config_from_github,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
@@ -45,11 +42,10 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
     def create_task_model(self):
         return TaskModel(
-            type="CheckConfigurationInSyncTask",
+            type=type(self).__name__,
             org_id=self.org_id,
             repo_name=self.repository.name,
             pull_request=self.pull_request.number,
-            status="created",
         )
 
     async def _pre_execute(self) -> None:
@@ -84,25 +80,14 @@ class CheckConfigurationInSyncTask(Task[bool]):
             await self._update_final_status(rest_api, result_or_exception)
 
     async def _execute(self) -> bool:
-        otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
-
-        installation = await get_installation(self.installation_id)
-        if installation is None:
-            raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
-
+        otterdog_config = await get_otterdog_config()
         rest_api = await self.get_rest_api(self.installation_id)
 
-        with TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
-            assert rest_api.token is not None
-            org_config = await get_organization_config(installation, rest_api.token, work_dir)
-
-            jsonnet_config = org_config.jsonnet_config
-            await jsonnet_config.init_template()
-
+        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
             # get BASE config
-            base_file = jsonnet_config.org_config_file
-            await fetch_config(
+            base_file = org_config.jsonnet_config.org_config_file
+            await fetch_config_from_github(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -127,7 +112,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
             await operation.execute(org_config)
 
             sync_output = output.getvalue()
-            self.logger.info("sync plan: " + sync_output)
+            self.logger.info("sync plan:\n" + sync_output)
 
             if config_in_sync is False:
                 comment = await render_template(

@@ -351,11 +351,11 @@ class IndentingPrinter:
         assert self._level >= 0
 
 
-async def run_command(cmd: str, *args: str) -> tuple[int, str, str]:
+async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
     import asyncio
 
     process = await asyncio.create_subprocess_exec(
-        cmd, *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        cmd, *args, **kwargs, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
 
     stdout = await process.stdout.read()  # type: ignore

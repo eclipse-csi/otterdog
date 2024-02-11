@@ -9,18 +9,15 @@
 import dataclasses
 from io import StringIO
 
-import aiofiles
 from quart import render_template
 
 from otterdog.operations.apply import ApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import get_installation
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.utils import (
     escape_for_github,
-    fetch_config,
-    get_organization_config,
+    fetch_config_from_github,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
@@ -37,11 +34,10 @@ class ApplyChangesTask(Task[None]):
 
     def create_task_model(self):
         return TaskModel(
-            type="ApplyChangesTask",
+            type=type(self).__name__,
             org_id=self.org_id,
             repo_name=self.repository.name,
             pull_request=self.pull_request.number,
-            status="created",
         )
 
     async def _execute(self) -> None:
@@ -62,23 +58,12 @@ class ApplyChangesTask(Task[None]):
 
         otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
-
-        installation = await get_installation(self.installation_id)
-        if installation is None:
-            raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
-
         rest_api = await self.get_rest_api(self.installation_id)
 
-        async with aiofiles.tempfile.TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
-            assert rest_api.token is not None
-            org_config = await get_organization_config(installation, rest_api.token, work_dir)
-
-            jsonnet_config = org_config.jsonnet_config
-            await jsonnet_config.init_template()
-
+        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
             # get config from merge commit sha
-            head_file = jsonnet_config.org_config_file
-            await fetch_config(
+            head_file = org_config.jsonnet_config.org_config_file
+            await fetch_config_from_github(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -107,7 +92,7 @@ class ApplyChangesTask(Task[None]):
             await operation.execute(org_config)
 
             text = output.getvalue()
-            self.logger.info(text)
+            self.logger.info(f"apply result:\n{text}")
 
             result = await render_template("comment/applied_changes_comment.txt", result=escape_for_github(text))
 

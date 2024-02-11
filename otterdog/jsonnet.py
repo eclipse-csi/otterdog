@@ -286,18 +286,12 @@ class JsonnetConfig:
                 await file.write("")
 
         print_debug("running jsonnet-bundler update")
-        cwd = os.getcwd()
 
-        try:
-            os.chdir(self.org_dir)
-            status, stdout, stderr = await run_command("jb", "update")
-            print_trace(f"result = ({status}, {stdout})")
+        status, stdout, stderr = await run_command("jb", "update", cwd=self.org_dir)
+        print_trace(f"result = ({status}, {stdout})")
 
-            if status != 0:
-                raise RuntimeError(f"failed to run jsonnet-bundler update:\n{stdout}\n{stderr}")
-
-        finally:
-            os.chdir(cwd)
+        if status != 0:
+            raise RuntimeError(f"failed to run jsonnet-bundler update:\n{stdout}\n{stderr}")
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self._base_dir}, '{self._base_template_file}')"

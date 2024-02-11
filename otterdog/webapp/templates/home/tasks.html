@@ -60,6 +60,7 @@
                     <th>Repo name</th>
                     <th>Pull Request</th>
                     <th>Status</th>
+                    <th>Log</th>
                     <th>Created at</th>
                     <th>Updated at</th>
                   </tr>
@@ -70,8 +71,13 @@
                       <td>{{ task.type }}</td>
                       <td><a href="https://github.com/{{ task.org_id }}">{{ task.org_id }}</a></td>
                       <td><a href="https://github.com/{{ task.org_id }}/{{ task.repo_name }}">{{ task.repo_name }}</a></td>
+                      {% if task.pull_request > 0 %}
                       <td><a href="https://github.com/{{ task.org_id }}/{{ task.repo_name }}/pull/{{ task.pull_request }}">#{{ task.pull_request }}</a></td>
+                      {% else %}
+                      <td>None</td>
+                      {% endif %}
                       <td>{{ task.status }}</td>
+                      <td>{{ task.log }}</td>
                       <td>{{ task.created_at }}</td>
                       <td>{{ task.updated_at }}</td>
                     </tr>
@@ -113,7 +119,7 @@
   <script>
     $(function () {
       $('#organizations').DataTable({
-        "order": [[5, 'desc']],
+        "order": [[6, 'desc']],
         "autoWidth": false,
         "responsive": true,
       });

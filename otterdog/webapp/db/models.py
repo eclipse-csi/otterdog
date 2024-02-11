@@ -16,9 +16,9 @@ from odmantic import Field, Model
 
 
 class InstallationStatus(str, Enum):
-    installed = "installed"
-    not_installed = "not_installed"
-    suspended = "suspended"
+    INSTALLED = "installed"
+    NOT_INSTALLED = "not_installed"
+    SUSPENDED = "suspended"
 
     def __str__(self) -> str:
         return self.name
@@ -33,14 +33,24 @@ class InstallationModel(Model):
     base_template: Optional[str] = None
 
 
+class TaskStatus(str, Enum):
+    CREATED = "created"
+    FINISHED = "finished"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class TaskModel(Model):
     type: str
     org_id: str
     repo_name: str
-    pull_request: int
-    status: str
-    created_at: datetime = datetime.utcnow()
-    updated_at: datetime = datetime.utcnow()
+    pull_request: int = 0
+    status: TaskStatus = TaskStatus.CREATED
+    log: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ConfigurationModel(Model):

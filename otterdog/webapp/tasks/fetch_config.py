@@ -8,18 +8,11 @@
 
 import dataclasses
 
-import aiofiles
-
 from otterdog.utils import jsonnet_evaluate_file
-from otterdog.webapp import mongo
-from otterdog.webapp.db.models import ConfigurationModel
-from otterdog.webapp.db.service import get_installation
+from otterdog.webapp.db.models import ConfigurationModel, TaskModel
+from otterdog.webapp.db.service import save_config
 from otterdog.webapp.tasks import Task
-from otterdog.webapp.utils import (
-    fetch_config,
-    get_organization_config,
-    get_otterdog_config,
-)
+from otterdog.webapp.utils import fetch_config_from_github, get_otterdog_config
 
 
 @dataclasses.dataclass(repr=False)
@@ -27,6 +20,13 @@ class FetchConfigTask(Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
+
+    def create_task_model(self):
+        return TaskModel(
+            type=type(self).__name__,
+            org_id=self.org_id,
+            repo_name=self.repo_name,
+        )
 
     async def _pre_execute(self) -> None:
         self.logger.info(
@@ -37,22 +37,11 @@ class FetchConfigTask(Task[None]):
 
     async def _execute(self) -> None:
         otterdog_config = await get_otterdog_config()
-
-        installation = await get_installation(self.installation_id)
-        if installation is None:
-            raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
-
         rest_api = await self.get_rest_api(self.installation_id)
 
-        async with aiofiles.tempfile.TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
-            assert rest_api.token is not None
-            org_config = await get_organization_config(installation, rest_api.token, work_dir)
-
-            jsonnet_config = org_config.jsonnet_config
-            await jsonnet_config.init_template()
-
-            config_file = jsonnet_config.org_config_file
-            sha = await fetch_config(
+        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
+            config_file = org_config.jsonnet_config.org_config_file
+            sha = await fetch_config_from_github(
                 rest_api,
                 self.org_id,
                 self.org_id,
@@ -61,13 +50,13 @@ class FetchConfigTask(Task[None]):
             )
 
             config_data = jsonnet_evaluate_file(config_file)
-            model = ConfigurationModel(  # type: ignore
+            config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,
-                project_name=installation.project_name,
+                project_name=org_config.name,
                 config=config_data,
                 sha=sha,
             )
-            await mongo.odm.save(model)
+            await save_config(config)
 
     def __repr__(self) -> str:
         return f"FetchConfigTask(repo={self.org_id}/{self.repo_name})"

@@ -51,6 +51,22 @@ def configure_database(app):
             await init_mongo_database(mongo)
 
 
+def register_filters(app):
+    @app.template_filter("status")
+    def status_color(status):
+        from otterdog.webapp.db.models import InstallationStatus
+
+        match status:
+            case InstallationStatus.INSTALLED:
+                return "success"
+            case InstallationStatus.NOT_INSTALLED:
+                return "danger"
+            case InstallationStatus.SUSPENDED:
+                return "warning"
+            case _:
+                return "info"
+
+
 def create_app(app_config: AppConfig):
     app = Quart(app_config.QUART_APP)
     app.config.from_object(app_config)
@@ -60,18 +76,6 @@ def create_app(app_config: AppConfig):
     register_blueprints(app)
     configure_database(app)
 
-    @app.template_filter("status")
-    def status_color(status):
-        from otterdog.webapp.db.models import InstallationStatus
-
-        match status:
-            case InstallationStatus.installed:
-                return "success"
-            case InstallationStatus.not_installed:
-                return "danger"
-            case InstallationStatus.suspended:
-                return "warning"
-            case _:
-                return "info"
+    register_filters(app)
 
     return app

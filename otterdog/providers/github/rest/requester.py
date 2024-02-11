@@ -30,7 +30,7 @@ class Requester:
             "X-Github-Next-Global-ID": "1",
         }
 
-        self._async_session = AsyncCachedSession(
+        self._session = AsyncCachedSession(
             cache=FileBackend(
                 cache_name=_AIOHTTP_CACHE_DIR,
                 use_temp=False,
@@ -38,7 +38,7 @@ class Requester:
         )
 
     async def close(self) -> None:
-        await self._async_session.close()
+        await self._session.close()
 
     def _build_url(self, url_path: str) -> str:
         return f"{self._base_url}{url_path}"
@@ -98,7 +98,7 @@ class Requester:
             self._auth.update_headers_with_authorization(headers)
 
         url = self._build_url(url_path)
-        async with self._async_session.request(
+        async with self._session.request(
             method, url=url, headers=headers, params=params, data=data, refresh=True
         ) as response:
             text = await response.text()
@@ -129,7 +129,7 @@ class Requester:
             self._auth.update_headers_with_authorization(headers)
 
         url = self._build_url(url_path)
-        async with self._async_session.request(
+        async with self._session.request(
             method, url=url, headers=headers, params=params, data=data, refresh=True
         ) as response:
             async for chunk, _ in response.content.iter_chunks():

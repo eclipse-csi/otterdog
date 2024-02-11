@@ -111,7 +111,7 @@ async def get_organization_config(org_model: InstallationModel, token: str, work
     )
 
 
-async def fetch_config(
+async def fetch_config_from_github(
     rest_api: RestApi,
     org_id: str,
     owner: str,

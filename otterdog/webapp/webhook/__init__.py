@@ -13,13 +13,18 @@ from pydantic import ValidationError
 from quart import Response, current_app
 
 from otterdog.utils import LogLevel
-from otterdog.webapp.db.service import update_installation_status, update_installations
+from otterdog.webapp.db.service import (
+    get_installation,
+    update_installation_status,
+    update_installations,
+)
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
+from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
-from otterdog.webapp.utils import get_otterdog_config, refresh_otterdog_config
+from otterdog.webapp.utils import refresh_otterdog_config
 
 from .github_models import (
     InstallationEvent,
@@ -45,9 +50,7 @@ async def on_pull_request_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
-    otterdog_config = await get_otterdog_config()
-
-    if event.repository.name != otterdog_config.default_config_repo:
+    if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
 
     if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
@@ -57,7 +60,7 @@ async def on_pull_request_received(data):
                 event.organization.login,
                 event.repository,
                 event.pull_request,
-            ).execute
+            )
         )
 
     if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
@@ -67,7 +70,7 @@ async def on_pull_request_received(data):
                 event.organization.login,
                 event.repository,
                 event.pull_request,
-            ).execute
+            )
         )
 
     elif event.action in ["closed"] and event.pull_request.merged is True:
@@ -77,7 +80,7 @@ async def on_pull_request_received(data):
                 event.organization.login,
                 event.repository,
                 event.pull_request,
-            ).execute
+            )
         )
 
     return success()
@@ -98,9 +101,7 @@ async def on_issue_comment_received(data):
     if event.issue.pull_request is None:
         return success()
 
-    otterdog_config = await get_otterdog_config()
-
-    if event.repository.name != otterdog_config.default_config_repo:
+    if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
 
     if event.action in ["created", "edited"]:
@@ -114,7 +115,7 @@ async def on_issue_comment_received(data):
                     org_id,
                     event.repository.name,
                     event.issue.number,
-                ).execute
+                )
             )
             return success()
         elif re.match(r"\s*/team-info\s*", event.comment.body) is not None:
@@ -124,7 +125,7 @@ async def on_issue_comment_received(data):
                     org_id,
                     event.repository,
                     event.issue.number,
-                ).execute
+                )
             )
             return success()
         elif re.match(r"\s*/check-sync\s*", event.comment.body) is not None:
@@ -134,7 +135,7 @@ async def on_issue_comment_received(data):
                     org_id,
                     event.repository,
                     event.issue.number,
-                ).execute
+                )
             )
             return success()
 
@@ -155,7 +156,7 @@ async def on_issue_comment_received(data):
                 event.repository,
                 event.issue.number,
                 log_level,
-            ).execute
+            )
         )
 
     return success()
@@ -169,17 +170,36 @@ async def on_push_received(data):
         logger.error("failed to load push event data", exc_info=True)
         return success()
 
+    # check if the push targets the default branch of the config repo of an installation,
+    # in such a case, update the current config in the database
+    if event.installation is not None and event.organization is not None:
+        if event.ref != f"refs/heads/{event.repository.default_branch}":
+            return success()
+
+        if not await targets_config_repo(event.repository.name, event.installation.id):
+            return success()
+
+        current_app.add_background_task(
+            FetchConfigTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+            )
+        )
+        return success()
+
+    # if the otterdog config repo has been update, update all installations
     if (
-        event.repository.name != current_app.config["OTTERDOG_CONFIG_REPO"]
-        or event.repository.owner.login != current_app.config["OTTERDOG_CONFIG_OWNER"]
+        event.repository.name == current_app.config["OTTERDOG_CONFIG_REPO"]
+        and event.repository.owner.login == current_app.config["OTTERDOG_CONFIG_OWNER"]
     ):
+        if event.ref != f"refs/heads/{event.repository.default_branch}":
+            return success()
+
+        await refresh_otterdog_config(event.after)
+        current_app.add_background_task(update_installations)
         return success()
 
-    if event.ref != f"refs/heads/{event.repository.default_branch}":
-        return success()
-
-    await refresh_otterdog_config(event.after)
-    current_app.add_background_task(update_installations)
     return success()
 
 
@@ -193,6 +213,15 @@ async def on_installation_received(data):
 
     current_app.add_background_task(update_installation_status, event.installation.id, event.action)
     return success()
+
+
+async def targets_config_repo(repo_name: str, installation_id: int) -> bool:
+    installation = await get_installation(installation_id)
+    if installation is None:
+        logger.warning(f"received event for unknown installation '{installation_id}'")
+        return False
+
+    return repo_name == installation.config_repo
 
 
 def success() -> Response:

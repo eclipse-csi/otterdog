@@ -26,11 +26,10 @@ class RetrieveTeamMembershipTask(Task[None]):
 
     def create_task_model(self):
         return TaskModel(
-            type="RetrieveTeamMembershipTask",
+            type=type(self).__name__,
             org_id=self.org_id,
             repo_name=self.repository.name,
             pull_request=self.pull_request.number,
-            status="created",
         )
 
     async def _pre_execute(self) -> None:
