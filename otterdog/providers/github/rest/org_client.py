@@ -160,7 +160,7 @@ class OrgClient(RestClient):
 
         params = {"type": "all"}
         try:
-            repos = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params)
+            repos = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params=params)
             return [repo["name"] for repo in repos]
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -541,8 +541,11 @@ class OrgClient(RestClient):
         print_debug(f"retrieving list of organization members for org '{org_id}'")
 
         try:
-            params = "?filter=2fa_disabled" if two_factor_disabled is True else ""
-            return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/members{params}")
+            if two_factor_disabled is True:
+                params = {"filter": "2fa_disabled"}
+            else:
+                params = None
+            return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/members", params=params)
         except GitHubException as ex:
             tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving members:\n{ex}").with_traceback(tb)

@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from typing import Any, Optional
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
@@ -26,3 +26,19 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull request:\n{ex}").with_traceback(tb)
+
+    async def get_pull_requests(
+        self, org_id: str, repo_name: str, state: str = "all", base_ref: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        print_debug(f"getting pull requests from repo '{org_id}/{repo_name}'")
+
+        try:
+            params = {"state": state}
+
+            if base_ref is not None:
+                params.update({"base": base_ref})
+
+            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/pulls", params=params)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving pull requests:\n{ex}").with_traceback(tb)

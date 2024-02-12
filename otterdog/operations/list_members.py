@@ -72,24 +72,26 @@ class ListMembersOperation(Operation):
             async with GitHubProvider(credentials) as provider:
                 members = await provider.rest_api.org.list_members(github_id, self.two_factor_disabled)
 
-            if self.two_factor_disabled is True:
-                all_members = await provider.rest_api.org.list_members(github_id, False)
-                two_factor_status = (
-                    style("enabled", fg="green")
-                    if organization.settings.two_factor_requirement is True
-                    else style("disabled", fg="red")
-                )
+                if self.two_factor_disabled is True:
+                    all_members = await provider.rest_api.org.list_members(github_id, False)
+                    two_factor_status = (
+                        style("enabled", fg="green")
+                        if organization.settings.two_factor_requirement is True
+                        else style("disabled", fg="red")
+                    )
 
-                member_status = (
-                    style(str(len(members)), fg="green") if len(members) == 0 else style(str(len(members)), fg="red")
-                )
+                    member_status = (
+                        style(str(len(members)), fg="green")
+                        if len(members) == 0
+                        else style(str(len(members)), fg="red")
+                    )
 
-                self.printer.println(
-                    f"Found {member_status} / {len(all_members)} members with 2FA disabled. "
-                    f"Organization has 2FA '{two_factor_status}'"
-                )
-            else:
-                self.printer.println(f"Found {len(members)} members.")
+                    self.printer.println(
+                        f"Found {member_status} / {len(all_members)} members with 2FA disabled. "
+                        f"Organization has 2FA '{two_factor_status}'"
+                    )
+                else:
+                    self.printer.println(f"Found {len(members)} members.")
 
             return 0
         finally:

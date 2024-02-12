@@ -91,7 +91,7 @@ class Requester:
         data: Optional[str] = None,
         params: Optional[dict[str, Any]] = None,
     ) -> tuple[int, str]:
-        print_trace(f"'{method}' url = {url_path}, data = {data}, headers = {self._headers}")
+        print_trace(f"'{method}' url = {url_path}, data = {data}, params = {params}, headers = {self._headers}")
 
         headers = self._headers.copy()
         if self._auth is not None:
