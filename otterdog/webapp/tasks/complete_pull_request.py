@@ -13,6 +13,7 @@ from quart import render_template
 from otterdog.webapp.db.models import ApplyStatus, PullRequestStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import Task
+from otterdog.webapp.utils import get_admin_team
 
 
 @dataclasses.dataclass(repr=False)
@@ -21,6 +22,7 @@ class CompletePullRequestTask(Task[None]):
     org_id: str
     repo_name: str
     pull_request_number: int
+    author: str
 
     def create_task_model(self):
         return TaskModel(
@@ -32,13 +34,22 @@ class CompletePullRequestTask(Task[None]):
 
     async def _pre_execute(self) -> None:
         self.logger.info(
-            "completing pull request #%d of repo '%s/%s'",
+            "completing pull request #%d on behalf of user '%s' for repo '%s/%s'",
             self.pull_request_number,
+            self.author,
             self.org_id,
             self.repo_name,
         )
 
     async def _execute(self) -> None:
+        rest_api = await self.get_rest_api(self.installation_id)
+
+        admin_team = get_admin_team()
+        if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
+            comment = await render_template("comment/wrong_team_done_comment.txt", admin_team=admin_team)
+            await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+            return
+
         pr_model = await find_pull_request(self.org_id, self.repo_name, self.pull_request_number)
         if pr_model is None:
             self.logger.warning(f"failed to find data for pull request #%d in repo '{self.org_id}/{self.repo_name}'")
@@ -53,7 +64,6 @@ class CompletePullRequestTask(Task[None]):
         pr_model.apply_status = ApplyStatus.COMPLETED
         await update_pull_request(pr_model)
 
-        rest_api = await self.get_rest_api(self.installation_id)
         comment = await render_template("comment/done_comment.txt")
         await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 

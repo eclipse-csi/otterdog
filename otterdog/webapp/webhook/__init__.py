@@ -159,6 +159,7 @@ async def on_issue_comment_received(data):
                     org_id,
                     event.repository.name,
                     event.issue.number,
+                    event.sender.login,
                 )
             )
             return success()

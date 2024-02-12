@@ -25,6 +25,7 @@ from otterdog.webapp.tasks import Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
+    get_admin_team,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -231,7 +232,3 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
 def _get_webhook_validation_context() -> str:
     return current_app.config["GITHUB_WEBHOOK_VALIDATION_CONTEXT"]
-
-
-def get_admin_team() -> str:
-    return current_app.config["GITHUB_ADMIN_TEAM"]

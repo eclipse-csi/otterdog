@@ -114,6 +114,10 @@ async def get_organization_config(org_model: InstallationModel, token: str, work
     )
 
 
+def get_admin_team() -> str:
+    return current_app.config["GITHUB_ADMIN_TEAM"]
+
+
 async def fetch_config_from_github(
     rest_api: RestApi,
     org_id: str,
