@@ -13,6 +13,7 @@ from logging import getLogger
 from typing import Optional
 
 from odmantic import query
+from quart import current_app
 
 from otterdog.webapp import mongo
 from otterdog.webapp.utils import get_otterdog_config, get_rest_api_for_app
@@ -135,6 +136,21 @@ async def update_installations() -> None:
 
                 await mongo.odm.save(model)
 
+    for installation in await get_active_organizations():
+        configuration_model = await get_configuration_by_github_id(installation.github_id)
+        if configuration_model is None:
+            from otterdog.webapp.tasks.fetch_config import FetchConfigTask
+
+            assert installation.config_repo is not None
+
+            current_app.add_background_task(
+                FetchConfigTask(
+                    installation.installation_id,
+                    installation.github_id,
+                    installation.config_repo,
+                )
+            )
+
 
 async def get_installation(installation_id: int) -> Optional[InstallationModel]:
     return await mongo.odm.find_one(InstallationModel, InstallationModel.installation_id == installation_id)
@@ -145,7 +161,7 @@ async def get_all_organization_count() -> int:
 
 
 async def get_organizations() -> list[InstallationModel]:
-    return await mongo.odm.find(InstallationModel)
+    return await mongo.odm.find(InstallationModel, sort=InstallationModel.project_name)
 
 
 async def get_active_organizations() -> list[InstallationModel]:
