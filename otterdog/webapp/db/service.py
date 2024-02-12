@@ -139,12 +139,23 @@ async def update_installations() -> None:
     for installation in await get_active_organizations():
         configuration_model = await get_configuration_by_github_id(installation.github_id)
         if configuration_model is None:
+            from otterdog.webapp.tasks.fetch_all_pull_requests import (
+                FetchAllPullRequestsTask,
+            )
             from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
             assert installation.config_repo is not None
 
             current_app.add_background_task(
                 FetchConfigTask(
+                    installation.installation_id,
+                    installation.github_id,
+                    installation.config_repo,
+                )
+            )
+
+            current_app.add_background_task(
+                FetchAllPullRequestsTask(
                     installation.installation_id,
                     installation.github_id,
                     installation.config_repo,
