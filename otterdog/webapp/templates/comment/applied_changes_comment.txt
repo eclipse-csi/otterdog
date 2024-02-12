@@ -1,5 +1,25 @@
-This is your friendly self-service bot. The following changes have been applied:
+This is your friendly self-service bot.
+
+{% if success == true %}
+The following changes have been successfully applied:
 
 ```diff
-{{ result }}
+{{ output }}
 ```
+
+{% if partial == true %}
+### Note
+
+The pull request was only partially applied as it requires some access to secrets, please apply the remaining changes
+manually and confirm with replying with `/done`. cc @{{ admin_team }}
+{% endif %}
+
+{% else %}
+The changes could not be applied successfully, please check the output:
+
+```diff
+{{ output }}
+```
+
+cc @{{ admin_team }}
+{% endif %}

@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from odmantic import Field, Model
+from odmantic import Field, Index, Model
 
 
 class InstallationStatus(str, Enum):
@@ -49,7 +49,7 @@ class TaskModel(Model):
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
     log: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(index=True, default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -58,3 +58,47 @@ class ConfigurationModel(Model):
     project_name: Optional[str] = Field(unique=True, index=True)
     config: dict
     sha: str
+
+
+class PullRequestStatus(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+    MERGED = "merged"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ApplyStatus(str, Enum):
+    NOT_APPLIED = "not_applied"
+    FAILED = "failed"
+    PARTIALLY_APPLIED = "partially_applied"
+    COMPLETED = "completed"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PullRequestModel(Model):
+    org_id: str
+    repo_name: str
+    pull_request: int
+    status: PullRequestStatus = Field(index=True)
+
+    valid: Optional[bool] = None
+    in_sync: Optional[bool] = None
+    requires_manual_apply: bool = False
+    apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
+
+    updated_at: datetime = Field(index=True, default_factory=datetime.utcnow)
+
+    model_config = {  # type: ignore
+        "indexes": lambda: [
+            Index(
+                PullRequestModel.org_id,
+                PullRequestModel.repo_name,
+                PullRequestModel.pull_request,
+                unique=True,
+            ),
+        ]
+    }

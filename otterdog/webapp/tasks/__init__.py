@@ -85,7 +85,7 @@ class Task(ABC, Generic[T]):
     # https://youtrack.jetbrains.com/issue/PY-66517/False-unexpected-argument-with-asynccontextmanager-defined-as-a-method
     @asynccontextmanager
     async def get_organization_config(
-        self, otterdog_config: OtterdogConfig, rest_api: RestApi, installation_id: int
+        self, otterdog_config: OtterdogConfig, rest_api: RestApi, installation_id: int, initialize_template: bool = True
     ) -> AsyncIterator[OrganizationConfig]:
         installation = await get_installation(installation_id)
         if installation is None:
@@ -95,8 +95,9 @@ class Task(ABC, Generic[T]):
             assert rest_api.token is not None
             org_config = await get_organization_config(installation, rest_api.token, work_dir)
 
-            jsonnet_config = org_config.jsonnet_config
-            await jsonnet_config.init_template()
+            if initialize_template:
+                jsonnet_config = org_config.jsonnet_config
+                await jsonnet_config.init_template()
 
             yield org_config
 

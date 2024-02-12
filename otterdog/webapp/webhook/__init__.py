@@ -23,9 +23,11 @@ from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
+from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_otterdog_config
 
+from ..tasks.complete_pull_request import CompletePullRequestTask
 from .github_models import (
     InstallationEvent,
     IssueCommentEvent,
@@ -53,6 +55,15 @@ async def on_pull_request_received(data):
     if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
 
+    current_app.add_background_task(
+        UpdatePullRequestTask(
+            event.installation.id,
+            event.organization.login,
+            event.repository.name,
+            event.pull_request,
+        )
+    )
+
     if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
         current_app.add_background_task(
             RetrieveTeamMembershipTask(
@@ -74,6 +85,9 @@ async def on_pull_request_received(data):
         )
 
     elif event.action in ["closed"] and event.pull_request.merged is True:
+        if event.pull_request.base.ref != event.repository.default_branch:
+            return success()
+
         current_app.add_background_task(
             ApplyChangesTask(
                 event.installation.id,
@@ -133,7 +147,17 @@ async def on_issue_comment_received(data):
                 CheckConfigurationInSyncTask(
                     installation_id,
                     org_id,
-                    event.repository,
+                    event.repository.name,
+                    event.issue.number,
+                )
+            )
+            return success()
+        elif re.match(r"\s*/done\s*", event.comment.body) is not None:
+            current_app.add_background_task(
+                CompletePullRequestTask(
+                    installation_id,
+                    org_id,
+                    event.repository.name,
                     event.issue.number,
                 )
             )

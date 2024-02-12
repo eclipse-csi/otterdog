@@ -5,7 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-
+import asyncio
 import re
 from datetime import datetime
 from logging import getLogger
@@ -24,6 +24,7 @@ logger = getLogger(__name__)
 
 _APP_REST_API: Optional[RestApi] = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
+_REST_APIS_LOCK = asyncio.Lock()
 
 _OTTERDOG_CONFIG: Optional[OtterdogConfig] = None
 
@@ -44,20 +45,22 @@ def get_rest_api_for_app() -> RestApi:
 
 
 async def get_rest_api_for_installation(installation_id: int) -> RestApi:
-    global _INSTALLATION_REST_APIS
+    global _INSTALLATION_REST_APIS, _REST_APIS_LOCK
     installation = str(installation_id)
 
-    current_api, expires_at = _INSTALLATION_REST_APIS.get(installation, (None, datetime.now()))
-    if current_api is not None and expires_at is not None:
-        if expires_at > datetime.now():
-            return current_api
-        else:
-            await current_api.close()
+    async with _REST_APIS_LOCK:
+        current_api, expires_at = _INSTALLATION_REST_APIS.get(installation, (None, datetime.now()))
 
-    token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(installation)
-    rest_api = RestApi(token_auth(token))
-    _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
-    return rest_api
+        if current_api is not None and expires_at is not None:
+            if expires_at > datetime.now():
+                return current_api
+            else:
+                await current_api.close()
+
+        token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(installation)
+        rest_api = RestApi(token_auth(token))
+        _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
+        return rest_api
 
 
 async def get_otterdog_config() -> OtterdogConfig:

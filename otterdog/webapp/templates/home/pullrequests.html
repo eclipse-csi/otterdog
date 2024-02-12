@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %} GitHub Organizations {% endblock %}
+{% block title %} Pull Requests {% endblock %}
 
 <!-- Element injected in the BODY element -->
 {% block body_class %} {% endblock body_class %}
@@ -29,12 +29,12 @@
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
-            <h1>Organizations</h1>
+            <h1>Pull Requests</h1>
           </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
-              <li class="breadcrumb-item active">Organizations</li>
+              <li class="breadcrumb-item active">Pull Requests</li>
             </ol>
           </div>
         </div>
@@ -48,26 +48,75 @@
           <div class="col-12">
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">List of GitHub organizations</h3>
+                <h3 class="card-title">Currently open Pull Requests:</h3>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="organizations" class="table table-bordered table-hover">
+                <table id="open-pull-requests" class="table table-bordered table-hover">
                   <thead>
                   <tr>
-                    <th>Installation ID</th>
-                    <th>Installation Status</th>
-                    <th>Project Name</th>
-                    <th>GitHub Organization</th>
+                    <th>Organization</th>
+                    <th>Repo</th>
+                    <th>PR</th>
+                    <th>Updated</th>
+                    <th>PR Status</th>
+                    <th>Config in-sync</th>
+                    <th>Manual required</th>
+                    <th>Apply Status</th>
                   </tr>
                   </thead>
                   <tbody>
-                    {% for org in organizations %}
+                    {% for pr in open_pull_requests %}
                     <tr>
-                      <td>{{ org.installation_id }}</td>
-                      <td>{{ org.installation_status }}</td>
-                      <td>{{ org.project_name }}</td>
-                      <td><a href="https://github.com/{{ org.github_id }}" target="_blank"><i class="fab fa-github"></i> &nbsp; {{ org.github_id }}</a></td>
+                      <td><a href="https://github.com/{{ pr.org_id }}">{{ pr.org_id }}</a></td>
+                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}">{{ pr.repo_name }}</a></td>
+                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}/pull/{{ pr.pull_request }}">#{{ pr.pull_request }}</a></td>
+                      <td>{{ pr.updated_at }}</td>
+                      <td>{{ pr.status }}</td>
+                      <td>{{ pr.in_sync }}</td>
+                      <td>{{ pr.requires_manual_apply }}</td>
+                      <td>{{ pr.apply_status }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Last 100 merged Pull Requests:</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <table id="merged-pull-requests" class="table table-bordered table-hover">
+                  <thead>
+                  <tr>
+                    <th>Organization</th>
+                    <th>Repo</th>
+                    <th>PR</th>
+                    <th>Updated</th>
+                    <th>PR Status</th>
+                    <th>Apply Status</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                    {% for pr in merged_pull_requests %}
+                    <tr>
+                      <td><a href="https://github.com/{{ pr.org_id }}">{{ pr.org_id }}</a></td>
+                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}">{{ pr.repo_name }}</a></td>
+                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}/pull/{{ pr.pull_request }}">#{{ pr.pull_request }}</a></td>
+                      <td>{{ pr.updated_at }}</td>
+                      <td>{{ pr.status }}</td>
+                      <td>{{ pr.apply_status }}</td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -106,16 +155,18 @@
   <!-- page script -->
   <script>
     $(function () {
-      $('#organizations').DataTable({
+      $('#open-pull-requests').DataTable({
+        "order": [[3, 'desc']],
         "autoWidth": false,
         "responsive": true,
-        "pageLength": 50,
-        "lengthMenu": [
-          [10, 25, 50, 100, -1],
-          [10, 25, 50, 100, "All"]
-        ],
-        "order": [[3, 'asc']]
       });
+
+      $('#merged-pull-requests').DataTable({
+        "order": [[3, 'desc']],
+        "autoWidth": false,
+        "responsive": true,
+      });
+
     });
   </script>
 

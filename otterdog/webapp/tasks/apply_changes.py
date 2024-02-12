@@ -8,12 +8,14 @@
 
 import dataclasses
 from io import StringIO
+from typing import Union
 
 from quart import render_template
 
 from otterdog.operations.apply import ApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.db.models import TaskModel
+from otterdog.webapp.db.models import ApplyStatus, TaskModel
+from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.utils import (
     escape_for_github,
@@ -23,14 +25,25 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
+@dataclasses.dataclass
+class ApplyResult:
+    apply_output: str = ""
+    apply_success: bool = True
+    partial: bool = False
+
+
 @dataclasses.dataclass(repr=False)
-class ApplyChangesTask(Task[None]):
+class ApplyChangesTask(Task[ApplyResult]):
     """Applies changes from a merged PR and adds the result as a comment."""
 
     installation_id: int
     org_id: str
     repository: Repository
     pull_request: PullRequest
+
+    @property
+    def pull_request_number(self) -> int:
+        return self.pull_request.number
 
     def create_task_model(self):
         return TaskModel(
@@ -40,21 +53,36 @@ class ApplyChangesTask(Task[None]):
             pull_request=self.pull_request.number,
         )
 
-    async def _execute(self) -> None:
-        if self.pull_request.base.ref != self.repository.default_branch:
-            self.logger.debug(
-                "pull request merged into '%s' which is not the default branch '%s', ignoring",
-                self.pull_request.base.ref,
-                self.repository.default_branch,
+    async def _pre_execute(self) -> None:
+        self._pr_model = await find_pull_request(self.org_id, self.repository.name, self.pull_request.number)
+        if self._pr_model is None:
+            self.logger.error(
+                f"failed to find pull request #{self.pull_request_number} in repo '{self.repository.full_name}'"
             )
+
+    async def _post_execute(self, result_or_exception: Union[ApplyResult, Exception]) -> None:
+        if self._pr_model is None:
             return
 
+        if isinstance(result_or_exception, Exception):
+            self._pr_model.apply_status = ApplyStatus.FAILED
+        else:
+            if result_or_exception.apply_success is False or result_or_exception.partial:
+                self._pr_model.apply_status = ApplyStatus.PARTIALLY_APPLIED
+            else:
+                self._pr_model.apply_status = ApplyStatus.COMPLETED
+
+        await update_pull_request(self._pr_model)
+
+    async def _execute(self) -> ApplyResult:
         assert self.pull_request.merged is True
         assert self.pull_request.merge_commit_sha is not None
 
         self.logger.info(
             "applying merged pull request #%d of repo '%s'", self.pull_request.number, self.repository.full_name
         )
+
+        apply_result = ApplyResult()
 
         otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
@@ -89,16 +117,29 @@ class ApplyChangesTask(Task[None]):
             )
             operation.init(otterdog_config, printer)
 
-            await operation.execute(org_config)
+            operation_result = await operation.execute(org_config)
 
-            text = output.getvalue()
-            self.logger.info(f"apply result:\n{text}")
+            apply_result.apply_output = output.getvalue()
+            apply_result.apply_success = operation_result == 0
+            if self._pr_model is not None:
+                apply_result.partial = self._pr_model.requires_manual_apply
+            else:
+                apply_result.partial = False
 
-            result = await render_template("comment/applied_changes_comment.txt", result=escape_for_github(text))
+            self.logger.info("apply:" + apply_result.apply_output)
+
+            result = await render_template(
+                "comment/applied_changes_comment.txt",
+                output=escape_for_github(apply_result.apply_output),
+                success=apply_result.apply_success,
+                partial=apply_result.partial,
+            )
 
             await rest_api.issue.create_comment(
                 self.org_id, otterdog_config.default_config_repo, pull_request_number, result
             )
+
+            return apply_result
 
     def __repr__(self) -> str:
         return f"ApplyChangesTask(repo={self.repository.full_name}, pull_request={self.pull_request.number})"

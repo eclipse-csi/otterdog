@@ -13,9 +13,12 @@ from otterdog.utils import associate_by_key
 from otterdog.webapp.db.service import (
     get_active_organizations,
     get_configurations,
+    get_merged_pull_requests,
+    get_open_or_incomplete_pull_requests,
     get_organizations,
     get_tasks,
 )
+from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
 from . import blueprint
@@ -26,26 +29,51 @@ def route_default():
     return redirect(url_for(".index"))
 
 
-@blueprint.route("/index.html")
+@blueprint.route("/index")
 async def index():
     orgs = await get_organizations()
     configs = await get_configurations()
     configs_by_key = associate_by_key(configs, lambda x: x.github_id)
     return await render_template(
-        "home/index.html", segment="index", org_count=len(orgs), organizations=orgs, configurations=configs_by_key
+        "home/index.html",
+        segments=get_segments(request),
+        org_count=len(orgs),
+        organizations=orgs,
+        configurations=configs_by_key,
     )
 
 
-@blueprint.route("/organizations.html")
+@blueprint.route("/organizations")
 async def organizations():
     orgs = await get_organizations()
-    return await render_template("home/organizations.html", segment="organizations", organizations=orgs)
+    return await render_template(
+        "home/organizations.html",
+        segments=get_segments(request),
+        organizations=orgs,
+    )
 
 
-@blueprint.route("/tasks.html")
+@blueprint.route("/admin/pullrequests")
+async def pullrequests():
+    open_pull_requests = await get_open_or_incomplete_pull_requests()
+    merged_pull_requests = await get_merged_pull_requests(100)
+
+    return await render_template(
+        "home/pullrequests.html",
+        segments=get_segments(request),
+        open_pull_requests=open_pull_requests,
+        merged_pull_requests=merged_pull_requests,
+    )
+
+
+@blueprint.route("/admin/tasks")
 async def tasks():
     latest_tasks = await get_tasks(100)
-    return await render_template("home/tasks.html", segment="tasks", tasks=latest_tasks)
+    return await render_template(
+        "home/tasks.html",
+        segments=get_segments(request),
+        tasks=latest_tasks,
+    )
 
 
 @blueprint.route("/health")
@@ -61,22 +89,20 @@ async def init():
 
     for org in await get_active_organizations():
         current_app.add_background_task(FetchConfigTask(org.installation_id, org.github_id, org.config_repo))
+        current_app.add_background_task(FetchAllPullRequestsTask(org.installation_id, org.github_id, org.config_repo))
 
     return {}, 200
 
 
 @blueprint.route("/<template>")
-async def route_template(template):
+async def route_template(template: str):
     try:
-        if not template.endswith(".html"):
-            template += ".html"
+        if template.endswith(".html"):
+            endpoint = template.rstrip(".html")
+        else:
+            endpoint = template
 
-        # Detect the current page
-        segment = get_segment(request)
-
-        # Serve the file (if exists) from app/templates/home/FILE.html
-        return await render_template("home/" + template, segment=segment)
-
+        return redirect(url_for(f".{endpoint}"))
     except TemplateNotFound:
         return await render_template("home/page-404.html"), 404
 
@@ -85,14 +111,14 @@ async def route_template(template):
 
 
 # Helper - Extract current page name from request
-def get_segment(request):
+def get_segments(request):
     try:
-        segment = request.path.split("/")[-1]
+        segments = request.path.split("/")
 
-        if segment == "":
-            segment = "index"
+        if len(segments) == 1 and segments[0] == "":
+            segments = ["index"]
 
-        return segment
+        return segments
 
     except:  # noqa: E722
         return None

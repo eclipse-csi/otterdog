@@ -19,7 +19,8 @@ from otterdog.models import LivePatch
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.db.models import TaskModel
+from otterdog.webapp.db.models import PullRequestStatus, TaskModel
+from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.utils import (
     escape_for_github,
@@ -210,6 +211,15 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             status,
             _get_webhook_validation_context(),
             desc,
+        )
+
+        await update_or_create_pull_request(
+            self.org_id,
+            self.repo_name,
+            self.pull_request_number,
+            PullRequestStatus[self._pull_request.get_pr_status().upper()],
+            valid=validation_result.validation_success,
+            requires_manual_apply=validation_result.requires_secrets,
         )
 
     def __repr__(self) -> str:

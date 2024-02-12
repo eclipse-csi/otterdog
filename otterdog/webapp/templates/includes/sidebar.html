@@ -24,7 +24,7 @@
       <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
           <li class="nav-item">
-            <a href="/index.html" class="nav-link {% if 'index' in segment %} active {% endif %}">
+            <a href="/index" class="nav-link {% if 'index' in segments %} active {% endif %}">
               <i class="nav-icon fas fa-tachometer-alt"></i>
               <p>
                 Dashboard
@@ -34,7 +34,7 @@
           </li>
 
           <li class="nav-item">
-            <a href="/organizations.html" class="nav-link {% if 'organizations' in segment %} active {% endif %}">
+            <a href="/organizations" class="nav-link {% if 'organizations' in segments %} active {% endif %}">
               <i class="nav-icon fas fa-table"></i>
               <p>
                 Organizations
@@ -43,16 +43,34 @@
             </a>
           </li>
 
-          <li class="nav-item">
-            <a href="/tasks.html" class="nav-link {% if 'tasks' in segment %} active {% endif %}">
-              <i class="nav-icon fas fa-clipboard-list"></i>
+          <li class="nav-item has-treeview {% if 'admin' in segments %} menu-open {% endif %}">
+            <a href="#" class="nav-link {% if 'admin' in segments %} active {% endif %}">
+              <i class="nav-icon fas fa-tachometer-alt"></i>
               <p>
-                Tasks
-                <i class="fas nav-icon"></i>
+                Admininstration
+                <i class="right fas fa-angle-left"></i>
               </p>
             </a>
-          </li>
-
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="/admin/pullrequests" class="nav-link {% if 'pullrequests' in segments %} active {% endif %}">
+                  <i class="nav-icon fas fa-table"></i>
+                  <p>
+                    Pull Requests
+                    <i class="fas nav-icon"></i>
+                  </p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/admin/tasks" class="nav-link {% if 'tasks' in segments %} active {% endif %}">
+                  <i class="nav-icon fas fa-clipboard-list"></i>
+                  <p>
+                    Tasks
+                    <i class="fas nav-icon"></i>
+                  </p>
+                </a>
+              </li>
+            </ul>
         </ul>
       </nav>
       <!-- /.sidebar-menu -->

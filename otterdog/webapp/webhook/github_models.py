@@ -75,13 +75,24 @@ class PullRequest(BaseModel):
     title: str
     body: Optional[str] = None
     draft: bool
-    merged: bool
+    merged: Optional[bool] = None
     merge_commit_sha: Optional[str] = None
     user: Actor
     author_association: AuthorAssociation
 
     head: Ref
     base: Ref
+
+    def get_pr_status(self) -> str:
+        if self.state == "open":
+            return self.state
+        elif self.state == "closed":
+            if self.merged is True:
+                return "merged"
+            else:
+                return "closed"
+        else:
+            raise RuntimeError(f"unexpected state '{self.state}'")
 
 
 class Comment(BaseModel):

@@ -18,9 +18,12 @@ from otterdog.webapp import mongo
 from otterdog.webapp.utils import get_otterdog_config, get_rest_api_for_app
 
 from .models import (
+    ApplyStatus,
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
+    PullRequestModel,
+    PullRequestStatus,
     TaskModel,
     TaskStatus,
 )
@@ -186,3 +189,78 @@ async def fail_task(task: TaskModel, exception: Exception) -> None:
 
 async def save_config(config: ConfigurationModel) -> None:
     await mongo.odm.save(config)
+
+
+async def find_pull_request(owner: str, repo: str, pull_request: int) -> Optional[PullRequestModel]:
+    return await mongo.odm.find_one(
+        PullRequestModel,
+        PullRequestModel.org_id == owner,
+        PullRequestModel.repo_name == repo,
+        PullRequestModel.pull_request == pull_request,
+    )
+
+
+async def update_or_create_pull_request(
+    owner: str,
+    repo: str,
+    pull_request: int,
+    status: PullRequestStatus,
+    valid: Optional[bool] = None,
+    in_sync: Optional[bool] = None,
+    requires_manual_apply: Optional[bool] = None,
+    apply_status: Optional[ApplyStatus] = None,
+) -> None:
+    pr_model = await find_pull_request(owner, repo, pull_request)
+    if pr_model is None:
+        pr_model = PullRequestModel(  # type: ignore
+            org_id=owner,
+            repo_name=repo,
+            pull_request=pull_request,
+            status=status,
+        )
+    else:
+        pr_model.status = status
+
+    if valid is not None:
+        pr_model.valid = valid
+
+    if in_sync is not None:
+        pr_model.in_sync = in_sync
+
+    if requires_manual_apply is not None:
+        pr_model.requires_manual_apply = requires_manual_apply
+
+    if apply_status is not None:
+        pr_model.apply_status = apply_status
+
+    await update_pull_request(pr_model)
+
+
+async def update_pull_request(pull_request: PullRequestModel) -> None:
+    pull_request.updated_at = datetime.utcnow()
+    await mongo.odm.save(pull_request)
+
+
+async def get_open_or_incomplete_pull_requests() -> list[PullRequestModel]:
+    return await mongo.odm.find(
+        PullRequestModel,
+        query.or_(
+            PullRequestModel.status == PullRequestStatus.OPEN,
+            query.and_(
+                PullRequestModel.status == PullRequestStatus.MERGED,
+                PullRequestModel.apply_status != ApplyStatus.COMPLETED,
+            ),
+        ),
+    )
+
+
+async def get_merged_pull_requests(limit: int) -> list[PullRequestModel]:
+    return await mongo.odm.find(
+        PullRequestModel,
+        query.and_(
+            PullRequestModel.status == PullRequestStatus.MERGED,
+            PullRequestModel.apply_status == ApplyStatus.COMPLETED,
+        ),
+        limit=limit,
+        sort=query.desc(PullRequestModel.updated_at),
+    )
