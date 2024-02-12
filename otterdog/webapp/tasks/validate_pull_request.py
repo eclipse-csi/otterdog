@@ -124,6 +124,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 self._pull_request.base.ref,
             )
 
+            assert self._pull_request.head.repo is not None
+
             # get HEAD config from PR
             head_file = org_config_file
             await fetch_config_from_github(

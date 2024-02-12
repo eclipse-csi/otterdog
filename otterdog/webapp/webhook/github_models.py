@@ -61,7 +61,7 @@ class Ref(BaseModel):
     ref: str
     sha: str
     user: Actor
-    repo: Repository
+    repo: Optional[Repository]
 
 
 class PullRequest(BaseModel):
@@ -87,7 +87,7 @@ class PullRequest(BaseModel):
         if self.state == "open":
             return self.state
         elif self.state == "closed":
-            if self.merged is True:
+            if self.merge_commit_sha is not None:
                 return "merged"
             else:
                 return "closed"

@@ -38,7 +38,7 @@ class FetchAllPullRequestsTask(Task[None]):
         rest_api = await self.get_rest_api(self.installation_id)
 
         all_pull_requests = await rest_api.pull_request.get_pull_requests(
-            self.org_id, self.repo_name, state="open", base_ref="main"
+            self.org_id, self.repo_name, state="all", base_ref="main"
         )
 
         for pr in all_pull_requests:
@@ -46,13 +46,14 @@ class FetchAllPullRequestsTask(Task[None]):
             pr_number = pr_from_github.number
 
             # when importing already closed PRs we consider them being applied already
-            apply_status = ApplyStatus.COMPLETED if pr_from_github.state == "closed" else None
+            pr_status = pr_from_github.get_pr_status().upper()
+            apply_status = ApplyStatus.COMPLETED if pr_status == "MERGED" else None
 
             await update_or_create_pull_request(
                 self.org_id,
                 self.repo_name,
                 pr_number,
-                PullRequestStatus[pr_from_github.get_pr_status().upper()],
+                PullRequestStatus[pr_status],
                 apply_status=apply_status,
             )
 
