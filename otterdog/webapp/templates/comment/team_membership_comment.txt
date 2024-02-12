@@ -1,6 +1,7 @@
-This is your friendly self-service bot.
+This is your friendly self-service bot. The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
+
 {% if (teams is defined) and teams %}
-The author ([{{ user }}](https://github.com/{{ user }})) of this PR is a member of the following teams:
+Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the following teams:
 
 {% for team in teams %}
 - [{{ team.0 }}]({{ team.1 }})

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel
@@ -77,6 +78,7 @@ class PullRequest(BaseModel):
     merged: bool
     merge_commit_sha: Optional[str] = None
     user: Actor
+    author_association: AuthorAssociation
 
     head: Ref
     base: Ref
@@ -100,6 +102,20 @@ class AssociatedPullRequest(BaseModel):
     html_url: str
 
 
+class AuthorAssociation(str, Enum):
+    COLLABORATOR = "COLLABORATOR"
+    CONTRIBUTOR = "CONTRIBUTOR"
+    FIRST_TIMER = "FIRST_TIME"
+    FIRST_TIME_CONTRIBUTOR = "FIRST_TIME_CONTRIBUTOR"
+    MANNEQUIN = "MANNEQUIN"
+    MEMBER = "MEMBER"
+    NONE = "NONE"
+    OWNER = "OWNER"
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Issue(BaseModel):
     """Represents an issue"""
 
@@ -107,6 +123,8 @@ class Issue(BaseModel):
     node_id: str
     title: str
     state: str
+    user: Optional[Actor] = None
+    author_association: AuthorAssociation
     draft: Optional[bool] = None
     body: Optional[str] = None
     pull_request: Optional[AssociatedPullRequest] = None

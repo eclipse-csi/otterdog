@@ -7,57 +7,61 @@
 #  *******************************************************************************
 
 import dataclasses
-from typing import cast
 
-from pydantic import ValidationError
 from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
-from otterdog.webapp.webhook.github_models import PullRequest, Repository
+from otterdog.webapp.webhook.github_models import PullRequest
 
 
 @dataclasses.dataclass(repr=False)
 class RetrieveTeamMembershipTask(Task[None]):
     installation_id: int
     org_id: str
-    repository: Repository
+    repo_name: str
     pull_request_or_number: PullRequest | int
+
+    @property
+    def pull_request_number(self) -> int:
+        return (
+            self.pull_request_or_number
+            if isinstance(self.pull_request_or_number, int)
+            else self.pull_request_or_number.number
+        )
 
     def create_task_model(self):
         return TaskModel(
             type=type(self).__name__,
             org_id=self.org_id,
-            repo_name=self.repository.name,
-            pull_request=self.pull_request.number,
+            repo_name=self.repo_name,
+            pull_request=self.pull_request_number,
         )
 
     async def _pre_execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
-
+        self._rest_api = await self.get_rest_api(self.installation_id)
         if isinstance(self.pull_request_or_number, int):
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repository.name, str(self.pull_request_or_number)
+            response = await self._rest_api.pull_request.get_pull_request(
+                self.org_id, self.repo_name, str(self.pull_request_number)
             )
-            try:
-                self.pull_request = PullRequest.model_validate(response)
-            except ValidationError as ex:
-                self.logger.exception("failed to load pull request event data", exc_info=ex)
-                return
+            self._pull_request = PullRequest.model_validate(response)
         else:
-            self.pull_request = cast(PullRequest, self.pull_request_or_number)
+            self._pull_request = self.pull_request_or_number
 
         self.logger.info(
-            "retrieving team membership of author '%s' for pull request #%d of repo '%s'",
-            self.pull_request.user.login,
-            self.pull_request.number,
-            self.repository.full_name,
+            "retrieving team membership of author '%s' for pull request #%d of repo '%s/%s'",
+            self._pull_request.user.login,
+            self.pull_request_number,
+            self.org_id,
+            self.repo_name,
         )
 
     async def _execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
+        rest_api = self._rest_api
 
-        user = self.pull_request.user.login
+        user = self._pull_request.user.login
+        association = self._pull_request.author_association
+
         team_slugs = await rest_api.team.get_team_slugs(self.org_id)
         team_membership = []
 
@@ -66,13 +70,13 @@ class RetrieveTeamMembershipTask(Task[None]):
                 team_membership.append(team_slug)
 
         teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
-        comment = await render_template("comment/team_membership_comment.txt", user=user, teams=teams)
-        await rest_api.issue.create_comment(self.org_id, self.repository.name, str(self.pull_request.number), comment)
+        comment = await render_template(
+            "comment/team_membership_comment.txt", user=user, association=association, teams=teams
+        )
+        await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
     def __repr__(self) -> str:
-        pull_request_number = (
-            self.pull_request_or_number
-            if isinstance(self.pull_request_or_number, int)
-            else self.pull_request_or_number.number
+        return (
+            f"RetrieveTeamMembershipTask(repo='{self.org_id}/{self.repo_name}', "
+            f"pull_request=#{self.pull_request_number})"
         )
-        return f"RetrieveTeamMembershipTask(repo={self.repository.full_name}, pull_request={pull_request_number})"

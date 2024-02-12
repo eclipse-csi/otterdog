@@ -48,13 +48,13 @@ class Task(ABC, Generic[T]):
     async def execute(self) -> Optional[T]:
         self.logger.debug(f"executing task '{self!r}'")
 
-        await self._pre_execute()
-
         task_model = self.create_task_model()
         if task_model is not None:
             await create_task(task_model)
 
         try:
+            await self._pre_execute()
+
             result = await self._execute()
             await self._post_execute(result)
 

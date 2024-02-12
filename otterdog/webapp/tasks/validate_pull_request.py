@@ -11,15 +11,13 @@ from __future__ import annotations
 import dataclasses
 import filecmp
 from io import StringIO
-from typing import Union, cast
+from typing import Union
 
-from pydantic import ValidationError
 from quart import current_app, render_template
 
 from otterdog.models import LivePatch
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
-from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
@@ -28,7 +26,7 @@ from otterdog.webapp.utils import (
     fetch_config_from_github,
     get_otterdog_config,
 )
-from otterdog.webapp.webhook.github_models import PullRequest, Repository
+from otterdog.webapp.webhook.github_models import PullRequest
 
 
 @dataclasses.dataclass
@@ -44,9 +42,17 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
     installation_id: int
     org_id: str
-    repository: Repository
+    repo_name: str
     pull_request_or_number: PullRequest | int
     log_level: LogLevel = LogLevel.WARN
+
+    @property
+    def pull_request_number(self) -> int:
+        return (
+            self.pull_request_or_number
+            if isinstance(self.pull_request_or_number, int)
+            else self.pull_request_or_number.number
+        )
 
     @property
     def check_base_config(self) -> bool:
@@ -56,57 +62,51 @@ class ValidatePullRequestTask(Task[ValidationResult]):
         return TaskModel(
             type=type(self).__name__,
             org_id=self.org_id,
-            repo_name=self.repository.name,
-            pull_request=self.pull_request.number,
+            repo_name=self.repo_name,
+            pull_request=self.pull_request_number,
         )
 
     async def _pre_execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
+        self._rest_api = await self.get_rest_api(self.installation_id)
 
         if isinstance(self.pull_request_or_number, int):
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repository.name, str(self.pull_request_or_number)
+            response = await self._rest_api.pull_request.get_pull_request(
+                self.org_id, self.repo_name, str(self.pull_request_or_number)
             )
-            try:
-                self.pull_request = PullRequest.model_validate(response)
-            except ValidationError as ex:
-                self.logger.exception("failed to load pull request event data", exc_info=ex)
-                return
+            self._pull_request = PullRequest.model_validate(response)
         else:
-            self.pull_request = cast(PullRequest, self.pull_request_or_number)
+            self._pull_request = self.pull_request_or_number
 
         self.logger.info(
-            "validating pull request #%d of repo '%s' with log level '%s'",
-            self.pull_request.number,
-            self.repository.full_name,
+            "validating pull request #%d of repo '%s/%s' with log level '%s'",
+            self.pull_request_number,
+            self.org_id,
+            self.repo_name,
             self.log_level,
         )
 
-        await self._create_pending_status(rest_api)
+        await self._create_pending_status()
 
         from .check_sync import CheckConfigurationInSyncTask
 
         check_task = CheckConfigurationInSyncTask(
             self.installation_id,
             self.org_id,
-            self.repository,
+            self.repo_name,
             self.pull_request_or_number,
         )
 
         current_app.add_background_task(check_task.execute)
 
     async def _post_execute(self, result_or_exception: Union[ValidationResult, Exception]) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
-
         if isinstance(result_or_exception, Exception):
-            await self._create_failure_status(rest_api)
+            await self._create_failure_status()
         else:
-            await self._update_final_status(rest_api, result_or_exception)
+            await self._update_final_status(result_or_exception)
 
     async def _execute(self) -> ValidationResult:
+        rest_api = self._rest_api
         otterdog_config = await get_otterdog_config()
-        rest_api = await self.get_rest_api(self.installation_id)
-        pull_request_number = str(self.pull_request.number)
 
         async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
             org_config_file = org_config.jsonnet_config.org_config_file
@@ -119,7 +119,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 self.org_id,
                 org_config.config_repo,
                 base_file,
-                self.pull_request.base.ref,
+                self._pull_request.base.ref,
             )
 
             # get HEAD config from PR
@@ -127,10 +127,10 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             await fetch_config_from_github(
                 rest_api,
                 self.org_id,
-                self.pull_request.head.repo.owner.login,
-                self.pull_request.head.repo.name,
+                self._pull_request.head.repo.owner.login,
+                self._pull_request.head.repo.name,
                 head_file,
-                self.pull_request.head.ref,
+                self._pull_request.head.ref,
             )
 
             validation_result = ValidationResult()
@@ -162,7 +162,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
             comment = await render_template(
                 "comment/validation_comment.txt",
-                sha=self.pull_request.head.sha,
+                sha=self._pull_request.head.sha,
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
                 admin_team=f"{self.org_id}/{get_admin_team()}",
@@ -170,32 +170,32 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
             # add a comment about the validation result to the PR
             await rest_api.issue.create_comment(
-                self.org_id, otterdog_config.default_config_repo, pull_request_number, comment
+                self.org_id, org_config.config_repo, str(self.pull_request_number), comment
             )
 
             return validation_result
 
-    async def _create_pending_status(self, rest_api: RestApi):
-        await rest_api.commit.create_commit_status(
+    async def _create_pending_status(self):
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             "pending",
             _get_webhook_validation_context(),
             "validating configuration change using otterdog",
         )
 
-    async def _create_failure_status(self, rest_api: RestApi):
-        await rest_api.commit.create_commit_status(
+    async def _create_failure_status(self):
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             "failure",
             _get_webhook_validation_context(),
             "otterdog validation failed, please contact an admin",
         )
 
-    async def _update_final_status(self, rest_api: RestApi, validation_result: ValidationResult) -> None:
+    async def _update_final_status(self, validation_result: ValidationResult) -> None:
         if validation_result.validation_success is True:
             desc = "otterdog validation completed successfully"
             status = "success"
@@ -203,22 +203,20 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             desc = "otterdog validation failed, check validation result in comment history"
             status = "error"
 
-        await rest_api.commit.create_commit_status(
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             status,
             _get_webhook_validation_context(),
             desc,
         )
 
     def __repr__(self) -> str:
-        pull_request_number = (
-            self.pull_request_or_number
-            if isinstance(self.pull_request_or_number, int)
-            else self.pull_request_or_number.number
+        return (
+            f"ValidatePullRequestTask(repo='{self.org_id}/{self.repo_name}', "
+            f"pull_request=#{self.pull_request_number})"
         )
-        return f"ValidatePullRequestTask(repo={self.repository.full_name}, pull_request={pull_request_number})"
 
 
 def _get_webhook_validation_context() -> str:

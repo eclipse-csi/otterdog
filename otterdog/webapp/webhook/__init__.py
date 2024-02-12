@@ -58,8 +58,8 @@ async def on_pull_request_received(data):
             RetrieveTeamMembershipTask(
                 event.installation.id,
                 event.organization.login,
-                event.repository,
-                event.pull_request,
+                event.repository.name,
+                event.pull_request.number,
             )
         )
 
@@ -68,7 +68,7 @@ async def on_pull_request_received(data):
             ValidatePullRequestTask(
                 event.installation.id,
                 event.organization.login,
-                event.repository,
+                event.repository.name,
                 event.pull_request,
             )
         )
@@ -123,7 +123,7 @@ async def on_issue_comment_received(data):
                 RetrieveTeamMembershipTask(
                     installation_id,
                     org_id,
-                    event.repository,
+                    event.repository.name,
                     event.issue.number,
                 )
             )
@@ -153,7 +153,7 @@ async def on_issue_comment_received(data):
             ValidatePullRequestTask(
                 installation_id,
                 org_id,
-                event.repository,
+                event.repository.name,
                 event.issue.number,
                 log_level,
             )

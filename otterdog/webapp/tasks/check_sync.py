@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import dataclasses
 from io import StringIO
-from typing import Union, cast
+from typing import Union
 
-from pydantic import ValidationError
 from quart import current_app, render_template
 
 from otterdog.models import LivePatch
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
-from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
@@ -28,7 +26,7 @@ from otterdog.webapp.utils import (
     fetch_config_from_github,
     get_otterdog_config,
 )
-from otterdog.webapp.webhook.github_models import PullRequest, Repository
+from otterdog.webapp.webhook.github_models import PullRequest
 
 
 @dataclasses.dataclass(repr=False)
@@ -37,52 +35,53 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
     installation_id: int
     org_id: str
-    repository: Repository
+    repo_name: str
     pull_request_or_number: PullRequest | int
+
+    @property
+    def pull_request_number(self) -> int:
+        return (
+            self.pull_request_or_number
+            if isinstance(self.pull_request_or_number, int)
+            else self.pull_request_or_number.number
+        )
 
     def create_task_model(self):
         return TaskModel(
             type=type(self).__name__,
             org_id=self.org_id,
-            repo_name=self.repository.name,
-            pull_request=self.pull_request.number,
+            repo_name=self.repo_name,
+            pull_request=self.pull_request_number,
         )
 
     async def _pre_execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
-
-        if isinstance(self.pull_request_or_number, int):
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repository.name, str(self.pull_request_or_number)
-            )
-            try:
-                self.pull_request = PullRequest.model_validate(response)
-            except ValidationError as ex:
-                self.logger.exception("failed to load pull request event data", exc_info=ex)
-                return
-        else:
-            self.pull_request = cast(PullRequest, self.pull_request_or_number)
-
         self.logger.info(
-            "checking if base ref is in sync for pull request #%d of repo '%s'",
-            self.pull_request.number,
-            self.repository.full_name,
+            "checking if base ref is in sync for pull request #%d of repo '%s/%s'",
+            self.pull_request_number,
+            self.org_id,
+            self.repo_name,
         )
 
-        await self._create_pending_status(rest_api)
+        self._rest_api = await self.get_rest_api(self.installation_id)
+        if isinstance(self.pull_request_or_number, int):
+            response = await self._rest_api.pull_request.get_pull_request(
+                self.org_id, self.repo_name, str(self.pull_request_number)
+            )
+            self._pull_request = PullRequest.model_validate(response)
+        else:
+            self._pull_request = self.pull_request_or_number
+
+        await self._create_pending_status()
 
     async def _post_execute(self, result_or_exception: Union[bool, Exception]) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
-
         if isinstance(result_or_exception, Exception):
-            await self._create_failure_status(rest_api)
+            await self._create_failure_status()
         else:
-            await self._update_final_status(rest_api, result_or_exception)
+            await self._update_final_status(result_or_exception)
 
     async def _execute(self) -> bool:
-        pull_request_number = str(self.pull_request.number)
+        rest_api = self._rest_api
         otterdog_config = await get_otterdog_config()
-        rest_api = await self.get_rest_api(self.installation_id)
 
         async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
             # get BASE config
@@ -91,9 +90,9 @@ class CheckConfigurationInSyncTask(Task[bool]):
                 rest_api,
                 self.org_id,
                 self.org_id,
-                otterdog_config.default_config_repo,
+                org_config.config_repo,
                 base_file,
-                self.pull_request.base.ref,
+                self._pull_request.base.ref,
             )
 
             output = StringIO()
@@ -124,32 +123,35 @@ class CheckConfigurationInSyncTask(Task[bool]):
                 comment = await render_template("comment/in_sync_comment.txt")
 
             await rest_api.issue.create_comment(
-                self.org_id, otterdog_config.default_config_repo, pull_request_number, comment
+                self.org_id,
+                org_config.config_repo,
+                self.pull_request_number,
+                comment,
             )
 
             return config_in_sync
 
-    async def _create_pending_status(self, rest_api: RestApi):
-        await rest_api.commit.create_commit_status(
+    async def _create_pending_status(self):
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             "pending",
             _get_webhook_sync_context(),
             "checking if configuration is in-sync using otterdog",
         )
 
-    async def _create_failure_status(self, rest_api: RestApi):
-        await rest_api.commit.create_commit_status(
+    async def _create_failure_status(self):
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             "failure",
             _get_webhook_sync_context(),
             "otterdog sync check failed, please contact an admin",
         )
 
-    async def _update_final_status(self, rest_api: RestApi, config_in_sync: bool) -> None:
+    async def _update_final_status(self, config_in_sync: bool) -> None:
         if config_in_sync is True:
             desc = "otterdog sync check completed successfully"
             status = "success"
@@ -157,22 +159,20 @@ class CheckConfigurationInSyncTask(Task[bool]):
             desc = "otterdog sync check failed, check comment history"
             status = "error"
 
-        await rest_api.commit.create_commit_status(
+        await self._rest_api.commit.create_commit_status(
             self.org_id,
-            self.repository.name,
-            self.pull_request.head.sha,
+            self.repo_name,
+            self._pull_request.head.sha,
             status,
             _get_webhook_sync_context(),
             desc,
         )
 
     def __repr__(self) -> str:
-        pull_request_number = (
-            self.pull_request_or_number
-            if isinstance(self.pull_request_or_number, int)
-            else self.pull_request_or_number.number
+        return (
+            f"CheckConfigurationInSyncTask(repo='{self.org_id}/{self.repo_name}', "
+            f"pull_request=#{self.pull_request_number})"
         )
-        return f"CheckConfigurationInSyncTask(repo={self.repository.full_name}, pull_request={pull_request_number})"
 
 
 def _get_webhook_sync_context() -> str:
