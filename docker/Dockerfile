@@ -1,9 +1,9 @@
 # build jsonnet-bundler using a go environment
-FROM docker.io/library/golang:1.18 AS builder-go
+FROM golang:1.18 AS builder-go
 RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
 
 # build otterdog using a python environment
-FROM docker.io/library/python:3.10.10-slim as builder-python3
+FROM python:3.12.2-slim as builder-python3
 
 RUN apt-get update \
     && apt-get install -y \
@@ -29,8 +29,8 @@ RUN poetry config virtualenvs.in-project true && \
     poetry build && \
     poetry install --only-root
 
-# create the final image having python3.10 as base
-FROM python:3.10.10-slim
+# create the final image having python3.12 as base
+FROM python:3.12.2-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
