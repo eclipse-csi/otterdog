@@ -7,8 +7,9 @@
 #  *******************************************************************************
 
 from asyncio import gather
+from collections.abc import Iterator
 from functools import cached_property
-from typing import Any, Iterator
+from typing import Any
 
 from importlib_resources import files
 from playwright.async_api import Error as PlaywrightError
@@ -85,7 +86,7 @@ class WebClient:
         settings: dict[str, Any] = {}
 
         utils.print_trace(f"loading page '{page_url}'")
-        response = await page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
+        response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
         assert response is not None
         if not response.ok:
             raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
@@ -194,7 +195,7 @@ class WebClient:
         # second, load the required pages and modify the settings
         for page_url, page_dict in pages_to_load.items():
             utils.print_trace(f"loading page '{page_url}'")
-            response = await page.goto("https://github.com/organizations/{}/{}".format(org_id, page_url))
+            response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
             assert response is not None
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
@@ -270,7 +271,7 @@ class WebClient:
 
             await self._login_if_required(page)
 
-            await page.goto("https://github.com/{}".format(org_id))
+            await page.goto(f"https://github.com/{org_id}")
             input("Enter anything to logout and close browser.\n")
 
             await self._logout(page)
@@ -349,7 +350,7 @@ class WebClient:
                 raise RuntimeError("unable to load github logout page")
 
             try:
-                selector = 'summary.Header-link > img[alt = "@{}"]'.format(actor)
+                selector = f'summary.Header-link > img[alt = "@{actor}"]'
                 await page.eval_on_selector(selector, "el => el.click()")
                 await page.wait_for_selector('button[type="submit"].dropdown-signout')
                 await page.eval_on_selector('button[type="submit"].dropdown-signout', "el => el.click()")

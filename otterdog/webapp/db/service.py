@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 from logging import getLogger
-from typing import Optional
 
 from odmantic import query
 from quart import current_app
@@ -166,7 +165,7 @@ async def update_installations() -> None:
             )
 
 
-async def get_installation(installation_id: int) -> Optional[InstallationModel]:
+async def get_installation(installation_id: int) -> InstallationModel | None:
     return await mongo.odm.find_one(InstallationModel, InstallationModel.installation_id == installation_id)
 
 
@@ -192,11 +191,11 @@ async def get_configurations() -> list[ConfigurationModel]:
     return await mongo.odm.find(ConfigurationModel)
 
 
-async def get_configuration_by_github_id(github_id: str) -> Optional[ConfigurationModel]:
+async def get_configuration_by_github_id(github_id: str) -> ConfigurationModel | None:
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.github_id == github_id)
 
 
-async def get_configuration_by_project_name(project_name: str) -> Optional[ConfigurationModel]:
+async def get_configuration_by_project_name(project_name: str) -> ConfigurationModel | None:
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.project_name == project_name)
 
 
@@ -221,7 +220,7 @@ async def save_config(config: ConfigurationModel) -> None:
     await mongo.odm.save(config)
 
 
-async def find_pull_request(owner: str, repo: str, pull_request: int) -> Optional[PullRequestModel]:
+async def find_pull_request(owner: str, repo: str, pull_request: int) -> PullRequestModel | None:
     return await mongo.odm.find_one(
         PullRequestModel,
         PullRequestModel.org_id == owner,
@@ -235,10 +234,10 @@ async def update_or_create_pull_request(
     repo: str,
     pull_request: int,
     status: PullRequestStatus,
-    valid: Optional[bool] = None,
-    in_sync: Optional[bool] = None,
-    requires_manual_apply: Optional[bool] = None,
-    apply_status: Optional[ApplyStatus] = None,
+    valid: bool | None = None,
+    in_sync: bool | None = None,
+    requires_manual_apply: bool | None = None,
+    apply_status: ApplyStatus | None = None,
 ) -> None:
     pr_model = await find_pull_request(owner, repo, pull_request)
     if pr_model is None:

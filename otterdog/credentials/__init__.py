@@ -9,7 +9,7 @@
 import dataclasses
 import time
 from abc import abstractmethod
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import mintotp  # type: ignore
 
@@ -22,12 +22,12 @@ class Credentials:
     A simple data class to hold credential information to access GitHub.
     """
 
-    _username: Optional[str]
-    _password: Optional[str]
-    _totp_secret: Optional[str]
-    _github_token: Optional[str]
+    _username: str | None
+    _password: str | None
+    _totp_secret: str | None
+    _github_token: str | None
 
-    _last_totp: Optional[str] = None
+    _last_totp: str | None = None
 
     @property
     def username(self) -> str:
@@ -67,7 +67,7 @@ class Credentials:
             return self._github_token
 
     def __str__(self) -> str:
-        return "Credentials(username={})".format(self.username)
+        return f"Credentials(username={self.username})"
 
 
 class CredentialProvider(Protocol):

@@ -8,7 +8,6 @@
 
 import dataclasses
 from io import StringIO
-from typing import Union
 
 from quart import render_template
 
@@ -60,7 +59,7 @@ class ApplyChangesTask(Task[ApplyResult]):
                 f"failed to find pull request #{self.pull_request_number} in repo '{self.repository.full_name}'"
             )
 
-    async def _post_execute(self, result_or_exception: Union[ApplyResult, Exception]) -> None:
+    async def _post_execute(self, result_or_exception: ApplyResult | Exception) -> None:
         if self._pr_model is None:
             return
 

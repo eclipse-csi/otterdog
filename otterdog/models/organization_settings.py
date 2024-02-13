@@ -9,7 +9,8 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Iterator, Optional, cast
+from collections.abc import Iterator
+from typing import Any, cast
 
 from jsonbender import F, If, K, OptionalS, S, bend  # type: ignore
 
@@ -44,17 +45,17 @@ class OrganizationSettings(ModelObject):
     Represents settings of a GitHub Organization.
     """
 
-    name: Optional[str]
+    name: str | None
     plan: str = dataclasses.field(metadata={"read_only": True})
-    description: Optional[str]
-    email: Optional[str]
-    location: Optional[str]
-    company: Optional[str]
+    description: str | None
+    email: str | None
+    location: str | None
+    company: str | None
     billing_email: str
-    twitter_username: Optional[str]
-    blog: Optional[str]
+    twitter_username: str | None
+    blog: str | None
     has_discussions: bool
-    discussion_source_repository: Optional[str]
+    discussion_source_repository: str | None
     has_organization_projects: bool
     # setting does not seem to be taken into account as the name might suggest,
     # instead has_organization_projects is used to control whether repo can have projects
@@ -191,7 +192,7 @@ class OrganizationSettings(ModelObject):
         }
         return mapping
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return None
 
     def to_jsonnet(
@@ -219,9 +220,9 @@ class OrganizationSettings(ModelObject):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from jsonbender import Forall, K, OptionalS, S, bend  # type: ignore
 
@@ -50,7 +50,7 @@ class BranchProtectionRule(ModelObject):
     requires_pull_request: bool
     # the following settings are only taken into account
     # when requires_pull_request is True
-    required_approving_review_count: Optional[int]
+    required_approving_review_count: int | None
     dismisses_stale_reviews: bool
     requires_code_owner_reviews: bool
     require_last_push_approval: bool
@@ -391,7 +391,7 @@ class BranchProtectionRule(ModelObject):
 
         return mapping
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_branch_protection_rule}"
 
     @classmethod

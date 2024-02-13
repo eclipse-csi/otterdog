@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Optional
+from typing import Any
 
 import jq  # type: ignore
 
@@ -121,7 +121,7 @@ class OrganizationConfig:
 
 
 class OtterdogConfig:
-    def __init__(self, config_file: str, local_mode: bool, working_dir: Optional[str] = None):
+    def __init__(self, config_file: str, local_mode: bool, working_dir: str | None = None):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
@@ -185,7 +185,7 @@ class OtterdogConfig:
     def organization_names(self) -> list[str]:
         return list(map(lambda config: config.name, self._organizations))
 
-    def get_project_name(self, github_id: str) -> Optional[str]:
+    def get_project_name(self, github_id: str) -> str | None:
         organization = self._organizations_map.get(github_id)
         if organization is not None:
             return organization.name

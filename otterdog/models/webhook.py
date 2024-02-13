@@ -11,7 +11,8 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, Callable, Optional, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
@@ -41,7 +42,7 @@ class Webhook(ModelObject, abc.ABC):
     url: str = dataclasses.field(metadata={"key": True})
     content_type: str
     insecure_ssl: str
-    secret: Optional[str]
+    secret: str | None
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -158,9 +159,9 @@ class Webhook(ModelObject, abc.ABC):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

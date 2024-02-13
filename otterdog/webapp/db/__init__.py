@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import re
-from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from odmantic import AIOEngine
@@ -16,8 +15,8 @@ from quart import Quart
 
 class Mongo:
     def __init__(self) -> None:
-        self._client: Optional[AsyncIOMotorClient] = None
-        self._engine: Optional[AIOEngine] = None
+        self._client: AsyncIOMotorClient | None = None
+        self._engine: AIOEngine | None = None
 
     def init_app(self, app: Quart) -> None:
         connection_uri = app.config["MONGO_URI"]

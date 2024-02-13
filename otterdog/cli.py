@@ -10,7 +10,7 @@ import asyncio
 import importlib.metadata
 import sys
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 import click
 from click.shell_completion import CompletionItem
@@ -43,7 +43,7 @@ _VERSION = _DISTRIBUTION_METADATA["Version"]
 
 _CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
 
-_CONFIG: Optional[OtterdogConfig] = None
+_CONFIG: OtterdogConfig | None = None
 
 
 def complete_organizations(ctx, param, incomplete):

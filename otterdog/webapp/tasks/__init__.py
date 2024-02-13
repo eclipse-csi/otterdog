@@ -7,10 +7,11 @@
 #  *******************************************************************************
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import AsyncIterator, Generic, Optional, TypeVar, Union
+from typing import Generic, TypeVar
 
 import aiofiles
 
@@ -39,13 +40,13 @@ class Task(ABC, Generic[T]):
     async def get_rest_api(installation_id: int) -> RestApi:
         return await get_rest_api_for_installation(installation_id)
 
-    def create_task_model(self) -> Optional[TaskModel]:
+    def create_task_model(self) -> TaskModel | None:
         return None
 
     async def __call__(self, *args, **kwargs):
         await self.execute()
 
-    async def execute(self) -> Optional[T]:
+    async def execute(self) -> T | None:
         self.logger.debug(f"executing task '{self!r}'")
 
         task_model = self.create_task_model()
@@ -74,7 +75,7 @@ class Task(ABC, Generic[T]):
     async def _pre_execute(self) -> None:
         pass
 
-    async def _post_execute(self, result_or_exception: Union[T, Exception]) -> None:
+    async def _post_execute(self, result_or_exception: T | Exception) -> None:
         pass
 
     @abstractmethod

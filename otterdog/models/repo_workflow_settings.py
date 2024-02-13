@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from jsonbender import S  # type: ignore
 
@@ -42,7 +42,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         return "repo_workflow_settings"
 
     def coerce_from_org_settings(
-        self, parent_object: Optional[ModelObject], org_workflow_settings: OrganizationWorkflowSettings
+        self, parent_object: ModelObject | None, org_workflow_settings: OrganizationWorkflowSettings
     ) -> RepositoryWorkflowSettings:
         copy = dataclasses.replace(self)
 
@@ -149,9 +149,9 @@ class RepositoryWorkflowSettings(WorkflowSettings):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

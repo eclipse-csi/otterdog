@@ -11,7 +11,6 @@ from __future__ import annotations
 from abc import ABC
 from datetime import datetime
 from functools import cached_property
-from typing import Optional
 
 from otterdog.providers.github.auth import AuthStrategy
 
@@ -23,7 +22,7 @@ class RestApi:
     _GH_API_VERSION = "2022-11-28"
     _GH_API_URL_ROOT = "https://api.github.com"
 
-    def __init__(self, auth_strategy: Optional[AuthStrategy] = None):
+    def __init__(self, auth_strategy: AuthStrategy | None = None):
         self._auth_strategy = auth_strategy
         self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
@@ -34,7 +33,7 @@ class RestApi:
         await self.close()
 
     @property
-    def token(self) -> Optional[str]:
+    def token(self) -> str | None:
         from otterdog.providers.github.auth.token import TokenAuthStrategy
 
         if isinstance(self._auth_strategy, TokenAuthStrategy):

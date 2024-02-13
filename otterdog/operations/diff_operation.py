@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import aiofiles.ospath
 
@@ -49,11 +49,11 @@ class DiffOperation(Operation):
         self.update_webhooks = update_webhooks
         self.update_secrets = update_secrets
         self.update_filter = update_filter
-        self._gh_client: Optional[GitHubProvider] = None
+        self._gh_client: GitHubProvider | None = None
         self._validator = ValidateOperation()
-        self._template_dir: Optional[str] = None
-        self._org_config: Optional[OrganizationConfig] = None
-        self._callback: Optional[CallbackFn] = None
+        self._template_dir: str | None = None
+        self._org_config: OrganizationConfig | None = None
+        self._callback: CallbackFn | None = None
 
     @property
     def template_dir(self) -> str:
@@ -229,7 +229,7 @@ class DiffOperation(Operation):
         self,
         org_id: str,
         model_object: ModelObject,
-        parent_object: Optional[ModelObject] = None,
+        parent_object: ModelObject | None = None,
     ) -> None: ...
 
     @abstractmethod
@@ -237,7 +237,7 @@ class DiffOperation(Operation):
         self,
         org_id: str,
         model_object: ModelObject,
-        parent_object: Optional[ModelObject] = None,
+        parent_object: ModelObject | None = None,
     ) -> None: ...
 
     @abstractmethod
@@ -248,7 +248,7 @@ class DiffOperation(Operation):
         forced_update: bool,
         current_object: ModelObject,
         expected_object: ModelObject,
-        parent_object: Optional[ModelObject] = None,
+        parent_object: ModelObject | None = None,
     ) -> int: ...
 
     @abstractmethod

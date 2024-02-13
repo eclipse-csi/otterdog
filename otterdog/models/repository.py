@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import Any, Callable, ClassVar, Iterator, Optional, cast
+from collections.abc import Callable, Iterator
+from typing import Any, ClassVar, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
@@ -55,15 +56,15 @@ class Repository(ModelObject):
     id: int = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
-    description: Optional[str]
-    homepage: Optional[str]
+    description: str | None
+    homepage: str | None
     private: bool
     has_discussions: bool
     has_issues: bool
     has_projects: bool
     has_wiki: bool
     is_template: bool
-    template_repository: Optional[str] = dataclasses.field(metadata={"read_only": True})
+    template_repository: str | None = dataclasses.field(metadata={"read_only": True})
     topics: list[str]
     default_branch: str
     allow_rebase_merge: bool
@@ -85,10 +86,10 @@ class Repository(ModelObject):
     dependabot_security_updates_enabled: bool
 
     gh_pages_build_type: str
-    gh_pages_source_branch: Optional[str]
-    gh_pages_source_path: Optional[str]
+    gh_pages_source_branch: str | None
+    gh_pages_source_path: str | None
 
-    forked_repository: Optional[str] = dataclasses.field(metadata={"model_only": True})
+    forked_repository: str | None = dataclasses.field(metadata={"model_only": True})
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
@@ -166,7 +167,7 @@ class Repository(ModelObject):
     def add_webhook(self, webhook: RepositoryWebhook) -> None:
         self.webhooks.append(webhook)
 
-    def get_webhook(self, url: str) -> Optional[RepositoryWebhook]:
+    def get_webhook(self, url: str) -> RepositoryWebhook | None:
         return next(filter(lambda x: x.url == url, self.webhooks), None)  # type: ignore
 
     def set_webhooks(self, webhooks: list[RepositoryWebhook]) -> None:
@@ -175,7 +176,7 @@ class Repository(ModelObject):
     def add_secret(self, secret: RepositorySecret) -> None:
         self.secrets.append(secret)
 
-    def get_secret(self, name: str) -> Optional[RepositorySecret]:
+    def get_secret(self, name: str) -> RepositorySecret | None:
         return next(filter(lambda x: x.name == name, self.secrets), None)  # type: ignore
 
     def set_secrets(self, secrets: list[RepositorySecret]) -> None:
@@ -184,7 +185,7 @@ class Repository(ModelObject):
     def add_variable(self, variable: RepositoryVariable) -> None:
         self.variables.append(variable)
 
-    def get_variable(self, name: str) -> Optional[RepositoryVariable]:
+    def get_variable(self, name: str) -> RepositoryVariable | None:
         return next(filter(lambda x: x.name == name, self.variables), None)  # type: ignore
 
     def set_variables(self, variables: list[RepositoryVariable]) -> None:
@@ -610,7 +611,7 @@ class Repository(ModelObject):
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
 
     def to_jsonnet(
@@ -745,9 +746,9 @@ class Repository(ModelObject):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

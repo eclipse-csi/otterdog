@@ -7,7 +7,8 @@
 #  *******************************************************************************
 
 import json
-from typing import Any, AsyncIterable, Optional
+from collections.abc import AsyncIterable
+from typing import Any
 
 from aiohttp_client_cache.backends import FileBackend
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
@@ -20,7 +21,7 @@ _AIOHTTP_CACHE_DIR = ".cache/async_http"
 
 
 class Requester:
-    def __init__(self, auth_strategy: Optional[AuthStrategy], base_url: str, api_version: str):
+    def __init__(self, auth_strategy: AuthStrategy | None, base_url: str, api_version: str):
         self._base_url = base_url
         self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
@@ -47,8 +48,8 @@ class Requester:
         self,
         method: str,
         url_path: str,
-        data: Optional[dict[str, Any]] = None,
-        params: Optional[dict[str, str]] = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         result = []
         current_page = 1
@@ -73,8 +74,8 @@ class Requester:
         self,
         method: str,
         url_path: str,
-        data: Optional[dict[str, Any]] = None,
-        params: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         input_data = None
         if data is not None:
@@ -88,8 +89,8 @@ class Requester:
         self,
         method: str,
         url_path: str,
-        data: Optional[str] = None,
-        params: Optional[dict[str, Any]] = None,
+        data: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> tuple[int, str]:
         print_trace(f"'{method}' url = {url_path}, data = {data}, params = {params}, headers = {self._headers}")
 
@@ -119,8 +120,8 @@ class Requester:
         self,
         method: str,
         url_path: str,
-        data: Optional[str] = None,
-        params: Optional[dict[str, Any]] = None,
+        data: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> AsyncIterable[bytes]:
         print_trace(f"stream '{method}' url = {url_path}, data = {data}, headers = {self._headers}")
 

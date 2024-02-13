@@ -12,9 +12,10 @@ import asyncio
 import dataclasses
 import json
 import os
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from io import StringIO
-from typing import Any, Callable, Iterator, Optional
+from typing import Any
 
 import jsonschema
 from importlib_resources import as_file, files
@@ -77,7 +78,7 @@ class GitHubOrganization:
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
 
-    def get_webhook(self, url: str) -> Optional[OrganizationWebhook]:
+    def get_webhook(self, url: str) -> OrganizationWebhook | None:
         return next(filter(lambda x: x.url == url, self.webhooks), None)  # type: ignore
 
     def set_webhooks(self, webhooks: list[OrganizationWebhook]) -> None:
@@ -86,7 +87,7 @@ class GitHubOrganization:
     def add_secret(self, secret: OrganizationSecret) -> None:
         self.secrets.append(secret)
 
-    def get_secret(self, name: str) -> Optional[OrganizationSecret]:
+    def get_secret(self, name: str) -> OrganizationSecret | None:
         return next(filter(lambda x: x.name == name, self.secrets), None)  # type: ignore
 
     def set_secrets(self, secrets: list[OrganizationSecret]) -> None:
@@ -95,7 +96,7 @@ class GitHubOrganization:
     def add_variable(self, variable: OrganizationVariable) -> None:
         self.variables.append(variable)
 
-    def get_variable(self, name: str) -> Optional[OrganizationVariable]:
+    def get_variable(self, name: str) -> OrganizationVariable | None:
         return next(filter(lambda x: x.name == name, self.variables), None)  # type: ignore
 
     def set_variables(self, variables: list[OrganizationVariable]) -> None:
@@ -104,7 +105,7 @@ class GitHubOrganization:
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
 
-    def get_repository(self, repo_name: str) -> Optional[Repository]:
+    def get_repository(self, repo_name: str) -> Repository | None:
         return next(filter(lambda x: x.name == repo_name, self.repositories), None)  # type: ignore
 
     def set_repositories(self, repos: list[Repository]) -> None:
@@ -132,7 +133,7 @@ class GitHubOrganization:
             resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
             jsonschema.validate(instance=data, schema=_ORG_SCHEMA, resolver=resolver)
 
-    def get_model_objects(self) -> Iterator[tuple[ModelObject, Optional[ModelObject]]]:
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None
         yield from self.settings.get_model_objects()
 
@@ -338,7 +339,7 @@ class GitHubOrganization:
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
         no_web_ui: bool = False,
-        printer: Optional[IndentingPrinter] = None,
+        printer: IndentingPrinter | None = None,
     ) -> GitHubOrganization:
         start = datetime.now()
         if printer is not None and is_info_enabled():
@@ -514,7 +515,7 @@ async def _process_single_repo(
 
 
 async def _load_repos_from_provider(
-    github_id: str, provider: GitHubProvider, jsonnet_config: JsonnetConfig, printer: Optional[IndentingPrinter] = None
+    github_id: str, provider: GitHubProvider, jsonnet_config: JsonnetConfig, printer: IndentingPrinter | None = None
 ) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():

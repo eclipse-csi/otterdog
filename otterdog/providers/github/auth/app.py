@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, MutableMapping, Optional
+from typing import Any
 
 from jwt import JWT, jwk_from_pem
 from jwt.utils import get_int_from_datetime
@@ -36,8 +37,8 @@ class _AppAuth(AuthImpl):
     app_id: str
     private_key: str
 
-    _jwt: Optional[str] = None
-    _expire: Optional[datetime] = None
+    _jwt: str | None = None
+    _expire: datetime | None = None
 
     def _create_jwt(self) -> tuple[str, datetime, datetime]:
         """

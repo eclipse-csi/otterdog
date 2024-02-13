@@ -7,7 +7,8 @@
 #  *******************************************************************************
 
 from abc import ABC, abstractmethod
-from typing import Any, MutableMapping
+from collections.abc import MutableMapping
+from typing import Any
 
 from requests.auth import AuthBase
 

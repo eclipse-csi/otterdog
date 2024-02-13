@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 import filecmp
 from io import StringIO
-from typing import Union
 
 from quart import current_app, render_template
 
@@ -100,7 +99,7 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
         current_app.add_background_task(check_task.execute)
 
-    async def _post_execute(self, result_or_exception: Union[ValidationResult, Exception]) -> None:
+    async def _post_execute(self, result_or_exception: ValidationResult | Exception) -> None:
         if isinstance(result_or_exception, Exception):
             await self._create_failure_status()
         else:

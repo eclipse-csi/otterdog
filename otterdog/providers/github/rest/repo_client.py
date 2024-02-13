@@ -12,7 +12,7 @@ import pathlib
 import re
 import tempfile
 import zipfile
-from typing import Any, Optional
+from typing import Any
 
 import aiofiles
 import chevron
@@ -102,9 +102,9 @@ class RepoClient(RestClient):
         self,
         org_id: str,
         data: dict[str, Any],
-        template_repository: Optional[str],
+        template_repository: str | None,
         post_process_template_content: list[str],
-        forked_repository: Optional[str],
+        forked_repository: str | None,
         fork_default_branch_only: bool,
         auto_init_repo: bool,
     ) -> None:
@@ -923,7 +923,7 @@ class RepoClient(RestClient):
         org_id: str,
         repo_name: str,
         template_repository: str,
-        template_paths: Optional[list[str]],
+        template_paths: list[str] | None,
     ) -> list[str]:
         template_owner, template_repo = re.split("/", template_repository, 1)
 
@@ -952,7 +952,7 @@ class RepoClient(RestClient):
                 if path.is_file():
                     print_debug(f"updating file {relative_path}")
 
-                    with open(path, "r") as file:
+                    with open(path) as file:
                         content = file.read()
 
                         if str(relative_path) in template_paths_set:

@@ -13,7 +13,7 @@ import string
 from decouple import config  # type: ignore
 
 
-class AppConfig(object):
+class AppConfig:
     QUART_APP = "otterdog.webapp"
 
     # Assets Management

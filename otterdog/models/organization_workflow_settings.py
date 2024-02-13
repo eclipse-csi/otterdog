@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any
 
 from jsonbender import Forall, If, K, S  # type: ignore
 
@@ -105,9 +105,9 @@ class OrganizationWorkflowSettings(WorkflowSettings):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

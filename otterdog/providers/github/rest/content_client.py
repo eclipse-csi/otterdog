@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import base64
-from typing import Any, Optional
+from typing import Any
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
@@ -20,7 +20,7 @@ class ContentClient(RestClient):
         super().__init__(rest_api)
 
     async def get_content_object(
-        self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None
+        self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> dict[str, Any]:
         print_debug(f"retrieving content '{path}' from repo '{org_id}/{repo_name}'")
 
@@ -37,12 +37,12 @@ class ContentClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
 
-    async def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
+    async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode("utf-8")
 
     async def get_content_with_sha(
-        self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None
+        self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> tuple[str, str]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         return base64.b64decode(json_response["content"]).decode("utf-8"), json_response["sha"]
@@ -53,7 +53,7 @@ class ContentClient(RestClient):
         repo_name: str,
         path: str,
         content: str,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> bool:
         print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
 
@@ -98,7 +98,7 @@ class ContentClient(RestClient):
         org_id: str,
         repo_name: str,
         path: str,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> bool:
         print_debug(f"deleting content '{path}' in repo '{org_id}/{repo_name}'")
 

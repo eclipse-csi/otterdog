@@ -11,7 +11,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, ClassVar, Optional, TypeVar, cast
+from typing import Any, ClassVar, TypeVar, cast
 
 from jsonbender import K, OptionalS, S, bend  # type: ignore
 
@@ -55,7 +55,7 @@ class Ruleset(ModelObject, abc.ABC):
     requires_pull_request: bool
     # the following settings are only taken into account
     # when requires_pull_request is True
-    required_approving_review_count: Optional[int]
+    required_approving_review_count: int | None
     dismisses_stale_reviews: bool
     requires_code_owner_review: bool
     requires_last_push_approval: bool
@@ -69,7 +69,7 @@ class Ruleset(ModelObject, abc.ABC):
     required_deployment_environments: list[str]
 
     _roles: ClassVar[dict[str, str]] = {"5": "RepositoryAdmin", "4": "Write", "2": "Maintain", "1": "OrganizationAdmin"}
-    _inverted_roles: ClassVar[dict[str, str]] = dict((v, k) for k, v in _roles.items())
+    _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         from .github_organization import GitHubOrganization

@@ -6,8 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Optional
-
 import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
@@ -25,7 +23,7 @@ class LocalPlanOperation(PlanOperation):
         )
 
         self.suffix = suffix
-        self._other_org: Optional[GitHubOrganization] = None
+        self._other_org: GitHubOrganization | None = None
 
     @property
     def other_org(self) -> GitHubOrganization:

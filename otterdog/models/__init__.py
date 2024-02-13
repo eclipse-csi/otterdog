@@ -11,8 +11,9 @@ from __future__ import annotations
 import dataclasses
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
-from typing import Any, Callable, Iterator, Optional, Protocol, Sequence, TypeVar, cast
+from typing import Any, Protocol, TypeVar, cast
 
 from jsonbender import bend  # type: ignore
 
@@ -41,7 +42,7 @@ class FailureType(Enum):
 
 
 @dataclasses.dataclass
-class ValidationContext(object):
+class ValidationContext:
     root_object: Any
     template_dir: str
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
@@ -71,22 +72,22 @@ class LivePatchApplyFn(Protocol):
 @dataclasses.dataclass(frozen=True)
 class LivePatch:
     patch_type: LivePatchType
-    expected_object: Optional[ModelObject]
-    current_object: Optional[ModelObject]
-    changes: Optional[dict[str, Change]]
-    parent_object: Optional[ModelObject]
+    expected_object: ModelObject | None
+    current_object: ModelObject | None
+    changes: dict[str, Change] | None
+    parent_object: ModelObject | None
     forced_update: bool
     fn: LivePatchApplyFn
 
     @classmethod
     def of_addition(
-        cls, expected_object: ModelObject, parent_object: Optional[ModelObject], fn: LivePatchApplyFn
+        cls, expected_object: ModelObject, parent_object: ModelObject | None, fn: LivePatchApplyFn
     ) -> LivePatch:
         return LivePatch(LivePatchType.ADD, expected_object, None, None, parent_object, False, fn)
 
     @classmethod
     def of_deletion(
-        cls, current_object: ModelObject, parent_object: Optional[ModelObject], fn: LivePatchApplyFn
+        cls, current_object: ModelObject, parent_object: ModelObject | None, fn: LivePatchApplyFn
     ) -> LivePatch:
         return LivePatch(LivePatchType.REMOVE, None, current_object, None, parent_object, False, fn)
 
@@ -96,7 +97,7 @@ class LivePatch:
         expected_object: ModelObject,
         current_object: ModelObject,
         changes: dict[str, Change],
-        parent_object: Optional[ModelObject],
+        parent_object: ModelObject | None,
         forced_update: bool,
         fn: LivePatchApplyFn,
     ) -> LivePatch:
@@ -127,13 +128,13 @@ class LivePatch:
 
 
 @dataclasses.dataclass
-class PatchContext(object):
+class PatchContext:
     org_id: str
     org_settings: ModelObject
 
 
 @dataclasses.dataclass
-class LivePatchContext(object):
+class LivePatchContext:
     org_id: str
     update_webhooks: bool
     update_secrets: bool
@@ -305,7 +306,7 @@ class ModelObject(ABC):
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         yield from []
 
-    def get_model_header(self, parent_object: Optional[ModelObject] = None) -> str:
+    def get_model_header(self, parent_object: ModelObject | None = None) -> str:
         header = style(self.model_object_name, bright=True)
 
         if self.is_keyed():
@@ -381,7 +382,7 @@ class ModelObject(ABC):
         """
         return True
 
-    def include_existing_object_for_live_patch(self, org_id: str, parent_object: Optional[ModelObject]) -> bool:
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject | None) -> bool:
         """
         Indicates if this live ModelObject should be considered when generating a live patch.
 
@@ -446,7 +447,7 @@ class ModelObject(ABC):
         pass
 
     @abstractmethod
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]: ...
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None: ...
 
     def to_jsonnet(
         self,
@@ -472,9 +473,9 @@ class ModelObject(ABC):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
@@ -510,7 +511,7 @@ class ModelObject(ABC):
         cls,
         expected_objects: Sequence[MT],
         current_objects: Sequence[MT],
-        parent_object: Optional[MT],
+        parent_object: MT | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

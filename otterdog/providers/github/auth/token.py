@@ -8,8 +8,9 @@
 
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from dataclasses import dataclass
-from typing import Any, MutableMapping
+from typing import Any
 
 from . import AuthImpl, AuthStrategy
 

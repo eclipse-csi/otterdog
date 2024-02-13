@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import LivePatch, LivePatchType
@@ -27,7 +26,7 @@ class OrganizationWebhook(Webhook):
     def model_object_name(self) -> str:
         return "org_webhook"
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_webhook}"
 
     @classmethod

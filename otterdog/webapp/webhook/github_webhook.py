@@ -18,7 +18,7 @@ import logging
 from quart import abort, request
 
 
-class GitHubWebhook(object):
+class GitHubWebhook:
     def __init__(self):
         self._endpoint = None
         self._secret = None

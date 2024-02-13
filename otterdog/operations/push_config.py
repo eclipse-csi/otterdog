@@ -6,8 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Optional
-
 import aiofiles
 import aiofiles.ospath
 
@@ -23,12 +21,12 @@ class PushOperation(Operation):
     Pushes a local configuration of an organization to its meta-data repository.
     """
 
-    def __init__(self, push_message: Optional[str]):
+    def __init__(self, push_message: str | None):
         super().__init__()
         self._push_message = push_message
 
     @property
-    def push_message(self) -> Optional[str]:
+    def push_message(self) -> str | None:
         return self._push_message
 
     def pre_execute(self) -> None:

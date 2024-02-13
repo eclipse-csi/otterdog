@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import dataclasses
 from io import StringIO
-from typing import Union
 
 from quart import current_app, render_template
 
@@ -74,7 +73,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
         await self._create_pending_status()
 
-    async def _post_execute(self, result_or_exception: Union[bool, Exception]) -> None:
+    async def _post_execute(self, result_or_exception: bool | Exception) -> None:
         if isinstance(result_or_exception, Exception):
             await self._create_failure_status()
         else:

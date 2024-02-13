@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -22,7 +21,7 @@ class Installation(BaseModel):
     """The installation that is associated with the event."""
 
     id: int
-    node_id: Optional[str] = None
+    node_id: str | None = None
 
 
 class Organization(BaseModel):
@@ -61,7 +60,7 @@ class Ref(BaseModel):
     ref: str
     sha: str
     user: Actor
-    repo: Optional[Repository]
+    repo: Repository | None
 
 
 class PullRequest(BaseModel):
@@ -73,10 +72,10 @@ class PullRequest(BaseModel):
     state: str
     locked: bool
     title: str
-    body: Optional[str] = None
+    body: str | None = None
     draft: bool
-    merged: Optional[bool] = None
-    merge_commit_sha: Optional[str] = None
+    merged: bool | None = None
+    merge_commit_sha: str | None = None
     user: Actor
     author_association: AuthorAssociation
 
@@ -134,19 +133,19 @@ class Issue(BaseModel):
     node_id: str
     title: str
     state: str
-    user: Optional[Actor] = None
+    user: Actor | None = None
     author_association: AuthorAssociation
-    draft: Optional[bool] = None
-    body: Optional[str] = None
-    pull_request: Optional[AssociatedPullRequest] = None
+    draft: bool | None = None
+    body: str | None = None
+    pull_request: AssociatedPullRequest | None = None
     html_url: str
 
 
 class Event(ABC, BaseModel):
     """Base class of events"""
 
-    installation: Optional[Installation] = None
-    organization: Optional[Organization] = None
+    installation: Installation | None = None
+    organization: Organization | None = None
     sender: Actor
 
 

@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import json
-from typing import Optional
 
 from otterdog.utils import print_debug
 
@@ -25,8 +24,8 @@ class CommitClient(RestClient):
         sha: str,
         state: str,
         context: str,
-        description: Optional[str] = None,
-        target_url: Optional[str] = None,
+        description: str | None = None,
+        target_url: str | None = None,
     ) -> None:
         print_debug(f"creating a commit status for sha '{sha}'")
 

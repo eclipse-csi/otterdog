@@ -57,5 +57,5 @@ class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):
     @staticmethod
     def load_json_resource(file: str) -> dict[str, Any]:
         filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"resources/{file}")
-        with open(filename, "r") as fp:
+        with open(filename) as fp:
             return json.load(fp)

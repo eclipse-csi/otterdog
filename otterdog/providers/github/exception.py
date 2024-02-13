@@ -6,17 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Optional
-
 
 class GitHubException(Exception):
-    def __init__(self, url: Optional[str], status: int, data: str):
+    def __init__(self, url: str | None, status: int, data: str):
         self.__url = url
         self.__status = status
         self.__data = data
 
     @property
-    def url(self) -> Optional[str]:
+    def url(self) -> str | None:
         return self.__url
 
     @property

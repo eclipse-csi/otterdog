@@ -11,7 +11,7 @@ import re
 import sys
 from datetime import datetime
 from logging import getLogger
-from typing import Optional, cast
+from typing import cast
 
 from hypercorn.logging import Logger as HypercornLogger
 from hypercorn.typing import ResponseSummary, WWWScope
@@ -23,11 +23,11 @@ from otterdog.providers.github.rest import RestApi
 
 logger = getLogger(__name__)
 
-_APP_REST_API: Optional[RestApi] = None
+_APP_REST_API: RestApi | None = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
 _REST_APIS_LOCK = asyncio.Lock()
 
-_OTTERDOG_CONFIG: Optional[OtterdogConfig] = None
+_OTTERDOG_CONFIG: OtterdogConfig | None = None
 
 
 def _create_rest_api_for_app() -> RestApi:
@@ -78,7 +78,7 @@ async def refresh_otterdog_config(sha: str):
     _OTTERDOG_CONFIG = await _load_otterdog_config(sha)
 
 
-async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
+async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
     app_root = current_app.config["APP_ROOT"]
     config_file_owner = current_app.config["OTTERDOG_CONFIG_OWNER"]
     config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
@@ -110,7 +110,7 @@ async def fetch_config_from_github(
     owner: str,
     repo: str,
     filename: str,
-    ref: Optional[str] = None,
+    ref: str | None = None,
 ) -> str:
     path = f"otterdog/{org_id}.jsonnet"
     content, sha = await rest_api.content.get_content_with_sha(

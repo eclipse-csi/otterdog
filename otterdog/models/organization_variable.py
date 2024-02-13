@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from jsonbender import Forall, If, K, OptionalS, S, bend  # type: ignore
 
@@ -100,7 +100,7 @@ class OrganizationVariable(Variable):
 
         return mapping
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_variable}"
 
     @classmethod

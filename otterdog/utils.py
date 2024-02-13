@@ -12,21 +12,10 @@ import json
 import re
 import sys
 from argparse import Namespace
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    Literal,
-    Optional,
-    Sequence,
-    TextIO,
-    Tuple,
-    TypeGuard,
-    TypeVar,
-    Union,
-)
+from typing import Any, Generic, Literal, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
 import click
@@ -62,17 +51,17 @@ def is_trace_enabled() -> bool:
 
 def style(
     text: str,
-    fg: Optional[Union[int, Tuple[int, int, int], str]] = None,
-    bg: Optional[Union[int, Tuple[int, int, int], str]] = None,
-    bold: Optional[bool] = None,
-    bright: Optional[bool] = None,
-    dim: Optional[bool] = None,
-    underline: Optional[bool] = None,
-    overline: Optional[bool] = None,
-    italic: Optional[bool] = None,
-    blink: Optional[bool] = None,
-    reverse: Optional[bool] = None,
-    strikethrough: Optional[bool] = None,
+    fg: int | tuple[int, int, int] | str | None = None,
+    bg: int | tuple[int, int, int] | str | None = None,
+    bold: bool | None = None,
+    bright: bool | None = None,
+    dim: bool | None = None,
+    underline: bool | None = None,
+    overline: bool | None = None,
+    italic: bool | None = None,
+    blink: bool | None = None,
+    reverse: bool | None = None,
+    strikethrough: bool | None = None,
     reset: bool = True,
 ) -> str:
     if bright is True:
@@ -130,7 +119,7 @@ class _Unset:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(_Unset, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
 
     def __repr__(self) -> str:
@@ -160,14 +149,14 @@ def is_set_and_valid(value: Any) -> bool:
     return not is_unset(value) and value is not None
 
 
-def is_set_and_present(value: Optional[T]) -> TypeGuard[T]:
+def is_set_and_present(value: T | None) -> TypeGuard[T]:
     return is_set_and_valid(value)
 
 
 @dataclass
 class Change(Generic[T]):
-    from_value: Optional[T]
-    to_value: Optional[T]
+    from_value: T | None
+    to_value: T | None
 
 
 def is_different_ignoring_order(value: Any, other_value: Any) -> bool:

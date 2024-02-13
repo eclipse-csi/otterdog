@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from importlib_resources import files
 
@@ -23,7 +23,7 @@ _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.js
 
 
 class GitHubProvider:
-    def __init__(self, credentials: Optional[Credentials]):
+    def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
 
         self._settings_schema = _ORG_SETTINGS_SCHEMA
@@ -74,7 +74,7 @@ class GitHubProvider:
         ) = state
         self._init_clients()
 
-    async def get_content(self, org_id: str, repo_name: str, path: str, ref: Optional[str] = None) -> str:
+    async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         return await self.rest_api.content.get_content(org_id, repo_name, path, ref)
 
     async def update_content(
@@ -83,7 +83,7 @@ class GitHubProvider:
         repo_name: str,
         path: str,
         content: str,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> bool:
         return await self.rest_api.content.update_content(org_id, repo_name, path, content, message)
 
@@ -164,9 +164,9 @@ class GitHubProvider:
         self,
         org_id: str,
         data: dict[str, str],
-        template_repository: Optional[str],
+        template_repository: str | None,
         post_process_template_content: list[str],
-        forked_repository: Optional[str],
+        forked_repository: str | None,
         fork_default_branch_only: bool,
         auto_init_repo: bool,
     ) -> None:
@@ -200,7 +200,7 @@ class GitHubProvider:
         self,
         org_id: str,
         repo_name: str,
-        repo_node_id: Optional[str],
+        repo_node_id: str | None,
         data: dict[str, Any],
     ) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any
 
 from jsonbender import F, Filter, Forall, If, K, OptionalS, S, bend  # type: ignore
 
@@ -79,7 +79,7 @@ class Environment(ModelObject):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def include_existing_object_for_live_patch(self, org_id: str, parent_object: Optional[ModelObject]) -> bool:
+    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject | None) -> bool:
         from .repository import Repository
 
         assert isinstance(parent_object, Repository)
@@ -193,7 +193,7 @@ class Environment(ModelObject):
 
         return mapping
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_environment}"
 
     @classmethod

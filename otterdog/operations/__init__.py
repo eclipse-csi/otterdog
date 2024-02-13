@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.utils import Change, IndentingPrinter, is_unset, style
@@ -17,8 +17,8 @@ class Operation(ABC):
     _DEFAULT_WIDTH: int = 33
 
     def __init__(self) -> None:
-        self._config: Optional[OtterdogConfig] = None
-        self._printer: Optional[IndentingPrinter] = None
+        self._config: OtterdogConfig | None = None
+        self._printer: IndentingPrinter | None = None
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         self._config = config
@@ -126,7 +126,7 @@ class Operation(ABC):
         self,
         data: dict[str, Change[Any]],
         item_header: str,
-        redacted_keys: Optional[set[str]] = None,
+        redacted_keys: set[str] | None = None,
         forced_update: bool = False,
     ) -> None:
         prefix = style("! ", fg="magenta") if forced_update else style("~ ", fg="yellow")

@@ -11,7 +11,8 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, Callable, Optional, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from jsonbender import K, OptionalS, S, bend  # type: ignore
 
@@ -119,9 +120,9 @@ class Secret(ModelObject, abc.ABC):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: Optional[ModelObject],
-        current_object: Optional[ModelObject],
-        parent_object: Optional[ModelObject],
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:

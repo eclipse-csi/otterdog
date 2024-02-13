@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
@@ -157,7 +157,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
 
         return mapping
 
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> Optional[str]:
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return None
 
     def to_jsonnet(
