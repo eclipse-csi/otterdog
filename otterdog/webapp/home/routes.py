@@ -6,8 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from jinja2 import TemplateNotFound
 from quart import current_app, redirect, render_template, request, url_for
+from werkzeug.routing import BuildError
 
 from otterdog.utils import associate_by_key
 from otterdog.webapp.db.service import (
@@ -105,9 +105,8 @@ async def route_template(template: str):
             endpoint = template
 
         return redirect(url_for(f".{endpoint}"))
-    except TemplateNotFound:
+    except BuildError:
         return await render_template("home/page-404.html"), 404
-
     except:  # noqa: E722
         return await render_template("home/page-500.html"), 500
 
