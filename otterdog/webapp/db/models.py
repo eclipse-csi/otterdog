@@ -14,6 +14,8 @@ from typing import Optional
 
 from odmantic import Field, Index, Model
 
+from otterdog.webapp.utils import current_utc_time
+
 
 class InstallationStatus(str, Enum):
     INSTALLED = "installed"
@@ -49,8 +51,8 @@ class TaskModel(Model):
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
     log: Optional[str] = None
-    created_at: datetime = Field(index=True, default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(index=True, default_factory=current_utc_time)
+    updated_at: datetime = Field(default_factory=current_utc_time)
 
 
 class ConfigurationModel(Model):
@@ -90,7 +92,7 @@ class PullRequestModel(Model):
     requires_manual_apply: bool = False
     apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 
-    updated_at: datetime = Field(index=True, default_factory=datetime.utcnow)
+    updated_at: datetime = Field(index=True, default_factory=current_utc_time)
 
     model_config = {  # type: ignore
         "indexes": lambda: [

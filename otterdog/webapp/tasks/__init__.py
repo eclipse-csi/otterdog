@@ -16,14 +16,14 @@ import aiofiles
 
 from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.providers.github.rest import RestApi
-from otterdog.webapp.db.models import TaskModel
+from otterdog.webapp.db.models import InstallationModel, TaskModel
 from otterdog.webapp.db.service import (
     create_task,
     fail_task,
     finish_task,
     get_installation,
 )
-from otterdog.webapp.utils import get_organization_config, get_rest_api_for_installation
+from otterdog.webapp.utils import get_rest_api_for_installation
 
 logger = getLogger(__name__)
 
@@ -104,3 +104,18 @@ class Task(ABC, Generic[T]):
     @abstractmethod
     def __repr__(self) -> str:
         pass
+
+
+async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:
+    assert org_model.project_name is not None
+    assert org_model.config_repo is not None
+    assert org_model.base_template is not None
+
+    return OrganizationConfig.of(
+        org_model.project_name,
+        org_model.github_id,
+        org_model.config_repo,
+        org_model.base_template,
+        {"provider": "inmemory", "api_token": token},
+        work_dir,
+    )

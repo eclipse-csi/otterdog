@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from logging import getLogger
 from typing import Optional
 
@@ -16,7 +15,11 @@ from odmantic import query
 from quart import current_app
 
 from otterdog.webapp import mongo
-from otterdog.webapp.utils import get_otterdog_config, get_rest_api_for_app
+from otterdog.webapp.utils import (
+    current_utc_time,
+    get_otterdog_config,
+    get_rest_api_for_app,
+)
 
 from .models import (
     ApplyStatus,
@@ -203,13 +206,13 @@ async def create_task(task: TaskModel) -> None:
 
 async def finish_task(task: TaskModel) -> None:
     task.status = TaskStatus.FINISHED
-    task.updated_at = datetime.utcnow()
+    task.updated_at = current_utc_time()
     await mongo.odm.save(task)
 
 
 async def fail_task(task: TaskModel, exception: Exception) -> None:
     task.status = TaskStatus.FAILED
-    task.updated_at = datetime.utcnow()
+    task.updated_at = current_utc_time()
     task.log = str(exception)
     await mongo.odm.save(task)
 
@@ -264,7 +267,7 @@ async def update_or_create_pull_request(
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:
-    pull_request.updated_at = datetime.utcnow()
+    pull_request.updated_at = current_utc_time()
     await mongo.odm.save(pull_request)
 
 

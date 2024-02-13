@@ -5,8 +5,10 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
+
 import asyncio
 import re
+import sys
 from datetime import datetime
 from logging import getLogger
 from typing import Optional, cast
@@ -15,10 +17,9 @@ from hypercorn.logging import Logger as HypercornLogger
 from hypercorn.typing import ResponseSummary, WWWScope
 from quart import current_app
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
+from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.rest import RestApi
-from otterdog.webapp.db.models import InstallationModel
 
 logger = getLogger(__name__)
 
@@ -99,21 +100,6 @@ async def _load_otterdog_config(ref: Optional[str] = None) -> OtterdogConfig:
             return OtterdogConfig(name, False, app_root)
 
 
-async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:
-    assert org_model.project_name is not None
-    assert org_model.config_repo is not None
-    assert org_model.base_template is not None
-
-    return OrganizationConfig.of(
-        org_model.project_name,
-        org_model.github_id,
-        org_model.config_repo,
-        org_model.base_template,
-        {"provider": "inmemory", "api_token": token},
-        work_dir,
-    )
-
-
 def get_admin_team() -> str:
     return current_app.config["GITHUB_ADMIN_TEAM"]
 
@@ -170,3 +156,12 @@ class SaneLogger(HypercornLogger):
     async def access(self, request: WWWScope, response: ResponseSummary, request_time: float) -> None:
         if response is not None:
             await super().access(request, response, request_time)
+
+
+def current_utc_time() -> datetime:
+    if sys.version_info < (3, 12):
+        return datetime.utcnow()
+    else:
+        from datetime import UTC
+
+        return datetime.now(UTC)
