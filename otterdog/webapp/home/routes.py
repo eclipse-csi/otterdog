@@ -15,6 +15,7 @@ from otterdog.webapp.db.service import (
     get_configurations,
     get_merged_pull_requests,
     get_open_or_incomplete_pull_requests,
+    get_open_or_incomplete_pull_requests_count,
     get_organizations,
     get_tasks,
 )
@@ -38,6 +39,7 @@ async def index():
         "home/index.html",
         segments=get_segments(request),
         org_count=len(orgs),
+        pull_request_count=await get_open_or_incomplete_pull_requests_count(),
         organizations=orgs,
         configurations=configs_by_key,
     )

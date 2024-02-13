@@ -57,11 +57,27 @@
               <div class="icon">
                 <i class="fab fa-github"></i>
               </div>
-              <a href="/organizations.html" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              <a href="/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+            </div>
+          </div>
+          <!-- ./col -->
+          <div class="col-lg-3 col-6">
+            <!-- small box -->
+            <div class="small-box bg-info">
+              <div class="inner">
+                <h3>{{ pull_request_count }}</h3>
+
+                <p>Open Pull Requests</p>
+              </div>
+              <div class="icon">
+                <i class="fas fa-code-pull-request"></i>
+              </div>
+              <a href="/admin/pullrequests" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <!-- ./col -->
         </div>
+        <!-- ./row -->
 
         <div class="row">
           {% for org in organizations %}

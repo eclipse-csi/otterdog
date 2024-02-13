@@ -281,6 +281,19 @@ async def get_open_or_incomplete_pull_requests() -> list[PullRequestModel]:
     )
 
 
+async def get_open_or_incomplete_pull_requests_count() -> int:
+    return await mongo.odm.count(
+        PullRequestModel,
+        query.or_(
+            PullRequestModel.status == PullRequestStatus.OPEN,
+            query.and_(
+                PullRequestModel.status == PullRequestStatus.MERGED,
+                PullRequestModel.apply_status != ApplyStatus.COMPLETED,
+            ),
+        ),
+    )
+
+
 async def get_merged_pull_requests(limit: int) -> list[PullRequestModel]:
     return await mongo.odm.find(
         PullRequestModel,
