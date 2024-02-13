@@ -92,15 +92,20 @@
               <div class="card-footer p-0">
                 {% if org.installation_status|status == 'success' %}
                 <ul class="nav flex-column">
+                  {% if configurations[org.github_id] %}
+                  {% set config = configurations[org.github_id].config %}
                   <li class="nav-item">
                     <a href="#" class="nav-link">
-                      {% if configurations[org.github_id] %}
-                      Repositories <span class="float-right badge bg-primary">{{ configurations[org.github_id].config.repositories|length }}</span>
-                      {% else %}
-                      Repositories <span class="float-right badge bg-primary">N/A</span>
-                      {% endif %}
+                      {% set two_factor_enabled = config.settings.two_factor_requirement %}
+                      2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
                     </a>
                   </li>
+                  <li class="nav-item">
+                    <a href="#" class="nav-link">
+                      Repositories <span class="float-right badge bg-primary">{{ config.repositories|length }}</span>
+                    </a>
+                  </li>
+                  {% endif %}
                 </ul>
                 {% endif %}
               </div>
