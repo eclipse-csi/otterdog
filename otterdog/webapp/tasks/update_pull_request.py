@@ -8,7 +8,7 @@
 
 import dataclasses
 
-from otterdog.webapp.db.models import PullRequestStatus, TaskModel
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -45,8 +45,7 @@ class UpdatePullRequestTask(Task[None]):
         await update_or_create_pull_request(
             self.org_id,
             self.repo_name,
-            self.pull_request_number,
-            PullRequestStatus[self.pull_request.get_pr_status().upper()],
+            self.pull_request,
         )
 
     def __repr__(self) -> str:

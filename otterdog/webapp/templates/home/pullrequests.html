@@ -58,8 +58,9 @@
                     <th>Organization</th>
                     <th>Repo</th>
                     <th>PR</th>
-                    <th>Updated</th>
+                    <th>Created</th>
                     <th>PR Status</th>
+                    <th>Draft</th>
                     <th>Config in-sync</th>
                     <th>Manual required</th>
                     <th>Apply Status</th>
@@ -71,8 +72,9 @@
                       <td><a href="https://github.com/{{ pr.org_id }}">{{ pr.org_id }}</a></td>
                       <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}">{{ pr.repo_name }}</a></td>
                       <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}/pull/{{ pr.pull_request }}">#{{ pr.pull_request }}</a></td>
-                      <td>{{ pr.updated_at }}</td>
+                      <td>{{ pr.created_at }}</td>
                       <td>{{ pr.status }}</td>
+                      <td>{{ pr.draft }}</td>
                       <td>{{ pr.in_sync }}</td>
                       <td>{{ pr.requires_manual_apply }}</td>
                       <td>{{ pr.apply_status }}</td>
@@ -103,7 +105,7 @@
                     <th>Organization</th>
                     <th>Repo</th>
                     <th>PR</th>
-                    <th>Updated</th>
+                    <th>Merged</th>
                     <th>PR Status</th>
                     <th>Apply Status</th>
                   </tr>
@@ -114,7 +116,7 @@
                       <td><a href="https://github.com/{{ pr.org_id }}">{{ pr.org_id }}</a></td>
                       <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}">{{ pr.repo_name }}</a></td>
                       <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}/pull/{{ pr.pull_request }}">#{{ pr.pull_request }}</a></td>
-                      <td>{{ pr.updated_at }}</td>
+                      <td>{{ pr.merged_at }}</td>
                       <td>{{ pr.status }}</td>
                       <td>{{ pr.apply_status }}</td>
                     </tr>

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
@@ -79,17 +80,22 @@ class PullRequest(BaseModel):
     user: Actor
     author_association: AuthorAssociation
 
+    created_at: datetime
+    updated_at: datetime
+    closed_at: datetime | None = None
+    merged_at: datetime | None = None
+
     head: Ref
     base: Ref
 
     def get_pr_status(self) -> str:
         if self.state == "open":
-            return self.state
+            return self.state.upper()
         elif self.state == "closed":
             if self.merge_commit_sha is not None:
-                return "merged"
+                return "MERGED"
             else:
-                return "closed"
+                return "CLOSED"
         else:
             raise RuntimeError(f"unexpected state '{self.state}'")
 

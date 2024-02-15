@@ -19,6 +19,7 @@ from otterdog.webapp.utils import (
     get_otterdog_config,
     get_rest_api_for_app,
 )
+from otterdog.webapp.webhook.github_models import PullRequest
 
 from .models import (
     ApplyStatus,
@@ -232,23 +233,34 @@ async def find_pull_request(owner: str, repo: str, pull_request: int) -> PullReq
 async def update_or_create_pull_request(
     owner: str,
     repo: str,
-    pull_request: int,
-    status: PullRequestStatus,
+    pull_request: PullRequest,
     valid: bool | None = None,
     in_sync: bool | None = None,
     requires_manual_apply: bool | None = None,
     apply_status: ApplyStatus | None = None,
 ) -> None:
-    pr_model = await find_pull_request(owner, repo, pull_request)
+    pull_request_status = PullRequestStatus[pull_request.get_pr_status()]
+
+    pr_model = await find_pull_request(owner, repo, pull_request.number)
     if pr_model is None:
         pr_model = PullRequestModel(  # type: ignore
             org_id=owner,
             repo_name=repo,
-            pull_request=pull_request,
-            status=status,
+            pull_request=pull_request.number,
+            draft=pull_request.draft,
+            status=pull_request_status,
+            created_at=pull_request.created_at,
+            updated_at=pull_request.updated_at,
+            closed_at=pull_request.closed_at,
+            merged_at=pull_request.merged_at,
         )
     else:
-        pr_model.status = status
+        pr_model.draft = pull_request.draft
+        pr_model.status = pull_request_status
+        pr_model.created_at = pull_request.created_at
+        pr_model.updated_at = pull_request.updated_at
+        pr_model.closed_at = pull_request.closed_at
+        pr_model.merged_at = pull_request.merged_at
 
     if valid is not None:
         pr_model.valid = valid
@@ -266,7 +278,6 @@ async def update_or_create_pull_request(
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:
-    pull_request.updated_at = current_utc_time()
     await mongo.odm.save(pull_request)
 
 
@@ -304,5 +315,5 @@ async def get_merged_pull_requests(limit: int) -> list[PullRequestModel]:
             PullRequestModel.apply_status == ApplyStatus.COMPLETED,
         ),
         limit=limit,
-        sort=query.desc(PullRequestModel.updated_at),
+        sort=query.desc(PullRequestModel.merged_at),
     )

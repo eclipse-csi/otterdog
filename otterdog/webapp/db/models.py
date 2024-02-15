@@ -85,6 +85,7 @@ class PullRequestModel(Model):
     org_id: str
     repo_name: str
     pull_request: int
+    draft: bool
     status: PullRequestStatus = Field(index=True)
 
     valid: Optional[bool] = None
@@ -92,7 +93,10 @@ class PullRequestModel(Model):
     requires_manual_apply: bool = False
     apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 
-    updated_at: datetime = Field(index=True, default_factory=current_utc_time)
+    created_at: datetime = Field(index=True)
+    updated_at: datetime = Field(index=True)
+    closed_at: Optional[datetime] = None
+    merged_at: Optional[datetime] = Field(index=True, default=None)
 
     model_config = {  # type: ignore
         "indexes": lambda: [

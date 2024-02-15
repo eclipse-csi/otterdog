@@ -8,7 +8,7 @@
 
 import dataclasses
 
-from otterdog.webapp.db.models import ApplyStatus, PullRequestStatus, TaskModel
+from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -43,17 +43,15 @@ class FetchAllPullRequestsTask(Task[None]):
 
         for pr in all_pull_requests:
             pr_from_github = PullRequest.model_validate(pr)
-            pr_number = pr_from_github.number
 
             # when importing already closed PRs we consider them being applied already
-            pr_status = pr_from_github.get_pr_status().upper()
+            pr_status = pr_from_github.get_pr_status()
             apply_status = ApplyStatus.COMPLETED if pr_status == "MERGED" else None
 
             await update_or_create_pull_request(
                 self.org_id,
                 self.repo_name,
-                pr_number,
-                PullRequestStatus[pr_status],
+                pr_from_github,
                 apply_status=apply_status,
             )
 

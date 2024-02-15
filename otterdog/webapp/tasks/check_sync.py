@@ -17,7 +17,7 @@ from otterdog.models import LivePatch
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
-from otterdog.webapp.db.models import PullRequestStatus, TaskModel
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import Task
 from otterdog.webapp.tasks.validate_pull_request import get_admin_team
@@ -171,8 +171,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
         await update_or_create_pull_request(
             self.org_id,
             self.repo_name,
-            self.pull_request_number,
-            PullRequestStatus[self._pull_request.get_pr_status().upper()],
+            self._pull_request,
             in_sync=config_in_sync,
         )
 
