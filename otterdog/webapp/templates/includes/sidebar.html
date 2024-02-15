@@ -22,7 +22,7 @@
 
       <!-- Sidebar Menu -->
       <nav class="mt-2">
-        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="true">
           <li class="nav-item">
             <a href="/index" class="nav-link {% if 'index' in segments %} active {% endif %}">
               <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -33,47 +33,87 @@
             </a>
           </li>
 
+          <li class="nav-header">PROJECTS</li>
+            {% for nav_level1, value_level1 in projects|dictsort %}
+            {% if value_level1|is_dict %}
+            <li class="nav-item has-treeview {% if segments[1] and segments[1].startswith(nav_level1) %} menu-open {% endif %}">
+              <a href="#" class="nav-link {% if segments[1] and segments[1].startswith(nav_level1) %} active {% endif %}">
+                <i class="nav-icon fas fa-sitemap"></i>
+                <p>
+                  {{ nav_level1 }}
+                  <i class="right fas fa-angle-left"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+              {% for nav_level2, value_level2 in value_level1|dictsort %}
+                <li class="nav-item">
+                  <a href="/projects/{{ value_level2.project_name }}" class="nav-link {% if nav_level2 in segments[1] %} active {% endif %}">
+                    <i class="nav-icon fas fa-code-pull-request"></i>
+                    <p>
+                      {{ value_level2.project_name }}
+                      <i class="fas nav-icon"></i>
+                    </p>
+                  </a>
+                </li>
+              {% endfor %}
+              </ul>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a href="/projects/{{ value_level1.project_name }}" class="nav-link {% if value_level1.project_name in segments %} active {% endif %}">
+                <i class="nav-icon fas fa-code-pull-request"></i>
+                <p>
+                  {{ value_level1.project_name }}
+                  <i class="fas nav-icon"></i>
+                </p>
+              </a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+          <li class="nav-header">ADMINISTRATION</li>
+
           <li class="nav-item">
-            <a href="/organizations" class="nav-link {% if 'organizations' in segments %} active {% endif %}">
+            <a href="/admin/organizations" class="nav-link {% if 'organizations' in segments %} active {% endif %}">
               <i class="nav-icon fas fa-table"></i>
               <p>
-                Organizations
+                GitHub Orgs
                 <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
-
-          <li class="nav-item has-treeview {% if 'admin' in segments %} menu-open {% endif %}">
-            <a href="#" class="nav-link {% if 'admin' in segments %} active {% endif %}">
-              <i class="nav-icon fas fa-toolbox"></i>
+          <li class="nav-item">
+            <a href="/admin/pullrequests" class="nav-link {% if 'pullrequests' in segments %} active {% endif %}">
+              <i class="nav-icon fas fa-code-pull-request"></i>
               <p>
-                Admininstration
-                <i class="right fas fa-angle-left"></i>
+                Pull Requests
+                <i class="fas nav-icon"></i>
               </p>
             </a>
-            <ul class="nav nav-treeview">
-              <li class="nav-item">
-                <a href="/admin/pullrequests" class="nav-link {% if 'pullrequests' in segments %} active {% endif %}">
-                  <i class="nav-icon fas fa-code-pull-request"></i>
-                  <p>
-                    Pull Requests
-                    <i class="fas nav-icon"></i>
-                  </p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="/admin/tasks" class="nav-link {% if 'tasks' in segments %} active {% endif %}">
-                  <i class="nav-icon fas fa-clipboard-list"></i>
-                  <p>
-                    Tasks
-                    <i class="fas nav-icon"></i>
-                  </p>
-                </a>
-              </li>
-            </ul>
+          </li>
+          <li class="nav-item">
+            <a href="/admin/tasks" class="nav-link {% if 'tasks' in segments %} active {% endif %}">
+              <i class="nav-icon fas fa-clipboard-list"></i>
+              <p>
+                Tasks
+                <i class="fas nav-icon"></i>
+              </p>
+            </a>
+          </li>
         </ul>
       </nav>
       <!-- /.sidebar-menu -->
     </div>
     <!-- /.sidebar -->
   </aside>
+
+
+  {% block javascripts %}
+
+    <script src="/static/assets/plugins/jquery/jquery.min.js"></script>
+
+  <!-- page script -->
+  <script>
+  </script>
+
+{% endblock javascripts %}

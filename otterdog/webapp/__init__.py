@@ -66,6 +66,10 @@ def register_filters(app):
             case _:
                 return "info"
 
+    @app.template_filter("is_dict")
+    def is_dict(value):
+        return isinstance(value, dict)
+
 
 def create_app(app_config: AppConfig):
     app = Quart(app_config.QUART_APP)

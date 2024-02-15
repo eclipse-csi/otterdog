@@ -6,17 +6,21 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import json
+from typing import Any
+
 from quart import current_app, redirect, render_template, request, url_for
 from werkzeug.routing import BuildError
 
 from otterdog.utils import associate_by_key
 from otterdog.webapp.db.service import (
-    get_active_organizations,
+    get_active_installations,
+    get_configuration_by_project_name,
     get_configurations,
+    get_installations,
     get_merged_pull_requests,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
-    get_organizations,
     get_tasks,
 )
 from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
@@ -32,26 +36,42 @@ def route_default():
 
 @blueprint.route("/index")
 async def index():
-    orgs = await get_organizations()
-    configs = await get_configurations()
-    configs_by_key = associate_by_key(configs, lambda x: x.github_id)
-    return await render_template(
-        "home/index.html",
-        segments=get_segments(request),
-        org_count=len(orgs),
+    installations = await get_installations()
+    configurations = await get_configurations()
+    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await render_home_template(
+        "index.html",
         pull_request_count=await get_open_or_incomplete_pull_requests_count(),
-        organizations=orgs,
-        configurations=configs_by_key,
+        installations=installations,
+        configurations=configurations_by_key,
     )
 
 
-@blueprint.route("/organizations")
+@blueprint.route("/projects/<project_name>")
+async def project(project_name: str):
+    config = await get_configuration_by_project_name(project_name)
+
+    if config is None:
+        return await render_template("home/page-404.html"), 404
+
+    from otterdog.models.github_organization import GitHubOrganization
+
+    github_organization = GitHubOrganization.from_model_data(config.config)
+
+    return await render_home_template(
+        "organization.html",
+        project_name=project_name,
+        github_id=config.github_id,
+        config=config,
+        org_settings=json.dumps(github_organization.settings.to_model_dict(False, False), indent=2, ensure_ascii=False),
+    )
+
+
+@blueprint.route("/admin/organizations")
 async def organizations():
-    orgs = await get_organizations()
-    return await render_template(
-        "home/organizations.html",
-        segments=get_segments(request),
-        organizations=orgs,
+    return await render_home_template(
+        "organizations.html",
+        installations=await get_installations(),
     )
 
 
@@ -60,9 +80,8 @@ async def pullrequests():
     open_pull_requests = await get_open_or_incomplete_pull_requests()
     merged_pull_requests = await get_merged_pull_requests(100)
 
-    return await render_template(
-        "home/pullrequests.html",
-        segments=get_segments(request),
+    return await render_home_template(
+        "pullrequests.html",
         open_pull_requests=open_pull_requests,
         merged_pull_requests=merged_pull_requests,
     )
@@ -71,9 +90,8 @@ async def pullrequests():
 @blueprint.route("/admin/tasks")
 async def tasks():
     latest_tasks = await get_tasks(100)
-    return await render_template(
-        "home/tasks.html",
-        segments=get_segments(request),
+    return await render_home_template(
+        "tasks.html",
         tasks=latest_tasks,
     )
 
@@ -89,9 +107,21 @@ async def init():
 
     await update_installations()
 
-    for org in await get_active_organizations():
-        current_app.add_background_task(FetchConfigTask(org.installation_id, org.github_id, org.config_repo))
-        current_app.add_background_task(FetchAllPullRequestsTask(org.installation_id, org.github_id, org.config_repo))
+    for installation in await get_active_installations():
+        current_app.add_background_task(
+            FetchConfigTask(
+                installation.installation_id,
+                installation.github_id,
+                installation.config_repo,
+            )
+        )
+        current_app.add_background_task(
+            FetchAllPullRequestsTask(
+                installation.installation_id,
+                installation.github_id,
+                installation.config_repo,
+            )
+        )
 
     return {}, 200
 
@@ -119,7 +149,34 @@ def get_segments(request):
         if len(segments) == 1 and segments[0] == "":
             segments = ["index"]
 
+        segments = list(filter(lambda x: x, segments))
         return segments
 
     except:  # noqa: E722
         return None
+
+
+async def get_project_navigation():
+    installations = await get_active_installations()
+
+    navigation = {}
+
+    for installation in installations:
+        levels = installation.project_name.split(".", 2)
+        if len(levels) == 1:
+            navigation[levels[0]] = installation
+        else:
+            curr = navigation.get(levels[0], {})
+            curr.update({levels[1]: installation})
+            navigation[levels[0]] = curr
+
+    return navigation
+
+
+async def render_home_template(template_name: str, **context: Any) -> str:
+    return await render_template(
+        f"home/{template_name}",
+        segments=get_segments(request),
+        projects=await get_project_navigation(),
+        **context,
+    )

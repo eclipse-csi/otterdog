@@ -138,7 +138,7 @@ async def update_installations() -> None:
 
                 await mongo.odm.save(model)
 
-    for installation in await get_active_organizations():
+    for installation in await get_active_installations():
         configuration_model = await get_configuration_by_github_id(installation.github_id)
         if configuration_model is None:
             from otterdog.webapp.tasks.fetch_all_pull_requests import (
@@ -169,15 +169,15 @@ async def get_installation(installation_id: int) -> InstallationModel | None:
     return await mongo.odm.find_one(InstallationModel, InstallationModel.installation_id == installation_id)
 
 
-async def get_all_organization_count() -> int:
+async def get_all_installations_count() -> int:
     return await mongo.odm.count(InstallationModel)
 
 
-async def get_organizations() -> list[InstallationModel]:
+async def get_installations() -> list[InstallationModel]:
     return await mongo.odm.find(InstallationModel, sort=InstallationModel.project_name)
 
 
-async def get_active_organizations() -> list[InstallationModel]:
+async def get_active_installations() -> list[InstallationModel]:
     return await mongo.odm.find(
         InstallationModel, InstallationModel.installation_status == InstallationStatus.INSTALLED
     )

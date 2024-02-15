@@ -50,14 +50,13 @@
             <!-- small box -->
             <div class="small-box bg-info">
               <div class="inner">
-                <h3>{{ org_count }}</h3>
-
+                <h3>{{ installations|length }}</h3>
                 <p>GitHub Organizations</p>
               </div>
               <div class="icon">
                 <i class="fab fa-github"></i>
               </div>
-              <a href="/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              <a href="/admin/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <!-- ./col -->
@@ -66,7 +65,6 @@
             <div class="small-box bg-info">
               <div class="inner">
                 <h3>{{ pull_request_count }}</h3>
-
                 <p>Open Pull Requests</p>
               </div>
               <div class="icon">
@@ -80,20 +78,36 @@
         <!-- ./row -->
 
         <div class="row">
-          {% for org in organizations %}
+          {% for installation in installations %}
+          {% set github_id = installation.github_id %}
+          {% set project_name = installation.project_name %}
+          {% set installation_status = installation.installation_status %}
           <div class="col-md-3">
             <div class="card">
-              <div class="card-header bg-{{ org.installation_status|status }}">
-                <h3 class="card-title">{{ org.project_name }}</h3>
-              </div>
+              {% if installation_status|status == 'success' %}
+              <a class="text-reset" href="/projects/{{ project_name }}">
+                <div class="card-header bg-{{ installation_status|status }}">
+                  <h3 class="card-title">{{ project_name }}</h3>
+                  <div class="float-right">
+                    <i class="fas fa-arrow-circle-right"></i>
+                  </div>
+                </div>
+              </a>
+              {% else %}
+              <a class="text-reset" href="#">
+                <div class="card-header bg-{{ installation_status|status }}">
+                  <h3 class="card-title">{{ project_name }}</h3>
+                </div>
+              </a>
+              {% endif %}
               <div class="card-body">
-                <a href="https://github.com/{{ org.github_id }}"><i class="fab fa-github"></i> &nbsp; {{ org.github_id }}</a>
+                <a href="https://github.com/{{ github_id }}"><i class="fab fa-github"></i> &nbsp; {{ github_id }}</a>
               </div>
               <div class="card-footer p-0">
-                {% if org.installation_status|status == 'success' %}
+                {% if installation_status|status == 'success' %}
                 <ul class="nav flex-column">
-                  {% if configurations[org.github_id] %}
-                  {% set config = configurations[org.github_id].config %}
+                  {% if configurations[github_id] %}
+                  {% set config = configurations[github_id].config %}
                   <li class="nav-item">
                     <a href="#" class="nav-link">
                       {% set two_factor_enabled = config.settings.two_factor_requirement %}

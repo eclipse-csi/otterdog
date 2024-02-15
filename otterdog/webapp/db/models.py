@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from odmantic import Field, Index, Model
 
@@ -27,11 +28,11 @@ class InstallationStatus(str, Enum):
 
 class InstallationModel(Model):
     github_id: str = Field(primary_field=True)
-    project_name: str | None = Field(unique=True, index=True)
+    project_name: Optional[str] = Field(unique=True, index=True)
     installation_id: int = Field(index=True, default=0)
     installation_status: InstallationStatus
-    config_repo: str | None = None
-    base_template: str | None = None
+    config_repo: Optional[str] = None
+    base_template: Optional[str] = None
 
 
 class TaskStatus(str, Enum):
@@ -49,14 +50,14 @@ class TaskModel(Model):
     repo_name: str
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
-    log: str | None = None
+    log: Optional[str] = None
     created_at: datetime = Field(index=True, default_factory=current_utc_time)
     updated_at: datetime = Field(default_factory=current_utc_time)
 
 
 class ConfigurationModel(Model):
     github_id: str = Field(primary_field=True)
-    project_name: str | None = Field(unique=True, index=True)
+    project_name: Optional[str] = Field(unique=True, index=True)
     config: dict
     sha: str
 
@@ -86,8 +87,8 @@ class PullRequestModel(Model):
     pull_request: int
     status: PullRequestStatus = Field(index=True)
 
-    valid: bool | None = None
-    in_sync: bool | None = None
+    valid: Optional[bool] = None
+    in_sync: Optional[bool] = None
     requires_manual_apply: bool = False
     apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 

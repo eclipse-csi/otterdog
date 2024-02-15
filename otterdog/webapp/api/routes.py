@@ -11,7 +11,7 @@ from quart import jsonify
 from otterdog.webapp.db.service import (
     get_configuration_by_github_id,
     get_configuration_by_project_name,
-    get_organizations,
+    get_installations,
 )
 
 from . import blueprint
@@ -19,9 +19,9 @@ from . import blueprint
 
 @blueprint.route("/organizations")
 async def organizations():
-    orgs = await get_organizations()
-    result = list(map(lambda x: x.model_dump_json(include={"github_id", "project_name"}), orgs))
-    return result
+    installations = await get_installations()
+    result = list(map(lambda x: x.model_dump(include={"github_id", "project_name"}), installations))
+    return jsonify(result)
 
 
 @blueprint.route("/organizations/<github_id>")

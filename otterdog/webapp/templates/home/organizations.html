@@ -62,12 +62,12 @@
                   </tr>
                   </thead>
                   <tbody>
-                    {% for org in organizations %}
+                    {% for installation in installations %}
                     <tr>
-                      <td>{{ org.installation_id }}</td>
-                      <td>{{ org.installation_status }}</td>
-                      <td>{{ org.project_name }}</td>
-                      <td><a href="https://github.com/{{ org.github_id }}" target="_blank"><i class="fab fa-github"></i> &nbsp; {{ org.github_id }}</a></td>
+                      <td>{{ installation.installation_id }}</td>
+                      <td>{{ installation.installation_status }}</td>
+                      <td>{{ installation.project_name }}</td>
+                      <td><a href="https://github.com/{{ installation.github_id }}" target="_blank"><i class="fab fa-github"></i> &nbsp; {{ installation.github_id }}</a></td>
                     </tr>
                     {% endfor %}
                   </tbody>
