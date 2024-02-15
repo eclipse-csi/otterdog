@@ -11,6 +11,7 @@ from __future__ import annotations
 from logging import getLogger
 
 from odmantic import query
+from odmantic.query import QueryExpression
 from quart import current_app
 
 from otterdog.webapp import mongo
@@ -284,36 +285,45 @@ async def update_pull_request(pull_request: PullRequestModel) -> None:
 async def get_open_or_incomplete_pull_requests() -> list[PullRequestModel]:
     return await mongo.odm.find(
         PullRequestModel,
-        query.or_(
-            PullRequestModel.status == PullRequestStatus.OPEN,
-            query.and_(
-                PullRequestModel.status == PullRequestStatus.MERGED,
-                PullRequestModel.apply_status != ApplyStatus.COMPLETED,
-            ),
-        ),
+        _open_or_incomplete_pull_requests_query(),
     )
 
 
 async def get_open_or_incomplete_pull_requests_count() -> int:
     return await mongo.odm.count(
         PullRequestModel,
-        query.or_(
-            PullRequestModel.status == PullRequestStatus.OPEN,
-            query.and_(
-                PullRequestModel.status == PullRequestStatus.MERGED,
-                PullRequestModel.apply_status != ApplyStatus.COMPLETED,
-            ),
+        _open_or_incomplete_pull_requests_query(),
+    )
+
+
+def _open_or_incomplete_pull_requests_query() -> QueryExpression:
+    return query.or_(
+        PullRequestModel.status == PullRequestStatus.OPEN,
+        query.and_(
+            PullRequestModel.status == PullRequestStatus.MERGED,
+            PullRequestModel.apply_status != ApplyStatus.COMPLETED,
         ),
     )
 
 
-async def get_merged_pull_requests(limit: int) -> list[PullRequestModel]:
+async def get_merged_pull_requests(limit: int | None = None) -> list[PullRequestModel]:
     return await mongo.odm.find(
         PullRequestModel,
-        query.and_(
-            PullRequestModel.status == PullRequestStatus.MERGED,
-            PullRequestModel.apply_status == ApplyStatus.COMPLETED,
-        ),
+        _merged_pull_requests_query(),
         limit=limit,
         sort=query.desc(PullRequestModel.merged_at),
+    )
+
+
+async def get_merged_pull_requests_count() -> int:
+    return await mongo.odm.count(
+        PullRequestModel,
+        _merged_pull_requests_query(),
+    )
+
+
+def _merged_pull_requests_query() -> QueryExpression:
+    return query.and_(
+        PullRequestModel.status == PullRequestStatus.MERGED,
+        PullRequestModel.apply_status == ApplyStatus.COMPLETED,
     )

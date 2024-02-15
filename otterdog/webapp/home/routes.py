@@ -19,6 +19,7 @@ from otterdog.webapp.db.service import (
     get_configurations,
     get_installations,
     get_merged_pull_requests,
+    get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
     get_tasks,
@@ -41,7 +42,8 @@ async def index():
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
     return await render_home_template(
         "index.html",
-        pull_request_count=await get_open_or_incomplete_pull_requests_count(),
+        open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
+        merged_pull_request_count=await get_merged_pull_requests_count(),
         installations=installations,
         configurations=configurations_by_key,
     )
