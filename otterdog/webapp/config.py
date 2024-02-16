@@ -20,13 +20,7 @@ class AppConfig:
     ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
 
     APP_ROOT = config("APP_ROOT")
-    if not os.path.exists(APP_ROOT):
-        os.makedirs(APP_ROOT)
-
-    # This will create a sqlite db in <app-root>/db FOLDER
     DB_ROOT = os.path.join(APP_ROOT, "db")
-    if not os.path.exists(DB_ROOT):
-        os.makedirs(DB_ROOT)
 
     MONGO_URI = config("MONGO_URI", default="mongodb://mongodb:27017/otterdog")
 

@@ -41,6 +41,12 @@ logging.basicConfig(
 
 # logging.getLogger("hypercorn.access").disabled = True
 
+if not os.path.exists(app_config.APP_ROOT):
+    os.makedirs(app_config.APP_ROOT)
+
+if not os.path.exists(app_config.DB_ROOT):
+    os.makedirs(app_config.DB_ROOT)
+
 if os.path.exists(app_config.APP_ROOT):
     os.chdir(app_config.APP_ROOT)
 else:
