@@ -87,14 +87,15 @@ class PullRequestModel(Model):
     pull_request: int
     draft: bool
     status: PullRequestStatus = Field(index=True)
+    apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 
     valid: Optional[bool] = None
     in_sync: Optional[bool] = None
     requires_manual_apply: bool = False
-    apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
+
     closed_at: Optional[datetime] = None
     merged_at: Optional[datetime] = Field(index=True, default=None)
 
@@ -106,5 +107,5 @@ class PullRequestModel(Model):
                 PullRequestModel.pull_request,
                 unique=True,
             ),
-        ]
+        ],
     }

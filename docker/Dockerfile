@@ -7,7 +7,7 @@ FROM python:3.12.2-slim as builder-python3
 
 RUN apt-get update \
     && apt-get install -y \
-        golang gcc
+        golang gcc patch
 
 WORKDIR /app
 
@@ -28,6 +28,10 @@ RUN poetry config virtualenvs.in-project true && \
     poetry install --only=main,app --no-root && \
     poetry build && \
     poetry install --only-root
+
+WORKDIR /app/.venv/lib/python3.12/site-packages
+COPY ./docker/odmantic.patch ./
+RUN patch -p1 < odmantic.patch
 
 # create the final image having python3.12 as base
 FROM python:3.12.2-slim

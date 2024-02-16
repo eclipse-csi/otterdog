@@ -263,6 +263,9 @@ async def update_or_create_pull_request(
         pr_model.closed_at = pull_request.closed_at
         pr_model.merged_at = pull_request.merged_at
 
+    if apply_status is not None:
+        pr_model.apply_status = apply_status
+
     if valid is not None:
         pr_model.valid = valid
 
@@ -271,9 +274,6 @@ async def update_or_create_pull_request(
 
     if requires_manual_apply is not None:
         pr_model.requires_manual_apply = requires_manual_apply
-
-    if apply_status is not None:
-        pr_model.apply_status = apply_status
 
     await update_pull_request(pr_model)
 
