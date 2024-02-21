@@ -164,6 +164,33 @@ class GraphQLClient:
 
         print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
+    async def get_issue_comments(self, org_id: str, repo_name: str, issue_number: int) -> list[dict[str, Any]]:
+        print_debug(f"retrieving issue comments for issue '{org_id}/{repo_name}/#{issue_number}'")
+
+        variables = {"owner": org_id, "repo": repo_name, "number": issue_number}
+        issue_comments = await self._async_run_paged_query(
+            variables, "get-issue-comments.gql", ".data.repository.pullRequest.comments"
+        )
+        return issue_comments
+
+    async def minimize_comment(self, comment_id: str, classifier: str) -> None:
+        print_debug("minimizing comment")
+
+        variables = {"input": {"subjectId": comment_id, "classifier": classifier}}
+
+        query = """mutation($input: MinimizeCommentInput!) {
+           minimizeComment(input: $input) {
+             clientMutationId
+           }
+        }"""
+
+        status, body = await self._async_request_raw("POST", query, variables)
+
+        if status >= 400:
+            raise RuntimeError(f"failed minimizing comment: {body}")
+
+        print_debug("successfully minimized comment")
+
     async def _async_run_paged_query(
         self,
         input_variables: dict[str, Any],

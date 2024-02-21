@@ -20,6 +20,7 @@ from otterdog.webapp.db.service import (
 )
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
+from otterdog.webapp.tasks.complete_pull_request import CompletePullRequestTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
@@ -27,7 +28,6 @@ from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_otterdog_config
 
-from ..tasks.complete_pull_request import CompletePullRequestTask
 from .github_models import (
     InstallationEvent,
     IssueCommentEvent,
@@ -75,8 +75,19 @@ async def on_pull_request_received(data):
         )
 
     if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
+        # schedule a validate task
         current_app.add_background_task(
             ValidatePullRequestTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request,
+            )
+        )
+
+        # schedule a check-sync task
+        current_app.add_background_task(
+            CheckConfigurationInSyncTask(
                 event.installation.id,
                 event.organization.login,
                 event.repository.name,

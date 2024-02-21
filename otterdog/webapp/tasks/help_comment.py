@@ -40,7 +40,21 @@ class HelpCommentTask(Task[None]):
     async def _execute(self) -> None:
         rest_api = await self.get_rest_api(self.installation_id)
         comment = await render_template("comment/help_comment.txt")
-        await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+
+        await self.minimize_outdated_comments(
+            self.installation_id,
+            self.org_id,
+            self.repo_name,
+            self.pull_request_number,
+            "<!-- Otterdog Comment: help -->",
+        )
+
+        await rest_api.issue.create_comment(
+            self.org_id,
+            self.repo_name,
+            str(self.pull_request_number),
+            comment,
+        )
 
     def __repr__(self) -> str:
         return f"HelpCommentTask(repo={self.org_id}/{self.repo_name}, pull_request={self.pull_request_number})"

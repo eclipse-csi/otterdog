@@ -19,6 +19,7 @@ from quart import current_app
 
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
+from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
 
 logger = getLogger(__name__)
@@ -62,6 +63,12 @@ async def get_rest_api_for_installation(installation_id: int) -> RestApi:
         rest_api = RestApi(token_auth(token))
         _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
         return rest_api
+
+
+async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
+    rest_api = await get_rest_api_for_installation(installation_id)
+    assert rest_api.token is not None
+    return GraphQLClient(token_auth(rest_api.token))
 
 
 async def get_otterdog_config() -> OtterdogConfig:

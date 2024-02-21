@@ -1,3 +1,4 @@
+<!-- Otterdog Comment: help -->
 This is your friendly self-service bot. The following commands are supported:
 
 - `/team-info`: checks the team / org membership for the PR author

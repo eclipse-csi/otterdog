@@ -122,6 +122,14 @@ class CheckConfigurationInSyncTask(Task[bool]):
             else:
                 comment = await render_template("comment/in_sync_comment.txt")
 
+            await self.minimize_outdated_comments(
+                self.installation_id,
+                self.org_id,
+                self.repo_name,
+                self.pull_request_number,
+                "<!-- Otterdog Comment: check-sync -->",
+            )
+
             await rest_api.issue.create_comment(
                 self.org_id,
                 org_config.config_repo,

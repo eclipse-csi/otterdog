@@ -24,7 +24,10 @@ from otterdog.webapp.db.service import (
     finish_task,
     get_installation,
 )
-from otterdog.webapp.utils import get_rest_api_for_installation
+from otterdog.webapp.utils import (
+    get_graphql_api_for_installation,
+    get_rest_api_for_installation,
+)
 
 logger = getLogger(__name__)
 
@@ -101,6 +104,24 @@ class Task(ABC, Generic[T]):
                 await jsonnet_config.init_template()
 
             yield org_config
+
+    @staticmethod
+    async def minimize_outdated_comments(
+        installation_id: int,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: int,
+        matching_header: str,
+    ) -> None:
+        graphql_api = await get_graphql_api_for_installation(installation_id)
+        comments = await graphql_api.get_issue_comments(org_id, repo_name, pull_request_number)
+        for comment in comments:
+            comment_id = comment["id"]
+            body = comment["body"]
+            is_minimized = comment["isMinimized"]
+
+            if bool(is_minimized) is False and matching_header in body:
+                await graphql_api.minimize_comment(comment_id, "OUTDATED")
 
     @abstractmethod
     def __repr__(self) -> str:

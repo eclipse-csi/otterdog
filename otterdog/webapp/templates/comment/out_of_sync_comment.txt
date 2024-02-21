@@ -1,3 +1,4 @@
+<!-- Otterdog Comment: check-sync -->
 This is your friendly self-service bot. The current configuration is out-of-sync with the live settings:
 
 <details>

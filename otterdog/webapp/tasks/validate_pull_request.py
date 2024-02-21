@@ -88,17 +88,6 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
         await self._create_pending_status()
 
-        from .check_sync import CheckConfigurationInSyncTask
-
-        check_task = CheckConfigurationInSyncTask(
-            self.installation_id,
-            self.org_id,
-            self.repo_name,
-            self.pull_request_or_number,
-        )
-
-        current_app.add_background_task(check_task.execute)
-
     async def _post_execute(self, result_or_exception: ValidationResult | Exception) -> None:
         if isinstance(result_or_exception, Exception):
             await self._create_failure_status()
@@ -169,6 +158,14 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
                 admin_team=f"{self.org_id}/{get_admin_team()}",
+            )
+
+            await self.minimize_outdated_comments(
+                self.installation_id,
+                self.org_id,
+                self.repo_name,
+                self.pull_request_number,
+                "<!-- Otterdog Comment: validate -->",
             )
 
             # add a comment about the validation result to the PR

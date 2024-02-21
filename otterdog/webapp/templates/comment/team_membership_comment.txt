@@ -1,3 +1,4 @@
+<!-- Otterdog Comment: team-info -->
 This is your friendly self-service bot. The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
 
 {% if (teams is defined) and teams %}

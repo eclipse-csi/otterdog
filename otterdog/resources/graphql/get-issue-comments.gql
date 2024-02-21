@@ -1,0 +1,20 @@
+query($endCursor: String, $owner: String!, $repo: String!, $number: Int!) {
+  repository(name: $repo, owner: $owner) {
+    pullRequest(number: $number) {
+      comments(first: 100 after: $endCursor) {
+        nodes {
+          id
+          author {
+            login
+          }
+          isMinimized
+          body
+        }
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+      }
+    }
+  }
+}

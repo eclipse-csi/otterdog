@@ -71,9 +71,26 @@ class RetrieveTeamMembershipTask(Task[None]):
 
         teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
         comment = await render_template(
-            "comment/team_membership_comment.txt", user=user, association=association, teams=teams
+            "comment/team_membership_comment.txt",
+            user=user,
+            association=association,
+            teams=teams,
         )
-        await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+
+        await self.minimize_outdated_comments(
+            self.installation_id,
+            self.org_id,
+            self.repo_name,
+            self.pull_request_number,
+            "<!-- Otterdog Comment: team-info -->",
+        )
+
+        await rest_api.issue.create_comment(
+            self.org_id,
+            self.repo_name,
+            str(self.pull_request_number),
+            comment,
+        )
 
     def __repr__(self) -> str:
         return (
