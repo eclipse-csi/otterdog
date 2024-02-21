@@ -92,7 +92,7 @@ class PullRequest(BaseModel):
         if self.state == "open":
             return self.state.upper()
         elif self.state == "closed":
-            if self.merge_commit_sha is not None:
+            if self.merged_at is not None:
                 return "MERGED"
             else:
                 return "CLOSED"
