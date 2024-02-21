@@ -47,7 +47,7 @@
               <ul class="nav nav-treeview">
               {% for nav_level2, value_level2 in value_level1|dictsort %}
                 <li class="nav-item">
-                  <a href="/projects/{{ value_level2.project_name }}" class="nav-link {% if nav_level2 in segments[1] %} active {% endif %}">
+                  <a href="/projects/{{ value_level2.project_name }}" class="nav-link {% if value_level2.project_name == segments[1] %} active {% endif %}">
                     <i class="nav-icon fab fa-square-github"></i>
                     <p>
                       {{ value_level2.project_name }}

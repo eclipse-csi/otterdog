@@ -164,12 +164,13 @@ async def get_project_navigation():
     navigation = {}
 
     for installation in installations:
-        levels = installation.project_name.split(".", 2)
+        levels = installation.project_name.split(".")
         if len(levels) == 1:
             navigation[levels[0]] = installation
         else:
             curr = navigation.get(levels[0], {})
-            curr.update({levels[1]: installation})
+            remainder = "".join(levels[1:])
+            curr.update({remainder: installation})
             navigation[levels[0]] = curr
 
     return navigation
