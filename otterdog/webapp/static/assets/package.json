@@ -42,7 +42,6 @@
     },
     "dependencies": {
         "node-gyp": "^10.0.1",
-        "@fortawesome/fontawesome-free": "^5.15.4",
         "@lgaitan/pace-progress": "^1.0.7",
         "@sweetalert2/theme-bootstrap-4": "^4.0.5",
         "@ttskch/select2-bootstrap4-theme": "^1.5.2",
@@ -78,7 +77,6 @@
         "flag-icon-css": "^3.5.0",
         "flot": "^4.2.2",
         "fs-extra": "^9.1.0",
-        "fullcalendar": "^5.9.0",
         "icheck-bootstrap": "^3.0.1",
         "inputmask": "^5.0.6",
         "ion-rangeslider": "^2.3.1",
