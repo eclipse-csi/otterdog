@@ -15,6 +15,9 @@
   <!-- DataTables -->
   <link rel="stylesheet" href="/static/assets/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
   <link rel="stylesheet" href="/static/assets/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+  <!-- jsGrid -->
+  <link rel="stylesheet" href="/static/assets/plugins/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/static/assets/plugins/jsgrid/jsgrid-theme.min.css">
   <!-- Theme style -->
   <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
 
@@ -95,34 +98,11 @@
           <div class="col-12">
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">Last 100 merged Pull Requests:</h3>
+                <h3 class="card-title">Merged Pull Requests:</h3>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="merged-pull-requests" class="table table-bordered table-hover">
-                  <thead>
-                  <tr>
-                    <th>Organization</th>
-                    <th>Repo</th>
-                    <th>PR</th>
-                    <th>Merged</th>
-                    <th>PR Status</th>
-                    <th>Apply Status</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                    {% for pr in merged_pull_requests %}
-                    <tr>
-                      <td><a href="https://github.com/{{ pr.org_id }}">{{ pr.org_id }}</a></td>
-                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}">{{ pr.repo_name }}</a></td>
-                      <td><a href="https://github.com/{{ pr.org_id }}/{{ pr.repo_name }}/pull/{{ pr.pull_request }}">#{{ pr.pull_request }}</a></td>
-                      <td>{{ pr.merged_at }}</td>
-                      <td>{{ pr.status }}</td>
-                      <td>{{ pr.apply_status }}</td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                <div id="mergedPullRequestsGrid"></div>
               </div>
               <!-- /.card-body -->
             </div>
@@ -151,6 +131,8 @@
   <script src="/static/assets/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
   <script src="/static/assets/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
   <script src="/static/assets/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+  <!-- jsGrid -->
+  <script src="/static/assets/plugins/jsgrid/jsgrid.min.js"></script>
   <!-- AdminLTE App -->
   <script src="/static/assets/js/adminlte.min.js"></script>
 
@@ -169,6 +151,70 @@
         "responsive": true,
       });
 
+    });
+
+    $(function () {
+      $("#mergedPullRequestsGrid").jsGrid({
+          height: "auto",
+          width: "100%",
+
+          pageSize: 20,
+
+          filtering: true,
+          sorting: true,
+          paging: true,
+          pageLoading: true,
+          autoload: true,
+
+          controller: {
+              loadData: function(filter) {
+                  var d = $.Deferred();
+
+                  $.ajax({
+                      url: "/api/pullrequests/merged",
+                      data: filter,
+                      dataType: "json"
+                  }).done(function(response) {
+                      d.resolve(response);
+                  });
+
+                  return d.promise();
+              }
+          },
+
+          fields: [
+              { name: "org_id", title: "GitHub Organization", type: "text", width: 70,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "repo_name", title: "Repo name", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + item.org_id + "/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "pull_request", title: "Pull Request", type: "number", align: "center", width: 50,
+                itemTemplate: function(value, item) {
+                  if (value > 0) {
+                    return "<a href='https://github.com/" + item.org_id + "/" + item.repo_name + "/pull/" + value + "'>#" + value + "</a>";
+                  } else {
+                    return "N/A";
+                  }
+                }
+              },
+              { name: "merged_at", title: "Merge Time", type: "text", width: 70 },
+              { name: "status", title: "Status", type: "text", align: "center", width: 40,
+                itemTemplate: function(value) {
+                 return value.toUpperCase();
+                }
+              },
+              { name: "apply_status", title: "Applied", type: "text", align: "center", width: 40,
+                itemTemplate: function(value) {
+                 return value.toUpperCase();
+                }
+              }
+          ]
+      });
     });
   </script>
 

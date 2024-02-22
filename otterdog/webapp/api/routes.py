@@ -6,12 +6,14 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from quart import jsonify
+from quart import jsonify, request
 
 from otterdog.webapp.db.service import (
     get_configuration_by_github_id,
     get_configuration_by_project_name,
     get_installations,
+    get_merged_pull_requests_paged,
+    get_tasks_paged,
 )
 
 from . import blueprint
@@ -40,3 +42,17 @@ async def project(project_name: str):
         return {}, 404
     else:
         return jsonify(config.config)
+
+
+@blueprint.route("/tasks")
+async def tasks():
+    paged_tasks, count = await get_tasks_paged(request.args.to_dict())
+    result = {"data": list(map(lambda x: x.model_dump(exclude={"id"}), paged_tasks)), "itemsCount": count}
+    return jsonify(result)
+
+
+@blueprint.route("/pullrequests/merged")
+async def merged_pullrequests():
+    paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
+    result = {"data": list(map(lambda x: x.model_dump(exclude={"id"}), paged_pull_requests)), "itemsCount": count}
+    return jsonify(result)

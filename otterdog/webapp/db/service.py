@@ -189,6 +189,47 @@ async def get_tasks(limit: int) -> list[TaskModel]:
     return await mongo.odm.find(TaskModel, limit=limit, sort=query.desc(TaskModel.created_at))
 
 
+async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int]:
+    page_index = 1
+    page_size = 20
+    sort_field = "created_at"
+    sort_order = "desc"
+
+    queries: list[QueryExpression] = []
+
+    for k, v in params.items():
+        match k:
+            case "pageIndex":
+                page_index = int(v)
+            case "pageSize":
+                page_size = int(v)
+            case "sortField":
+                sort_field = v
+            case "sortOrder":
+                sort_order = v
+            case _:
+                if v:
+                    queries.append(query.match(TaskModel.__dict__[k], v))
+
+    sort = (
+        query.desc(TaskModel.__dict__[sort_field])
+        if sort_order == "desc"
+        else query.asc(TaskModel.__dict__[sort_field])
+    )
+
+    skip = (page_index - 1) * page_size
+    return (
+        await mongo.odm.find(
+            TaskModel,
+            *queries,
+            skip=skip,
+            limit=page_size,
+            sort=sort,
+        ),
+        await mongo.odm.count(TaskModel, *queries),
+    )
+
+
 async def get_configurations() -> list[ConfigurationModel]:
     return await mongo.odm.find(ConfigurationModel)
 
@@ -306,15 +347,6 @@ def _open_or_incomplete_pull_requests_query() -> QueryExpression:
     )
 
 
-async def get_merged_pull_requests(limit: int | None = None) -> list[PullRequestModel]:
-    return await mongo.odm.find(
-        PullRequestModel,
-        _merged_pull_requests_query(),
-        limit=limit,
-        sort=query.desc(PullRequestModel.merged_at),
-    )
-
-
 async def get_merged_pull_requests_count() -> int:
     return await mongo.odm.count(
         PullRequestModel,
@@ -326,4 +358,45 @@ def _merged_pull_requests_query() -> QueryExpression:
     return query.and_(
         PullRequestModel.status == PullRequestStatus.MERGED,
         PullRequestModel.apply_status == ApplyStatus.COMPLETED,
+    )
+
+
+async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
+    page_index = 1
+    page_size = 20
+    sort_field = "merged_at"
+    sort_order = "desc"
+
+    queries: list[QueryExpression] = [_merged_pull_requests_query()]
+
+    for k, v in params.items():
+        match k:
+            case "pageIndex":
+                page_index = int(v)
+            case "pageSize":
+                page_size = int(v)
+            case "sortField":
+                sort_field = v
+            case "sortOrder":
+                sort_order = v
+            case _:
+                if v:
+                    queries.append(query.match(PullRequestModel.__dict__[k], v))
+
+    sort = (
+        query.desc(PullRequestModel.__dict__[sort_field])
+        if sort_order == "desc"
+        else query.asc(PullRequestModel.__dict__[sort_field])
+    )
+
+    skip = (page_index - 1) * page_size
+    return (
+        await mongo.odm.find(
+            PullRequestModel,
+            *queries,
+            skip=skip,
+            limit=page_size,
+            sort=sort,
+        ),
+        await mongo.odm.count(PullRequestModel, *queries),
     )

@@ -18,7 +18,6 @@ from otterdog.webapp.db.service import (
     get_configuration_by_project_name,
     get_configurations,
     get_installations,
-    get_merged_pull_requests,
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
@@ -80,12 +79,10 @@ async def organizations():
 @blueprint.route("/admin/pullrequests")
 async def pullrequests():
     open_pull_requests = await get_open_or_incomplete_pull_requests()
-    merged_pull_requests = await get_merged_pull_requests(100)
 
     return await render_home_template(
         "pullrequests.html",
         open_pull_requests=open_pull_requests,
-        merged_pull_requests=merged_pull_requests,
     )
 
 

@@ -12,9 +12,9 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="/static/assets/plugins/fontawesome-free/css/all.min.css">
-  <!-- DataTables -->
-  <link rel="stylesheet" href="/static/assets/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
-  <link rel="stylesheet" href="/static/assets/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+  <!-- jsGrid -->
+  <link rel="stylesheet" href="/static/assets/plugins/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/static/assets/plugins/jsgrid/jsgrid-theme.min.css">
   <!-- Theme style -->
   <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
 
@@ -48,42 +48,11 @@
           <div class="col-12">
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">Last 100 executed tasks:</h3>
+                <h3 class="card-title">Executed tasks:</h3>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="organizations" class="table table-bordered table-hover">
-                  <thead>
-                  <tr>
-                    <th>Task Type</th>
-                    <th>GitHub Organization</th>
-                    <th>Repo name</th>
-                    <th>Pull Request</th>
-                    <th>Status</th>
-                    <th>Log</th>
-                    <th>Created at</th>
-                    <th>Updated at</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                    {% for task in tasks %}
-                    <tr>
-                      <td>{{ task.type }}</td>
-                      <td><a href="https://github.com/{{ task.org_id }}">{{ task.org_id }}</a></td>
-                      <td><a href="https://github.com/{{ task.org_id }}/{{ task.repo_name }}">{{ task.repo_name }}</a></td>
-                      {% if task.pull_request > 0 %}
-                      <td><a href="https://github.com/{{ task.org_id }}/{{ task.repo_name }}/pull/{{ task.pull_request }}">#{{ task.pull_request }}</a></td>
-                      {% else %}
-                      <td>None</td>
-                      {% endif %}
-                      <td>{{ task.status }}</td>
-                      <td>{{ task.log }}</td>
-                      <td>{{ task.created_at }}</td>
-                      <td>{{ task.updated_at }}</td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                <div id="taskGrid"></div>
               </div>
               <!-- /.card-body -->
             </div>
@@ -107,21 +76,72 @@
   <script src="/static/assets/plugins/jquery/jquery.min.js"></script>
   <!-- Bootstrap 4 -->
   <script src="/static/assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <!-- DataTables -->
-  <script src="/static/assets/plugins/datatables/jquery.dataTables.min.js"></script>
-  <script src="/static/assets/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
-  <script src="/static/assets/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
-  <script src="/static/assets/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+  <!-- jsGrid -->
+  <script src="/static/assets/plugins/jsgrid/jsgrid.min.js"></script>
   <!-- AdminLTE App -->
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <!-- page script -->
   <script>
     $(function () {
-      $('#organizations').DataTable({
-        "order": [[6, 'desc']],
-        "autoWidth": false,
-        "responsive": true,
+      $("#taskGrid").jsGrid({
+          height: "auto",
+          width: "100%",
+
+          pageSize: 20,
+
+          filtering: true,
+          sorting: true,
+          paging: true,
+          pageLoading: true,
+          autoload: true,
+
+          controller: {
+              loadData: function(filter) {
+                  var d = $.Deferred();
+
+                  $.ajax({
+                      url: "/api/tasks",
+                      data: filter,
+                      dataType: "json"
+                  }).done(function(response) {
+                      d.resolve(response);
+                  });
+
+                  return d.promise();
+              }
+          },
+
+          fields: [
+              { name: "type", title: "Type", type: "text" },
+              { name: "org_id", title: "GitHub Organization", type: "text", width: 70,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "repo_name", title: "Repo name", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + item.org_id + "/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "pull_request", title: "Pull Request", type: "number", align: "center", width: 50,
+                itemTemplate: function(value, item) {
+                  if (value > 0) {
+                    return "<a href='https://github.com/" + item.org_id + "/" + item.repo_name + "/pull/" + value + "'>#" + value + "</a>";
+                  } else {
+                    return "N/A";
+                  }
+                }
+              },
+              { name: "status", title: "Status", type: "text", align: "center", width: 40,
+                itemTemplate: function(value) {
+                 return value.toUpperCase();
+                }
+              },
+              { name: "log", title: "Log", type: "text" },
+              { name: "created_at", title: "Creation Time", type: "text" },
+              { name: "updated_at", title: "Update Time", type: "text" }
+          ]
       });
     });
   </script>
