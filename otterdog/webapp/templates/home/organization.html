@@ -101,22 +101,22 @@
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#secrets" class="nav-link tab-link">
                           Secrets <span class="float-right badge bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#variables" class="nav-link tab-link">
                           Variables <span class="float-right badge bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#webhooks" class="nav-link tab-link">
                           Webhooks <span class="float-right badge bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#repositories" class="nav-link tab-link">
                           Repositories <span class="float-right badge bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
                         </a>
                       </li>
@@ -346,6 +346,14 @@
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <script>
+    $('.tab-link').on('click', function(event) {
+      // Prevent url change
+      event.preventDefault();
+
+      // `this` is the clicked <a> tag
+      $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
+    });
+
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
       switch (e.target.id){
         case "settings-tab": {

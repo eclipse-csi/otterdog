@@ -93,27 +93,27 @@
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#secrets" class="nav-link tab-link">
                           Secrets <span class="float-right badge bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#variables" class="nav-link tab-link">
                           Variables <span class="float-right badge bg-{{ repo_config.variables|length_to_color}}">{{ repo_config.variables|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#webhooks" class="nav-link tab-link">
                           Webhooks <span class="float-right badge bg-{{ repo_config.webhooks|length_to_color}}">{{ repo_config.webhooks|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#branch-protection-rules" class="nav-link tab-link">
                           Branch Protection Rules <span class="float-right badge bg-{{ repo_config.branch_protection_rules|length_to_color}}">{{ repo_config.branch_protection_rules|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#rulesets" class="nav-link tab-link">
                           Rulesets <span class="float-right badge bg-{{ repo_config.rulesets|length_to_color}}">{{ repo_config.rulesets|length }}</span>
                         </a>
                       </li>
@@ -303,6 +303,14 @@
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <script>
+    $('.tab-link').on('click', function(event) {
+      // Prevent url change
+      event.preventDefault();
+
+      // `this` is the clicked <a> tag
+      $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
+    });
+
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
       switch (e.target.id){
         case "settings-tab": {
