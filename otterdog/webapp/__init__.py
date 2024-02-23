@@ -74,6 +74,29 @@ def register_filters(app):
     def is_dict(value):
         return isinstance(value, dict)
 
+    @app.template_filter("length_to_color")
+    def length_to_color(value):
+        if len(value) == 0:
+            return "primary"
+        else:
+            return "success"
+
+    @app.template_filter("has_dummy_secret")
+    def has_dummy_secret(value):
+        return value.has_dummy_secret()
+
+    @app.template_filter("has_dummy_secrets")
+    def any_has_dummy_secrets(value):
+        return any(map(lambda x: x.has_dummy_secret(), value))
+
+    @app.template_filter("pretty_format_model")
+    def pretty_format_model(value):
+        from otterdog.models import ModelObject
+        from otterdog.utils import PrettyFormatter
+
+        assert isinstance(value, ModelObject)
+        return PrettyFormatter().format(value.to_model_dict(False, False))
+
 
 def create_app(app_config: AppConfig):
     app = Quart(app_config.QUART_APP)

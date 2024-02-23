@@ -482,3 +482,65 @@ def get_approval() -> bool:
         return False
     else:
         return True
+
+
+class PrettyFormatter:
+    def __init__(self, spaces_per_level: int = 2, key_align: int = -1):
+        self.types: dict[str, Any] = {}
+        self.htchar = " " * spaces_per_level
+        self.lfchar = "\n"
+        self.key_align = key_align
+        self.indent = 0
+        self.set_formatter(object, self.__class__._format_object)
+        self.set_formatter(dict, self.__class__._format_dict)
+        self.set_formatter(list, self.__class__._format_list)
+        self.set_formatter(tuple, self.__class__._format_tuple)
+
+    def set_formatter(self, obj, callback):
+        self.types[obj] = callback
+
+    def format(self, value, **args):
+        for key in args:
+            setattr(self, key, args[key])
+        formatter = self.types[type(value) if type(value) in self.types else object]
+        return formatter(self, value, self.indent)
+
+    def _format_object(self, value, indent):
+        return json.dumps(value, ensure_ascii=False)
+
+    def _format_dict(self, value, indent):
+        if self.key_align == -1:
+            key_align = max(map(lambda x: len(repr(x)), value.keys())) + 1
+        else:
+            key_align = self.key_align
+
+        items = [
+            self.lfchar
+            + self.htchar * (indent + 1)
+            + repr(key).ljust(key_align)
+            + ": "
+            + (self.types[type(value[key]) if type(value[key]) in self.types else object])(self, value[key], indent + 1)
+            for key in sorted(value)
+        ]
+        return "{%s}" % (",".join(items) + self.lfchar + self.htchar * indent)
+
+    def _format_list(self, value, indent):
+        items = [
+            self.lfchar
+            + self.htchar * (indent + 1)
+            + (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
+            for item in value
+        ]
+        if len(items) == 0:
+            return "[]"
+        else:
+            return "[%s]" % (",".join(items) + self.lfchar + self.htchar * indent)
+
+    def _format_tuple(self, value, indent):
+        items = [
+            self.lfchar
+            + self.htchar * (indent + 1)
+            + (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
+            for item in value
+        ]
+        return "(%s)" % (",".join(items) + self.lfchar + self.htchar * indent)

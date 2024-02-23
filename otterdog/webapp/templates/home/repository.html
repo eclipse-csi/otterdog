@@ -32,12 +32,13 @@
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
-            <h1>{{ project_name }}</h1>
+            <h1>Repository {{ repo_name }}</h1>
           </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
-              <li class="breadcrumb-item active">{{ project_name }}</li>
+              <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}">{{ project_name }}</a></li>
+              <li class="breadcrumb-item active">{{ repo_name }}</li>
             </ol>
           </div>
         </div>
@@ -53,7 +54,7 @@
           <div class="col-md-12">
             <div class="card card-primary card-outline card-outline-tabs">
               <div class="card-header p-0 border-bottom-0">
-                <ul class="nav nav-tabs" id="organization-tabs" role="tablist">
+                <ul class="nav nav-tabs" id="repository-tabs" role="tablist">
                   <li class="nav-item">
                     <a class="nav-link active" id="overview-tab" data-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                   </li>
@@ -73,64 +74,60 @@
                     <a class="nav-link" id="webhooks-tab" data-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="repositories-tab" data-toggle="pill" href="#repositories" role="tab" aria-controls="repositories" aria-selected="false">Repositories</a>
+                    <a class="nav-link" id="branch-protection-rules-tab" data-toggle="pill" href="#branch-protection-rules" role="tab" aria-controls="branch-protection-rules" aria-selected="false">Branch Protection Rules</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="rulesets-tab" data-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
                   </li>
                 </ul>
               </div>
               <div class="card-body">
-                <div class="tab-content" id="organization-tabContent">
+                <div class="tab-content" id="repository-tabContent">
                   <div class="tab-pane show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
                     <div class="col-sm-3">
                     <ul class="nav flex-column">
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
-                          Project
-                          <span class="float-right">{{ project_name }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="https://github.com/{{ github_id }}" class="nav-link">
-                          GitHub Org
-                          <span class="float-right">{{ github_id }}</span>
+                        <a href="https://github.com/{{ github_id }}/{{ repo_name }}" class="nav-link">
+                          Repository
+                          <span class="float-right">{{ repo_name }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#" class="nav-link">
-                          {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                          2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                          Secrets <span class="float-right badge bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#" class="nav-link">
-                          Secrets <span class="float-right badge bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
+                          Variables <span class="float-right badge bg-{{ repo_config.variables|length_to_color}}">{{ repo_config.variables|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#" class="nav-link">
-                          Variables <span class="float-right badge bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
+                          Webhooks <span class="float-right badge bg-{{ repo_config.webhooks|length_to_color}}">{{ repo_config.webhooks|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#" class="nav-link">
-                          Webhooks <span class="float-right badge bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
+                          Branch Protection Rules <span class="float-right badge bg-{{ repo_config.branch_protection_rules|length_to_color}}">{{ repo_config.branch_protection_rules|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#" class="nav-link">
-                          Repositories <span class="float-right badge bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
+                          Rulesets <span class="float-right badge bg-{{ repo_config.rulesets|length_to_color}}">{{ repo_config.rulesets|length }}</span>
                         </a>
                       </li>
                     </ul>
                   </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <textarea id="org-settings-textarea">
-{{ config.settings|pretty_format_model }}
+                    <textarea id="settings-textarea">
+{{ repo_config|pretty_format_model }}
                     </textarea>
                   </div>
                   <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
-                    <textarea id="org-workflow-settings-textarea">
-{{ config.settings.workflows|pretty_format_model }}
+                    <textarea id="workflow-settings-textarea">
+{{ repo_config.workflows|pretty_format_model }}
                     </textarea>
                   </div>
                   <div class="tab-pane" id="secrets" role="tabpanel" aria-labelledby="secrets-tab">
@@ -140,22 +137,14 @@
                           <tr>
                             <th>Name</th>
                             <th>Secret</th>
-                            <th>Visibility</th>
-                            <th>Selected Repos</th>
                             <th class="text-center">Resolved</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {% for secret in config.secrets|sort(attribute='name') %}
+                          {% for secret in repo_config.secrets|sort(attribute='name') %}
                           <tr>
                             <td>{{ secret.name }}</td>
                             <td>{{ secret.value }}</td>
-                            <td>{{ secret.visibility }}</td>
-                            <td>
-                              {% if secret.selected_repositories %}
-                              {{ secret.selected_repositories|pprint }}
-                              {% endif %}
-                            </td>
                             <td class="text-center">
                               {% if not secret|has_dummy_secret %}
                               <i class="text-success fa-solid fa-circle-check"></i>
@@ -176,21 +165,13 @@
                           <tr>
                             <th>Name</th>
                             <th>Value</th>
-                            <th>Visibility</th>
-                            <th>Selected Repos</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {% for variable in config.variables|sort(attribute='name') %}
+                          {% for variable in repo_config.variables|sort(attribute='name') %}
                           <tr>
                             <td>{{ variable.name }}</td>
                             <td>{{ variable.value }}</td>
-                            <td>{{ variable.visibility }}</td>
-                            <td>
-                              {% if secret.selected_repositories %}
-                              {{ secret.selected_repositories|pprint }}
-                              {% endif %}
-                            </td>
                           </tr>
                           {% endfor %}
                         </tbody>
@@ -210,7 +191,7 @@
                           </tr>
                         </thead>
                         <tbody>
-                          {% for webhook in config.webhooks|sort(attribute='url') %}
+                          {% for webhook in repo_config.webhooks|sort(attribute='url') %}
                           <tr>
                             <td>{{ webhook.url }}</td>
                             <td class="text-center">
@@ -245,75 +226,52 @@
                       </table>
                     </div>
                   </div>
-                  <div class="tab-pane" id="repositories" role="tabpanel" aria-labelledby="repositories-tab">
-                    <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
-                        <thead>
-                          <tr>
-                            <th>Repository</th>
-                            <th class="text-center">Branch Protections</th>
-                            <th class="text-center">Secrets</th>
-                            <th class="text-center">Variables</th>
-                            <th class="text-center">Webhooks</th>
-                            <th class="text-center">Secret Scanning</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {% for repo in config.repositories|sort(attribute='name') %}
-                          <tr>
-                            <td>
-                              <a href="/projects/{{ project_name }}/repos/{{ repo.name }}">{{ repo.name }}</a>
-                              <a href="https://github.com/{{ config.github_id }}/{{ repo.name }}" target="_blank"><i class="fa-solid fa-up-right-from-square"></i></a>
-                            </td>
-                            <td class="text-center">
-                              {% if repo.branch_protection_rules|length > 0 or repo.rulesets|length > 0 %}
-                              <i class="text-success fa-solid fa-circle-check"></i>
-                              {% else %}
-                              <i class="text-danger fa-solid fa-circle-xmark"></i>
-                              {% endif %}
-                            </td>
-                            <td class="text-center">
-                              {% if repo.secrets|length > 0 %}
-                                {% if not repo.secrets|has_dummy_secrets %}
-                              <i class="text-success fa-solid fa-circle-check"></i>
-                                {% else %}
-                              <i class="text-info fa-solid fa-circle-xmark"></i>
-                                {% endif %}
-                              {% else %}
-                              <i class="text-muted fa-solid fa-circle"></i>
-                              {% endif %}
-                            </td>
-                            <td class="text-center">
-                              {% if repo.variables|length > 0 %}
-                              <i class="text-success fa-solid fa-circle-check"></i>
-                              {% else %}
-                              <i class="text-muted fa-solid fa-circle"></i>
-                              {% endif %}
-                            </td>
-                            <td class="text-center">
-                              {% if repo.webhooks|length > 0 %}
-                                {% if not repo.webhooks|has_dummy_secrets %}
-                              <i class="text-success fa-solid fa-circle-check"></i>
-                                {% else %}
-                              <i class="text-info fa-solid fa-circle-xmark"></i>
-                                {% endif %}
-                              {% else %}
-                              <i class="text-muted fa-solid fa-circle"></i>
-                              {% endif %}
-                            </td>
-                            <td class="text-center">
-                              {% if repo.secret_scanning_push_protection == "enabled" %}
-                              <i class="text-success fa-solid fa-circle-check"></i>
-                              {% elif repo.secret_scanning == "enabled" %}
-                              <i class="text-warning fa-solid fa-circle-check"></i>
-                              {% else %}
-                              <i class="text-danger fa-solid fa-circle-xmark"></i>
-                              {% endif %}
-                            </td>
-                          </tr>
+                  <div class="tab-pane" id="branch-protection-rules" role="tabpanel" aria-labelledby="branch-protection-rules-tab">
+                    <div class="row">
+                      <div class="col-1">
+                        <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rules-tabs" role="tablist" aria-orientation="vertical">
+                          {% for bpr in repo_config.branch_protection_rules %}
+                          {% set id = 'rule-' ~ loop.index %}
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ bpr.pattern }}</a>
                           {% endfor %}
-                        </tbody>
-                      </table>
+                        </div>
+                      </div>
+                      <div class="col-10">
+                        <div class="tab-content" id="rules-tabContent">
+                          {% for bpr in repo_config.branch_protection_rules %}
+                          {% set id = 'rule-' ~ loop.index %}
+                          <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
+                    <textarea id="{{ id }}-textarea">
+{{ bpr|pretty_format_model }}
+                    </textarea>
+                          </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="rulesets" role="tabpanel" aria-labelledby="rulesets-tab">
+                    <div class="row">
+                      <div class="col-1">
+                        <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rulesets-tabs" role="tablist" aria-orientation="vertical">
+                          {% for ruleset in repo_config.rulesets %}
+                          {% set ruleset_id = 'ruleset-' ~ loop.index %}
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
+                          {% endfor %}
+                        </div>
+                      </div>
+                      <div class="col-10">
+                        <div class="tab-content" id="rulesets-tabContent">
+                          {% for ruleset in repo_config.rulesets %}
+                          {% set ruleset_id = 'ruleset-' ~ loop.index %}
+                          <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}" role="tabpanel" aria-labelledby="{{ ruleset_id }}-tab">
+                    <textarea id="{{ ruleset_id }}-textarea">
+{{ ruleset|pretty_format_model }}
+                    </textarea>
+                          </div>
+                          {% endfor %}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -321,7 +279,6 @@
               <!-- /.card -->
             </div>
           </div>
-
           <!-- /.col -->
         </div>
         <!-- /.row -->
@@ -349,11 +306,32 @@
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
       switch (e.target.id){
         case "settings-tab": {
-           enableEditor('#org-settings-textarea')
+           enableEditor('#settings-textarea')
            break;
         }
         case "workflow-settings-tab": {
-           enableEditor('#org-workflow-settings-textarea')
+           enableEditor('#workflow-settings-textarea')
+           break;
+        }
+        case "branch-protection-rules-tab": {
+           var selector = "#rule-1-textarea";
+           var target = $(selector).get(0);
+           if (target != null) {
+             enableEditor(selector);
+           }
+           break;
+        }
+        case "rulesets-tab": {
+           var selector = "#ruleset-1-textarea";
+           var target = $(selector).get(0);
+           if (target != null) {
+             enableEditor(selector);
+           }
+           break;
+        }
+        default: {
+           var selector = '#'.concat(e.target.id.replace(/-tab/, ''), '-textarea');
+           enableEditor(selector);
            break;
         }
       }
@@ -367,7 +345,7 @@
           lineWrapping: true,
           readOnly: true
         });
-        editor.setSize(null, 750);
+        editor.setSize(null, 770);
       }
     };
   </script>

@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import json
 from typing import Any
 
 from quart import current_app, redirect, render_template, request, url_for
@@ -63,8 +62,32 @@ async def project(project_name: str):
         "organization.html",
         project_name=project_name,
         github_id=config.github_id,
-        config=config,
-        org_settings=json.dumps(github_organization.settings.to_model_dict(False, False), indent=2, ensure_ascii=False),
+        config=github_organization,
+    )
+
+
+@blueprint.route("/projects/<project_name>/repos/<repo_name>")
+async def repository(project_name: str, repo_name: str):
+    config = await get_configuration_by_project_name(project_name)
+
+    if config is None:
+        return await render_template("home/page-404.html"), 404
+
+    from otterdog.models.github_organization import GitHubOrganization
+
+    github_organization = GitHubOrganization.from_model_data(config.config)
+
+    repo_config = next(filter(lambda x: x.name == repo_name, github_organization.repositories), None)
+    if repo_config is None:
+        return await render_template("home/page-404.html"), 404
+
+    return await render_home_template(
+        "repository.html",
+        project_name=project_name,
+        github_id=config.github_id,
+        config=github_organization,
+        repo_name=repo_name,
+        repo_config=repo_config,
     )
 
 
