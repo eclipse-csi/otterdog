@@ -142,10 +142,14 @@ class ValidatePullRequestTask(Task[ValidationResult]):
                 operation.set_callback(callback)
                 operation.init(otterdog_config, printer)
 
-                plan_result = await operation.execute(org_config)
+                try:
+                    plan_result = await operation.execute(org_config)
+                    validation_result.plan_output = output.getvalue()
+                    validation_result.validation_success = plan_result == 0
+                except Exception as ex:
+                    validation_result.plan_output = str(ex)
+                    validation_result.validation_success = False
 
-                validation_result.plan_output = output.getvalue()
-                validation_result.validation_success = plan_result == 0
                 self.logger.info("local plan:" + validation_result.plan_output)
 
             warnings = []
