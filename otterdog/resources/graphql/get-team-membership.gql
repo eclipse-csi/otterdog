@@ -1,0 +1,15 @@
+query($endCursor: String, $owner: String!, $user: String!) {
+  organization(login: $owner) {
+    teams(userLogins: [$user], first: 100, after: $endCursor) {
+      nodes {
+        id
+        name
+        slug
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

@@ -191,6 +191,12 @@ class GraphQLClient:
 
         print_debug("successfully minimized comment")
 
+    async def get_team_membership(self, org_id: str, user_login: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
+
+        variables = {"owner": org_id, "user": user_login}
+        return await self._async_run_paged_query(variables, "get-team-membership.gql", ".data.organization.teams")
+
     async def _async_run_paged_query(
         self,
         input_variables: dict[str, Any],

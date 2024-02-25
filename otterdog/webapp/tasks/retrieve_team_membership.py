@@ -12,6 +12,7 @@ from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import Task
+from otterdog.webapp.utils import get_graphql_api_for_installation
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -62,12 +63,9 @@ class RetrieveTeamMembershipTask(Task[None]):
         user = self._pull_request.user.login
         association = self._pull_request.author_association
 
-        team_slugs = await rest_api.team.get_team_slugs(self.org_id)
-        team_membership = []
-
-        for team_slug in team_slugs:
-            if await rest_api.team.is_user_member_of_team(self.org_id, team_slug, user):
-                team_membership.append(team_slug)
+        graphql_api = await get_graphql_api_for_installation(self.installation_id)
+        team_data = await graphql_api.get_team_membership(self.org_id, user)
+        team_membership = [team["name"] for team in team_data]
 
         teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
         comment = await render_template(
