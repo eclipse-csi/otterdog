@@ -116,14 +116,17 @@ class ApplyChangesTask(Task[ApplyResult]):
             )
             operation.init(otterdog_config, printer)
 
-            operation_result = await operation.execute(org_config)
-
-            apply_result.apply_output = output.getvalue()
-            apply_result.apply_success = operation_result == 0
-            if self._pr_model is not None:
-                apply_result.partial = self._pr_model.requires_manual_apply
-            else:
-                apply_result.partial = False
+            try:
+                operation_result = await operation.execute(org_config)
+                apply_result.apply_output = output.getvalue()
+                apply_result.apply_success = operation_result == 0
+                if self._pr_model is not None:
+                    apply_result.partial = self._pr_model.requires_manual_apply
+                else:
+                    apply_result.partial = False
+            except Exception as ex:
+                apply_result.apply_output = str(ex)
+                apply_result.apply_success = False
 
             self.logger.info("apply:" + apply_result.apply_output)
 

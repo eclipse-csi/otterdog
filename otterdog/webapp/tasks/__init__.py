@@ -66,7 +66,7 @@ class Task(ABC, Generic[T]):
                 await finish_task(task_model)
 
             return result
-        except RuntimeError as ex:
+        except Exception as ex:
             self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
             await self._post_execute(ex)
 
