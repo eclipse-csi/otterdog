@@ -347,9 +347,7 @@ async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
         cmd, *args, **kwargs, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
 
-    stdout = await process.stdout.read()  # type: ignore
-    stderr = await process.stderr.read()  # type: ignore
-    await process.wait()
+    stdout, stderr = await process.communicate()
     return process.returncode, stdout.decode("utf-8"), stderr.decode("utf-8")  # type: ignore
 
 

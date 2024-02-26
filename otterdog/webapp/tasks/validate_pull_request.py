@@ -96,9 +96,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
     async def _execute(self) -> ValidationResult:
         rest_api = self._rest_api
-        otterdog_config = await get_otterdog_config()
 
-        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
+        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             org_config_file = org_config.jsonnet_config.org_config_file
 
             # get BASE config
@@ -138,6 +137,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
 
                 def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
                     validation_result.requires_secrets = any(list(map(lambda x: x.requires_secrets(), patches)))
+
+                otterdog_config = await get_otterdog_config()
 
                 operation.set_callback(callback)
                 operation.init(otterdog_config, printer)

@@ -81,9 +81,8 @@ class CheckConfigurationInSyncTask(Task[bool]):
 
     async def _execute(self) -> bool:
         rest_api = self._rest_api
-        otterdog_config = await get_otterdog_config()
 
-        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
+        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             # get BASE config
             base_file = org_config.jsonnet_config.org_config_file
             await fetch_config_from_github(
@@ -105,6 +104,7 @@ class CheckConfigurationInSyncTask(Task[bool]):
                 nonlocal config_in_sync
                 config_in_sync = diff_status.total_changes(True) == 0
 
+            otterdog_config = await get_otterdog_config()
             operation.set_callback(sync_callback)
             operation.init(otterdog_config, printer)
 

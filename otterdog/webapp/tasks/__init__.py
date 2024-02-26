@@ -15,7 +15,7 @@ from typing import Generic, TypeVar
 
 import aiofiles
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
+from otterdog.config import OrganizationConfig
 from otterdog.providers.github.rest import RestApi
 from otterdog.webapp.db.models import InstallationModel, TaskModel
 from otterdog.webapp.db.service import (
@@ -27,6 +27,7 @@ from otterdog.webapp.db.service import (
 from otterdog.webapp.utils import (
     get_graphql_api_for_installation,
     get_rest_api_for_installation,
+    get_temporary_base_directory,
 )
 
 logger = getLogger(__name__)
@@ -89,13 +90,16 @@ class Task(ABC, Generic[T]):
     # https://youtrack.jetbrains.com/issue/PY-66517/False-unexpected-argument-with-asynccontextmanager-defined-as-a-method
     @asynccontextmanager
     async def get_organization_config(
-        self, otterdog_config: OtterdogConfig, rest_api: RestApi, installation_id: int, initialize_template: bool = True
+        self,
+        rest_api: RestApi,
+        installation_id: int,
+        initialize_template: bool = True,
     ) -> AsyncIterator[OrganizationConfig]:
         installation = await get_installation(installation_id)
         if installation is None:
             raise RuntimeError(f"failed to find organization config for installation with id '{installation_id}'")
 
-        async with aiofiles.tempfile.TemporaryDirectory(dir=otterdog_config.jsonnet_base_dir) as work_dir:
+        async with aiofiles.tempfile.TemporaryDirectory(dir=get_temporary_base_directory()) as work_dir:
             assert rest_api.token is not None
             org_config = await get_organization_config(installation, rest_api.token, work_dir)
 

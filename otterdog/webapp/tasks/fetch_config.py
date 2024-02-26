@@ -12,7 +12,7 @@ from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db.models import ConfigurationModel, TaskModel
 from otterdog.webapp.db.service import save_config
 from otterdog.webapp.tasks import Task
-from otterdog.webapp.utils import fetch_config_from_github, get_otterdog_config
+from otterdog.webapp.utils import fetch_config_from_github
 
 
 @dataclasses.dataclass(repr=False)
@@ -36,10 +36,9 @@ class FetchConfigTask(Task[None]):
         )
 
     async def _execute(self) -> None:
-        otterdog_config = await get_otterdog_config()
         rest_api = await self.get_rest_api(self.installation_id)
 
-        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
+        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             config_file = org_config.jsonnet_config.org_config_file
             sha = await fetch_config_from_github(
                 rest_api,

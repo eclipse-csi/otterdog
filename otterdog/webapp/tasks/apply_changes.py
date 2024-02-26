@@ -83,18 +83,17 @@ class ApplyChangesTask(Task[ApplyResult]):
 
         apply_result = ApplyResult()
 
-        otterdog_config = await get_otterdog_config()
         pull_request_number = str(self.pull_request.number)
         rest_api = await self.get_rest_api(self.installation_id)
 
-        async with self.get_organization_config(otterdog_config, rest_api, self.installation_id) as org_config:
+        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             # get config from merge commit sha
             head_file = org_config.jsonnet_config.org_config_file
             await fetch_config_from_github(
                 rest_api,
                 self.org_id,
                 self.org_id,
-                otterdog_config.default_config_repo,
+                org_config.config_repo,
                 head_file,
                 self.pull_request.merge_commit_sha,
             )
@@ -114,6 +113,8 @@ class ApplyChangesTask(Task[ApplyResult]):
                 resolve_secrets=False,
                 include_resources_with_secrets=False,
             )
+
+            otterdog_config = await get_otterdog_config()
             operation.init(otterdog_config, printer)
 
             try:

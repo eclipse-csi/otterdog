@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import asyncio
+import os.path
 import re
 import sys
 from datetime import datetime, timedelta
@@ -47,7 +48,7 @@ async def close_rest_apis():
         logger.info("closing rest apis for installations")
         for installation_id, data in _INSTALLATION_REST_APIS.items():
             api, _ = data
-            logger.info("closing rest api for installation with id '{installation_id}'")
+            logger.info(f"closing rest api for installation with id '{installation_id}'")
             await api.close()
 
 
@@ -111,6 +112,17 @@ async def get_rest_api_for_installation(installation_id: int) -> RestApi:
 async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
     token, _ = await _get_token_for_installation(installation_id)
     return GraphQLClient(token_auth(token))
+
+
+@cache
+def get_temporary_base_directory() -> str:
+    app_root = current_app.config["APP_ROOT"]
+    tmp_root = os.path.join(app_root, "tmp")
+
+    if not os.path.exists(tmp_root):
+        os.makedirs(tmp_root)
+
+    return tmp_root
 
 
 async def get_otterdog_config() -> OtterdogConfig:
