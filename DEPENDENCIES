@@ -20,7 +20,6 @@ pypi/pypi/-/cryptography/42.0.5
 pypi/pypi/-/dnspython/2.6.1
 pypi/pypi/-/exceptiongroup/1.2.0
 pypi/pypi/-/flask/3.0.2
-pypi/pypi/-/flask-minify/0.42
 pypi/pypi/-/frozenlist/1.4.1
 pypi/pypi/-/ghp-import/2.1.0
 pypi/pypi/-/gojsonnet/0.20.0
@@ -76,10 +75,10 @@ pypi/pypi/-/pyyaml-env-tag/0.1
 pypi/pypi/-/quart/0.19.4
 pypi/pypi/-/quart-auth/0.9.1
 pypi/pypi/-/quart-flask-patch/0.3.0
+pypi/pypi/-/quart-minify/0.4.1
 pypi/pypi/-/quart-redis/2.0.0
 pypi/pypi/-/quart-uploads/0.0.2
 pypi/pypi/-/quart-wtforms/1.0.1
-pypi/pypi/-/rcssmin/1.1.2
 pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.33.0
 pypi/pypi/-/regex/2023.12.25
@@ -96,5 +95,4 @@ pypi/pypi/-/watchdog/4.0.0
 pypi/pypi/-/werkzeug/3.0.1
 pypi/pypi/-/wsproto/1.2.0
 pypi/pypi/-/wtforms/3.1.2
-pypi/pypi/-/xxhash/3.4.1
 pypi/pypi/-/yarl/1.9.4

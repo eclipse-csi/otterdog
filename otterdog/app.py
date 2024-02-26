@@ -54,7 +54,7 @@ else:
     exit(1)
 
 if not DEBUG:
-    from flask_minify import Minify  # type: ignore
+    from quart_minify import Minify  # type: ignore
 
     Minify(app=app, html=True, js=True, cssless=False)
 
