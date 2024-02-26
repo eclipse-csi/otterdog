@@ -10,10 +10,10 @@ import json
 from collections.abc import AsyncIterable
 from typing import Any
 
-from aiohttp_client_cache.backends import FileBackend
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 
 from otterdog.providers.github.auth import AuthStrategy
+from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.utils import is_debug_enabled, is_trace_enabled, print_debug, print_trace
 
@@ -21,7 +21,13 @@ _AIOHTTP_CACHE_DIR = ".cache/async_http"
 
 
 class Requester:
-    def __init__(self, auth_strategy: AuthStrategy | None, base_url: str, api_version: str):
+    def __init__(
+        self,
+        auth_strategy: AuthStrategy | None,
+        cache_strategy: CacheStrategy,
+        base_url: str,
+        api_version: str,
+    ):
         self._base_url = base_url
         self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
@@ -31,12 +37,7 @@ class Requester:
             "X-Github-Next-Global-ID": "1",
         }
 
-        self._session = AsyncCachedSession(
-            cache=FileBackend(
-                cache_name=_AIOHTTP_CACHE_DIR,
-                use_temp=False,
-            ),
-        )
+        self._session = AsyncCachedSession(cache=cache_strategy.get_cache_backend())
 
     async def close(self) -> None:
         await self._session.close()

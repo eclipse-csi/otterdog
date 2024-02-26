@@ -5,6 +5,7 @@ services:
     restart: always
     depends_on:
       - mongodb
+      - redis
     env_file: ../.env
     build:
       context: ..
@@ -29,6 +30,15 @@ services:
     image: mongo:7.0.5
     command: mongod --quiet --logpath /dev/null
     ports:
-      - 27017:27017
+      - '27017:27017'
     volumes:
       - ../approot/db:/data/db
+
+  redis:
+    image: redis:7.2.4-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - ../approot/cache:/data/

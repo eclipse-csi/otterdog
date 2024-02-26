@@ -16,19 +16,24 @@ import quart_flask_patch  # type: ignore # noqa: F401
 from quart import Quart
 from quart.json.provider import DefaultJSONProvider
 from quart_auth import QuartAuth
+from quart_redis import RedisHandler  # type: ignore
 
 from .config import AppConfig
 from .db import Mongo, init_mongo_database
+from .filters import register_filters
+from .utils import close_rest_apis
 
 _BLUEPRINT_MODULES: list[str] = ["home", "api"]
 
 mongo = Mongo()
 auth_manager = QuartAuth()
+redis_handler = RedisHandler()
 
 
 def register_extensions(app):
     mongo.init_app(app)
     auth_manager.init_app(app)
+    redis_handler.init_app(app, decode_responses=True)
 
 
 def register_github_webhook(app) -> None:
@@ -55,49 +60,6 @@ def configure_database(app):
             await init_mongo_database(mongo)
 
 
-def register_filters(app):
-    @app.template_filter("status")
-    def status_color(status):
-        from otterdog.webapp.db.models import InstallationStatus
-
-        match status:
-            case InstallationStatus.INSTALLED:
-                return "success"
-            case InstallationStatus.NOT_INSTALLED:
-                return "danger"
-            case InstallationStatus.SUSPENDED:
-                return "warning"
-            case _:
-                return "info"
-
-    @app.template_filter("is_dict")
-    def is_dict(value):
-        return isinstance(value, dict)
-
-    @app.template_filter("length_to_color")
-    def length_to_color(value):
-        if len(value) == 0:
-            return "primary"
-        else:
-            return "success"
-
-    @app.template_filter("has_dummy_secret")
-    def has_dummy_secret(value):
-        return value.has_dummy_secret()
-
-    @app.template_filter("has_dummy_secrets")
-    def any_has_dummy_secrets(value):
-        return any(map(lambda x: x.has_dummy_secret(), value))
-
-    @app.template_filter("pretty_format_model")
-    def pretty_format_model(value):
-        from otterdog.models import ModelObject
-        from otterdog.utils import PrettyFormatter
-
-        assert isinstance(value, ModelObject)
-        return PrettyFormatter().format(value.to_model_dict(False, False))
-
-
 def create_app(app_config: AppConfig):
     app = Quart(app_config.QUART_APP)
     app.config.from_object(app_config)
@@ -116,5 +78,9 @@ def create_app(app_config: AppConfig):
             return super().default(o)
 
     app.json = CustomJSONProvider(app)
+
+    @app.after_serving
+    async def close_resources() -> None:
+        await close_rest_apis()
 
     return app

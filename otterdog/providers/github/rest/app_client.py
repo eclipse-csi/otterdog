@@ -12,7 +12,7 @@ from typing import Any
 from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
 
-from . import RestApi, RestClient, parse_date_string
+from . import RestApi, RestClient, parse_iso_date_string
 
 
 class AppClient(RestClient):
@@ -42,7 +42,7 @@ class AppClient(RestClient):
 
         try:
             response = await self.requester.request_json("POST", f"/app/installations/{installation_id}/access_tokens")
-            return response["token"], parse_date_string(response["expires_at"])
+            return response["token"], parse_iso_date_string(response["expires_at"])
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed creating installation access token:\n{ex}").with_traceback(tb)

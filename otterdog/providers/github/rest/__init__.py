@@ -13,6 +13,7 @@ from datetime import datetime
 from functools import cached_property
 
 from otterdog.providers.github.auth import AuthStrategy
+from otterdog.providers.github.cache import CacheStrategy, file_cache
 
 from .requester import Requester
 
@@ -22,9 +23,10 @@ class RestApi:
     _GH_API_VERSION = "2022-11-28"
     _GH_API_URL_ROOT = "https://api.github.com"
 
-    def __init__(self, auth_strategy: AuthStrategy | None = None):
+    def __init__(self, auth_strategy: AuthStrategy | None = None, cache_strategy: CacheStrategy = file_cache()):
         self._auth_strategy = auth_strategy
-        self._requester = Requester(auth_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
+        self._cache_strategy = cache_strategy
+        self._requester = Requester(auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
 
     async def __aenter__(self):
         return self
@@ -130,8 +132,5 @@ def encrypt_value(public_key: str, secret_value: str) -> str:
     return b64encode(encrypted).decode("utf-8")
 
 
-_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
-
-def parse_date_string(date: str) -> datetime:
-    return datetime.strptime(date, _FORMAT)
+def parse_iso_date_string(date: str) -> datetime:
+    return datetime.fromisoformat(date)

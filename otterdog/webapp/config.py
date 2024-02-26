@@ -23,6 +23,7 @@ class AppConfig:
     DB_ROOT = os.path.join(APP_ROOT, "db")
 
     MONGO_URI = config("MONGO_URI", default="mongodb://mongodb:27017/otterdog")
+    REDIS_URI = config("REDIS_URI", default="redis://redis:6379")
 
     OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
     OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)

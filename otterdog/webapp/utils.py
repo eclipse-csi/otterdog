@@ -9,41 +9,80 @@
 import asyncio
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import cache
 from logging import getLogger
 from typing import cast
 
 from hypercorn.logging import Logger as HypercornLogger
 from hypercorn.typing import ResponseSummary, WWWScope
 from quart import current_app
+from quart_redis import get_redis  # type: ignore
 
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
+from otterdog.providers.github.cache import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
 
 logger = getLogger(__name__)
 
-_APP_REST_API: RestApi | None = None
 _INSTALLATION_REST_APIS: dict[str, tuple[RestApi, datetime]] = {}
 _REST_APIS_LOCK = asyncio.Lock()
 
 _OTTERDOG_CONFIG: OtterdogConfig | None = None
 
 
-def _create_rest_api_for_app() -> RestApi:
+def _get_redis_cache():
+    return redis_cache(current_app.config["REDIS_URI"])
+
+
+async def close_rest_apis():
+    app_api_cache = get_rest_api_for_app.cache_info()
+    if app_api_cache.hits > 0:
+        logger.info("closing rest api for app")
+        await get_rest_api_for_app().close()
+
+    async with _REST_APIS_LOCK:
+        logger.info("closing rest apis for installations")
+        for installation_id, data in _INSTALLATION_REST_APIS.items():
+            api, _ = data
+            logger.info("closing rest api for installation with id '{installation_id}'")
+            await api.close()
+
+
+@cache
+def get_rest_api_for_app() -> RestApi:
+    logger.info("creating rest api for app")
     github_app_id = current_app.config["GITHUB_APP_ID"]
     github_app_private_key = current_app.config["GITHUB_APP_PRIVATE_KEY"]
-    return RestApi(app_auth(github_app_id, github_app_private_key))
+    return RestApi(app_auth(github_app_id, github_app_private_key), _get_redis_cache())
 
 
-def get_rest_api_for_app() -> RestApi:
-    global _APP_REST_API
+async def _get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
+    redis = get_redis()
 
-    if _APP_REST_API is None:
-        _APP_REST_API = _create_rest_api_for_app()
+    installation_key = f"token:{installation_id}"
+    current_data = await redis.hgetall(installation_key)
 
-    return _APP_REST_API
+    token = current_data.get("token", None)
+    expires_at_str = current_data.get("expires_at", None)
+
+    if token is not None and expires_at_str is not None:
+        expires_at = datetime.fromisoformat(expires_at_str)
+        # add a buffer of 1 min for expiration to be safe
+        # the assumption is that any processing using the returned token
+        # will not take longer than 1 min (in fact will be much shorter)
+        if expires_at > (current_utc_time() + timedelta(minutes=1)):
+            return token, expires_at
+
+    logger.debug(f"creating new installation token for installation with id '{installation_id}'")
+    token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(str(installation_id))
+    await redis.hset(
+        installation_key,
+        mapping={"token": token, "expires_at": expires_at.isoformat()},
+    )
+    return token, expires_at
 
 
 async def get_rest_api_for_installation(installation_id: int) -> RestApi:
@@ -51,24 +90,27 @@ async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     installation = str(installation_id)
 
     async with _REST_APIS_LOCK:
-        current_api, expires_at = _INSTALLATION_REST_APIS.get(installation, (None, datetime.now()))
+        current_api, expires_at = _INSTALLATION_REST_APIS.get(installation, (None, current_utc_time()))
 
         if current_api is not None and expires_at is not None:
-            if expires_at > datetime.now():
+            if expires_at > (current_utc_time() + timedelta(minutes=1)):
+                logger.debug(f"returning cached rest api for installation '{installation}'")
                 return current_api
-            else:
-                await current_api.close()
 
-        token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(installation)
-        rest_api = RestApi(token_auth(token))
+        if current_api is not None:
+            _INSTALLATION_REST_APIS.pop(installation)
+            # close expired api instance
+            await current_api.close()
+
+        token, expires_at = await _get_token_for_installation(installation_id)
+        rest_api = RestApi(token_auth(token), _get_redis_cache())
         _INSTALLATION_REST_APIS[installation] = (rest_api, expires_at)
         return rest_api
 
 
 async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
-    rest_api = await get_rest_api_for_installation(installation_id)
-    assert rest_api.token is not None
-    return GraphQLClient(token_auth(rest_api.token))
+    token, _ = await _get_token_for_installation(installation_id)
+    return GraphQLClient(token_auth(token))
 
 
 async def get_otterdog_config() -> OtterdogConfig:
@@ -96,7 +138,7 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"])) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
         content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
         import aiofiles
 

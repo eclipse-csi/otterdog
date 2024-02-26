@@ -31,7 +31,7 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-aiofiles]
+        additional_dependencies: [types-requests, types-aiofiles, types-redis]
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.0
     hooks:
