@@ -13,7 +13,8 @@ from datetime import datetime
 from functools import cached_property
 
 from otterdog.providers.github.auth import AuthStrategy
-from otterdog.providers.github.cache import CacheStrategy, file_cache
+from otterdog.providers.github.cache import CacheStrategy
+from otterdog.providers.github.cache.file import file_cache
 
 from .requester import Requester
 

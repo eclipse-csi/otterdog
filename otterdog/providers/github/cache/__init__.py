@@ -9,44 +9,8 @@
 from abc import ABC, abstractmethod
 
 from aiohttp_client_cache import CacheBackend
-from redis.asyncio.client import Redis
 
 
 class CacheStrategy(ABC):
     @abstractmethod
     def get_cache_backend(self) -> CacheBackend: ...
-
-
-_AIOHTTP_CACHE_DIR = ".cache/async_http"
-
-
-class _FileCache(CacheStrategy):
-    def __init__(self, cache_dir: str):
-        self._cache_dir = cache_dir
-
-    def get_cache_backend(self) -> CacheBackend:
-        from aiohttp_client_cache.backends import FileBackend
-
-        return FileBackend(
-            cache_name=self._cache_dir,
-            use_temp=False,
-        )
-
-
-class _RedisCache(CacheStrategy):
-    def __init__(self, redis_uri: str, connection: Redis | None):
-        self._redis_uri = redis_uri
-        self._connection = connection
-
-    def get_cache_backend(self) -> CacheBackend:
-        from aiohttp_client_cache.backends import RedisBackend
-
-        return RedisBackend(address=self._redis_uri, connection=self._connection)
-
-
-def file_cache(cache_dir: str = _AIOHTTP_CACHE_DIR) -> CacheStrategy:
-    return _FileCache(cache_dir)
-
-
-def redis_cache(uri: str, connection: Redis | None = None) -> CacheStrategy:
-    return _RedisCache(uri, connection)

@@ -21,7 +21,7 @@ from quart_redis import get_redis  # type: ignore
 
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
-from otterdog.providers.github.cache import redis_cache
+from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
 
