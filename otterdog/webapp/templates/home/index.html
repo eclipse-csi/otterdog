@@ -123,13 +123,19 @@
                   {% if configurations[github_id] %}
                   {% set config = configurations[github_id].config %}
                   <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="/projects/{{ project_name }}#settings" class="nav-link">
                       {% set two_factor_enabled = config.settings.two_factor_requirement %}
                       2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
+                      {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
+                      Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/projects/{{ project_name }}#repositories" class="nav-link">
                       Repositories <span class="float-right badge bg-primary">{{ config.repositories|length }}</span>
                     </a>
                   </li>

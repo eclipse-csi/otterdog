@@ -95,9 +95,15 @@
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a href="#" class="nav-link">
+                        <a href="#settings" class="nav-link tab-link">
                           {% set two_factor_enabled = config.settings.two_factor_requirement %}
                           2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a href="#workflow-settings" class="nav-link tab-link">
+                          {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
+                          Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
@@ -346,6 +352,13 @@
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <script>
+    $(document).ready(function() {
+      var hash = window.location.hash;
+      if (hash) {
+        $('[data-toggle="pill"][href="' + hash + '"]').trigger('click');
+      }
+    });
+
     $('.tab-link').on('click', function(event) {
       // Prevent url change
       event.preventDefault();
@@ -355,7 +368,7 @@
     });
 
     $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-      switch (e.target.id){
+      switch (e.target.id) {
         case "settings-tab": {
            enableEditor('#org-settings-textarea')
            break;
