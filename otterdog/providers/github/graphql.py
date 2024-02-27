@@ -281,6 +281,9 @@ class GraphQLClient:
         result = []
         for actor_wrapper in actors:
             actor = actor_wrapper["actor"]
+            if actor is None:
+                continue
+
             typename = actor["__typename"]
             if typename == "User":
                 login = actor["login"]
