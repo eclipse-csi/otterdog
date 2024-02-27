@@ -92,11 +92,10 @@ motor-types      = ">=1.0.0b4"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-mkdocs                     = "^1.5"
-mkdocs-material            = "^9.5"
-mkdocs-exclude             = "^1.0"
-mkdocs-material-extensions = "^1.3"
-pymdown-extensions         = "^10.7"
+mkdocs             = "^1.5"
+mkdocs-material    = "^9.5.9"
+mkdocs-exclude     = "^1.0"
+pymdown-extensions = "^10.7"
 
 [tool.poetry.scripts]
 otterdog     = "otterdog.cli:cli"
