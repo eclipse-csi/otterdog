@@ -6,16 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 
 from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 
 
-@dataclasses.dataclass(repr=False)
-class HelpCommentTask(Task[None]):
+@dataclass(repr=False)
+class HelpCommentTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
@@ -38,11 +38,10 @@ class HelpCommentTask(Task[None]):
         )
 
     async def _execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
+        rest_api = await self.rest_api
         comment = await render_template("comment/help_comment.txt")
 
         await self.minimize_outdated_comments(
-            self.installation_id,
             self.org_id,
             self.repo_name,
             self.pull_request_number,

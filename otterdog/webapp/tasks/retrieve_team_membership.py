@@ -6,18 +6,18 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 
 from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import get_graphql_api_for_installation
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
-@dataclasses.dataclass(repr=False)
-class RetrieveTeamMembershipTask(Task[None]):
+@dataclass(repr=False)
+class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
@@ -40,9 +40,9 @@ class RetrieveTeamMembershipTask(Task[None]):
         )
 
     async def _pre_execute(self) -> None:
-        self._rest_api = await self.get_rest_api(self.installation_id)
         if isinstance(self.pull_request_or_number, int):
-            response = await self._rest_api.pull_request.get_pull_request(
+            rest_api = await self.rest_api
+            response = await rest_api.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
             self._pull_request = PullRequest.model_validate(response)
@@ -58,7 +58,7 @@ class RetrieveTeamMembershipTask(Task[None]):
         )
 
     async def _execute(self) -> None:
-        rest_api = self._rest_api
+        rest_api = await self.rest_api
 
         user = self._pull_request.user.login
         association = self._pull_request.author_association
@@ -76,7 +76,6 @@ class RetrieveTeamMembershipTask(Task[None]):
         )
 
         await self.minimize_outdated_comments(
-            self.installation_id,
             self.org_id,
             self.repo_name,
             self.pull_request_number,

@@ -6,16 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
-@dataclasses.dataclass(repr=False)
-class UpdatePullRequestTask(Task[None]):
+@dataclass(repr=False)
+class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str

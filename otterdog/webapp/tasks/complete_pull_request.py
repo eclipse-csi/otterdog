@@ -6,18 +6,18 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 
 from quart import render_template
 
 from otterdog.webapp.db.models import ApplyStatus, PullRequestStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import get_admin_team
 
 
-@dataclasses.dataclass(repr=False)
-class CompletePullRequestTask(Task[None]):
+@dataclass(repr=False)
+class CompletePullRequestTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
@@ -42,7 +42,7 @@ class CompletePullRequestTask(Task[None]):
         )
 
     async def _execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
+        rest_api = await self.rest_api
 
         admin_team = get_admin_team()
         if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):

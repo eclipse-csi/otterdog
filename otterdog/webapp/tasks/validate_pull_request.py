@@ -8,8 +8,8 @@
 
 from __future__ import annotations
 
-import dataclasses
 import filecmp
+from dataclasses import dataclass
 from io import StringIO
 
 from quart import current_app, render_template
@@ -20,7 +20,7 @@ from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
@@ -30,15 +30,15 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
-@dataclasses.dataclass
+@dataclass
 class ValidationResult:
     plan_output: str = ""
     validation_success: bool = True
     requires_secrets: bool = False
 
 
-@dataclasses.dataclass(repr=False)
-class ValidatePullRequestTask(Task[ValidationResult]):
+@dataclass(repr=False)
+class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
     """Validates a PR and adds the result as a comment."""
 
     installation_id: int
@@ -68,10 +68,9 @@ class ValidatePullRequestTask(Task[ValidationResult]):
         )
 
     async def _pre_execute(self) -> None:
-        self._rest_api = await self.get_rest_api(self.installation_id)
-
         if isinstance(self.pull_request_or_number, int):
-            response = await self._rest_api.pull_request.get_pull_request(
+            rest_api = await self.rest_api
+            response = await rest_api.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_or_number)
             )
             self._pull_request = PullRequest.model_validate(response)
@@ -95,9 +94,9 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             await self._update_final_status(result_or_exception)
 
     async def _execute(self) -> ValidationResult:
-        rest_api = self._rest_api
+        async with self.get_organization_config() as org_config:
+            rest_api = await self.rest_api
 
-        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             org_config_file = org_config.jsonnet_config.org_config_file
 
             # get BASE config
@@ -166,7 +165,6 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             )
 
             await self.minimize_outdated_comments(
-                self.installation_id,
                 self.org_id,
                 self.repo_name,
                 self.pull_request_number,
@@ -181,7 +179,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             return validation_result
 
     async def _create_pending_status(self):
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,
@@ -191,7 +190,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
         )
 
     async def _create_failure_status(self):
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,
@@ -208,7 +208,8 @@ class ValidatePullRequestTask(Task[ValidationResult]):
             desc = "otterdog validation failed, check validation result in comment history"
             status = "error"
 
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,

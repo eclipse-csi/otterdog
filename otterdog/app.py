@@ -15,7 +15,7 @@ from decouple import config  # type: ignore
 
 from otterdog.webapp import create_app
 from otterdog.webapp.config import config_dict
-from otterdog.webapp.utils import SaneLogger
+from otterdog.webapp.utils import SaneLogger, get_temporary_base_directory
 
 # WARNING: Don't run with debug turned on in production!
 DEBUG: bool = config("DEBUG", default=True, cast=bool)
@@ -46,6 +46,10 @@ if not os.path.exists(app_config.APP_ROOT):
 
 if not os.path.exists(app_config.DB_ROOT):
     os.makedirs(app_config.DB_ROOT)
+
+tmp_dir = get_temporary_base_directory(app)
+if not os.path.exists(tmp_dir):
+    os.makedirs(tmp_dir)
 
 if os.path.exists(app_config.APP_ROOT):
     os.chdir(app_config.APP_ROOT)

@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import Generic, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 import aiofiles
 
@@ -30,8 +30,6 @@ from otterdog.webapp.utils import (
     get_temporary_base_directory,
 )
 
-logger = getLogger(__name__)
-
 T = TypeVar("T")
 
 
@@ -39,10 +37,6 @@ class Task(ABC, Generic[T]):
     @cached_property
     def logger(self) -> Logger:
         return getLogger(type(self).__name__)
-
-    @staticmethod
-    async def get_rest_api(installation_id: int) -> RestApi:
-        return await get_rest_api_for_installation(installation_id)
 
     def create_task_model(self) -> TaskModel | None:
         return None
@@ -75,6 +69,8 @@ class Task(ABC, Generic[T]):
                 await fail_task(task_model, ex)
 
             return None
+        finally:
+            await self._cleanup()
 
     async def _pre_execute(self) -> None:
         pass
@@ -86,18 +82,37 @@ class Task(ABC, Generic[T]):
     async def _execute(self) -> T:
         pass
 
+    async def _cleanup(self) -> None:
+        pass
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+
+class InstallationBasedTask(Protocol):
+    installation_id: int
+
+    __rest_api: RestApi | None = None
+
+    @property
+    async def rest_api(self) -> RestApi:
+        if self.__rest_api is None:
+            self.__rest_api = await get_rest_api_for_installation(self.installation_id)
+        return self.__rest_api
+
     # Ignore pycharm warning:
     # https://youtrack.jetbrains.com/issue/PY-66517/False-unexpected-argument-with-asynccontextmanager-defined-as-a-method
     @asynccontextmanager
     async def get_organization_config(
         self,
-        rest_api: RestApi,
-        installation_id: int,
         initialize_template: bool = True,
     ) -> AsyncIterator[OrganizationConfig]:
-        installation = await get_installation(installation_id)
+        installation = await get_installation(self.installation_id)
         if installation is None:
-            raise RuntimeError(f"failed to find organization config for installation with id '{installation_id}'")
+            raise RuntimeError(f"failed to find organization config for installation with id '{self.installation_id}'")
+
+        rest_api = await self.rest_api
 
         async with aiofiles.tempfile.TemporaryDirectory(dir=get_temporary_base_directory()) as work_dir:
             assert rest_api.token is not None
@@ -109,15 +124,14 @@ class Task(ABC, Generic[T]):
 
             yield org_config
 
-    @staticmethod
     async def minimize_outdated_comments(
-        installation_id: int,
+        self,
         org_id: str,
         repo_name: str,
         pull_request_number: int,
         matching_header: str,
     ) -> None:
-        graphql_api = await get_graphql_api_for_installation(installation_id)
+        graphql_api = await get_graphql_api_for_installation(self.installation_id)
         comments = await graphql_api.get_issue_comments(org_id, repo_name, pull_request_number)
         for comment in comments:
             comment_id = comment["id"]
@@ -127,9 +141,9 @@ class Task(ABC, Generic[T]):
             if bool(is_minimized) is False and matching_header in body:
                 await graphql_api.minimize_comment(comment_id, "OUTDATED")
 
-    @abstractmethod
-    def __repr__(self) -> str:
-        pass
+    async def _cleanup(self) -> None:
+        if self.__rest_api is not None:
+            await self.__rest_api.close()
 
 
 async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:

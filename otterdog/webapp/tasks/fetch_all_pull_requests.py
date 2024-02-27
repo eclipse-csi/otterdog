@@ -6,16 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
-@dataclasses.dataclass(repr=False)
-class FetchAllPullRequestsTask(Task[None]):
+@dataclass(repr=False)
+class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
@@ -35,7 +35,7 @@ class FetchAllPullRequestsTask(Task[None]):
         )
 
     async def _execute(self) -> None:
-        rest_api = await self.get_rest_api(self.installation_id)
+        rest_api = await self.rest_api
 
         all_pull_requests = await rest_api.pull_request.get_pull_requests(
             self.org_id, self.repo_name, state="all", base_ref="main"

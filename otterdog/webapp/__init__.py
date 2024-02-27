@@ -33,7 +33,7 @@ redis_handler = RedisHandler()
 def register_extensions(app):
     mongo.init_app(app)
     auth_manager.init_app(app)
-    redis_handler.init_app(app, decode_responses=True)
+    redis_handler.init_app(app)
 
 
 def register_github_webhook(app) -> None:

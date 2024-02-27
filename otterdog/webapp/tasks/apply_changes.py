@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
+from dataclasses import dataclass
 from io import StringIO
 
 from quart import render_template
@@ -15,7 +15,7 @@ from otterdog.operations.apply import ApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
@@ -24,15 +24,15 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 
-@dataclasses.dataclass
+@dataclass
 class ApplyResult:
     apply_output: str = ""
     apply_success: bool = True
     partial: bool = False
 
 
-@dataclasses.dataclass(repr=False)
-class ApplyChangesTask(Task[ApplyResult]):
+@dataclass(repr=False)
+class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
     """Applies changes from a merged PR and adds the result as a comment."""
 
     installation_id: int
@@ -84,9 +84,10 @@ class ApplyChangesTask(Task[ApplyResult]):
         apply_result = ApplyResult()
 
         pull_request_number = str(self.pull_request.number)
-        rest_api = await self.get_rest_api(self.installation_id)
 
-        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
+        async with self.get_organization_config() as org_config:
+            rest_api = await self.rest_api
+
             # get config from merge commit sha
             head_file = org_config.jsonnet_config.org_config_file
             await fetch_config_from_github(

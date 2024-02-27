@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-import dataclasses
+from dataclasses import dataclass
 from io import StringIO
 
 from quart import current_app, render_template
@@ -19,7 +19,7 @@ from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import Task
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.tasks.validate_pull_request import get_admin_team
 from otterdog.webapp.utils import (
     escape_for_github,
@@ -29,8 +29,8 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
-@dataclasses.dataclass(repr=False)
-class CheckConfigurationInSyncTask(Task[bool]):
+@dataclass(repr=False)
+class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
     """Checks whether the base ref is in sync with live settings."""
 
     installation_id: int
@@ -62,9 +62,9 @@ class CheckConfigurationInSyncTask(Task[bool]):
             self.repo_name,
         )
 
-        self._rest_api = await self.get_rest_api(self.installation_id)
         if isinstance(self.pull_request_or_number, int):
-            response = await self._rest_api.pull_request.get_pull_request(
+            rest_api = await self.rest_api
+            response = await rest_api.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
             self._pull_request = PullRequest.model_validate(response)
@@ -80,9 +80,9 @@ class CheckConfigurationInSyncTask(Task[bool]):
             await self._update_final_status(result_or_exception)
 
     async def _execute(self) -> bool:
-        rest_api = self._rest_api
+        async with self.get_organization_config() as org_config:
+            rest_api = await self.rest_api
 
-        async with self.get_organization_config(rest_api, self.installation_id) as org_config:
             # get BASE config
             base_file = org_config.jsonnet_config.org_config_file
             await fetch_config_from_github(
@@ -123,7 +123,6 @@ class CheckConfigurationInSyncTask(Task[bool]):
                 comment = await render_template("comment/in_sync_comment.txt")
 
             await self.minimize_outdated_comments(
-                self.installation_id,
                 self.org_id,
                 self.repo_name,
                 self.pull_request_number,
@@ -140,7 +139,8 @@ class CheckConfigurationInSyncTask(Task[bool]):
             return config_in_sync
 
     async def _create_pending_status(self):
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,
@@ -150,7 +150,8 @@ class CheckConfigurationInSyncTask(Task[bool]):
         )
 
     async def _create_failure_status(self):
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,
@@ -167,7 +168,8 @@ class CheckConfigurationInSyncTask(Task[bool]):
             desc = "otterdog sync check failed, check comment history"
             status = "error"
 
-        await self._rest_api.commit.create_commit_status(
+        rest_api = await self.rest_api
+        await rest_api.commit.create_commit_status(
             self.org_id,
             self.repo_name,
             self._pull_request.head.sha,
