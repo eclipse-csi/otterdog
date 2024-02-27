@@ -48,3 +48,7 @@ def register_filters(app):
 
         assert isinstance(value, ModelObject)
         return PrettyFormatter().format(value.to_model_dict(False, False))
+
+    @app.template_filter("short_name")
+    def project_short_name(value):
+        return value.split(".")[-1]
