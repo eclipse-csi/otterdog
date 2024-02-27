@@ -93,7 +93,7 @@ optional = true
 
 [tool.poetry.group.docs.dependencies]
 mkdocs             = "^1.5"
-mkdocs-material    = "9.5.9"
+mkdocs-material    = "^9.5"
 mkdocs-exclude     = "^1.0"
 pymdown-extensions = "^10.7"
 
