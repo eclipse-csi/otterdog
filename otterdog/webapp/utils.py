@@ -104,7 +104,6 @@ def get_temporary_base_directory(app: Quart | None = None) -> str:
     return os.path.join(get_app_root_directory(app), "tmp")
 
 
-@cache
 async def get_otterdog_config() -> OtterdogConfig:
     global _OTTERDOG_CONFIG
 
