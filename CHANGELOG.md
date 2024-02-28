@@ -4,6 +4,11 @@
 
 ### Added
 
+- Added automatic handling of configuration changes by acting as GitHub app.
+
+### Changed
+
+- Removed `jsonnetfile.json` and `jsonnetfile.lock.json` files in the config repo.
 
 ## [0.4.0] - 31/01/2024
 

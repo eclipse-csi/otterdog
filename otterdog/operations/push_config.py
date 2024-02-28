@@ -59,9 +59,6 @@ class PushOperation(Operation):
             async with aiofiles.open(org_file_name, "r") as file:
                 content = await file.read()
 
-            async with aiofiles.open(jsonnet_config.jsonnet_bundle_file, "r") as file:
-                bundle_content = await file.read()
-
             async with GitHubProvider(credentials) as provider:
                 try:
                     updated_files = []
@@ -76,26 +73,6 @@ class PushOperation(Operation):
                     ):
                         updated_files.append(f"otterdog/{github_id}.jsonnet")
                         updated = True
-
-                    if await provider.update_content(
-                        org_config.github_id,
-                        org_config.config_repo,
-                        "otterdog/jsonnetfile.json",
-                        bundle_content,
-                        self.push_message,
-                    ):
-                        updated_files.append("otterdog/jsonnetfile.json")
-                        updated |= True
-
-                    if await provider.update_content(
-                        org_config.github_id,
-                        org_config.config_repo,
-                        "otterdog/jsonnetfile.lock.json",
-                        "",
-                        self.push_message,
-                    ):
-                        updated_files.append("otterdog/jsonnetfile.lock.json")
-                        updated |= True
 
                 except RuntimeError as e:
                     self.printer.print_error(
