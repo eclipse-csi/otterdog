@@ -419,5 +419,9 @@ async def get_statistics() -> tuple[int, int]:
     ]
 
     collection = mongo.odm.get_collection(StatisticsModel)
-    stats = await collection.aggregate(pipeline).next()
-    return stats["num_projects"], stats["num_repos"]
+    stats_list = await collection.aggregate(pipeline).to_list(1)
+    if stats_list is None or len(stats_list) == 0:
+        return 0, 0
+    else:
+        stats = stats_list[0]
+        return stats["num_projects"], stats["num_repos"]
