@@ -10,10 +10,8 @@ from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from typing import Any
 
-from requests.auth import AuthBase
 
-
-class AuthImpl(AuthBase):
+class AuthImpl:
     @abstractmethod
     def update_headers_with_authorization(self, headers: MutableMapping[str, Any]) -> None: ...
 

@@ -9,7 +9,6 @@ pypi/pypi/-/async-timeout/4.0.3
 pypi/pypi/-/attrs/23.2.0
 pypi/pypi/-/babel/2.14.0
 pypi/pypi/-/blinker/1.7.0
-pypi/pypi/-/cattrs/23.2.3
 pypi/pypi/-/certifi/2024.2.2
 pypi/pypi/-/cffi/1.16.0
 pypi/pypi/-/charset-normalizer/3.3.2
@@ -60,7 +59,7 @@ pypi/pypi/-/playwright/1.41.2
 pypi/pypi/-/ply/3.11
 pypi/pypi/-/priority/2.0.0
 pypi/pypi/-/pycparser/2.21
-pypi/pypi/-/pydantic/2.6.2
+pypi/pypi/-/pydantic/2.6.3
 pypi/pypi/-/pydantic-core/2.16.3
 pypi/pypi/-/pyee/11.0.1
 pypi/pypi/-/pygments/2.17.2
@@ -83,7 +82,6 @@ pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.33.0
 pypi/pypi/-/regex/2023.12.25
 pypi/pypi/-/requests/2.31.0
-pypi/pypi/-/requests-cache/1.2.0
 pypi/pypi/-/rpds-py/0.18.0
 pypi/pypi/-/six/1.16.0
 pypi/pypi/-/taskgroup/0.0.0a4
