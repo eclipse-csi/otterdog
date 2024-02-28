@@ -42,14 +42,6 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
         )
 
     async def _execute(self) -> None:
-        rest_api = await self.rest_api
-
-        admin_team = get_admin_team()
-        if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
-            comment = await render_template("comment/wrong_team_done_comment.txt", admin_team=admin_team)
-            await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
-            return
-
         pr_model = await find_pull_request(self.org_id, self.repo_name, self.pull_request_number)
         if pr_model is None:
             self.logger.warning(f"failed to find data for pull request #%d in repo '{self.org_id}/{self.repo_name}'")
@@ -59,6 +51,13 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
             return
 
         if pr_model.apply_status != ApplyStatus.PARTIALLY_APPLIED and pr_model.apply_status != ApplyStatus.FAILED:
+            return
+
+        rest_api = await self.rest_api
+        admin_team = get_admin_team()
+        if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
+            comment = await render_template("comment/wrong_team_done_comment.txt", admin_team=admin_team)
+            await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
             return
 
         pr_model.apply_status = ApplyStatus.COMPLETED
