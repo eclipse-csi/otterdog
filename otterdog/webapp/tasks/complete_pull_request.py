@@ -58,7 +58,7 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
         if pr_model.status != PullRequestStatus.MERGED:
             return
 
-        if pr_model.apply_status != ApplyStatus.PARTIALLY_APPLIED or pr_model.apply_status != ApplyStatus.FAILED:
+        if pr_model.apply_status != ApplyStatus.PARTIALLY_APPLIED and pr_model.apply_status != ApplyStatus.FAILED:
             return
 
         pr_model.apply_status = ApplyStatus.COMPLETED
