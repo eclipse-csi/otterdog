@@ -8,9 +8,10 @@
 
 from dataclasses import dataclass
 
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file
-from otterdog.webapp.db.models import ConfigurationModel, TaskModel
-from otterdog.webapp.db.service import save_config
+from otterdog.webapp.db.models import ConfigurationModel, StatisticsModel, TaskModel
+from otterdog.webapp.db.service import save_config, save_statistics
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import fetch_config_from_github
 
@@ -48,6 +49,7 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 config_file,
             )
 
+            # save configuration
             config_data = jsonnet_evaluate_file(config_file)
             config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,
@@ -56,6 +58,15 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 sha=sha,
             )
             await save_config(config)
+
+            # save statistics
+            github_organization = GitHubOrganization.from_model_data(config_data)
+            statistics = StatisticsModel(  # type: ignore
+                project_name=org_config.name,
+                github_id=self.org_id,
+                num_repos=len(github_organization.repositories),
+            )
+            await save_statistics(statistics)
 
     def __repr__(self) -> str:
         return f"FetchConfigTask(repo={self.org_id}/{self.repo_name})"

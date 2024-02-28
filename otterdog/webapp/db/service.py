@@ -29,6 +29,7 @@ from .models import (
     InstallationStatus,
     PullRequestModel,
     PullRequestStatus,
+    StatisticsModel,
     TaskModel,
     TaskStatus,
 )
@@ -400,3 +401,23 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
         ),
         await mongo.odm.count(PullRequestModel, *queries),
     )
+
+
+async def save_statistics(model: StatisticsModel) -> None:
+    await mongo.odm.save(model)
+
+
+async def get_statistics() -> tuple[int, int]:
+    pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "num_projects": {"$sum": 1},
+                "num_repos": {"$sum": "$num_repos"},
+            },
+        }
+    ]
+
+    collection = mongo.odm.get_collection(StatisticsModel)
+    stats = await collection.aggregate(pipeline).next()
+    return stats["num_projects"], stats["num_repos"]

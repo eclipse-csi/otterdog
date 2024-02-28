@@ -6,9 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import contextlib
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from functools import cached_property
 from logging import Logger, getLogger
 from typing import Generic, Protocol, TypeVar
@@ -103,7 +103,7 @@ class InstallationBasedTask(Protocol):
 
     # Ignore pycharm warning:
     # https://youtrack.jetbrains.com/issue/PY-66517/False-unexpected-argument-with-asynccontextmanager-defined-as-a-method
-    @asynccontextmanager
+    @contextlib.asynccontextmanager
     async def get_organization_config(
         self,
         initialize_template: bool = True,

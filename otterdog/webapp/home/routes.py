@@ -20,6 +20,7 @@ from otterdog.webapp.db.service import (
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
+    get_statistics,
     get_tasks,
 )
 from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
@@ -38,12 +39,14 @@ async def index():
     installations = await get_installations()
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    statistics = await get_statistics()
     return await render_home_template(
         "index.html",
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
         merged_pull_request_count=await get_merged_pull_requests_count(),
         installations=installations,
         configurations=configurations_by_key,
+        total_repository_count=statistics[1],
     )
 
 

@@ -109,3 +109,9 @@ class PullRequestModel(Model):
             ),
         ],
     }
+
+
+class StatisticsModel(Model):
+    project_name: str = Field(primary_field=True)
+    github_id: str = Field(index=True)
+    num_repos: int

@@ -43,6 +43,7 @@ async def init_mongo_database(mongo: Mongo) -> None:
         ConfigurationModel,
         InstallationModel,
         PullRequestModel,
+        StatisticsModel,
         TaskModel,
     )
 
@@ -52,5 +53,6 @@ async def init_mongo_database(mongo: Mongo) -> None:
             TaskModel,
             ConfigurationModel,
             PullRequestModel,
+            StatisticsModel,
         ]  # type: ignore
     )

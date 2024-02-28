@@ -46,7 +46,7 @@
       <div class="container-fluid">
         <!-- Small boxes (Stat box) -->
         <div class="row">
-          <div class="col-lg-3 col-6">
+          <div class="col-lg-2">
             <!-- small box -->
             <div class="small-box bg-info">
               <div class="inner">
@@ -54,15 +54,15 @@
                 <p>GitHub Organizations</p>
               </div>
               <div class="icon">
-                <i class="fab fa-github"></i>
+                <i class="fas fa-sitemap"></i>
               </div>
               <a href="/admin/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <!-- ./col -->
-          <div class="col-lg-3 col-6">
+          <div class="col-lg-2">
             <!-- small box -->
-            <div class="small-box bg-info">
+            <div class="small-box bg-warning">
               <div class="inner">
                 <h3>{{ open_pull_request_count }}</h3>
                 <p>Open Pull Requests</p>
@@ -74,7 +74,7 @@
             </div>
           </div>
           <!-- ./col -->
-          <div class="col-lg-3 col-6">
+          <div class="col-lg-2">
             <!-- small box -->
             <div class="small-box bg-success">
               <div class="inner">
@@ -82,9 +82,23 @@
                 <p>Merged Pull Requests</p>
               </div>
               <div class="icon">
-                <i class="fas fa-code-pull-request"></i>
+                <i class="fas fa-code-merge"></i>
               </div>
               <a href="/admin/pullrequests" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+            </div>
+          </div>
+          <!-- ./col -->
+          <div class="col-lg-2">
+            <!-- small box -->
+            <div class="small-box bg-info">
+              <div class="inner">
+                <h3>{{ total_repository_count }}</h3>
+                <p>Total Repository Count</p>
+              </div>
+              <div class="icon">
+                <i class="fab fa-github"></i>
+              </div>
+<!--              <a href="/statistics" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>-->
             </div>
           </div>
           <!-- ./col -->
