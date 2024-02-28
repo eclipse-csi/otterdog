@@ -91,7 +91,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 self.org_id,
                 org_config.config_repo,
                 base_file,
-                self._pull_request.base.ref,
+                # always check the HEAD of the default branch
+                # PRs might not be up-to-date
             )
 
             output = StringIO()

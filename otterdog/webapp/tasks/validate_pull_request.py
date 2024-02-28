@@ -107,7 +107,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 self.org_id,
                 org_config.config_repo,
                 base_file,
-                self._pull_request.base.ref,
+                # always check against the HEAD of the default branch
+                # PRs might not be up-to-date
             )
 
             assert self._pull_request.head.repo is not None
