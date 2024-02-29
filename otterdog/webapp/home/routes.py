@@ -6,11 +6,13 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import json
 from typing import Any
 
 from quart import current_app, redirect, render_template, request, url_for
 from werkzeug.routing import BuildError
 
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import associate_by_key
 from otterdog.webapp.db.service import (
     get_active_installations,
@@ -66,7 +68,44 @@ async def project(project_name: str):
         project_name=project_name,
         github_id=config.github_id,
         config=github_organization,
+        secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
+        branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
     )
+
+
+def _get_secret_scanning_data(organization: GitHubOrganization) -> list[int]:
+    alert_mode = 0
+    protection_mode = 0
+    not_configured = 0
+
+    for repo in organization.repositories:
+        if repo.archived is True:
+            continue
+
+        if repo.secret_scanning_push_protection == "enabled":
+            protection_mode += 1
+        elif repo.secret_scanning == "enabled":
+            alert_mode += 1
+        else:
+            not_configured += 1
+
+    return [not_configured, alert_mode, protection_mode]
+
+
+def _get_branch_protection_data(organization: GitHubOrganization) -> list[int]:
+    protected = 0
+    not_protected = 0
+
+    for repo in organization.repositories:
+        if repo.archived is True:
+            continue
+
+        if len(repo.rulesets) > 0 or len(repo.branch_protection_rules) > 0:
+            protected += 1
+        else:
+            not_protected += 1
+
+    return [not_protected, protected]
 
 
 @blueprint.route("/projects/<project_name>/repos/<repo_name>")

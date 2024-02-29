@@ -80,54 +80,86 @@
               <div class="card-body">
                 <div class="tab-content" id="organization-tabContent">
                   <div class="tab-pane show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
-                    <div class="col-sm-3">
-                    <ul class="nav flex-column">
-                      <li class="nav-item">
-                        <a href="#" class="nav-link">
-                          Project
-                          <span class="float-right">{{ project_name }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="https://github.com/{{ github_id }}" class="nav-link">
-                          GitHub Org
-                          <span class="float-right">{{ github_id }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#settings" class="nav-link tab-link">
-                          {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                          2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#workflow-settings" class="nav-link tab-link">
-                          {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                          Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#secrets" class="nav-link tab-link">
-                          Secrets <span class="float-right badge bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#variables" class="nav-link tab-link">
-                          Variables <span class="float-right badge bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#webhooks" class="nav-link tab-link">
-                          Webhooks <span class="float-right badge bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="#repositories" class="nav-link tab-link">
-                          Repositories <span class="float-right badge bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                    <div class="container-fluid">
+                      <div class="row">
+                        <div class="col-sm-3">
+                          <div class="card card-primary">
+                            <div class="card-header">
+                              <h3 class="card-title">General</h3>
+                            </div>
+                            <div class="card-body">
+                              <ul class="nav flex-column">
+                                <li class="nav-item">
+                                  <a href="#" class="nav-link">
+                                    Project
+                                    <span class="float-right">{{ project_name }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="https://github.com/{{ github_id }}" class="nav-link">
+                                    GitHub Org
+                                    <span class="float-right">{{ github_id }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#settings" class="nav-link tab-link">
+                                    {% set two_factor_enabled = config.settings.two_factor_requirement %}
+                                    2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#workflow-settings" class="nav-link tab-link">
+                                    {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
+                                    Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#secrets" class="nav-link tab-link">
+                                    Secrets <span class="float-right badge bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#variables" class="nav-link tab-link">
+                                    Variables <span class="float-right badge bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#webhooks" class="nav-link tab-link">
+                                    Webhooks <span class="float-right badge bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#repositories" class="nav-link tab-link">
+                                    Repositories <span class="float-right badge bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-sm-3">
+                          <div class="card card-warning">
+                            <div class="card-header">
+                              <h3 class="card-title">Secret Scanning</h3>
+                            </div>
+                            <div class="card-body">
+                              <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-sm-3">
+                          <div class="card card-warning">
+                            <div class="card-header">
+                              <h3 class="card-title">Branch Protections</h3>
+                            </div>
+                            <div class="card-body">
+                              <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- /.card -->
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
                     <textarea id="org-settings-textarea">
@@ -345,6 +377,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
   <!-- Bootstrap 4 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <!-- Codemirror -->
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
@@ -391,6 +425,53 @@
         editor.setSize(null, 750);
       }
     };
+
+    const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
+
+    new Chart(secret_scanning_ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['disabled', 'alert mode', 'protection mode'],
+        datasets: [{
+          label: 'secret scanning',
+          data: {{ secret_scanning_data|safe }},
+          backgroundColor: [
+            '#dc3545',
+            '#ffc107',
+            '#28a745'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        animation: {
+          animateRotate: false
+        }
+      }
+    });
+
+    const branch_protections_ctx = document.getElementById('branch-protection-chart');
+
+    new Chart(branch_protections_ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['not protected', 'protected'],
+        datasets: [{
+          label: 'branch protections',
+          data: {{ branch_protection_data|safe }},
+          backgroundColor: [
+            '#dc3545',
+            '#28a745'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        animation: {
+          animateRotate: false
+        }
+      }
+    });
   </script>
 
 {% endblock javascripts %}
