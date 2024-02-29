@@ -138,7 +138,7 @@
                           </div>
                         </div>
                         <div class="col-sm-3">
-                          <div class="card card-warning">
+                          <div class="card card-{{ 'warning' if secret_scanning_data[0] != 0 else 'success' }}">
                             <div class="card-header">
                               <h3 class="card-title">Secret Scanning</h3>
                             </div>
@@ -148,7 +148,7 @@
                           </div>
                         </div>
                         <div class="col-sm-3">
-                          <div class="card card-warning">
+                          <div class="card card-{{ 'warning' if branch_protection_data[0] != 0 else 'success' }}">
                             <div class="card-header">
                               <h3 class="card-title">Branch Protections</h3>
                             </div>
@@ -300,11 +300,16 @@
                           {% for repo in config.repositories|sort(attribute='name') %}
                           <tr>
                             <td>
+                              {% if repo.archived == true %}
+                              <i class="fa-solid fa-box-archive"></i>
+                              {% endif %}
                               <a href="/projects/{{ project_name }}/repos/{{ repo.name }}">{{ repo.name }}</a>
                               <a href="https://github.com/{{ config.github_id }}/{{ repo.name }}" target="_blank"><i class="fa-solid fa-up-right-from-square"></i></a>
                             </td>
                             <td class="text-center">
-                              {% if repo.branch_protection_rules|length > 0 or repo.rulesets|length > 0 %}
+                              {% if repo.archived == true %}
+                              <i class="text-muted fa-solid fa-circle"></i>
+                              {% elif repo.branch_protection_rules|length > 0 or repo.rulesets|length > 0 %}
                               <i class="text-success fa-solid fa-circle-check"></i>
                               {% else %}
                               <i class="text-danger fa-solid fa-circle-xmark"></i>
@@ -340,7 +345,9 @@
                               {% endif %}
                             </td>
                             <td class="text-center">
-                              {% if repo.secret_scanning_push_protection == "enabled" %}
+                              {% if repo.archived == true %}
+                              <i class="text-muted fa-solid fa-circle"></i>
+                              {% elif repo.secret_scanning_push_protection == "enabled" %}
                               <i class="text-success fa-solid fa-circle-check"></i>
                               {% elif repo.secret_scanning == "enabled" %}
                               <i class="text-warning fa-solid fa-circle-check"></i>
