@@ -141,6 +141,10 @@ async def update_installations() -> None:
 
                 await mongo.odm.save(model)
 
+    installed_orgs = list(map(lambda x: x.github_id, await get_installations()))
+    await cleanup_pull_requests(installed_orgs)
+    await cleanup_statistics(installed_orgs)
+
     for installation in await get_active_installations():
         configuration_model = await get_configuration_by_github_id(installation.github_id)
         if configuration_model is None:
@@ -403,6 +407,10 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
     )
 
 
+async def cleanup_pull_requests(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(PullRequestModel, query.not_in(PullRequestModel.org_id, valid_orgs))
+
+
 async def save_statistics(model: StatisticsModel) -> None:
     await mongo.odm.save(model)
 
@@ -425,3 +433,7 @@ async def get_statistics() -> tuple[int, int]:
     else:
         stats = stats_list[0]
         return stats["num_projects"], stats["num_repos"]
+
+
+async def cleanup_statistics(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(StatisticsModel, query.not_in(StatisticsModel.github_id, valid_orgs))
