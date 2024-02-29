@@ -5,6 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
+import json
 
 
 def register_filters(app):
@@ -21,6 +22,17 @@ def register_filters(app):
                 return "warning"
             case _:
                 return "info"
+
+    @app.template_filter("int_status")
+    def int_status_color(value):
+        if value == 0:
+            return "success"
+        else:
+            return "warning"
+
+    @app.template_filter("from_json")
+    def from_json(value):
+        return json.loads(value)
 
     @app.template_filter("is_dict")
     def is_dict(value):

@@ -138,7 +138,7 @@
                           </div>
                         </div>
                         <div class="col-sm-3">
-                          <div class="card card-{{ 'warning' if secret_scanning_data[0] != 0 else 'success' }}">
+                          <div class="card card-{{ secret_scanning_data|from_json|first|int_status }}">
                             <div class="card-header">
                               <h3 class="card-title">Secret Scanning</h3>
                             </div>
@@ -148,7 +148,7 @@
                           </div>
                         </div>
                         <div class="col-sm-3">
-                          <div class="card card-{{ 'warning' if branch_protection_data[0] != 0 else 'success' }}">
+                          <div class="card card-{{ branch_protection_data|from_json|first|int_status }}">
                             <div class="card-header">
                               <h3 class="card-title">Branch Protections</h3>
                             </div>
