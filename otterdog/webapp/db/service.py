@@ -19,6 +19,7 @@ from otterdog.webapp.utils import (
     current_utc_time,
     get_otterdog_config,
     get_rest_api_for_app,
+    refresh_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -73,6 +74,9 @@ async def update_installations() -> None:
     logger.info("updating all installations")
 
     rest_api = get_rest_api_for_app()
+    # FIXME: refresh the otterdog config in this process to ensure we have the latest version available
+    #        in fact the config should be stored in mongodb.
+    await refresh_otterdog_config()
     otterdog_config = await get_otterdog_config()
     all_configured_organization_names: set[str] = set(otterdog_config.organization_names)
     all_installations = await rest_api.app.get_app_installations()

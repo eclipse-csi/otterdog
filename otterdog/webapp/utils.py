@@ -113,7 +113,7 @@ async def get_otterdog_config() -> OtterdogConfig:
     return _OTTERDOG_CONFIG
 
 
-async def refresh_otterdog_config(sha: str) -> None:
+async def refresh_otterdog_config(sha: str | None = None) -> None:
     global _OTTERDOG_CONFIG
     _OTTERDOG_CONFIG = await _load_otterdog_config(sha)
 
