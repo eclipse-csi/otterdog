@@ -16,7 +16,7 @@ from otterdog.utils import LogLevel
 from otterdog.webapp.db.service import (
     get_installation,
     update_installation_status,
-    update_installations,
+    update_installations_from_config,
 )
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
@@ -232,7 +232,10 @@ async def on_push_received(data):
         if event.ref != f"refs/heads/{event.repository.default_branch}":
             return success()
 
-        await refresh_otterdog_config(event.after)
+        async def update_installations() -> None:
+            config = await refresh_otterdog_config(event.after)
+            await update_installations_from_config(config)
+
         current_app.add_background_task(update_installations)
         return success()
 

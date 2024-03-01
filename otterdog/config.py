@@ -182,8 +182,12 @@ class OtterdogConfig:
         return self._organizations_map
 
     @property
-    def organization_names(self) -> list[str]:
+    def project_names(self) -> list[str]:
         return list(map(lambda config: config.name, self._organizations))
+
+    @property
+    def organization_names(self) -> list[str]:
+        return list(map(lambda config: config.github_id, self._organizations))
 
     def get_project_name(self, github_id: str) -> str | None:
         organization = self._organizations_map.get(github_id)
@@ -192,10 +196,10 @@ class OtterdogConfig:
         else:
             return None
 
-    def get_organization_config(self, organization_name: str) -> OrganizationConfig:
-        org_config = self._organizations_map.get(organization_name)
+    def get_organization_config(self, project_or_organization_name: str) -> OrganizationConfig:
+        org_config = self._organizations_map.get(project_or_organization_name)
         if org_config is None:
-            raise RuntimeError(f"unknown organization with name / github_id '{organization_name}'")
+            raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
 
     def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider:

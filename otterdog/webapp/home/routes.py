@@ -9,7 +9,7 @@
 import json
 from typing import Any
 
-from quart import current_app, redirect, render_template, request, url_for
+from quart import redirect, render_template, request, url_for
 from werkzeug.routing import BuildError
 
 from otterdog.models.github_organization import GitHubOrganization
@@ -24,9 +24,10 @@ from otterdog.webapp.db.service import (
     get_open_or_incomplete_pull_requests_count,
     get_statistics,
     get_tasks,
+    update_data_for_installation,
+    update_installations_from_config,
 )
-from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
-from otterdog.webapp.tasks.fetch_config import FetchConfigTask
+from otterdog.webapp.utils import refresh_otterdog_config
 
 from . import blueprint
 
@@ -167,25 +168,11 @@ async def health():
 
 @blueprint.route("/init")
 async def init():
-    from otterdog.webapp.db.service import update_installations
-
-    await update_installations()
+    config = await refresh_otterdog_config()
+    await update_installations_from_config(config)
 
     for installation in await get_active_installations():
-        current_app.add_background_task(
-            FetchConfigTask(
-                installation.installation_id,
-                installation.github_id,
-                installation.config_repo,
-            )
-        )
-        current_app.add_background_task(
-            FetchAllPullRequestsTask(
-                installation.installation_id,
-                installation.github_id,
-                installation.config_repo,
-            )
-        )
+        await update_data_for_installation(installation)
 
     return {}, 200
 
@@ -226,6 +213,9 @@ async def get_project_navigation():
     navigation = {}
 
     for installation in installations:
+        if installation.project_name is None:
+            continue
+
         levels = installation.project_name.split(".")
         if len(levels) == 1:
             navigation[levels[0]] = installation

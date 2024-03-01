@@ -143,9 +143,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 admin_team=f"{self.org_id}/{get_admin_team()}",
             )
 
-            await rest_api.issue.create_comment(
-                self.org_id, otterdog_config.default_config_repo, pull_request_number, result
-            )
+            await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)
 
             return apply_result
 
