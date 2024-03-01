@@ -81,7 +81,7 @@ class PlanOperation(DiffOperation):
         parent_object: ModelObject | None = None,
     ) -> int:
         self.printer.println()
-        model_header = current_object.get_model_header(parent_object)
+        model_header = expected_object.get_model_header(parent_object)
         self.print_modified_dict(modified_object, model_header, set(), forced_update)
 
         # FIXME: this code should be moved to the Webhook model class.

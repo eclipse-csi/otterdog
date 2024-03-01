@@ -518,10 +518,19 @@ class ModelObject(ABC):
         expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
         expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
 
+        has_wildcard_keys = any(map(lambda x: x.get_key_value().endswith("*"), expected_objects))
+
         for current_object in current_objects:
             key = current_object.get_key_value()
 
             expected_object = expected_objects_by_all_keys.get(key)
+            if expected_object is None and has_wildcard_keys:
+                for obj in expected_objects:
+                    stripped_key = obj.get_key_value().rstrip("*")
+                    if stripped_key and key.startswith(stripped_key):
+                        expected_object = obj
+                        break
+
             if expected_object is None:
                 if current_object.include_existing_object_for_live_patch(context.org_id, parent_object):
                     cls.generate_live_patch(None, current_object, parent_object, context, handler)

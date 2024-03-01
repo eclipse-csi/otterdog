@@ -5,6 +5,7 @@
 ### Added
 
 - Added automatic handling of configuration changes by acting as GitHub app.
+- Support adding wildcards to `Webhook` urls to hide sensitive parts. [#84](https://github.com/eclipse-csi/otterdog/issues/84)
 
 ### Changed
 
