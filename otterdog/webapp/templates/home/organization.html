@@ -258,7 +258,13 @@
                               <i class="text-danger fa-solid fa-circle-xmark"></i>
                               {% endif %}
                             </td>
-                            <td>{{ webhook.events|pprint }}</td>
+                            <td>
+                              <ul>
+                              {% for event in webhook.events %}
+                                <li>{{ event }}</li>
+                              {% endfor %}
+                              </ul>
+                            </td>
                             <td class="text-center">
                               {% if webhook.insecure_ssl == "0" %}
                               <i class="text-success fa-solid fa-circle-check"></i>
