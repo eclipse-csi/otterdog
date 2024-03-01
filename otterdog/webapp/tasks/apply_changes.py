@@ -19,6 +19,7 @@ from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
+    get_admin_team,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
@@ -139,6 +140,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 output=escape_for_github(apply_result.apply_output),
                 success=apply_result.apply_success,
                 partial=apply_result.partial,
+                admin_team=f"{self.org_id}/{get_admin_team()}",
             )
 
             await rest_api.issue.create_comment(
