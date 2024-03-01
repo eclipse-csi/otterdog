@@ -127,6 +127,8 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 else:
                     apply_result.partial = False
             except Exception as ex:
+                self.logger.exception("exception during apply", exc_info=ex)
+
                 apply_result.apply_output = str(ex)
                 apply_result.apply_success = False
 

@@ -148,6 +148,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                     validation_result.plan_output = output.getvalue()
                     validation_result.validation_success = plan_result == 0
                 except Exception as ex:
+                    self.logger.exception("exception during validate", exc_info=ex)
+
                     validation_result.plan_output = str(ex)
                     validation_result.validation_success = False
 
