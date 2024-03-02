@@ -404,6 +404,9 @@
       if (hash) {
         $('[data-toggle="pill"][href="' + hash + '"]').trigger('click');
       }
+
+      drawSecretScanningChart();
+      drawBranchProtectionChart();
     });
 
     $('.tab-link').on('click', function(event) {
@@ -439,52 +442,56 @@
       }
     };
 
-    const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
+    function drawSecretScanningChart() {
+      const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
 
-    new Chart(secret_scanning_ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['disabled', 'alert mode', 'protection mode'],
-        datasets: [{
-          label: 'secret scanning',
-          data: {{ secret_scanning_data|safe }},
-          backgroundColor: [
-            '#dc3545',
-            '#ffc107',
-            '#28a745'
-          ],
-          borderWidth: 1
-        }]
-      },
-      options: {
-        animation: {
-          animateRotate: false
+      new Chart(secret_scanning_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['disabled', 'alert mode', 'protection mode'],
+          datasets: [{
+            label: 'secret scanning',
+            data: {{ secret_scanning_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#ffc107',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
         }
-      }
-    });
+      });
+    };
 
-    const branch_protections_ctx = document.getElementById('branch-protection-chart');
+    function drawBranchProtectionChart() {
+      const branch_protections_ctx = document.getElementById('branch-protection-chart');
 
-    new Chart(branch_protections_ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['not protected', 'protected'],
-        datasets: [{
-          label: 'branch protections',
-          data: {{ branch_protection_data|safe }},
-          backgroundColor: [
-            '#dc3545',
-            '#28a745'
-          ],
-          borderWidth: 1
-        }]
-      },
-      options: {
-        animation: {
-          animateRotate: false
+      new Chart(branch_protections_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['not protected', 'protected'],
+          datasets: [{
+            label: 'branch protections',
+            data: {{ branch_protection_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
         }
-      }
-    });
+      });
+    };
   </script>
 
 {% endblock javascripts %}
