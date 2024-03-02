@@ -445,7 +445,7 @@
     function drawSecretScanningChart() {
       const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
 
-      new Chart(secret_scanning_ctx, {
+      var chart = new Chart(secret_scanning_ctx, {
         type: 'doughnut',
         data: {
           labels: ['disabled', 'alert mode', 'protection mode'],
@@ -466,12 +466,14 @@
           }
         }
       });
+
+      chart.render();
     };
 
     function drawBranchProtectionChart() {
       const branch_protections_ctx = document.getElementById('branch-protection-chart');
 
-      new Chart(branch_protections_ctx, {
+      var chart = new Chart(branch_protections_ctx, {
         type: 'doughnut',
         data: {
           labels: ['not protected', 'protected'],
@@ -491,6 +493,8 @@
           }
         }
       });
+
+      chart.render();
     };
   </script>
 
