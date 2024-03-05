@@ -146,9 +146,44 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release.outputs.release-version }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  pypi-publish:
+    runs-on: ubuntu-22.04
+    needs: ['release']
+    environment:
+      name: pypi
+      url: https://pypi.org/p/otterdog
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ needs.release.outputs.release-tag }}
+
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3
+        with:
+          virtualenvs-in-project: true
+          version: 1.7.1
+
+      - name: Install dependencies
+        run: poetry install --only=main
+
+      - name: Build package
+        run: poetry build
+
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@e53eb8b103ffcb59469888563dc324e3c8ba6f06 # v1.8.12
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+
   prepare-for-next-development-cycle:
     runs-on: ubuntu-22.04
-    needs: ['precheck', 'release', 'build-and-push-image']
+    needs: ['precheck', 'release', 'build-and-push-image', 'pypi-publish']
     permissions:
       contents: write
     steps:
