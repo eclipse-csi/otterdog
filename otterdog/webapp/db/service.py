@@ -111,6 +111,7 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig) -> N
     valid_orgs = list(map(lambda x: x.github_id, await get_installations()))
     await cleanup_pull_requests(valid_orgs)
     await cleanup_statistics(valid_orgs)
+    await cleanup_configurations(valid_orgs)
 
     await update_app_installations()
 
@@ -241,6 +242,10 @@ async def get_configuration_by_github_id(github_id: str) -> ConfigurationModel |
 
 async def get_configuration_by_project_name(project_name: str) -> ConfigurationModel | None:
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.project_name == project_name)
+
+
+async def cleanup_configurations(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(ConfigurationModel, query.not_in(ConfigurationModel.github_id, valid_orgs))
 
 
 async def create_task(task: TaskModel) -> None:

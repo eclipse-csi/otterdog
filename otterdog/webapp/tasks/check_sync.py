@@ -111,6 +111,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
 
             await operation.execute(org_config)
 
+            self.merge_statistics_from_provider(operation.gh_client)
+
             sync_output = output.getvalue()
             self.logger.info("sync plan:\n" + sync_output)
 

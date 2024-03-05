@@ -15,7 +15,8 @@ from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
-from otterdog.utils import is_debug_enabled, is_trace_enabled, print_debug, print_trace
+from otterdog.providers.github.stats import RequestStatistics
+from otterdog.utils import is_trace_enabled, print_trace
 
 _AIOHTTP_CACHE_DIR = ".cache/async_http"
 
@@ -37,7 +38,12 @@ class Requester:
             "X-Github-Next-Global-ID": "1",
         }
 
+        self._statistics = RequestStatistics()
         self._session = AsyncCachedSession(cache=cache_strategy.get_cache_backend())
+
+    @property
+    def statistics(self) -> RequestStatistics:
+        return self._statistics
 
     async def close(self) -> None:
         await self._session.close()
@@ -103,17 +109,18 @@ class Requester:
         async with self._session.request(
             method, url=url, headers=headers, params=params, data=data, refresh=True
         ) as response:
+            self._statistics.sent_request()
+
             text = await response.text()
             status = response.status
 
-            if is_debug_enabled():
-                if not response.from_cache:  # type: ignore
-                    print_debug(
-                        f"'{method}' {url_path}: rate-limit-used = {response.headers.get('x-ratelimit-used', None)}"
-                    )
+            if response.from_cache:  # type: ignore
+                self._statistics.received_cached_response()
+            else:
+                self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 
             if is_trace_enabled():
-                print_trace(f"async '{method}' result = ({status}, {text})")
+                print_trace(f"'{method}' result = ({status}, {text})")
 
             return status, text
 

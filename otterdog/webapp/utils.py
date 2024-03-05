@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import os.path
 import re
 import sys
@@ -28,6 +29,7 @@ from otterdog.providers.github.rest import RestApi
 logger = getLogger(__name__)
 
 _OTTERDOG_CONFIG: OtterdogConfig | None = None
+_CREATE_INSTALLATION_TOKEN_LOCK = asyncio.Lock()
 
 
 def _get_redis_cache():
@@ -49,30 +51,34 @@ def get_rest_api_for_app() -> RestApi:
     return RestApi(app_auth(github_app_id, github_app_private_key), _get_redis_cache())
 
 
-async def _get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
+async def get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
     redis = get_redis()
 
-    installation_key = f"token:{installation_id}"
-    current_data = decode_bytes_dict(await redis.hgetall(installation_key))
+    async with _CREATE_INSTALLATION_TOKEN_LOCK:
+        installation_key = f"token:{installation_id}"
+        current_data = decode_bytes_dict(await redis.hgetall(installation_key))
 
-    cached_token = current_data.get("token", None)
-    expires_at_str = current_data.get("expires_at", None)
+        cached_token = current_data.get("token", None)
+        expires_at_str = current_data.get("expires_at", None)
 
-    if cached_token is not None and expires_at_str is not None:
-        expires_at = datetime.fromisoformat(expires_at_str)
-        # add a buffer of 1 min for expiration to be safe
-        # the assumption is that any processing using the returned token
-        # will not take longer than 1 min (in fact will be much shorter)
-        if expires_at > (current_utc_time() + timedelta(minutes=1)):
-            return cached_token, expires_at
+        if cached_token is not None and expires_at_str is not None:
+            expires_at = datetime.fromisoformat(expires_at_str)
+            # add a buffer of 1 min for expiration to be safe
+            # the assumption is that any processing using the returned token
+            # will not take longer than 1 min (in fact will be much shorter)
+            if expires_at > (current_utc_time() + timedelta(minutes=1)):
+                logger.info(
+                    f"re-using installation token for installation '{installation_id}' expiring at '{expires_at}'"
+                )
+                return cached_token, expires_at
 
-    logger.debug(f"creating new installation token for installation with id '{installation_id}'")
-    token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(str(installation_id))
-    await redis.hset(
-        installation_key,
-        mapping={"token": token, "expires_at": expires_at.isoformat()},
-    )
-    return token, expires_at
+        logger.info(f"creating new installation token for installation '{installation_id}'")
+        token, expires_at = await get_rest_api_for_app().app.create_installation_access_token(str(installation_id))
+        await redis.hset(
+            installation_key,
+            mapping={"token": token, "expires_at": expires_at.isoformat()},
+        )
+        return token, expires_at
 
 
 def decode_bytes_dict(data: dict[bytes, bytes]) -> dict[str, str]:
@@ -80,12 +86,12 @@ def decode_bytes_dict(data: dict[bytes, bytes]) -> dict[str, str]:
 
 
 async def get_rest_api_for_installation(installation_id: int) -> RestApi:
-    token, _ = await _get_token_for_installation(installation_id)
+    token, _ = await get_token_for_installation(installation_id)
     return RestApi(token_auth(token), _get_redis_cache())
 
 
 async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
-    token, _ = await _get_token_for_installation(installation_id)
+    token, _ = await get_token_for_installation(installation_id)
     return GraphQLClient(token_auth(token))
 
 

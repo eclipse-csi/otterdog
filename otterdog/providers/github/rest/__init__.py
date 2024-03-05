@@ -15,6 +15,7 @@ from functools import cached_property
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.cache.file import file_cache
+from otterdog.providers.github.stats import RequestStatistics
 
 from .requester import Requester
 
@@ -43,6 +44,10 @@ class RestApi:
             return self._auth_strategy.token
         else:
             return None
+
+    @property
+    def statistics(self) -> RequestStatistics:
+        return self._requester.statistics
 
     async def close(self) -> None:
         await self._requester.close()

@@ -12,7 +12,6 @@ from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import InstallationBasedTask, Task
-from otterdog.webapp.utils import get_graphql_api_for_installation
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -63,7 +62,7 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         user = self._pull_request.user.login
         association = self._pull_request.author_association
 
-        graphql_api = await get_graphql_api_for_installation(self.installation_id)
+        graphql_api = await self.graphql_api
         team_data = await graphql_api.get_team_membership(self.org_id, user)
         team_membership = [team["name"] for team in team_data]
 

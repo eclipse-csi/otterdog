@@ -532,12 +532,14 @@ async def _load_repos_from_provider(
         for installation in await provider.rest_api.org.get_app_installations(github_id)
     }
 
-    result = await asyncio.gather(
-        *[
-            _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
-            for repo_name in repo_names
-        ]
-    )
+    # process at max 50 repos concurrently to avoid hitting secondary rate limits
+    sem = asyncio.Semaphore(50)
+
+    async def safe_process(repo_name):
+        async with sem:
+            return await _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
+
+    result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
 
     github_repos = []
     for data in result:

@@ -133,6 +133,8 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 apply_result.apply_output = str(ex)
                 apply_result.apply_success = False
 
+            self.merge_statistics_from_provider(operation.gh_client)
+
             self.logger.info("apply:" + apply_result.apply_output)
 
             result = await render_template(

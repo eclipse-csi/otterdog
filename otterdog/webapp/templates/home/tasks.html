@@ -78,11 +78,27 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- jsGrid -->
   <script src="https://cdn.jsdelivr.net/npm/jsgrid@1.5.3/dist/jsgrid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.30.1/moment.min.js"></script>
   <!-- AdminLTE App -->
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <!-- page script -->
   <script>
+    var DateField = function (config) {
+      jsGrid.Field.call(this, config);
+    };
+
+    DateField.prototype = new jsGrid.Field({
+      sorter: function (date1, date2) {
+        return moment(date1) - moment(date2);
+      },
+      itemTemplate: function (value) {
+        return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
+      },
+    });
+
+    jsGrid.fields.date = DateField;
+
     $(function () {
       $("#taskGrid").jsGrid({
           height: "auto",
@@ -139,8 +155,10 @@
                 }
               },
               { name: "log", title: "Log", type: "text" },
-              { name: "created_at", title: "Creation Time", type: "text" },
-              { name: "updated_at", title: "Update Time", type: "text" }
+              { name: "cache_stats", title: "Cache Usage", type: "text" },
+              { name: "rate_limit_remaining", title: "Remaining Rate Limit", type: "text" },
+              { name: "created_at", title: "Creation Time", type: "date", width: 60 },
+              { name: "updated_at", title: "Update Time", type: "date", width: 60 }
           ]
       });
     });

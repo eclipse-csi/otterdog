@@ -51,6 +51,8 @@ class TaskModel(Model):
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
     log: Optional[str] = None
+    cache_stats: str = ""
+    rate_limit_remaining: str = ""
     created_at: datetime = Field(index=True, default_factory=current_utc_time)
     updated_at: datetime = Field(default_factory=current_utc_time)
 

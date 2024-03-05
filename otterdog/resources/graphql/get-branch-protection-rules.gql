@@ -22,17 +22,97 @@ query($endCursor: String, $organization: String!, $repository: String!) {
         requiresStrictStatusChecks
         restrictsPushes
         restrictsReviewDismissals
-        bypassPullRequestAllowances {
-          totalCount
+        bypassPullRequestAllowances(first: 100) {
+          nodes {
+            actor {
+              __typename
+              ... on App {
+                id
+                slug
+              }
+              ... on Team {
+                id
+                combinedSlug
+              }
+              ... on User {
+                id
+                login
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
-        bypassForcePushAllowances {
-          totalCount
+        bypassForcePushAllowances(first: 100) {
+          nodes {
+            actor {
+              __typename
+              ... on App {
+                id
+                slug
+              }
+              ... on Team {
+                id
+                combinedSlug
+              }
+              ... on User {
+                id
+                login
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
-        pushAllowances {
-          totalCount
+        pushAllowances(first: 100) {
+          nodes {
+            actor {
+              __typename
+              ... on App {
+                id
+                slug
+              }
+              ... on Team {
+                id
+                combinedSlug
+              }
+              ... on User {
+                id
+                login
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
-        reviewDismissalAllowances {
-          totalCount
+        reviewDismissalAllowances(first: 100) {
+          nodes {
+            actor {
+              __typename
+              ... on App {
+                id
+                slug
+              }
+              ... on Team {
+                id
+                combinedSlug
+              }
+              ... on User {
+                id
+                login
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
         requiredStatusChecks {
           app {
@@ -48,5 +128,8 @@ query($endCursor: String, $organization: String!, $repository: String!) {
         endCursor
       }
     }
+  }
+  rateLimit {
+    cost
   }
 }

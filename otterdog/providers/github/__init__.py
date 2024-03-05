@@ -51,28 +51,12 @@ class GitHubProvider:
     async def close(self) -> None:
         if self._credentials is not None:
             await self.rest_api.close()
+            await self.graphql_client.close()
 
     def _init_clients(self):
         self.rest_api = RestApi(token_auth(self._credentials.github_token))
         self.web_client = WebClient(self._credentials)
         self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token))
-
-    def __getstate__(self):
-        return (
-            self._credentials,
-            self._settings_schema,
-            self._settings_restapi_keys,
-            self._settings_web_keys,
-        )
-
-    def __setstate__(self, state):
-        (
-            self._credentials,
-            self._settings_schema,
-            self._settings_restapi_keys,
-            self._settings_web_keys,
-        ) = state
-        self._init_clients()
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         return await self.rest_api.content.get_content(org_id, repo_name, path, ref)
