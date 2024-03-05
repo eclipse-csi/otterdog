@@ -14,6 +14,7 @@ on:
           - major
           - minor
           - patch
+          - none
 
 env:
   BOT_USER_NAME: eclipse-csi-bot
@@ -186,6 +187,7 @@ jobs:
     needs: ['precheck', 'release', 'build-and-push-image', 'pypi-publish']
     permissions:
       contents: write
+    if: ${{ github.event.inputs.version-fragment != 'none' }}
     steps:
       - name: Setup Git User
         run: |
