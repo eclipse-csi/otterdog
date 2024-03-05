@@ -74,7 +74,7 @@ async def on_pull_request_received(data):
             )
         )
 
-    if event.action in ["opened", "ready_for_review", "reopened"] and event.pull_request.draft is False:
+    if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
         # schedule a validate task
         current_app.add_background_task(
             ValidatePullRequestTask(
@@ -88,17 +88,6 @@ async def on_pull_request_received(data):
         # schedule a check-sync task
         current_app.add_background_task(
             CheckConfigurationInSyncTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
-                event.pull_request,
-            )
-        )
-
-    elif event.action in ["synchronize"] and event.pull_request is False:
-        # schedule a validate task only when synchronizing a PR
-        current_app.add_background_task(
-            ValidatePullRequestTask(
                 event.installation.id,
                 event.organization.login,
                 event.repository.name,
