@@ -1,6 +1,9 @@
 # Change Log
 
-## [0.5.0] - unreleased
+## [0.5.0] - 05/03/2024
+
+Note: this version includes lots of additions and changes related to the GitHub App mode which are not
+covered in the changelog.
 
 ### Added
 
