@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from ariadne import graphql
+from ariadne.explorer import ExplorerGraphiQL
 from quart import jsonify, request
 
 from otterdog.webapp.db.service import (
@@ -17,6 +19,8 @@ from otterdog.webapp.db.service import (
 )
 
 from . import blueprint
+
+explorer_html = ExplorerGraphiQL(title="Otterdog GraphQL").html(None)
 
 
 @blueprint.route("/organizations")
@@ -56,3 +60,20 @@ async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
     result = {"data": list(map(lambda x: x.model_dump(exclude={"id"}), paged_pull_requests)), "itemsCount": count}
     return jsonify(result)
+
+
+@blueprint.route("/graphql", methods=["GET"])
+async def graphql_playground():
+    return explorer_html, 200
+
+
+@blueprint.route("/graphql", methods=["POST"])
+async def graphql_server():
+    from .graphql import schema
+
+    data = await request.get_json()
+
+    success, result = await graphql(schema, data, context_value=request, debug=False)
+
+    status_code = 200 if success else 400
+    return jsonify(result), status_code

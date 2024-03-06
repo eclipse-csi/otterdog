@@ -67,6 +67,7 @@ quart-wtforms        = "^1.0"
 odmantic             = "^1.0"
 quart-redis          = "^2.0"
 aiohttp-client-cache = {version="^0.11.0", extras=["redis"]}
+ariadne              = "^0.22"
 
 
 [tool.poetry.group.dev.dependencies]

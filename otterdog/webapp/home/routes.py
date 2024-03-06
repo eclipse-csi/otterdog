@@ -53,6 +53,13 @@ async def index():
     )
 
 
+@blueprint.route("/query")
+async def query():
+    return await render_home_template(
+        "query.html",
+    )
+
+
 @blueprint.route("/projects/<project_name>")
 async def project(project_name: str):
     config = await get_configuration_by_project_name(project_name)
