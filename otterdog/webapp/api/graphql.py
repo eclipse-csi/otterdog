@@ -33,12 +33,12 @@ async def resolve_projects(*_, filter=None):
     configurations = await get_configurations()
 
     if filter:
-        final = []
-        for config in configurations:
-            result = jq.compile(filter).input(config.model_dump(exclude="id")).all()
-            if result:
-                final.append(result[0])
-        configurations = final
+        data = list(map(lambda x: x.model_dump(exclude="id"), configurations))
+        result = jq.compile(f".[] | {filter}").input(data).all()
+        if result:
+            configurations = result
+        else:
+            configurations = []
 
     return configurations
 
@@ -48,12 +48,11 @@ async def resolve_repositories(config: dict[str, Any], *_, filter=None):
     repositories = config["repositories"]
 
     if filter:
-        final = []
-        for repo in repositories:
-            result = jq.compile(filter).input(repo).all()
-            if result:
-                final.append(result[0])
-        repositories = final
+        result = jq.compile(f".[] | {filter}").input(repositories).all()
+        if result:
+            repositories = result
+        else:
+            repositories = []
 
     return repositories
 

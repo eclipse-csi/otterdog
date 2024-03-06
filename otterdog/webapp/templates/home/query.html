@@ -71,7 +71,11 @@ query {
               </div>
               <!-- /.card-body -->
               <div class="card-footer">
-                <button type="submit" class="btn btn-primary">Query</button>
+                <div class="row">
+                  <button type="submit" class="btn btn-primary">Query</button>
+                  &nbsp;
+                  <div id="loading"></div>
+                </div>
               </div>
             </form>
           </div>
@@ -130,10 +134,23 @@ query {
           'query': cleanQueryString
         };
 
+        var spinner = $("<div />", {
+          "class": "spinner-border s-5",
+          role: "status"
+        })
+
+        $("<span />", {
+          "class": "sr-only",
+          text: "Loading..."
+        }).appendTo(spinner);
+
+        spinner.appendTo($('#loading'))
+
         xhr.send(JSON.stringify(query));
 
         xhr.onreadystatechange = function() {
             if (xhr.readyState == XMLHttpRequest.DONE) {
+              $('#loading').empty();
               const status = xhr.status;
               if (status === 0 || (status >= 200 && status < 400)) {
                 showResults(JSON.parse(xhr.responseText));
