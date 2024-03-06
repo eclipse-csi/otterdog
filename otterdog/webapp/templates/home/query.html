@@ -54,15 +54,14 @@
                   <textarea class="form-control" rows="10" id="query-textarea" placeholder="Enter ...">
 query {
   projects(filter: "select(.config.settings.two_factor_requirement == false)") {
-    github_id
     project_name
     config {
-      github_id
       settings {
-        description
+        two_factor_requirement
       }
-      repositories(filter: "select(.name == \".eclipsefdn\")") {
+      repositories(filter: "select(.secret_scanning == \"disabled\")") {
         name
+        secret_scanning
       }
     }
   }
@@ -108,7 +107,7 @@ query {
       mode: "javascript",
       lineNumbers: true
     });
-    editor.setSize(null, 400);
+    editor.setSize(null, 350);
 
     String.prototype.removePrefix = function (prefix) {
       const hasPrefix = this.indexOf(prefix) === 0;
@@ -166,10 +165,16 @@ query {
         });
         header.appendTo(card);
 
-        $("<h3 />", {
-          "class": "card-title",
+        var title = $("<h3 />", {
+          "class": "card-title"
+        })
+
+        $("<a />", {
+          "href": "/projects/" + project.project_name,
           text: project.project_name
-        }).appendTo(header);
+        }).appendTo(title);
+
+        title.appendTo(header);
 
         $('<div class="card-tools"><button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button></div>').appendTo(header);
 
