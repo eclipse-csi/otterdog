@@ -24,4 +24,4 @@ class _RedisCache(CacheStrategy):
     def get_cache_backend(self) -> CacheBackend:
         from aiohttp_client_cache.backends import RedisBackend
 
-        return RedisBackend(address=self._redis_uri, connection=self._connection)
+        return RedisBackend(address=self._redis_uri, connection=self._connection, ignored_params="Authorization")
