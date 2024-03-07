@@ -400,13 +400,36 @@
 
   <script>
     $(document).ready(function() {
-      var hash = window.location.hash;
-      if (hash) {
-        $('[data-toggle="pill"][href="' + hash + '"]').trigger('click');
-      }
+      enableTabFromHash();
 
       drawSecretScanningChart();
       drawBranchProtectionChart();
+
+      window.onhashchange = function() {
+        enableTabFromHash();
+      };
+    });
+
+    function enableTabFromHash() {
+      var hash = window.location.hash;
+      if (!hash) {
+        hash = "#overview";
+      }
+      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+    }
+
+    $(".nav-tabs").find("li a").each(function(key, val) {
+      $(val).on("click", function(e, updateHistory) {
+        if (updateHistory == false) {
+          return;
+        }
+
+        if(history.pushState) {
+          history.pushState(null, null, $(this).attr('href'));
+        } else {
+          window.location.hash = $(this).attr('href');
+        }
+      });
     });
 
     $('.tab-link').on('click', function(event) {
