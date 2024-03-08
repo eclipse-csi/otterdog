@@ -55,8 +55,11 @@ async def index():
 
 @blueprint.route("/query")
 async def query():
+    from otterdog.webapp.api.graphql import type_defs
+
     return await render_home_template(
         "query.html",
+        graphql_schema=type_defs,
     )
 
 

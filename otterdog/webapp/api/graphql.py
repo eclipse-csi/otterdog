@@ -33,6 +33,7 @@ async def resolve_projects(*_, filter=None):
     configurations = await get_configurations()
 
     if filter:
+        filter = filter.replace("'", '"')
         data = list(map(lambda x: x.model_dump(exclude="id"), configurations))
         result = jq.compile(f".[] | {filter}").input(data).all()
         if result:
@@ -48,6 +49,7 @@ async def resolve_repositories(config: dict[str, Any], *_, filter=None):
     repositories = config["repositories"]
 
     if filter:
+        filter = filter.replace("'", '"')
         result = jq.compile(f".[] | {filter}").input(repositories).all()
         if result:
             repositories = result

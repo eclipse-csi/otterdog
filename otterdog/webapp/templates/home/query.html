@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
   <!-- Codemirror -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.css">
   <!-- Theme style -->
   <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
 
@@ -59,7 +60,7 @@ query {
       settings {
         two_factor_requirement
       }
-      repositories(filter: "select(.secret_scanning == \"disabled\")") {
+      repositories(filter: "select(.secret_scanning == 'disabled')") {
         name
         secret_scanning
       }
@@ -100,18 +101,15 @@ query {
   <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.12.1/ui/widget.min.js"></script>
   <!-- Bootstrap 4 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Codemirror -->
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+  <!-- graphql-editor using Codemirror -->
+  <script src="/static/assets/js/graphql-editor.min.js"></script>
   <!-- AdminLTE App -->
   <script src="/static/assets/js/adminlte.js"></script>
 
   <script>
-    editor = CodeMirror.fromTextArea($("#query-textarea").get(0), {
-      mode: "javascript",
-      lineNumbers: true
-    });
-    editor.setSize(null, 350);
+    var schema = `{{ graphql_schema|safe }}`;
+    var editor = gql.createEditor($("#query-textarea").get(0), schema);
+    editor.setSize(null, 300);
 
     String.prototype.removePrefix = function (prefix) {
       const hasPrefix = this.indexOf(prefix) === 0;
