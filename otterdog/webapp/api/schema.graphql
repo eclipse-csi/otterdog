@@ -44,6 +44,7 @@ type Repository {
     secret_scanning_push_protection: String
     dependabot_alerts_enabled: Boolean
     dependabot_security_updates_enabled: Boolean
+    private_vulnerability_reporting_enabled: Boolean
     gh_pages_build_type: String
     gh_pages_source_branch: String
     gh_pages_source_path: String

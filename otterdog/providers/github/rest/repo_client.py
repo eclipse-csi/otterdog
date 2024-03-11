@@ -37,9 +37,18 @@ class RepoClient(RestClient):
 
         try:
             repo_data = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
+
+            archived = repo_data.get("archived", False)
+            if not archived:
+                await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
+
+                private = repo_data.get("private", False)
+                if not private:
+                    await self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data)
+
             await self._fill_github_pages_config(org_id, repo_name, repo_data)
-            await self._fill_vulnerability_report(org_id, repo_name, repo_data)
             await self._fill_topics(org_id, repo_name, repo_data)
+
             return repo_data
         except GitHubException as ex:
             tb = ex.__traceback__
@@ -60,9 +69,14 @@ class RepoClient(RestClient):
         changes = len(data)
 
         if "dependabot_alerts_enabled" in data:
-            vulnerability_reports = bool(data.pop("dependabot_alerts_enabled"))
+            vulnerability_alerts = bool(data.pop("dependabot_alerts_enabled"))
         else:
-            vulnerability_reports = None
+            vulnerability_alerts = None
+
+        if "private_vulnerability_reporting_enabled" in data:
+            private_vulnerability_reporting = bool(data.pop("private_vulnerability_reporting_enabled"))
+        else:
+            private_vulnerability_reporting = None
 
         if "topics" in data:
             topics = list(data.pop("topics"))
@@ -84,8 +98,12 @@ class RepoClient(RestClient):
                 if len(data) > 0:
                     await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
 
-                if vulnerability_reports is not None:
-                    await self._update_vulnerability_report(org_id, repo_name, vulnerability_reports)
+                if vulnerability_alerts is not None:
+                    await self._update_vulnerability_alerts(org_id, repo_name, vulnerability_alerts)
+                if private_vulnerability_reporting is not None:
+                    await self._update_private_vulnerability_reporting(
+                        org_id, repo_name, private_vulnerability_reporting
+                    )
                 if topics is not None:
                     await self._update_topics(org_id, repo_name, topics)
                 if gh_pages is not None:
@@ -478,8 +496,8 @@ class RepoClient(RestClient):
                 f"failed to update default branch for repo '{org_id}/{repo_name}':\n{ex}"
             ).with_traceback(tb)
 
-    async def _fill_vulnerability_report(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
-        print_debug(f"retrieving repo vulnerability report status for '{org_id}/{repo_name}'")
+    async def _fill_vulnerability_alerts(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"retrieving repo vulnerability alerts for '{org_id}/{repo_name}'")
 
         status, _ = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
         if status == 204:
@@ -487,8 +505,8 @@ class RepoClient(RestClient):
         else:
             repo_data["dependabot_alerts_enabled"] = False
 
-    async def _update_vulnerability_report(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
-        print_debug(f"updating repo vulnerability report status for '{org_id}/{repo_name}'")
+    async def _update_vulnerability_alerts(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
+        print_debug(f"updating repo vulnerability alerts for '{org_id}/{repo_name}'")
 
         if vulnerability_reports is True:
             method = "PUT"
@@ -498,9 +516,38 @@ class RepoClient(RestClient):
         status, body = await self.requester.request_raw(method, f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
 
         if status != 204:
-            raise RuntimeError(f"failed to update vulnerability_reports for repo '{repo_name}': {body}")
+            raise RuntimeError(f"failed to update vulnerability alerts for repo '{repo_name}': {body}")
 
-        print_debug(f"updated vulnerability_reports for repo '{repo_name}'")
+        print_debug(f"updated vulnerability alerts for repo '{repo_name}'")
+
+    async def _fill_private_vulnerability_reporting(
+        self, org_id: str, repo_name: str, repo_data: dict[str, Any]
+    ) -> None:
+        print_debug(f"retrieving repo private vulnerability reporting status for '{org_id}/{repo_name}'")
+
+        response = await self.requester.request_json(
+            "GET", f"/repos/{org_id}/{repo_name}/private-vulnerability-reporting"
+        )
+        repo_data["private_vulnerability_reporting_enabled"] = response["enabled"]
+
+    async def _update_private_vulnerability_reporting(
+        self, org_id: str, repo_name: str, private_vulnerability_reporting_enabled: bool
+    ) -> None:
+        print_debug(f"updating repo private vulnerability reporting for '{org_id}/{repo_name}'")
+
+        if private_vulnerability_reporting_enabled is True:
+            method = "PUT"
+        else:
+            method = "DELETE"
+
+        status, body = await self.requester.request_raw(
+            method, f"/repos/{org_id}/{repo_name}/private-vulnerability-reporting"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update private vulnerability reporting for repo '{repo_name}': {body}")
+
+        print_debug(f"updated private vulnerability reporting for repo '{repo_name}'")
 
     async def _fill_topics(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo topics for '{org_id}/{repo_name}'")

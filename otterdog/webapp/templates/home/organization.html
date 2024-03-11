@@ -300,6 +300,7 @@
                             <th class="text-center">Variables</th>
                             <th class="text-center">Webhooks</th>
                             <th class="text-center">Secret Scanning</th>
+                            <th class="text-center">Private Vulnerability Reporting</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -359,6 +360,15 @@
                               <i class="text-warning fa-solid fa-circle-check"></i>
                               {% else %}
                               <i class="text-danger fa-solid fa-circle-xmark"></i>
+                              {% endif %}
+                            </td>
+                            <td class="text-center">
+                              {% if repo.private_vulnerability_reporting_enabled == true %}
+                              <i class="text-success fa-solid fa-circle-check"></i>
+                              {% elif repo.private_vulnerability_reporting_enabled == false %}
+                              <i class="text-warning fa-solid fa-circle-check"></i>
+                              {% else %}
+                              <i class="text-muted fa-solid fa-circle"></i>
                               {% endif %}
                             </td>
                           </tr>

@@ -84,6 +84,7 @@ class Repository(ModelObject):
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
     dependabot_security_updates_enabled: bool
+    private_vulnerability_reporting_enabled: bool
 
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
@@ -115,6 +116,10 @@ class Repository(ModelObject):
         "dependabot_security_updates_enabled",
     ]
 
+    _additional_security_properties: ClassVar[list[str]] = [
+        "private_vulnerability_reporting_enabled",
+    ]
+
     _unavailable_fields_in_archived_repos: ClassVar[set[str]] = {
         "description",
         "homepage",
@@ -130,6 +135,7 @@ class Repository(ModelObject):
         "squash_merge_commit_title",
         "dependabot_alerts_enabled",
         "dependabot_security_updates_enabled",
+        "private_vulnerability_reporting_enabled",
         "secret_scanning",
         "secret_scanning_push_protection",
         "has_issues",
@@ -405,7 +411,7 @@ class Repository(ModelObject):
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
         if self.private is True:
-            if field.name in self._security_properties:
+            if field.name in self._security_properties or field.name in self._additional_security_properties:
                 return False
 
         if self.archived is True:
