@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.6.0] - unreleased
+
+### Added
+
+- Added support for repository setting `private_vulnerability_reporting_enabled`. ([#205](https://github.com/eclipse-csi/otterdog/issues/205))
+- Added a graphql based query interface to the dashboard. ([#204](https://github.com/eclipse-csi/otterdog/issues/204))
+
+
 ## [0.5.0] - 05/03/2024
 
 Note: this version includes lots of additions and changes related to the GitHub App mode which are not
