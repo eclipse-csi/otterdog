@@ -95,6 +95,14 @@
                           <span class="float-right">{{ repo_name }}</span>
                         </a>
                       </li>
+                      {% if config.settings.private_vulnerability_reporting_enabled != null %}
+                      <li class="nav-item">
+                        <a href="#settings" class="nav-link tab-link">
+                          {% set private_vulnerability_reporting_enabled = config.settings.private_vulnerability_reporting_enabled %}
+                          Private Vulnerability Reporting <span class="float-right badge bg-{{ 'success' if private_vulnerability_reporting_enabled == true else 'danger' }}">{{ private_vulnerability_reporting_enabled }}</span>
+                        </a>
+                      </li>
+                      {% endif %}
                       <li class="nav-item">
                         <a href="#secrets" class="nav-link tab-link">
                           Secrets <span class="float-right badge bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>
