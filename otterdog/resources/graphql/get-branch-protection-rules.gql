@@ -129,7 +129,4 @@ query($endCursor: String, $organization: String!, $repository: String!) {
       }
     }
   }
-  rateLimit {
-    cost
-  }
 }
