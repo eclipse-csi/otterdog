@@ -212,3 +212,28 @@ def current_utc_time() -> datetime:
         from datetime import UTC
 
         return datetime.now(UTC)
+
+
+def make_aware_utc(d: datetime) -> datetime:
+    if sys.version_info < (3, 12):
+        from datetime import timezone
+
+        utc = timezone(timedelta(0))
+        return d.astimezone(utc)
+    else:
+        from datetime import UTC
+
+        return d.astimezone(UTC)
+
+
+async def backoff_if_needed(last_event: datetime, required_timeout: timedelta) -> None:
+    last_event = make_aware_utc(last_event)
+    now = make_aware_utc(current_utc_time())
+
+    current_timeout = now - last_event
+
+    if current_timeout < required_timeout:
+        remaining_backoff = required_timeout - current_timeout
+        remaining_backoff_seconds = remaining_backoff.total_seconds() + 1
+        logger.debug(f"backing off {remaining_backoff_seconds}s")
+        await asyncio.sleep(remaining_backoff_seconds)

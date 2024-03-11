@@ -38,7 +38,7 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _pre_execute(self) -> bool:
         if isinstance(self.pull_request_or_number, int):
             rest_api = await self.rest_api
             response = await rest_api.pull_request.get_pull_request(
@@ -48,6 +48,9 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         else:
             self._pull_request = self.pull_request_or_number
 
+        return True
+
+    async def _execute(self) -> None:
         self.logger.info(
             "retrieving team membership of author '%s' for pull request #%d of repo '%s/%s'",
             self._pull_request.user.login,
@@ -56,7 +59,6 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-    async def _execute(self) -> None:
         rest_api = await self.rest_api
 
         user = self._pull_request.user.login

@@ -67,7 +67,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _pre_execute(self) -> bool:
         if isinstance(self.pull_request_or_number, int):
             rest_api = await self.rest_api
             response = await rest_api.pull_request.get_pull_request(
@@ -77,15 +77,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
         else:
             self._pull_request = self.pull_request_or_number
 
-        self.logger.info(
-            "validating pull request #%d of repo '%s/%s' with log level '%s'",
-            self.pull_request_number,
-            self.org_id,
-            self.repo_name,
-            self.log_level,
-        )
-
         await self._create_pending_status()
+
+        return True
 
     async def _post_execute(self, result_or_exception: ValidationResult | Exception) -> None:
         if isinstance(result_or_exception, Exception):
@@ -94,6 +88,14 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             await self._update_final_status(result_or_exception)
 
     async def _execute(self) -> ValidationResult:
+        self.logger.info(
+            "validating pull request #%d of repo '%s/%s' with log level '%s'",
+            self.pull_request_number,
+            self.org_id,
+            self.repo_name,
+            self.log_level,
+        )
+
         async with self.get_organization_config() as org_config:
             rest_api = await self.rest_api
 

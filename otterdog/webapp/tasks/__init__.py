@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 import aiofiles
 
@@ -25,6 +25,7 @@ from otterdog.webapp.db.service import (
     fail_task,
     finish_task,
     get_installation,
+    schedule_task,
 )
 from otterdog.webapp.utils import (
     get_graphql_api_for_installation,
@@ -53,32 +54,33 @@ class Task(ABC, Generic[T]):
         if task_model is not None:
             await create_task(task_model)
 
+        task_result: Any = None
+
         try:
-            await self._pre_execute()
+            if await self._pre_execute() is True:
+                if task_model is not None:
+                    await schedule_task(task_model)
 
-            result = await self._execute()
-            await self._post_execute(result)
-
-            if task_model is not None:
-                self._update_task_model(task_model)
-
-            if task_model is not None:
-                await finish_task(task_model)
-
-            return result
+                result = await self._execute()
+                await self._post_execute(result)
+                task_result = result
         except Exception as ex:
             self.logger.exception(f"failed to execute task '{self!r}'", exc_info=ex)
             await self._post_execute(ex)
-
-            if task_model is not None:
-                await fail_task(task_model, ex)
-
-            return None
+            task_result = ex
         finally:
-            await self._cleanup()
+            if task_model is not None:
+                self._update_task_model(task_model)
+                if isinstance(task_result, Exception):
+                    await fail_task(task_model, task_result)
+                else:
+                    await finish_task(task_model)
 
-    async def _pre_execute(self) -> None:
-        pass
+            await self._cleanup()
+            return task_result
+
+    async def _pre_execute(self) -> bool:
+        return True
 
     async def _post_execute(self, result_or_exception: T | Exception) -> None:
         pass

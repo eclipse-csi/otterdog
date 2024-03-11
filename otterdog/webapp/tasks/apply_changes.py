@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 from dataclasses import dataclass
+from datetime import timedelta
 from io import StringIO
 
 from quart import render_template
@@ -14,15 +15,20 @@ from quart import render_template
 from otterdog.operations.apply import ApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
-from otterdog.webapp.db.service import find_pull_request, update_pull_request
+from otterdog.webapp.db.service import (
+    find_pull_request,
+    get_latest_sync_or_apply_task_for_organization,
+    update_pull_request,
+)
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
+    backoff_if_needed,
     escape_for_github,
     fetch_config_from_github,
     get_admin_team,
     get_otterdog_config,
 )
-from otterdog.webapp.webhook.github_models import PullRequest, Repository
+from otterdog.webapp.webhook.github_models import PullRequest
 
 
 @dataclass
@@ -38,53 +44,102 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
     installation_id: int
     org_id: str
-    repository: Repository
-    pull_request: PullRequest
+    repo_name: str
+    pull_request_or_number: PullRequest | int
+    author: str | None = None
 
     @property
     def pull_request_number(self) -> int:
-        return self.pull_request.number
+        return (
+            self.pull_request_or_number
+            if isinstance(self.pull_request_or_number, int)
+            else self.pull_request_or_number.number
+        )
 
     def create_task_model(self):
         return TaskModel(
             type=type(self).__name__,
             org_id=self.org_id,
-            repo_name=self.repository.name,
-            pull_request=self.pull_request.number,
+            repo_name=self.repo_name,
+            pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
-        self._pr_model = await find_pull_request(self.org_id, self.repository.name, self.pull_request.number)
-        if self._pr_model is None:
-            self.logger.error(
-                f"failed to find pull request #{self.pull_request_number} in repo '{self.repository.full_name}'"
+    async def _pre_execute(self) -> bool:
+        self.logger.info(
+            "applying merged pull request #%d of repo '%s/%s'",
+            self.pull_request_number,
+            self.org_id,
+            self.repo_name,
+        )
+
+        if isinstance(self.pull_request_or_number, int):
+            rest_api = await self.rest_api
+            response = await rest_api.pull_request.get_pull_request(
+                self.org_id, self.repo_name, str(self.pull_request_or_number)
             )
+            self._pull_request = PullRequest.model_validate(response)
+        else:
+            self._pull_request = self.pull_request_or_number
 
-    async def _post_execute(self, result_or_exception: ApplyResult | Exception) -> None:
-        if self._pr_model is None:
-            return
+        pr_model = await find_pull_request(self.org_id, self.repo_name, self.pull_request_number)
+        if pr_model is None:
+            raise RuntimeError(
+                f"failed to fetch pull request #{self.pull_request_number} in repo '{self.org_id}/{self.repo_name}'"
+            )
+        else:
+            self._pr_model = pr_model
 
+        if self._pull_request.merged is not True or self._pull_request.merge_commit_sha is None:
+            self.logger.error(
+                f"trying to apply changes for unmerged pull request #{self.pull_request_number} "
+                f"of org '{self.org_id}', skipping"
+            )
+            return False
+
+        if self._pr_model.apply_status == ApplyStatus.COMPLETED:
+            self.logger.error(
+                f"trying to apply changes for already applied pull request #{self.pull_request_number} "
+                f"of org '{self.org_id}', skipping"
+            )
+            return False
+
+        if self.author is not None:
+            rest_api = await self.rest_api
+            admin_team = get_admin_team()
+            if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
+                comment = await render_template("comment/wrong_team_apply_comment.txt", admin_team=admin_team)
+                await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+
+                self.logger.error(
+                    f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
+                    f"who is not a member of the admin team, skipping"
+                )
+
+                return False
+
+        latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
+        # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
+        if latest_sync_or_apply_task is not None:
+            await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
+
+        return True
+
+    async def _post_execute(self, result_or_exception: ApplyResult | None | Exception) -> None:
         if isinstance(result_or_exception, Exception):
             self._pr_model.apply_status = ApplyStatus.FAILED
+        elif result_or_exception is None:
+            pass
         else:
             if result_or_exception.apply_success is False or result_or_exception.partial:
                 self._pr_model.apply_status = ApplyStatus.PARTIALLY_APPLIED
             else:
                 self._pr_model.apply_status = ApplyStatus.COMPLETED
 
-        await update_pull_request(self._pr_model)
+            await update_pull_request(self._pr_model)
 
     async def _execute(self) -> ApplyResult:
-        assert self.pull_request.merged is True
-        assert self.pull_request.merge_commit_sha is not None
-
-        self.logger.info(
-            "applying merged pull request #%d of repo '%s'", self.pull_request.number, self.repository.full_name
-        )
-
         apply_result = ApplyResult()
-
-        pull_request_number = str(self.pull_request.number)
+        pull_request_number = str(self.pull_request_number)
 
         async with self.get_organization_config() as org_config:
             rest_api = await self.rest_api
@@ -97,7 +152,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self.org_id,
                 org_config.config_repo,
                 head_file,
-                self.pull_request.merge_commit_sha,
+                self._pull_request.merge_commit_sha,
             )
 
             output = StringIO()
@@ -123,10 +178,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 operation_result = await operation.execute(org_config)
                 apply_result.apply_output = output.getvalue()
                 apply_result.apply_success = operation_result == 0
-                if self._pr_model is not None:
-                    apply_result.partial = self._pr_model.requires_manual_apply
-                else:
-                    apply_result.partial = False
+                apply_result.partial = self._pr_model.requires_manual_apply
             except Exception as ex:
                 self.logger.exception("exception during apply", exc_info=ex)
 
@@ -150,4 +202,4 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             return apply_result
 
     def __repr__(self) -> str:
-        return f"ApplyChangesTask(repo={self.repository.full_name}, pull_request={self.pull_request.number})"
+        return f"ApplyChangesTask(repo='{self.org_id}/{self.repo_name}', pull_request=#{self.pull_request_number})"

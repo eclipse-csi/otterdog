@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from io import StringIO
 
 from quart import current_app, render_template
@@ -18,10 +19,14 @@ from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import update_or_create_pull_request
+from otterdog.webapp.db.service import (
+    get_latest_sync_or_apply_task_for_organization,
+    update_or_create_pull_request,
+)
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.tasks.validate_pull_request import get_admin_team
 from otterdog.webapp.utils import (
+    backoff_if_needed,
     escape_for_github,
     fetch_config_from_github,
     get_otterdog_config,
@@ -54,7 +59,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _pre_execute(self) -> bool:
         self.logger.info(
             "checking if base ref is in sync for pull request #%d of repo '%s/%s'",
             self.pull_request_number,
@@ -71,7 +76,14 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
         else:
             self._pull_request = self.pull_request_or_number
 
+        latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
+        # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
+        if latest_sync_or_apply_task is not None:
+            await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
+
         await self._create_pending_status()
+
+        return True
 
     async def _post_execute(self, result_or_exception: bool | Exception) -> None:
         if isinstance(result_or_exception, Exception):

@@ -29,7 +29,7 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _execute(self) -> None:
         self.logger.info(
             "adding help text to pull request #%d of repo '%s/%s'",
             self.pull_request_number,
@@ -37,7 +37,6 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-    async def _execute(self) -> None:
         rest_api = await self.rest_api
         comment = await render_template("comment/help_comment.txt")
 
@@ -56,4 +55,4 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
         )
 
     def __repr__(self) -> str:
-        return f"HelpCommentTask(repo={self.org_id}/{self.repo_name}, pull_request={self.pull_request_number})"
+        return f"HelpCommentTask(repo='{self.org_id}/{self.repo_name}', pull_request=#{self.pull_request_number})"

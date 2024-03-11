@@ -252,6 +252,11 @@ async def create_task(task: TaskModel) -> None:
     await mongo.odm.save(task)
 
 
+async def schedule_task(task: TaskModel) -> None:
+    task.status = TaskStatus.SCHEDULED
+    await mongo.odm.save(task)
+
+
 async def finish_task(task: TaskModel) -> None:
     task.status = TaskStatus.FINISHED
     task.updated_at = current_utc_time()
@@ -263,6 +268,23 @@ async def fail_task(task: TaskModel, exception: Exception) -> None:
     task.updated_at = current_utc_time()
     task.log = str(exception)
     await mongo.odm.save(task)
+
+
+async def get_latest_sync_or_apply_task_for_organization(org_id: str, repo_name: str) -> TaskModel | None:
+    tasks = await mongo.odm.find(
+        TaskModel,
+        query.or_(TaskModel.type == "CheckConfigurationInSyncTask", TaskModel.type == "ApplyChangesTask"),
+        TaskModel.status != TaskStatus.CREATED,
+        TaskModel.org_id == org_id,
+        TaskModel.repo_name == repo_name,
+        sort=query.desc(TaskModel.created_at),
+        limit=1,
+    )
+
+    if len(tasks) == 1:
+        return tasks[0]
+    else:
+        return None
 
 
 async def save_config(config: ConfigurationModel) -> None:

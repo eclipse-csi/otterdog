@@ -1,0 +1,2 @@
+This is your friendly self-service bot.
+Only members of the admin team `{{ admin_team }}` are allowed to mark the PR as being completed.

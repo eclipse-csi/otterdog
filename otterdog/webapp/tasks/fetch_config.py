@@ -29,14 +29,13 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             repo_name=self.repo_name,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _execute(self) -> None:
         self.logger.info(
             "fetching latest config from repo '%s/%s'",
             self.org_id,
             self.repo_name,
         )
 
-    async def _execute(self) -> None:
         async with self.get_organization_config() as org_config:
             rest_api = await self.rest_api
 
@@ -69,4 +68,4 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             await save_statistics(statistics)
 
     def __repr__(self) -> str:
-        return f"FetchConfigTask(repo={self.org_id}/{self.repo_name})"
+        return f"FetchConfigTask(repo='{self.org_id}/{self.repo_name}')"
