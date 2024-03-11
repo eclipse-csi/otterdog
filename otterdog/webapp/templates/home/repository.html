@@ -341,6 +341,36 @@
   <script src="/static/assets/js/adminlte.min.js"></script>
 
   <script>
+    $(document).ready(function() {
+      enableTabFromHash();
+
+      window.onhashchange = function() {
+        enableTabFromHash();
+      };
+    });
+
+    function enableTabFromHash() {
+      var hash = window.location.hash;
+      if (!hash) {
+        hash = "#overview";
+      }
+      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+    }
+
+    $(".nav-tabs").find("li a").each(function(key, val) {
+      $(val).on("click", function(e, updateHistory) {
+        if (updateHistory == false) {
+          return;
+        }
+
+        if(history.pushState) {
+          history.pushState(null, null, $(this).attr('href'));
+        } else {
+          window.location.hash = $(this).attr('href');
+        }
+      });
+    });
+
     $('.tab-link').on('click', function(event) {
       // Prevent url change
       event.preventDefault();
@@ -392,6 +422,10 @@
     });
 
     function enableEditor(selector) {
+      if ($(selector).length == 0) {
+        return;
+      }
+
       var editor = $(selector).next('.CodeMirror').get(0);
       if (editor == null) {
         editor = CodeMirror.fromTextArea($(selector).get(0), {

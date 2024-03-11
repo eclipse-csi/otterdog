@@ -5,4 +5,5 @@ This is your friendly self-service bot. The following commands are supported:
 - `/validate`: validates the configuration change if this PR touches the configuration
 - `/validate info`: validates the configuration change, printing also validation infos
 - `/check-sync`: checks if the base ref is in sync with live settings
-- `/done`: notifies the self-service bot that required manual apply operation has been performed
+- `/done`: notifies the self-service bot that required manual apply operation has been performed (only accessible for members of the admin team)
+- `/apply`: re-apply a previously failed attempt (only accessible for members of the admin team)

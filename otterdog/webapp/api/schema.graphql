@@ -1,0 +1,89 @@
+schema {
+    query: Query
+}
+
+type Project {
+    github_id: String!
+    project_name: String!
+    config: Configuration!
+}
+
+type Configuration {
+    github_id: String!
+    settings: OrganizationSettings!
+    repositories(filter: String): [Repository]
+}
+
+type Repository {
+    name: String
+    description: String
+    homepage: String
+    private: Boolean
+    has_discussions: Boolean
+    has_issues: Boolean
+    has_projects: Boolean
+    has_wiki: Boolean
+    is_template: Boolean
+    template_repository: String
+    topics: [String]
+    default_branch: String
+    allow_rebase_merge: Boolean
+    allow_merge_commit: Boolean
+    allow_squash_merge: Boolean
+    allow_auto_merge: Boolean
+    delete_branch_on_merge: Boolean
+    allow_update_branch: Boolean
+    squash_merge_commit_title: String
+    squash_merge_commit_message: String
+    merge_commit_title: String
+    merge_commit_message: String
+    archived: Boolean
+    allow_forking: Boolean
+    web_commit_signoff_required: Boolean
+    secret_scanning: String
+    secret_scanning_push_protection: String
+    dependabot_alerts_enabled: Boolean
+    dependabot_security_updates_enabled: Boolean
+    gh_pages_build_type: String
+    gh_pages_source_branch: String
+    gh_pages_source_path: String
+}
+
+type OrganizationSettings {
+    name: String
+    plan: String
+    description: String
+    email: String
+    location: String
+    company: String
+    billing_email: String
+    twitter_username: String
+    blog: String
+    has_discussions: Boolean
+    discussion_source_repository: String
+    has_organization_projects: Boolean
+    default_branch_name: String
+    default_repository_permission: String
+    two_factor_requirement: Boolean
+    web_commit_signoff_required: Boolean
+    dependabot_alerts_enabled_for_new_repositories: Boolean
+    dependabot_security_updates_enabled_for_new_repositories: Boolean
+    dependency_graph_enabled_for_new_repositories: Boolean
+    members_can_create_private_repositories: Boolean
+    members_can_create_public_repositories: Boolean
+    members_can_fork_private_repositories: Boolean
+    members_can_create_public_pages: Boolean
+    members_can_change_repo_visibility: Boolean
+    members_can_delete_repositories: Boolean
+    members_can_delete_issues: Boolean
+    members_can_create_teams: Boolean
+    readers_can_create_discussions: Boolean
+    packages_containers_public: Boolean
+    packages_containers_internal: Boolean
+    members_can_change_project_visibility: Boolean
+    security_managers: [String]
+}
+
+type Query {
+    projects(filter: String): [Project]!
+}

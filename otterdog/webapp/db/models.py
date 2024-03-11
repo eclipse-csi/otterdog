@@ -37,6 +37,7 @@ class InstallationModel(Model):
 
 class TaskStatus(str, Enum):
     CREATED = "created"
+    SCHEDULED = "scheduled"
     FINISHED = "finished"
     FAILED = "failed"
 
@@ -45,9 +46,9 @@ class TaskStatus(str, Enum):
 
 
 class TaskModel(Model):
-    type: str
-    org_id: str
-    repo_name: str
+    type: str = Field(index=True)
+    org_id: str = Field(index=True)
+    repo_name: str = Field(index=True)
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
     log: Optional[str] = None

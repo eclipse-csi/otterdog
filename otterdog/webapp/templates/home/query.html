@@ -1,0 +1,243 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Dashboard {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+  <!-- Codemirror -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
+
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <div class="content-wrapper">
+
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">Query</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">Query</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="card col-9">
+            <form id="query-form">
+              <div class="card-body">
+                <div class="form-group">
+                  <textarea class="form-control" rows="10" id="query-textarea" placeholder="Enter ...">
+query {
+  projects(filter: "select(.config.settings.two_factor_requirement == false)") {
+    project_name
+    config {
+      settings {
+        two_factor_requirement
+      }
+      repositories(filter: "select(.secret_scanning == 'disabled')") {
+        name
+        secret_scanning
+      }
+    }
+  }
+}
+                  </textarea>
+                </div>
+              </div>
+              <!-- /.card-body -->
+              <div class="card-footer">
+                <div class="row">
+                  <button type="submit" class="btn btn-primary">Query</button>
+                  &nbsp;
+                  <div id="loading"></div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="row" id="result">
+        </div>
+
+      </div><!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+
+  <!-- jQuery -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+  <!-- jQuery UI -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.12.1/ui/widget.min.js"></script>
+  <!-- Bootstrap 4 -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- graphql-editor using Codemirror -->
+  <script src="/static/assets/js/graphql-editor.min.js"></script>
+  <!-- AdminLTE App -->
+  <script src="/static/assets/js/adminlte.js"></script>
+
+  <script>
+    var schema = `{{ graphql_schema|safe }}`;
+    var editor = gql.createEditor($("#query-textarea").get(0), schema);
+    editor.setSize(null, 300);
+
+    String.prototype.removePrefix = function (prefix) {
+      const hasPrefix = this.indexOf(prefix) === 0;
+      return hasPrefix ? this.substr(prefix.length) : this.toString();
+    };
+
+    var form = document.getElementById('query-form');
+    form.onsubmit = function(event) {
+        var data = new FormData(form);
+        var xhr = new XMLHttpRequest();
+        // open the request
+        xhr.open('POST', '/api/graphql')
+        // send the form data
+        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+        queryString = editor.getValue();
+        cleanQueryString = queryString.trim().removePrefix("query");
+
+        query = {
+          'query': cleanQueryString
+        };
+
+        var spinner = $("<div />", {
+          "class": "spinner-border s-5",
+          role: "status"
+        })
+
+        $("<span />", {
+          "class": "sr-only",
+          text: "Loading..."
+        }).appendTo(spinner);
+
+        spinner.appendTo($('#loading'))
+
+        xhr.send(JSON.stringify(query));
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState == XMLHttpRequest.DONE) {
+              $('#loading').empty();
+              const status = xhr.status;
+              if (status === 0 || (status >= 200 && status < 400)) {
+                showResults(JSON.parse(xhr.responseText));
+              } else {
+                showError(xhr.responseText);
+              }
+                //form.reset(); // reset form after AJAX success
+            }
+        }
+
+        // Don't submit the form.
+        return false;
+    };
+
+    function showResults(obj) {
+      clearResults();
+      for (project of obj.data.projects) {
+        var outer = $("<div />", {
+          "class": "col-12",
+        });
+
+        var card = $("<div />", {
+          "class": "card card-primary",
+        });
+        card.appendTo(outer);
+
+        var header = $("<div />", {
+          "class": "card-header",
+        });
+        header.appendTo(card);
+
+        var title = $("<h3 />", {
+          "class": "card-title"
+        })
+
+        $("<a />", {
+          "href": "/projects/" + project.project_name,
+          text: project.project_name
+        }).appendTo(title);
+
+        title.appendTo(header);
+
+        $('<div class="card-tools"><button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button></div>').appendTo(header);
+
+        var body = $("<div />", {
+          "class": "card-body"
+        });
+
+        body.appendTo(card);
+
+        if ('settings' in project.config) {
+          $("<div />", {
+            "class": "col-12 bg-info",
+            text: JSON.stringify(project.config.settings)
+          }).appendTo(body);
+        }
+
+        if ('repositories' in project.config) {
+          for (repo of project.config.repositories) {
+            $("<div />", {
+              "class": "col-12 bg-success",
+              text: JSON.stringify(repo)
+            }).appendTo(body);
+          }
+        }
+
+        card.appendTo(outer);
+
+        outer.appendTo($('#result'))
+      }
+    };
+
+    function showError(text) {
+      clearResults();
+
+      var card = $("<div />", {
+          "class": "card bg-warning",
+        });
+
+      var body = $("<div />", {
+        "class": "card-body",
+        text: text
+      }).appendTo(card);
+
+      card.appendTo($('#result'))
+    };
+
+    function clearResults() {
+      $('#result').empty();
+    };
+  </script>
+{% endblock javascripts %}

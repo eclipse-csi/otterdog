@@ -67,6 +67,7 @@ quart-wtforms        = "^1.0"
 odmantic             = "^1.0"
 quart-redis          = "^2.0"
 aiohttp-client-cache = {version="^0.11.0", extras=["redis"]}
+ariadne              = "^0.22"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -76,7 +77,8 @@ mypy       = "^1.8"
 pre-commit = "^3.3"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.3"
+pytest         = "^7.3"
+pytest-asyncio = "^0.23"
 
 [tool.poetry.group.typing.dependencies]
 types-colorama   = "^0.4"
@@ -107,6 +109,11 @@ build-backend = "poetry.core.masonry.api"
 minversion = "7.2"
 testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
+
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 [tool.black]
 color          = true

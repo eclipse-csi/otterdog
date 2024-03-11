@@ -27,14 +27,13 @@ class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
             repo_name=self.repo_name,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _execute(self) -> None:
         self.logger.info(
             "fetching all pull requests from repo '%s/%s'",
             self.org_id,
             self.repo_name,
         )
 
-    async def _execute(self) -> None:
         rest_api = await self.rest_api
 
         all_pull_requests = await rest_api.pull_request.get_pull_requests(
@@ -56,4 +55,4 @@ class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
             )
 
     def __repr__(self) -> str:
-        return f"FetchAllPullRequestsTask(repo={self.org_id}/{self.repo_name})"
+        return f"FetchAllPullRequestsTask(repo='{self.org_id}/{self.repo_name}')"

@@ -103,7 +103,7 @@ async def on_pull_request_received(data):
             ApplyChangesTask(
                 event.installation.id,
                 event.organization.login,
-                event.repository,
+                event.repository.name,
                 event.pull_request,
             )
         )
@@ -166,6 +166,17 @@ async def on_issue_comment_received(data):
         elif re.match(r"\s*/done\s*", event.comment.body) is not None:
             current_app.add_background_task(
                 CompletePullRequestTask(
+                    installation_id,
+                    org_id,
+                    event.repository.name,
+                    event.issue.number,
+                    event.sender.login,
+                )
+            )
+            return success()
+        elif re.match(r"\s*/apply\s*", event.comment.body) is not None:
+            current_app.add_background_task(
+                ApplyChangesTask(
                     installation_id,
                     org_id,
                     event.repository.name,

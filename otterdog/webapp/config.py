@@ -58,6 +58,8 @@ class ProductionConfig(AppConfig):
 class DebugConfig(AppConfig):
     DEBUG = True
 
+    TEMPLATES_AUTO_RELOAD = True
+
 
 # Load all possible configurations
 config_dict = {"Production": ProductionConfig, "Debug": DebugConfig}

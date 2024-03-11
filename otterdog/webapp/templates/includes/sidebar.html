@@ -33,6 +33,16 @@
             </a>
           </li>
 
+          <li class="nav-item">
+            <a href="/query" class="nav-link {% if 'query' in segments %} active {% endif %}">
+              <i class="nav-icon fa-brands fa-searchengin"></i>
+              <p>
+                Query
+                <i class="fas nav-icon"></i>
+              </p>
+            </a>
+          </li>
+
           <li class="nav-header">PROJECTS</li>
             {% for nav_level1, value_level1 in projects|dictsort %}
             {% if value_level1|is_dict %}

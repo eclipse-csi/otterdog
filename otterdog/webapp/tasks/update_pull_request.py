@@ -33,7 +33,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> None:
+    async def _execute(self) -> None:
         self.logger.info(
             "updating pull request #%d of repo '%s/%s'",
             self.pull_request_number,
@@ -41,7 +41,6 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-    async def _execute(self) -> None:
         await update_or_create_pull_request(
             self.org_id,
             self.repo_name,
