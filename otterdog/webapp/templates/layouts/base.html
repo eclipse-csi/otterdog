@@ -3,14 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="/static/assets/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="canonical" href="https://otterdog.eclipse.org/"/>
 
   <title>
     Otterdog Dashboard - {% block title %}{% endblock %} | Eclipse Foundation
   </title>
 
-  {% block stylesheets %}{% endblock stylesheets %}
+  {% block stylesheets %}
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="/assets/vendor/fontawesome-free/css/all.min.css">
+  <!-- Bootstrap 4 -->
+  <link rel="stylesheet" href="/assets/vendor/bootstrap/bootstrap.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+  {% endblock stylesheets %}
 
 </head>
 <body class="hold-transition {% block body_class %}{% endblock body_class %}">
@@ -33,8 +42,14 @@
 </div>
 <!-- ./wrapper -->
 
-<!-- Specific Page JS goes HERE  -->
-{% block javascripts %}{% endblock javascripts %}
+{% block javascripts %}
+  <!-- jQuery -->
+  <script src="/assets/vendor/jquery/jquery.min.js"></script>
+  <!-- Bootstrap 4 -->
+  <script src="/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <!-- AdminLTE App -->
+  <script type="module" src="{{ asset('js/app.js') }}"></script>
+{% endblock javascripts %}
 
 </body>
 </html>

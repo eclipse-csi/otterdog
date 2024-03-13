@@ -9,7 +9,14 @@
 import json
 from typing import Any
 
-from quart import redirect, render_template, request, url_for
+from quart import (
+    current_app,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from werkzeug.routing import BuildError
 
 from otterdog.models.github_organization import GitHubOrganization
@@ -33,8 +40,14 @@ from . import blueprint
 
 
 @blueprint.route("/")
-def route_default():
+async def route_default():
     return redirect(url_for(".index"))
+
+
+@blueprint.route("/robots.txt")
+@blueprint.route("/favicon.ico")
+def static_from_root():
+    return send_from_directory(current_app.static_folder, request.path[1:])
 
 
 @blueprint.route("/index")

@@ -7,6 +7,13 @@ __pycache__/
 .idea
 .vscode
 
+
+# Ignoring generated static website content
+*/**/node_modules/
+otterdog/webapp/static/assets/bundled
+otterdog/webapp/static/assets/vendor
+otterdog/webapp/static/assets/manifest.json
+
 dist
 site
 .venv/

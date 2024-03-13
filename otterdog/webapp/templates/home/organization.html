@@ -7,20 +7,13 @@
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
+  {{ super() }}
+  <!-- Editor -->
+  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
 
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <!-- Codemirror -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
-
-  <!-- Theme style -->
-  <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
   <style>
     .CodeMirror { font-size: 12px; }
   </style>
-
 {% endblock stylesheets %}
 
 {% block content %}
@@ -397,20 +390,13 @@
 
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
-
-  <!-- jQuery -->
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-  <!-- Bootstrap 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  {{ super() }}
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <!-- Codemirror -->
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
-  <!-- AdminLTE App -->
-  <script src="/static/assets/js/adminlte.min.js"></script>
+  <script src="/assets/vendor/chartjs/chart.umd.js"></script>
 
-  <script>
+  <script type="module">
+    import {createJavascriptEditor} from '{{ asset('js/editor.js') }}';
+
     $(document).ready(function() {
       enableTabFromHash();
 
@@ -468,11 +454,7 @@
     function enableEditor(selector) {
       var editor = $(selector).next('.CodeMirror').get(0);
       if (editor == null) {
-        editor = CodeMirror.fromTextArea($(selector).get(0), {
-          mode: "javascript",
-          lineWrapping: true,
-          readOnly: true
-        });
+        editor = createJavascriptEditor($(selector).get(0));
         editor.setSize(null, 750);
       }
     };

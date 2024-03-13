@@ -7,20 +7,13 @@
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
-
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+  {{ super() }}
   <!-- DataTables -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.10/css/dataTables.bootstrap4.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.2.9/css/responsive.bootstrap4.min.css">
+  <link rel="stylesheet" href="/assets/vendor/datatables/dataTables.bootstrap4.min.css">
+  <link rel="stylesheet" href="/assets/vendor/datatables/responsive.bootstrap4.min.css">
   <!-- jsGrid -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsgrid@1.5.3/dist/jsgrid.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsgrid@1.5.3/dist/jsgrid-theme.min.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
-
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -121,20 +114,15 @@
 
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
+  {{ super() }}
 
-  <!-- jQuery -->
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-  <!-- Bootstrap 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- DataTables -->
-  <script src="https://cdn.jsdelivr.net/npm/datatables.net@1.13.10/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/datatables.net-bs4@1.13.10/js/dataTables.bootstrap4.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive@2.2.9/js/dataTables.responsive.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/datatables.net-responsive-bs4@2.2.9/js/responsive.bootstrap4.min.js"></script>
+  <script src="/assets/vendor/datatables/jquery.dataTables.min.js"></script>
+  <script src="/assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+  <script src="/assets/vendor/datatables/dataTables.responsive.min.js"></script>
+  <script src="/assets/vendor/datatables/responsive.bootstrap4.min.js"></script>
   <!-- jsGrid -->
-  <script src="https://cdn.jsdelivr.net/npm/jsgrid@1.5.3/dist/jsgrid.min.js"></script>
-  <!-- AdminLTE App -->
-  <script src="/static/assets/js/adminlte.min.js"></script>
+  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
 
   <!-- page script -->
   <script>
