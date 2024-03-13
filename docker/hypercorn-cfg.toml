@@ -1,5 +1,5 @@
 bind = "0.0.0.0:5000"
 workers = 4
 accesslog = '-'
-loglevel = 'info'
+loglevel = 'warning'
 h11_max_incomplete_size = 4
