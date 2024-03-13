@@ -227,13 +227,17 @@ async def get_project_navigation():
             continue
 
         levels = installation.project_name.split(".")
+
+        # if the project_name is a tlp, e.g. ee4j, add a second level with the same name
+        # to support multiple projects under the same tlp, e.g. ee4j and ee4j.jakartaee-platform,
+        # which will be transformed to ee4j.ee4j.
         if len(levels) == 1:
-            navigation[levels[0]] = installation
-        else:
-            curr = navigation.get(levels[0], {})
-            remainder = "".join(levels[1:])
-            curr.update({remainder: installation})
-            navigation[levels[0]] = curr
+            levels.append(levels[0])
+
+        curr = navigation.get(levels[0], {})
+        remainder = "".join(levels[1:])
+        curr.update({remainder: installation})
+        navigation[levels[0]] = curr
 
     return navigation
 

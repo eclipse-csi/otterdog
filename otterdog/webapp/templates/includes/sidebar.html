@@ -68,16 +68,6 @@
               {% endfor %}
               </ul>
             </li>
-            {% else %}
-            <li class="nav-item">
-              <a href="/projects/{{ value_level1.project_name }}" class="nav-link {% if value_level1.project_name in segments %} active {% endif %}">
-                <i class="nav-icon fab fa-square-github"></i>
-                <p>
-                  {{ value_level1.project_name }}
-                  <i class="fas nav-icon"></i>
-                </p>
-              </a>
-            </li>
             {% endif %}
             {% endfor %}
 
