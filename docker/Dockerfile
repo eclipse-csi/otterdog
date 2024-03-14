@@ -2,6 +2,17 @@
 FROM golang:1.18 AS builder-go
 RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
 
+FROM node:20-alpine as builder-node
+
+WORKDIR /app
+
+COPY ./otterdog ./otterdog
+
+WORKDIR /app/otterdog/webapp/static
+
+RUN npm i
+RUN npm run build
+
 # build otterdog using a python environment
 FROM python:3.12.2-slim as builder-python3
 
@@ -49,6 +60,7 @@ COPY --from=builder-python3 /app/docker/entrypoint.sh /app/entrypoint.sh
 COPY --from=builder-python3 /app/docker/start-webapp /app/start-webapp
 COPY --from=builder-python3 /app/docker/init-webapp /app/init-webapp
 COPY --from=builder-python3 /app/hypercorn-cfg.toml /app/hypercorn-cfg.toml
+COPY --from=builder-node /app/otterdog/webapp/static/assets /app/otterdog/webapp/static/assets
 
 RUN chmod +x /app/entrypoint.sh
 RUN chmod +x /app/start-webapp

@@ -7,16 +7,10 @@
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
+  {{ super() }}
+  <!-- Editor -->
+  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
 
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <!-- Codemirror -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
-
-  <!-- Theme style -->
-  <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
   <style>
     .CodeMirror { font-size: 12px; }
   </style>
@@ -95,10 +89,10 @@
                           <span class="float-right">{{ repo_name }}</span>
                         </a>
                       </li>
-                      {% if config.settings.private_vulnerability_reporting_enabled != null %}
+                      {% if repo_config.private_vulnerability_reporting_enabled != null %}
                       <li class="nav-item">
                         <a href="#settings" class="nav-link tab-link">
-                          {% set private_vulnerability_reporting_enabled = config.settings.private_vulnerability_reporting_enabled %}
+                          {% set private_vulnerability_reporting_enabled = repo_config.private_vulnerability_reporting_enabled %}
                           Private Vulnerability Reporting <span class="float-right badge bg-{{ 'success' if private_vulnerability_reporting_enabled == true else 'danger' }}">{{ private_vulnerability_reporting_enabled }}</span>
                         </a>
                       </li>
@@ -337,18 +331,10 @@
 
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
+  {{ super() }}
+  <script type="module">
+    import {createJavascriptEditor} from '{{ asset('js/editor.js') }}';
 
-  <!-- jQuery -->
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-  <!-- Bootstrap 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Codemirror -->
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
-  <!-- AdminLTE App -->
-  <script src="/static/assets/js/adminlte.min.js"></script>
-
-  <script>
     $(document).ready(function() {
       enableTabFromHash();
 
@@ -436,11 +422,7 @@
 
       var editor = $(selector).next('.CodeMirror').get(0);
       if (editor == null) {
-        editor = CodeMirror.fromTextArea($(selector).get(0), {
-          mode: "javascript",
-          lineWrapping: true,
-          readOnly: true
-        });
+        editor = createJavascriptEditor($(selector).get(0));
         editor.setSize(null, 770);
       }
     };

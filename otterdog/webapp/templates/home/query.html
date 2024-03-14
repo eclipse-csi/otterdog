@@ -7,19 +7,13 @@
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
+  {{ super() }}
+  <!-- Editor -->
+  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
 
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
-  <!-- Ionicons -->
-  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
-  <!-- Codemirror -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="/static/assets/css/adminlte.min.css">
-
+  <style>
+    .CodeMirror { font-size: 12px; }
+  </style>
 {% endblock stylesheets %}
 
 {% block content %}
@@ -94,21 +88,13 @@ query {
 
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
+  {{ super() }}
 
-  <!-- jQuery -->
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
-  <!-- jQuery UI -->
-  <script src="https://cdn.jsdelivr.net/npm/jquery-ui@1.12.1/ui/widget.min.js"></script>
-  <!-- Bootstrap 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- graphql-editor using Codemirror -->
-  <script src="/static/assets/js/graphql-editor.min.js"></script>
-  <!-- AdminLTE App -->
-  <script src="/static/assets/js/adminlte.js"></script>
+  <script type="module">
+    import {createGraphQLEditor} from '{{ asset('js/editor.js') }}';
 
-  <script>
     var schema = `{{ graphql_schema|safe }}`;
-    var editor = gql.createEditor($("#query-textarea").get(0), schema);
+    var editor = createGraphQLEditor($("#query-textarea").get(0), schema);
     editor.setSize(null, 300);
 
     String.prototype.removePrefix = function (prefix) {
@@ -125,10 +111,10 @@ query {
         // send the form data
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 
-        queryString = editor.getValue();
-        cleanQueryString = queryString.trim().removePrefix("query");
+        const queryString = editor.getValue();
+        const cleanQueryString = queryString.trim().removePrefix("query");
 
-        query = {
+        const query = {
           'query': cleanQueryString
         };
 
@@ -165,7 +151,7 @@ query {
 
     function showResults(obj) {
       clearResults();
-      for (project of obj.data.projects) {
+      for (var project of obj.data.projects) {
         var outer = $("<div />", {
           "class": "col-12",
         });
@@ -207,7 +193,7 @@ query {
         }
 
         if ('repositories' in project.config) {
-          for (repo of project.config.repositories) {
+          for (var repo of project.config.repositories) {
             $("<div />", {
               "class": "col-12 bg-success",
               text: JSON.stringify(repo)

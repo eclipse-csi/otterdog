@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime
 from importlib import import_module
 from importlib.util import find_spec
@@ -64,8 +66,31 @@ def configure_database(app):
 
 
 def create_app(app_config: AppConfig):
-    app = Quart(app_config.QUART_APP)
+    app = Quart(
+        app_config.QUART_APP,
+        static_url_path="/assets",
+        static_folder="static/assets",
+    )
     app.config.from_object(app_config)
+
+    manifest = {}
+    manifest_path = os.path.join(app.root_path, "static/assets/manifest.json")
+    try:
+        with open(manifest_path) as content:
+            manifest = json.load(content)
+    except OSError as exception:
+        raise RuntimeError(f"Manifest file not found at '{manifest_path}'. Run `npm run build`.") from exception
+
+    @app.context_processor
+    def context_processor():
+        def asset(file_path):
+            try:
+                return f"/assets/{manifest[file_path]['file']}"
+            except:  # noqa
+                app.logger.error(f"did not find asset {file_path}")
+                return f"/assets/{file_path}"
+
+        return dict(asset=asset)
 
     register_extensions(app)
     register_github_webhook(app)

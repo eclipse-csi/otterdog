@@ -1,0 +1,27 @@
+{
+  "name": "assets",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --mode development",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "vite": "^5.1.6",
+    "vite-plugin-static-copy": "^1.0.1"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.5.1",
+    "admin-lte": "^3.2.0",
+    "bootstrap": "^4.6.2",
+    "bootstrap-switch": "^3.4.0",
+    "chart.js": "^4.4.2",
+    "codemirror": "^5.65.16",
+    "codemirror-graphql": "^2.0.10",
+    "jquery": "^3.7.1",
+    "jquery-ui-dist": "^1.13.2"
+  }
+}
