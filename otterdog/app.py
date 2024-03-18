@@ -57,11 +57,6 @@ else:
     app.logger.error(f"APP_ROOT '{app_config.APP_ROOT}' does not exist, exiting.")
     exit(1)
 
-# if not DEBUG:
-#     from quart_minify import Minify  # type: ignore
-#
-#     Minify(app=app, html=True, js=True, cssless=False)
-
 if DEBUG:
     app.logger.info("DEBUG       = " + str(DEBUG))
     app.logger.info("Environment = " + config_mode)

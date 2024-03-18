@@ -57,14 +57,10 @@ requests             = "^2.31"
 
 [tool.poetry.group.app.dependencies]
 quart                = "^0.19"
-quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 python-dotenv        = "^1.0"
 pydantic             = "^2.6"
-quart_minify         = "^0.4"
-quart-auth           = "^0.9"
-quart-wtforms        = "^1.0"
-odmantic             = "^1.0"
+odmantic             = "^1.0.1"
 quart-redis          = "^2.0"
 aiohttp-client-cache = {version="^0.11.0", extras=["redis"]}
 ariadne              = "^0.22"
