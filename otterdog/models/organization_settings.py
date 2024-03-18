@@ -195,6 +195,11 @@ class OrganizationSettings(ModelObject):
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return None
 
+    def changes_require_web_ui(self, changes: dict[str, Change]) -> bool:
+        from otterdog.providers.github import is_org_settings_key_retrieved_via_web_ui
+
+        return any(map(lambda key: is_org_settings_key_retrieved_via_web_ui(key), changes.keys()))
+
     def to_jsonnet(
         self,
         printer: IndentingPrinter,

@@ -57,6 +57,7 @@ requests             = "^2.31"
 
 [tool.poetry.group.app.dependencies]
 quart                = "^0.19"
+quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 python-dotenv        = "^1.0"
 pydantic             = "^2.6"

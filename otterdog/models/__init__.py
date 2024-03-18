@@ -105,6 +105,20 @@ class LivePatch:
             LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
         )
 
+    def requires_web_ui(self) -> bool:
+        match self.patch_type:
+            case LivePatchType.ADD:
+                assert self.expected_object is not None
+                return self.expected_object.requires_web_ui()
+
+            case LivePatchType.REMOVE:
+                return False
+
+            case LivePatchType.CHANGE:
+                assert self.expected_object is not None
+                assert self.changes is not None
+                return self.expected_object.changes_require_web_ui(self.changes)
+
     def requires_secrets(self) -> bool:
         match self.patch_type:
             case LivePatchType.ADD:
@@ -436,6 +450,12 @@ class ModelObject(ABC):
                 result[key] = value
 
         return result
+
+    def requires_web_ui(self) -> bool:
+        return False
+
+    def changes_require_web_ui(self, changes: dict[str, Change]) -> bool:
+        return False
 
     def contains_secrets(self) -> bool:
         return False

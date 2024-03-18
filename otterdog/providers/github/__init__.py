@@ -21,23 +21,21 @@ from .web import WebClient
 
 _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
 
+# collect supported rest api keys
+_SETTINGS_RESTAPI_KEYS = {k for k, v in _ORG_SETTINGS_SCHEMA["properties"].items() if v.get("provider") == "restapi"}
+# collect supported web interface keys
+_SETTINGS_WEB_KEYS = {k for k, v in _ORG_SETTINGS_SCHEMA["properties"].items() if v.get("provider") == "web"}
+# TODO: make this cleaner
+_SETTINGS_WEB_KEYS.add("discussion_source_repository_id")
+
+
+def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
+    return key in _SETTINGS_WEB_KEYS
+
 
 class GitHubProvider:
     def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
-
-        self._settings_schema = _ORG_SETTINGS_SCHEMA
-        # collect supported rest api keys
-        self._settings_restapi_keys = {
-            k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "restapi"
-        }
-
-        # collect supported web interface keys
-        self._settings_web_keys = {
-            k for k, v in self._settings_schema["properties"].items() if v.get("provider") == "web"
-        }
-        # TODO: make this cleaner
-        self._settings_web_keys.add("discussion_source_repository_id")
 
         if credentials is not None:
             self._init_clients()
@@ -73,13 +71,13 @@ class GitHubProvider:
 
     async def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
         # first, get supported settings via the rest api.
-        required_rest_keys = {x for x in included_keys if x in self._settings_restapi_keys}
+        required_rest_keys = {x for x in included_keys if x in _SETTINGS_RESTAPI_KEYS}
         merged_settings = await self.rest_api.org.get_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings, unless --no-web-ui is specified.
         if not no_web_ui:
-            required_web_keys = {x for x in included_keys if x in self._settings_web_keys}
+            required_web_keys = {x for x in included_keys if x in _SETTINGS_WEB_KEYS}
             if len(required_web_keys) > 0:
                 web_settings = await self.web_client.get_org_settings(org_id, required_web_keys)
                 merged_settings.update(web_settings)
@@ -95,9 +93,9 @@ class GitHubProvider:
         # split up settings to be updated whether they need be updated
         # via rest api or web interface.
         for k, v in sorted(settings.items()):
-            if k in self._settings_restapi_keys:
+            if k in _SETTINGS_RESTAPI_KEYS:
                 rest_fields[k] = v
-            elif k in self._settings_web_keys:
+            elif k in _SETTINGS_WEB_KEYS:
                 web_fields[k] = v
             else:
                 utils.print_warn(f"encountered unknown field '{k}' during update, ignoring")

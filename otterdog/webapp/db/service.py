@@ -307,8 +307,10 @@ async def update_or_create_pull_request(
     valid: bool | None = None,
     in_sync: bool | None = None,
     requires_manual_apply: bool | None = None,
+    supports_auto_merge: bool | None = None,
+    has_required_approvals: bool | None = None,
     apply_status: ApplyStatus | None = None,
-) -> None:
+) -> PullRequestModel:
     pull_request_status = PullRequestStatus[pull_request.get_pr_status()]
 
     pr_model = await find_pull_request(owner, repo, pull_request.number)
@@ -344,7 +346,14 @@ async def update_or_create_pull_request(
     if requires_manual_apply is not None:
         pr_model.requires_manual_apply = requires_manual_apply
 
+    if supports_auto_merge is not None:
+        pr_model.supports_auto_merge = supports_auto_merge
+
+    if has_required_approvals is not None:
+        pr_model.has_required_approval = has_required_approvals
+
     await update_pull_request(pr_model)
+    return pr_model
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:

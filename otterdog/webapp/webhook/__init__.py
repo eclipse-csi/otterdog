@@ -28,10 +28,12 @@ from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_otterdog_config
 
+from ..tasks.merge_pull_request import MergePullRequestTask
 from .github_models import (
     InstallationEvent,
     IssueCommentEvent,
     PullRequestEvent,
+    PullRequestReviewEvent,
     PushEvent,
 )
 from .github_webhook import GitHubWebhook
@@ -111,6 +113,34 @@ async def on_pull_request_received(data):
     return success()
 
 
+@webhook.hook("pull_request_review")
+async def on_pull_request_review_received(data):
+    try:
+        event = PullRequestReviewEvent.model_validate(data)
+    except ValidationError:
+        logger.error("failed to load pull request review event data", exc_info=True)
+        return success()
+
+    if event.installation is None or event.organization is None:
+        return success()
+
+    if not await targets_config_repo(event.repository.name, event.installation.id):
+        return success()
+
+    if event.action in ["submitted", "edited", "dismissed"]:
+        current_app.add_background_task(
+            UpdatePullRequestTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request,
+                event.review,
+            )
+        )
+
+    return success()
+
+
 @webhook.hook("issue_comment")
 async def on_issue_comment_received(data):
     try:
@@ -177,6 +207,17 @@ async def on_issue_comment_received(data):
         elif re.match(r"\s*/apply\s*", event.comment.body) is not None:
             current_app.add_background_task(
                 ApplyChangesTask(
+                    installation_id,
+                    org_id,
+                    event.repository.name,
+                    event.issue.number,
+                    event.sender.login,
+                )
+            )
+            return success()
+        elif re.match(r"\s*/merge\s*", event.comment.body) is not None:
+            current_app.add_background_task(
+                MergePullRequestTask(
                     installation_id,
                     org_id,
                     event.repository.name,

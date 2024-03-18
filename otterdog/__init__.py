@@ -5,3 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
+
+import importlib.metadata
+
+__version__ = importlib.metadata.version(__name__)

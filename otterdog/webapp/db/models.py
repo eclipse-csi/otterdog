@@ -94,7 +94,9 @@ class PullRequestModel(Model):
 
     valid: Optional[bool] = None
     in_sync: Optional[bool] = None
-    requires_manual_apply: bool = False
+    requires_manual_apply: Optional[bool] = None
+    supports_auto_merge: Optional[bool] = None
+    has_required_approval: Optional[bool] = None
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
@@ -112,6 +114,14 @@ class PullRequestModel(Model):
             ),
         ],
     }
+
+    def can_be_automerged(self) -> bool:
+        return (
+            self.valid is True
+            and self.in_sync is True
+            and self.supports_auto_merge is True
+            and self.has_required_approval is True
+        )
 
 
 class StatisticsModel(Model):
