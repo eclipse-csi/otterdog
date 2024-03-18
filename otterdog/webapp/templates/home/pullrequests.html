@@ -57,8 +57,10 @@
                     <th>Created</th>
                     <th>PR Status</th>
                     <th>Draft</th>
-                    <th>Config in-sync</th>
-                    <th>Manual required</th>
+                    <th>In-sync</th>
+                    <th>Requires manual</th>
+                    <th>Support automerge</th>
+                    <th>Approved</th>
                     <th>Apply Status</th>
                   </tr>
                   </thead>
@@ -73,6 +75,8 @@
                       <td class="{{ 'text-primary' if pr.draft == True else '' }}">{{ pr.draft }}</td>
                       <td>{{ pr.in_sync }}</td>
                       <td>{{ pr.requires_manual_apply }}</td>
+                      <td>{{ pr.supports_auto_merge }}</td>
+                      <td>{{ pr.has_required_approval }}</td>
                       <td>{{ pr.apply_status }}</td>
                     </tr>
                     {% endfor %}

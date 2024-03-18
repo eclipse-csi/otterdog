@@ -42,3 +42,42 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull requests:\n{ex}").with_traceback(tb)
+
+    async def get_reviews(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
+        print_debug(f"getting reviews for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/reviews"
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}").with_traceback(tb)
+
+    async def merge(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+        commit_message: str | None = None,
+        merge_method: str = "squash",
+    ) -> bool:
+        print_debug(f"merging pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+
+        try:
+            data = {
+                "merge_method": merge_method,
+            }
+
+            if commit_message is not None:
+                data.update({"commit_message": commit_message})
+
+            response = await self.requester.request_json(
+                "PUT",
+                f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/merge",
+                data=data,
+            )
+            return response["merged"]
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed merging pull request:\n{ex}").with_traceback(tb)

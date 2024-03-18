@@ -1,0 +1,10 @@
+<!-- Otterdog Comment: automerge -->
+This is your friendly self-service bot.
+This Pull Request is eligible for auto-merging as it passed the following checks:
+
+- valid configuration
+- does not require any secrets
+- does not require accessing the GitHub Web UI
+- approved by a project lead or a member of the EF security team
+
+In order to automatically merge and apply the changes, add a comment `/merge` :rocket:.

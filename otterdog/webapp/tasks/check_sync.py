@@ -144,6 +144,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 "<!-- Otterdog Comment: check-sync -->",
             )
 
+            rest_api = await self.rest_api
             await rest_api.issue.create_comment(
                 self.org_id,
                 org_config.config_repo,
@@ -193,12 +194,15 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             desc,
         )
 
-        await update_or_create_pull_request(
+        pull_request_model = await update_or_create_pull_request(
             self.org_id,
             self.repo_name,
             self._pull_request,
             in_sync=config_in_sync,
         )
+
+        if pull_request_model.can_be_automerged():
+            self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     def __repr__(self) -> str:
         return (

@@ -14,7 +14,7 @@ from io import StringIO
 
 from quart import current_app, render_template
 
-from otterdog.models import LivePatch
+from otterdog.models import LivePatch, LivePatchType
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
@@ -33,8 +33,10 @@ from otterdog.webapp.webhook.github_models import PullRequest
 @dataclass
 class ValidationResult:
     plan_output: str = ""
-    validation_success: bool = True
-    requires_secrets: bool = False
+    validation_success: bool = False
+    requires_secrets: bool | None = None
+    requires_web_ui: bool | None = None
+    includes_deletions: bool | None = None
 
 
 @dataclass(repr=False)
@@ -139,6 +141,11 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
                 def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
                     validation_result.requires_secrets = any(list(map(lambda x: x.requires_secrets(), patches)))
+                    validation_result.requires_web_ui = any(list(map(lambda x: x.requires_web_ui(), patches)))
+
+                    validation_result.includes_deletions = any(
+                        list(map(lambda x: x.patch_type == LivePatchType.REMOVE, patches))
+                    )
 
                 otterdog_config = await get_otterdog_config()
 
@@ -160,6 +167,10 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             warnings = []
             if validation_result.requires_secrets:
                 warnings.append("some of requested changes require secrets, need to apply these changes manually")
+            if validation_result.requires_web_ui:
+                warnings.append(
+                    "some of requested changes require accessing the Web UI, need to apply these changes manually"
+                )
 
             comment = await render_template(
                 "comment/validation_comment.txt",
@@ -177,8 +188,12 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             )
 
             # add a comment about the validation result to the PR
+            rest_api = await self.rest_api
             await rest_api.issue.create_comment(
-                self.org_id, org_config.config_repo, str(self.pull_request_number), comment
+                self.org_id,
+                self.repo_name,
+                str(self.pull_request_number),
+                comment,
             )
 
             return validation_result
@@ -223,13 +238,17 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             desc,
         )
 
-        await update_or_create_pull_request(
+        pull_request_model = await update_or_create_pull_request(
             self.org_id,
             self.repo_name,
             self._pull_request,
             valid=validation_result.validation_success,
-            requires_manual_apply=validation_result.requires_secrets,
+            requires_manual_apply=validation_result.requires_secrets or validation_result.requires_web_ui,
+            supports_auto_merge=not (validation_result.requires_secrets or validation_result.requires_web_ui),
         )
+
+        if pull_request_model.can_be_automerged():
+            self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     def __repr__(self) -> str:
         return (

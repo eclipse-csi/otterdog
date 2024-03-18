@@ -2232,6 +2232,20 @@ docs = ["pydata_sphinx_theme"]
 dotenv = ["python-dotenv"]
 
 [[package]]
+name = "quart-flask-patch"
+version = "0.3.0"
+description = "Quart-Flask-Patch is a Quart extension that patches Quart to work with Flask extensions."
+optional = false
+python-versions = "*"
+files = [
+    {file = "quart_flask_patch-0.3.0-py2.py3-none-any.whl", hash = "sha256:b5a1d97a8edee9f40082db278fb491687d712af9bc8eb774830ea6f92790b990"},
+    {file = "quart_flask_patch-0.3.0.tar.gz", hash = "sha256:81dc073698d54ffe1d8c85a556881c13215923a920f9300a02b5005d5447268d"},
+]
+
+[package.dependencies]
+quart = ">=0.19"
+
+[[package]]
 name = "quart-redis"
 version = "2.0.0"
 description = "A easy way of setting up a redis in quart"
@@ -2920,4 +2934,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "df4798dcd1e8d963dcf1b18ba791f07f66f5cbd5e4be984e3c6ed2e957b0ab71"
+content-hash = "3ffa04d4a5be01b5d8ef6486ce08839aae021bd781c57d2c83a0c96e03be8e81"

@@ -178,7 +178,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 operation_result = await operation.execute(org_config)
                 apply_result.apply_output = output.getvalue()
                 apply_result.apply_success = operation_result == 0
-                apply_result.partial = self._pr_model.requires_manual_apply
+                apply_result.partial = self._pr_model.requires_manual_apply is True
             except Exception as ex:
                 self.logger.exception("exception during apply", exc_info=ex)
 

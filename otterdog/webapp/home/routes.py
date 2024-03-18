@@ -46,8 +46,8 @@ async def route_default():
 
 @blueprint.route("/robots.txt")
 @blueprint.route("/favicon.ico")
-def static_from_root():
-    return send_from_directory(current_app.static_folder, request.path[1:])
+async def static_from_root():
+    return await send_from_directory(current_app.static_folder, request.path[1:])
 
 
 @blueprint.route("/index")

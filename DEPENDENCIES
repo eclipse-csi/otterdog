@@ -71,6 +71,7 @@ pypi/pypi/-/python-dotenv/1.0.1
 pypi/pypi/-/pyyaml/6.0.1
 pypi/pypi/-/pyyaml-env-tag/0.1
 pypi/pypi/-/quart/0.19.4
+pypi/pypi/-/quart-flask-patch/0.3.0
 pypi/pypi/-/quart-redis/2.0.0
 pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.34.0

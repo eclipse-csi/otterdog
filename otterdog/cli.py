@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import asyncio
-import importlib.metadata
 import sys
 import traceback
 from typing import Any
@@ -15,6 +14,7 @@ from typing import Any
 import click
 from click.shell_completion import CompletionItem
 
+from . import __version__
 from .config import OtterdogConfig
 from .operations import Operation
 from .operations.apply import ApplyOperation
@@ -37,10 +37,6 @@ from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
-
-_DISTRIBUTION_METADATA = importlib.metadata.metadata("otterdog")
-_VERSION = _DISTRIBUTION_METADATA["Version"]
-
 _CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
 
 _CONFIG: OtterdogConfig | None = None
@@ -122,7 +118,7 @@ class StdCommand(click.Command):
 
 
 @click.group(context_settings=_CONTEXT_SETTINGS)
-@click.version_option(version=_VERSION, prog_name="otterdog.sh")
+@click.version_option(version=__version__, prog_name="otterdog.sh")
 def cli():
     """
     Managing GitHub organizations at scale.

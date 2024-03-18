@@ -100,6 +100,19 @@ class PullRequest(BaseModel):
             raise RuntimeError(f"unexpected state '{self.state}'")
 
 
+class Review(BaseModel):
+    """Represents a review on a pull request."""
+
+    author_association: str
+    body: str | None
+    commit_id: str
+    id: int
+    node_id: str
+    state: str
+    submitted_at: datetime | None
+    user: Actor | None
+
+
 class Comment(BaseModel):
     """Represents a comment in an issue."""
 
@@ -161,6 +174,15 @@ class PullRequestEvent(Event):
     action: str
     number: int
     pull_request: PullRequest
+    repository: Repository
+
+
+class PullRequestReviewEvent(Event):
+    """A payload sent for pull request review specific events."""
+
+    action: str
+    pull_request: PullRequest
+    review: Review
     repository: Repository
 
 

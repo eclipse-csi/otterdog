@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import contextlib
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
@@ -14,6 +16,7 @@ from logging import Logger, getLogger
 from typing import Any, Generic, Protocol, TypeVar
 
 import aiofiles
+from quart import current_app
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider, GraphQLClient
@@ -215,6 +218,18 @@ class InstallationBasedTask(Protocol):
 
             if bool(is_minimized) is False and matching_header in body:
                 await graphql_api.minimize_comment(comment_id, "OUTDATED")
+
+    def schedule_automerge_task(self, org_id: str, repo_name: str, pull_request_number: int) -> None:
+        from .auto_merge_comment import AutoMergeCommentTask
+
+        current_app.add_background_task(
+            AutoMergeCommentTask(
+                self.installation_id,
+                org_id,
+                repo_name,
+                pull_request_number,
+            )
+        )
 
     async def _cleanup(self) -> None:
         if self.__rest_api is not None:
