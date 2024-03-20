@@ -244,7 +244,11 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self._pull_request,
             valid=validation_result.validation_success,
             requires_manual_apply=validation_result.requires_secrets or validation_result.requires_web_ui,
-            supports_auto_merge=not (validation_result.requires_secrets or validation_result.requires_web_ui),
+            supports_auto_merge=not (
+                validation_result.requires_secrets
+                or validation_result.requires_web_ui
+                or validation_result.includes_deletions
+            ),
         )
 
         if pull_request_model.can_be_automerged():
