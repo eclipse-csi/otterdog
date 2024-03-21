@@ -24,7 +24,7 @@ from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
-    get_admin_team,
+    get_full_admin_team_slugs,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -177,7 +177,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 sha=self._pull_request.head.sha,
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
-                admin_team=f"{self.org_id}/{get_admin_team()}",
+                admin_teams=get_full_admin_team_slugs(self.org_id),
             )
 
             await self.minimize_outdated_comments(

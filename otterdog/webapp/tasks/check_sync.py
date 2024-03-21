@@ -24,11 +24,11 @@ from otterdog.webapp.db.service import (
     update_or_create_pull_request,
 )
 from otterdog.webapp.tasks import InstallationBasedTask, Task
-from otterdog.webapp.tasks.validate_pull_request import get_admin_team
 from otterdog.webapp.utils import (
     backoff_if_needed,
     escape_for_github,
     fetch_config_from_github,
+    get_full_admin_team_slugs,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -132,7 +132,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 comment = await render_template(
                     "comment/out_of_sync_comment.txt",
                     result=escape_for_github(sync_output),
-                    admin_team=f"{self.org_id}/{get_admin_team()}",
+                    admin_teams=get_full_admin_team_slugs(self.org_id),
                 )
             else:
                 comment = await render_template("comment/in_sync_comment.txt")

@@ -10,8 +10,12 @@ The following changes have been successfully applied:
 {% if partial == true %}
 ### Note
 
-The pull request was only partially applied as it requires some access to secrets, please apply the remaining changes
-manually and confirm with replying with `/done`. cc @{{ admin_team }}
+The pull request was only partially applied as it requires some access to secrets or the Web UI,
+please apply the remaining changes manually and confirm with replying with `/done`.
+
+{% for admin_team in admin_teams %}
+cc @{{ admin_team }}
+{% endfor %}
 {% endif %}
 
 {% else %}
@@ -21,5 +25,7 @@ The changes could not be applied successfully, please check the output:
 {{ output }}
 ```
 
+{% for admin_team in admin_teams %}
 cc @{{ admin_team }}
+{% endfor %}
 {% endif %}

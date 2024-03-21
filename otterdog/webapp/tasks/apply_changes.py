@@ -25,7 +25,8 @@ from otterdog.webapp.utils import (
     backoff_if_needed,
     escape_for_github,
     fetch_config_from_github,
-    get_admin_team,
+    get_admin_teams,
+    get_full_admin_team_slugs,
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
@@ -105,9 +106,17 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
         if self.author is not None:
             rest_api = await self.rest_api
-            admin_team = get_admin_team()
-            if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
-                comment = await render_template("comment/wrong_team_apply_comment.txt", admin_team=admin_team)
+            admin_teams = get_admin_teams()
+            is_admin = False
+            for admin_team in admin_teams:
+                if await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
+                    is_admin = True
+                    break
+
+            if not is_admin:
+                comment = await render_template(
+                    "comment/wrong_team_apply_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
+                )
                 await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
                 self.logger.error(
@@ -194,7 +203,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 output=escape_for_github(apply_result.apply_output),
                 success=apply_result.apply_success,
                 partial=apply_result.partial,
-                admin_team=f"{self.org_id}/{get_admin_team()}",
+                admin_teams=f"{self.org_id}/{get_admin_teams()}",
             )
 
             await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)

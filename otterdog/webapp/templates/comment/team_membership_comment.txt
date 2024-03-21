@@ -1,5 +1,6 @@
 <!-- Otterdog Comment: team-info -->
-This is your friendly self-service bot. The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
+This is your friendly self-service bot.
+The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
 
 {% if (teams is defined) and teams %}
 Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the following teams:
@@ -8,5 +9,5 @@ Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the fol
 - [{{ team.0 }}]({{ team.1 }})
 {% endfor %}
 {% else %}
-The author ([{{ user }}](https://github.com/{{ user }})) of this PR is not a member of this organization.
+The author ([{{ user }}](https://github.com/{{ user }})) of this PR is **NOT** a member of this organization.
 {% endif %}

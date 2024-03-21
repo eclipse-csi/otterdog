@@ -18,7 +18,9 @@ Please find below the validation of the requested configuration changes:
 - {{ warning }}
 {% endfor %}
 
+{% for admin_team in admin_teams %}
 cc @{{ admin_team }}
+{% endfor %}
 
 {% endif %}
 

@@ -147,8 +147,13 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
             return OtterdogConfig(name, False, app_root)
 
 
-def get_admin_team() -> str:
-    return current_app.config["GITHUB_ADMIN_TEAM"]
+def get_admin_teams() -> list[str]:
+    teams = str(current_app.config["GITHUB_ADMIN_TEAMS"])
+    return teams.split(",")
+
+
+def get_full_admin_team_slugs(org_id: str) -> list[str]:
+    return list(map(lambda team_slug: f"{org_id}/{team_slug}", get_admin_teams()))
 
 
 async def fetch_config_from_github(

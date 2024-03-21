@@ -13,7 +13,7 @@ from quart import render_template
 from otterdog.webapp.db.models import ApplyStatus, PullRequestStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
-from otterdog.webapp.utils import get_admin_team
+from otterdog.webapp.utils import get_admin_teams, get_full_admin_team_slugs
 
 
 @dataclass(repr=False)
@@ -64,9 +64,17 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
             return False
 
         rest_api = await self.rest_api
-        admin_team = get_admin_team()
-        if not await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
-            comment = await render_template("comment/wrong_team_done_comment.txt", admin_team=admin_team)
+        admin_teams = get_admin_teams()
+        is_admin = False
+        for admin_team in admin_teams:
+            if await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
+                is_admin = True
+                break
+
+        if not is_admin:
+            comment = await render_template(
+                "comment/wrong_team_done_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
+            )
             await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
             self.logger.error(
