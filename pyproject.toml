@@ -68,7 +68,7 @@ ariadne              = "^0.22"
 
 
 [tool.poetry.group.dev.dependencies]
-black      = "^23.3"
+black      = ">=23.3,<25.0"
 flake8     = "^6.0"
 mypy       = "^1.8"
 pre-commit = "^3.3"
