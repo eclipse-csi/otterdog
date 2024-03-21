@@ -75,7 +75,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
 
             self.logger.debug(f"approved by teams: {approved_by_teams}")
 
-            has_required_approvals = self._contains_valid_team_for_approval(approved_by_teams, True)
+            has_required_approvals = self._contains_valid_team_for_approval(approved_by_teams)
 
             # if no approval yet, check if the author is member of a team that is eligible for auto-merge
             if has_required_approvals is False and self.pull_request.author_association == "MEMBER":
@@ -83,7 +83,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
                     lambda x: x["name"],
                     await graphql_api.get_team_membership(self.org_id, self.pull_request.user.login),
                 )
-                has_required_approvals = self._contains_valid_team_for_approval(author_teams, False)
+                has_required_approvals = self._contains_valid_team_for_approval(author_teams)
 
             pull_request_model = await update_or_create_pull_request(
                 self.org_id,
@@ -108,16 +108,15 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
                     await graphql_api.get_team_membership(self.org_id, self.pull_request.user.login),
                 )
 
-                pull_request_model.has_required_approval = self._contains_valid_team_for_approval(author_teams, False)
+                pull_request_model.has_required_approval = self._contains_valid_team_for_approval(author_teams)
                 await update_pull_request(pull_request_model)
 
     @staticmethod
-    def _contains_valid_team_for_approval(teams: Iterable[str], include_admin: bool) -> bool:
-        # FIXME: team names must be made configurable
+    def _contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
+        # FIXME: team names must be made configurable, this is just EF specific
         return any(
             map(
-                lambda x: x.endswith("project-leads")
-                or (include_admin and (x == "eclipsefdn-security" or x == "eclipsefdn-releng")),
+                lambda x: x.endswith("project-leads"),
                 teams,
             )
         )
