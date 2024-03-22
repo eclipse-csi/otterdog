@@ -41,6 +41,7 @@ from .github_models import (
     PullRequestEvent,
     PullRequestReviewEvent,
     PushEvent,
+    WorkflowJobEvent,
 )
 from .github_webhook import GitHubWebhook
 
@@ -261,6 +262,41 @@ async def on_installation_received(data):
 
     current_app.add_background_task(update_installation_status, event.installation.id, event.action)
     return success()
+
+
+@webhook.hook("workflow_job")
+async def on_workflow_job_received(data):
+    try:
+        event = WorkflowJobEvent.model_validate(data)
+    except ValidationError:
+        logger.error("failed to load workflow job event data", exc_info=True)
+        return success()
+
+    if event.installation is None or event.organization is None:
+        return success()
+
+    if event.action in ["queued"]:
+        logger.debug(f"workflow job queued on runner: {', '.join(event.workflow_job.labels)}")
+
+        if _uses_macos_larger_runner(event.workflow_job.labels):
+            from otterdog.webapp.utils import get_rest_api_for_installation
+
+            org_id = event.organization.login
+            repo_name = event.repository.name
+            run_id = event.workflow_job.run_id
+
+            rest_api = await get_rest_api_for_installation(event.installation.id)
+            cancelled = await rest_api.action.cancel_workflow_run(org_id, repo_name, run_id)
+            logger.info(f"cancelled workflow run #{run_id} in repo '{org_id}/{repo_name}': success={cancelled}")
+
+    return success()
+
+
+def _uses_macos_larger_runner(labels: list[str]) -> bool:
+    def larger_runner(label: str) -> bool:
+        return label.startswith("macos") and label.endswith("large")
+
+    return any(map(larger_runner, labels))
 
 
 async def targets_config_repo(repo_name: str, installation_id: int) -> bool:
