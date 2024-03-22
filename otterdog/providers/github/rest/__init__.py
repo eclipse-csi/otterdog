@@ -57,6 +57,12 @@ class RestApi:
         return self._requester
 
     @cached_property
+    def action(self):
+        from .action_client import ActionClient
+
+        return ActionClient(self)
+
+    @cached_property
     def app(self):
         from .app_client import AppClient
 
