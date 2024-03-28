@@ -203,7 +203,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 output=escape_for_github(apply_result.apply_output),
                 success=apply_result.apply_success,
                 partial=apply_result.partial,
-                admin_teams=f"{self.org_id}/{get_admin_teams()}",
+                admin_teams=get_full_admin_team_slugs(self.org_id),
             )
 
             await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)
