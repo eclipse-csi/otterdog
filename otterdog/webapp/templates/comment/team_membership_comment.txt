@@ -1,7 +1,7 @@
 <!-- Otterdog Comment: team-info -->
 This is your friendly self-service bot.
-The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
 
+The author ([{{ user }}](https://github.com/{{ user }})) of this PR is associated with this organization in the role of `{{ association }}`.
 {% if (teams is defined) and teams %}
 Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the following teams:
 
@@ -11,3 +11,17 @@ Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the fol
 {% else %}
 The author ([{{ user }}](https://github.com/{{ user }})) of this PR is **NOT** a member of this organization.
 {% endif %}
+
+<details>
+<summary>Otterdog commands and options</summary>
+
+You can trigger otterdog actions by commenting on this PR:
+
+- `/otterdog team-info` checks the team / org membership for the PR author
+- `/otterdog validate` validates the configuration change
+- `/otterdog validate info` validates the configuration change, printing also validation infos
+- `/otterdog check-sync` checks if the base ref is in sync with live settings
+- `/otterdog merge` merges and applies the changes if the pull request is eligible for auto-merging (only accessible for the author)
+- `/otterdog done` notifies the self-service bot that a required manual apply operation has been performed (only accessible for members of the admin team)
+- `/otterdog apply` re-apply a previously failed attempt (only accessible for members of the admin team)
+</details>

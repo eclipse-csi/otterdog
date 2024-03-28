@@ -76,6 +76,7 @@ pre-commit = "^3.3"
 [tool.poetry.group.test.dependencies]
 pytest         = "^7.3"
 pytest-asyncio = "^0.23"
+parameterized  = "^0.9"
 
 [tool.poetry.group.typing.dependencies]
 types-colorama   = "^0.4"
