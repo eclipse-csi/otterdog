@@ -101,7 +101,11 @@ async def on_pull_request_received(data):
             )
         )
 
-    if event.action in ["opened", "synchronize", "ready_for_review", "reopened"] and event.pull_request.draft is False:
+    if (
+        event.action in ["opened", "synchronize", "ready_for_review", "reopened"]
+        and event.pull_request.state == "open"
+        and event.pull_request.draft is False
+    ):
         # schedule a validate task
         current_app.add_background_task(
             ValidatePullRequestTask(
