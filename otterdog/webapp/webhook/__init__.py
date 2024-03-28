@@ -19,6 +19,7 @@ from otterdog.webapp.db.service import (
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
+from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
@@ -82,6 +83,15 @@ async def on_pull_request_received(data):
     )
 
     if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
+        current_app.add_background_task(
+            HelpCommentTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request.number,
+            )
+        )
+
         current_app.add_background_task(
             RetrieveTeamMembershipTask(
                 event.installation.id,

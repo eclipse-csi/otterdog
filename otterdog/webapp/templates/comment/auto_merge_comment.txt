@@ -3,8 +3,9 @@ This is your friendly self-service bot.
 This Pull Request is eligible for auto-merging as it passed the following checks:
 
 - valid configuration
+- approved by a project lead
 - does not require any secrets
-- does not require accessing the GitHub Web UI
-- approved by a project lead or a member of the EF security team
+- does not update settings only accessible via the GitHub Web UI
+- does not remove any resource
 
 In order to automatically merge and apply the changes, add a comment `/otterdog merge`. :rocket:

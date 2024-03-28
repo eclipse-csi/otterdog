@@ -1,6 +1,20 @@
 <!-- Otterdog Comment: help -->
 This is your friendly self-service bot.
 
+Thank you for raising a pull request to update the configuration of your GitHub organization.
+You can manually add reviewers to this PR to eventually enable auto-merging.
+
+The following conditions need to fulfilled for auto-merging to be available:
+
+- valid configuration
+- approved by a project lead
+- does not require any secrets
+- does not update settings only accessible via the GitHub Web UI
+- does not remove any resource
+
+<details>
+<summary>Otterdog commands and options</summary>
+
 You can trigger otterdog actions by commenting on this PR:
 
 - `/otterdog team-info` checks the team / org membership for the PR author
@@ -10,3 +24,4 @@ You can trigger otterdog actions by commenting on this PR:
 - `/otterdog merge` merges and applies the changes if the PR is eligible for auto-merging (only accessible for the author)
 - `/otterdog done` notifies the self-service bot that a required manual apply operation has been performed (only accessible for members of the admin team)
 - `/otterdog apply` re-apply a previously failed attempt (only accessible for members of the admin team)
+</details>
