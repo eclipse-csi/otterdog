@@ -23,5 +23,3 @@ cc @{{ admin_team }}
 {% endfor %}
 
 {% endif %}
-
-Add a comment `/help` to get a list of available commands.

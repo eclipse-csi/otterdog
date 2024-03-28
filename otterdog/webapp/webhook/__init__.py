@@ -6,13 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import re
 from logging import getLogger
 
 from pydantic import ValidationError
 from quart import Response, current_app
 
-from otterdog.utils import LogLevel
 from otterdog.webapp.db.service import (
     get_installation,
     update_installation_status,
@@ -20,15 +18,22 @@ from otterdog.webapp.db.service import (
 )
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
-from otterdog.webapp.tasks.complete_pull_request import CompletePullRequestTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
-from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_otterdog_config
 
-from ..tasks.merge_pull_request import MergePullRequestTask
+from .comment_handlers import (
+    ApplyCommentHandler,
+    CheckSyncCommentHandler,
+    CommentHandler,
+    DoneCommentHandler,
+    HelpCommentHandler,
+    MergeCommentHandler,
+    TeamInfoCommentHandler,
+    ValidateCommentHandler,
+)
 from .github_models import (
     InstallationEvent,
     IssueCommentEvent,
@@ -39,6 +44,16 @@ from .github_models import (
 from .github_webhook import GitHubWebhook
 
 webhook = GitHubWebhook()
+
+comment_handlers: list[CommentHandler] = [
+    HelpCommentHandler(),
+    TeamInfoCommentHandler(),
+    CheckSyncCommentHandler(),
+    DoneCommentHandler(),
+    ApplyCommentHandler(),
+    MergeCommentHandler(),
+    ValidateCommentHandler(),
+]
 
 logger = getLogger(__name__)
 
@@ -160,92 +175,11 @@ async def on_issue_comment_received(data):
         return success()
 
     if event.action in ["created", "edited"]:
-        org_id = event.organization.login
-        installation_id = event.installation.id
-
-        if re.match(r"\s*/help\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                HelpCommentTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                )
-            )
-            return success()
-        elif re.match(r"\s*/team-info\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                RetrieveTeamMembershipTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                )
-            )
-            return success()
-        elif re.match(r"\s*/check-sync\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                CheckConfigurationInSyncTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                )
-            )
-            return success()
-        elif re.match(r"\s*/done\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                CompletePullRequestTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                    event.sender.login,
-                )
-            )
-            return success()
-        elif re.match(r"\s*/apply\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                ApplyChangesTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                    event.sender.login,
-                )
-            )
-            return success()
-        elif re.match(r"\s*/merge\s*", event.comment.body) is not None:
-            current_app.add_background_task(
-                MergePullRequestTask(
-                    installation_id,
-                    org_id,
-                    event.repository.name,
-                    event.issue.number,
-                    event.sender.login,
-                )
-            )
-            return success()
-
-        m = re.match(r"\s*/validate(\s+info)?\s*", event.comment.body)
-        if m is None:
-            return success()
-
-        log_level_str = m.group(1)
-        log_level = LogLevel.WARN
-
-        if log_level_str is not None and log_level_str.strip() == "info":
-            log_level = LogLevel.INFO
-
-        current_app.add_background_task(
-            ValidatePullRequestTask(
-                installation_id,
-                org_id,
-                event.repository.name,
-                event.issue.number,
-                log_level,
-            )
-        )
+        for handler in comment_handlers:
+            match = handler.matches(event.comment.body)
+            if match is not None:
+                handler.process(match, event)
+                break
 
     return success()
 

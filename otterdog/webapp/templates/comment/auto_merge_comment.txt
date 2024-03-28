@@ -7,4 +7,4 @@ This Pull Request is eligible for auto-merging as it passed the following checks
 - does not require accessing the GitHub Web UI
 - approved by a project lead or a member of the EF security team
 
-In order to automatically merge and apply the changes, add a comment `/merge` :rocket:.
+In order to automatically merge and apply the changes, add a comment `/otterdog merge`. :rocket:
