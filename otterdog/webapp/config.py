@@ -16,6 +16,9 @@ from decouple import config  # type: ignore
 class AppConfig:
     QUART_APP = "otterdog.webapp"
 
+    SERVER_NAME = config("SERVER_NAME", default="localhost:5000")
+    PREFERRED_URL_SCHEME = "https"
+
     # Assets Management
     ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
 
