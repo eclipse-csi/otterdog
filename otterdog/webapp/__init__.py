@@ -16,6 +16,7 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 import quart_flask_patch  # type: ignore # noqa: F401
+from flask_github import GitHub  # type: ignore
 from quart import Quart
 from quart.json.provider import DefaultJSONProvider
 from quart_auth import QuartAuth
@@ -33,6 +34,7 @@ _BLUEPRINT_MODULES: list[str] = ["home", "api", "auth"]
 mongo = Mongo()
 redis_handler = RedisHandler()
 auth_manager = QuartAuth()
+oauth_github = GitHub()
 
 
 def register_extensions(app):
@@ -43,6 +45,8 @@ def register_extensions(app):
 
     auth_manager.user_class = User
     auth_manager.init_app(app)
+
+    oauth_github.init_app(app)
 
 
 def register_github_webhook(app) -> None:

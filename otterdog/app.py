@@ -41,8 +41,6 @@ logging.basicConfig(
 
 # logging.getLogger("hypercorn.access").disabled = True
 
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
 if not os.path.exists(app_config.APP_ROOT):
     os.makedirs(app_config.APP_ROOT)
 

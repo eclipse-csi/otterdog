@@ -16,9 +16,6 @@ from decouple import config  # type: ignore
 class AppConfig:
     QUART_APP = "otterdog.webapp"
 
-    SERVER_NAME = config("SERVER_NAME", default="localhost:5000")
-    PREFERRED_URL_SCHEME = "https"
-
     # Assets Management
     ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
 
@@ -45,8 +42,8 @@ class AppConfig:
     GITHUB_WEBHOOK_SYNC_CONTEXT = config("GITHUB_WEBHOOK_SYNC_CONTEXT", default="otterdog-sync")
 
     # GitHub OAuth config
-    GITHUB_OAUTH_CLIENT_ID = config("GITHUB_OAUTH_CLIENT_ID")
-    GITHUB_OAUTH_CLIENT_SECRET = config("GITHUB_OAUTH_CLIENT_SECRET")
+    GITHUB_CLIENT_ID = config("GITHUB_OAUTH_CLIENT_ID")
+    GITHUB_CLIENT_SECRET = config("GITHUB_OAUTH_CLIENT_SECRET")
 
     # GitHub App config
     GITHUB_APP_ID = config("GITHUB_APP_ID")
