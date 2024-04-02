@@ -21,6 +21,7 @@ pypi/pypi/-/cryptography/42.0.5
 pypi/pypi/-/dnspython/2.6.1
 pypi/pypi/-/exceptiongroup/1.2.0
 pypi/pypi/-/flask/3.0.2
+pypi/pypi/-/flask-dance/7.1.0
 pypi/pypi/-/frozenlist/1.4.1
 pypi/pypi/-/ghp-import/2.1.0
 pypi/pypi/-/gojsonnet/0.20.0
@@ -46,10 +47,11 @@ pypi/pypi/-/mergedeep/1.3.4
 pypi/pypi/-/mintotp/0.3.0
 pypi/pypi/-/mkdocs/1.5.3
 pypi/pypi/-/mkdocs-exclude/1.0.2
-pypi/pypi/-/mkdocs-material/9.5.15
+pypi/pypi/-/mkdocs-material/9.5.17
 pypi/pypi/-/mkdocs-material-extensions/1.3.1
 pypi/pypi/-/motor/3.4.0
 pypi/pypi/-/multidict/6.0.5
+pypi/pypi/-/oauthlib/3.2.2
 pypi/pypi/-/odmantic/1.0.1
 pypi/pypi/-/packaging/24.0
 pypi/pypi/-/paginate/0.5.6
@@ -57,7 +59,7 @@ pypi/pypi/-/pathspec/0.12.1
 pypi/pypi/-/platformdirs/4.2.0
 pypi/pypi/-/playwright/1.42.0
 pypi/pypi/-/priority/2.0.0
-pypi/pypi/-/pycparser/2.21
+pypi/pypi/-/pycparser/2.22
 pypi/pypi/-/pydantic/2.6.4
 pypi/pypi/-/pydantic-core/2.16.3
 pypi/pypi/-/pyee/11.0.1
@@ -70,13 +72,15 @@ pypi/pypi/-/python-decouple/3.8
 pypi/pypi/-/python-dotenv/1.0.1
 pypi/pypi/-/pyyaml/6.0.1
 pypi/pypi/-/pyyaml-env-tag/0.1
-pypi/pypi/-/quart/0.19.4
+pypi/pypi/-/quart/0.19.5
+pypi/pypi/-/quart-auth/0.9.1
 pypi/pypi/-/quart-flask-patch/0.3.0
 pypi/pypi/-/quart-redis/2.0.0
 pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.34.0
 pypi/pypi/-/regex/2023.12.25
 pypi/pypi/-/requests/2.31.0
+pypi/pypi/-/requests-oauthlib/2.0.0
 pypi/pypi/-/rpds-py/0.18.0
 pypi/pypi/-/six/1.16.0
 pypi/pypi/-/sniffio/1.3.1
@@ -86,7 +90,8 @@ pypi/pypi/-/tomli/2.0.1
 pypi/pypi/-/typing-extensions/4.10.0
 pypi/pypi/-/url-normalize/1.4.3
 pypi/pypi/-/urllib3/2.2.1
+pypi/pypi/-/urlobject/2.4.3
 pypi/pypi/-/watchdog/4.0.0
-pypi/pypi/-/werkzeug/3.0.1
+pypi/pypi/-/werkzeug/3.0.2
 pypi/pypi/-/wsproto/1.2.0
 pypi/pypi/-/yarl/1.9.4

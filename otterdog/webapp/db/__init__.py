@@ -45,6 +45,7 @@ async def init_mongo_database(mongo: Mongo) -> None:
         PullRequestModel,
         StatisticsModel,
         TaskModel,
+        UserModel,
     )
 
     await mongo.odm.configure_database(
@@ -54,5 +55,6 @@ async def init_mongo_database(mongo: Mongo) -> None:
             ConfigurationModel,
             PullRequestModel,
             StatisticsModel,
+            UserModel,
         ]  # type: ignore
     )

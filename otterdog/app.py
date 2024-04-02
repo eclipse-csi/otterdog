@@ -58,6 +58,10 @@ else:
     exit(1)
 
 if DEBUG:
+    import os
+
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     app.logger.info("DEBUG       = " + str(DEBUG))
     app.logger.info("Environment = " + config_mode)
     app.logger.info("QUART_APP   = " + app_config.QUART_APP)

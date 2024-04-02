@@ -128,3 +128,11 @@ class StatisticsModel(Model):
     project_name: str = Field(primary_field=True)
     github_id: str = Field(index=True)
     num_repos: int
+
+
+class UserModel(Model):
+    node_id: str = Field(primary_field=True)
+    username: str
+    email: str
+    full_name: str = ""
+    projects: list[str] = Field(default_factory=list)

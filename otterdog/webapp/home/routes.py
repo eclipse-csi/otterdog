@@ -17,6 +17,7 @@ from quart import (
     send_from_directory,
     url_for,
 )
+from quart_auth import current_user, login_required
 from werkzeug.routing import BuildError
 
 from otterdog.models.github_organization import GitHubOrganization
@@ -63,6 +64,21 @@ async def index():
         installations=installations,
         configurations=configurations_by_key,
         total_repository_count=statistics[1],
+    )
+
+
+@blueprint.route("/myprojects")
+@login_required
+async def myprojects():
+    projects = set(await current_user.projects)
+
+    installations = list(filter(lambda x: x.project_name in projects, await get_installations()))
+    configurations = await get_configurations()
+    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await render_home_template(
+        "myprojects.html",
+        installations=installations,
+        configurations=configurations_by_key,
     )
 
 

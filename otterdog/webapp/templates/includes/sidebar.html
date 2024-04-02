@@ -33,6 +33,18 @@
             </a>
           </li>
 
+          {% if current_user.is_authenticated %}
+          <li class="nav-item">
+            <a href="/myprojects" class="nav-link {% if 'myprojects' in segments %} active {% endif %}">
+              <i class="nav-icon fas fa-house-user"></i>
+              <p>
+                My Projects
+                <i class="fas nav-icon"></i>
+              </p>
+            </a>
+          </li>
+          {% endif %}
+
           <li class="nav-item">
             <a href="/query" class="nav-link {% if 'query' in segments %} active {% endif %}">
               <i class="nav-icon fa-brands fa-searchengin"></i>
