@@ -33,7 +33,7 @@ _BLUEPRINT_MODULES: list[str] = ["home", "api", "auth"]
 
 mongo = Mongo()
 redis_handler = RedisHandler()
-auth_manager = QuartAuth()
+auth_manager = QuartAuth(cookie_secure=False)  # type: ignore
 oauth_github = GitHub()
 
 
