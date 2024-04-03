@@ -19,6 +19,8 @@ class AppConfig:
     # Assets Management
     ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
 
+    CACHE_CONTROL = config("CACHE_CONTROL", default=False)
+
     APP_ROOT = config("APP_ROOT")
     DB_ROOT = os.path.join(APP_ROOT, "db")
 

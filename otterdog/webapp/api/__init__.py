@@ -6,6 +6,18 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from quart import Blueprint
+from quart import Blueprint, Response
+
+from otterdog.webapp.utils import is_cache_control_enabled
 
 blueprint = Blueprint("api_blueprint", __name__, url_prefix="/api")
+
+
+@blueprint.after_request
+async def after_request_func(response: Response):
+    if is_cache_control_enabled() and response.status_code == 200:
+        response.cache_control.max_age = 60
+        response.cache_control.public = True
+        response.vary = "cookie"
+
+    return response
