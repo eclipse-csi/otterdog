@@ -18,6 +18,6 @@ async def after_request_func(response: Response):
     if is_cache_control_enabled() and response.status_code == 200:
         response.cache_control.max_age = 60
         response.cache_control.public = True
-        response.vary = "cookie"
+        response.vary = "Cookie"
 
     return response
