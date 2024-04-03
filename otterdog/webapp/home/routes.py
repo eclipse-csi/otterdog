@@ -53,8 +53,6 @@ async def static_from_root():
 
 @blueprint.route("/index")
 async def index():
-    print(request.cookies)
-    print(current_user)
     installations = await get_installations()
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
