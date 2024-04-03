@@ -89,7 +89,6 @@
               <div class="icon">
                 <i class="fab fa-github"></i>
               </div>
-<!--              <a href="/statistics" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>-->
             </div>
           </div>
           <!-- ./col -->
@@ -97,63 +96,46 @@
         <!-- ./row -->
 
         <div class="row">
-          {% for installation in installations %}
-          {% set github_id = installation.github_id %}
-          {% set project_name = installation.project_name %}
-          {% set installation_status = installation.installation_status %}
-          <div class="col-md-3">
-            <div class="card">
-              {% if installation_status|status == 'success' %}
-              <a class="text-reset" href="/projects/{{ project_name }}">
-                <div class="card-header bg-{{ installation_status|status }}">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                  <div class="float-right">
-                    <i class="fas fa-arrow-circle-right"></i>
-                  </div>
-                </div>
-              </a>
-              {% else %}
-              <a class="text-reset" href="#">
-                <div class="card-header bg-{{ installation_status|status }}">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                </div>
-              </a>
-              {% endif %}
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Two Factor Enforcement</h3>
+              </div>
               <div class="card-body">
-                <a href="https://github.com/{{ github_id }}"><i class="fab fa-github"></i> &nbsp; {{ github_id }}</a>
+                <canvas id="two-factor-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
               </div>
-              <div class="card-footer p-0">
-                {% if installation_status|status == 'success' %}
-                <ul class="nav flex-column">
-                  {% if configurations[github_id] %}
-                  {% set config = configurations[github_id].config %}
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#settings" class="nav-link">
-                      {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                      2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
-                      {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                      Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#repositories" class="nav-link">
-                      Repositories <span class="float-right badge bg-primary">{{ config.repositories|length }}</span>
-                    </a>
-                  </li>
-                  {% endif %}
-                </ul>
-                {% endif %}
-              </div>
-              <!-- /.card-body -->
             </div>
-            <!-- /.card -->
           </div>
-          {% endfor %}
-          <!-- /.col -->
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Secret Scanning</h3>
+              </div>
+              <div class="card-body">
+                <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Branch Protections</h3>
+              </div>
+              <div class="card-body">
+                <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Private Vulnerability Reporting</h3>
+              </div>
+              <div class="card-body">
+                <canvas id="private-vulnerability-reporting-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- /.row -->
 
@@ -167,5 +149,118 @@
 
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
-{{ super() }}
+  {{ super() }}
+  <!-- Chart.js -->
+  <script src="/assets/vendor/chartjs/chart.umd.js"></script>
+
+  <script type="module">
+    $(document).ready(function() {
+      drawTwoFactorChart();
+      drawSecretScanningChart();
+      drawBranchProtectionChart();
+      drawPrivateVulnerabilityReportingChart();
+    });
+
+    function drawTwoFactorChart() {
+      const two_factor_ctx = document.getElementById('two-factor-chart');
+
+      new Chart(two_factor_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['not required', 'enforced'],
+          datasets: [{
+            label: 'two factor requirement',
+            data: {{ two_factor_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawSecretScanningChart() {
+      const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
+
+      new Chart(secret_scanning_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['disabled', 'alert mode', 'protection mode'],
+          datasets: [{
+            label: 'secret scanning',
+            data: {{ secret_scanning_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#ffc107',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawBranchProtectionChart() {
+      const branch_protections_ctx = document.getElementById('branch-protection-chart');
+
+      new Chart(branch_protections_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['not protected', 'protected'],
+          datasets: [{
+            label: 'branch protections',
+            data: {{ branch_protection_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawPrivateVulnerabilityReportingChart() {
+      const private_vuln_ctx = document.getElementById('private-vulnerability-reporting-chart');
+
+      new Chart(private_vuln_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['disabled', 'enabled'],
+          datasets: [{
+            label: 'private vulnerability reporting',
+            data: {{ private_vulnerability_reporting_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+  </script>
+
 {% endblock javascripts %}

@@ -57,6 +57,36 @@ async def index():
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
     statistics = await get_statistics()
+
+    total_projects = statistics[0]
+    total_repos = statistics[1]
+    projects_with_2fa_enforced = statistics[2]
+    repos_with_branch_protections = statistics[3]
+    repos_with_secret_scanning = statistics[4]
+    repos_with_secret_scanning_push_protection = statistics[5]
+    repos_with_private_vulnerability_reporting = statistics[6]
+
+    two_factor_data = [
+        total_projects - projects_with_2fa_enforced,
+        projects_with_2fa_enforced,
+    ]
+
+    secret_scanning_data = [
+        total_repos - repos_with_secret_scanning - repos_with_secret_scanning_push_protection,
+        repos_with_secret_scanning,
+        repos_with_secret_scanning_push_protection,
+    ]
+
+    branch_protection_data = [
+        total_repos - repos_with_branch_protections,
+        repos_with_branch_protections,
+    ]
+
+    private_vulnerability_reporting_data = [
+        total_repos - repos_with_private_vulnerability_reporting,
+        repos_with_private_vulnerability_reporting,
+    ]
+
     return await render_home_template(
         "index.html",
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
@@ -64,6 +94,10 @@ async def index():
         installations=installations,
         configurations=configurations_by_key,
         total_repository_count=statistics[1],
+        two_factor_data=json.dumps(two_factor_data),
+        secret_scanning_data=json.dumps(secret_scanning_data),
+        branch_protection_data=json.dumps(branch_protection_data),
+        private_vulnerability_reporting_data=json.dumps(private_vulnerability_reporting_data),
     )
 
 
@@ -76,7 +110,21 @@ async def myprojects():
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
     return await render_home_template(
-        "myprojects.html",
+        "projects.html",
+        title="My Projects",
+        installations=installations,
+        configurations=configurations_by_key,
+    )
+
+
+@blueprint.route("/allprojects")
+async def allprojects():
+    installations = await get_installations()
+    configurations = await get_configurations()
+    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await render_home_template(
+        "projects.html",
+        title="All Projects",
         installations=installations,
         configurations=configurations_by_key,
     )

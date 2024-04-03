@@ -448,13 +448,18 @@ async def save_statistics(model: StatisticsModel) -> None:
     await mongo.odm.save(model)
 
 
-async def get_statistics() -> tuple[int, int]:
+async def get_statistics() -> tuple[int, int, int, int, int, int, int]:
     pipeline = [
         {
             "$group": {
                 "_id": None,
-                "num_projects": {"$sum": 1},
-                "num_repos": {"$sum": "$num_repos"},
+                "total_projects": {"$sum": 1},
+                "two_factor_enforced": {"$sum": "$two_factor_enforced"},
+                "total_repos": {"$sum": "$total_repos"},
+                "repos_with_branch_protection": {"$sum": "$repos_with_branch_protection"},
+                "repos_with_secret_scanning": {"$sum": "$repos_with_secret_scanning"},
+                "repos_with_secret_scanning_push_protection": {"$sum": "$repos_with_secret_scanning_push_protection"},
+                "repos_with_private_vulnerability_reporting": {"$sum": "$repos_with_private_vulnerability_reporting"},
             },
         }
     ]
@@ -462,10 +467,18 @@ async def get_statistics() -> tuple[int, int]:
     collection = mongo.odm.get_collection(StatisticsModel)
     stats_list = await collection.aggregate(pipeline).to_list(1)
     if stats_list is None or len(stats_list) == 0:
-        return 0, 0
+        return 0, 0, 0, 0, 0, 0, 0
     else:
         stats = stats_list[0]
-        return stats["num_projects"], stats["num_repos"]
+        return (
+            stats["total_projects"],
+            stats["total_repos"],
+            stats["two_factor_enforced"],
+            stats["repos_with_branch_protection"],
+            stats["repos_with_secret_scanning"],
+            stats["repos_with_secret_scanning_push_protection"],
+            stats["repos_with_private_vulnerability_reporting"],
+        )
 
 
 async def cleanup_statistics(valid_orgs: list[str]) -> None:

@@ -60,10 +60,33 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
 
             # save statistics
             github_organization = GitHubOrganization.from_model_data(config_data)
+
+            repos_with_branch_protections = 0
+            repos_with_secret_scanning = 0
+            repos_with_secret_scanning_push_protection = 0
+            repos_with_private_vulnerability_reporting = 0
+
+            for repo in github_organization.repositories:
+                if repo.private_vulnerability_reporting_enabled is True:
+                    repos_with_private_vulnerability_reporting += 1
+
+                if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0:
+                    repos_with_branch_protections += 1
+
+                if repo.secret_scanning_push_protection == "enabled":
+                    repos_with_secret_scanning_push_protection += 1
+                elif repo.secret_scanning == "enabled":
+                    repos_with_secret_scanning += 1
+
             statistics = StatisticsModel(  # type: ignore
                 project_name=org_config.name,
                 github_id=self.org_id,
-                num_repos=len(github_organization.repositories),
+                two_factor_enforced=1 if github_organization.settings.two_factor_requirement is True else 0,
+                total_repos=len(github_organization.repositories),
+                repos_with_branch_protection=repos_with_branch_protections,
+                repos_with_private_vulnerability_reporting=repos_with_private_vulnerability_reporting,
+                repos_with_secret_scanning=repos_with_secret_scanning,
+                repos_with_secret_scanning_push_protection=repos_with_secret_scanning_push_protection,
             )
             await save_statistics(statistics)
 
