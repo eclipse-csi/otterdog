@@ -16,8 +16,10 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 import quart_flask_patch  # type: ignore # noqa: F401
+from flask_github import GitHub  # type: ignore
 from quart import Quart
 from quart.json.provider import DefaultJSONProvider
+from quart_auth import QuartAuth
 from quart_redis import RedisHandler  # type: ignore
 
 from .db import Mongo, init_mongo_database
@@ -27,15 +29,24 @@ from .utils import close_rest_apis
 if TYPE_CHECKING:
     from .config import AppConfig
 
-_BLUEPRINT_MODULES: list[str] = ["home", "api"]
+_BLUEPRINT_MODULES: list[str] = ["home", "api", "auth"]
 
 mongo = Mongo()
 redis_handler = RedisHandler()
+auth_manager = QuartAuth(cookie_secure=False)  # type: ignore
+oauth_github = GitHub()
 
 
 def register_extensions(app):
     mongo.init_app(app)
     redis_handler.init_app(app)
+
+    from otterdog.webapp.auth import User
+
+    auth_manager.user_class = User
+    auth_manager.init_app(app)
+
+    oauth_github.init_app(app)
 
 
 def register_github_webhook(app) -> None:

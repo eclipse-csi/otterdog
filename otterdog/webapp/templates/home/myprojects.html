@@ -1,0 +1,110 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Dashboard {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <div class="content-wrapper">
+
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1 class="m-0 text-dark">My Projects</h1>
+          </div><!-- /.col -->
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">My Projects</li>
+            </ol>
+          </div><!-- /.col -->
+        </div><!-- /.row -->
+      </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        <div class="row">
+          {% for installation in installations %}
+          {% set github_id = installation.github_id %}
+          {% set project_name = installation.project_name %}
+          {% set installation_status = installation.installation_status %}
+          <div class="col-md-3">
+            <div class="card">
+              {% if installation_status|status == 'success' %}
+              <a class="text-reset" href="/projects/{{ project_name }}">
+                <div class="card-header bg-{{ installation_status|status }}">
+                  <h3 class="card-title">{{ project_name }}</h3>
+                  <div class="float-right">
+                    <i class="fas fa-arrow-circle-right"></i>
+                  </div>
+                </div>
+              </a>
+              {% else %}
+              <a class="text-reset" href="#">
+                <div class="card-header bg-{{ installation_status|status }}">
+                  <h3 class="card-title">{{ project_name }}</h3>
+                </div>
+              </a>
+              {% endif %}
+              <div class="card-body">
+                <a href="https://github.com/{{ github_id }}"><i class="fab fa-github"></i> &nbsp; {{ github_id }}</a>
+              </div>
+              <div class="card-footer p-0">
+                {% if installation_status|status == 'success' %}
+                <ul class="nav flex-column">
+                  {% if configurations[github_id] %}
+                  {% set config = configurations[github_id].config %}
+                  <li class="nav-item">
+                    <a href="/projects/{{ project_name }}#settings" class="nav-link">
+                      {% set two_factor_enabled = config.settings.two_factor_requirement %}
+                      2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
+                      {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
+                      Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="/projects/{{ project_name }}#repositories" class="nav-link">
+                      Repositories <span class="float-right badge bg-primary">{{ config.repositories|length }}</span>
+                    </a>
+                  </li>
+                  {% endif %}
+                </ul>
+                {% endif %}
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          {% endfor %}
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+
+      </div><!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+{% endblock javascripts %}

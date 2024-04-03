@@ -9,5 +9,33 @@
         <a href="/index" class="nav-link">Home</a>
       </li>
     </ul>
+
+    <ul class="navbar-nav ml-auto">
+        <li class="nav-item dropdown">
+            {% if current_user.is_authenticated %}
+            <a class="nav-link" data-toggle="dropdown" href="#">
+                <div class="user-panel">
+                    <div class="image">
+                        <img src="https://avatars.githubusercontent.com/{{ current_user.username }}" class="img-circle" alt="User Image">
+                    </div>
+                    <span>
+                        <span class="user-name">
+                            {{ current_user.username }}
+                        </span>
+                    </span>
+                </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-sm dropdown-menu-right">
+              <a href="{{ url_for('auth_blueprint.logout') }}" class="dropdown-item">
+                {{ current_user.username }} - Logout
+              </a>
+            </div>
+            {% else %}
+            <a href="{{ url_for('auth_blueprint.login_view') }}" class="dropdown-item">
+              <i class="fas fa-user mr-2"></i> Login
+            </a>
+            {% endif %}
+        </li>
+    </ul>
   </nav>
   <!-- /.navbar -->

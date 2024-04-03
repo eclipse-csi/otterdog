@@ -19,6 +19,8 @@ class AppConfig:
     # Assets Management
     ASSETS_ROOT = config("ASSETS_ROOT", default="/static/assets")
 
+    CACHE_CONTROL = config("CACHE_CONTROL", default=False)
+
     APP_ROOT = config("APP_ROOT")
     DB_ROOT = os.path.join(APP_ROOT, "db")
 
@@ -40,6 +42,10 @@ class AppConfig:
     GITHUB_WEBHOOK_SECRET = config("GITHUB_WEBHOOK_SECRET", default=None)
     GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-validate")
     GITHUB_WEBHOOK_SYNC_CONTEXT = config("GITHUB_WEBHOOK_SYNC_CONTEXT", default="otterdog-sync")
+
+    # GitHub OAuth config
+    GITHUB_CLIENT_ID = config("GITHUB_OAUTH_CLIENT_ID")
+    GITHUB_CLIENT_SECRET = config("GITHUB_OAUTH_CLIENT_SECRET")
 
     # GitHub App config
     GITHUB_APP_ID = config("GITHUB_APP_ID")

@@ -242,3 +242,7 @@ async def backoff_if_needed(last_event: datetime, required_timeout: timedelta) -
         remaining_backoff_seconds = remaining_backoff.total_seconds() + 1
         logger.debug(f"backing off {remaining_backoff_seconds}s")
         await asyncio.sleep(remaining_backoff_seconds)
+
+
+def is_cache_control_enabled() -> bool:
+    return bool(current_app.config["CACHE_CONTROL"]) is True

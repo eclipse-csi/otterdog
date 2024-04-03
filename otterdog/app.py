@@ -58,10 +58,11 @@ else:
     exit(1)
 
 if DEBUG:
-    app.logger.info("DEBUG       = " + str(DEBUG))
-    app.logger.info("Environment = " + config_mode)
-    app.logger.info("QUART_APP   = " + app_config.QUART_APP)
-    app.logger.info("APP_ROOT    = " + app_config.APP_ROOT)
+    app.logger.info("DEBUG         = " + str(DEBUG))
+    app.logger.info("Environment   = " + config_mode)
+    app.logger.info("CACHE_CONTROL = " + app_config.CACHE_CONTROL)
+    app.logger.info("QUART_APP     = " + app_config.QUART_APP)
+    app.logger.info("APP_ROOT      = " + app_config.APP_ROOT)
 
 
 def run():

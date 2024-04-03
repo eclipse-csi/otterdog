@@ -1,0 +1,50 @@
+{% extends "layouts/base-fullscreen.html" %}
+
+{% block title %} Login {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} login-page {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <div class="login-box">
+
+    <div class="login-logo">
+        <a target="_blank" rel="noopener noreferrer"
+           href="https://appseed.us/product/adminlte/flask/"><b>Otterdog</b></a>
+    </div>
+
+    <!-- /.login-logo -->
+    <div class="card">
+      <div class="card-body login-card-body">
+        <p class="login-box-msg">
+            <span class="text-info">Sign in</span>
+        </p>
+
+        <div class="text-center">
+          <div class="text-center mx-auto">
+            <a href="{{url_for('auth_blueprint.login_github')}}" class="btn btn-github btn-lg">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+          </div>
+        </div>
+
+        <br />
+
+      </div>
+      <!-- /.login-card-body -->
+    </div>
+
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+{% endblock javascripts %}

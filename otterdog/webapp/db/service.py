@@ -29,6 +29,7 @@ from .models import (
     StatisticsModel,
     TaskModel,
     TaskStatus,
+    UserModel,
 )
 
 logger = getLogger(__name__)
@@ -469,3 +470,11 @@ async def get_statistics() -> tuple[int, int]:
 
 async def cleanup_statistics(valid_orgs: list[str]) -> None:
     await mongo.odm.remove(StatisticsModel, query.not_in(StatisticsModel.github_id, valid_orgs))
+
+
+async def get_user(node_id: str) -> UserModel | None:
+    return await mongo.odm.find_one(UserModel, UserModel.node_id == node_id)
+
+
+async def save_user(user: UserModel) -> None:
+    await mongo.odm.save(user)
