@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from logging import getLogger
 
 from odmantic import query
@@ -448,7 +449,23 @@ async def save_statistics(model: StatisticsModel) -> None:
     await mongo.odm.save(model)
 
 
-async def get_statistics() -> tuple[int, int, int, int, int, int, int]:
+@dataclasses.dataclass(frozen=True)
+class Statistics:
+    total_projects: int = 0
+    projects_with_two_factor_auth_enforced: int = 0
+    total_repos: int = 0
+    archived_repos: int = 0
+    repos_with_branch_protection: int = 0
+    repos_with_secret_scanning: int = 0
+    repos_with_secret_scanning_and_protection: int = 0
+    repos_with_private_vulnerability_reporting: int = 0
+
+    @property
+    def active_repos(self) -> int:
+        return self.total_repos - self.archived_repos
+
+
+async def get_statistics() -> Statistics:
     pipeline = [
         {
             "$group": {
@@ -456,6 +473,7 @@ async def get_statistics() -> tuple[int, int, int, int, int, int, int]:
                 "total_projects": {"$sum": 1},
                 "two_factor_enforced": {"$sum": "$two_factor_enforced"},
                 "total_repos": {"$sum": "$total_repos"},
+                "archived_repos": {"$sum": "$archived_repos"},
                 "repos_with_branch_protection": {"$sum": "$repos_with_branch_protection"},
                 "repos_with_secret_scanning": {"$sum": "$repos_with_secret_scanning"},
                 "repos_with_secret_scanning_push_protection": {"$sum": "$repos_with_secret_scanning_push_protection"},
@@ -467,13 +485,14 @@ async def get_statistics() -> tuple[int, int, int, int, int, int, int]:
     collection = mongo.odm.get_collection(StatisticsModel)
     stats_list = await collection.aggregate(pipeline).to_list(1)
     if stats_list is None or len(stats_list) == 0:
-        return 0, 0, 0, 0, 0, 0, 0
+        return Statistics()
     else:
         stats = stats_list[0]
-        return (
+        return Statistics(
             stats["total_projects"],
-            stats["total_repos"],
             stats["two_factor_enforced"],
+            stats["total_repos"],
+            stats["archived_repos"],
             stats["repos_with_branch_protection"],
             stats["repos_with_secret_scanning"],
             stats["repos_with_secret_scanning_push_protection"],

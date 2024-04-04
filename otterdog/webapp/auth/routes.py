@@ -9,7 +9,7 @@
 from typing import Any
 
 from quart import redirect, render_template, url_for
-from quart_auth import Unauthorized, current_user, login_user, logout_user
+from quart_auth import current_user, login_user, logout_user
 
 from otterdog.webapp import oauth_github
 from otterdog.webapp.db.models import UserModel
@@ -35,14 +35,6 @@ async def login_github():
 async def logout():
     logout_user()
     return redirect(url_for("home_blueprint.index"))
-
-
-# Errors
-
-
-@blueprint.errorhandler(Unauthorized)
-async def redirect_to_login(*_: Exception):
-    return redirect(url_for(".login"))
 
 
 @blueprint.route("/github/authorized")

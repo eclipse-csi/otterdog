@@ -129,6 +129,7 @@ class StatisticsModel(Model):
     github_id: str = Field(index=True)
     two_factor_enforced: int
     total_repos: int
+    archived_repos: int
     repos_with_secret_scanning: int
     repos_with_secret_scanning_push_protection: int
     repos_with_branch_protection: int

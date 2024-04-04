@@ -20,15 +20,15 @@
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1 class="m-0 text-dark">Dashboard</h1>
-          </div><!-- /.col -->
+          </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">Dashboard</li>
             </ol>
-          </div><!-- /.col -->
-        </div><!-- /.row -->
-      </div><!-- /.container-fluid -->
+          </div>
+        </div>
+      </div>
     </div>
     <!-- /.content-header -->
 
@@ -38,7 +38,6 @@
         <!-- Small boxes (Stat box) -->
         <div class="row">
           <div class="col-lg-2">
-            <!-- small box -->
             <div class="small-box bg-info">
               <div class="inner">
                 <h3>{{ installations|length }}</h3>
@@ -50,9 +49,7 @@
               <a href="/admin/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
-          <!-- ./col -->
           <div class="col-lg-2">
-            <!-- small box -->
             <div class="small-box bg-warning">
               <div class="inner">
                 <h3>{{ open_pull_request_count }}</h3>
@@ -64,9 +61,7 @@
               <a href="/admin/pullrequests" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
-          <!-- ./col -->
           <div class="col-lg-2">
-            <!-- small box -->
             <div class="small-box bg-success">
               <div class="inner">
                 <h3>{{ merged_pull_request_count }}</h3>
@@ -78,20 +73,39 @@
               <a href="/admin/pullrequests" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
-          <!-- ./col -->
           <div class="col-lg-2">
-            <!-- small box -->
             <div class="small-box bg-info">
               <div class="inner">
                 <h3>{{ total_repository_count }}</h3>
-                <p>Total Repository Count</p>
+                <p>Total Repositories</p>
               </div>
               <div class="icon">
                 <i class="fab fa-github"></i>
               </div>
             </div>
           </div>
-          <!-- ./col -->
+          <div class="col-lg-2">
+            <div class="small-box bg-success">
+              <div class="inner">
+                <h3>{{ active_repository_count }}</h3>
+                <p>Active Repositories</p>
+              </div>
+              <div class="icon">
+                <i class="fab fa-github"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-2">
+            <div class="small-box bg-secondary">
+              <div class="inner">
+                <h3>{{ archived_repository_count }}</h3>
+                <p>Archived Repositories</p>
+              </div>
+              <div class="icon">
+                <i class="fab fa-github"></i>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- ./row -->
 
@@ -248,8 +262,8 @@
             label: 'private vulnerability reporting',
             data: {{ private_vulnerability_reporting_data|safe }},
             backgroundColor: [
-              '#dc3545',
-              '#28a745'
+              '#ffc107',
+              '#28a745',
             ],
             borderWidth: 1
           }]

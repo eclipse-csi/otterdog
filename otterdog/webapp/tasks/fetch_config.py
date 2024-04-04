@@ -61,12 +61,17 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             # save statistics
             github_organization = GitHubOrganization.from_model_data(config_data)
 
+            archived_repos = 0
             repos_with_branch_protections = 0
             repos_with_secret_scanning = 0
             repos_with_secret_scanning_push_protection = 0
             repos_with_private_vulnerability_reporting = 0
 
             for repo in github_organization.repositories:
+                if repo.archived is True:
+                    archived_repos += 1
+                    continue
+
                 if repo.private_vulnerability_reporting_enabled is True:
                     repos_with_private_vulnerability_reporting += 1
 
@@ -83,6 +88,7 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 github_id=self.org_id,
                 two_factor_enforced=1 if github_organization.settings.two_factor_requirement is True else 0,
                 total_repos=len(github_organization.repositories),
+                archived_repos=archived_repos,
                 repos_with_branch_protection=repos_with_branch_protections,
                 repos_with_private_vulnerability_reporting=repos_with_private_vulnerability_reporting,
                 repos_with_secret_scanning=repos_with_secret_scanning,
