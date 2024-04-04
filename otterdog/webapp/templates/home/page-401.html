@@ -25,18 +25,15 @@
       <div class="card-body login-card-body">
 
         <h5 class="login-box-msg">
-          Error 403 - Access Denied
+          Error 401 - Access Denied
         </h5>
         <p class="login-box-msg">
           Authentication is required to access this resource
-          - please <a href="{{ url_for('authentication_blueprint.login') }}" class="text-center">Login</a>
+          - please <a href="{{ url_for('auth_blueprint.login_view') }}" class="text-center">Login</a>
         </p>
 
         <br />
         <div class="text-center">
-            Not a member? <a href="{{ url_for('authentication_blueprint.register') }}" class="text-center">Register</a>
-            <br />
-            <br />
             &copy; <a target="_blank" rel="noopener noreferrer" href="https://eclipse.org">Eclipse Foundation and others</a>.
         </div>
 

@@ -24,6 +24,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import associate_by_key
 from otterdog.webapp.db.service import (
     get_active_installations,
+    get_configuration_by_github_id,
     get_configuration_by_project_name,
     get_configurations,
     get_installations,
@@ -56,14 +57,42 @@ async def index():
     installations = await get_installations()
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
-    statistics = await get_statistics()
+    stats = await get_statistics()
+
+    two_factor_data = [
+        stats.total_projects - stats.projects_with_two_factor_auth_enforced,
+        stats.projects_with_two_factor_auth_enforced,
+    ]
+
+    secret_scanning_data = [
+        stats.active_repos - stats.repos_with_secret_scanning - stats.repos_with_secret_scanning_and_protection,
+        stats.repos_with_secret_scanning,
+        stats.repos_with_secret_scanning_and_protection,
+    ]
+
+    branch_protection_data = [
+        stats.active_repos - stats.repos_with_branch_protection,
+        stats.repos_with_branch_protection,
+    ]
+
+    private_vulnerability_reporting_data = [
+        stats.active_repos - stats.repos_with_private_vulnerability_reporting,
+        stats.repos_with_private_vulnerability_reporting,
+    ]
+
     return await render_home_template(
         "index.html",
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
         merged_pull_request_count=await get_merged_pull_requests_count(),
         installations=installations,
         configurations=configurations_by_key,
-        total_repository_count=statistics[1],
+        total_repository_count=stats.total_repos,
+        active_repository_count=stats.active_repos,
+        archived_repository_count=stats.archived_repos,
+        two_factor_data=json.dumps(two_factor_data),
+        secret_scanning_data=json.dumps(secret_scanning_data),
+        branch_protection_data=json.dumps(branch_protection_data),
+        private_vulnerability_reporting_data=json.dumps(private_vulnerability_reporting_data),
     )
 
 
@@ -76,7 +105,21 @@ async def myprojects():
     configurations = await get_configurations()
     configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
     return await render_home_template(
-        "myprojects.html",
+        "projects.html",
+        title="My Projects",
+        installations=installations,
+        configurations=configurations_by_key,
+    )
+
+
+@blueprint.route("/allprojects")
+async def allprojects():
+    installations = await get_installations()
+    configurations = await get_configurations()
+    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await render_home_template(
+        "projects.html",
+        title="All Projects",
         installations=installations,
         configurations=configurations_by_key,
     )
@@ -92,6 +135,15 @@ async def query():
     )
 
 
+@blueprint.route("/organizations/<org_name>")
+async def organization(org_name: str):
+    config = await get_configuration_by_github_id(org_name)
+    if config is None:
+        return await render_template("home/page-404.html"), 404
+    else:
+        return redirect(url_for(".project", project_name=config.project_name))
+
+
 @blueprint.route("/projects/<project_name>")
 async def project(project_name: str):
     config = await get_configuration_by_project_name(project_name)
@@ -105,7 +157,7 @@ async def project(project_name: str):
 
     return await render_home_template(
         "organization.html",
-        project_name=project_name,
+        project_name=config.project_name,
         github_id=config.github_id,
         config=github_organization,
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
@@ -113,12 +165,12 @@ async def project(project_name: str):
     )
 
 
-def _get_secret_scanning_data(organization: GitHubOrganization) -> list[int]:
+def _get_secret_scanning_data(org: GitHubOrganization) -> list[int]:
     alert_mode = 0
     protection_mode = 0
     not_configured = 0
 
-    for repo in organization.repositories:
+    for repo in org.repositories:
         if repo.archived is True:
             continue
 
@@ -132,11 +184,11 @@ def _get_secret_scanning_data(organization: GitHubOrganization) -> list[int]:
     return [not_configured, alert_mode, protection_mode]
 
 
-def _get_branch_protection_data(organization: GitHubOrganization) -> list[int]:
+def _get_branch_protection_data(org: GitHubOrganization) -> list[int]:
     protected = 0
     not_protected = 0
 
-    for repo in organization.repositories:
+    for repo in org.repositories:
         if repo.archived is True:
             continue
 
@@ -227,8 +279,16 @@ async def route_template(template: str):
         return redirect(url_for(f".{endpoint}"))
     except BuildError:
         return await render_template("home/page-404.html"), 404
-    except:  # noqa: E722
-        return await render_template("home/page-500.html"), 500
+
+
+@blueprint.errorhandler(401)
+async def error_unauthorized(error):
+    return await render_template("home/page-401.html"), 401
+
+
+@blueprint.errorhandler(Exception)
+async def error_exception(error):
+    return await render_template("home/page-500.html"), 500
 
 
 # Helper - Extract current page name from request
