@@ -569,7 +569,7 @@ class RepoClient(RestClient):
         print_debug(f"retrieving branches for repo '{org_id}/{repo_name}'")
 
         try:
-            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/branches")
+            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/branches")
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)

@@ -14,6 +14,11 @@
 
 - Use scoped commands for interaction via pull requests. ([#211](https://github.com/eclipse-csi/otterdog/issues/211))
 
+### Fixed
+
+- Use pagination when retrieving all branches of a repository.
+
+
 ## [0.5.0] - 05/03/2024
 
 Note: this version includes lots of additions and changes related to the GitHub App mode which are not
