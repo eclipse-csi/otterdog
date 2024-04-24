@@ -176,13 +176,13 @@
               },
               { name: "id.repo_name", title: "Repo name", type: "text", width: 50,
                 itemTemplate: function(value, item) {
-                  return "<a href='https://github.com/" + item.org_id + "/" + value + "'>" + value + "</a>";
+                  return "<a href='https://github.com/" + item.id.org_id + "/" + value + "'>" + value + "</a>";
                 }
               },
               { name: "id.pull_request", title: "Pull Request", type: "number", align: "center", width: 50,
                 itemTemplate: function(value, item) {
                   if (value > 0) {
-                    return "<a href='https://github.com/" + item.org_id + "/" + item.repo_name + "/pull/" + value + "'>#" + value + "</a>";
+                    return "<a href='https://github.com/" + item.id.org_id + "/" + item.id.repo_name + "/pull/" + value + "'>#" + value + "</a>";
                   } else {
                     return "N/A";
                   }
