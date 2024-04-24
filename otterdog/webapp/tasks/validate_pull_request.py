@@ -17,6 +17,7 @@ from quart import current_app, render_template
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
+from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
@@ -34,6 +35,7 @@ from otterdog.webapp.webhook.github_models import PullRequest
 class ValidationResult:
     plan_output: str = ""
     validation_success: bool = False
+    touches_non_configuration: bool = False
     requires_secrets: bool | None = None
     requires_web_ui: bool | None = None
     includes_deletions: bool | None = None
@@ -129,6 +131,12 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             )
 
             validation_result = ValidationResult()
+
+            for file in await self._get_pull_request_files(rest_api):
+                self.logger.debug(f"touched file: {file}")
+                if file != f"otterdog/{self.org_id}.jsonnet":
+                    validation_result.touches_non_configuration = True
+                    break
 
             if filecmp.cmp(base_file, head_file):
                 self.logger.debug("head and base config are identical, no need to validate")
@@ -248,11 +256,20 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 validation_result.requires_secrets
                 or validation_result.requires_web_ui
                 or validation_result.includes_deletions
+                or validation_result.touches_non_configuration
             ),
         )
 
         if pull_request_model.can_be_automerged():
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
+
+    async def _get_pull_request_files(self, rest_api: RestApi) -> list[str]:
+        pull_request_data = await rest_api.pull_request.get_files(
+            self.org_id,
+            self.repo_name,
+            str(self.pull_request_number),
+        )
+        return list(map(lambda x: x["filename"], pull_request_data))
 
     def __repr__(self) -> str:
         return (

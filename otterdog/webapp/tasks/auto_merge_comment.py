@@ -37,22 +37,21 @@ class AutoMergeCommentTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-        rest_api = await self.rest_api
-        comment = await render_template("comment/auto_merge_comment.txt")
-
-        await self.minimize_outdated_comments(
+        if not self.comment_with_header_exists(
             self.org_id,
             self.repo_name,
             self.pull_request_number,
             "<!-- Otterdog Comment: automerge -->",
-        )
+        ):
+            comment = await render_template("comment/auto_merge_comment.txt")
 
-        await rest_api.issue.create_comment(
-            self.org_id,
-            self.repo_name,
-            str(self.pull_request_number),
-            comment,
-        )
+            rest_api = await self.rest_api
+            await rest_api.issue.create_comment(
+                self.org_id,
+                self.repo_name,
+                str(self.pull_request_number),
+                comment,
+            )
 
     def __repr__(self) -> str:
         return f"AutoMergeCommentTask(repo='{self.org_id}/{self.repo_name}', pull_request=#{self.pull_request_number})"

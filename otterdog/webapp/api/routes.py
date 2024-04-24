@@ -58,7 +58,7 @@ async def tasks():
 @blueprint.route("/pullrequests/merged")
 async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
-    result = {"data": list(map(lambda x: x.model_dump(exclude={"id"}), paged_pull_requests)), "itemsCount": count}
+    result = {"data": list(map(lambda x: x.model_dump(), paged_pull_requests)), "itemsCount": count}
     return jsonify(result)
 
 

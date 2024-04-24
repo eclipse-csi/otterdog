@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from functools import cached_property
 from logging import Logger, getLogger
 from typing import Any, Generic, Protocol, TypeVar
@@ -219,6 +219,24 @@ class InstallationBasedTask(Protocol):
             if bool(is_minimized) is False and matching_header in body:
                 await graphql_api.minimize_comment(comment_id, "OUTDATED")
 
+    async def comment_with_header_exists(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: int,
+        matching_header: str,
+    ):
+        graphql_api = await self.graphql_api
+        comments = await graphql_api.get_issue_comments(org_id, repo_name, pull_request_number)
+        for comment in comments:
+            body = comment["body"]
+            is_minimized = comment["isMinimized"]
+
+            if bool(is_minimized) is False and matching_header in body:
+                return True
+
+        return False
+
     def schedule_automerge_task(self, org_id: str, repo_name: str, pull_request_number: int) -> None:
         from .auto_merge_comment import AutoMergeCommentTask
 
@@ -251,4 +269,28 @@ async def get_organization_config(org_model: InstallationModel, token: str, work
         org_model.base_template,
         {"provider": "inmemory", "api_token": token},
         work_dir,
+    )
+
+
+def contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
+    # FIXME: teams that can approve must be made configurable, this is just EF specific for now
+    return any(
+        map(
+            lambda x: x.endswith("project-leads"),
+            teams,
+        )
+    )
+
+
+def contains_eligible_team_for_auto_merge(teams: Iterable[str]) -> bool:
+    from otterdog.webapp.utils import get_admin_teams
+
+    admin_teams = get_admin_teams()
+
+    # FIXME: teams that can approve must be made configurable, this is just EF specific for now
+    return any(
+        map(
+            lambda x: x.endswith("project-leads") or x in admin_teams,
+            teams,
+        )
     )

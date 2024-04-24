@@ -12,6 +12,9 @@
 
 ### Changed
 
+- Reduced the number of automatic checks that are performed every time a PR gets updated. ([#217](https://github.com/eclipse-csi/otterdog/issues/217))
+- Support auto-merge also for project leads and admins. ([#216](https://github.com/eclipse-csi/otterdog/issues/216))
+- Do not enable auto-merge for PRs that also touch files other than the configuration. ([#220](https://github.com/eclipse-csi/otterdog/issues/220))
 - Use scoped commands for interaction via pull requests. ([#211](https://github.com/eclipse-csi/otterdog/issues/211))
 
 ### Fixed

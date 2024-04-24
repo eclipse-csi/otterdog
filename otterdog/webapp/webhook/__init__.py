@@ -73,14 +73,23 @@ async def on_pull_request_received(data):
     if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
 
-    current_app.add_background_task(
-        UpdatePullRequestTask(
-            event.installation.id,
-            event.organization.login,
-            event.repository.name,
-            event.pull_request,
+    if event.action in [
+        "opened",
+        "closed",
+        "ready_for_review",
+        "converted_to_draft",
+        "ready_for_review",
+        "reopened",
+        "synchronize",
+    ]:
+        current_app.add_background_task(
+            UpdatePullRequestTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request,
+            )
         )
-    )
 
     if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
         current_app.add_background_task(

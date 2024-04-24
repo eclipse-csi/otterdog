@@ -7,7 +7,9 @@
 #  *******************************************************************************
 
 import json
+from typing import Any
 
+from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
@@ -16,6 +18,15 @@ from . import RestApi, RestClient
 class CommitClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
+
+    async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
+        print_debug(f"getting commit statuses for ref '{ref}' from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/commits/{ref}/statuses")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving commit statuses:\n{ex}").with_traceback(tb)
 
     async def create_commit_status(
         self,
