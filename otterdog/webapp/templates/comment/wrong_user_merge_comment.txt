@@ -1,2 +1,2 @@
 This is your friendly self-service bot.
-Only the author of the pull request is allowed to auto-merge it.
+Only the author of the pull request, a project-lead or a member of the admin teams is allowed to auto-merge it.

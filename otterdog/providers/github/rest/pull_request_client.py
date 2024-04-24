@@ -43,6 +43,17 @@ class PullRequestClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull requests:\n{ex}").with_traceback(tb)
 
+    async def get_commits(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
+        print_debug(f"getting commits for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/commits"
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving pull request commits:\n{ex}").with_traceback(tb)
+
     async def get_reviews(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
         print_debug(f"getting reviews for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
 
@@ -53,6 +64,17 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}").with_traceback(tb)
+
+    async def get_files(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
+        print_debug(f"getting files for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/files"
+            )
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving pull request files:\n{ex}").with_traceback(tb)
 
     async def merge(
         self,

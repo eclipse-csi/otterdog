@@ -25,6 +25,7 @@ from .models import (
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
+    PullRequestId,
     PullRequestModel,
     PullRequestStatus,
     StatisticsModel,
@@ -44,7 +45,15 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             await update_app_installations()
 
         case "deleted":
-            await update_app_installations()
+            installation = await mongo.odm.find_one(
+                InstallationModel, InstallationModel.installation_id == installation_id
+            )
+
+            if installation is not None:
+                installation.installation_id = 0
+                installation.installation_status = InstallationStatus.NOT_INSTALLED
+                await mongo.odm.save(installation)
+                await cleanup_data()
 
         case "suspend":
             installation = await mongo.odm.find_one(
@@ -110,12 +119,16 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig) -> N
             await session.remove(InstallationModel, InstallationModel.github_id == github_id)
 
     # remove all PullRequest and Statistics data for invalid installations
+    await cleanup_data()
+
+    await update_app_installations()
+
+
+async def cleanup_data() -> None:
     valid_orgs = list(map(lambda x: x.github_id, await get_installations()))
     await cleanup_pull_requests(valid_orgs)
     await cleanup_statistics(valid_orgs)
     await cleanup_configurations(valid_orgs)
-
-    await update_app_installations()
 
 
 async def update_app_installations() -> None:
@@ -296,9 +309,9 @@ async def save_config(config: ConfigurationModel) -> None:
 async def find_pull_request(owner: str, repo: str, pull_request: int) -> PullRequestModel | None:
     return await mongo.odm.find_one(
         PullRequestModel,
-        PullRequestModel.org_id == owner,
-        PullRequestModel.repo_name == repo,
-        PullRequestModel.pull_request == pull_request,
+        PullRequestModel.id.org_id == owner,
+        PullRequestModel.id.repo_name == repo,
+        PullRequestModel.id.pull_request == pull_request,
     )
 
 
@@ -310,6 +323,7 @@ async def update_or_create_pull_request(
     in_sync: bool | None = None,
     requires_manual_apply: bool | None = None,
     supports_auto_merge: bool | None = None,
+    author_can_auto_merge: bool | None = None,
     has_required_approvals: bool | None = None,
     apply_status: ApplyStatus | None = None,
 ) -> PullRequestModel:
@@ -318,9 +332,7 @@ async def update_or_create_pull_request(
     pr_model = await find_pull_request(owner, repo, pull_request.number)
     if pr_model is None:
         pr_model = PullRequestModel(  # type: ignore
-            org_id=owner,
-            repo_name=repo,
-            pull_request=pull_request.number,
+            id=PullRequestId(org_id=owner, repo_name=repo, pull_request=pull_request.number),
             draft=pull_request.draft,
             status=pull_request_status,
             created_at=pull_request.created_at,
@@ -351,8 +363,11 @@ async def update_or_create_pull_request(
     if supports_auto_merge is not None:
         pr_model.supports_auto_merge = supports_auto_merge
 
+    if author_can_auto_merge is not None:
+        pr_model.author_can_auto_merge = author_can_auto_merge
+
     if has_required_approvals is not None:
-        pr_model.has_required_approval = has_required_approvals
+        pr_model.has_required_approvals = has_required_approvals
 
     await update_pull_request(pr_model)
     return pr_model
@@ -403,7 +418,7 @@ def _merged_pull_requests_query() -> QueryExpression:
 async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
     page_index = 1
     page_size = 20
-    sort_field = "merged_at"
+    sort_field_name = "merged_at"
     sort_order = "desc"
 
     queries: list[QueryExpression] = [_merged_pull_requests_query()]
@@ -415,18 +430,27 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
             case "pageSize":
                 page_size = int(v)
             case "sortField":
-                sort_field = v
+                sort_field_name = v
             case "sortOrder":
                 sort_order = v
             case _:
                 if v:
                     queries.append(query.match(PullRequestModel.__dict__[k], v))
 
-    sort = (
-        query.desc(PullRequestModel.__dict__[sort_field])
-        if sort_order == "desc"
-        else query.asc(PullRequestModel.__dict__[sort_field])
-    )
+    if sort_field_name.startswith("id."):
+        match sort_field_name:
+            case "id.org_id":
+                sort_field = PullRequestModel.id.org_id
+            case "id.repo_name":
+                sort_field = PullRequestModel.id.repo_name
+            case "id.pull_request":
+                sort_field = PullRequestModel.id.pull_request  # type: ignore
+            case _:
+                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
+    else:
+        sort_field = PullRequestModel.__dict__[sort_field_name]
+
+    sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
 
     skip = (page_index - 1) * page_size
     return (
@@ -442,7 +466,7 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
 
 
 async def cleanup_pull_requests(valid_orgs: list[str]) -> None:
-    await mongo.odm.remove(PullRequestModel, query.not_in(PullRequestModel.org_id, valid_orgs))
+    await mongo.odm.remove(PullRequestModel, query.not_in(PullRequestModel.id.org_id, valid_orgs))
 
 
 async def save_statistics(model: StatisticsModel) -> None:

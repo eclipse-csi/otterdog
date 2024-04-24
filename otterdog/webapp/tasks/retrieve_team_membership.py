@@ -11,7 +11,12 @@ from dataclasses import dataclass
 from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.db.service import update_or_create_pull_request
+from otterdog.webapp.tasks import (
+    InstallationBasedTask,
+    Task,
+    contains_eligible_team_for_auto_merge,
+)
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -67,6 +72,18 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         graphql_api = await self.graphql_api
         team_data = await graphql_api.get_team_membership(self.org_id, user)
         team_membership = [team["name"] for team in team_data]
+
+        if self._pull_request.author_association == "MEMBER":
+            author_can_auto_merge = contains_eligible_team_for_auto_merge(team_membership)
+        else:
+            author_can_auto_merge = False
+
+        await update_or_create_pull_request(
+            self.org_id,
+            self.repo_name,
+            self._pull_request,
+            author_can_auto_merge=author_can_auto_merge,
+        )
 
         teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
         comment = await render_template(

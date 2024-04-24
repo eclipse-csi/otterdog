@@ -104,6 +104,13 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             )
             return False
 
+        if self._pr_model.valid is not True:
+            self.logger.error(
+                f"trying to apply changes for invalid pull request #{self.pull_request_number} "
+                f"of org '{self.org_id}', skipping"
+            )
+            return False
+
         if self.author is not None:
             rest_api = await self.rest_api
             admin_teams = get_admin_teams()
@@ -165,7 +172,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             )
 
             output = StringIO()
-            printer = IndentingPrinter(output, log_level=LogLevel.ERROR)
+            printer = IndentingPrinter(output, log_level=LogLevel.WARN)
 
             # let's create an apply operation that forces processing but does not update
             # any web UI settings and resources using credentials

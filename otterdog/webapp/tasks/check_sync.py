@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import StringIO
 
 from quart import current_app, render_template
@@ -26,10 +26,12 @@ from otterdog.webapp.db.service import (
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     backoff_if_needed,
+    current_utc_time,
     escape_for_github,
     fetch_config_from_github,
     get_full_admin_team_slugs,
     get_otterdog_config,
+    make_aware_utc,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -51,6 +53,12 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             else self.pull_request_or_number.number
         )
 
+    @property
+    def is_triggered_from_comment(self) -> bool:
+        # right now if the pull request is a number, the task has been
+        # created from a PR comment, this should be made cleaner
+        return isinstance(self.pull_request_or_number, int)
+
     def create_task_model(self):
         return TaskModel(
             type=type(self).__name__,
@@ -67,14 +75,50 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             self.repo_name,
         )
 
+        rest_api = await self.rest_api
+
         if isinstance(self.pull_request_or_number, int):
-            rest_api = await self.rest_api
             response = await rest_api.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
             self._pull_request = PullRequest.model_validate(response)
         else:
             self._pull_request = self.pull_request_or_number
+
+        # do not perform checks every time a pull request is synchronized
+        # if the last check was done within an hour
+        if self.is_triggered_from_comment is False:
+            commits = await rest_api.pull_request.get_commits(
+                self.org_id,
+                self.repo_name,
+                str(self.pull_request_number),
+            )
+
+            if len(commits) > 1:
+                previous_commit = commits[-2]
+                commit_time = make_aware_utc(
+                    datetime.strptime(previous_commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
+                )
+                current_time = current_utc_time()
+                timedelta_since_last_commit = current_time - commit_time
+                if timedelta_since_last_commit < timedelta(hours=1):
+                    commit_statuses = await rest_api.commit.get_commit_statuses(
+                        self.org_id,
+                        self.repo_name,
+                        previous_commit["sha"],
+                    )
+
+                    commit_status = list(
+                        filter(
+                            lambda x: x["context"] == _get_webhook_sync_context() and x["state"] != "pending",
+                            commit_statuses,
+                        )
+                    )
+
+                    # if a previous commit status was found, propagate it directly
+                    if len(commit_status) > 1:
+                        await self._update_final_status(commit_status[0]["state"] == "success")
+                        return False
 
         latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
         # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task

@@ -12,7 +12,11 @@ from quart import render_template
 
 from otterdog.webapp.db.models import PullRequestStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request
-from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.tasks import (
+    InstallationBasedTask,
+    Task,
+    contains_eligible_team_for_auto_merge,
+)
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -70,15 +74,23 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         pull_request = PullRequest.model_validate(response)
 
         if self.author != pull_request.user.login:
-            comment = await render_template("comment/wrong_user_merge_comment.txt")
-            await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+            # if somebody else as the creator of the pull requests added the comment,
+            # check if the author is eligible for auto merge.
 
-            self.logger.error(
-                f"merge for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                "who is not the author, skipping"
-            )
+            graphql_api = await self.graphql_api
+            team_data = await graphql_api.get_team_membership(self.org_id, self.author)
+            team_membership = [team["name"] for team in team_data]
 
-            return False
+            if not contains_eligible_team_for_auto_merge(team_membership):
+                comment = await render_template("comment/wrong_user_merge_comment.txt")
+                await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+
+                self.logger.error(
+                    f"merge for pull request #{self.pull_request_number} triggered by user '{self.author}' "
+                    "who is not the creator of the PR and not eligible for auto-merge, skipping"
+                )
+
+                return False
 
         return True
 

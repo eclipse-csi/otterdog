@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from odmantic import Field, Index, Model
+from odmantic import EmbeddedModel, Field, Model
 
 from otterdog.webapp.utils import current_utc_time
 
@@ -84,10 +84,14 @@ class ApplyStatus(str, Enum):
         return self.name
 
 
-class PullRequestModel(Model):
+class PullRequestId(EmbeddedModel):
     org_id: str
     repo_name: str
     pull_request: int
+
+
+class PullRequestModel(Model):
+    id: PullRequestId = Field(primary_field=True)
     draft: bool
     status: PullRequestStatus = Field(index=True)
     apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
@@ -96,7 +100,8 @@ class PullRequestModel(Model):
     in_sync: Optional[bool] = None
     requires_manual_apply: Optional[bool] = None
     supports_auto_merge: Optional[bool] = None
-    has_required_approval: Optional[bool] = None
+    author_can_auto_merge: Optional[bool] = None
+    has_required_approvals: Optional[bool] = None
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
@@ -104,23 +109,12 @@ class PullRequestModel(Model):
     closed_at: Optional[datetime] = None
     merged_at: Optional[datetime] = Field(index=True, default=None)
 
-    model_config = {  # type: ignore
-        "indexes": lambda: [
-            Index(
-                PullRequestModel.org_id,
-                PullRequestModel.repo_name,
-                PullRequestModel.pull_request,
-                unique=True,
-            ),
-        ],
-    }
-
     def can_be_automerged(self) -> bool:
         return (
             self.valid is True
             and self.in_sync is True
             and self.supports_auto_merge is True
-            and self.has_required_approval is True
+            and (self.author_can_auto_merge is True or self.has_required_approvals is True)
         )
 
 

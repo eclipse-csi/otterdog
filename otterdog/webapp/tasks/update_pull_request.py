@@ -6,15 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import (
-    update_or_create_pull_request,
-    update_pull_request,
+from otterdog.webapp.db.service import update_or_create_pull_request
+from otterdog.webapp.tasks import (
+    InstallationBasedTask,
+    Task,
+    contains_valid_team_for_approval,
 )
-from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.webhook.github_models import PullRequest, Review
 
 
@@ -47,9 +47,6 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
         )
 
         if self.review is not None:
-            # TODO: simplify the logic, if we already figured out that the author of the PR
-            #       is eligible for auto-merge, no need to check that again when a review arrives.
-
             rest_api = await self.rest_api
 
             # check if the PR was approved by a team eligible for auto-merge
@@ -75,15 +72,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
 
             self.logger.debug(f"approved by teams: {approved_by_teams}")
 
-            has_required_approvals = self._contains_valid_team_for_approval(approved_by_teams)
-
-            # if no approval yet, check if the author is member of a team that is eligible for auto-merge
-            if has_required_approvals is False and self.pull_request.author_association == "MEMBER":
-                author_teams = map(
-                    lambda x: x["name"],
-                    await graphql_api.get_team_membership(self.org_id, self.pull_request.user.login),
-                )
-                has_required_approvals = self._contains_valid_team_for_approval(author_teams)
+            has_required_approvals = contains_valid_team_for_approval(approved_by_teams)
 
             pull_request_model = await update_or_create_pull_request(
                 self.org_id,
@@ -95,31 +84,11 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
             if pull_request_model.can_be_automerged():
                 self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
         else:
-            pull_request_model = await update_or_create_pull_request(
+            await update_or_create_pull_request(
                 self.org_id,
                 self.repo_name,
                 self.pull_request,
             )
-
-            if pull_request_model.has_required_approval is None:
-                graphql_api = await self.graphql_api
-                author_teams = map(
-                    lambda x: x["name"],
-                    await graphql_api.get_team_membership(self.org_id, self.pull_request.user.login),
-                )
-
-                pull_request_model.has_required_approval = self._contains_valid_team_for_approval(author_teams)
-                await update_pull_request(pull_request_model)
-
-    @staticmethod
-    def _contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
-        # FIXME: team names must be made configurable, this is just EF specific
-        return any(
-            map(
-                lambda x: x.endswith("project-leads"),
-                teams,
-            )
-        )
 
     def __repr__(self) -> str:
         return f"UpdatePullRequestTask(repo={self.org_id}/{self.repo_name}, pull_request=#{self.pull_request_number})"
