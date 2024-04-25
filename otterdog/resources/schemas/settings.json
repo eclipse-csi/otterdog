@@ -107,11 +107,6 @@
       "provider": "web",
       "type": "boolean"
     },
-    "team_discussions_allowed": {
-      "deprecated": true,
-      "provider": "web",
-      "type": "boolean"
-    },
     "default_branch_name": {
       "provider": "web",
       "type": "string"
