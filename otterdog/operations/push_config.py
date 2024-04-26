@@ -8,6 +8,8 @@
 
 import aiofiles
 import aiofiles.ospath
+from git import InvalidGitRepositoryError, Repo
+from git.config import GitConfigParser
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
@@ -56,6 +58,29 @@ class PushOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{str(e)}")
                 return 1
 
+            # try to determine the git user configuration if possible
+            # if no configuration can be found, omit adding author information
+
+            try:
+                git_config_reader = Repo(self.config.config_dir).config_reader()
+            except InvalidGitRepositoryError:
+                # if the config dir is not a git repo, just read the global config
+                git_config_reader = GitConfigParser(None, read_only=True)
+
+            if git_config_reader.has_option("user", "name"):
+                author_name = git_config_reader.get_value("user", "name")
+            else:
+                author_name = None
+
+            if git_config_reader.has_option("user", "email"):
+                author_email = git_config_reader.get_value("user", "email")
+            else:
+                author_email = None
+
+            if not author_name:
+                author_name = None
+                author_email = None
+
             async with aiofiles.open(org_file_name, "r") as file:
                 content = await file.read()
 
@@ -70,6 +95,8 @@ class PushOperation(Operation):
                         f"otterdog/{github_id}.jsonnet",
                         content,
                         self.push_message,
+                        author_name,
+                        author_email,
                     ):
                         updated_files.append(f"otterdog/{github_id}.jsonnet")
                         updated = True

@@ -23,7 +23,9 @@ pypi/pypi/-/exceptiongroup/1.2.1
 pypi/pypi/-/flask/3.0.3
 pypi/pypi/-/frozenlist/1.4.1
 pypi/pypi/-/ghp-import/2.1.0
+pypi/pypi/-/gitdb/4.0.11
 pypi/pypi/-/github-flask/3.2.0
+pypi/pypi/-/gitpython/3.1.43
 pypi/pypi/-/gojsonnet/0.20.0
 pypi/pypi/-/graphql-core/3.2.3
 pypi/pypi/-/greenlet/3.0.3
@@ -45,9 +47,10 @@ pypi/pypi/-/markdown/3.6
 pypi/pypi/-/markupsafe/2.1.5
 pypi/pypi/-/mergedeep/1.3.4
 pypi/pypi/-/mintotp/0.3.0
-pypi/pypi/-/mkdocs/1.5.3
+pypi/pypi/-/mkdocs/1.6.0
 pypi/pypi/-/mkdocs-exclude/1.0.2
-pypi/pypi/-/mkdocs-material/9.5.18
+pypi/pypi/-/mkdocs-get-deps/0.2.0
+pypi/pypi/-/mkdocs-material/9.5.19
 pypi/pypi/-/mkdocs-material-extensions/1.3.1
 pypi/pypi/-/motor/3.4.0
 pypi/pypi/-/multidict/6.0.5
@@ -81,6 +84,7 @@ pypi/pypi/-/regex/2024.4.16
 pypi/pypi/-/requests/2.31.0
 pypi/pypi/-/rpds-py/0.18.0
 pypi/pypi/-/six/1.16.0
+pypi/pypi/-/smmap/5.0.1
 pypi/pypi/-/sniffio/1.3.1
 pypi/pypi/-/starlette/0.37.2
 pypi/pypi/-/taskgroup/0.0.0a4

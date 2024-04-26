@@ -2,6 +2,10 @@
 
 ## [0.7.0] - unreleased
 
+### Added
+
+- Added author information from git when pushing config changes with `push-config`. ([#228](https://github.com/eclipse-csi/otterdog/issues/228))
+
 
 ## [0.6.0] - 24/04/2024
 

@@ -162,6 +162,10 @@ class OtterdogConfig:
         return self._config_file
 
     @property
+    def config_dir(self) -> str:
+        return self._config_dir
+
+    @property
     def jsonnet_base_dir(self) -> str:
         return self._jsonnet_base_dir
 
