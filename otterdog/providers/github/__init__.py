@@ -66,8 +66,18 @@ class GitHubProvider:
         path: str,
         content: str,
         message: str | None = None,
+        author_name: str | None = None,
+        author_email: str | None = None,
     ) -> bool:
-        return await self.rest_api.content.update_content(org_id, repo_name, path, content, message)
+        return await self.rest_api.content.update_content(
+            org_id,
+            repo_name,
+            path,
+            content,
+            message,
+            author_name,
+            author_email,
+        )
 
     async def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
         # first, get supported settings via the rest api.

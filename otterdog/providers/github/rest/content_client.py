@@ -54,6 +54,8 @@ class ContentClient(RestClient):
         path: str,
         content: str,
         message: str | None = None,
+        author_name: str | None = None,
+        author_email: str | None = None,
     ) -> bool:
         print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
 
@@ -78,10 +80,17 @@ class ContentClient(RestClient):
         else:
             push_message = message
 
-        data = {
+        data: dict[str, Any] = {
             "message": push_message,
             "content": base64_content,
         }
+
+        if author_name is not None:
+            author = {
+                "name": author_name,
+                "email": author_email if author_email is not None else "",
+            }
+            data["author"] = author
 
         if old_sha is not None:
             data["sha"] = old_sha

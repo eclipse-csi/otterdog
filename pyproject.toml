@@ -54,6 +54,7 @@ playwright           = "^1.40"
 JSONBender           = "^0.9"
 PyNaCl               = "^1.5"
 requests             = "^2.31"
+GitPython            = "^3.1"
 
 [tool.poetry.group.app.dependencies]
 quart                = "^0.19"
