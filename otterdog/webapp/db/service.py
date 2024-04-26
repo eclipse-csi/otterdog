@@ -381,6 +381,7 @@ async def get_open_or_incomplete_pull_requests() -> list[PullRequestModel]:
     return await mongo.odm.find(
         PullRequestModel,
         _open_or_incomplete_pull_requests_query(),
+        sort=query.desc(PullRequestModel.created_at),
     )
 
 
