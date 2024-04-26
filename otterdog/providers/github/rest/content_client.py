@@ -53,6 +53,7 @@ class ContentClient(RestClient):
         repo_name: str,
         path: str,
         content: str,
+        ref: str | None = None,
         message: str | None = None,
         author_name: str | None = None,
         author_email: str | None = None,
@@ -60,7 +61,7 @@ class ContentClient(RestClient):
         print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
 
         try:
-            json_response = await self.get_content_object(org_id, repo_name, path)
+            json_response = await self.get_content_object(org_id, repo_name, path, ref)
             old_sha = json_response["sha"]
             old_content = base64.b64decode(json_response["content"]).decode("utf-8")
         except RuntimeError:
@@ -84,6 +85,9 @@ class ContentClient(RestClient):
             "message": push_message,
             "content": base64_content,
         }
+
+        if ref is not None:
+            data["branch"] = ref
 
         if author_name is not None:
             author = {

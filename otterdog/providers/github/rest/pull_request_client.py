@@ -27,6 +27,26 @@ class PullRequestClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving pull request:\n{ex}").with_traceback(tb)
 
+    async def create_pull_request(
+        self, org_id: str, repo_name: str, title: str, head: str, base: str, body: str | None = None
+    ) -> dict[str, Any]:
+        print_debug(f"creating pull request for repo '{org_id}/{repo_name}'")
+
+        try:
+            data = {
+                "title": title,
+                "head": head,
+                "base": base,
+            }
+
+            if body is not None:
+                data["body"] = body
+
+            return await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/pulls", data=data)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed creating pull request:\n{ex}").with_traceback(tb)
+
     async def get_pull_requests(
         self, org_id: str, repo_name: str, state: str = "all", base_ref: str | None = None
     ) -> list[dict[str, Any]]:

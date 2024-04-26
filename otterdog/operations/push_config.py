@@ -94,6 +94,7 @@ class PushOperation(Operation):
                         org_config.config_repo,
                         f"otterdog/{github_id}.jsonnet",
                         content,
+                        None,
                         self.push_message,
                         author_name,
                         author_email,

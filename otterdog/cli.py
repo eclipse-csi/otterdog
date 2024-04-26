@@ -26,6 +26,7 @@ from .operations.import_configuration import ImportOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
 from .operations.local_plan import LocalPlanOperation
+from .operations.open_pull_request import OpenPullRequestOperation
 from .operations.plan import PlanOperation
 from .operations.push_config import PushOperation
 from .operations.show import ShowOperation
@@ -230,6 +231,17 @@ def push_config(organizations: list[str], message):
     Pushes the local configuration to the corresponding config repo of an organization.
     """
     _execute_operation(organizations, PushOperation(push_message=message))
+
+
+@cli.command(cls=StdCommand)
+@click.option("-b", "--branch", required=True, help="branch name")
+@click.option("-t", "--title", required=True, help="PR title")
+@click.option("-a", "--author", help="GitHub handle of author")
+def open_pr(organizations: list[str], branch, title, author):
+    """
+    Opens a pull request for local configuration changes in the corresponding config repo of an organization.
+    """
+    _execute_operation(organizations, OpenPullRequestOperation(branch=branch, title=title, author=author))
 
 
 @cli.command(cls=StdCommand)
