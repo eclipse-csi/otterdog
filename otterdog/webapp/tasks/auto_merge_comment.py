@@ -37,7 +37,7 @@ class AutoMergeCommentTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-        if not self.comment_with_header_exists(
+        if not await self.comment_with_header_exists(
             self.org_id,
             self.repo_name,
             self.pull_request_number,
