@@ -86,7 +86,7 @@ class DiffOperation(Operation):
         self.printer.level_up()
 
         try:
-            return await self._generate_diff(org_config)
+            return await self.generate_diff(org_config)
         finally:
             self.printer.level_down()
             await self._gh_client.close()
@@ -108,7 +108,7 @@ class DiffOperation(Operation):
     def resolve_secrets(self) -> bool:
         return True
 
-    async def _generate_diff(self, org_config: OrganizationConfig) -> int:
+    async def generate_diff(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()

@@ -6,14 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import filecmp
+
 import aiofiles
 import aiofiles.ospath
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider, RestApi
-from otterdog.utils import style
+from otterdog.utils import get_approval, style
 
 from . import Operation
+from .local_plan import LocalPlanOperation
 
 
 class OpenPullRequestOperation(Operation):
@@ -83,9 +86,39 @@ class OpenPullRequestOperation(Operation):
                         default_branch,
                     )
 
-                    if current_definition == local_configuration:
+                    current_config_file = org_config.jsonnet_config.org_config_file + "-BASE"
+                    async with aiofiles.open(current_config_file, "w") as file:
+                        await file.write(current_definition)
+
+                    if filecmp.cmp(current_config_file, org_config.jsonnet_config.org_config_file):
                         self.printer.println("no local changes, no PR has been opened")
                         return 0
+
+                    self.printer.println("The following changes compared to the current configuration exist locally:")
+                    self.printer.println()
+                    self.printer.level_up()
+
+                    try:
+                        operation = LocalPlanOperation("-BASE", False, False, "")
+                        operation.init(self.config, self.printer)
+                        valid_config = await operation.generate_diff(org_config)
+                    finally:
+                        self.printer.level_down()
+
+                    if valid_config != 0:
+                        self.printer.println("the local configuration contains validation error")
+                        return 1
+
+                    self.printer.println()
+                    self.printer.println(
+                        "Do you want to open a PR with these changes? "
+                        "(Only 'yes' or 'y' will be accepted as approval)\n"
+                    )
+
+                    self.printer.print(f"{style('Enter a value', bright=True)}: ")
+                    if not get_approval():
+                        self.printer.println("\nOpen PR cancelled.")
+                        return 1
 
                     pr_number = await self._create_pull_request(
                         rest_api,
