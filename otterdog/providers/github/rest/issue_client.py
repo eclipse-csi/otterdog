@@ -21,7 +21,7 @@ class IssueClient(RestClient):
 
         try:
             data = {"body": body}
-            return await self.requester.request_json(
+            await self.requester.request_json(
                 "POST", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/comments", data=data
             )
         except GitHubException as ex:

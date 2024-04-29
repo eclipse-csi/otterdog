@@ -87,6 +87,12 @@ class RestApi:
         return PullRequestClient(self)
 
     @cached_property
+    def reference(self):
+        from .reference_client import ReferenceClient
+
+        return ReferenceClient(self)
+
+    @cached_property
     def repo(self):
         from .repo_client import RepoClient
 
