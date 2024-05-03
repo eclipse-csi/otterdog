@@ -8,6 +8,4 @@ Additionally, [{{ user }}](https://github.com/{{ user }}) is a member of the fol
 {% for team in teams %}
 - [{{ team.0 }}]({{ team.1 }})
 {% endfor %}
-{% else %}
-The author ([{{ user }}](https://github.com/{{ user }})) of this PR is **NOT** a member of this organization.
 {% endif %}
