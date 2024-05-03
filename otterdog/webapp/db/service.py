@@ -436,7 +436,18 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
                 sort_order = v
             case _:
                 if v:
-                    queries.append(query.match(PullRequestModel.__dict__[k], v))
+                    if k.startswith("id["):
+                        match k:
+                            case "id[org_id]":
+                                queries.append(query.match(PullRequestModel.id.org_id, v))
+                            case "id[repo_name]":
+                                queries.append(query.match(PullRequestModel.id.repo_name, v))
+                            case "id[pull_request]":
+                                queries.append(query.match(PullRequestModel.id.pull_request, int(v)))  # type: ignore
+                            case _:
+                                raise RuntimeError(f"unexpected query field '{k}'")
+                    else:
+                        queries.append(query.match(PullRequestModel.__dict__[k], v))
 
     if sort_field_name.startswith("id."):
         match sort_field_name:
@@ -453,6 +464,7 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
 
+    print(queries)
     skip = (page_index - 1) * page_size
     return (
         await mongo.odm.find(
