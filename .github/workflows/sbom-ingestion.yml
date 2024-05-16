@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  ingest-sbom:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -16,7 +16,7 @@ jobs:
       - name: Install cyclonedx-py
         run: pipx install cyclonedx-bom
       - name: Generate sbom
-        run: cyclone-dx poetry --no-dev -o otterdog-bom.json
+        run: cyclonedx-py poetry --no-dev -o otterdog-bom.json
       - name: Nexus IQ Policy Evaluation
         uses: sonatype-nexus-community/iq-github-action@master
         with:
