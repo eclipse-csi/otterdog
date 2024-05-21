@@ -8,6 +8,11 @@
 - Added author information from git when pushing config changes with `push-config`. ([#228](https://github.com/eclipse-csi/otterdog/issues/228))
 
 
+### Fixed
+
+- Fixed updating configuration when the `github_id` of a project changed. ([#235](https://github.com/eclipse-csi/otterdog/issues/235))
+
+
 ## [0.6.0] - 24/04/2024
 
 ### Added
