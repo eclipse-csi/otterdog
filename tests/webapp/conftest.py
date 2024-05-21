@@ -9,12 +9,13 @@
 import pytest
 
 from otterdog.webapp import create_app
-from otterdog.webapp.config import config_dict
 
 
 @pytest.fixture()
 def app():
-    app = create_app(config_dict["Testing"])
+    from otterdog.webapp.config import TestingConfig
+
+    app = create_app(TestingConfig)
 
     # other setup can go here
 

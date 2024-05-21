@@ -77,4 +77,4 @@ class TestingConfig(AppConfig):
 
 
 # Load all possible configurations
-config_dict = {"Production": ProductionConfig, "Debug": DebugConfig, "Testing": TestingConfig}
+config_dict = {"Production": ProductionConfig, "Debug": DebugConfig}
