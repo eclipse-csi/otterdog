@@ -67,5 +67,14 @@ class DebugConfig(AppConfig):
     TEMPLATES_AUTO_RELOAD = True
 
 
+class TestingConfig(AppConfig):
+    TESTING = True
+
+    APP_ROOT = "./approot"
+    DB_ROOT = os.path.join(APP_ROOT, "db")
+
+    MONGO_URI = "mongodb://localhost:27017/otterdog"
+
+
 # Load all possible configurations
 config_dict = {"Production": ProductionConfig, "Debug": DebugConfig}

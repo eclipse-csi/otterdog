@@ -1,0 +1,14 @@
+{
+  "defaults": {
+    "jsonnet": {
+      "base_template": "https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main",
+      "config_dir": "orgs"
+    }
+  },
+  "organizations": [
+    {
+      "name": "OtterdogTest",
+      "github_id": "OtterdogTest"
+    }
+  ]
+}

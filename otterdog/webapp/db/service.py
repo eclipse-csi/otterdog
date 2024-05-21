@@ -79,7 +79,7 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             pass
 
 
-async def update_installations_from_config(otterdog_config: OtterdogConfig) -> None:
+async def update_installations_from_config(otterdog_config: OtterdogConfig, update_installations: bool = True) -> None:
     logger.info("updating installations from otterdog config")
 
     existing_installations = set(map(lambda x: x.github_id, await get_installations()))
@@ -94,8 +94,14 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig) -> N
             org_config = otterdog_config.get_organization_config(project_name)
 
             model = await get_installation_by_github_id(github_id)
-
             if model is None:
+                # check if an installation for the project_name already exists
+                # in this case the github_id has changed, we need to delete this instance
+                # as we cant change the primary key.
+                model = await get_installation_by_project_name(project_name)
+                if model is not None:
+                    await mongo.odm.delete(model)
+
                 model = InstallationModel(  # type: ignore
                     installation_id=0,
                     installation_status=InstallationStatus.NOT_INSTALLED,
@@ -121,7 +127,8 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig) -> N
     # remove all PullRequest and Statistics data for invalid installations
     await cleanup_data()
 
-    await update_app_installations()
+    if update_installations is True:
+        await update_app_installations()
 
 
 async def cleanup_data() -> None:
@@ -186,6 +193,10 @@ async def get_installation(installation_id: int) -> InstallationModel | None:
 
 async def get_installation_by_github_id(github_id: str) -> InstallationModel | None:
     return await mongo.odm.find_one(InstallationModel, InstallationModel.github_id == github_id)
+
+
+async def get_installation_by_project_name(project_name: str) -> InstallationModel | None:
+    return await mongo.odm.find_one(InstallationModel, InstallationModel.project_name == project_name)
 
 
 async def get_all_installations_count() -> int:
