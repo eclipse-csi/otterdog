@@ -275,8 +275,7 @@ class GraphQLClient:
             status = response.status
 
             if status == 403 or status == 429:
-                resource = response.headers.get("x-ratelimit-resource")
-                raise RuntimeError(f"failed running graphql query, hitting rate limit for resource '{resource}'")
+                raise RuntimeError("failed running graphql query, hitting rate limit")
 
             self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 

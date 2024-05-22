@@ -9,7 +9,6 @@
 import asyncio
 import sys
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import click
@@ -518,9 +517,6 @@ def _execute_operation(organizations: list[str], operation: Operation):
     try:
         exit_code = 0
         config = _CONFIG
-
-        loop = asyncio.get_event_loop()
-        loop.set_default_executor(ThreadPoolExecutor(max_workers=16))
 
         assert config is not None
 

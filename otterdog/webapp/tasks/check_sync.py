@@ -154,8 +154,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             output = StringIO()
             printer = IndentingPrinter(output, log_level=LogLevel.ERROR)
             operation = PlanOperation(True, False, False, "")
-            # set concurrency to 10 to avoid hitting secondary rate limits with installation tokens
-            operation.concurrency = 10
+            # set concurrency to 20 to avoid hitting secondary rate limits with installation tokens
+            operation.concurrency = 20
 
             config_in_sync = True
 

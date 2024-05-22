@@ -6,10 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import asyncio
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor
 from sys import exit
 
 import hypercorn
@@ -29,9 +27,6 @@ try:
     app_config = config_dict[config_mode]
 except KeyError:
     exit("Error: Invalid <config_mode>. Expected values [Debug, Production] ")
-
-loop = asyncio.get_event_loop()
-loop.set_default_executor(ThreadPoolExecutor(max_workers=16))
 
 app = create_app(app_config)  # type: ignore
 

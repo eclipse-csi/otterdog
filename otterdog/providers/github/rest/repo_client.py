@@ -902,7 +902,7 @@ class RepoClient(RestClient):
         print_debug(f"updated allowed actions for repo '{org_id}/{repo_name}'")
 
     async def _get_default_workflow_permissions(self, org_id: str, repo_name: str) -> dict[str, Any]:
-        print_debug(f"async retrieving default workflow permissions for repo '{org_id}/{repo_name}'")
+        print_debug(f"retrieving default workflow permissions for repo '{org_id}/{repo_name}'")
 
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow")

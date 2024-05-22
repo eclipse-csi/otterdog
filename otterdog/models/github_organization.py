@@ -550,7 +550,14 @@ async def _load_repos_from_provider(
         async with sem:
             return await _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
 
-    result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
+    if concurrency is not None:
+        result = []
+        for chunk in divide_chunks(repo_names, concurrency):
+            result.extend(await asyncio.gather(*[safe_process(repo_name) for repo_name in chunk]))
+            # after processing a chunk, wait for 10s to avoid hitting secondary rate limits
+            await asyncio.sleep(10)
+    else:
+        result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
 
     github_repos = []
     for data in result:
@@ -562,3 +569,9 @@ async def _load_repos_from_provider(
         printer.println(f"repositories: Read complete after {(end - start).total_seconds()}s")
 
     return github_repos
+
+
+def divide_chunks(input_list, n):
+    # looping till length of input_list
+    for i in range(0, len(input_list), n):
+        yield input_list[i : i + n]  # noqa: E203

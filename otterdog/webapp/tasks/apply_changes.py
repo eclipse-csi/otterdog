@@ -187,6 +187,9 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 include_resources_with_secrets=False,
             )
 
+            # set concurrency to 20 to avoid hitting secondary rate limits with installation tokens
+            operation.concurrency = 20
+
             otterdog_config = await get_otterdog_config()
             operation.init(otterdog_config, printer)
 
