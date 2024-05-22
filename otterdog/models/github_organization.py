@@ -551,11 +551,14 @@ async def _load_repos_from_provider(
             return await _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
 
     if concurrency is not None:
+        chunk_size = 50
         result = []
-        for chunk in divide_chunks(repo_names, concurrency):
+        for chunk in divide_chunks(repo_names, chunk_size):
             result.extend(await asyncio.gather(*[safe_process(repo_name) for repo_name in chunk]))
-            # after processing a chunk, wait for 10s to avoid hitting secondary rate limits
-            await asyncio.sleep(10)
+
+            # after processing a full chunk, wait for 30s to avoid hitting secondary rate limits
+            if len(chunk) == chunk_size:
+                await asyncio.sleep(30)
     else:
         result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
 
