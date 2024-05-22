@@ -54,6 +54,7 @@ class DiffOperation(Operation):
         self._template_dir: str | None = None
         self._org_config: OrganizationConfig | None = None
         self._callback: CallbackFn | None = None
+        self._concurrency: int | None = None
 
     @property
     def template_dir(self) -> str:
@@ -64,6 +65,14 @@ class DiffOperation(Operation):
     def org_config(self) -> OrganizationConfig:
         assert self._org_config is not None
         return self._org_config
+
+    @property
+    def concurrency(self) -> int | None:
+        return self._concurrency
+
+    @concurrency.setter
+    def concurrency(self, value: int) -> None:
+        self._concurrency = value
 
     def set_callback(self, fn: CallbackFn) -> None:
         self._callback = fn
@@ -221,7 +230,7 @@ class DiffOperation(Operation):
 
     async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
-            github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.printer
+            github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.printer, self.concurrency
         )
 
     @abstractmethod

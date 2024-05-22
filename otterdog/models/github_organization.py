@@ -340,6 +340,7 @@ class GitHubOrganization:
         provider: GitHubProvider,
         no_web_ui: bool = False,
         printer: IndentingPrinter | None = None,
+        concurrency: int | None = None,
     ) -> GitHubOrganization:
         start = datetime.now()
         if printer is not None and is_info_enabled():
@@ -412,7 +413,13 @@ class GitHubOrganization:
             print_debug("not reading org secrets, no default config available")
 
         if jsonnet_config.default_repo_config is not None:
-            for repo in await _load_repos_from_provider(github_id, provider, jsonnet_config, printer):
+            for repo in await _load_repos_from_provider(
+                github_id,
+                provider,
+                jsonnet_config,
+                printer,
+                concurrency,
+            ):
                 org.add_repository(repo)
         else:
             print_debug("not reading repos, no default config available")
@@ -515,7 +522,11 @@ async def _process_single_repo(
 
 
 async def _load_repos_from_provider(
-    github_id: str, provider: GitHubProvider, jsonnet_config: JsonnetConfig, printer: IndentingPrinter | None = None
+    github_id: str,
+    provider: GitHubProvider,
+    jsonnet_config: JsonnetConfig,
+    printer: IndentingPrinter | None = None,
+    concurrency: int | None = None,
 ) -> list[Repository]:
     start = datetime.now()
     if printer is not None and is_info_enabled():
@@ -532,8 +543,8 @@ async def _load_repos_from_provider(
         for installation in await provider.rest_api.org.get_app_installations(github_id)
     }
 
-    # process at max 30 repos concurrently to avoid hitting secondary rate limits
-    sem = asyncio.Semaphore(30)
+    # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
+    sem = asyncio.Semaphore(50 if concurrency is None else concurrency)
 
     async def safe_process(repo_name):
         async with sem:
