@@ -474,8 +474,6 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
         sort_field = PullRequestModel.__dict__[sort_field_name]
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
-
-    print(queries)
     skip = (page_index - 1) * page_size
     return (
         await mongo.odm.find(
