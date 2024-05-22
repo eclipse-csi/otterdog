@@ -532,8 +532,8 @@ async def _load_repos_from_provider(
         for installation in await provider.rest_api.org.get_app_installations(github_id)
     }
 
-    # process at max 50 repos concurrently to avoid hitting secondary rate limits
-    sem = asyncio.Semaphore(50)
+    # process at max 30 repos concurrently to avoid hitting secondary rate limits
+    sem = asyncio.Semaphore(30)
 
     async def safe_process(repo_name):
         async with sem:
