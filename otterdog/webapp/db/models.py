@@ -127,6 +127,8 @@ class StatisticsModel(Model):
     repos_with_secret_scanning: int
     repos_with_secret_scanning_push_protection: int
     repos_with_branch_protection: int
+    repos_with_dependabot_alerts: int
+    repos_with_dependabot_security_updates: int
     repos_with_private_vulnerability_reporting: int
 
 

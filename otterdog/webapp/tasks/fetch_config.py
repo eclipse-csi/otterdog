@@ -65,6 +65,8 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             repos_with_branch_protections = 0
             repos_with_secret_scanning = 0
             repos_with_secret_scanning_push_protection = 0
+            repos_with_dependabot_alerts = 0
+            repos_with_dependabot_security_updates = 0
             repos_with_private_vulnerability_reporting = 0
 
             for repo in github_organization.repositories:
@@ -74,6 +76,11 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
 
                 if repo.private_vulnerability_reporting_enabled is True:
                     repos_with_private_vulnerability_reporting += 1
+
+                if repo.dependabot_security_updates_enabled is True:
+                    repos_with_dependabot_security_updates += 1
+                elif repo.dependabot_alerts_enabled is True:
+                    repos_with_dependabot_alerts += 1
 
                 if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0:
                     repos_with_branch_protections += 1
@@ -93,6 +100,8 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 repos_with_private_vulnerability_reporting=repos_with_private_vulnerability_reporting,
                 repos_with_secret_scanning=repos_with_secret_scanning,
                 repos_with_secret_scanning_push_protection=repos_with_secret_scanning_push_protection,
+                repos_with_dependabot_alerts=repos_with_dependabot_alerts,
+                repos_with_dependabot_security_updates=repos_with_dependabot_security_updates,
             )
             await save_statistics(statistics)
 

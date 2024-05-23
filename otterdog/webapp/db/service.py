@@ -504,6 +504,8 @@ class Statistics:
     repos_with_branch_protection: int = 0
     repos_with_secret_scanning: int = 0
     repos_with_secret_scanning_and_protection: int = 0
+    repos_with_dependabot_alerts: int = 0
+    repos_with_dependabot_security_updates: int = 0
     repos_with_private_vulnerability_reporting: int = 0
 
     @property
@@ -523,6 +525,8 @@ async def get_statistics() -> Statistics:
                 "repos_with_branch_protection": {"$sum": "$repos_with_branch_protection"},
                 "repos_with_secret_scanning": {"$sum": "$repos_with_secret_scanning"},
                 "repos_with_secret_scanning_push_protection": {"$sum": "$repos_with_secret_scanning_push_protection"},
+                "repos_with_dependabot_alerts": {"$sum": "$repos_with_dependabot_alerts"},
+                "repos_with_dependabot_security_updates": {"$sum": "$repos_with_dependabot_security_updates"},
                 "repos_with_private_vulnerability_reporting": {"$sum": "$repos_with_private_vulnerability_reporting"},
             },
         }
@@ -542,6 +546,8 @@ async def get_statistics() -> Statistics:
             stats["repos_with_branch_protection"],
             stats["repos_with_secret_scanning"],
             stats["repos_with_secret_scanning_push_protection"],
+            stats["repos_with_dependabot_alerts"],
+            stats["repos_with_dependabot_security_updates"],
             stats["repos_with_private_vulnerability_reporting"],
         )
 

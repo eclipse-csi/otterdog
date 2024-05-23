@@ -64,21 +64,47 @@ async def index():
         stats.projects_with_two_factor_auth_enforced,
     ]
 
+    two_factor_percentage = float(stats.projects_with_two_factor_auth_enforced) / float(stats.total_projects) * 100.0
+
     secret_scanning_data = [
         stats.active_repos - stats.repos_with_secret_scanning - stats.repos_with_secret_scanning_and_protection,
         stats.repos_with_secret_scanning,
         stats.repos_with_secret_scanning_and_protection,
     ]
 
+    secret_scanning_percentage = (
+        float(stats.repos_with_secret_scanning + stats.repos_with_secret_scanning_and_protection)
+        / float(stats.active_repos)
+        * 100.0
+    )
+
+    dependabot_data = [
+        stats.active_repos - stats.repos_with_dependabot_alerts - stats.repos_with_dependabot_security_updates,
+        stats.repos_with_dependabot_alerts,
+        stats.repos_with_dependabot_security_updates,
+    ]
+
+    dependabot_percentage = (
+        float(stats.repos_with_dependabot_alerts + stats.repos_with_dependabot_security_updates)
+        / float(stats.active_repos)
+        * 100.0
+    )
+
     branch_protection_data = [
         stats.active_repos - stats.repos_with_branch_protection,
         stats.repos_with_branch_protection,
     ]
 
+    branch_protection_percentage = float(stats.repos_with_branch_protection) / float(stats.active_repos) * 100.0
+
     private_vulnerability_reporting_data = [
         stats.active_repos - stats.repos_with_private_vulnerability_reporting,
         stats.repos_with_private_vulnerability_reporting,
     ]
+
+    private_vulnerability_reporting_percentage = (
+        float(stats.repos_with_private_vulnerability_reporting) / float(stats.active_repos) * 100.0
+    )
 
     return await render_home_template(
         "index.html",
@@ -90,9 +116,15 @@ async def index():
         active_repository_count=stats.active_repos,
         archived_repository_count=stats.archived_repos,
         two_factor_data=json.dumps(two_factor_data),
+        two_factor_percentage=two_factor_percentage,
         secret_scanning_data=json.dumps(secret_scanning_data),
+        secret_scanning_percentage=secret_scanning_percentage,
+        dependabot_data=json.dumps(dependabot_data),
+        dependabot_percentage=dependabot_percentage,
         branch_protection_data=json.dumps(branch_protection_data),
+        branch_protection_percentage=branch_protection_percentage,
         private_vulnerability_reporting_data=json.dumps(private_vulnerability_reporting_data),
+        private_vulnerability_reporting_percentage=private_vulnerability_reporting_percentage,
     )
 
 

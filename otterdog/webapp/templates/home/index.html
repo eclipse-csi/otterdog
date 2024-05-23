@@ -116,6 +116,7 @@
                 <h3 class="card-title">Two Factor Enforcement</h3>
               </div>
               <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % two_factor_percentage|float  }}% enforced</h3>
                 <canvas id="two-factor-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
               </div>
             </div>
@@ -126,7 +127,19 @@
                 <h3 class="card-title">Secret Scanning</h3>
               </div>
               <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % secret_scanning_percentage|float  }}% with alert or protection</h3>
                 <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Dependabot</h3>
+              </div>
+              <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % dependabot_percentage|float  }}% with alert or updates</h3>
+                <canvas id="dependabot-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
               </div>
             </div>
           </div>
@@ -136,6 +149,7 @@
                 <h3 class="card-title">Branch Protections</h3>
               </div>
               <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % branch_protection_percentage|float  }}% enabled</h3>
                 <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
               </div>
             </div>
@@ -146,6 +160,7 @@
                 <h3 class="card-title">Private Vulnerability Reporting</h3>
               </div>
               <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % private_vulnerability_reporting_percentage|float  }}% enabled</h3>
                 <canvas id="private-vulnerability-reporting-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
               </div>
             </div>
@@ -171,6 +186,7 @@
     $(document).ready(function() {
       drawTwoFactorChart();
       drawSecretScanningChart();
+      drawDependabotChart();
       drawBranchProtectionChart();
       drawPrivateVulnerabilityReportingChart();
     });
@@ -210,6 +226,32 @@
           datasets: [{
             label: 'secret scanning',
             data: {{ secret_scanning_data|safe }},
+            backgroundColor: [
+              '#dc3545',
+              '#ffc107',
+              '#28a745'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawDependabotChart() {
+      const chart_ctx = document.getElementById('dependabot-chart');
+
+      new Chart(chart_ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['disabled', 'alerts', 'security updates'],
+          datasets: [{
+            label: 'dependabot',
+            data: {{ dependabot_data|safe }},
             backgroundColor: [
               '#dc3545',
               '#ffc107',
