@@ -47,7 +47,13 @@ class Secret(ModelObject, abc.ABC):
                 f"only a dummy value '{self.value}' is provided in the configuration.",
             )
         else:
-            if ":" not in self.value:
+            if ":" in self.value:
+                provider_type, _ = re.split(":", self.value)
+                resolved_secret = context.secret_resolver.is_supported_secret_provider(provider_type)
+            else:
+                resolved_secret = False
+
+            if resolved_secret is False:
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header()} has a value '{self.value}' that does not use a credential provider.",

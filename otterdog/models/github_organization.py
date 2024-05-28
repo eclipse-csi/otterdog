@@ -22,7 +22,7 @@ from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 
 from otterdog import resources
-from otterdog.config import JsonnetConfig, OtterdogConfig
+from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
 from otterdog.models import (
     LivePatchContext,
     LivePatchHandler,
@@ -111,8 +111,8 @@ class GitHubOrganization:
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
-    def validate(self, template_dir: str) -> ValidationContext:
-        context = ValidationContext(self, template_dir)
+    def validate(self, secret_resolver: SecretResolver, template_dir: str) -> ValidationContext:
+        context = ValidationContext(self, secret_resolver, template_dir)
         self.settings.validate(context, self)
 
         for webhook in self.webhooks:

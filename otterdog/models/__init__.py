@@ -17,6 +17,7 @@ from typing import Any, Protocol, TypeVar, cast
 
 from jsonbender import bend  # type: ignore
 
+from otterdog.config import SecretResolver
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
@@ -44,6 +45,7 @@ class FailureType(Enum):
 @dataclasses.dataclass
 class ValidationContext:
     root_object: Any
+    secret_resolver: SecretResolver
     template_dir: str
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 

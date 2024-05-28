@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any
+from abc import abstractmethod
+from typing import Any, Protocol
 
 import jq  # type: ignore
 
@@ -120,7 +121,15 @@ class OrganizationConfig:
         return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)
 
 
-class OtterdogConfig:
+class SecretResolver(Protocol):
+    @abstractmethod
+    def is_supported_secret_provider(self, provider_type: str) -> bool: ...
+
+    @abstractmethod
+    def get_secret(self, data: str) -> str: ...
+
+
+class OtterdogConfig(SecretResolver):
     def __init__(self, config_file: str, local_mode: bool, working_dir: str | None = None):
         if not os.path.exists(config_file):
             raise RuntimeError(f"configuration file '{config_file}' not found")
@@ -206,7 +215,7 @@ class OtterdogConfig:
             raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
 
-    def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider:
+    def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider | None:
         provider = self._credential_providers.get(provider_type)
         if provider is None:
             match provider_type:
@@ -251,7 +260,7 @@ class OtterdogConfig:
                     self._credential_providers[provider_type] = provider
 
                 case _:
-                    raise RuntimeError(f"unsupported credential provider '{provider_type}'")
+                    return None
 
         return provider
 
@@ -265,13 +274,22 @@ class OtterdogConfig:
             raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
 
         provider = self._get_credential_provider(provider_type)
-        return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
+        if provider is not None:
+            return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
+        else:
+            raise RuntimeError(f"unsupported credential provider '{provider_type}'")
+
+    def is_supported_secret_provider(self, provider_type: str) -> bool:
+        return self._get_credential_provider(provider_type) is not None
 
     def get_secret(self, secret_data: str) -> str:
         if secret_data and ":" in secret_data:
             provider_type, data = re.split(":", secret_data)
             provider = self._get_credential_provider(provider_type)
-            return provider.get_secret(data)
+            if provider is not None:
+                return provider.get_secret(data)
+            else:
+                return secret_data
         else:
             return secret_data
 
