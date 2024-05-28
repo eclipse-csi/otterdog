@@ -15,8 +15,6 @@ from functools import cache
 from logging import getLogger
 from typing import cast
 
-from hypercorn.logging import Logger as HypercornLogger
-from hypercorn.typing import ResponseSummary, WWWScope
 from quart import Quart, current_app
 from quart_redis import get_redis  # type: ignore
 
@@ -197,17 +195,6 @@ def escape_for_github(text: str) -> str:
         output.append(line)
 
     return "\n".join(output)
-
-
-class SaneLogger(HypercornLogger):
-    """
-    A custom logger to prevent duplicate access log entries:
-    https://github.com/pgjones/hypercorn/issues/158
-    """
-
-    async def access(self, request: WWWScope, response: ResponseSummary, request_time: float) -> None:
-        if response is not None:
-            await super().access(request, response, request_time)
 
 
 def current_utc_time() -> datetime:

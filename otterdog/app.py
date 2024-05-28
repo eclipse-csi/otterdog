@@ -10,12 +10,11 @@ import logging
 import os
 from sys import exit
 
-import hypercorn
 from decouple import config  # type: ignore
 
 from otterdog.webapp import create_app
 from otterdog.webapp.config import config_dict
-from otterdog.webapp.utils import SaneLogger, get_temporary_base_directory
+from otterdog.webapp.utils import get_temporary_base_directory
 
 # WARNING: Don't run with debug turned on in production!
 DEBUG: bool = config("DEBUG", default=True, cast=bool)
@@ -29,9 +28,6 @@ except KeyError:
     exit("Error: Invalid <config_mode>. Expected values [Debug, Production] ")
 
 app = create_app(app_config)  # type: ignore
-
-# patch logger_class used by hypercorn to avoid duplicate access log entries
-hypercorn.config.Config.logger_class = SaneLogger
 
 logging.basicConfig(
     format="[%(asctime)s.%(msecs)03d  ] [%(process)d] [%(levelname)s] %(message)s",
