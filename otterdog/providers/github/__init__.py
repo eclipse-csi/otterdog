@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import json
+from asyncio import CancelledError
 from typing import Any
 
 from importlib_resources import files
@@ -48,8 +49,15 @@ class GitHubProvider:
 
     async def close(self) -> None:
         if self._credentials is not None:
-            await self.rest_api.close()
-            await self.graphql_client.close()
+            try:
+                await self.rest_api.close()
+            except CancelledError:
+                pass
+
+            try:
+                await self.graphql_client.close()
+            except CancelledError:
+                pass
 
     def _init_clients(self):
         self.rest_api = RestApi(token_auth(self._credentials.github_token))
