@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for configuring default code scanning setup of a repository. ([#198](https://github.com/eclipse-csi/otterdog/issues/198))
 - Added operation `open-pr` to automatically create a PR for local changes. ([#230](https://github.com/eclipse-csi/otterdog/issues/230))
 - Added author information from git when pushing config changes with `push-config`. ([#228](https://github.com/eclipse-csi/otterdog/issues/228))
 

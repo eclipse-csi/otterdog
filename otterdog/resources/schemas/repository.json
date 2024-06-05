@@ -47,6 +47,14 @@
     "dependabot_alerts_enabled": { "type": "boolean" },
     "dependabot_security_updates_enabled": { "type": "boolean" },
     "private_vulnerability_reporting_enabled": { "type": "boolean" },
+
+    "code_scanning_default_setup_enabled": { "type": "boolean" },
+    "code_scanning_default_query_suite": { "type": "string" },
+    "code_scanning_default_languages": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
     "gh_pages_build_type": { "type": "string" },
     "gh_pages_source_branch": { "$ref": "#/definitions/string_or_null" },
     "gh_pages_source_path": { "$ref": "#/definitions/string_or_null" },
