@@ -86,6 +86,10 @@ class Repository(ModelObject):
     dependabot_security_updates_enabled: bool
     private_vulnerability_reporting_enabled: bool
 
+    code_scanning_default_setup_enabled: bool
+    code_scanning_default_query_suite: str
+    code_scanning_default_languages: list[str]
+
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
@@ -138,6 +142,9 @@ class Repository(ModelObject):
         "private_vulnerability_reporting_enabled",
         "secret_scanning",
         "secret_scanning_push_protection",
+        "code_scanning_default_setup_enabled",
+        "code_scanning_default_query_suite",
+        "code_scanning_default_languages",
         "has_issues",
         "has_wiki",
         "has_projects",
@@ -147,6 +154,22 @@ class Repository(ModelObject):
         "gh_pages_source_branch",
         "gh_pages_source_path",
     ]
+
+    _code_scanning_properties: ClassVar[list[str]] = [
+        "code_scanning_default_query_suite",
+        "code_scanning_default_languages",
+    ]
+
+    _valid_code_scanning_languages: ClassVar[set[str]] = {
+        "c-cpp",
+        "csharp",
+        "go",
+        "java-kotlin",
+        "javascript-typescript",
+        "python",
+        "ruby",
+        "swift",
+    }
 
     @property
     def model_object_name(self) -> str:
@@ -386,6 +409,23 @@ class Repository(ModelObject):
                         f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
+        if is_set_and_valid(self.code_scanning_default_query_suite):
+            if self.code_scanning_default_query_suite not in {"default", "extended"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'code_scanning_default_query_suite' has value '{self.code_scanning_default_query_suite}', "
+                    f"only values ('default' | 'extended') are allowed.",
+                )
+
+        if is_set_and_valid(self.code_scanning_default_languages):
+            for language in self.code_scanning_default_languages:
+                if not self._valid_code_scanning_language(language):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header()} has defined an invalid code scanning language '{language}'.\n"
+                        f"Only values ({self._valid_code_scanning_languages_as_string()}) are allowed.",
+                    )
+
         if is_set_and_valid(self.workflows):
             self.workflows.validate(context, self)
 
@@ -408,6 +448,13 @@ class Repository(ModelObject):
     def _valid_topic(topic, search=re.compile(r"[^a-z0-9\-]").search):
         return not bool(search(topic))
 
+    @classmethod
+    def _valid_code_scanning_language(cls, language: str):
+        return language in cls._valid_code_scanning_languages
+
+    def _valid_code_scanning_languages_as_string(self) -> str:
+        return " | ".join(map(lambda x: f'"{x}"', self._valid_code_scanning_languages))
+
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
         if self.private is True:
@@ -422,6 +469,10 @@ class Repository(ModelObject):
             if field.name in self._gh_pages_properties:
                 return False
 
+        if self.code_scanning_default_setup_enabled is False:
+            if field.name in self._code_scanning_properties:
+                return False
+
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
@@ -432,6 +483,10 @@ class Repository(ModelObject):
 
         if self.gh_pages_build_type in ["disabled", "workflow"]:
             if field.name in self._gh_pages_properties:
+                return False
+
+        if self.code_scanning_default_setup_enabled is False:
+            if field.name in self._code_scanning_properties:
                 return False
 
         # when generating a patch, capture all the current configuration, even for
@@ -517,6 +572,21 @@ class Repository(ModelObject):
             }
         )
 
+        # mapping for code-scanning default config
+        mapping.update(
+            {
+                "code_scanning_default_setup_enabled": If(
+                    OptionalS("code_scanning_default_config", "state", default=None) == K("configured"),
+                    K(True),
+                    K(False),
+                ),
+                "code_scanning_default_query_suite": OptionalS(
+                    "code_scanning_default_config", "query_suite", default=None
+                ),
+                "code_scanning_default_languages": OptionalS("code_scanning_default_config", "languages", default=None),
+            }
+        )
+
         mapping.update(
             {
                 "webhooks": K([]),
@@ -594,6 +664,24 @@ class Repository(ModelObject):
 
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
+
+        # code scanning default setup
+        code_scanning_mapping = {}
+        if "code_scanning_default_setup_enabled" in data:
+            mapping.pop("code_scanning_default_setup_enabled")
+            code_scanning_enabled = data.get("code_scanning_default_setup_enabled")
+            code_scanning_mapping["state"] = K("configured") if code_scanning_enabled is True else K("not-configured")
+
+        if "code_scanning_default_query_suite" in data:
+            mapping.pop("code_scanning_default_query_suite")
+            code_scanning_mapping["query_suite"] = S("code_scanning_default_query_suite")
+
+        if "code_scanning_default_languages" in data:
+            mapping.pop("code_scanning_default_languages")
+            code_scanning_mapping["languages"] = S("code_scanning_default_languages")
+
+        if len(code_scanning_mapping) > 0:
+            mapping["code_scanning_default_config"] = code_scanning_mapping
 
         return mapping
 

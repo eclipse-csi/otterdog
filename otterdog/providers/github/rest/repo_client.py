@@ -48,6 +48,7 @@ class RepoClient(RestClient):
 
             await self._fill_github_pages_config(org_id, repo_name, repo_data)
             await self._fill_topics(org_id, repo_name, repo_data)
+            await self._fill_code_scanning_config(org_id, repo_name, repo_data)
 
             return repo_data
         except GitHubException as ex:
@@ -88,6 +89,11 @@ class RepoClient(RestClient):
         else:
             gh_pages = None
 
+        if "code_scanning_default_config" in data:
+            code_scanning = data.pop("code_scanning_default_config")
+        else:
+            code_scanning = None
+
         if "default_branch" in data:
             default_branch = data.pop("default_branch")
         else:
@@ -108,6 +114,8 @@ class RepoClient(RestClient):
                     await self._update_topics(org_id, repo_name, topics)
                 if gh_pages is not None:
                     await self._update_github_pages_config(org_id, repo_name, gh_pages)
+                if code_scanning is not None:
+                    await self._update_code_scanning_config(org_id, repo_name, code_scanning)
                 if default_branch is not None:
                     await self._update_default_branch(org_id, repo_name, default_branch)
 
@@ -468,6 +476,29 @@ class RepoClient(RestClient):
 
                 print_debug(f"updated github pages config for repo '{repo_name}'")
 
+    async def _fill_code_scanning_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"retrieving code scanning config for '{org_id}/{repo_name}'")
+
+        status, body = await self.requester.request_raw(
+            "GET", f"/repos/{org_id}/{repo_name}/code-scanning/default-setup"
+        )
+        if status == 200:
+            repo_data["code_scanning_default_config"] = json.loads(body)
+
+    async def _update_code_scanning_config(self, org_id: str, repo_name: str, code_scanning: dict[str, Any]) -> None:
+        print_debug(f"updating code scanning config for '{org_id}/{repo_name}'")
+
+        try:
+            await self.requester.request_json(
+                "PATCH", f"/repos/{org_id}/{repo_name}/code-scanning/default-setup", data=code_scanning
+            )
+            print_debug(f"updated code scanning config for repo '{org_id}/{repo_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed to update code scanning config for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
     async def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
         print_debug(f"updating default branch for '{org_id}/{repo_name}'")
         existing_branches = await self.get_branches(org_id, repo_name)
@@ -516,9 +547,9 @@ class RepoClient(RestClient):
         status, body = await self.requester.request_raw(method, f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
 
         if status != 204:
-            raise RuntimeError(f"failed to update vulnerability alerts for repo '{repo_name}': {body}")
+            raise RuntimeError(f"failed to update vulnerability alerts for repo '{org_id}/{repo_name}': {body}")
 
-        print_debug(f"updated vulnerability alerts for repo '{repo_name}'")
+        print_debug(f"updated vulnerability alerts for repo '{org_id}/{repo_name}'")
 
     async def _fill_private_vulnerability_reporting(
         self, org_id: str, repo_name: str, repo_data: dict[str, Any]
@@ -545,9 +576,11 @@ class RepoClient(RestClient):
         )
 
         if status != 204:
-            raise RuntimeError(f"failed to update private vulnerability reporting for repo '{repo_name}': {body}")
+            raise RuntimeError(
+                f"failed to update private vulnerability reporting for repo '{org_id}/{repo_name}': {body}"
+            )
 
-        print_debug(f"updated private vulnerability reporting for repo '{repo_name}'")
+        print_debug(f"updated private vulnerability reporting for repo '{org_id}/{repo_name}'")
 
     async def _fill_topics(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo topics for '{org_id}/{repo_name}'")
