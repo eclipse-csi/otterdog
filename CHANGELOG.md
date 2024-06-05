@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- Fixed updating the configuration of a project when its base template changed. ([#221](https://github.com/eclipse-csi/otterdog/issues/221))
 - Fixed updating configuration when the `github_id` of a project changed. ([#235](https://github.com/eclipse-csi/otterdog/issues/235))
 
 

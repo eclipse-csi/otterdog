@@ -84,6 +84,8 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig, upda
 
     existing_installations = set(map(lambda x: x.github_id, await get_installations()))
 
+    projects_to_update: set[str] = set()
+
     async with mongo.odm.session() as session:
         # process all projects present in the otterdog config
         for github_id in otterdog_config.organization_names:
@@ -110,7 +112,12 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig, upda
                     config_repo=org_config.config_repo,
                     base_template=org_config.base_template,
                 )
+
+                projects_to_update.add(project_name)
             else:
+                if model.base_template != org_config.base_template:
+                    projects_to_update.add(project_name)
+
                 model.project_name = project_name
                 model.config_repo = org_config.config_repo
                 model.base_template = org_config.base_template
@@ -128,7 +135,7 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig, upda
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations()
+        await update_app_installations(projects_to_update)
 
 
 async def cleanup_data() -> None:
@@ -138,7 +145,7 @@ async def cleanup_data() -> None:
     await cleanup_configurations(valid_orgs)
 
 
-async def update_app_installations() -> None:
+async def update_app_installations(project_names_to_force_update: set[str] | None = None) -> None:
     logger.info("updating app installations")
 
     rest_api = get_rest_api_for_app()
@@ -160,7 +167,9 @@ async def update_app_installations() -> None:
 
     for installation in await get_active_installations():
         configuration_model = await get_configuration_by_github_id(installation.github_id)
-        if configuration_model is None:
+        if configuration_model is None or (
+            project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
+        ):
             await update_data_for_installation(installation)
 
 
