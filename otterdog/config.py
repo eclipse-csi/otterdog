@@ -280,7 +280,8 @@ class OtterdogConfig(SecretResolver):
             raise RuntimeError(f"unsupported credential provider '{provider_type}'")
 
     def is_supported_secret_provider(self, provider_type: str) -> bool:
-        return self._get_credential_provider(provider_type) is not None
+        # TODO: make this cleaner
+        return provider_type in ["pass", "bitwarden"]
 
     def get_secret(self, secret_data: str) -> str:
         if secret_data and ":" in secret_data:
