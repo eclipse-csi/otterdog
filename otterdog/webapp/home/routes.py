@@ -320,6 +320,9 @@ async def error_unauthorized(error):
 
 @blueprint.errorhandler(Exception)
 async def error_exception(error):
+    import traceback
+
+    traceback.print_exception(error)
     return await render_template("home/page-500.html"), 500
 
 
