@@ -218,8 +218,8 @@
                             <td>{{ variable.value }}</td>
                             <td>{{ variable.visibility }}</td>
                             <td>
-                              {% if secret.selected_repositories %}
-                              {{ secret.selected_repositories|pprint }}
+                              {% if variable.selected_repositories %}
+                              {{ variable.selected_repositories|pprint }}
                               {% endif %}
                             </td>
                           </tr>
