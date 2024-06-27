@@ -4,10 +4,16 @@
 
 ### Added
 
+- Added support for disabling default code security configurations. ([#234](https://github.com/eclipse-csi/otterdog/issues/234))
 - Added support for configuring default code scanning setup of a repository. ([#198](https://github.com/eclipse-csi/otterdog/issues/198))
 - Added operation `open-pr` to automatically create a PR for local changes. ([#230](https://github.com/eclipse-csi/otterdog/issues/230))
 - Added author information from git when pushing config changes with `push-config`. ([#228](https://github.com/eclipse-csi/otterdog/issues/228))
 
+### Changed
+
+- Deprecated organization settings `dependabot_alerts_enabled_for_new_repositories`,
+  `dependabot_security_updates_enabled_for_new_repositories` and `dependency_graph_enabled_for_new_repositories`.
+- Deprecated organization setting `has_repository_projects`.
 
 ### Fixed
 
