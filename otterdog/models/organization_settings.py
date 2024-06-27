@@ -57,17 +57,11 @@ class OrganizationSettings(ModelObject):
     has_discussions: bool
     discussion_source_repository: str | None
     has_organization_projects: bool
-    # setting does not seem to be taken into account as the name might suggest,
-    # instead has_organization_projects is used to control whether repo can have projects
-    # deprecate and schedule for removal
-    has_repository_projects: bool
     default_branch_name: str
     default_repository_permission: str
     two_factor_requirement: bool = dataclasses.field(metadata={"read_only": True})
     web_commit_signoff_required: bool
-    dependabot_alerts_enabled_for_new_repositories: bool
-    dependabot_security_updates_enabled_for_new_repositories: bool
-    dependency_graph_enabled_for_new_repositories: bool
+    default_code_security_configurations_disabled: bool
     members_can_create_private_repositories: bool
     members_can_create_public_repositories: bool
     members_can_fork_private_repositories: bool
@@ -102,30 +96,10 @@ class OrganizationSettings(ModelObject):
         # execute custom validation rules if present
         self.execute_custom_validation_if_present(context, "validate-org-settings.py")
 
-        # enabling dependabot implicitly enables the dependency graph,
-        # disabling the dependency graph in the configuration will result in inconsistencies after
-        # applying the configuration, warn the user about it.
-        dependabot_alerts_enabled = self.dependabot_alerts_enabled_for_new_repositories is True
-        dependabot_security_updates_enabled = self.dependabot_security_updates_enabled_for_new_repositories is True
-        dependency_graph_disabled = self.dependency_graph_enabled_for_new_repositories is False
-
         if is_set_and_present(self.description) and len(self.description) > 160:
             context.add_failure(
                 FailureType.ERROR,
                 "setting 'description' exceeds maximum allowed length of 160 chars.",
-            )
-
-        if (dependabot_alerts_enabled or dependabot_security_updates_enabled) and dependency_graph_disabled:
-            context.add_failure(
-                FailureType.ERROR,
-                "enabling 'dependabot_alerts' or 'dependabot_security_updates' implicitly"
-                " enables 'dependency_graph_enabled_for_new_repositories'.",
-            )
-
-        if dependabot_security_updates_enabled and not dependabot_alerts_enabled:
-            context.add_failure(
-                FailureType.ERROR,
-                "enabling 'dependabot_security_updates' implicitly enables dependabot_alerts.",
             )
 
         if self.has_discussions is True and not is_set_and_valid(self.discussion_source_repository):
@@ -235,6 +209,15 @@ class OrganizationSettings(ModelObject):
         assert isinstance(current_object, OrganizationSettings)
 
         modified_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        # this setting is only intended to disable any existing default configuration, it can not be enabled per se
+        if "default_code_security_configurations_disabled" in modified_settings:
+            change: Change[bool] = cast(
+                Change[bool], modified_settings.get("default_code_security_configurations_disabled")
+            )
+            if change.from_value is True and change.to_value is False:
+                modified_settings.pop("default_code_security_configurations_disabled")
+
         if len(modified_settings) > 0:
             handler(
                 LivePatch.of_changes(

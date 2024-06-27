@@ -33,6 +33,10 @@ class OrgClient(RestClient):
             security_managers = await self.list_security_managers(org_id)
             settings["security_managers"] = security_managers
 
+        if "default_code_security_configurations_disabled" in included_keys:
+            default_configs = await self._get_default_code_security_configurations(org_id)
+            settings["default_code_security_configurations_disabled"] = len(default_configs) == 0
+
         result = {}
         for k, v in settings.items():
             if k in included_keys:
@@ -52,6 +56,13 @@ class OrgClient(RestClient):
 
         if "security_managers" in data:
             await self.update_security_managers(org_id, data["security_managers"])
+
+        if "default_code_security_configurations_disabled" in data:
+            default_code_security_configuration_disabled = data["default_code_security_configurations_disabled"]
+            if default_code_security_configuration_disabled is True:
+                await self._disable_default_code_security_configurations(org_id)
+            else:
+                print_warn("trying to enable default code security configurations")
 
         print_debug(f"updated {len(data)} setting(s)")
 
@@ -536,6 +547,34 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed updating default workflow permissions for org '{org_id}'" f"\n{status}: {body}")
 
         print_debug(f"updated default workflow permissions for org '{org_id}'")
+
+    async def _get_default_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving default code security configurations for org '{org_id}'")
+
+        try:
+            url = f"/orgs/{org_id}/code-security/configurations/defaults"
+            return await self.requester.request_json("GET", url)
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving default code security configurations:\n{ex}").with_traceback(tb)
+
+    async def _disable_default_code_security_configurations(self, org_id: str) -> None:
+        print_debug(f"retrieving default code security configurations for org '{org_id}'")
+
+        current_default_configs = await self._get_default_code_security_configurations(org_id)
+
+        for config in current_default_configs:
+            configuration_id = config["configuration"]["id"]
+
+            try:
+                data = {"default_for_new_repos": "none"}
+                url = f"/orgs/{org_id}/code-security/configurations/{configuration_id}/defaults"
+                await self.requester.request_json("PUT", url, data=data)
+            except GitHubException as ex:
+                tb = ex.__traceback__
+                raise RuntimeError(
+                    f"failed disabling default code security configuration with id {configuration_id}:\n{ex}"
+                ).with_traceback(tb)
 
     async def list_members(self, org_id: str, two_factor_disabled: bool) -> list[dict[str, Any]]:
         print_debug(f"retrieving list of organization members for org '{org_id}'")
