@@ -34,14 +34,10 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.twitter_username is None
         assert settings.blog is None
         assert settings.has_organization_projects is True
-        assert settings.has_repository_projects is True
         assert settings.default_branch_name == "main"
         assert settings.default_repository_permission == "read"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
-        assert settings.dependabot_alerts_enabled_for_new_repositories is True
-        assert settings.dependabot_security_updates_enabled_for_new_repositories is True
-        assert settings.dependency_graph_enabled_for_new_repositories is True
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -68,13 +64,9 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.twitter_username is None
         assert settings.blog is None
         assert settings.has_organization_projects is True
-        assert settings.has_repository_projects is True
         assert settings.default_branch_name == "main"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
-        assert settings.dependabot_alerts_enabled_for_new_repositories is True
-        assert settings.dependabot_security_updates_enabled_for_new_repositories is True
-        assert settings.dependency_graph_enabled_for_new_repositories is True
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -95,7 +87,7 @@ class OrganizationSettingsTest(ModelTest):
 
         provider_data = await settings.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 27
+        assert len(provider_data) == 23
         assert provider_data["billing_email"] == settings.billing_email
 
     async def test_changes_to_provider(self):
