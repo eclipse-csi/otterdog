@@ -48,6 +48,10 @@ class BitwardenVault(CredentialProvider):
         status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
         if status != 0:
             raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
+        else:
+            start_index = output.index("{")
+            end_index = output.rindex("}")
+            output = output[start_index : end_index + 1]
 
         # load the item json string and access the field containing the GitHub token
         item = json.loads(output)
