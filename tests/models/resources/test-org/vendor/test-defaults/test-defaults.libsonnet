@@ -111,7 +111,6 @@ local newOrg(id) = {
     blog: null,
 
     has_organization_projects: true,
-    has_repository_projects: true,
 
     # Base permissions to the organization’s repositories apply to all members and excludes outside collaborators.
     # Since organization members can have permissions from multiple sources, members and collaborators who have been
@@ -131,10 +130,6 @@ local newOrg(id) = {
 
     # GitHub Pages
     members_can_create_public_pages: true,
-
-    dependabot_alerts_enabled_for_new_repositories: true,
-    dependabot_security_updates_enabled_for_new_repositories: true,
-    dependency_graph_enabled_for_new_repositories: true,
 
     ## Admin repository permissions
 
