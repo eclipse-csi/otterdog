@@ -7,6 +7,11 @@
 - Added option `--diff` to the `push-config` operation to shows a diff of the local changes prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
 
+### Fixed
+
+- Added proper error handling in case no base_template is defined in the otterdog configuration file. ([#247](https://github.com/eclipse-csi/otterdog/issues/247))
+
+
 ## [0.7.0] - 10/06/2024
 
 ### Added

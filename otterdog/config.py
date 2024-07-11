@@ -188,7 +188,12 @@ class OtterdogConfig(SecretResolver):
 
     @property
     def default_base_template(self) -> str:
-        return self._jsonnet_config["base_template"]
+        base_template = self._jsonnet_config.get("base_template")
+        if base_template is None:
+            raise RuntimeError(
+                "need to define a base template in your otterdog config, key: 'defaults.jsonnet.base_template'"
+            )
+        return base_template
 
     @property
     def organization_configs(self) -> dict[str, OrganizationConfig]:
