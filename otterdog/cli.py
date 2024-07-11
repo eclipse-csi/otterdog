@@ -225,12 +225,13 @@ def fetch_config(organizations: list[str], force, pull_request):
 
 
 @cli.command(cls=StdCommand)
-@click.option("-m", "--message", help="commit messaged")
-def push_config(organizations: list[str], message):
+@click.option("-d", "--diff", is_flag=True, show_default=True, default=False, help="show a diff")
+@click.option("-m", "--message", help="commit message")
+def push_config(organizations: list[str], diff, message):
     """
     Pushes the local configuration to the corresponding config repo of an organization.
     """
-    _execute_operation(organizations, PushOperation(push_message=message))
+    _execute_operation(organizations, PushOperation(show_diff=diff, push_message=message))
 
 
 @cli.command(cls=StdCommand)

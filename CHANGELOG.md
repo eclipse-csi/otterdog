@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added option `--diff` to the `push-config` operation to shows a diff of the local changes prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
 
 ## [0.7.0] - 10/06/2024
