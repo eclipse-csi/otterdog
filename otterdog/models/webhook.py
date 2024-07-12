@@ -158,13 +158,9 @@ class Webhook(ModelObject, abc.ABC):
         if self.has_dummy_secret():
             self.secret = cast(Webhook, other_object).secret
 
-    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+    def update_dummy_secrets(self, new_value: str) -> None:
         if self.has_dummy_secret():
             self.secret = new_value
-
-        other_webhook = cast(Webhook, other_object)
-        if other_webhook.has_dummy_secret():
-            other_webhook.secret = new_value
 
     @classmethod
     def generate_live_patch(

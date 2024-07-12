@@ -26,9 +26,10 @@ class PushOperation(Operation):
     Pushes a local configuration of an organization to its meta-data repository.
     """
 
-    def __init__(self, show_diff: bool, push_message: str | None):
+    def __init__(self, show_diff: bool, force_processing: bool, push_message: str | None):
         super().__init__()
         self._show_diff = show_diff
+        self._force_processing = force_processing
         self._push_message = push_message
 
     @property
@@ -38,6 +39,10 @@ class PushOperation(Operation):
     @property
     def push_message(self) -> str | None:
         return self._push_message
+
+    @property
+    def force_processing(self) -> bool:
+        return self._force_processing
 
     def pre_execute(self) -> None:
         self.printer.println("Pushing organization configurations:")
@@ -167,12 +172,15 @@ class PushOperation(Operation):
         if valid_config != 0:
             return False
 
-        self.printer.println()
-        self.printer.println("Do you want to push these changes? " "(Only 'yes' or 'y' will be accepted as approval)\n")
+        if not self.force_processing:
+            self.printer.println()
+            self.printer.println(
+                "Do you want to push these changes? " "(Only 'yes' or 'y' will be accepted as approval)\n"
+            )
 
-        self.printer.print(f"{style('Enter a value', bright=True)}: ")
-        if not get_approval():
-            self.printer.println("\npush cancelled.")
-            return False
+            self.printer.print(f"{style('Enter a value', bright=True)}: ")
+            if not get_approval():
+                self.printer.println("\npush cancelled.")
+                return False
 
         return True

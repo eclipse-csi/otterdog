@@ -707,19 +707,6 @@ class Repository(ModelObject):
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
 
-    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
-        for webhook in self.webhooks:
-            other_repo = cast(Repository, other_object)
-            other_webhook = other_repo.get_webhook(webhook.url)
-            if other_webhook is not None:
-                webhook.update_dummy_secrets(other_webhook, new_value)
-
-        for secret in self.secrets:
-            other_repo = cast(Repository, other_object)
-            other_secret = other_repo.get_secret(secret.name)
-            if other_secret is not None:
-                secret.update_dummy_secrets(other_secret, new_value)
-
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
 

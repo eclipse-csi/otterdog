@@ -468,7 +468,7 @@ class ModelObject(ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         pass
 
-    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+    def update_dummy_secrets(self, new_value: str) -> None:
         pass
 
     @abstractmethod

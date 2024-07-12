@@ -54,5 +54,6 @@ class LocalPlanOperation(PlanOperation):
     def preprocess_orgs(
         self, expected_org: GitHubOrganization, current_org: GitHubOrganization
     ) -> tuple[GitHubOrganization, GitHubOrganization]:
-        expected_org.update_dummy_secrets(current_org, "<DUMMY>")
+        expected_org.update_dummy_secrets("<DUMMY>")
+        current_org.update_dummy_secrets("<DUMMY>")
         return expected_org, current_org

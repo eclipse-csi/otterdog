@@ -225,13 +225,30 @@ def fetch_config(organizations: list[str], force, pull_request):
 
 
 @cli.command(cls=StdCommand)
-@click.option("-d", "--diff", is_flag=True, show_default=True, default=False, help="show a diff")
 @click.option("-m", "--message", help="commit message")
-def push_config(organizations: list[str], diff, message):
+@click.option(
+    "-n",
+    "--no-diff",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="disables displaying diff to current live config",
+)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+def push_config(organizations: list[str], no_diff, force, message):
     """
     Pushes the local configuration to the corresponding config repo of an organization.
     """
-    _execute_operation(organizations, PushOperation(show_diff=diff, push_message=message))
+    _execute_operation(
+        organizations, PushOperation(show_diff=not no_diff, force_processing=force, push_message=message)
+    )
 
 
 @cli.command(cls=StdCommand)

@@ -123,13 +123,9 @@ class Secret(ModelObject, abc.ABC):
         if self.has_dummy_secret():
             self.value = cast(Secret, other_object).value
 
-    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+    def update_dummy_secrets(self, new_value: str) -> None:
         if self.has_dummy_secret():
             self.value = new_value
-
-        other_secret = cast(Secret, other_object)
-        if other_secret.has_dummy_secret():
-            other_secret.value = new_value
 
     @classmethod
     def generate_live_patch(

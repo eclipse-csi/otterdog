@@ -4,7 +4,11 @@
 
 ### Added
 
-- Added option `--diff` to the `push-config` operation to shows a diff of the local changes prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
+Added option `--no-diff` and `--force` to the `push-config` operation to disable showing diffs and interactive approvals. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
+
+### Changed
+
+- Changed operation `push-config` to always show a diff of the local changes compared to the current remote configuration prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
 ### Fixed
 

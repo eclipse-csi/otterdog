@@ -198,21 +198,9 @@ class GitHubOrganization:
             if other_repo is not None:
                 repo.copy_secrets(other_repo)
 
-    def update_dummy_secrets(self, other_org: GitHubOrganization, new_value: str) -> None:
-        for webhook in self.webhooks:
-            other_webhook = other_org.get_webhook(webhook.url)
-            if other_webhook is not None:
-                webhook.update_dummy_secrets(other_webhook, new_value)
-
-        for secret in self.secrets:
-            other_secret = other_org.get_secret(secret.name)
-            if other_secret is not None:
-                secret.update_dummy_secrets(other_secret, new_value)
-
-        for repo in self.repositories:
-            other_repo = other_org.get_repository(repo.name)
-            if other_repo is not None:
-                repo.update_dummy_secrets(other_repo, new_value)
+    def update_dummy_secrets(self, new_value: str) -> None:
+        for model_object, _ in self.get_model_objects():
+            model_object.update_dummy_secrets(new_value)
 
     def to_jsonnet(self, config: JsonnetConfig, context: PatchContext) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config_for_org_id(self.github_id))
