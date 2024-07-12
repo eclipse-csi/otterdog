@@ -6,9 +6,9 @@
 
 - Added option `--diff` to the `push-config` operation to shows a diff of the local changes prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
-
 ### Fixed
 
+- Fixed showing changes to dummy secret values when performing a `local-plan` operation. ([#245](https://github.com/eclipse-csi/otterdog/issues/245))
 - Added proper error handling in case no base_template is defined in the otterdog configuration file. ([#247](https://github.com/eclipse-csi/otterdog/issues/247))
 
 

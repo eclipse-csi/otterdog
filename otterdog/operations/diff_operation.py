@@ -160,6 +160,8 @@ class DiffOperation(Operation):
             self.printer.print_error(f"failed to load current configuration\n{str(e)}")
             return 1
 
+        expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
+
         diff_status = DiffStatus()
         live_patches = []
 
@@ -232,6 +234,11 @@ class DiffOperation(Operation):
         return await GitHubOrganization.load_from_provider(
             github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.printer, self.concurrency
         )
+
+    def preprocess_orgs(
+        self, expected_org: GitHubOrganization, current_org: GitHubOrganization
+    ) -> tuple[GitHubOrganization, GitHubOrganization]:
+        return expected_org, current_org
 
     @abstractmethod
     def handle_add_object(

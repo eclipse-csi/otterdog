@@ -25,7 +25,7 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, Change, is_set_and_valid, is_unset
+from otterdog.utils import UNSET, Change, is_set_and_present, is_unset
 
 ST = TypeVar("ST", bound="Secret")
 
@@ -66,7 +66,7 @@ class Secret(ModelObject, abc.ABC):
             )
 
     def has_dummy_secret(self) -> bool:
-        if is_set_and_valid(self.value) and all(ch == "*" for ch in self.value):  # type: ignore
+        if is_set_and_present(self.value) and len(self.value) > 0 and all(ch == "*" for ch in self.value):
             return True
         else:
             return False
@@ -122,6 +122,14 @@ class Secret(ModelObject, abc.ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
             self.value = cast(Secret, other_object).value
+
+    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+        if self.has_dummy_secret():
+            self.value = new_value
+
+        other_secret = cast(Secret, other_object)
+        if other_secret.has_dummy_secret():
+            other_secret.value = new_value
 
     @classmethod
     def generate_live_patch(
