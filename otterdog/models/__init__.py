@@ -468,6 +468,9 @@ class ModelObject(ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         pass
 
+    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+        pass
+
     @abstractmethod
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None: ...
 

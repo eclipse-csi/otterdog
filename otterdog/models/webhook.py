@@ -54,7 +54,7 @@ class Webhook(ModelObject, abc.ABC):
         return self.get_all_urls()
 
     def has_dummy_secret(self) -> bool:
-        if is_set_and_valid(self.secret) and all(ch == "*" for ch in self.secret):  # type: ignore
+        if is_set_and_present(self.secret) and len(self.secret) > 0 and all(ch == "*" for ch in self.secret):
             return True
         else:
             return False
@@ -157,6 +157,14 @@ class Webhook(ModelObject, abc.ABC):
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
             self.secret = cast(Webhook, other_object).secret
+
+    def update_dummy_secrets(self, other_object: ModelObject, new_value: str) -> None:
+        if self.has_dummy_secret():
+            self.secret = new_value
+
+        other_webhook = cast(Webhook, other_object)
+        if other_webhook.has_dummy_secret():
+            other_webhook.secret = new_value
 
     @classmethod
     def generate_live_patch(

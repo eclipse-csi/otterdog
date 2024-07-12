@@ -50,3 +50,9 @@ class LocalPlanOperation(PlanOperation):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
         return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)
+
+    def preprocess_orgs(
+        self, expected_org: GitHubOrganization, current_org: GitHubOrganization
+    ) -> tuple[GitHubOrganization, GitHubOrganization]:
+        expected_org.update_dummy_secrets(current_org, "<DUMMY>")
+        return expected_org, current_org
