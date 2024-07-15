@@ -144,12 +144,27 @@ class PushOperation(Operation):
         repo_data = await rest_api.repo.get_repo_data(org_config.github_id, org_config.config_repo)
         default_branch = repo_data["default_branch"]
 
-        current_definition = await provider.get_content(
-            github_id,
-            org_config.config_repo,
-            f"otterdog/{github_id}.jsonnet",
-            default_branch,
-        )
+        try:
+            current_definition = await provider.get_content(
+                github_id,
+                org_config.config_repo,
+                f"otterdog/{github_id}.jsonnet",
+                default_branch,
+            )
+        except RuntimeError:
+            if not self.force_processing:
+                self.printer.println()
+                self.printer.println("No configuration yet available.")
+                self.printer.println(
+                    "Do you want to push these changes? " "(Only 'yes' or 'y' will be accepted as approval)\n"
+                )
+
+                self.printer.print(f"{style('Enter a value', bright=True)}: ")
+                if not get_approval():
+                    self.printer.println("\npush cancelled.")
+                    return False
+
+            return True
 
         current_config_file = org_config.jsonnet_config.org_config_file + "-BASE"
         async with aiofiles.open(current_config_file, "w") as file:
