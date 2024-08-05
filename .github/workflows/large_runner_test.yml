@@ -1,0 +1,11 @@
+name: Hello World
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest-large
+    steps:
+    - name: Hello World
+      run: echo "Hello world" && sleep 20
