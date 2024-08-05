@@ -184,14 +184,19 @@ async def project(project_name: str):
         return await render_template("home/page-404.html"), 404
 
     from otterdog.models.github_organization import GitHubOrganization
+    from otterdog.webapp.db.service import get_policies
 
     github_organization = GitHubOrganization.from_model_data(config.config)
 
+    policies = list(map(lambda x: x.model_dump(), await get_policies(config.github_id)))
+
+    print(policies)
     return await render_home_template(
         "organization.html",
         project_name=config.project_name,
         github_id=config.github_id,
         config=github_organization,
+        policies=policies,
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
         branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
     )

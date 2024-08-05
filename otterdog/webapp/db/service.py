@@ -604,6 +604,14 @@ async def save_user(user: UserModel) -> None:
     await mongo.odm.save(user)
 
 
+async def get_policies(owner: str) -> list[PolicyModel]:
+    return await mongo.odm.find(
+        PolicyModel,
+        PolicyModel.id.org_id == owner,
+        sort=PolicyModel.id.policy_type,
+    )
+
+
 async def find_policy(owner: str, policy_type) -> PolicyModel | None:
     return await mongo.odm.find_one(
         PolicyModel,
