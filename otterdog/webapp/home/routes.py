@@ -187,10 +187,8 @@ async def project(project_name: str):
     from otterdog.webapp.db.service import get_policies
 
     github_organization = GitHubOrganization.from_model_data(config.config)
-
     policies = list(map(lambda x: x.model_dump(), await get_policies(config.github_id)))
 
-    print(policies)
     return await render_home_template(
         "organization.html",
         project_name=config.project_name,
