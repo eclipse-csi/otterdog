@@ -24,6 +24,7 @@ from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
+from otterdog.utils import print_error
 from otterdog.webapp.policies import Policy, read_policy
 
 logger = getLogger(__name__)
@@ -174,8 +175,11 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
             path = entry["path"]
             if path.endswith(".yml") or path.endswith("yaml"):
                 content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
-                policy = read_policy(yaml.safe_load(content))
-                policies.append(policy)
+                try:
+                    policy = read_policy(yaml.safe_load(content))
+                    policies.append(policy)
+                except RuntimeError as e:
+                    print_error(f"failed reading global policy from path '{path}': {str(e)}")
 
     return policies
 

@@ -9,6 +9,7 @@
 from dataclasses import dataclass
 
 from otterdog.providers.github import RestApi
+from otterdog.utils import print_error
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
     cleanup_policies_of_owner,
@@ -72,9 +73,10 @@ async def fetch_policies(
         path = entry["path"]
         if path.endswith(".yml") or path.endswith("yaml"):
             content = await rest_api.content.get_content(org_id, repo, path)
-            policy = read_policy(yaml.safe_load(content))
-
-            if policy.type in policies:
+            try:
+                policy = read_policy(yaml.safe_load(content))
                 policies[policy.type] = policy
+            except RuntimeError as ex:
+                print_error(f"failed reading policy from path '{path}': {str(ex)}")
 
     return policies

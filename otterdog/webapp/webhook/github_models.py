@@ -176,6 +176,12 @@ class WorkflowJob(BaseModel):
     labels: list[str]
 
 
+class Commit(BaseModel):
+    added: list[str]
+    modified: list[str]
+    removed: list[str]
+
+
 class Event(ABC, BaseModel):
     """Base class of events"""
 
@@ -210,6 +216,8 @@ class PushEvent(Event):
     after: str
 
     repository: Repository
+
+    commits: list[Commit]
 
     created: bool
     deleted: bool

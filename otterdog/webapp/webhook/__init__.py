@@ -37,6 +37,7 @@ from .comment_handlers import (
     ValidateCommentHandler,
 )
 from .github_models import (
+    Commit,
     InstallationEvent,
     IssueCommentEvent,
     PullRequestEvent,
@@ -234,17 +235,27 @@ async def on_push_received(data):
             )
         )
 
-        # TODO: only fetch and update policies when anything in 'otterdog/policies/*' was modified
-        #       right now we always update the policies if anything is pushed to the config repo
-        global_policies = await refresh_global_policies()
-        current_app.add_background_task(
-            FetchPoliciesTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
-                global_policies,
+        def policy_path(path: str) -> bool:
+            return path.startswith("otterdog/policies")
+
+        def modifies_any_policy(commit: Commit) -> bool:
+            return (
+                any(map(policy_path, commit.added))
+                or any(map(policy_path, commit.modified))
+                or any(map(policy_path, commit.removed))
             )
-        )
+
+        policies_modified = any(map(modifies_any_policy, event.commits))
+        if policies_modified is True:
+            global_policies = await refresh_global_policies()
+            current_app.add_background_task(
+                FetchPoliciesTask(
+                    event.installation.id,
+                    event.organization.login,
+                    event.repository.name,
+                    global_policies,
+                )
+            )
 
         return success()
 
