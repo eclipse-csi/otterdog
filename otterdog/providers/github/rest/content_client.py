@@ -21,7 +21,7 @@ class ContentClient(RestClient):
 
     async def get_content_object(
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | list[dict]:
         print_debug(f"retrieving content '{path}' from repo '{org_id}/{repo_name}'")
 
         try:
@@ -39,12 +39,14 @@ class ContentClient(RestClient):
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
+        assert isinstance(json_response, dict)
         return base64.b64decode(json_response["content"]).decode("utf-8")
 
     async def get_content_with_sha(
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> tuple[str, str]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
+        assert isinstance(json_response, dict)
         return base64.b64decode(json_response["content"]).decode("utf-8"), json_response["sha"]
 
     async def update_content(
@@ -62,6 +64,7 @@ class ContentClient(RestClient):
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path, ref)
+            assert isinstance(json_response, dict)
             old_sha = json_response["sha"]
             old_content = base64.b64decode(json_response["content"]).decode("utf-8")
         except RuntimeError:
@@ -117,6 +120,7 @@ class ContentClient(RestClient):
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path)
+            assert isinstance(json_response, dict)
             old_sha = json_response["sha"]
         except RuntimeError:
             old_sha = None

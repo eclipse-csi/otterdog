@@ -17,7 +17,12 @@ from quart import current_app
 
 from otterdog.config import OtterdogConfig
 from otterdog.webapp import mongo
-from otterdog.webapp.utils import current_utc_time, get_rest_api_for_app
+from otterdog.webapp.policies import Policy
+from otterdog.webapp.utils import (
+    current_utc_time,
+    get_rest_api_for_app,
+    refresh_global_policies,
+)
 from otterdog.webapp.webhook.github_models import PullRequest
 
 from .models import (
@@ -25,6 +30,8 @@ from .models import (
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
+    PolicyId,
+    PolicyModel,
     PullRequestId,
     PullRequestModel,
     PullRequestStatus,
@@ -42,7 +49,8 @@ async def update_installation_status(installation_id: int, action: str) -> None:
 
     match action:
         case "created":
-            await update_app_installations()
+            policies = await refresh_global_policies()
+            await update_app_installations(policies)
 
         case "deleted":
             installation = await mongo.odm.find_one(
@@ -79,7 +87,9 @@ async def update_installation_status(installation_id: int, action: str) -> None:
             pass
 
 
-async def update_installations_from_config(otterdog_config: OtterdogConfig, update_installations: bool = True) -> None:
+async def update_installations_from_config(
+    otterdog_config: OtterdogConfig, global_policies: list[Policy], update_installations: bool = True
+) -> None:
     logger.info("updating installations from otterdog config")
 
     existing_installations = set(map(lambda x: x.github_id, await get_installations()))
@@ -135,7 +145,7 @@ async def update_installations_from_config(otterdog_config: OtterdogConfig, upda
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations(projects_to_update)
+        await update_app_installations(global_policies, projects_to_update)
 
 
 async def cleanup_data() -> None:
@@ -143,9 +153,13 @@ async def cleanup_data() -> None:
     await cleanup_pull_requests(valid_orgs)
     await cleanup_statistics(valid_orgs)
     await cleanup_configurations(valid_orgs)
+    await cleanup_policies(valid_orgs)
 
 
-async def update_app_installations(project_names_to_force_update: set[str] | None = None) -> None:
+async def update_app_installations(
+    global_policies: list[Policy],
+    project_names_to_force_update: set[str] | None = None,
+) -> None:
     logger.info("updating app installations")
 
     rest_api = get_rest_api_for_app()
@@ -172,6 +186,8 @@ async def update_app_installations(project_names_to_force_update: set[str] | Non
         ):
             await update_data_for_installation(installation)
 
+        await update_policies_for_installation(installation, global_policies)
+
 
 async def update_data_for_installation(installation: InstallationModel) -> None:
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
@@ -192,6 +208,21 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
             installation.installation_id,
             installation.github_id,
             installation.config_repo,
+        )
+    )
+
+
+async def update_policies_for_installation(installation: InstallationModel, global_policies: list[Policy]) -> None:
+    from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
+
+    assert installation.config_repo is not None
+
+    current_app.add_background_task(
+        FetchPoliciesTask(
+            installation.installation_id,
+            installation.github_id,
+            installation.config_repo,
+            global_policies,
         )
     )
 
@@ -571,3 +602,34 @@ async def get_user(node_id: str) -> UserModel | None:
 
 async def save_user(user: UserModel) -> None:
     await mongo.odm.save(user)
+
+
+async def find_policy(owner: str, policy_type) -> PolicyModel | None:
+    return await mongo.odm.find_one(
+        PolicyModel,
+        PolicyModel.id.org_id == owner,
+        PolicyModel.id.policy_type == policy_type,
+    )
+
+
+async def update_or_create_policy(owner: str, policy: Policy) -> None:
+    policy_model = await find_policy(owner, policy.type.value)
+    if policy_model is None:
+        policy_model = PolicyModel(
+            id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            config=policy.config,
+        )
+    else:
+        policy_model.config = policy.config
+
+    await mongo.odm.save(policy_model)
+
+
+async def cleanup_policies(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(PolicyModel, query.not_in(PolicyModel.id.org_id, valid_orgs))
+
+
+async def cleanup_policies_of_owner(owner: str, valid_types: list[str]) -> None:
+    await mongo.odm.remove(
+        PolicyModel, PolicyModel.id.org_id == owner, query.not_in(PolicyModel.id.policy_type, valid_types)
+    )

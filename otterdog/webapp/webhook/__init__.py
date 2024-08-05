@@ -19,11 +19,12 @@ from otterdog.webapp.db.service import (
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
+from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
-from otterdog.webapp.utils import refresh_otterdog_config
+from otterdog.webapp.utils import refresh_global_policies, refresh_otterdog_config
 
 from .comment_handlers import (
     ApplyCommentHandler,
@@ -232,6 +233,19 @@ async def on_push_received(data):
                 event.repository.name,
             )
         )
+
+        # TODO: only fetch and update policies when anything in 'otterdog/policies/*' was modified
+        #       right now we always update the policies if anything is pushed to the config repo
+        global_policies = await refresh_global_policies()
+        current_app.add_background_task(
+            FetchPoliciesTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                global_policies,
+            )
+        )
+
         return success()
 
     # if the otterdog config repo has been update, update all installations
@@ -244,7 +258,8 @@ async def on_push_received(data):
 
         async def update_installations() -> None:
             config = await refresh_otterdog_config(event.after)
-            await update_installations_from_config(config)
+            policies = await refresh_global_policies(event.after)
+            await update_installations_from_config(config, policies)
 
         current_app.add_background_task(update_installations)
         return success()
@@ -278,16 +293,23 @@ async def on_workflow_job_received(data):
     if event.action in ["queued"]:
         logger.debug(f"workflow job queued on runner: {', '.join(event.workflow_job.labels)}")
 
-        if _uses_macos_larger_runner(event.workflow_job.labels):
-            from otterdog.webapp.utils import get_rest_api_for_installation
+        from otterdog.webapp.db.service import find_policy
+        from otterdog.webapp.policies import PolicyType
+        from otterdog.webapp.policies.macos_runners import MacOSLargeRunnersUsagePolicy
 
-            org_id = event.organization.login
-            repo_name = event.repository.name
-            run_id = event.workflow_job.run_id
+        policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE)
+        if policy_model is not None:
+            policy = MacOSLargeRunnersUsagePolicy(**policy_model.config)
+            if not policy.is_workflow_job_permitted(event.workflow_job.labels):
+                from otterdog.webapp.utils import get_rest_api_for_installation
 
-            rest_api = await get_rest_api_for_installation(event.installation.id)
-            cancelled = await rest_api.action.cancel_workflow_run(org_id, repo_name, run_id)
-            logger.info(f"cancelled workflow run #{run_id} in repo '{org_id}/{repo_name}': success={cancelled}")
+                org_id = event.organization.login
+                repo_name = event.repository.name
+                run_id = event.workflow_job.run_id
+
+                rest_api = await get_rest_api_for_installation(event.installation.id)
+                cancelled = await rest_api.action.cancel_workflow_run(org_id, repo_name, run_id)
+                logger.info(f"cancelled workflow run #{run_id} in repo '{org_id}/{repo_name}': success={cancelled}")
 
     return success()
 
