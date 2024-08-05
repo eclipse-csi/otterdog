@@ -145,6 +145,8 @@ EVENT_DESCRIPTIONS = {
     "status": "{sender[login]} set {sha} status to {state} in " "{repository[full_name]}",
     "team_add": "{sender[login]} added repository {repository[full_name]} to " "team {team[name]}",
     "watch": "{sender[login]} {action} watch in repository " "{repository[full_name]}",
+    "workflow_job": "workflow '{workflow_job[name]}' on '{workflow_job[labels]}' {action} in repository "
+    "{repository[full_name]}",
 }
 
 
