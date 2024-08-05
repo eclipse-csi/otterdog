@@ -138,3 +138,13 @@ class UserModel(Model):
     email: Optional[str] = None
     full_name: Optional[str] = None
     projects: list[str] = Field(default_factory=list)
+
+
+class PolicyId(EmbeddedModel):
+    org_id: str
+    policy_type: str
+
+
+class PolicyModel(Model):
+    id: PolicyId = Field(primary_field=True)
+    config: dict

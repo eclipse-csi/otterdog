@@ -42,6 +42,7 @@ async def init_mongo_database(mongo: Mongo) -> None:
     from .models import (
         ConfigurationModel,
         InstallationModel,
+        PolicyModel,
         PullRequestModel,
         StatisticsModel,
         TaskModel,
@@ -56,5 +57,6 @@ async def init_mongo_database(mongo: Mongo) -> None:
             PullRequestModel,
             StatisticsModel,
             UserModel,
+            PolicyModel,
         ]  # type: ignore
     )

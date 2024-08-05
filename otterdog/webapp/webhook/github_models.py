@@ -160,6 +160,28 @@ class Issue(BaseModel):
     html_url: str
 
 
+class WorkflowJob(BaseModel):
+    name: str
+    id: int
+    run_id: int
+    runner_id: int | None = None
+    runner_name: str | None = None
+    status: str
+    head_sha: str
+    head_branch: str | None = None
+    created_at: str
+    started_at: str
+    completed_at: str | None = None
+    conclusion: str | None = None
+    labels: list[str]
+
+
+class Commit(BaseModel):
+    added: list[str]
+    modified: list[str]
+    removed: list[str]
+
+
 class Event(ABC, BaseModel):
     """Base class of events"""
 
@@ -195,6 +217,8 @@ class PushEvent(Event):
 
     repository: Repository
 
+    commits: list[Commit]
+
     created: bool
     deleted: bool
     forced: bool
@@ -213,3 +237,11 @@ class InstallationEvent(Event):
     """A payload sent for installation events."""
 
     action: str
+
+
+class WorkflowJobEvent(Event):
+    """A payload sent for workflow job events."""
+
+    action: str
+    workflow_job: WorkflowJob
+    repository: Repository

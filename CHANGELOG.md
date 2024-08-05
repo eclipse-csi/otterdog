@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added policy `macos_large_runners` to control whether MacOS large runners are permitted to use in an organization. ([#251](https://github.com/eclipse-csi/otterdog/issues/251))
 - Added operation `install-app` to install a GitHub app for an organization. ([#250](https://github.com/eclipse-csi/otterdog/issues/250))
 - Added option `--no-diff` and `--force` to the `push-config` operation to disable showing diffs and interactive approvals. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 

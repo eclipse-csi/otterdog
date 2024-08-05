@@ -15,6 +15,7 @@ from functools import cache
 from logging import getLogger
 from typing import cast
 
+import yaml  # type: ignore
 from quart import Quart, current_app
 from quart_redis import get_redis  # type: ignore
 
@@ -23,11 +24,15 @@ from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
+from otterdog.utils import print_error
+from otterdog.webapp.policies import Policy, read_policy
 
 logger = getLogger(__name__)
 
 _OTTERDOG_CONFIG: OtterdogConfig | None = None
 _CREATE_INSTALLATION_TOKEN_LOCK = asyncio.Lock()
+
+_GLOBAL_POLICIES: list[Policy] | None = None
 
 
 def _get_redis_cache():
@@ -143,6 +148,40 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
             await file.write(content)
             await file.flush()
             return OtterdogConfig(name, False, app_root)
+
+
+async def refresh_global_policies(sha: str | None = None) -> list[Policy]:
+    global _GLOBAL_POLICIES
+    _GLOBAL_POLICIES = await _load_global_policies(sha)
+    return _GLOBAL_POLICIES
+
+
+async def _load_global_policies(ref: str | None = None) -> list[Policy]:
+    config_file_owner = current_app.config["OTTERDOG_CONFIG_OWNER"]
+    config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
+    config_file_path = "policies"
+
+    logger.info(
+        f"loading global policies from url "
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+    )
+
+    policies = []
+
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
+        entries = await rest_api.content.get_content_object(config_file_owner, config_file_repo, config_file_path, ref)
+
+        for entry in entries:
+            path = entry["path"]
+            if path.endswith(".yml") or path.endswith("yaml"):
+                content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
+                try:
+                    policy = read_policy(yaml.safe_load(content))
+                    policies.append(policy)
+                except RuntimeError as e:
+                    print_error(f"failed reading global policy from path '{path}': {str(e)}")
+
+    return policies
 
 
 def get_admin_teams() -> list[str]:

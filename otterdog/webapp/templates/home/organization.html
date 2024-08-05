@@ -51,6 +51,9 @@
                     <a class="nav-link active" id="overview-tab" data-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="policies-tab" data-toggle="pill" href="#policies" role="tab" aria-controls="policies" aria-selected="false">Policies</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="settings-tab" data-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
                   </li>
                   <li class="nav-item">
@@ -153,6 +156,27 @@
                       </div>
                     </div>
                     <!-- /.card -->
+                  </div>
+                  <div class="tab-pane" id="policies" role="tabpanel" aria-labelledby="policies-tab">
+                    <div class="table-responsive p-0">
+                      <table class="table table-hover text-nowrap">
+                        <thead>
+                          <tr>
+                            <th>Policy Type</th>
+                            <th>Config</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for policy in policies %}
+                          {% set id = policy.id %}
+                          <tr>
+                            <td>{{ id.policy_type }}</td>
+                            <td>{{ policy.config }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
                     <textarea id="org-settings-textarea">

@@ -27,14 +27,16 @@ async def test_update_installations(app):
         await mongo.odm.get_collection(InstallationModel).drop()
         await init_mongo_database(mongo)
 
+        policies = []
+
         config = OtterdogConfig.from_file(_get_config_file("config/otterdog.json"), False)
-        await update_installations_from_config(config, False)
+        await update_installations_from_config(config, policies, False)
 
         assert await get_all_installations_count() == 1
         assert (await get_installations())[0].github_id == "OtterdogTest"
 
         config2 = OtterdogConfig.from_file(_get_config_file("config/otterdog_modified.json"), False)
-        await update_installations_from_config(config2, False)
+        await update_installations_from_config(config2, policies, False)
 
         assert await get_all_installations_count() == 1
         assert (await get_installations())[0].github_id == "OtterdogTest2"

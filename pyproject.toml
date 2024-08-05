@@ -68,6 +68,7 @@ quart-redis          = "^2.0"
 github-flask         = "^3.2"
 aiohttp-client-cache = {version="^0.11.0", extras=["redis"]}
 ariadne              = "^0.22"
+pyyaml               = "^6.0"
 
 
 [tool.poetry.group.dev.dependencies]
