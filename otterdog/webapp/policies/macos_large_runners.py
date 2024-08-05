@@ -9,7 +9,7 @@
 import dataclasses
 from typing import Any
 
-from otterdog.webapp.policies import Policy, PolicyType
+from . import Policy, PolicyType
 
 
 @dataclasses.dataclass

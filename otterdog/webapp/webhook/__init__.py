@@ -306,7 +306,9 @@ async def on_workflow_job_received(data):
 
         from otterdog.webapp.db.service import find_policy
         from otterdog.webapp.policies import PolicyType
-        from otterdog.webapp.policies.macos_runners import MacOSLargeRunnersUsagePolicy
+        from otterdog.webapp.policies.macos_large_runners import (
+            MacOSLargeRunnersUsagePolicy,
+        )
 
         policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE)
         if policy_model is not None:

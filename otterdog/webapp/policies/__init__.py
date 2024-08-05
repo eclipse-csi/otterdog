@@ -32,7 +32,7 @@ def read_policy(content: dict[str, Any]) -> Policy:
 
     match policy_type:
         case PolicyType.MACOS_LARGE_RUNNERS_USAGE.value:
-            from otterdog.webapp.policies.macos_runners import (
+            from otterdog.webapp.policies.macos_large_runners import (
                 MacOSLargeRunnersUsagePolicy,
             )
 
