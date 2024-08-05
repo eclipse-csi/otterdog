@@ -23,6 +23,7 @@ from .operations.delete_file import DeleteFileOperation
 from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_config import FetchOperation
 from .operations.import_configuration import ImportOperation
+from .operations.install_app import InstallAppOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
 from .operations.local_plan import LocalPlanOperation
@@ -251,7 +252,7 @@ def push_config(organizations: list[str], no_diff, force, message):
     )
 
 
-@cli.command(cls=StdCommand)
+@cli.command(cls=StdCommand, short_help="Opens a pull request for local configuration changes.")
 @click.option("-b", "--branch", required=True, help="branch name")
 @click.option("-t", "--title", required=True, help="PR title")
 @click.option("-a", "--author", help="GitHub handle of author")
@@ -507,6 +508,21 @@ def web_login(organizations: list[str]):
     Opens a new browser window and logins to GitHub with the bot account for the organization.
     """
     _execute_operation(organizations, WebLoginOperation())
+
+
+@cli.command(cls=StdCommand, short_help="Installs a GitHub app for an organization.")
+@click.option(
+    "-a",
+    "--app-slug",
+    required=True,
+    help="GitHub app sug",
+)
+def install_app(app_slug: str, organizations: list[str]):
+    """
+    Installs a GitHub App.
+    """
+
+    _execute_operation(organizations, InstallAppOperation(app_slug))
 
 
 @cli.command(short_help="Installs required dependencies.")
