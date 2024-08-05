@@ -169,7 +169,12 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
     policies = []
 
     async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
-        entries = await rest_api.content.get_content_object(config_file_owner, config_file_repo, config_file_path, ref)
+        try:
+            entries = await rest_api.content.get_content_object(
+                config_file_owner, config_file_repo, config_file_path, ref
+            )
+        except RuntimeError:
+            entries = []
 
         for entry in entries:
             path = entry["path"]
