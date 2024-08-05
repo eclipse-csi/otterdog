@@ -280,6 +280,39 @@ class WebClient:
             await context.close()
             await browser.close()
 
+    async def install_github_app(self, org_int_id: str, app_slug: str) -> None:
+        utils.print_debug("opening browser window")
+
+        async with async_playwright() as playwright:
+            try:
+                browser = await playwright.firefox.launch(headless=True)
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
+
+            context = await browser.new_context(no_viewport=True)
+
+            page = await context.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+            await self._login_if_required(page)
+
+            await page.goto(
+                f"https://github.com/apps/{app_slug}/installations/new/permissions"
+                f"?target_id={org_int_id}&target_type=Organization"
+            )
+
+            await page.locator('button:text("Install")').click()
+
+            await self._logout(page)
+
+            await page.close()
+            await context.close()
+            await browser.close()
+
     async def _login_if_required(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
 
