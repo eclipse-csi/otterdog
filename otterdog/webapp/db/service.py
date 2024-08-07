@@ -336,10 +336,10 @@ async def fail_task(task: TaskModel, exception: Exception) -> None:
     await mongo.odm.save(task)
 
 
-async def get_latest_sync_or_apply_task_for_organization(org_id: str, repo_name: str) -> TaskModel | None:
+async def get_latest_sync_task_for_organization(org_id: str, repo_name: str) -> TaskModel | None:
     tasks = await mongo.odm.find(
         TaskModel,
-        query.or_(TaskModel.type == "CheckConfigurationInSyncTask", TaskModel.type == "ApplyChangesTask"),
+        TaskModel.type == "CheckConfigurationInSyncTask",
         TaskModel.status != TaskStatus.CREATED,
         TaskModel.org_id == org_id,
         TaskModel.repo_name == repo_name,

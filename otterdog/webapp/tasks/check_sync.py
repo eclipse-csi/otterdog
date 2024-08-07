@@ -20,7 +20,7 @@ from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
-    get_latest_sync_or_apply_task_for_organization,
+    get_latest_sync_task_for_organization,
     update_or_create_pull_request,
 )
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -120,7 +120,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                         await self._update_final_status(commit_status[0]["state"] == "success")
                         return False
 
-        latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
+        latest_sync_or_apply_task = await get_latest_sync_task_for_organization(self.org_id, self.repo_name)
         # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
         if latest_sync_or_apply_task is not None:
             await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
