@@ -127,11 +127,6 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
                 return False
 
-        # latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
-        # # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
-        # if latest_sync_or_apply_task is not None:
-        #     await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
-
         return True
 
     async def _post_execute(self, result_or_exception: ApplyResult | None | Exception) -> None:
@@ -202,9 +197,6 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 include_resources_with_secrets=False,
                 suffix="-BASE",
             )
-
-            # set concurrency to 20 to avoid hitting secondary rate limits with installation tokens
-            # operation.concurrency = 20
 
             otterdog_config = await get_otterdog_config()
             operation.init(otterdog_config, printer)
