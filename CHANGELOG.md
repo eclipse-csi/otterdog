@@ -4,12 +4,15 @@
 
 ### Added
 
+- Added operation `local-apply` to apply change based on two local configurations. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
 - Added policy `macos_large_runners` to control whether MacOS large runners are permitted to use in an organization. ([#251](https://github.com/eclipse-csi/otterdog/issues/251))
 - Added operation `install-app` to install a GitHub app for an organization. ([#250](https://github.com/eclipse-csi/otterdog/issues/250))
 - Added option `--no-diff` and `--force` to the `push-config` operation to disable showing diffs and interactive approvals. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
 ### Changed
 
+- Changed `ApplyChangesTask` to use a `local-apply` operation rather than an `apply` operation. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
+- Changed operation `fetch-config` to include 2 additional parameters `suffix` and `ref` to fetch a config from a specific git reference.
 - Changed operation `push-config` to always show a diff of the local changes compared to the current remote configuration prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))
 
 ### Fixed

@@ -7,22 +7,16 @@
 #  *******************************************************************************
 
 from dataclasses import dataclass
-from datetime import timedelta
 from io import StringIO
 
 from quart import render_template
 
-from otterdog.operations.apply import ApplyOperation
+from otterdog.operations.local_apply import LocalApplyOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
-from otterdog.webapp.db.service import (
-    find_pull_request,
-    get_latest_sync_or_apply_task_for_organization,
-    update_pull_request,
-)
+from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
-    backoff_if_needed,
     escape_for_github,
     fetch_config_from_github,
     get_admin_teams,
@@ -133,10 +127,10 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
                 return False
 
-        latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
-        # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
-        if latest_sync_or_apply_task is not None:
-            await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
+        # latest_sync_or_apply_task = await get_latest_sync_or_apply_task_for_organization(self.org_id, self.repo_name)
+        # # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
+        # if latest_sync_or_apply_task is not None:
+        #     await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
 
         return True
 
@@ -171,12 +165,33 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self._pull_request.merge_commit_sha,
             )
 
+            merge_commit = await rest_api.commit.get_commit(
+                self.org_id,
+                self.repo_name,
+                self._pull_request.merge_commit_sha,
+            )
+            parents = merge_commit["parents"]
+            if len(parents) == 1:
+                parent_commit = parents[0]["sha"]
+            else:
+                parent_commit = "HEAD~1"
+
+            base_file = org_config.jsonnet_config.org_config_file + "-BASE"
+            await fetch_config_from_github(
+                rest_api,
+                self.org_id,
+                self.org_id,
+                org_config.config_repo,
+                base_file,
+                parent_commit,
+            )
+
             output = StringIO()
             printer = IndentingPrinter(output, log_level=LogLevel.WARN)
 
             # let's create an apply operation that forces processing but does not update
             # any web UI settings and resources using credentials
-            operation = ApplyOperation(
+            operation = LocalApplyOperation(
                 force_processing=True,
                 no_web_ui=True,
                 update_webhooks=False,
@@ -185,10 +200,11 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 delete_resources=True,
                 resolve_secrets=False,
                 include_resources_with_secrets=False,
+                suffix="-BASE",
             )
 
             # set concurrency to 20 to avoid hitting secondary rate limits with installation tokens
-            operation.concurrency = 20
+            # operation.concurrency = 20
 
             otterdog_config = await get_otterdog_config()
             operation.init(otterdog_config, printer)

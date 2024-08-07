@@ -26,6 +26,7 @@ from .operations.import_configuration import ImportOperation
 from .operations.install_app import InstallAppOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
+from .operations.local_apply import LocalApplyOperation
 from .operations.local_plan import LocalPlanOperation
 from .operations.open_pull_request import OpenPullRequestOperation
 from .operations.plan import PlanOperation
@@ -218,11 +219,25 @@ def dispatch_workflow(organizations: list[str], repo, workflow):
     "--pull-request",
     help="fetch from pull request number instead of default branch",
 )
-def fetch_config(organizations: list[str], force, pull_request):
+@click.option(
+    "-r",
+    "--ref",
+    help="ref to use, defaults to HEAD",
+)
+@click.option(
+    "-s",
+    "--suffix",
+    show_default=True,
+    default="-BASE",
+    help="suffix to append to the configuration for comparison",
+)
+def fetch_config(organizations: list[str], force, pull_request, suffix, ref):
     """
     Fetches the configuration from the corresponding config repo of an organization.
     """
-    _execute_operation(organizations, FetchOperation(force_processing=force, pull_request=pull_request))
+    _execute_operation(
+        organizations, FetchOperation(force_processing=force, pull_request=pull_request, suffix=suffix, ref=ref)
+    )
 
 
 @cli.command(cls=StdCommand)
@@ -355,7 +370,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
     "-s",
     "--suffix",
     show_default=True,
-    default="-HEAD",
+    default="-BASE",
     help="suffix to append to the configuration for comparison",
 )
 @click.option(
@@ -451,6 +466,85 @@ def apply(
     _execute_operation(
         organizations,
         ApplyOperation(
+            force_processing=force,
+            no_web_ui=no_web_ui,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+            update_filter=update_filter,
+            delete_resources=delete_resources,
+        ),
+    )
+
+
+@cli.command(cls=StdCommand)
+@click.option(
+    "-s",
+    "--suffix",
+    show_default=True,
+    default="-BASE",
+    help="suffix to append to the configuration for comparison",
+)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
+@click.option(
+    "--update-webhooks",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates webhook with secrets regardless of changes",
+)
+@click.option(
+    "--update-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="updates secrets regardless of changes",
+)
+@click.option(
+    "--update-filter",
+    show_default=True,
+    default=".*",
+    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+)
+@click.option(
+    "-d",
+    "--delete-resources",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="enables deletion of resources if they are missing in the definition",
+)
+def local_apply(
+    organizations: list[str],
+    force,
+    no_web_ui,
+    update_webhooks,
+    update_secrets,
+    update_filter,
+    delete_resources,
+    suffix,
+):
+    """
+    Apply changes based on the current configuration to another local configuration.
+    """
+    _execute_operation(
+        organizations,
+        LocalApplyOperation(
+            suffix=suffix,
             force_processing=force,
             no_web_ui=no_web_ui,
             update_webhooks=update_webhooks,

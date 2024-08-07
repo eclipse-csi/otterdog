@@ -22,10 +22,28 @@ class FetchOperation(Operation):
     Fetches the current configuration from the meta-data repository of an organization.
     """
 
-    def __init__(self, force_processing: bool, pull_request: str):
+    def __init__(self, force_processing: bool, pull_request: str, suffix: str = "", ref: str | None = None):
         super().__init__()
-        self.force_processing = force_processing
-        self.pull_request = pull_request
+        self._force_processing = force_processing
+        self._pull_request = pull_request
+        self._suffix = suffix
+        self._ref = ref
+
+    @property
+    def force_processing(self) -> bool:
+        return self._force_processing
+
+    @property
+    def pull_request(self) -> str:
+        return self._pull_request
+
+    @property
+    def suffix(self) -> str:
+        return self._suffix
+
+    @property
+    def ref(self) -> str | None:
+        return self._ref
 
     def pre_execute(self) -> None:
         self.printer.println("Fetching organization configurations:")
@@ -36,7 +54,7 @@ class FetchOperation(Operation):
 
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
-        org_file_name = jsonnet_config.org_config_file
+        org_file_name = jsonnet_config.org_config_file + self.suffix
 
         if await aiofiles.ospath.exists(org_file_name) and not self.force_processing:
             self.printer.println()
@@ -65,7 +83,7 @@ class FetchOperation(Operation):
                             org_config.github_id, org_config.config_repo, self.pull_request
                         )
                     else:
-                        ref = None
+                        ref = self.ref
 
                     definition = await provider.get_content(
                         org_config.github_id,
@@ -84,7 +102,7 @@ class FetchOperation(Operation):
             async with aiofiles.open(org_file_name, "w") as file:
                 await file.write(definition)
 
-            if ref is not None:
+            if self.pull_request is not None:
                 self.printer.println(
                     f"organization definition fetched from pull request " f"#{self.pull_request} to '{org_file_name}'"
                 )

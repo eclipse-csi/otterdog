@@ -19,6 +19,15 @@ class CommitClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
+    async def get_commit(self, org_id: str, repo_name: str, ref: str) -> dict[str, Any]:
+        print_debug(f"getting commit for ref '{ref}' from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/commits/{ref}")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving commit:\n{ex}").with_traceback(tb)
+
     async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
         print_debug(f"getting commit statuses for ref '{ref}' from repo '{org_id}/{repo_name}'")
 
