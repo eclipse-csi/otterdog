@@ -44,5 +44,6 @@ jobs:
           projectName: 'otterdog'
           projectVersion: ${{ steps.version.outputs.version }}
           bomFilename: "otterdog-bom.json"
-          parent: '7eef46d8-d86d-4c9f-baf4-649b492fcdf4'
+          parentName: 'otterdog'
+          parentVersion: ''
           autoCreate: true
