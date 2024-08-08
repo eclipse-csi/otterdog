@@ -1,0 +1,40 @@
+name: Generate and ingest SBOM into sbom.eclipse.org
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: '3.12'
+      - name: Install cyclonedx-py
+        run: pipx install cyclonedx-bom
+      - name: Generate sbom
+        run: cyclone-dx poetry --no-dev -o otterdog-bom.json
+      - name: Upload sbom
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        with:
+          path: otterdog-bom.json
+
+  upload-sbom:
+    runs-on: ubuntu-latest
+    needs: [ 'generate-sbom' ]
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: otterdog-bom.json
+
+      - uses: DependencyTrack/gh-upload-sbom@1f0526714a54aeb1cdf780889cf1e917c477d775 # v3.0.0
+        with:
+          serverHostname: 'sbom.eclipse.org'
+          apiKey: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
+          projectName: 'otterdog'
+          bomFilename: "otterdog-bom.json"
+          parent: '7eef46d8-d86d-4c9f-baf4-649b492fcdf4'
+          autoCreate: true
