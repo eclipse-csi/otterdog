@@ -31,11 +31,18 @@ jobs:
         with:
           name: otterdog-bom.json
 
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="$(jq -r '.metadata.component.version' < otterdog-bom.json)"
+          echo "version=$(echo ${VERSION}" >> $GITHUB_OUTPUT
+
       - uses: DependencyTrack/gh-upload-sbom@1f0526714a54aeb1cdf780889cf1e917c477d775 # v3.0.0
         with:
           serverHostname: 'sbom.eclipse.org'
           apiKey: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           projectName: 'otterdog'
+          projectVersion: ${{ steps.version.outputs.version }}
           bomFilename: "otterdog-bom.json"
           parent: '7eef46d8-d86d-4c9f-baf4-649b492fcdf4'
           autoCreate: true
