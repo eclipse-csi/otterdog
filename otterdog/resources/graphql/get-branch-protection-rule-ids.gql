@@ -1,0 +1,14 @@
+query($endCursor: String, $organization: String!, $repository: String!) {
+  repository(owner: $organization, name: $repository) {
+    branchProtectionRules(first: 100, after: $endCursor) {
+      nodes {
+        id
+        pattern
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

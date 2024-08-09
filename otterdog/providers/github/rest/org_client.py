@@ -123,6 +123,17 @@ class OrgClient(RestClient):
 
         print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
+    async def get_webhook_id(self, org_id: str, url: str) -> str:
+        print_debug(f"retrieving id for org webhook with url '{url}' for org '{org_id}'")
+
+        webhooks = await self.get_webhooks(org_id)
+
+        for webhook in webhooks:
+            if webhook["config"]["url"] == url:
+                return webhook["id"]
+
+        raise RuntimeError(f"failed to find org webhook with url '{url}'")
+
     async def get_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving org webhooks for org '{org_id}'")
 

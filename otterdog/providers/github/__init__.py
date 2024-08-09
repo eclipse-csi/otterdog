@@ -12,9 +12,10 @@ from typing import Any
 
 from importlib_resources import files
 
-from otterdog import resources, utils
+from otterdog import resources
 from otterdog.credentials import Credentials
 from otterdog.providers.github.auth import token_auth
+from otterdog.utils import is_ghsa_repo, is_set_and_present, print_trace, print_warn
 
 from .graphql import GraphQLClient
 from .rest import RestApi
@@ -102,7 +103,7 @@ class GitHubProvider:
                 web_settings = await self.web_client.get_org_settings(org_id, required_web_keys)
                 merged_settings.update(web_settings)
 
-            utils.print_trace(f"merged org settings = {merged_settings}")
+            print_trace(f"merged org settings = {merged_settings}")
 
         return merged_settings
 
@@ -118,7 +119,7 @@ class GitHubProvider:
             elif k in _SETTINGS_WEB_KEYS:
                 web_fields[k] = v
             else:
-                utils.print_warn(f"encountered unknown field '{k}' during update, ignoring")
+                print_warn(f"encountered unknown field '{k}' during update, ignoring")
 
         # update any settings via the rest api
         if len(rest_fields) > 0:
@@ -137,20 +138,26 @@ class GitHubProvider:
     async def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_webhooks(org_id)
 
-    async def update_org_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
+    async def update_org_webhook(self, org_id: str, webhook_id: int, url: str, webhook: dict[str, Any]) -> None:
         if len(webhook) > 0:
+            if not is_set_and_present(webhook_id):
+                webhook_id = await self.rest_api.org.get_webhook_id(org_id, url)
+
             await self.rest_api.org.update_webhook(org_id, webhook_id, webhook)
 
     async def add_org_webhook(self, org_id: str, data: dict[str, str]) -> None:
         await self.rest_api.org.add_webhook(org_id, data)
 
     async def delete_org_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
+        if not is_set_and_present(webhook_id):
+            webhook_id = await self.rest_api.org.get_webhook_id(org_id, url)
+
         await self.rest_api.org.delete_webhook(org_id, webhook_id, url)
 
     async def get_repos(self, org_id: str) -> list[str]:
         # filter out repos which are created to work on GitHub Security Advisories
         # they should not be part of the visible configuration
-        return list(filter(lambda name: not utils.is_ghsa_repo(name), await self.rest_api.org.get_repos(org_id)))
+        return list(filter(lambda name: not is_ghsa_repo(name), await self.rest_api.org.get_repos(org_id)))
 
     async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
         return await self.rest_api.repo.get_repo_data(org_id, repo_name)
@@ -192,10 +199,13 @@ class GitHubProvider:
         self,
         org_id: str,
         repo_name: str,
-        rule_pattern: str,
         rule_id: str,
+        rule_pattern: str,
         data: dict[str, Any],
     ) -> None:
+        if not is_set_and_present(rule_id):
+            rule_id = await self.graphql_client.get_branch_protection_rule_id(org_id, repo_name, rule_pattern)
+
         await self.graphql_client.update_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id, data)
 
     async def add_branch_protection_rule(
@@ -206,36 +216,61 @@ class GitHubProvider:
         data: dict[str, Any],
     ) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
-        if not repo_node_id:
+        if not is_set_and_present(repo_node_id):
             repo_data = await self.rest_api.repo.get_repo_data(org_id, repo_name)
             repo_node_id = repo_data["node_id"]
 
         await self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_node_id, data)
 
-    async def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
+    async def delete_branch_protection_rule(
+        self,
+        org_id: str,
+        repo_name: str,
+        rule_id: str,
+        rule_pattern: str,
+    ) -> None:
+        if not is_set_and_present(rule_id):
+            rule_id = await self.graphql_client.get_branch_protection_rule_id(org_id, repo_name, rule_pattern)
+
         await self.graphql_client.delete_branch_protection_rule(org_id, repo_name, rule_pattern, rule_id)
 
-    async def update_repo_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, ruleset: dict[str, Any]) -> None:
+    async def update_repo_ruleset(
+        self, org_id: str, repo_name: str, ruleset_id: int, name: str, ruleset: dict[str, Any]
+    ) -> None:
         if len(ruleset) > 0:
+            if not is_set_and_present(ruleset_id):
+                ruleset_id = await self.rest_api.repo.get_ruleset_id(org_id, repo_name, name)
+
             await self.rest_api.repo.update_ruleset(org_id, repo_name, ruleset_id, ruleset)
 
     async def add_repo_ruleset(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         await self.rest_api.repo.add_ruleset(org_id, repo_name, data)
 
     async def delete_repo_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, name: str) -> None:
+        if not is_set_and_present(ruleset_id):
+            ruleset_id = await self.rest_api.repo.get_ruleset_id(org_id, repo_name, name)
+
         await self.rest_api.repo.delete_ruleset(org_id, repo_name, ruleset_id, name)
 
     async def get_repo_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_webhooks(org_id, repo_name)
 
-    async def update_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
+    async def update_repo_webhook(
+        self, org_id: str, repo_name: str, webhook_id: int, url: str, webhook: dict[str, Any]
+    ) -> None:
         if len(webhook) > 0:
+            if not is_set_and_present(webhook_id):
+                webhook_id = await self.rest_api.repo.get_webhook_id(org_id, repo_name, url)
+
             await self.rest_api.repo.update_webhook(org_id, repo_name, webhook_id, webhook)
 
     async def add_repo_webhook(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
         await self.rest_api.repo.add_webhook(org_id, repo_name, data)
 
     async def delete_repo_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
+        if not is_set_and_present(webhook_id):
+            webhook_id = await self.rest_api.repo.get_webhook_id(org_id, repo_name, url)
+
         await self.rest_api.repo.delete_webhook(org_id, repo_name, webhook_id, url)
 
     async def get_repo_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
@@ -337,18 +372,18 @@ class GitHubProvider:
                     try:
                         result.append(("Team", await self.rest_api.org.get_team_ids(actor[1:])))
                     except RuntimeError:
-                        utils.print_warn(f"team '{actor[1:]}' does not exist, skipping")
+                        print_warn(f"team '{actor[1:]}' does not exist, skipping")
                 else:
                     try:
                         result.append(("User", await self.rest_api.user.get_user_ids(actor[1:])))
                     except RuntimeError:
-                        utils.print_warn(f"user '{actor[1:]}' does not exist, skipping")
+                        print_warn(f"user '{actor[1:]}' does not exist, skipping")
             else:
                 # it's an app
                 try:
                     result.append(("App", await self.rest_api.app.get_app_ids(actor)))
                 except RuntimeError:
-                    utils.print_warn(f"app '{actor}' does not exist, skipping")
+                    print_warn(f"app '{actor}' does not exist, skipping")
 
         return result
 

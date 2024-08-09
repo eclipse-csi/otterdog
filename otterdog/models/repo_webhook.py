@@ -58,5 +58,6 @@ class RepositoryWebhook(Webhook):
                     org_id,
                     patch.parent_object.name,
                     patch.current_object.id,
+                    patch.current_object.url,
                     await patch.expected_object.to_provider_data(org_id, provider),
                 )

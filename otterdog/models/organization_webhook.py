@@ -49,5 +49,6 @@ class OrganizationWebhook(Webhook):
                 await provider.update_org_webhook(
                     org_id,
                     patch.current_object.id,
+                    patch.current_object.url,
                     await patch.expected_object.to_provider_data(org_id, provider),
                 )

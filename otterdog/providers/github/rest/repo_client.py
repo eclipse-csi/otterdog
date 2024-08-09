@@ -261,6 +261,17 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
 
+    async def get_webhook_id(self, org_id: str, repo_name: str, url: str) -> str:
+        print_debug(f"retrieving id for repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
+
+        webhooks = await self.get_webhooks(org_id, repo_name)
+
+        for webhook in webhooks:
+            if webhook["config"]["url"] == url:
+                return webhook["id"]
+
+        raise RuntimeError(f"failed to find repo webhook with url '{url}'")
+
     async def get_webhooks(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving webhooks for repo '{org_id}/{repo_name}'")
 
@@ -303,6 +314,17 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed to delete repo webhook with url '{url}'")
 
         print_debug(f"removed repo webhook with url '{url}'")
+
+    async def get_ruleset_id(self, org_id: str, repo_name: str, name: str) -> str:
+        print_debug(f"retrieving id for repo ruleset with name '{name}' for repo '{org_id}/{repo_name}'")
+
+        rulesets = await self.get_rulesets(org_id, repo_name)
+
+        for ruleset in rulesets:
+            if ruleset["name"] == name:
+                return ruleset["id"]
+
+        raise RuntimeError(f"failed to find repo ruleset with name '{name}'")
 
     async def get_rulesets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving rulesets for repo '{org_id}/{repo_name}'")

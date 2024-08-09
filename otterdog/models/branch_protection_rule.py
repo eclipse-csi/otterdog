@@ -413,7 +413,10 @@ class BranchProtectionRule(ModelObject):
                 assert isinstance(patch.current_object, BranchProtectionRule)
                 assert isinstance(patch.parent_object, Repository)
                 await provider.delete_branch_protection_rule(
-                    org_id, patch.parent_object.name, patch.current_object.pattern, patch.current_object.id
+                    org_id,
+                    patch.parent_object.name,
+                    patch.current_object.id,
+                    patch.current_object.pattern,
                 )
 
             case LivePatchType.CHANGE:
@@ -423,7 +426,7 @@ class BranchProtectionRule(ModelObject):
                 await provider.update_branch_protection_rule(
                     org_id,
                     patch.parent_object.name,
-                    patch.current_object.pattern,
                     patch.current_object.id,
+                    patch.current_object.pattern,
                     await cls.changes_to_provider(org_id, patch.changes, provider),
                 )

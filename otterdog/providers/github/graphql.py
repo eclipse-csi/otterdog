@@ -46,6 +46,18 @@ class GraphQLClient:
     def statistics(self) -> RequestStatistics:
         return self._statistics
 
+    async def get_branch_protection_rule_id(self, org_id: str, repo_name: str, pattern: str) -> str:
+        print_debug(f"getting branch protection rule id for pattern '{pattern}' at repo '{org_id}/{repo_name}'")
+
+        variables = {"organization": org_id, "repository": repo_name}
+        branch_protection_rules = await self._run_paged_query(variables, "get-branch-protection-rule-ids.gql")
+
+        for rule in branch_protection_rules:
+            if rule["pattern"] == pattern:
+                return rule["id"]
+
+        raise RuntimeError(f"failed to find branch protection rule with pattern '{pattern}'")
+
     async def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
