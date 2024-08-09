@@ -228,7 +228,7 @@ def dispatch_workflow(organizations: list[str], repo, workflow):
     "-s",
     "--suffix",
     show_default=True,
-    default="-BASE",
+    default="",
     help="suffix to append to the configuration for comparison",
 )
 def fetch_config(organizations: list[str], force, pull_request, suffix, ref):
