@@ -329,7 +329,8 @@ class WebClient:
             raise RuntimeError(f"unable to load github profile page: {response.status}")
 
         try:
-            actor = await page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
+            meta_element = page.locator('meta[name="octolytics-actor-login"]')
+            actor = await meta_element.evaluate("element => element.content")
         except PlaywrightError:
             actor = None
 
@@ -349,7 +350,8 @@ class WebClient:
         await page.type("#app_totp", self.credentials.totp)
 
         try:
-            actor = await page.eval_on_selector('meta[name="octolytics-actor-login"]', "element => element.content")
+            meta_element = page.locator('meta[name="octolytics-actor-login"]')
+            actor = await meta_element.evaluate("element => element.content")
             utils.print_trace(f"logged in as {actor}")
 
             if await page.title() == "Verify two-factor authentication":
