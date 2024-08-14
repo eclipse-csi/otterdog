@@ -330,7 +330,7 @@ class WebClient:
 
         try:
             meta_element = page.locator('meta[name="octolytics-actor-login"]')
-            actor = await meta_element.evaluate("element => element.content")
+            actor = await meta_element.evaluate("element => element.content", timeout=1)
         except PlaywrightError:
             actor = None
 
