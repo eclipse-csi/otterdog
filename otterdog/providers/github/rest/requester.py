@@ -10,7 +10,9 @@ import json
 from collections.abc import AsyncIterable
 from typing import Any
 
+from aiohttp import ClientTimeout, TCPConnector
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
+from aiohttp_retry import ExponentialRetry, RetryClient
 
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
@@ -39,7 +41,18 @@ class Requester:
         }
 
         self._statistics = RequestStatistics()
-        self._session = AsyncCachedSession(cache=cache_strategy.get_cache_backend())
+        self._session = AsyncCachedSession(
+            cache=cache_strategy.get_cache_backend(),
+            timeout=ClientTimeout(connect=3, sock_connect=3),
+            connector=TCPConnector(
+                limit=30,
+            ),
+        )
+
+        self._client = RetryClient(
+            retry_options=ExponentialRetry(3, exceptions={Exception}),
+            client_session=self._session,
+        )
 
     @property
     def statistics(self) -> RequestStatistics:
@@ -106,7 +119,7 @@ class Requester:
             self._auth.update_headers_with_authorization(headers)
 
         url = self._build_url(url_path)
-        async with self._session.request(
+        async with self._client.request(
             method, url=url, headers=headers, params=params, data=data, refresh=True
         ) as response:
             self._statistics.sent_request()
@@ -138,7 +151,7 @@ class Requester:
             self._auth.update_headers_with_authorization(headers)
 
         url = self._build_url(url_path)
-        async with self._session.request(
+        async with self._client.request(
             method, url=url, headers=headers, params=params, data=data, refresh=True
         ) as response:
             async for chunk, _ in response.content.iter_chunks():

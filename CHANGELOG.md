@@ -11,6 +11,7 @@
 
 ### Changed
 
+- Added a retry logic for calls to `https://api.github.com` to gracefully handle intermittent connection problems.
 - Changed `ApplyChangesTask` to use a `local-apply` operation rather than an `apply` operation. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
 - Changed operation `fetch-config` to include 2 additional parameters `suffix` and `ref` to fetch a config from a specific git reference.
 - Changed operation `push-config` to always show a diff of the local changes compared to the current remote configuration prior to execution. ([#246](https://github.com/eclipse-csi/otterdog/issues/246))

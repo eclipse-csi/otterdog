@@ -11,7 +11,8 @@ from functools import cache
 from typing import Any
 
 import jq  # type: ignore
-from aiohttp.client import ClientSession
+from aiohttp.client import ClientSession, ClientTimeout, TCPConnector
+from aiohttp_retry import ExponentialRetry, RetryClient
 from importlib_resources import files
 
 from otterdog import resources
@@ -31,7 +32,15 @@ class GraphQLClient:
         }
 
         self._statistics = RequestStatistics()
-        self._session = ClientSession()
+        self._session = ClientSession(
+            timeout=ClientTimeout(connect=3, sock_connect=3),
+            connector=TCPConnector(limit=10),
+        )
+
+        self._client = RetryClient(
+            retry_options=ExponentialRetry(3, exceptions={Exception}),
+            client_session=self._session,
+        )
 
     async def __aenter__(self):
         return self
@@ -275,7 +284,7 @@ class GraphQLClient:
         headers = self._headers.copy()
         self._auth.update_headers_with_authorization(headers)
 
-        async with self._session.request(
+        async with self._client.request(
             method,
             url=self._GH_GRAPHQL_URL_ROOT,
             headers=headers,
