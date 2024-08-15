@@ -646,6 +646,14 @@ def uninstall_app(app_slug: str, organizations: list[str]):
     help="GitHub app slug",
 )
 @click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skips interactive approvals",
+)
+@click.option(
     "-g",
     "--grant",
     is_flag=True,
@@ -653,12 +661,12 @@ def uninstall_app(app_slug: str, organizations: list[str]):
     default=False,
     help="approve requested permissions",
 )
-def review_permissions(app_slug, grant, organizations: list[str]):
+def review_permissions(app_slug, grant, force, organizations: list[str]):
     """
     Reviews permission updates for installed apps.
     """
 
-    _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant))
+    _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant, force))
 
 
 @cli.command(short_help="Installs required dependencies.")

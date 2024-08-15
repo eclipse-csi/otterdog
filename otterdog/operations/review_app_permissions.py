@@ -20,10 +20,11 @@ class ReviewAppPermissionsOperation(Operation):
     Reviews permission updates of installed GitHub apps for an organization.
     """
 
-    def __init__(self, app_slug: str | None, grant: bool):
+    def __init__(self, app_slug: str | None, grant: bool, force: bool):
         super().__init__()
         self._app_slug = app_slug
         self._grant = grant
+        self._force = force
 
     @property
     def app_slug(self) -> str | None:
@@ -32,6 +33,10 @@ class ReviewAppPermissionsOperation(Operation):
     @property
     def grant(self) -> bool:
         return self._grant
+
+    @property
+    def force(self) -> bool:
+        return self._force
 
     def pre_execute(self) -> None:
         self.printer.println("Reviewing permission updates for app installations:")
@@ -66,20 +71,20 @@ class ReviewAppPermissionsOperation(Operation):
                     self.print_dict(permissions, f"app['{app_slug}']", "", "black")
 
                     if self.grant is True:
-                        self.printer.println()
-                        self.printer.println(style("Approve", bright=True) + " requested permissions?")
-                        self.printer.println(
-                            "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
-                        )
+                        if self.force is False:
+                            self.printer.println()
+                            self.printer.println(style("Approve", bright=True) + " requested permissions?")
+                            self.printer.println(
+                                "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
+                            )
 
-                        self.printer.print(f"{style('Enter a value:', bright=True)} ")
-                        if not get_approval():
-                            self.printer.println("\nApproval cancelled.")
-                            continue
-                        else:
-                            await provider.web_client.approve_requested_permission_updates(github_id, installation_id)
+                            self.printer.print(f"{style('Enter a value:', bright=True)} ")
+                            if not get_approval():
+                                self.printer.println("\nApproval cancelled.")
+                                continue
 
-                            self.printer.println("requested permissions approved.")
+                        await provider.web_client.approve_requested_permission_updates(github_id, installation_id)
+                        self.printer.println("requested permissions approved.")
 
             return 0
 
