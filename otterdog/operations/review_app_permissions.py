@@ -84,6 +84,7 @@ class ReviewAppPermissionsOperation(Operation):
             return 0
 
         finally:
+            self.printer.println()
             self.printer.level_down()
 
 
