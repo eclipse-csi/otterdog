@@ -381,7 +381,9 @@ class WebClient:
                 url = await element.get_attribute("href")
                 if url is None:
                     continue
-                elif "/installations/new/" not in url:
+                elif not url.endswith("/permissions/update"):
+                    continue
+                else:
                     urls.append(url)
 
             for url in urls:
