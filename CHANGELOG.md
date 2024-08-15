@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `uninstall-app` to uninstall a GitHub app for an organization.
 - Added operation `local-apply` to apply change based on two local configurations. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
 - Added policy `macos_large_runners` to control whether MacOS large runners are permitted to use in an organization. ([#251](https://github.com/eclipse-csi/otterdog/issues/251))
 - Added operation `install-app` to install a GitHub app for an organization. ([#250](https://github.com/eclipse-csi/otterdog/issues/250))
@@ -18,6 +19,7 @@
 
 ### Fixed
 
+- Support showing dialog windows when using operation `web-login`.
 - Fixed showing changes to dummy secret values when performing a `local-plan` operation. ([#245](https://github.com/eclipse-csi/otterdog/issues/245))
 - Added proper error handling in case no base_template is defined in the otterdog configuration file. ([#247](https://github.com/eclipse-csi/otterdog/issues/247))
 

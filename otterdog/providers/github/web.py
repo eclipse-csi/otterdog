@@ -269,6 +269,9 @@ class WebClient:
             page = await context.new_page()
             page.set_default_timeout(self._DEFAULT_TIMEOUT)
 
+            # ensure that dialogs pop up
+            page.on("dialog", lambda x: None)
+
             await self._login_if_required(page)
 
             await page.goto(f"https://github.com/{org_id}")
@@ -307,6 +310,39 @@ class WebClient:
 
             await page.locator('button:text("Install")').click()
 
+            await self._logout(page)
+
+            await page.close()
+            await context.close()
+            await browser.close()
+
+    async def uninstall_github_app(self, org_id: str, installation_id: str) -> None:
+        utils.print_debug("opening browser window")
+
+        async with async_playwright() as playwright:
+            try:
+                browser = await playwright.firefox.launch(headless=False)
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
+
+            context = await browser.new_context(no_viewport=True)
+
+            page = await context.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+            await self._login_if_required(page)
+
+            async def accept_dialog(dialog):
+                await dialog.accept()
+
+            page.on("dialog", accept_dialog)
+
+            await page.goto(f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}")
+            await page.locator('input:text("Uninstall")').click()
             await self._logout(page)
 
             await page.close()

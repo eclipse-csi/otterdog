@@ -35,6 +35,7 @@ from .operations.show import ShowOperation
 from .operations.show_default import ShowDefaultOperation
 from .operations.show_live import ShowLiveOperation
 from .operations.sync_template import SyncTemplateOperation
+from .operations.uninstall_app import UninstallAppOperation
 from .operations.validate import ValidateOperation
 from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
@@ -617,6 +618,21 @@ def install_app(app_slug: str, organizations: list[str]):
     """
 
     _execute_operation(organizations, InstallAppOperation(app_slug))
+
+
+@cli.command(cls=StdCommand, short_help="Uninstalls a GitHub app for an organization.")
+@click.option(
+    "-a",
+    "--app-slug",
+    required=True,
+    help="GitHub app sug",
+)
+def uninstall_app(app_slug: str, organizations: list[str]):
+    """
+    Uninstalls a GitHub App.
+    """
+
+    _execute_operation(organizations, UninstallAppOperation(app_slug))
 
 
 @cli.command(short_help="Installs required dependencies.")
