@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `review-permissions` to review requested permissions updates from GitHub apps for an organization. ([#260](https://github.com/eclipse-csi/otterdog/issues/260))
 - Added operation `uninstall-app` to uninstall a GitHub app for an organization.
 - Added operation `local-apply` to apply change based on two local configurations. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
 - Added policy `macos_large_runners` to control whether MacOS large runners are permitted to use in an organization. ([#251](https://github.com/eclipse-csi/otterdog/issues/251))

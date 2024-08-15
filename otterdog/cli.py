@@ -14,6 +14,8 @@ from typing import Any
 import click
 from click.shell_completion import CompletionItem
 
+from otterdog.operations.review_app_permissions import ReviewAppPermissionsOperation
+
 from . import __version__
 from .config import OtterdogConfig
 from .operations import Operation
@@ -610,7 +612,7 @@ def web_login(organizations: list[str]):
     "-a",
     "--app-slug",
     required=True,
-    help="GitHub app sug",
+    help="GitHub app slug",
 )
 def install_app(app_slug: str, organizations: list[str]):
     """
@@ -625,7 +627,7 @@ def install_app(app_slug: str, organizations: list[str]):
     "-a",
     "--app-slug",
     required=True,
-    help="GitHub app sug",
+    help="GitHub app slug",
 )
 def uninstall_app(app_slug: str, organizations: list[str]):
     """
@@ -633,6 +635,30 @@ def uninstall_app(app_slug: str, organizations: list[str]):
     """
 
     _execute_operation(organizations, UninstallAppOperation(app_slug))
+
+
+@cli.command(cls=StdCommand, short_help="Reviews permission updates for GitHub apps.")
+@click.option(
+    "-a",
+    "--app-slug",
+    required=False,
+    default=None,
+    help="GitHub app slug",
+)
+@click.option(
+    "-g",
+    "--grant",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="approve requested permissions",
+)
+def review_permissions(app_slug, grant, organizations: list[str]):
+    """
+    Reviews permission updates for installed apps.
+    """
+
+    _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant))
 
 
 @cli.command(short_help="Installs required dependencies.")

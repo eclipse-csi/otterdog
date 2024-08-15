@@ -1,0 +1,95 @@
+#  *******************************************************************************
+#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
+#  *******************************************************************************
+
+from typing import Any
+
+from otterdog.config import OrganizationConfig
+from otterdog.providers.github import GitHubProvider
+from otterdog.utils import get_approval, print_error, style
+
+from . import Operation
+
+
+class ReviewAppPermissionsOperation(Operation):
+    """
+    Reviews permission updates of installed GitHub apps for an organization.
+    """
+
+    def __init__(self, app_slug: str | None, grant: bool):
+        super().__init__()
+        self._app_slug = app_slug
+        self._grant = grant
+
+    @property
+    def app_slug(self) -> str | None:
+        return self._app_slug
+
+    @property
+    def grant(self) -> bool:
+        return self._grant
+
+    def pre_execute(self) -> None:
+        self.printer.println("Reviewing permission updates for app installations:")
+
+    async def execute(self, org_config: OrganizationConfig) -> int:
+        github_id = org_config.github_id
+
+        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.level_up()
+
+        try:
+            try:
+                credentials = self.config.get_credentials(org_config, only_token=False)
+            except RuntimeError as e:
+                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                return 1
+
+            async with GitHubProvider(credentials) as provider:
+                apps = await provider.rest_api.org.get_app_installations(github_id)
+                requested_permissions = await provider.web_client.get_requested_permission_updates(github_id)
+
+                for installation_id, permissions in requested_permissions.items():
+                    app_slug = _get_app_slug_by_installation_id(apps, installation_id)
+                    if app_slug is None:
+                        print_error(f"failed to process app installation with id '{installation_id}'")
+                        continue
+
+                    if self.app_slug is not None and self.app_slug != app_slug:
+                        continue
+
+                    self.printer.println()
+                    self.print_dict(permissions, f"app['{app_slug}']", "", "black")
+
+                    if self.grant is True:
+                        self.printer.println()
+                        self.printer.println(style("Approve", bright=True) + " requested permissions?")
+                        self.printer.println(
+                            "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
+                        )
+
+                        self.printer.print(f"{style('Enter a value:', bright=True)} ")
+                        if not get_approval():
+                            self.printer.println("\nApproval cancelled.")
+                            continue
+                        else:
+                            await provider.web_client.approve_requested_permission_updates(github_id, installation_id)
+
+                            self.printer.println("requested permissions approved.")
+
+            return 0
+
+        finally:
+            self.printer.level_down()
+
+
+def _get_app_slug_by_installation_id(installed_apps: list[dict[str, Any]], install_id: str) -> str | None:
+    for app in installed_apps:
+        if str(app["id"]) == install_id:
+            return app["app_slug"]
+
+    return None

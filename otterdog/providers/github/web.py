@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import re
 from asyncio import gather
 from collections.abc import Iterator
 from functools import cached_property
@@ -284,7 +285,7 @@ class WebClient:
             await browser.close()
 
     async def install_github_app(self, org_int_id: str, app_slug: str) -> None:
-        utils.print_debug("opening browser window")
+        utils.print_debug(f"installing github app '{app_slug}'")
 
         async with async_playwright() as playwright:
             try:
@@ -317,11 +318,11 @@ class WebClient:
             await browser.close()
 
     async def uninstall_github_app(self, org_id: str, installation_id: str) -> None:
-        utils.print_debug("opening browser window")
+        utils.print_debug(f"deleting app installation with id '{installation_id}'")
 
         async with async_playwright() as playwright:
             try:
-                browser = await playwright.firefox.launch(headless=False)
+                browser = await playwright.firefox.launch(headless=True)
             except Exception as e:
                 tb = e.__traceback__
                 raise RuntimeError(
@@ -343,6 +344,126 @@ class WebClient:
 
             await page.goto(f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}")
             await page.locator('input:text("Uninstall")').click()
+            await self._logout(page)
+
+            await page.close()
+            await context.close()
+            await browser.close()
+
+    async def get_requested_permission_updates(self, org_id: str) -> dict[str, dict[str, str]]:
+        utils.print_debug(f"getting GitHub app permission updates for '{org_id}'")
+
+        async with async_playwright() as playwright:
+            try:
+                browser = await playwright.firefox.launch(headless=True)
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
+
+            context = await browser.new_context(no_viewport=True)
+
+            page = await context.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+            await self._login_if_required(page)
+
+            await page.goto(f"https://github.com/organizations/{org_id}/settings/installations")
+
+            elements = await page.get_by_role("link", name="Review request").all()
+
+            requested_app_permissions = {}
+
+            urls = []
+            for element in elements:
+                url = await element.get_attribute("href")
+                if url is not None:
+                    urls.append(url)
+
+            for url in urls:
+                await page.goto(f"https://github.com{url}")
+
+                m = re.search(
+                    r"/organizations/([a-zA-Z0-9-]+)/settings/installations/(\d+)/permissions/update",
+                    url,
+                )
+
+                if m is not None:
+                    installation_id = m.group(2)
+                else:
+                    installation_id = None
+
+                permissions = (
+                    await page.locator(".Box")
+                    .locator(".Box-row")
+                    .locator("visible=true")
+                    .filter(has=page.locator("span"))
+                    .all()
+                )
+
+                permissions_by_app = {}
+                for permission in permissions:
+                    permission_text = await permission.inner_text()
+                    permission_text = permission_text.removesuffix("New request")
+                    permission_text = permission_text.removesuffix("Was read-only")
+                    permission_text = permission_text.strip()
+
+                    m = re.search(r"(Read-only|Read and write) access to ([a-zA-Z]+)", permission_text)
+
+                    if m is not None:
+                        access_type = m.group(1)
+                        if access_type == "Read-only":
+                            access_type = "read"
+                        else:
+                            access_type = "write"
+
+                        permission_type = m.group(2).lower()
+
+                        permissions_by_app[permission_type] = access_type
+                    else:
+                        pass
+
+                requested_app_permissions[str(installation_id)] = permissions_by_app
+
+            await self._logout(page)
+
+            await page.close()
+            await context.close()
+            await browser.close()
+
+            return requested_app_permissions
+
+    async def approve_requested_permission_updates(self, org_id: str, installation_id: str) -> None:
+        utils.print_debug(f"approving requested permission updates for '{installation_id}'")
+
+        async with async_playwright() as playwright:
+            try:
+                browser = await playwright.firefox.launch(headless=True)
+            except Exception as e:
+                tb = e.__traceback__
+                raise RuntimeError(
+                    "unable to launch browser, make sure you have installed required dependencies using: "
+                    "'otterdog install-deps'"
+                ).with_traceback(tb) from None
+
+            context = await browser.new_context(no_viewport=True)
+
+            page = await context.new_page()
+            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+            await self._login_if_required(page)
+
+            async def accept_dialog(dialog):
+                await dialog.accept()
+
+            page.on("dialog", accept_dialog)
+
+            await page.goto(
+                f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update"
+            )
+            await page.locator('button:text("Accept new permissions")').click()
             await self._logout(page)
 
             await page.close()
