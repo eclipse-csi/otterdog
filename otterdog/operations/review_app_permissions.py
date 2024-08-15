@@ -84,6 +84,7 @@ class ReviewAppPermissionsOperation(Operation):
                                 continue
 
                         await provider.web_client.approve_requested_permission_updates(github_id, installation_id)
+                        self.printer.println()
                         self.printer.println("requested permissions approved.")
 
             return 0
