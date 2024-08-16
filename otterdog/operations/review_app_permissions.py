@@ -56,36 +56,42 @@ class ReviewAppPermissionsOperation(Operation):
 
             async with GitHubProvider(credentials) as provider:
                 apps = await provider.rest_api.org.get_app_installations(github_id)
-                requested_permissions = await provider.web_client.get_requested_permission_updates(github_id)
 
-                for installation_id, permissions in requested_permissions.items():
-                    app_slug = _get_app_slug_by_installation_id(apps, installation_id)
-                    if app_slug is None:
-                        print_error(f"failed to process app installation with id '{installation_id}'")
-                        continue
+                async with provider.web_client.get_logged_in_page() as page:
+                    requested_permissions = await provider.web_client.get_requested_permission_updates(github_id, page)
 
-                    if self.app_slug is not None and self.app_slug != app_slug:
-                        continue
+                    for installation_id, permissions in requested_permissions.items():
+                        app_slug = _get_app_slug_by_installation_id(apps, installation_id)
+                        if app_slug is None:
+                            print_error(f"failed to process app installation with id '{installation_id}'")
+                            continue
 
-                    self.printer.println()
-                    self.print_dict(permissions, f"app['{app_slug}']", "", "black")
+                        if self.app_slug is not None and self.app_slug != app_slug:
+                            continue
 
-                    if self.grant is True:
-                        if self.force is False:
-                            self.printer.println()
-                            self.printer.println(style("Approve", bright=True) + " requested permissions?")
-                            self.printer.println(
-                                "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
-                            )
-
-                            self.printer.print(f"{style('Enter a value:', bright=True)} ")
-                            if not get_approval():
-                                self.printer.println("\nApproval cancelled.")
-                                continue
-
-                        await provider.web_client.approve_requested_permission_updates(github_id, installation_id)
                         self.printer.println()
-                        self.printer.println("requested permissions approved.")
+                        self.print_dict(permissions, f"app['{app_slug}']", "", "black")
+
+                        if self.grant is True:
+                            if self.force is False:
+                                self.printer.println()
+                                self.printer.println(style("Approve", bright=True) + " requested permissions?")
+                                self.printer.println(
+                                    "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
+                                )
+
+                                self.printer.print(f"{style('Enter a value:', bright=True)} ")
+                                if not get_approval():
+                                    self.printer.println("\nApproval cancelled.")
+                                    continue
+
+                            await provider.web_client.approve_requested_permission_updates(
+                                github_id,
+                                installation_id,
+                                page,
+                            )
+                            self.printer.println()
+                            self.printer.println("requested permissions approved.")
 
             return 0
 
