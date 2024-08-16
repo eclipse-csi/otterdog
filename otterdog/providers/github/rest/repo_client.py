@@ -238,6 +238,7 @@ class RepoClient(RestClient):
             "security_and_analysis",
             "topics",
             "gh_pages",
+            "code_scanning_default_config",
         ]
 
         if auto_init_repo is True:
