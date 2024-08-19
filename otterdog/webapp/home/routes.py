@@ -346,6 +346,7 @@ def get_segments(request):
 
 
 async def get_project_navigation():
+    # TODO: cache project navigation in db instead of dynamically generating it for each request
     installations = await get_active_installations()
 
     navigation = {}
@@ -356,16 +357,18 @@ async def get_project_navigation():
 
         levels = installation.project_name.split(".")
 
+        top_level = levels[0]
+
         # if the project_name is a tlp, e.g. ee4j, add a second level with the same name
         # to support multiple projects under the same tlp, e.g. ee4j and ee4j.jakartaee-platform,
         # which will be transformed to ee4j.ee4j.
         if len(levels) == 1:
-            levels.append(levels[0])
+            levels.append(top_level)
 
-        curr = navigation.get(levels[0], {})
+        curr = navigation.get(top_level, {})
         remainder = "".join(levels[1:])
         curr.update({remainder: installation})
-        navigation[levels[0]] = curr
+        navigation[top_level] = curr
 
     return navigation
 

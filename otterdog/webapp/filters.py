@@ -63,4 +63,4 @@ def register_filters(app):
 
     @app.template_filter("short_name")
     def project_short_name(value):
-        return value.split(".")[-1]
+        return ".".join(value.split(".")[1:])
