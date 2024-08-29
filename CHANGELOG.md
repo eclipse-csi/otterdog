@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- Detect errors during an automatic `apply` operation and add a corresponding comment to the pull request.
 - Support showing dialog windows when using operation `web-login`.
 - Fixed showing changes to dummy secret values when performing a `local-plan` operation. ([#245](https://github.com/eclipse-csi/otterdog/issues/245))
 - Added proper error handling in case no base_template is defined in the otterdog configuration file. ([#247](https://github.com/eclipse-csi/otterdog/issues/247))

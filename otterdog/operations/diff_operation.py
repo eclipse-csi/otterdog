@@ -220,12 +220,12 @@ class DiffOperation(Operation):
                 if live_patch.expected_object is not None:
                     live_patch.expected_object.resolve_secrets(self.config.get_secret)
 
-        await self.handle_finish(github_id, diff_status, live_patches)
+        status = await self.handle_finish(github_id, diff_status, live_patches)
 
         if self._callback is not None:
             self._callback(github_id, diff_status, live_patches)
 
-        return 0
+        return status
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
@@ -268,4 +268,4 @@ class DiffOperation(Operation):
     ) -> int: ...
 
     @abstractmethod
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None: ...
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int: ...

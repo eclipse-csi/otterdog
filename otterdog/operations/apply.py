@@ -84,7 +84,7 @@ class ApplyOperation(PlanOperation):
         )
         return modified
 
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None:
+    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int:
         self.printer.println()
 
         if diff_status.total_changes(self._delete_resources) == 0:
@@ -93,7 +93,7 @@ class ApplyOperation(PlanOperation):
                 self.printer.println(
                     f"{diff_status.deletions} resource(s) would be deleted with flag '--delete-resources'."
                 )
-            return
+            return 0
 
         if not self._force_processing:
             if diff_status.deletions > 0 and not self._delete_resources:
@@ -106,10 +106,12 @@ class ApplyOperation(PlanOperation):
             self.printer.print(f"{style('Enter a value', bright=True)}: ")
             if not get_approval():
                 self.printer.println("\nApply cancelled.")
-                return
+                return 0
 
         # apply patches
         import click
+
+        errors = 0
 
         self.printer.println("\nApplying changes:\n")
         with click.progressbar(patches, file=self.printer.writer) as bar:
@@ -120,6 +122,7 @@ class ApplyOperation(PlanOperation):
                     try:
                         await patch.apply(org_id, self.gh_client)
                     except RuntimeError as ex:
+                        errors += 1
                         self.printer.println()
                         self.printer.print_error(f"failed to apply patch: {patch!r}\n{ex}")
 
@@ -132,6 +135,8 @@ class ApplyOperation(PlanOperation):
             f"{diff_status.differences} changed, "
             f"{diff_status.deletions} {delete_snippet}."
         )
+
+        return errors
 
     def execute_custom_hook_if_present(
         self, org_config: OrganizationConfig, model_object: ModelObject, filename: str
