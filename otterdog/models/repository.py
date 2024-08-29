@@ -428,6 +428,17 @@ class Repository(ModelObject):
                         f"Only values ({self._valid_code_scanning_languages_as_string()}) are allowed.",
                     )
 
+        if is_set_and_present(self.forked_repository):
+            m = re.match(r"([\w\-_]+)/([\w\-_]+)", self.forked_repository)
+
+            if m is None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has"
+                    f" 'forked_repository' with value '{self.forked_repository}' which does not match the"
+                    f" the required format '<owner>/<repo>'.",
+                )
+
         if is_set_and_valid(self.workflows):
             self.workflows.validate(context, self)
 
