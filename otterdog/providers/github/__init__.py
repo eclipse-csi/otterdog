@@ -135,6 +135,18 @@ class GitHubProvider:
     async def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
         await self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
 
+    async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_custom_properties(org_id)
+
+    async def add_org_custom_property(self, org_id: str, property_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_webhook(org_id, property_name, data)
+
+    async def update_org_custom_property(self, org_id: str, property_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.update_webhook(org_id, property_name, data)
+
+    async def delete_org_custom_property(self, org_id: str, property_name: str) -> None:
+        await self.rest_api.org.delete_custom_property(org_id, property_name)
+
     async def get_org_webhooks(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_webhooks(org_id)
 

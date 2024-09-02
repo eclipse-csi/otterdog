@@ -5,6 +5,10 @@
   "properties": {
     "github_id": { "type": "string" },
     "settings": { "$ref": "settings.json" },
+    "custom_properties": {
+      "type": "array",
+      "items": { "$ref": "custom-property.json" }
+    },
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }

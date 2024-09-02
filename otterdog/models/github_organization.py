@@ -31,6 +31,7 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
@@ -64,6 +65,7 @@ class GitHubOrganization:
 
     github_id: str
     settings: OrganizationSettings
+    custom_properties: list[CustomProperty] = dataclasses.field(default_factory=list)
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
@@ -74,6 +76,15 @@ class GitHubOrganization:
     @property
     def secrets_resolved(self) -> bool:
         return self._secrets_resolved
+
+    def add_custom_property(self, custom_property: CustomProperty) -> None:
+        self.custom_properties.append(custom_property)
+
+    def get_custom_property(self, name: str) -> CustomProperty | None:
+        return next(filter(lambda x: x.name == name, self.custom_properties), None)  # type: ignore
+
+    def set_custom_properties(self, custom_properties: list[CustomProperty]) -> None:
+        self.custom_properties = custom_properties
 
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
@@ -115,6 +126,9 @@ class GitHubOrganization:
         context = ValidationContext(self, secret_resolver, template_dir)
         self.settings.validate(context, self)
 
+        for custom_property in self.custom_properties:
+            custom_property.validate(context, self)
+
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
@@ -136,6 +150,10 @@ class GitHubOrganization:
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None
         yield from self.settings.get_model_objects()
+
+        for custom_property in self.custom_properties:
+            yield custom_property, None
+            yield from custom_property.get_model_objects()
 
         for webhook in self.webhooks:
             yield webhook, None
@@ -161,6 +179,8 @@ class GitHubOrganization:
         mapping = {
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
+            "custom_properties": OptionalS("custom_properties", default=[])
+            >> Forall(lambda x: CustomProperty.from_model_data(x)),
             "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
             "variables": OptionalS("variables", default=[])
@@ -216,6 +236,19 @@ class GitHubOrganization:
         # print organization settings
         printer.print("settings+:")
         self.settings.to_jsonnet(printer, config, context, False, default_org.settings)
+
+        # print custom properties
+        if len(self.custom_properties) > 0:
+            default_org_custom_property = CustomProperty.from_model_data(config.default_org_custom_property_config)
+
+            printer.println("custom_properties+: [")
+            printer.level_up()
+
+            for custom_property in self.custom_properties:
+                custom_property.to_jsonnet(printer, config, context, False, default_org_custom_property)
+
+            printer.level_down()
+            printer.println("],")
 
         # print organization webhooks
         if len(self.webhooks) > 0:
@@ -294,6 +327,14 @@ class GitHubOrganization:
     ) -> None:
         OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
 
+        CustomProperty.generate_live_patch_of_list(
+            self.custom_properties,
+            current_organization.custom_properties,
+            None,
+            context,
+            handler,
+        )
+
         OrganizationWebhook.generate_live_patch_of_list(
             self.webhooks,
             current_organization.webhooks,
@@ -367,6 +408,22 @@ class GitHubOrganization:
             settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
 
         org = cls(github_id, settings)
+
+        if printer is not None and is_info_enabled():
+            start = datetime.now()
+            printer.println("\ncustom_properties: Reading...")
+
+        if jsonnet_config.default_org_custom_property_config is not None:
+            github_custom_properties = await provider.get_org_custom_properties(github_id)
+
+            if printer is not None and is_info_enabled():
+                end = datetime.now()
+                printer.println(f"custom_properties: Read complete after {(end - start).total_seconds()}s")
+
+            for custom_property in github_custom_properties:
+                org.add_custom_property(CustomProperty.from_provider_data(github_id, custom_property))
+        else:
+            print_debug("not reading org custom properties, no default config available")
 
         if printer is not None and is_info_enabled():
             start = datetime.now()
