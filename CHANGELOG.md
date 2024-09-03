@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for `custom properties`. ([#256](https://github.com/eclipse-csi/otterdog/issues/256))
 - Added validation for setting `forked_repository` of a repository to match the expected format `<owner>/<repo>`.
 - Added operation `review-permissions` to review requested permissions updates from GitHub apps for an organization. ([#260](https://github.com/eclipse-csi/otterdog/issues/260))
 - Added operation `uninstall-app` to uninstall a GitHub app for an organization.

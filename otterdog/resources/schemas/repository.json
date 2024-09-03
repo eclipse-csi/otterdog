@@ -55,6 +55,8 @@
       "items": { "type": "string" }
     },
 
+    "custom_properties": { "$ref": "#/definitions/object_or_null" },
+
     "gh_pages_build_type": { "type": "string" },
     "gh_pages_source_branch": { "$ref": "#/definitions/string_or_null" },
     "gh_pages_source_path": { "$ref": "#/definitions/string_or_null" },
@@ -93,7 +95,17 @@
       "anyOf": [
           { "type": "string" },
           { "type": "null" }
-        ]
-      }
+      ]
+    },
+    "object_or_null": {
+      "anyOf": [
+        { "type": "object",
+          "patternProperties": {
+            "^.*_": { "type": "string" }
+          }
+        },
+        { "type": "null" }
+      ]
+    }
   }
 }

@@ -1,4 +1,4 @@
-Definition of an Environment on repository level, the following properties are supported:
+Definition of an `Environment` on repository level, the following properties are supported:
 
 | Key                        | Value                     | Description                                                                           | Notes                                                              |
 |----------------------------|---------------------------|---------------------------------------------------------------------------------------|--------------------------------------------------------------------|

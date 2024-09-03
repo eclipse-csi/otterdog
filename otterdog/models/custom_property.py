@@ -17,12 +17,14 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
+    LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
     ModelObject,
     ValidationContext,
 )
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_set_and_present, is_set_and_valid, is_unset
+from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset
 
 
 @dataclasses.dataclass
@@ -74,13 +76,56 @@ class CustomProperty(ModelObject):
                     f"'{self.value_type}' but more than 200 elements as 'allowed_values' defined.",
                 )
 
-        if is_set_and_valid(self.required) and self.required is True:
-            if not is_set_and_present(self.default_value):
+        if is_set_and_valid(self.required):
+            if self.required is True:
+                if not is_set_and_present(self.default_value):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'True' "
+                        f"but no property 'default_value' is specified.",
+                    )
+            elif is_set_and_present(self.default_value):
+                if isinstance(self.default_value, str) and len(self.default_value) > 0:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'False' "
+                        f"but property 'default_value' is set to a non-empty value.",
+                    )
+                elif isinstance(self.default_value, list) and len(self.default_value) > 0:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'False' "
+                        f"but property 'default_value' is set to a non-empty list.",
+                    )
+
+        if is_set_and_valid(self.default_value) and is_set_and_valid(self.value_type):
+            if self.value_type == "single_select" and not isinstance(self.default_value, str):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'required' set to 'True' "
-                    f"but no property 'default_value' is specified.",
+                    f"{self.get_model_header(parent_object)} has 'value_type' set to '{self.value_type}', "
+                    f"but 'default_value' contains a list of values '{self.default_value}'.",
                 )
+
+        if (
+            is_set_and_present(self.default_value)
+            and is_set_and_present(self.allowed_values)
+            and len(self.allowed_values) > 0
+        ):
+            if isinstance(self.default_value, str) and self.default_value not in self.allowed_values:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'default_value' set to '{self.default_value}', "
+                    f"but it is not in the list of allowed values '{self.allowed_values}'.",
+                )
+            elif isinstance(self.default_value, list):
+                for value in self.default_value:
+                    if value not in self.allowed_values:
+                        context.add_failure(
+                            FailureType.ERROR,
+                            f"{self.get_model_header(parent_object)} has a 'default_value' set to "
+                            f"'{self.default_value}', "
+                            f"but some of its elements are not in the list of allowed values '{self.allowed_values}'.",
+                        )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.required is not True:
@@ -104,6 +149,7 @@ class CustomProperty(ModelObject):
     @classmethod
     def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> CustomProperty:
         mapping = cls.get_mapping_from_provider(org_id, data)
+        mapping.update({"allowed_values": OptionalS("allowed_values", default=[])})
         return cls(**bend(mapping, data))
 
     @classmethod
@@ -130,13 +176,52 @@ class CustomProperty(ModelObject):
         return f"orgs.{jsonnet_config.create_org_custom_property}"
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-        from .repository import Repository
+    def generate_live_patch(
+        cls,
+        expected_object: ModelObject | None,
+        current_object: ModelObject | None,
+        parent_object: ModelObject | None,
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if current_object is None:
+            assert isinstance(expected_object, cls)
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            return
 
+        if expected_object is None:
+            assert isinstance(current_object, cls)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        assert isinstance(expected_object, cls)
+        assert isinstance(current_object, cls)
+
+        modified_property: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        if len(modified_property) > 0:
+            if "value_type" in modified_property:
+                raise RuntimeError(
+                    f"trying to change 'value_type' to '{expected_object.value_type}' for "
+                    f"{expected_object.get_model_header(parent_object)} which is not supported."
+                )
+
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_property,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @classmethod
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
                 assert isinstance(patch.expected_object, CustomProperty)
-                assert isinstance(patch.parent_object, Repository)
                 await provider.add_org_custom_property(
                     org_id,
                     patch.expected_object.name,
@@ -145,15 +230,15 @@ class CustomProperty(ModelObject):
 
             case LivePatchType.REMOVE:
                 assert isinstance(patch.current_object, CustomProperty)
-                assert isinstance(patch.parent_object, Repository)
                 await provider.delete_org_custom_property(org_id, patch.current_object.name)
 
             case LivePatchType.CHANGE:
                 assert patch.changes is not None
                 assert isinstance(patch.current_object, CustomProperty)
-                assert isinstance(patch.parent_object, Repository)
+                assert isinstance(patch.expected_object, CustomProperty)
+
                 await provider.update_org_custom_property(
                     org_id,
                     patch.current_object.name,
-                    await cls.changes_to_provider(org_id, patch.changes, provider),
+                    await patch.expected_object.to_provider_data(org_id, provider),
                 )

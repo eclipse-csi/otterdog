@@ -96,6 +96,9 @@ class DiffOperation(Operation):
 
         try:
             return await self.generate_diff(org_config)
+        except RuntimeError as e:
+            self.printer.print_error(f"planning aborted: {str(e)}")
+            return 1
         finally:
             self.printer.level_down()
             await self._gh_client.close()

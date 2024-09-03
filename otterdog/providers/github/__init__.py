@@ -139,10 +139,10 @@ class GitHubProvider:
         return await self.rest_api.org.get_custom_properties(org_id)
 
     async def add_org_custom_property(self, org_id: str, property_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.org.add_webhook(org_id, property_name, data)
+        await self.rest_api.org.add_custom_property(org_id, property_name, data)
 
     async def update_org_custom_property(self, org_id: str, property_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.org.update_webhook(org_id, property_name, data)
+        await self.rest_api.org.update_custom_property(org_id, property_name, data)
 
     async def delete_org_custom_property(self, org_id: str, property_name: str) -> None:
         await self.rest_api.org.delete_custom_property(org_id, property_name)

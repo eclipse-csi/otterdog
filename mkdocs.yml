@@ -52,6 +52,7 @@ nav:
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
         - Organization Variable: reference/organization/variable.md
+        - Custom Property: reference/organization/custom-property.md
         - Repository:
           - reference/organization/repository/index.md
           - Workflow Settings: reference/organization/repository/workflow-settings.md
