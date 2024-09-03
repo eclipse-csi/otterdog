@@ -173,9 +173,16 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
 
 def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
     if isinstance(value, dict):
-        raise ValueError("dictionary values not supported")
+        if len(other_value) == 0:
+            return True, value
+        else:
+            raise ValueError("non-empty dictionary values not supported yet")
     elif isinstance(value, list):
         sorted_value_list = sorted(value)
+
+        if other_value is None:
+            return True, sorted_value_list
+
         sorted_other_list = sorted(other_value)
 
         if sorted_value_list != sorted_other_list:
@@ -223,6 +230,17 @@ def write_patch_object_as_json(
                     printer.println(f"{json.dumps(item, ensure_ascii=False)}")
             printer.level_down()
             printer.println("],")
+        elif isinstance(value, dict):
+            printer.println(f"{key}+: {{")
+            printer.level_up()
+            num_items = len(value)
+            for index, (k, v) in enumerate(value.items()):
+                if index < num_items - 1:
+                    printer.println(f"{k}: {json.dumps(v, ensure_ascii=False)},")
+                else:
+                    printer.println(f"{k}: {json.dumps(v, ensure_ascii=False)}")
+            printer.level_down()
+            printer.println("},")
         else:
             printer.println(f"{key}: {json.dumps(value, ensure_ascii=False)},")
 
