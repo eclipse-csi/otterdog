@@ -525,6 +525,9 @@ class PrettyFormatter:
         return json.dumps(value, ensure_ascii=False)
 
     def _format_dict(self, value, indent):
+        if len(value) == 0:
+            return "{}"
+
         if self.key_align == -1:
             key_align = max(map(lambda x: len(repr(x)), value.keys())) + 1
         else:
