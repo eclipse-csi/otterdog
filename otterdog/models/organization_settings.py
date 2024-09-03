@@ -12,7 +12,7 @@ import dataclasses
 from collections.abc import Iterator
 from typing import Any, cast
 
-from jsonbender import F, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
@@ -36,6 +36,7 @@ from otterdog.utils import (
     write_patch_object_as_json,
 )
 
+from .custom_property import CustomProperty
 from .organization_workflow_settings import OrganizationWorkflowSettings
 
 
@@ -78,6 +79,7 @@ class OrganizationSettings(ModelObject):
 
     # nested model fields
     workflows: OrganizationWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
+    custom_properties: list[CustomProperty] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     @property
     def model_object_name(self) -> str:
@@ -122,10 +124,19 @@ class OrganizationSettings(ModelObject):
                     f"only values ('none' | 'read' | 'write' | 'admin') are allowed.",
                 )
 
+        if is_set_and_present(self.custom_properties):
+            for custom_property in self.custom_properties:
+                custom_property.validate(context, self)
+
         if is_set_and_present(self.workflows):
             self.workflows.validate(context, self)
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        if is_set_and_present(self.custom_properties):
+            for custom_property in self.custom_properties:
+                yield custom_property, self
+                yield from custom_property.get_model_objects()
+
         if is_set_and_present(self.workflows):
             yield self.workflows, self
             yield from self.workflows.get_model_objects()
@@ -136,6 +147,8 @@ class OrganizationSettings(ModelObject):
 
         mapping.update(
             {
+                "custom_properties": OptionalS("custom_properties", default=[])
+                >> Forall(lambda x: CustomProperty.from_model_data(x)),
                 "workflows": If(
                     OptionalS("workflows", default=None) == K(None),
                     K(UNSET),
@@ -177,7 +190,7 @@ class OrganizationSettings(ModelObject):
     def to_jsonnet(
         self,
         printer: IndentingPrinter,
-        jsonnet_config: JsonnetConfig,
+        config: JsonnetConfig,
         context: PatchContext,
         extend: bool,
         default_object: ModelObject,
@@ -185,13 +198,26 @@ class OrganizationSettings(ModelObject):
         patch = self.get_patch_to(default_object)
         write_patch_object_as_json(patch, printer, False)
 
+        # print custom properties
+        if is_set_and_present(self.custom_properties) and len(self.custom_properties) > 0:
+            default_org_custom_property = CustomProperty.from_model_data(config.default_org_custom_property_config)
+
+            printer.println("custom_properties+: [")
+            printer.level_up()
+
+            for custom_property in self.custom_properties:
+                custom_property.to_jsonnet(printer, config, context, False, default_org_custom_property)
+
+            printer.level_down()
+            printer.println("],")
+
         if is_set_and_present(self.workflows):
             default_workflow_settings = cast(OrganizationSettings, default_object).workflows
 
             patch = self.workflows.get_patch_to(default_workflow_settings)
             if len(patch) > 0:
                 printer.print("workflows+:")
-                self.workflows.to_jsonnet(printer, jsonnet_config, context, False, default_workflow_settings)
+                self.workflows.to_jsonnet(printer, config, context, False, default_workflow_settings)
 
         printer.level_down()
         printer.println("},")
@@ -226,6 +252,15 @@ class OrganizationSettings(ModelObject):
             )
 
         context.modified_org_settings = modified_settings
+
+        if is_set_and_valid(expected_object.custom_properties):
+            CustomProperty.generate_live_patch_of_list(
+                expected_object.custom_properties,
+                current_object.custom_properties,
+                expected_object,
+                context,
+                handler,
+            )
 
         if is_set_and_valid(expected_object.workflows):
             OrganizationWorkflowSettings.generate_live_patch(

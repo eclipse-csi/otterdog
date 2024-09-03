@@ -149,10 +149,21 @@ class Operation(ABC):
                     c_v = current_value.get(k) if current_value is not None else None
 
                     if v != c_v:
-                        self.printer.println(
-                            f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                            f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(v)}'
-                        )
+                        if c_v is None:
+                            self.printer.println(
+                                f"{style('+ ', fg='green')}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                f" {self._get_value(v)}"
+                            )
+                        elif v is None:
+                            self.printer.println(
+                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                f" {self._get_value(c_v)}"
+                            )
+                        else:
+                            self.printer.println(
+                                f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(v)}'
+                            )
 
                     processed_keys.add(k)
 

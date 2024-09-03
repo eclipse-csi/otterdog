@@ -1,0 +1,36 @@
+{
+  "$id": "custom-property.json",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "value_type": { "type": "string" },
+    "required": { "type": "boolean" },
+    "default_value": { "$ref": "#/definitions/string_or_list_or_null" },
+    "description": { "$ref": "#/definitions/string_or_null" },
+    "allowed_values": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+
+  "required": [ "name" ],
+  "additionalProperties": false,
+  "definitions": {
+    "string_or_null": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "string_or_list_or_null": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array",
+          "items": { "type": "string" }
+        },
+        { "type": "null" }
+      ]
+    }
+  }
+}

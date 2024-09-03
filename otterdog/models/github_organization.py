@@ -31,6 +31,7 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.models.branch_protection_rule import BranchProtectionRule
+from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
@@ -365,6 +366,12 @@ class GitHubOrganization:
         if "workflows" in included_keys:
             workflow_settings = await provider.get_org_workflow_settings(github_id)
             settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
+
+        if "custom_properties" in included_keys:
+            github_custom_properties = await provider.get_org_custom_properties(github_id)
+            settings.custom_properties = list(
+                map(lambda x: CustomProperty.from_provider_data(github_id, x), github_custom_properties)
+            )
 
         org = cls(github_id, settings)
 

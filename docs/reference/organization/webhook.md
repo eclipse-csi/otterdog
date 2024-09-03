@@ -1,4 +1,4 @@
-Definition of a Webhook on organization level, the following properties are supported:
+Definition of a `Webhook` on organization level, the following properties are supported:
 
 | Key            | Value          | Description                                                                                                       | Notes                                                                                                   |
 |----------------|----------------|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|

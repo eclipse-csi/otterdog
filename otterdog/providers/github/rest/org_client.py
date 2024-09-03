@@ -123,6 +123,49 @@ class OrgClient(RestClient):
 
         print_debug(f"removed team {team_slug} from security managers for organization {org_id}")
 
+    async def get_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving custom properties for org '{org_id}'")
+
+        try:
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/properties/schema")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving custom properties for org '{org_id}':\n{ex}").with_traceback(tb)
+
+    async def add_custom_property(self, org_id: str, property_name: str, data: dict[str, Any]) -> None:
+        print_debug(f"adding org custom property with name '{property_name}'")
+
+        try:
+            await self.requester.request_json("PUT", f"/orgs/{org_id}/properties/schema/{property_name}", data)
+            print_debug(f"added org custom property with name '{property_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed to add org custom property with name '{property_name}':\n{ex}").with_traceback(
+                tb
+            )
+
+    async def update_custom_property(self, org_id: str, property_name: str, data: dict[str, Any]) -> None:
+        print_debug(f"updating org custom property with name '{property_name}'")
+
+        try:
+            await self.requester.request_json("PUT", f"/orgs/{org_id}/properties/schema/{property_name}", data)
+            print_debug(f"updated org custom property with name '{property_name}'")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed to update org custom property with name '{property_name}':\n{ex}"
+            ).with_traceback(tb)
+
+    async def delete_custom_property(self, org_id: str, property_name: str) -> None:
+        print_debug(f"deleting org custom property with name '{property_name}'")
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/properties/schema/{property_name}")
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete org custom property with name '{property_name}'")
+
+        print_debug(f"removed org custom property with name '{property_name}'")
+
     async def get_webhook_id(self, org_id: str, url: str) -> str:
         print_debug(f"retrieving id for org webhook with url '{url}' for org '{org_id}'")
 

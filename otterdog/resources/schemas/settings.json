@@ -124,6 +124,10 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "custom_properties": {
+      "type": "array",
+      "items": { "$ref": "custom-property.json" }
+    },
     "workflows": {
       "$ref": "org-workflow-settings.json"
     }

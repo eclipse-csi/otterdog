@@ -1,4 +1,4 @@
-Definition of a Variable on organization level, the following properties are supported:
+Definition of a `Variable` on organization level, the following properties are supported:
 
 | Key                     | Value          | Description                                      | Note                                                 |
 |-------------------------|----------------|--------------------------------------------------|------------------------------------------------------|

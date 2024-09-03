@@ -31,6 +31,7 @@ from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
+    associate_by_key,
     is_set_and_present,
     is_set_and_valid,
     is_unset,
@@ -93,6 +94,8 @@ class Repository(ModelObject):
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
+
+    custom_properties: dict[str, str | list[str]] | None
 
     forked_repository: str | None = dataclasses.field(metadata={"model_only": True})
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
@@ -237,6 +240,13 @@ class Repository(ModelObject):
         if org_settings.web_commit_signoff_required is True:
             copy.web_commit_signoff_required = UNSET  # type: ignore
 
+        if is_set_and_present(self.custom_properties):
+            for custom_property in org_settings.custom_properties:
+                current_property_value = self.custom_properties.get(custom_property.name, None)
+                if current_property_value is None:
+                    if custom_property.required is True:
+                        assert custom_property.default_value is not None
+                        self.custom_properties[custom_property.name] = custom_property.default_value
         return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -343,6 +353,15 @@ class Repository(ModelObject):
                 FailureType.ERROR,
                 f"{self.get_model_header()} has 'template_repository' and 'forked_repository' set at the same time.",
             )
+
+        if is_set_and_present(self.custom_properties):
+            defined_properties = associate_by_key(org_settings.custom_properties, lambda x: x.name)
+            for k, v in self.custom_properties.items():
+                if k not in defined_properties:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header()} defines an unknown custom property with key '{k}'.",
+                    )
 
         for webhook in self.webhooks:
             webhook.validate(context, self)
@@ -600,8 +619,17 @@ class Repository(ModelObject):
             }
         )
 
+        def property_list_to_map(properties):
+            output = {}
+
+            for custom_property in properties:
+                output[custom_property["property_name"]] = custom_property["value"]
+
+            return output
+
         mapping.update(
             {
+                "custom_properties": OptionalS("custom_properties", default={}) >> F(property_list_to_map),
                 "webhooks": K([]),
                 "secrets": K([]),
                 "variables": K([]),
@@ -695,6 +723,18 @@ class Repository(ModelObject):
 
         if len(code_scanning_mapping) > 0:
             mapping["code_scanning_default_config"] = code_scanning_mapping
+
+        # custom properties
+        def property_map_to_list(properties):
+            output = []
+
+            for k, v in properties.items():
+                output.append({"property_name": k, "value": v})
+
+            return output
+
+        if "custom_properties" in data:
+            mapping.update({"custom_properties": S("custom_properties") >> F(property_map_to_list)})
 
         return mapping
 
@@ -889,6 +929,19 @@ class Repository(ModelObject):
                 modified_repo["squash_merge_commit_message"] = Change(
                     squash_merge_commit_message, squash_merge_commit_message
                 )
+
+            if "custom_properties" in modified_repo:
+                change = modified_repo["custom_properties"]
+                from_value = change.from_value
+                to_value = change.to_value
+
+                assert isinstance(from_value, dict)
+                assert isinstance(to_value, dict)
+                assert change.to_value is not None
+
+                for k, v in from_value.items():
+                    if k not in to_value:
+                        change.to_value[k] = None
 
             if len(modified_repo) > 0:
                 handler(

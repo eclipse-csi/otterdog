@@ -49,6 +49,7 @@ class RepoClient(RestClient):
             await self._fill_github_pages_config(org_id, repo_name, repo_data)
             await self._fill_topics(org_id, repo_name, repo_data)
             await self._fill_code_scanning_config(org_id, repo_name, repo_data)
+            await self._fill_custom_properties(org_id, repo_name, repo_data)
 
             return repo_data
         except GitHubException as ex:
@@ -84,6 +85,11 @@ class RepoClient(RestClient):
         else:
             topics = None
 
+        if "custom_properties" in data:
+            custom_properties = list(data.pop("custom_properties"))
+        else:
+            custom_properties = None
+
         if "gh_pages" in data:
             gh_pages = data.pop("gh_pages")
         else:
@@ -112,6 +118,8 @@ class RepoClient(RestClient):
                     )
                 if topics is not None:
                     await self._update_topics(org_id, repo_name, topics)
+                if custom_properties is not None:
+                    await self._update_custom_properties(org_id, repo_name, custom_properties)
                 if gh_pages is not None:
                     await self._update_github_pages_config(org_id, repo_name, gh_pages)
                 if code_scanning is not None:
@@ -620,6 +628,32 @@ class RepoClient(RestClient):
         data = {"names": topics}
         await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/topics", data=data)
         print_debug(f"updated topics for repo '{repo_name}'")
+
+    async def _fill_custom_properties(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        print_debug(f"retrieving repo custom properties for '{org_id}/{repo_name}'")
+
+        try:
+            response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/properties/values")
+            repo_data["custom_properties"] = response
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(
+                f"failed retrieving custom properties for repo '{org_id}/{repo_name}':\n{ex}"
+            ).with_traceback(tb)
+
+    async def _update_custom_properties(
+        self, org_id: str, repo_name: str, custom_properties: list[dict[str, str | list[str]]]
+    ) -> None:
+        print_debug(f"updating repo custom properties for '{org_id}/{repo_name}'")
+        data = {"properties": custom_properties}
+        status, body = await self.requester.request_raw(
+            "PATCH", f"/repos/{org_id}/{repo_name}/properties/values", data=json.dumps(data)
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update custom properties for repo '{org_id}/{repo_name}': {body}")
+
+        print_debug(f"updated custom properties for repo '{repo_name}'")
 
     async def get_branches(self, org_id: str, repo_name) -> list[dict[str, Any]]:
         print_debug(f"retrieving branches for repo '{org_id}/{repo_name}'")

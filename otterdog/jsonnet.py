@@ -28,6 +28,7 @@ class JsonnetConfig:
     #        rather follow a convention to add new resources more easily.
 
     create_org = "newOrg"
+    create_org_custom_property = "newCustomProperty"
     create_org_webhook = "newOrgWebhook"
     create_org_secret = "newOrgSecret"
     create_org_variable = "newOrgVariable"
@@ -54,6 +55,7 @@ class JsonnetConfig:
         self._local_only = local_only
 
         self._default_org_config: dict[str, Any] | None = None
+        self._default_org_custom_property_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
         self._default_org_secret_config: dict[str, Any] | None = None
         self._default_org_variable_config: dict[str, Any] | None = None
@@ -85,6 +87,14 @@ class JsonnetConfig:
 
         # load the default settings for the organization
         self._default_org_config = self.default_org_config_for_org_id("default")
+
+        try:
+            # load the default org custom property config
+            org_custom_property_snippet = f"(import '{template_file}').{self.create_org_custom_property}('default')"
+            self._default_org_custom_property_config = jsonnet_evaluate_snippet(org_custom_property_snippet)
+        except RuntimeError:
+            print_warn("no default org custom property config found, custom properties will be skipped")
+            self._default_org_custom_property_config = None
 
         try:
             # load the default org webhook config
@@ -179,6 +189,10 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}")
+
+    @property
+    def default_org_custom_property_config(self):
+        return self._default_org_custom_property_config
 
     @property
     def default_org_webhook_config(self):

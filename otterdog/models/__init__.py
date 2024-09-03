@@ -329,7 +329,7 @@ class ModelObject(ABC):
             key = self.get_key()
             header = header + f'[{key}="{style(self.get_key_value(), bright=True)}"'
 
-            if isinstance(parent_object, ModelObject):
+            if isinstance(parent_object, ModelObject) and parent_object.is_keyed():
                 header = (
                     header
                     + f", {parent_object.model_object_name}="

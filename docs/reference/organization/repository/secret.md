@@ -1,4 +1,4 @@
-Definition of a Secret on repository level, the following properties are supported:
+Definition of a `Secret` on repository level, the following properties are supported:
 
 | Key                     | Value          | Description                                    | Note |
 |-------------------------|----------------|------------------------------------------------|------|
