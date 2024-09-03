@@ -60,6 +60,9 @@
                     <a class="nav-link" id="workflow-settings-tab" data-toggle="pill" href="#workflow-settings" role="tab" aria-controls="workflow-settings" aria-selected="false">Workflow Settings</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="custom-properties-tab" data-toggle="pill" href="#custom-properties" role="tab" aria-controls="custom-properties" aria-selected="false">Custom Properties</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="secrets-tab" data-toggle="pill" href="#secrets" role="tab" aria-controls="secrets" aria-selected="false">Secrets</a>
                   </li>
                   <li class="nav-item">
@@ -187,6 +190,42 @@
                     <textarea id="org-workflow-settings-textarea">
 {{ config.settings.workflows|pretty_format_model }}
                     </textarea>
+                  </div>
+                  <div class="tab-pane" id="custom-properties" role="tabpanel" aria-labelledby="custom-properties-tab">
+                    <div class="table-responsive p-0">
+                      <table class="table table-hover text-nowrap">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Value Type</th>
+                            <th>Required</th>
+                            <th>Default Value</th>
+                            <th>Allowed Values</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for custom_property in config.settings.custom_properties|sort(attribute='name') %}
+                          <tr>
+                            <td>{{ custom_property.name }}</td>
+                            <td>{{ custom_property.description }}</td>
+                            <td>{{ custom_property.value_type }}</td>
+                            <td>{{ custom_property.required }}</td>
+                            <td>
+                              {% if custom_property.default_value %}
+                              {{ custom_property.default_value|pprint }}
+                              {% endif %}
+                            </td>
+                            <td>
+                              {% if custom_property.allowed_values %}
+                              {{ custom_property.allowed_values|pprint }}
+                              {% endif %}
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                   <div class="tab-pane" id="secrets" role="tabpanel" aria-labelledby="secrets-tab">
                     <div class="table-responsive p-0">
