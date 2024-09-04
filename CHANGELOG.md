@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Changed operation `import` to mask webhook urls in a similar way as in the previous configuration if present.
 - Added a retry logic for calls to `https://api.github.com` to gracefully handle intermittent connection problems.
 - Changed `ApplyChangesTask` to use a `local-apply` operation rather than an `apply` operation. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))
 - Changed operation `fetch-config` to include 2 additional parameters `suffix` and `ref` to fetch a config from a specific git reference.

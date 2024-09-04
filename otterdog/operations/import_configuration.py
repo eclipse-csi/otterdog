@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import shutil
+from collections.abc import Sequence
 
 import aiofiles
 import aiofiles.os
@@ -15,6 +16,7 @@ import aiofiles.ospath
 from otterdog.config import OrganizationConfig
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.webhook import Webhook
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import get_approval, style
 
@@ -63,12 +65,12 @@ class ImportOperation(Operation):
                 return 1
 
         if await aiofiles.ospath.exists(org_file_name):
-            sync_secrets_from_previous_config = True
+            sync_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
             shutil.copy(org_file_name, backup_file)
             self.printer.println(f"\nExisting definition copied to '{style(backup_file, bright=True)}'.\n")
         else:
-            sync_secrets_from_previous_config = False
+            sync_from_previous_config = False
 
         self.printer.level_up()
 
@@ -91,10 +93,26 @@ class ImportOperation(Operation):
                 )
 
             # copy secrets from existing configuration if it is present.
-            if sync_secrets_from_previous_config:
-                self.printer.println("Copying secrets from previous configuration.")
+            if sync_from_previous_config:
                 previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+
+                self.printer.println("Copying secrets from previous configuration.")
                 organization.copy_secrets(previous_organization)
+
+                self.printer.print("Masking webhooks from previous configuration... ")
+                masked_urls = 0
+                for org_webhook in previous_organization.webhooks:
+                    if org_webhook.url.endswith("*"):
+                        masked_urls += _mask_webhook_url(organization.webhooks, org_webhook)
+
+                for repo in previous_organization.repositories:
+                    for repo_webhook in repo.webhooks:
+                        if repo_webhook.url.endswith("*"):
+                            new_repo = organization.get_repository(repo.name)
+                            if new_repo is not None:
+                                masked_urls += _mask_webhook_url(new_repo.webhooks, repo_webhook)
+
+                self.printer.println(f"{masked_urls} URLs have been masked.")
 
             context = PatchContext(github_id, organization.settings)
             output = organization.to_jsonnet(jsonnet_config, context)
@@ -111,3 +129,13 @@ class ImportOperation(Operation):
             return 0
         finally:
             self.printer.level_down()
+
+
+def _mask_webhook_url(webhooks: Sequence[Webhook], masked_webhook: Webhook) -> int:
+    stripped_url = masked_webhook.url.rstrip("*")
+    for webhook in webhooks:
+        if webhook.url.startswith(stripped_url):
+            webhook.url = masked_webhook.url
+            return 1
+
+    return 0
