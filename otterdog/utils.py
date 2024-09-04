@@ -174,7 +174,10 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
 def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
     if isinstance(value, dict):
         if len(other_value) == 0:
-            return True, value
+            if len(value) > 0:
+                return True, value
+            else:
+                return False, None
         else:
             raise ValueError("non-empty dictionary values not supported yet")
     elif isinstance(value, list):

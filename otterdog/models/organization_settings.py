@@ -202,14 +202,15 @@ class OrganizationSettings(ModelObject):
         if is_set_and_present(self.custom_properties) and len(self.custom_properties) > 0:
             default_org_custom_property = CustomProperty.from_model_data(config.default_org_custom_property_config)
 
-            printer.println("custom_properties+: [")
-            printer.level_up()
+            if len(self.custom_properties) > 0:
+                printer.println("custom_properties+: [")
+                printer.level_up()
 
-            for custom_property in self.custom_properties:
-                custom_property.to_jsonnet(printer, config, context, False, default_org_custom_property)
+                for custom_property in self.custom_properties:
+                    custom_property.to_jsonnet(printer, config, context, False, default_org_custom_property)
 
-            printer.level_down()
-            printer.println("],")
+                printer.level_down()
+                printer.println("],")
 
         if is_set_and_present(self.workflows):
             default_workflow_settings = cast(OrganizationSettings, default_object).workflows
