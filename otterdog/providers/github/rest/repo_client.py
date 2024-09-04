@@ -247,6 +247,7 @@ class RepoClient(RestClient):
             "topics",
             "gh_pages",
             "code_scanning_default_config",
+            "custom_properties",
         ]
 
         if auto_init_repo is True:
