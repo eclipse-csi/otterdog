@@ -118,7 +118,7 @@ class RepoClient(RestClient):
                     )
                 if topics is not None:
                     await self._update_topics(org_id, repo_name, topics)
-                if custom_properties is not None:
+                if custom_properties is not None and len(custom_properties) > 0:
                     await self._update_custom_properties(org_id, repo_name, custom_properties)
                 if gh_pages is not None:
                     await self._update_github_pages_config(org_id, repo_name, gh_pages)
