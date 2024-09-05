@@ -433,25 +433,35 @@ class WebClient:
                 .all()
             )
 
-            permissions_by_app = {}
+            permissions_by_app: dict[str, str] = {}
             for permission in permissions:
                 permission_text = await permission.inner_text()
                 permission_text = permission_text.removesuffix("New request")
                 permission_text = permission_text.removesuffix("Was read-only")
                 permission_text = permission_text.strip()
 
-                m = re.search(r"(Read-only|Read and write) access to ([a-zA-Z]+)", permission_text)
+                m = re.search(r"(Read-only|Read and write|Admin) access to ([a-zA-Z ]+)", permission_text)
+
+                access_level = {"read": 1, "write": 2, "admin": 3}
 
                 if m is not None:
                     access_type = m.group(1)
                     if access_type == "Read-only":
-                        access_type = "read"
+                        new_access_type = "read"
+                    elif access_type == "Admin":
+                        new_access_type = "admin"
                     else:
-                        access_type = "write"
+                        new_access_type = "write"
 
                     permission_type = m.group(2).lower()
 
-                    permissions_by_app[permission_type] = access_type
+                    current_access_type = permissions_by_app.get(permission_type, None)
+                    if current_access_type is not None:
+                        if access_level[current_access_type] > access_level[new_access_type]:
+                            new_access_type = ""
+
+                    if new_access_type:
+                        permissions_by_app[permission_type] = new_access_type
                 else:
                     pass
 
