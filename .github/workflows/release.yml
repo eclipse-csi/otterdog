@@ -81,7 +81,7 @@ jobs:
         id: prepare-release
         shell: bash
         env:
-          RELEASE_VERSION: ${{ github.event.pull_request.title }}
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
         run: |
           PROJECT_VERSION="$(poetry version -s)"
 
