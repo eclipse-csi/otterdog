@@ -80,9 +80,10 @@ jobs:
       - name: Prepare release
         id: prepare-release
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ github.event.pull_request.title }}
         run: |
           PROJECT_VERSION="$(poetry version -s)"
-          RELEASE_VERSION="${{ github.event.inputs.version }}"
 
           echo "PROJECT_VERSION=$(echo $PROJECT_VERSION)" >> $GITHUB_OUTPUT
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_OUTPUT
@@ -205,8 +206,10 @@ jobs:
           version: 1.7.1
 
       - name: Update next development version
+        env:
+          VERSION_FRAGMENT: ${{ github.event.inputs.version-fragment }}
         run: |
-          NEXT_VERSION="$(poetry version ${{ github.event.inputs.version-fragment }} -s)"
+          NEXT_VERSION="$(poetry version ${VERSION_FRAGMENT} -s)"
           poetry version "$NEXT_VERSION".dev0
 
           git commit -a -m "Prepare for next development cycle"
