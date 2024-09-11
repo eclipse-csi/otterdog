@@ -472,7 +472,9 @@ class RepoClient(RestClient):
 
         build_type = gh_pages.get("build_type", None)
         if build_type == "disabled":
-            await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
+            status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
+            if status != 204:
+                raise RuntimeError(f"failed to disable github pages for repo '{repo_name}': {body}")
         else:
             gh_pages_data: list[tuple[str, str, int]] = []
             # first check if the pages config already exists:
