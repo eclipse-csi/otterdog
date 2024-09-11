@@ -15,6 +15,7 @@
 
 ### Changed
 
+- Changed parameter `--update-filter` for various operations from a python regular expression to a shell pattern format.
 - Changed operation `import` to mask webhook urls in a similar way as in the previous configuration if present.
 - Added a retry logic for calls to `https://api.github.com` to gracefully handle intermittent connection problems.
 - Changed `ApplyChangesTask` to use a `local-apply` operation rather than an `apply` operation. ([#257](https://github.com/eclipse-csi/otterdog/issues/257))

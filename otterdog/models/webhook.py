@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import re
+import fnmatch
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
@@ -188,7 +188,7 @@ class Webhook(ModelObject, abc.ABC):
         if (
             context.update_webhooks
             and is_set_and_valid(expected_object.secret)
-            and re.match(context.update_filter, expected_object.url)
+            and fnmatch.fnmatch(expected_object.url, context.update_filter)
         ):
             model_dict = expected_object.to_model_dict()
             modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}

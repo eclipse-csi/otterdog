@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import fnmatch
 import re
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
@@ -150,7 +151,7 @@ class Secret(ModelObject, abc.ABC):
         assert isinstance(current_object, Secret)
 
         # if secrets shall be updated and the secret contains a valid secret perform a forced update.
-        if context.update_secrets and re.match(context.update_filter, expected_object.name):
+        if context.update_secrets and fnmatch.fnmatch(expected_object.name, context.update_filter):
             model_dict = expected_object.to_model_dict()
             modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 

@@ -350,7 +350,7 @@ def import_command(organizations: list[str], force, no_web_ui):
     "--update-filter",
     show_default=True,
     default=".*",
-    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+    help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, update_filter):
     """
@@ -394,7 +394,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
     "--update-filter",
     show_default=True,
     default=".*",
-    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+    help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets, update_filter):
     """
@@ -444,7 +444,7 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     "--update-filter",
     show_default=True,
     default=".*",
-    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+    help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 @click.option(
     "-d",
@@ -521,7 +521,7 @@ def apply(
     "--update-filter",
     show_default=True,
     default=".*",
-    help="a valid python regular expression to match webhook urls / secret names to be included for update",
+    help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 @click.option(
     "-d",
