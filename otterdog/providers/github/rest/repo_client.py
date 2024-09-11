@@ -741,13 +741,20 @@ class RepoClient(RestClient):
         try:
             current_branch_policies_by_name = associate_by_key(
                 await self._get_deployment_branch_policies(org_id, repo_name, env_name),
-                lambda x: x["name"],
+                lambda x: f'{x.get("type", "branch")}:{x["name"]}',
             )
         except RuntimeError:
             current_branch_policies_by_name = {}
 
         try:
-            for policy in branch_policies:
+
+            def transform_policies(x: str):
+                if x.startswith("tag:"):
+                    return f"tag:{x[4:]}"
+                else:
+                    return f"branch:{x}"
+
+            for policy in map(transform_policies, branch_policies):
                 if policy in current_branch_policies_by_name:
                     current_branch_policies_by_name.pop(policy)
                 else:
@@ -762,11 +769,14 @@ class RepoClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed creating deployment branch policies:\n{ex}").with_traceback(tb)
 
-    async def _create_deployment_branch_policy(self, org_id: str, repo_name: str, env_name: str, name: str) -> None:
-        print_debug(f"creating deployment branch policy for env '{env_name}' with name '{name}")
+    async def _create_deployment_branch_policy(
+        self, org_id: str, repo_name: str, env_name: str, name_and_type: str
+    ) -> None:
+        print_debug(f"creating deployment branch policy for env '{env_name}' with type/name '{name_and_type}")
 
         try:
-            data = {"name": name}
+            type, name = name_and_type.split(":", 1)
+            data = {"name": name, "type": type}
             url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
             await self.requester.request_json("POST", url, data)
             print_debug(f"created deployment branch policy for env '{env_name}'")

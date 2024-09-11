@@ -64,6 +64,7 @@ nav:
           - Ruleset: reference/organization/repository/ruleset.md
           - Referenced Types:
              - Actor: reference/organization/repository/actor.md
+             - Branch or Tag: reference/organization/repository/branch-or-tag.md
              - Bypass Actor: reference/organization/repository/bypass-actor.md
              - Ref Matcher: reference/organization/repository/ref-matcher.md
              - Status Check: reference/organization/repository/status-check.md

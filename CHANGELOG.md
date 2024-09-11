@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for tags for deployment policies in `environments`. ([#268](https://github.com/eclipse-csi/otterdog/issues/268))
 - Added support for `custom properties`. ([#256](https://github.com/eclipse-csi/otterdog/issues/256))
 - Added validation for setting `forked_repository` of a repository to match the expected format `<owner>/<repo>`.
 - Added operation `review-permissions` to review requested permissions updates from GitHub apps for an organization. ([#260](https://github.com/eclipse-csi/otterdog/issues/260))
