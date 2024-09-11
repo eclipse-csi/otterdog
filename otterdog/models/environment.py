@@ -132,6 +132,16 @@ class Environment(ModelObject):
                 else:
                     raise ValueError(f"unexpected deployment_branch_policy {x}")
 
+        def transform_branch_policy(x):
+            type = x.get("type", "branch")
+            match type:
+                case "branch":
+                    return x["name"]
+                case "tag":
+                    return "tag:" + x["name"]
+                case _:
+                    raise RuntimeError(f"unexpected policy type '{type}'")
+
         mapping.update(
             {
                 "wait_timer": OptionalS("protection_rules", default=[])
@@ -143,8 +153,8 @@ class Environment(ModelObject):
                 >> OptionalS(0, default={})
                 >> OptionalS("reviewers", default=[])
                 >> Forall(lambda x: transform_reviewers(x)),
-                "deployment_branch_policy": OptionalS("deployment_branch_policy") >> F(lambda x: transform_policy(x)),
-                "branch_policies": OptionalS("branch_policies", default=[]) >> Forall(lambda x: x["name"]),
+                "deployment_branch_policy": OptionalS("deployment_branch_policy") >> F(transform_policy),
+                "branch_policies": OptionalS("branch_policies", default=[]) >> Forall(transform_branch_policy),
             }
         )
         return mapping
