@@ -1,4 +1,4 @@
-A BranchOrTag represents either a branch or tag pattern to use within an [Environment].
+A BranchOrTag represents either a branch or tag pattern to use within an [Environment](environment.md).
 The following format is used to distinguish between tags and branches:
 
 | Type   | Format          | Example                  |
