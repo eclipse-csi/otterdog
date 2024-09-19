@@ -145,7 +145,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             else:
                 output = StringIO()
                 printer = IndentingPrinter(output, log_level=self.log_level)
-                operation = LocalPlanOperation("-BASE", False, False, "")
+                operation = LocalPlanOperation("-BASE", "*", False, False, "")
 
                 def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
                     validation_result.requires_secrets = any(list(map(lambda x: x.requires_secrets(), patches)))
