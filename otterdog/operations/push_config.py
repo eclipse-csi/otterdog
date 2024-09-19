@@ -178,7 +178,7 @@ class PushOperation(Operation):
         self.printer.level_up()
 
         try:
-            operation = LocalPlanOperation("-BASE", False, False, "")
+            operation = LocalPlanOperation("-BASE", "*", False, False, "")
             operation.init(self.config, self.printer)
             valid_config = await operation.generate_diff(org_config)
         finally:

@@ -189,6 +189,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             operation = LocalApplyOperation(
                 force_processing=True,
                 no_web_ui=True,
+                repo_filter="*",
                 update_webhooks=False,
                 update_secrets=False,
                 update_filter="",

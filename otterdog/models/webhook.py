@@ -73,7 +73,7 @@ class Webhook(ModelObject, abc.ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def include_for_live_patch(self) -> bool:
+    def include_for_live_patch(self, context: LivePatchContext) -> bool:
         return not self.has_dummy_secret()
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:

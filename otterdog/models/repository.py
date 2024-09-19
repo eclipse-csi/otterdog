@@ -525,6 +525,11 @@ class Repository(ModelObject):
         # archived repos, the properties might be used when the repo gets unarchived.
         return True
 
+    def include_for_live_patch(self, context: LivePatchContext) -> bool:
+        import fnmatch
+
+        return fnmatch.fnmatch(self.name, context.repo_filter)
+
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         for webhook in self.webhooks:
             yield webhook, self
