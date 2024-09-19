@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for parameter `--repo-filter` for `plan` and `apply` operations. ([#275](https://github.com/eclipse-csi/otterdog/issues/275))
 - Added support for tags for deployment policies in `environments`. ([#268](https://github.com/eclipse-csi/otterdog/issues/268))
 - Added support for `custom properties`. ([#256](https://github.com/eclipse-csi/otterdog/issues/256))
 - Added validation for setting `forked_repository` of a repository to match the expected format `<owner>/<repo>`.

@@ -333,6 +333,12 @@ def import_command(organizations: list[str], force, no_web_ui):
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "--repo-filter",
+    show_default=True,
+    default="*",
+    help="a valid shell pattern to match repository names to be included",
+)
+@click.option(
     "--update-webhooks",
     is_flag=True,
     show_default=True,
@@ -349,10 +355,10 @@ def import_command(organizations: list[str], force, no_web_ui):
 @click.option(
     "--update-filter",
     show_default=True,
-    default=".*",
+    default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
-def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, update_filter):
+def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, update_secrets, update_filter):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
@@ -361,6 +367,7 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
         organizations,
         PlanOperation(
             no_web_ui=no_web_ui,
+            repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
             update_filter=update_filter,
@@ -377,6 +384,12 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
     help="suffix to append to the configuration for comparison",
 )
 @click.option(
+    "--repo-filter",
+    show_default=True,
+    default="*",
+    help="a valid shell pattern to match repository names to be included",
+)
+@click.option(
     "--update-webhooks",
     is_flag=True,
     show_default=True,
@@ -393,10 +406,10 @@ def plan(organizations: list[str], no_web_ui, update_webhooks, update_secrets, u
 @click.option(
     "--update-filter",
     show_default=True,
-    default=".*",
+    default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
-def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets, update_filter):
+def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, update_secrets, update_filter):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
@@ -404,7 +417,11 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     _execute_operation(
         organizations,
         LocalPlanOperation(
-            suffix=suffix, update_webhooks=update_webhooks, update_secrets=update_secrets, update_filter=update_filter
+            suffix=suffix,
+            repo_filter=repo_filter,
+            update_webhooks=update_webhooks,
+            update_secrets=update_secrets,
+            update_filter=update_filter,
         ),
     )
 
@@ -427,6 +444,12 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "--repo-filter",
+    show_default=True,
+    default="*",
+    help="a valid shell pattern to match repository names to be included",
+)
+@click.option(
     "--update-webhooks",
     is_flag=True,
     show_default=True,
@@ -443,7 +466,7 @@ def local_plan(organizations: list[str], suffix, update_webhooks, update_secrets
 @click.option(
     "--update-filter",
     show_default=True,
-    default=".*",
+    default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 @click.option(
@@ -458,6 +481,7 @@ def apply(
     organizations: list[str],
     force,
     no_web_ui,
+    repo_filter,
     update_webhooks,
     update_secrets,
     update_filter,
@@ -471,6 +495,7 @@ def apply(
         ApplyOperation(
             force_processing=force,
             no_web_ui=no_web_ui,
+            repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
             update_filter=update_filter,
@@ -504,6 +529,12 @@ def apply(
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "--repo-filter",
+    show_default=True,
+    default="*",
+    help="a valid shell pattern to match repository names to be included",
+)
+@click.option(
     "--update-webhooks",
     is_flag=True,
     show_default=True,
@@ -520,7 +551,7 @@ def apply(
 @click.option(
     "--update-filter",
     show_default=True,
-    default=".*",
+    default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
 @click.option(
@@ -535,6 +566,7 @@ def local_apply(
     organizations: list[str],
     force,
     no_web_ui,
+    repo_filter,
     update_webhooks,
     update_secrets,
     update_filter,
@@ -550,6 +582,7 @@ def local_apply(
             suffix=suffix,
             force_processing=force,
             no_web_ui=no_web_ui,
+            repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
             update_filter=update_filter,

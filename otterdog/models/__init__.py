@@ -152,6 +152,7 @@ class PatchContext:
 @dataclasses.dataclass
 class LivePatchContext:
     org_id: str
+    repo_filter: str
     update_webhooks: bool
     update_secrets: bool
     update_filter: str
@@ -389,7 +390,7 @@ class ModelObject(ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def include_for_live_patch(self) -> bool:
+    def include_for_live_patch(self, context: LivePatchContext) -> bool:
         """
         Indicates if this ModelObject should be considered when generating a live patch.
 
@@ -561,7 +562,7 @@ class ModelObject(ABC):
                     cls.generate_live_patch(None, current_object, parent_object, context, handler)
                 continue
 
-            if expected_object.include_for_live_patch():
+            if expected_object.include_for_live_patch(context):
                 cls.generate_live_patch(expected_object, current_object, parent_object, context, handler)
 
             for k in expected_object.get_all_key_values():
@@ -569,7 +570,7 @@ class ModelObject(ABC):
             expected_objects_by_key.pop(expected_object.get_key_value())
 
         for _, expected_object in expected_objects_by_key.items():
-            if expected_object.include_for_live_patch():
+            if expected_object.include_for_live_patch(context):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod

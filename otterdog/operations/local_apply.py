@@ -20,6 +20,7 @@ class LocalApplyOperation(ApplyOperation):
         suffix: str,
         force_processing: bool,
         no_web_ui: bool,
+        repo_filter: str,
         update_webhooks: bool,
         update_secrets: bool,
         update_filter: str,
@@ -30,6 +31,7 @@ class LocalApplyOperation(ApplyOperation):
         super().__init__(
             force_processing=force_processing,
             no_web_ui=no_web_ui,
+            repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
             update_filter=update_filter,

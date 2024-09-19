@@ -21,8 +21,15 @@ class PlanOperation(DiffOperation):
     Calculates and displays changes that would be applied to an organization based on the current configuration.
     """
 
-    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool, update_filter: str):
-        super().__init__(no_web_ui, update_webhooks, update_secrets, update_filter)
+    def __init__(
+        self,
+        no_web_ui: bool,
+        repo_filter: str,
+        update_webhooks: bool,
+        update_secrets: bool,
+        update_filter: str,
+    ):
+        super().__init__(no_web_ui, repo_filter, update_webhooks, update_secrets, update_filter)
 
     def init(self, config: OtterdogConfig, printer: IndentingPrinter) -> None:
         super().init(config, printer)

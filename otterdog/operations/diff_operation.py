@@ -42,10 +42,18 @@ class CallbackFn(Protocol):
 
 
 class DiffOperation(Operation):
-    def __init__(self, no_web_ui: bool, update_webhooks: bool, update_secrets: bool, update_filter: str):
+    def __init__(
+        self,
+        no_web_ui: bool,
+        repo_filter: str,
+        update_webhooks: bool,
+        update_secrets: bool,
+        update_filter: str,
+    ):
         super().__init__()
 
         self.no_web_ui = no_web_ui
+        self.repo_filter = repo_filter
         self.update_webhooks = update_webhooks
         self.update_secrets = update_secrets
         self.update_filter = update_filter
@@ -199,7 +207,12 @@ class DiffOperation(Operation):
                     )
 
         context = LivePatchContext(
-            github_id, self.update_webhooks, self.update_secrets, self.update_filter, expected_org.settings
+            github_id,
+            self.repo_filter,
+            self.update_webhooks,
+            self.update_secrets,
+            self.update_filter,
+            expected_org.settings,
         )
         expected_org.generate_live_patch(current_org, context, handle)
 
