@@ -7,10 +7,17 @@
 #  *******************************************************************************
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from aiohttp_client_cache import CacheBackend
 
 
 class CacheStrategy(ABC):
     @abstractmethod
-    def get_cache_backend(self) -> CacheBackend: ...
+    def get_cache_backend(self) -> CacheBackend | None: ...
+
+    @abstractmethod
+    def is_external(self) -> bool: ...
+
+    @abstractmethod
+    def get_request_parameters(self) -> dict[str, Any]: ...

@@ -21,6 +21,7 @@ from quart_redis import get_redis  # type: ignore
 
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
+from otterdog.providers.github.cache.ghproxy import ghproxy_cache
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
@@ -39,6 +40,10 @@ def _get_redis_cache():
     return redis_cache(current_app.config["REDIS_URI"], get_redis())
 
 
+def _get_ghproxy():
+    return ghproxy_cache("http://ghproxy:8888")
+
+
 async def close_rest_apis():
     app_api_cache = get_rest_api_for_app.cache_info()
     if app_api_cache.hits > 0:
@@ -51,7 +56,7 @@ def get_rest_api_for_app() -> RestApi:
     logger.debug("creating rest api for app")
     github_app_id = current_app.config["GITHUB_APP_ID"]
     github_app_private_key = current_app.config["GITHUB_APP_PRIVATE_KEY"]
-    return RestApi(app_auth(github_app_id, github_app_private_key), _get_redis_cache())
+    return RestApi(app_auth(github_app_id, github_app_private_key), _get_ghproxy())
 
 
 async def get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
@@ -90,7 +95,7 @@ def decode_bytes_dict(data: dict[bytes, bytes]) -> dict[str, str]:
 
 async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     token, _ = await get_token_for_installation(installation_id)
-    return RestApi(token_auth(token), _get_redis_cache())
+    return RestApi(token_auth(token), _get_ghproxy())
 
 
 async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
@@ -139,7 +144,7 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_ghproxy()) as rest_api:
         content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
         import aiofiles
 
@@ -168,7 +173,7 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
 
     policies = []
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_ghproxy()) as rest_api:
         try:
             entries = await rest_api.content.get_content_object(
                 config_file_owner, config_file_repo, config_file_path, ref

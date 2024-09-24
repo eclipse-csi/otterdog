@@ -17,14 +17,15 @@ from importlib_resources import files
 
 from otterdog import resources
 from otterdog.providers.github.auth import AuthStrategy
+from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import is_trace_enabled, print_debug, print_trace
 
 
 class GraphQLClient:
-    _GH_GRAPHQL_URL_ROOT = "https://api.github.com/graphql"
+    _GH_GRAPHQL_URL_ROOT = "api.github.com/graphql"
 
-    def __init__(self, auth_strategy: AuthStrategy):
+    def __init__(self, auth_strategy: AuthStrategy, cache_strategy: CacheStrategy | None = None):
         self._auth = auth_strategy.get_auth()
 
         self._headers = {
@@ -32,6 +33,14 @@ class GraphQLClient:
         }
 
         self._statistics = RequestStatistics()
+
+        if cache_strategy is not None and cache_strategy.is_external():
+            self._base_url = f"http://{self._GH_GRAPHQL_URL_ROOT}"
+        elif cache_strategy is None:
+            self._base_url = f"https://{self._GH_GRAPHQL_URL_ROOT}"
+        else:
+            raise RuntimeError(f"unsupported cache strategy '{type(cache_strategy)}'")
+
         self._session = ClientSession(
             timeout=ClientTimeout(connect=3, sock_connect=3),
             connector=TCPConnector(limit=10),
@@ -286,7 +295,7 @@ class GraphQLClient:
 
         async with self._client.request(
             method,
-            url=self._GH_GRAPHQL_URL_ROOT,
+            url=self._base_url,
             headers=headers,
             json={"query": query, "variables": variables},
         ) as response:

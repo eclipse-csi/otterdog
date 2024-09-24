@@ -5,33 +5,25 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-from typing import Any
 
-from aiohttp_client_cache import CacheBackend
+from typing import Any
 
 from otterdog.providers.github.cache import CacheStrategy
 
-_AIOHTTP_CACHE_DIR = ".cache/async_http"
+
+def ghproxy_cache(uri: str) -> CacheStrategy:
+    return _GHProxy(uri)
 
 
-def file_cache(cache_dir: str = _AIOHTTP_CACHE_DIR) -> CacheStrategy:
-    return _FileCache(cache_dir)
+class _GHProxy(CacheStrategy):
+    def __init__(self, proxy_uri: str):
+        self._proxy_uri = proxy_uri
 
-
-class _FileCache(CacheStrategy):
-    def __init__(self, cache_dir: str):
-        self._cache_dir = cache_dir
-
-    def get_cache_backend(self) -> CacheBackend:
-        from aiohttp_client_cache.backends import FileBackend
-
-        return FileBackend(
-            cache_name=self._cache_dir,
-            use_temp=False,
-        )
+    def get_cache_backend(self) -> None:
+        return None
 
     def is_external(self) -> bool:
-        return False
+        return True
 
     def get_request_parameters(self) -> dict[str, Any]:
-        return {"refresh": True}
+        return {"proxy": self._proxy_uri, "ssl": False}
