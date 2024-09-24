@@ -22,9 +22,11 @@ from quart.json.provider import DefaultJSONProvider
 from quart_auth import QuartAuth
 from quart_redis import RedisHandler  # type: ignore
 
+from otterdog.cache import set_github_cache
+
 from .db import Mongo, init_mongo_database
 from .filters import register_filters
-from .utils import close_rest_apis
+from .utils import close_rest_apis, get_github_ghproxy_cache
 
 if TYPE_CHECKING:
     from .config import AppConfig
@@ -99,6 +101,8 @@ def create_app(app_config: AppConfig):
                 return f"/assets/{file_path}"
 
         return dict(asset=asset)
+
+    set_github_cache(get_github_ghproxy_cache(app.config))
 
     register_extensions(app)
     register_github_webhook(app)

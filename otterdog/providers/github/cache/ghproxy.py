@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from otterdog.providers.github.cache import CacheStrategy
+from . import CacheStrategy
 
 
 def ghproxy_cache(uri: str) -> CacheStrategy:
@@ -27,3 +27,6 @@ class _GHProxy(CacheStrategy):
 
     def get_request_parameters(self) -> dict[str, Any]:
         return {"proxy": self._proxy_uri, "ssl": False}
+
+    def __str__(self):
+        return f"ghproxy-cache('{self._proxy_uri}')"

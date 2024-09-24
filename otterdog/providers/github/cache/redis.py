@@ -10,7 +10,7 @@ from typing import Any
 from aiohttp_client_cache import CacheBackend
 from redis.asyncio.client import Redis
 
-from otterdog.providers.github.cache import CacheStrategy
+from . import CacheStrategy
 
 
 def redis_cache(uri: str, connection: Redis | None = None) -> CacheStrategy:
@@ -32,3 +32,6 @@ class _RedisCache(CacheStrategy):
 
     def get_request_parameters(self) -> dict[str, Any]:
         return {"refresh": True}
+
+    def __str__(self):
+        return f"redis-cache('{self._redis_uri}')"

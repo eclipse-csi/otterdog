@@ -14,7 +14,9 @@ from typing import Any
 import click
 from click.shell_completion import CompletionItem
 
+from otterdog.cache import set_github_cache
 from otterdog.operations.review_app_permissions import ReviewAppPermissionsOperation
+from otterdog.providers.github.cache.file import file_cache
 
 from . import __version__
 from .config import OtterdogConfig
@@ -730,6 +732,8 @@ def _execute_operation(organizations: list[str], operation: Operation):
         config = _CONFIG
 
         assert config is not None
+
+        set_github_cache(file_cache())
 
         operation.init(config, printer)
         operation.pre_execute()

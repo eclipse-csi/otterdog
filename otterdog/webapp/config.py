@@ -26,6 +26,7 @@ class AppConfig:
 
     MONGO_URI = config("MONGO_URI", default="mongodb://mongodb:27017/otterdog")
     REDIS_URI = config("REDIS_URI", default="redis://redis:6379")
+    GHPROXY_URI = config("GHPROXY_URI", default="http://ghproxy:8888")
 
     OTTERDOG_CONFIG_OWNER = config("OTTERDOG_CONFIG_OWNER", default=None)
     OTTERDOG_CONFIG_REPO = config("OTTERDOG_CONFIG_REPO", default=None)
