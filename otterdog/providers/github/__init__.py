@@ -61,9 +61,11 @@ class GitHubProvider:
                 pass
 
     def _init_clients(self):
-        self.rest_api = RestApi(token_auth(self._credentials.github_token))
+        from otterdog.cache import get_github_cache
+
+        self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
         self.web_client = WebClient(self._credentials)
-        self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token))
+        self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token), get_github_cache())
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         return await self.rest_api.content.get_content(org_id, repo_name, path, ref)

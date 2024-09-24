@@ -23,7 +23,7 @@ from .requester import Requester
 class RestApi:
     # use a fixed API version
     _GH_API_VERSION = "2022-11-28"
-    _GH_API_URL_ROOT = "https://api.github.com"
+    _GH_API_URL_ROOT = "api.github.com"
 
     def __init__(self, auth_strategy: AuthStrategy | None = None, cache_strategy: CacheStrategy = file_cache()):
         self._auth_strategy = auth_strategy

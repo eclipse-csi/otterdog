@@ -13,7 +13,7 @@ from typing import Any, Protocol
 
 import mintotp  # type: ignore
 
-from otterdog import utils
+from otterdog.utils import print_info, print_trace
 
 
 @dataclasses.dataclass
@@ -50,13 +50,13 @@ class Credentials:
 
         while True:
             totp = mintotp.totp(self._totp_secret)
-            utils.print_trace(f"generated totp '{totp}'")
+            print_trace(f"generated totp '{totp}'")
 
             if self._last_totp is None or totp != self._last_totp:
                 self._last_totp = totp
                 return totp
             else:
-                utils.print_info("waiting 3s till generating new totp ...")
+                print_info("waiting 3s till generating new totp ...")
                 time.sleep(3)
 
     @property

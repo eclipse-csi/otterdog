@@ -19,8 +19,10 @@ import yaml  # type: ignore
 from quart import Quart, current_app
 from quart_redis import get_redis  # type: ignore
 
+from otterdog.cache import get_github_cache
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github.auth import app_auth, token_auth
+from otterdog.providers.github.cache.ghproxy import ghproxy_cache
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
@@ -35,8 +37,12 @@ _CREATE_INSTALLATION_TOKEN_LOCK = asyncio.Lock()
 _GLOBAL_POLICIES: list[Policy] | None = None
 
 
-def _get_redis_cache():
-    return redis_cache(current_app.config["REDIS_URI"], get_redis())
+def get_github_redis_cache(app_config):
+    return redis_cache(app_config["REDIS_URI"], get_redis())
+
+
+def get_github_ghproxy_cache(app_config):
+    return ghproxy_cache(app_config["GHPROXY_URI"])
 
 
 async def close_rest_apis():
@@ -51,7 +57,7 @@ def get_rest_api_for_app() -> RestApi:
     logger.debug("creating rest api for app")
     github_app_id = current_app.config["GITHUB_APP_ID"]
     github_app_private_key = current_app.config["GITHUB_APP_PRIVATE_KEY"]
-    return RestApi(app_auth(github_app_id, github_app_private_key), _get_redis_cache())
+    return RestApi(app_auth(github_app_id, github_app_private_key), get_github_cache())
 
 
 async def get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
@@ -90,12 +96,12 @@ def decode_bytes_dict(data: dict[bytes, bytes]) -> dict[str, str]:
 
 async def get_rest_api_for_installation(installation_id: int) -> RestApi:
     token, _ = await get_token_for_installation(installation_id)
-    return RestApi(token_auth(token), _get_redis_cache())
+    return RestApi(token_auth(token), get_github_cache())
 
 
 async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
     token, _ = await get_token_for_installation(installation_id)
-    return GraphQLClient(token_auth(token))
+    return GraphQLClient(token_auth(token), get_github_cache())
 
 
 def get_app_root_directory(app: Quart | None = None) -> str:
@@ -139,7 +145,7 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
         content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
         import aiofiles
 
@@ -168,7 +174,7 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
 
     policies = []
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), _get_redis_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
         try:
             entries = await rest_api.content.get_content_object(
                 config_file_owner, config_file_repo, config_file_path, ref

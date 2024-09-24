@@ -6,9 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from typing import Any
+
 from aiohttp_client_cache import CacheBackend
 
-from otterdog.providers.github.cache import CacheStrategy
+from . import CacheStrategy
 
 _AIOHTTP_CACHE_DIR = ".cache/async_http"
 
@@ -28,3 +30,12 @@ class _FileCache(CacheStrategy):
             cache_name=self._cache_dir,
             use_temp=False,
         )
+
+    def is_external(self) -> bool:
+        return False
+
+    def get_request_parameters(self) -> dict[str, Any]:
+        return {"refresh": True}
+
+    def __str__(self):
+        return f"file-cache('{self._cache_dir}')"

@@ -10,7 +10,7 @@ import json
 from collections.abc import AsyncIterable
 from typing import Any
 
-from aiohttp import ClientTimeout, TCPConnector
+from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 
@@ -19,8 +19,6 @@ from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import is_trace_enabled, print_trace
-
-_AIOHTTP_CACHE_DIR = ".cache/async_http"
 
 
 class Requester:
@@ -31,7 +29,6 @@ class Requester:
         base_url: str,
         api_version: str,
     ):
-        self._base_url = base_url
         self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
         self._headers = {
@@ -41,13 +38,20 @@ class Requester:
         }
 
         self._statistics = RequestStatistics()
-        self._session = AsyncCachedSession(
-            cache=cache_strategy.get_cache_backend(),
-            timeout=ClientTimeout(connect=3, sock_connect=3),
-            connector=TCPConnector(
-                limit=30,
-            ),
-        )
+        self._cache_strategy = cache_strategy
+
+        if self._cache_strategy.is_external():
+            self._base_url = f"http://{base_url}"
+            self._session = ClientSession()
+        else:
+            self._base_url = f"https://{base_url}"
+            self._session = AsyncCachedSession(
+                cache=self._cache_strategy.get_cache_backend(),
+                timeout=ClientTimeout(connect=3, sock_connect=3),
+                connector=TCPConnector(
+                    limit=30,
+                ),
+            )
 
         self._client = RetryClient(
             retry_options=ExponentialRetry(3, exceptions={Exception}),
@@ -120,14 +124,21 @@ class Requester:
 
         url = self._build_url(url_path)
         async with self._client.request(
-            method, url=url, headers=headers, params=params, data=data, refresh=True
+            method,
+            url=url,
+            headers=headers,
+            params=params,
+            data=data,
+            **self._cache_strategy.get_request_parameters(),
         ) as response:
             self._statistics.sent_request()
 
             text = await response.text()
             status = response.status
 
-            if response.from_cache:  # type: ignore
+            if hasattr(response, "from_cache") and response.from_cache:
+                self._statistics.received_cached_response()
+            elif response.headers.get("X-From-Cache", 0) == "1":
                 self._statistics.received_cached_response()
             else:
                 self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
@@ -152,7 +163,12 @@ class Requester:
 
         url = self._build_url(url_path)
         async with self._client.request(
-            method, url=url, headers=headers, params=params, data=data, refresh=True
+            method,
+            url=url,
+            headers=headers,
+            params=params,
+            data=data,
+            **self._cache_strategy.get_request_parameters(),
         ) as response:
             async for chunk, _ in response.content.iter_chunks():
                 yield chunk
