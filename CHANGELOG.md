@@ -27,6 +27,7 @@
 
 ### Fixed
 
+- Avoided unnecessary GitHub API calls when getting the `default_branch` or `id` of a repository.
 - Detect errors during an automatic `apply` operation and add a corresponding comment to the pull request.
 - Support showing dialog windows when using operation `web-login`.
 - Fixed showing changes to dummy secret values when performing a `local-plan` operation. ([#245](https://github.com/eclipse-csi/otterdog/issues/245))

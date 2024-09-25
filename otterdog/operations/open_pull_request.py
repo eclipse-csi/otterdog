@@ -76,8 +76,9 @@ class OpenPullRequestOperation(Operation):
                 rest_api = provider.rest_api
 
                 try:
-                    repo_data = await rest_api.repo.get_repo_data(org_config.github_id, org_config.config_repo)
-                    default_branch = repo_data["default_branch"]
+                    default_branch = await rest_api.repo.get_default_branch(
+                        org_config.github_id, org_config.config_repo
+                    )
 
                     current_definition = await provider.get_content(
                         github_id,

@@ -32,11 +32,26 @@ class RepoClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
-        print_debug(f"retrieving org repo data for '{org_id}/{repo_name}'")
+    async def get_simple_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"retrieving simple repo data for '{org_id}/{repo_name}'")
 
         try:
-            repo_data = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
+        except GitHubException as ex:
+            tb = ex.__traceback__
+            raise RuntimeError(f"failed retrieving simple data for repo '{repo_name}':\n{ex}").with_traceback(tb)
+
+    async def get_default_branch(self, org_id: str, repo_name: str) -> str:
+        print_debug(f"retrieving default branch for repo '{org_id}/{repo_name}'")
+
+        repo_data = await self.get_simple_repo_data(org_id, repo_name)
+        return repo_data["default_branch"]
+
+    async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        print_debug(f"retrieving repo data for '{org_id}/{repo_name}'")
+
+        try:
+            repo_data = await self.get_simple_repo_data(org_id, repo_name)
 
             archived = repo_data.get("archived", False)
             if not archived:
@@ -548,8 +563,7 @@ class RepoClient(RestClient):
                 await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
                 print_debug(f"updated default branch for '{org_id}/{repo_name}'")
             else:
-                repo = await self.get_repo_data(org_id, repo_name)
-                default_branch = repo["default_branch"]
+                default_branch = await self.get_default_branch(org_id, repo_name)
                 data = {"new_name": new_default_branch}
                 await self.requester.request_json(
                     "POST", f"/repos/{org_id}/{repo_name}/branches/{default_branch}/rename", data
@@ -1044,8 +1058,8 @@ class RepoClient(RestClient):
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         print_debug(f"dispatching workflow for repo '{org_id}/{repo_name}'")
 
-        repo_data = await self.get_repo_data(org_id, repo_name)
-        data = {"ref": repo_data["default_branch"]}
+        default_branch = await self.get_default_branch(org_id, repo_name)
+        data = {"ref": default_branch}
 
         status, _ = await self.requester.request_raw(
             "POST", f"/repos/{org_id}/{repo_name}/actions/workflows/{workflow_name}/dispatches", json.dumps(data)

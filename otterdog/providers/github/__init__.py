@@ -231,7 +231,7 @@ class GitHubProvider:
     ) -> None:
         # in case the repo_id is not available yet, we need to fetch it from GitHub.
         if not is_set_and_present(repo_node_id):
-            repo_data = await self.rest_api.repo.get_repo_data(org_id, repo_name)
+            repo_data = await self.rest_api.repo.get_simple_repo_data(org_id, repo_name)
             repo_node_id = repo_data["node_id"]
 
         await self.graphql_client.add_branch_protection_rule(org_id, repo_name, repo_node_id, data)
@@ -368,7 +368,7 @@ class GitHubProvider:
     async def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[str]:
         repo_ids = []
         for repo_name in repo_names:
-            repo_data = await self.get_repo_data(org_id, repo_name)
+            repo_data = await self.rest_api.repo.get_simple_repo_data(org_id, repo_name)
             repo_ids.append(repo_data["id"])
         return repo_ids
 

@@ -259,55 +259,6 @@ class OrgClient(RestClient):
             tb = ex.__traceback__
             raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
 
-    async def _set_selected_repositories_for_secret(
-        self, org_id: str, secret_name: str, selected_repository_ids: list[str]
-    ) -> None:
-        print_debug(f"setting selected repositories for secret '{secret_name}'")
-
-        try:
-            data = {"selected_repository_ids": selected_repository_ids}
-
-            url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
-            status, _ = await self.requester.request_raw("PUT", url, json.dumps(data))
-            if status != 204:
-                raise RuntimeError(f"failed to update selected repositories for secret '{secret_name}'")
-            else:
-                print_debug(f"updated selected repositories for secret '{secret_name}'")
-
-        except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
-
-    async def update_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
-        print_debug(f"updating org secret '{secret_name}'")
-
-        if "name" in secret:
-            secret.pop("name")
-
-        if "visibility" in secret:
-            visibility = secret["visibility"]
-        else:
-            visibility = None
-
-        if "selected_repository_ids" in secret:
-            selected_repository_ids = secret.pop("selected_repository_ids")
-        else:
-            selected_repository_ids = None
-
-        await self._encrypt_secret_inplace(org_id, secret)
-
-        status, _ = await self.requester.request_raw(
-            "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to update org secret '{secret_name}'")
-
-        if selected_repository_ids is not None and (visibility is None or visibility == "selected"):
-            await self._set_selected_repositories_for_secret(org_id, secret_name, selected_repository_ids)
-
-        print_debug(f"updated org secret '{secret_name}'")
-
     async def add_secret(self, org_id: str, data: dict[str, str]) -> None:
         secret_name = data.pop("name")
         print_debug(f"adding org secret '{secret_name}'")
@@ -322,6 +273,23 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to add org secret '{secret_name}'")
 
         print_debug(f"added org secret '{secret_name}'")
+
+    async def update_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        print_debug(f"updating org secret '{secret_name}'")
+
+        if "name" in secret:
+            secret.pop("name")
+
+        await self._encrypt_secret_inplace(org_id, secret)
+
+        status, _ = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update org secret '{secret_name}'")
+
+        print_debug(f"updated org secret '{secret_name}'")
 
     async def _encrypt_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
         if "value" in data:
