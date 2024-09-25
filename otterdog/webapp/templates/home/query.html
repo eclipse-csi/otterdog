@@ -48,13 +48,13 @@
                 <div class="form-group">
                   <textarea class="form-control" rows="10" id="query-textarea" placeholder="Enter ...">
 query {
-  projects(filter: "select(.config.settings.two_factor_requirement == false)") {
+  projects(filter: "config.settings.two_factor_requirement = false") {
     project_name
     config {
       settings {
         two_factor_requirement
       }
-      repositories(filter: "select(.secret_scanning == 'disabled')") {
+      repositories(filter: "secret_scanning = 'disabled'") {
         name
         secret_scanning
       }
@@ -137,7 +137,12 @@ query {
               $('#loading').empty();
               const status = xhr.status;
               if (status === 0 || (status >= 200 && status < 400)) {
-                showResults(JSON.parse(xhr.responseText));
+                const responseJson = JSON.parse(xhr.responseText);
+                if (responseJson.errors) {
+                  showError(responseJson.errors);
+                } else {
+                  showResults(responseJson);
+                }
               } else {
                 showError(xhr.responseText);
               }
@@ -185,11 +190,14 @@ query {
 
         body.appendTo(card);
 
+        var containsResults = false;
+
         if ('settings' in project.config) {
           $("<div />", {
             "class": "col-12 bg-info",
             text: JSON.stringify(project.config.settings)
           }).appendTo(body);
+          containsResults = true;
         }
 
         if ('repositories' in project.config) {
@@ -198,12 +206,14 @@ query {
               "class": "col-12 bg-success",
               text: JSON.stringify(repo)
             }).appendTo(body);
+            containsResults = true;
           }
         }
 
-        card.appendTo(outer);
-
-        outer.appendTo($('#result'))
+        if (containsResults) {
+          card.appendTo(outer);
+          outer.appendTo($('#result'))
+        }
       }
     };
 
@@ -214,10 +224,18 @@ query {
           "class": "card bg-warning",
         });
 
-      var body = $("<div />", {
-        "class": "card-body",
-        text: text
-      }).appendTo(card);
+      if (Array.isArray(text)) {
+        const error = text[0];
+        var body = $("<div />", {
+          "class": "card-body",
+          text: error.message
+        }).appendTo(card);
+      } else {
+        var body = $("<div />", {
+          "class": "card-body",
+          text: text
+        }).appendTo(card);
+      }
 
       card.appendTo($('#result'))
     };

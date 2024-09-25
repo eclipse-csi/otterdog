@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 from typing import Any
 
-import jq  # type: ignore
 from ariadne import (
     ObjectType,
     QueryType,
@@ -20,6 +19,7 @@ from ariadne import (
     snake_case_fallback_resolvers,
 )
 
+from otterdog.utils import query_json
 from otterdog.webapp.db.service import get_configurations
 
 query = QueryType()
@@ -35,7 +35,7 @@ async def resolve_projects(*_, filter=None):
     if filter:
         filter = filter.replace("'", '"')
         data = list(map(lambda x: x.model_dump(exclude="id"), configurations))
-        result = jq.compile(f".[] | {filter}").input(data).all()
+        result = query_json(f"$[{filter}][]", data)
         if result:
             configurations = result
         else:
@@ -50,7 +50,7 @@ async def resolve_repositories(config: dict[str, Any], *_, filter=None):
 
     if filter:
         filter = filter.replace("'", '"')
-        result = jq.compile(f".[] | {filter}").input(repositories).all()
+        result = query_json(f"$[{filter}][]", repositories)
         if result:
             repositories = result
         else:
