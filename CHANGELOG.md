@@ -17,6 +17,7 @@
 
 ### Changed
 
+- Use `jsonata` instead of `jq` for querying json objects.
 - Use `ghproxy` by default as transparent cache / proxy when accessing the GitHub API from the webapp. ([#274](https://github.com/eclipse-csi/otterdog/issues/274))
 - Changed parameter `--update-filter` for various operations from a python regular expression to a shell pattern format.
 - Changed operation `import` to mask webhook urls in a similar way as in the previous configuration if present.
