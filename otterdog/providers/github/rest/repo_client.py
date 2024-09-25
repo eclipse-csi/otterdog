@@ -16,7 +16,6 @@ from typing import Any
 
 import aiofiles
 import chevron
-import jq  # type: ignore
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
@@ -25,6 +24,7 @@ from otterdog.utils import (
     is_set_and_present,
     print_debug,
     print_trace,
+    query_json,
 )
 
 
@@ -676,9 +676,7 @@ class RepoClient(RestClient):
             environments = response["environments"]
             for env in environments:
                 env_name = env["name"]
-                has_branch_policies = (
-                    jq.compile(".deployment_branch_policy.custom_branch_policies // false").input(env).first()
-                )
+                has_branch_policies = bool(query_json("deployment_branch_policy.custom_branch_policies", env) or False)
 
                 if has_branch_policies:
                     env["branch_policies"] = await self._get_deployment_branch_policies(org_id, repo_name, env_name)
