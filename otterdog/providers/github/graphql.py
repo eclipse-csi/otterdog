@@ -10,7 +10,6 @@ import json
 from functools import cache
 from typing import Any
 
-import jq  # type: ignore
 from aiohttp.client import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_retry import ExponentialRetry, RetryClient
 from importlib_resources import files
@@ -19,7 +18,7 @@ from otterdog import resources
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.stats import RequestStatistics
-from otterdog.utils import is_trace_enabled, print_debug, print_trace
+from otterdog.utils import is_trace_enabled, print_debug, print_trace, query_json
 
 
 class GraphQLClient:
@@ -126,11 +125,11 @@ class GraphQLClient:
 
         nodes = value["nodes"]
         all_actors = self._transform_actors(nodes)
-        has_more = bool(jq.compile(".pageInfo.hasNextPage // false").input(value).first())
+        has_more = bool(query_json("pageInfo.hasNextPage", value) or False)
 
         if has_more is True:
             variables = {"branchProtectionRuleId": branch_protection_rule["id"]}
-            more_actors = await self._run_paged_query(variables, query_file, f".data.node.{input_key}")
+            more_actors = await self._run_paged_query(variables, query_file, f"data.node.{input_key}")
             all_actors.extend(self._transform_actors(more_actors))
 
         branch_protection_rule[output_key] = all_actors
@@ -224,7 +223,7 @@ class GraphQLClient:
 
         variables = {"owner": org_id, "repo": repo_name, "number": issue_number}
         issue_comments = await self._run_paged_query(
-            variables, "get-issue-comments.gql", ".data.repository.pullRequest.comments"
+            variables, "get-issue-comments.gql", "data.repository.pullRequest.comments"
         )
         return issue_comments
 
@@ -249,13 +248,13 @@ class GraphQLClient:
         print_debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
 
         variables = {"owner": org_id, "user": user_login}
-        return await self._run_paged_query(variables, "get-team-membership.gql", ".data.organization.teams")
+        return await self._run_paged_query(variables, "get-team-membership.gql", "data.organization.teams")
 
     async def _run_paged_query(
         self,
         input_variables: dict[str, Any],
         query_file: str,
-        prefix_selector: str = ".data.repository.branchProtectionRules",
+        prefix_selector: str = "data.repository.branchProtectionRules",
     ) -> list[dict[str, Any]]:
         print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
@@ -273,12 +272,12 @@ class GraphQLClient:
             json_data = json.loads(body)
 
             if "data" in json_data:
-                rules_result = jq.compile(prefix_selector + ".nodes").input(json_data).first()
+                rules_result = query_json(prefix_selector + ".nodes", json_data)
 
                 for rule in rules_result:
                     result.append(rule)
 
-                page_info = jq.compile(prefix_selector + ".pageInfo").input(json_data).first()
+                page_info = query_json(prefix_selector + ".pageInfo", json_data)
 
                 if page_info["hasNextPage"]:
                     end_cursor = page_info["endCursor"]

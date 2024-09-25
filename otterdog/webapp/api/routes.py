@@ -72,7 +72,6 @@ async def graphql_server():
     from .graphql import schema
 
     data = await request.get_json()
-
     success, result = await graphql(schema, data, context_value=request, debug=False)
 
     status_code = 200 if success else 400

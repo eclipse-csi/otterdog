@@ -14,14 +14,13 @@ import re
 from abc import abstractmethod
 from typing import Any, Protocol
 
-import jq  # type: ignore
-
 from . import credentials
 from .credentials import CredentialProvider
 from .credentials.bitwarden_provider import BitwardenVault
 from .credentials.inmemory_provider import InmemoryVault
 from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
+from .utils import query_json
 
 
 class OrganizationConfig:
@@ -143,11 +142,9 @@ class OtterdogConfig(SecretResolver):
         with open(config_file) as f:
             self._configuration = json.load(f)
 
-        self._jsonnet_config = jq.compile(".defaults.jsonnet // {}").input(self._configuration).first()
-        self._github_config = jq.compile(".defaults.github // {}").input(self._configuration).first()
-        self._default_credential_provider = (
-            jq.compile('.defaults.credentials.provider // ""').input(self._configuration).first()
-        )
+        self._jsonnet_config = query_json("defaults.jsonnet", self._configuration) or {}
+        self._github_config = query_json("defaults.github", self._configuration) or {}
+        self._default_credential_provider = query_json("defaults.credentials.provider", self._configuration) or ""
 
         if working_dir is None:
             self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
@@ -226,34 +223,20 @@ class OtterdogConfig(SecretResolver):
             match provider_type:
                 case "bitwarden":
                     api_token_key = (
-                        jq.compile('.defaults.bitwarden.api_token_key // "api_token_admin"')
-                        .input(self._configuration)
-                        .first()
+                        query_json("defaults.bitwarden.api_token_key", self._configuration) or "api_token_admin"
                     )
 
                     provider = BitwardenVault(api_token_key)
                     self._credential_providers[provider_type] = provider
 
                 case "pass":
-                    password_store_dir = (
-                        jq.compile('.defaults.pass.password_store_dir // ""').input(self._configuration).first()
-                    )
+                    pass_defaults = query_json("defaults.pass", self._configuration) or {}
 
-                    username_pattern = (
-                        jq.compile('.defaults.pass.username_pattern // ""').input(self._configuration).first()
-                    )
-
-                    password_pattern = (
-                        jq.compile('.defaults.pass.password_pattern // ""').input(self._configuration).first()
-                    )
-
-                    twofa_seed_pattern = (
-                        jq.compile('.defaults.pass.twofa_seed_pattern // ""').input(self._configuration).first()
-                    )
-
-                    api_token_pattern = (
-                        jq.compile('.defaults.pass.api_token_pattern // ""').input(self._configuration).first()
-                    )
+                    password_store_dir = pass_defaults.get("password_store", "")
+                    username_pattern = pass_defaults.get("username_pattern", "")
+                    password_pattern = pass_defaults.get("password_pattern", "")
+                    twofa_seed_pattern = pass_defaults.get("twofa_seed_pattern", "")
+                    api_token_pattern = pass_defaults.get("api_token_pattern", "")
 
                     provider = PassVault(
                         password_store_dir, username_pattern, password_pattern, twofa_seed_pattern, api_token_pattern

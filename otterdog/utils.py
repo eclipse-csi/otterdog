@@ -566,3 +566,12 @@ class PrettyFormatter:
             for item in value
         ]
         return "(%s)" % (",".join(items) + self.lfchar + self.htchar * indent)
+
+
+def query_json(expr: str, data: dict[str, Any]) -> Any:
+    """
+    Evaluates a jsonata expression on the given dictionary.
+    """
+    from jsonata import Jsonata  # type: ignore
+
+    return Jsonata.jsonata(expr).evaluate(data)

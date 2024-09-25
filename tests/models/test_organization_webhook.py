@@ -6,10 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import jq  # type: ignore
-
 from otterdog.models.organization_webhook import OrganizationWebhook
-from otterdog.utils import UNSET, Change
+from otterdog.utils import UNSET, Change, query_json
 
 from . import ModelTest
 
@@ -56,10 +54,10 @@ class OrganizationWebhookTest(ModelTest):
         assert provider_data["active"] is True
         assert provider_data["events"] == ["push"]
 
-        assert jq.compile('.config.secret // ""').input(provider_data).first() == ""
-        assert jq.compile(".config.url").input(provider_data).first() == "https://www.example.org"
-        assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
-        assert jq.compile(".config.content_type").input(provider_data).first() == "form"
+        assert query_json("config.secret", provider_data) or "" == ""
+        assert query_json("config.url", provider_data) == "https://www.example.org"
+        assert query_json("config.insecure_ssl", provider_data) == "0"
+        assert query_json("config.content_type", provider_data) == "form"
 
     async def test_changes_to_provider(self):
         current = OrganizationWebhook.from_model_data(self.model_data)
@@ -73,7 +71,7 @@ class OrganizationWebhookTest(ModelTest):
 
         assert len(provider_data) == 2
         assert provider_data["active"] is True
-        assert jq.compile(".config.insecure_ssl").input(provider_data).first() == "0"
+        assert query_json("config.insecure_ssl", provider_data) == "0"
 
     def test_patch(self):
         current = OrganizationWebhook.from_model_data(self.model_data)
