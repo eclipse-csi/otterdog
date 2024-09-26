@@ -4,6 +4,7 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
+    "target": { "type": "string" },
     "enforcement": { "type": "string" },
 
     "bypass_actors": {
@@ -47,7 +48,9 @@
     "required_status_checks": {
       "type": "array",
       "items": { "type": "string" }
-    }
+    },
+
+    "required_merge_queue": { "$ref": "#/definitions/merge_queue_or_null" }
   },
 
   "required": [ "name", "enforcement" ],
@@ -59,6 +62,25 @@
           { "type": "integer" },
           { "type": "null" }
         ]
+    },
+    "merge_queue_or_null": {
+      "anyOf": [
+          { "$ref": "#/definitions/merge_queue" },
+          { "type": "null" }
+        ]
+    },
+    "merge_queue": {
+      "type": "object",
+      "properties": {
+        "merge_method": { "type": "string" },
+        "build_concurrency": { "type": "integer" },
+        "min_group_size": { "type": "integer" },
+        "max_group_size": { "type": "integer" },
+        "wait_time_for_minimum_group_size": { "type": "integer" },
+        "status_check_timeout": { "type": "integer" },
+        "requires_all_group_entries_to_pass_required_checks": { "type": "boolean" }
+      },
+      "additionalProperties": false
     }
   }
 }
