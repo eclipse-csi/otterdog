@@ -40,6 +40,7 @@ class JsonnetConfig:
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
+    create_merge_queue = "newMergeQueue"
 
     def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
         self._org_id = org_id
@@ -66,6 +67,7 @@ class JsonnetConfig:
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
+        self._default_merge_queue_config: dict[str, Any] | None = None
 
         self._initialized = False
 
@@ -176,6 +178,14 @@ class JsonnetConfig:
             print_warn("no default environment config found, environments will be skipped")
             self._default_environment_config = None
 
+        try:
+            # load the default merge queue config
+            merge_queue_snippet = f"(import '{template_file}').{self.create_merge_queue}()"
+            self._default_merge_queue_config = jsonnet_evaluate_snippet(merge_queue_snippet)
+        except RuntimeError:
+            print_warn("no default merge queue config found, merge queues will be skipped")
+            self._default_merge_queue_config = None
+
         self._initialized = True
 
     @property
@@ -233,6 +243,10 @@ class JsonnetConfig:
     @property
     def default_environment_config(self):
         return self._default_environment_config
+
+    @property
+    def default_merge_queue_config(self):
+        return self._default_merge_queue_config
 
     @property
     def template_dir(self) -> str:

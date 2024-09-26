@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added support for setting `required_merge_queue` in repository rulesets. ([#282](https://github.com/eclipse-csi/otterdog/issues/282))
+- Added support for setting `target` in repository rulesets.
 - Added support for parameter `--repo-filter` for `plan` and `apply` operations. ([#275](https://github.com/eclipse-csi/otterdog/issues/275))
 - Added support for tags for deployment policies in `environments`. ([#268](https://github.com/eclipse-csi/otterdog/issues/268))
 - Added support for `custom properties`. ([#256](https://github.com/eclipse-csi/otterdog/issues/256))

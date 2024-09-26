@@ -393,9 +393,6 @@ class RepoClient(RestClient):
         name = data["name"]
         print_debug(f"adding repo ruleset with name '{name}' for repo '{org_id}/{repo_name}'")
 
-        # TODO: currently we only support rulesets targetting branches
-        data["target"] = "branch"
-
         try:
             await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/rulesets", data)
             print_debug(f"added repo ruleset with name '{name}'")
