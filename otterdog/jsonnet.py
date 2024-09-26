@@ -40,6 +40,7 @@ class JsonnetConfig:
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
+    create_pull_request = "newPullRequest"
     create_merge_queue = "newMergeQueue"
 
     def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
@@ -67,6 +68,7 @@ class JsonnetConfig:
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
+        self._default_pull_request_config: dict[str, Any] | None = None
         self._default_merge_queue_config: dict[str, Any] | None = None
 
         self._initialized = False
@@ -179,6 +181,14 @@ class JsonnetConfig:
             self._default_environment_config = None
 
         try:
+            # load the default pull request config
+            pull_request_snippet = f"(import '{template_file}').{self.create_pull_request}()"
+            self._default_merge_queue_config = jsonnet_evaluate_snippet(pull_request_snippet)
+        except RuntimeError:
+            print_warn("no default pull request config found, pull requests will be skipped")
+            self._default_pull_request_config = None
+
+        try:
             # load the default merge queue config
             merge_queue_snippet = f"(import '{template_file}').{self.create_merge_queue}()"
             self._default_merge_queue_config = jsonnet_evaluate_snippet(merge_queue_snippet)
@@ -243,6 +253,10 @@ class JsonnetConfig:
     @property
     def default_environment_config(self):
         return self._default_environment_config
+
+    @property
+    def default_pull_request_config(self):
+        return self._default_pull_request_config
 
     @property
     def default_merge_queue_config(self):

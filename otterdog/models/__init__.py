@@ -202,6 +202,7 @@ class EmbeddedModelObject(ABC):
         printer: IndentingPrinter,
         jsonnet_config: JsonnetConfig,
         context: PatchContext,
+        extend: bool,
         default_object: EmbeddedModelObject,
     ) -> None:
         patch = self.get_patch_to(default_object)
@@ -209,7 +210,9 @@ class EmbeddedModelObject(ABC):
         template_function = self.get_jsonnet_template_function(jsonnet_config, False)
         assert template_function is not None
 
-        printer.print(f"{template_function}()")
+        if extend is False:
+            printer.print(f" {template_function}()")
+
         write_patch_object_as_json(patch, printer)
 
     @classmethod
