@@ -6,12 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from otterdog.credentials import CredentialProvider, Credentials
 
+if TYPE_CHECKING:
+    from typing import Any
 
-class InmemoryVault(CredentialProvider):
+
+class InMemoryVault(CredentialProvider):
     """
     A simple credential provider for storing tokens in memory.
     """

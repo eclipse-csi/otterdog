@@ -6,9 +6,14 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from . import CacheStrategy
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 def ghproxy_cache(uri: str) -> CacheStrategy:

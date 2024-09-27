@@ -6,20 +6,22 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import json
 from asyncio import CancelledError
-from typing import Any
+from typing import TYPE_CHECKING
 
 from importlib_resources import files
 
 from otterdog import resources
-from otterdog.credentials import Credentials
-from otterdog.providers.github.auth import token_auth
 from otterdog.utils import is_ghsa_repo, is_set_and_present, print_trace, print_warn
 
-from .graphql import GraphQLClient
-from .rest import RestApi
-from .web import WebClient
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.credentials import Credentials
+
 
 _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
 
@@ -62,6 +64,11 @@ class GitHubProvider:
 
     def _init_clients(self):
         from otterdog.cache import get_github_cache
+        from otterdog.providers.github.auth import token_auth
+
+        from .graphql import GraphQLClient
+        from .rest import RestApi
+        from .web import WebClient
 
         self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
         self.web_client = WebClient(self._credentials)

@@ -6,10 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from abc import ABC, abstractmethod
-from typing import Any
+from __future__ import annotations
 
-from aiohttp_client_cache import CacheBackend
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from aiohttp_client_cache import CacheBackend
 
 
 class CacheStrategy(ABC):

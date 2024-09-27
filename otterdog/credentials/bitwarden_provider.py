@@ -6,13 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import json
-import re
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING
 
 from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class BitwardenVault(CredentialProvider):
@@ -84,8 +88,10 @@ class BitwardenVault(CredentialProvider):
         return Credentials(username, password, totp_secret, github_token)
 
     def get_secret(self, data: str) -> str:
+        from re import split
+
         try:
-            item_id, secret_key = re.split("@", data)
+            item_id, secret_key = split("@", data)
 
             status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
             if status != 0:

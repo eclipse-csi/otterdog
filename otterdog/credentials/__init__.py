@@ -6,14 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
-import time
-from abc import abstractmethod
-from typing import Any, Protocol
+from __future__ import annotations
 
-import mintotp  # type: ignore
+import dataclasses
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Protocol
 
 from otterdog.utils import print_info, print_trace
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 @dataclasses.dataclass
@@ -45,6 +47,10 @@ class Credentials:
 
     @property
     def totp(self) -> str:
+        import time
+
+        import mintotp  # type: ignore
+
         if self._totp_secret is None:
             raise RuntimeError("totp_secret not available")
 

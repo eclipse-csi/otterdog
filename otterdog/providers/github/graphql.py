@@ -6,19 +6,23 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import json
 from functools import cache
-from typing import Any
+from typing import TYPE_CHECKING
 
 from aiohttp.client import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_retry import ExponentialRetry, RetryClient
-from importlib_resources import files
 
-from otterdog import resources
-from otterdog.providers.github.auth import AuthStrategy
-from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import is_trace_enabled, print_debug, print_trace, query_json
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.providers.github.auth import AuthStrategy
+    from otterdog.providers.github.cache import CacheStrategy
 
 
 class GraphQLClient:
@@ -349,4 +353,8 @@ class GraphQLClient:
 
 @cache
 def _get_query_from_file(query_file: str) -> str:
+    from importlib_resources import files
+
+    from otterdog import resources
+
     return files(resources).joinpath(f"graphql/{query_file}").read_text()

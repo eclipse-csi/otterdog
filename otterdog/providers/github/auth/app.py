@@ -8,15 +8,15 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
-
-from jwt import JWT, jwk_from_pem
-from jwt.utils import get_int_from_datetime
+from typing import TYPE_CHECKING
 
 from . import AuthImpl, AuthStrategy
+
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+    from typing import Any
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,8 @@ class _AppAuth(AuthImpl):
         Create a JWT authenticating as a GitHub App. See
         https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
         """
+        from jwt import JWT, jwk_from_pem
+        from jwt.utils import get_int_from_datetime
 
         # Open PEM
         with open(self.private_key, "rb") as pem_file:

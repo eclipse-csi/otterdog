@@ -17,7 +17,7 @@ from typing import Any, Protocol
 from . import credentials
 from .credentials import CredentialProvider
 from .credentials.bitwarden_provider import BitwardenVault
-from .credentials.inmemory_provider import InmemoryVault
+from .credentials.inmemory_provider import InMemoryVault
 from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
 from .utils import query_json
@@ -244,7 +244,7 @@ class OtterdogConfig(SecretResolver):
                     self._credential_providers[provider_type] = provider
 
                 case "inmemory":
-                    provider = InmemoryVault()
+                    provider = InMemoryVault()
                     self._credential_providers[provider_type] = provider
 
                 case _:

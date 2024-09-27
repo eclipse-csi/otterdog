@@ -6,17 +6,23 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import filecmp
+from typing import TYPE_CHECKING
 
 import aiofiles
 import aiofiles.ospath
 
-from otterdog.config import OrganizationConfig
-from otterdog.providers.github import GitHubProvider, RestApi
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import get_approval, style
 
 from . import Operation
 from .local_plan import LocalPlanOperation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
+    from otterdog.providers.github.rest import RestApi
 
 
 class OpenPullRequestOperation(Operation):
