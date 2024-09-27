@@ -4,6 +4,7 @@ version       = "0.8.0.dev0"
 description   = "Tool to manage GitHub organizations and their repositories."
 authors       = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
 readme        = "README.md"
+license       = "EPL-2.0"
 homepage      = "https://github.com/eclipse-csi/otterdog"
 repository    = "https://github.com/eclipse-csi/otterdog"
 documentation = "https://otterdog.readthedocs.io"
@@ -15,22 +16,22 @@ packages      = [
 
 include       = [
     "CHANGELOG.md",
-    "README.md"
+    "README.md",
+    { path = "tests", format = "sdist" }
 ]
 
 classifiers   = [
     "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
-    "Operating System :: Unix",
-    "Operating System :: POSIX",
-    "Operating System :: MacOS",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: Implementation :: CPython",
     "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: Security",
+    "Topic :: Software Development :: Version Control",
     "Topic :: System :: Systems Administration",
     "Typing :: Typed",
 ]
