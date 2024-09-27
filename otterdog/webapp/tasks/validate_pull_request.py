@@ -17,7 +17,7 @@ from quart import current_app, render_template
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
-from otterdog.providers.github import RestApi
+from otterdog.providers.github.rest import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request

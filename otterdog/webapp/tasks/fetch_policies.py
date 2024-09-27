@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass
 
-from otterdog.providers.github import RestApi
+from otterdog.providers.github.rest import RestApi
 from otterdog.utils import print_error
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (

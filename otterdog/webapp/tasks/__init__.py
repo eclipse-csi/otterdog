@@ -19,7 +19,8 @@ import aiofiles
 from quart import current_app
 
 from otterdog.config import OrganizationConfig
-from otterdog.providers.github import GitHubProvider, GraphQLClient
+from otterdog.providers.github import GitHubProvider
+from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.webapp.db.models import InstallationModel, TaskModel
