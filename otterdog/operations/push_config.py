@@ -6,19 +6,23 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import filecmp
+from __future__ import annotations
 
-import aiofiles
-import aiofiles.ospath
+import filecmp
+from typing import TYPE_CHECKING
+
+from aiofiles import open
 from git import InvalidGitRepositoryError, Repo
 from git.config import GitConfigParser
 
-from otterdog.config import OrganizationConfig
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import get_approval, style
 
 from . import Operation
 from .local_plan import LocalPlanOperation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class PushOperation(Operation):
@@ -55,11 +59,7 @@ class PushOperation(Operation):
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
-
-        if not await aiofiles.ospath.exists(org_file_name):
-            self.printer.print_error(
-                f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
-            )
+        if not await self.check_config_file_exists(org_file_name):
             return 1
 
         self.printer.level_up()
@@ -94,7 +94,7 @@ class PushOperation(Operation):
                 author_name = None
                 author_email = None
 
-            async with aiofiles.open(org_file_name, "r") as file:
+            async with open(org_file_name) as file:
                 content = await file.read()
 
             async with GitHubProvider(credentials) as provider:
@@ -166,7 +166,7 @@ class PushOperation(Operation):
             return True
 
         current_config_file = org_config.jsonnet_config.org_config_file + "-BASE"
-        async with aiofiles.open(current_config_file, "w") as file:
+        async with open(current_config_file, "w") as file:
             await file.write(current_definition)
 
         if filecmp.cmp(current_config_file, org_config.jsonnet_config.org_config_file):

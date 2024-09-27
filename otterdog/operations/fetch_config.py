@@ -6,15 +6,19 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import aiofiles
-import aiofiles.os
-import aiofiles.ospath
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
+from typing import TYPE_CHECKING
+
+from aiofiles import open, os, ospath
+
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import get_approval, style
+from otterdog.utils import style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class FetchOperation(Operation):
@@ -55,17 +59,8 @@ class FetchOperation(Operation):
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file + self.suffix
-
-        if await aiofiles.ospath.exists(org_file_name) and not self.force_processing:
-            self.printer.println()
-            self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
-            self.printer.println("  Performing this action will overwrite its contents.")
-            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
-
-            self.printer.print(f"{style('Enter a value:', bright=True)} ")
-            if not get_approval():
-                self.printer.println("\nFetch cancelled.")
-                return 1
+        if not await self.check_config_file_overwrite_if_exists(org_file_name, self.force_processing):
+            return 1
 
         self.printer.level_up()
 
@@ -96,10 +91,10 @@ class FetchOperation(Operation):
                     return 1
 
             output_dir = jsonnet_config.org_dir
-            if not await aiofiles.ospath.exists(output_dir):
-                await aiofiles.os.makedirs(output_dir)
+            if not await ospath.exists(output_dir):
+                await os.makedirs(output_dir)
 
-            async with aiofiles.open(org_file_name, "w") as file:
+            async with open(org_file_name, "w") as file:
                 await file.write(definition)
 
             if self.pull_request is not None:

@@ -6,14 +6,20 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import json
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
+import json
+from typing import TYPE_CHECKING
+
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import is_info_enabled, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig
 
 
 class ListAppsOperation(Operation):

@@ -9,19 +9,24 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import aiofiles.ospath
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import LivePatch, LivePatchContext, LivePatchType, ModelObject
+from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import Change, IndentingPrinter, style
 
 from . import Operation
 from .validate import ValidateOperation
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig, OtterdogConfig
+    from otterdog.models import ModelObject
 
 
 class DiffStatus:

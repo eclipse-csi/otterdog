@@ -6,21 +6,24 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import shutil
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-import aiofiles
-import aiofiles.os
-import aiofiles.ospath
+from aiofiles import open, os, ospath
 
-from otterdog.config import OrganizationConfig
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.webhook import Webhook
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import get_approval, style
+from otterdog.utils import style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
+    from otterdog.models.webhook import Webhook
 
 
 class ImportOperation(Operation):
@@ -52,19 +55,10 @@ class ImportOperation(Operation):
         self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
 
         org_file_name = jsonnet_config.org_config_file
+        if not await self.check_config_file_overwrite_if_exists(org_file_name, self.force_processing):
+            return 1
 
-        if await aiofiles.ospath.exists(org_file_name) and not self.force_processing:
-            self.printer.println()
-            self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
-            self.printer.println("  Performing this action will overwrite its contents.")
-            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
-
-            self.printer.print(f"{style('Enter a value:', bright=True)} ")
-            if not get_approval():
-                self.printer.println("\nImport cancelled.")
-                return 1
-
-        if await aiofiles.ospath.exists(org_file_name):
+        if await ospath.exists(org_file_name):
             sync_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
             shutil.copy(org_file_name, backup_file)
@@ -118,10 +112,10 @@ class ImportOperation(Operation):
             output = organization.to_jsonnet(jsonnet_config, context)
 
             output_dir = jsonnet_config.org_dir
-            if not await aiofiles.ospath.exists(output_dir):
-                await aiofiles.os.makedirs(output_dir)
+            if not await ospath.exists(output_dir):
+                await os.makedirs(output_dir)
 
-            async with aiofiles.open(org_file_name, "w") as file:
+            async with open(org_file_name, "w") as file:
                 await file.write(output)
 
             self.printer.println(f"Organization definition written to '{org_file_name}'.")

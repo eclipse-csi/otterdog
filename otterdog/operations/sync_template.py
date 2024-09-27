@@ -6,14 +6,18 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import aiofiles.ospath
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
+from typing import TYPE_CHECKING
+
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import associate_by_key, is_set_and_present, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class SyncTemplateOperation(Operation):
@@ -42,11 +46,7 @@ class SyncTemplateOperation(Operation):
 
         try:
             org_file_name = jsonnet_config.org_config_file
-
-            if not await aiofiles.ospath.exists(org_file_name):
-                self.printer.print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first."
-                )
+            if not await self.check_config_file_exists(org_file_name):
                 return 1
 
             try:

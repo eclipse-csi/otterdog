@@ -6,11 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from abc import ABC, abstractmethod
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
 from otterdog.utils import Change, IndentingPrinter, is_unset, style
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig, OtterdogConfig
 
 
 class Operation(ABC):
@@ -46,6 +52,35 @@ class Operation(ABC):
 
     def post_execute(self) -> None:
         pass
+
+    async def check_config_file_exists(self, file_name: str) -> bool:
+        from aiofiles import ospath
+
+        if not await ospath.exists(file_name):
+            self.printer.print_error(
+                f"configuration file '{file_name}' does not exist, run 'fetch-config' or 'import' first."
+            )
+            return False
+        else:
+            return True
+
+    async def check_config_file_overwrite_if_exists(self, file_name: str, force: bool) -> bool:
+        from aiofiles import ospath
+
+        from otterdog.utils import get_approval
+
+        if await ospath.exists(file_name) and not force:
+            self.printer.println()
+            self.printer.println(style("Configuration already exists", bright=True) + f" at '{file_name}'.")
+            self.printer.println("  Performing this action will overwrite its contents.")
+            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
+
+            self.printer.print(f"{style('Enter a value:', bright=True)} ")
+            if not get_approval():
+                self.printer.println("\nOperation cancelled.")
+                return False
+
+        return True
 
     def print_dict(
         self,

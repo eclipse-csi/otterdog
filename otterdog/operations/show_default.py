@@ -6,12 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import textwrap
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
-from otterdog.utils import jsonnet_evaluate_snippet, style
+import textwrap
+from typing import TYPE_CHECKING
+
+from otterdog.utils import style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class ShowDefaultOperation(Operation):
@@ -200,6 +205,8 @@ class ShowDefaultOperation(Operation):
 
     @staticmethod
     def evaluate(jsonnet_config, function: str):
+        from otterdog.utils import jsonnet_evaluate_snippet
+
         try:
             snippet = f"(import '{jsonnet_config.template_file}').{function}"
             return jsonnet_evaluate_snippet(snippet)

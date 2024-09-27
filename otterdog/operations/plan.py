@@ -6,14 +6,21 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OtterdogConfig
-from otterdog.models import LivePatch, ModelObject
+from typing import TYPE_CHECKING
+
+from otterdog.models import LivePatch
 from otterdog.models.webhook import Webhook
 from otterdog.utils import Change, IndentingPrinter, style
 
 from .diff_operation import DiffOperation, DiffStatus
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OtterdogConfig
+    from otterdog.models import ModelObject
 
 
 class PlanOperation(DiffOperation):
