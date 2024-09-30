@@ -232,7 +232,7 @@ class OtterdogConfig(SecretResolver):
                 case "pass":
                     pass_defaults = query_json("defaults.pass", self._configuration) or {}
 
-                    password_store_dir = pass_defaults.get("password_store", "")
+                    password_store_dir = pass_defaults.get("password_store_dir", "")
                     username_pattern = pass_defaults.get("username_pattern", "")
                     password_pattern = pass_defaults.get("password_pattern", "")
                     twofa_seed_pattern = pass_defaults.get("twofa_seed_pattern", "")
