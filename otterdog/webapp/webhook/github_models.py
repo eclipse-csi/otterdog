@@ -11,13 +11,10 @@
 from __future__ import annotations
 
 from abc import ABC
+from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 
 class Installation(BaseModel):
