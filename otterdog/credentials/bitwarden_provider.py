@@ -113,7 +113,7 @@ class BitwardenVault(CredentialProvider):
 
             return secret
         except ValueError:
-            raise RuntimeError(f"failed to parse secret data '{data}'")
+            raise RuntimeError(f"failed to parse secret data '{data}'") from None
 
     def __repr__(self):
         return f"BitWardenVault(unlocked={self.is_unlocked()})"

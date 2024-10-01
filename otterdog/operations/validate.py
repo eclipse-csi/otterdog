@@ -47,7 +47,7 @@ class ValidateOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                self.printer.print_error(f"Validation failed\nfailed to load configuration: {str(ex)}")
+                self.printer.print_error(f"Validation failed\nfailed to load configuration: {ex!s}")
                 return 1
 
             validation_infos, validation_warnings, validation_errors = self.validate(

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from asyncio import CancelledError
 from typing import TYPE_CHECKING
@@ -52,15 +53,11 @@ class GitHubProvider:
 
     async def close(self) -> None:
         if self._credentials is not None:
-            try:
+            with contextlib.suppress(CancelledError):
                 await self.rest_api.close()
-            except CancelledError:
-                pass
 
-            try:
+            with contextlib.suppress(CancelledError):
                 await self.graphql_client.close()
-            except CancelledError:
-                pass
 
     def _init_clients(self):
         from otterdog.cache import get_github_cache
@@ -380,7 +377,7 @@ class GitHubProvider:
         return repo_ids
 
     async def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
-        return list(map(lambda x: x[1][1], await self.get_actor_ids_with_type(actor_names)))
+        return [x[1][1] for x in await self.get_actor_ids_with_type(actor_names)]
 
     async def get_actor_ids_with_type(self, actor_names: list[str]) -> list[tuple[str, tuple[int, str]]]:
         result = []

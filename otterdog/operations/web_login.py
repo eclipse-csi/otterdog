@@ -40,7 +40,7 @@ class WebLoginOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             async with GitHubProvider(credentials) as provider:

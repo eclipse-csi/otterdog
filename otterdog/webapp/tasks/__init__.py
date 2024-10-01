@@ -10,20 +10,15 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Iterable
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import Any, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import aiofiles
 from quart import current_app
 
 from otterdog.config import OrganizationConfig
-from otterdog.providers.github import GitHubProvider
-from otterdog.providers.github.graphql import GraphQLClient
-from otterdog.providers.github.rest import RestApi
 from otterdog.providers.github.stats import RequestStatistics
-from otterdog.webapp.db.models import InstallationModel, TaskModel
 from otterdog.webapp.db.service import (
     create_task,
     fail_task,
@@ -36,6 +31,14 @@ from otterdog.webapp.utils import (
     get_rest_api_for_installation,
     get_temporary_base_directory,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Iterable
+
+    from otterdog.providers.github import GitHubProvider
+    from otterdog.providers.github.graphql import GraphQLClient
+    from otterdog.providers.github.rest import RestApi
+    from otterdog.webapp.db.models import InstallationModel, TaskModel
 
 T = TypeVar("T")
 
@@ -81,7 +84,8 @@ class Task(ABC, Generic[T]):
                     await finish_task(task_model)
 
             await self._cleanup()
-            return task_result
+
+        return task_result
 
     async def _pre_execute(self) -> bool:
         return True
@@ -275,12 +279,7 @@ async def get_organization_config(org_model: InstallationModel, token: str, work
 
 def contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
     # FIXME: teams that can approve must be made configurable, this is just EF specific for now
-    return any(
-        map(
-            lambda x: x.endswith("project-leads"),
-            teams,
-        )
-    )
+    return any(x.endswith("project-leads") for x in teams)
 
 
 def contains_eligible_team_for_auto_merge(teams: Iterable[str]) -> bool:
@@ -289,9 +288,4 @@ def contains_eligible_team_for_auto_merge(teams: Iterable[str]) -> bool:
     admin_teams = get_admin_teams()
 
     # FIXME: teams that can approve must be made configurable, this is just EF specific for now
-    return any(
-        map(
-            lambda x: x.endswith("project-leads") or x in admin_teams,
-            teams,
-        )
-    )
+    return any(x.endswith("project-leads") or x in admin_teams for x in teams)

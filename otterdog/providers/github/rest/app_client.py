@@ -25,8 +25,7 @@ class AppClient(RestClient):
         try:
             return await self.requester.request_json("GET", "/app")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}") from ex
 
     async def get_app_installations(self) -> list[dict[str, Any]]:
         print_debug("retrieving app installations")
@@ -34,8 +33,7 @@ class AppClient(RestClient):
         try:
             return await self.requester.request_paged_json("GET", "/app/installations")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}") from ex
 
     async def create_installation_access_token(self, installation_id: str) -> tuple[str, datetime]:
         print_debug(f"creating an installation access token for installation '{installation_id}'")
@@ -44,8 +42,7 @@ class AppClient(RestClient):
             response = await self.requester.request_json("POST", f"/app/installations/{installation_id}/access_tokens")
             return response["token"], parse_iso_date_string(response["expires_at"])
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating installation access token:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating installation access token:\n{ex}") from ex
 
     async def get_app_ids(self, app_slug: str) -> tuple[int, str]:
         print_debug("retrieving app node id")
@@ -54,5 +51,4 @@ class AppClient(RestClient):
             response = await self.requester.request_json("GET", f"/apps/{app_slug}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving app node id:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving app node id:\n{ex}") from ex

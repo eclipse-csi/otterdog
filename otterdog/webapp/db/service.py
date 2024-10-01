@@ -10,20 +10,17 @@ from __future__ import annotations
 
 import dataclasses
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 from odmantic import query
-from odmantic.query import QueryExpression
 from quart import current_app
 
-from otterdog.config import OtterdogConfig
 from otterdog.webapp import mongo
-from otterdog.webapp.policies import Policy
 from otterdog.webapp.utils import (
     current_utc_time,
     get_rest_api_for_app,
     refresh_global_policies,
 )
-from otterdog.webapp.webhook.github_models import PullRequest
 
 from .models import (
     ApplyStatus,
@@ -40,6 +37,13 @@ from .models import (
     TaskStatus,
     UserModel,
 )
+
+if TYPE_CHECKING:
+    from odmantic.query import QueryExpression
+
+    from otterdog.config import OtterdogConfig
+    from otterdog.webapp.policies import Policy
+    from otterdog.webapp.webhook.github_models import PullRequest
 
 logger = getLogger(__name__)
 
@@ -92,7 +96,7 @@ async def update_installations_from_config(
 ) -> None:
     logger.info("updating installations from otterdog config")
 
-    existing_installations = set(map(lambda x: x.github_id, await get_installations()))
+    existing_installations = {x.github_id for x in await get_installations()}
 
     projects_to_update: set[str] = set()
 
@@ -149,7 +153,7 @@ async def update_installations_from_config(
 
 
 async def cleanup_data() -> None:
-    valid_orgs = list(map(lambda x: x.github_id, await get_installations()))
+    valid_orgs = [x.github_id for x in await get_installations()]
     await cleanup_pull_requests(valid_orgs)
     await cleanup_statistics(valid_orgs)
     await cleanup_configurations(valid_orgs)

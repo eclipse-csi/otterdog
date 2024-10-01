@@ -26,7 +26,7 @@ explorer_html = ExplorerGraphiQL(title="Otterdog GraphQL").html(None)
 @blueprint.route("/organizations")
 async def organizations():
     installations = await get_installations()
-    result = list(map(lambda x: x.model_dump(include={"github_id", "project_name"}), installations))
+    result = [x.model_dump(include={"github_id", "project_name"}) for x in installations]
     return jsonify(result)
 
 
@@ -51,14 +51,14 @@ async def project(project_name: str):
 @blueprint.route("/tasks")
 async def tasks():
     paged_tasks, count = await get_tasks_paged(request.args.to_dict())
-    result = {"data": list(map(lambda x: x.model_dump(exclude={"id"}), paged_tasks)), "itemsCount": count}
+    result = {"data": [x.model_dump(exclude={"id"}) for x in paged_tasks], "itemsCount": count}
     return jsonify(result)
 
 
 @blueprint.route("/pullrequests/merged")
 async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
-    result = {"data": list(map(lambda x: x.model_dump(), paged_pull_requests)), "itemsCount": count}
+    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
     return jsonify(result)
 
 

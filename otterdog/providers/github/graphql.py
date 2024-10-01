@@ -317,7 +317,7 @@ class GraphQLClient:
             status = response.status
 
             if status == 403 or status == 429:
-                print(f"graphql '{method}' result = ({status}, {text})")
+                print_trace(f"graphql '{method}' result = ({status}, {text})")
                 raise RuntimeError("failed running graphql query, hitting rate limit")
 
             self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))

@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, ModelObject, PatchContext, ValidationContext
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     IndentingPrinter,
@@ -24,6 +22,10 @@ from otterdog.utils import (
     is_unset,
     write_patch_object_as_json,
 )
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -108,7 +110,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
@@ -118,7 +120,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         mapping.update(
             {
                 "allow_github_owned_actions": OptionalS("github_owned_allowed", default=None),

@@ -38,8 +38,7 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving simple data for repo '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving simple data for repo '{repo_name}':\n{ex}") from ex
 
     async def get_default_branch(self, org_id: str, repo_name: str) -> str:
         print_debug(f"retrieving default branch for repo '{org_id}/{repo_name}'")
@@ -68,8 +67,7 @@ class RepoClient(RestClient):
 
             return repo_data
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving data for repo '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving data for repo '{repo_name}':\n{ex}") from ex
 
     async def get_repo_by_id(self, repo_id: int) -> dict[str, Any]:
         print_debug(f"retrieving repo by id for '{repo_id}'")
@@ -77,8 +75,7 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repositories/{repo_id}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving data for repo '{repo_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving data for repo '{repo_id}':\n{ex}") from ex
 
     async def update_repo(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating repo settings for repo '{org_id}/{repo_name}'")
@@ -95,30 +92,11 @@ class RepoClient(RestClient):
         else:
             private_vulnerability_reporting = None
 
-        if "topics" in data:
-            topics = list(data.pop("topics"))
-        else:
-            topics = None
-
-        if "custom_properties" in data:
-            custom_properties = list(data.pop("custom_properties"))
-        else:
-            custom_properties = None
-
-        if "gh_pages" in data:
-            gh_pages = data.pop("gh_pages")
-        else:
-            gh_pages = None
-
-        if "code_scanning_default_config" in data:
-            code_scanning = data.pop("code_scanning_default_config")
-        else:
-            code_scanning = None
-
-        if "default_branch" in data:
-            default_branch = data.pop("default_branch")
-        else:
-            default_branch = None
+        topics = list(data.pop("topics")) if "topics" in data else None
+        custom_properties = list(data.pop("custom_properties")) if "custom_properties" in data else None
+        gh_pages = data.pop("gh_pages") if "gh_pages" in data else None
+        code_scanning = data.pop("code_scanning_default_config") if "code_scanning_default_config" in data else None
+        default_branch = data.pop("default_branch") if "default_branch" in data else None
 
         if changes > 0:
             try:
@@ -144,8 +122,7 @@ class RepoClient(RestClient):
 
                 print_debug(f"updated {changes} repo setting(s) for repo '{repo_name}'")
             except GitHubException as ex:
-                tb = ex.__traceback__
-                raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}").with_traceback(tb)
+                raise RuntimeError(f"failed to update settings for repo '{repo_name}':\n{ex}") from ex
 
     async def add_repo(
         self,
@@ -161,7 +138,7 @@ class RepoClient(RestClient):
 
         if is_set_and_present(forked_repository):
             print_debug(f"forking repo '{forked_repository}' to '{org_id}/{repo_name}'")
-            upstream_owner, upstream_repo = re.split("/", forked_repository, 1)
+            upstream_owner, upstream_repo = re.split("/", forked_repository, maxsplit=1)
 
             try:
                 fork_data = {
@@ -185,14 +162,11 @@ class RepoClient(RestClient):
                 print_debug(f"created repo with name '{repo_name}' from template '{template_repository}'")
                 return
             except GitHubException as ex:
-                tb = ex.__traceback__
-                raise RuntimeError(
-                    f"failed to fork repo '{repo_name}' from repo '{forked_repository}':\n{ex}"
-                ).with_traceback(tb)
+                raise RuntimeError(f"failed to fork repo '{repo_name}' from repo '{forked_repository}':\n{ex}") from ex
 
         if is_set_and_present(template_repository):
             print_debug(f"creating repo '{org_id}/{repo_name}' with template '{template_repository}'")
-            template_owner, template_repo = re.split("/", template_repository, 1)
+            template_owner, template_repo = re.split("/", template_repository, maxsplit=1)
 
             try:
                 template_data = {
@@ -246,10 +220,7 @@ class RepoClient(RestClient):
 
                 return
             except GitHubException as ex:
-                tb = ex.__traceback__
-                raise RuntimeError(
-                    f"failed to create repo from template '{template_repository}':\n{ex}"
-                ).with_traceback(tb)
+                raise RuntimeError(f"failed to create repo from template '{template_repository}':\n{ex}") from ex
 
         print_debug(f"creating repo '{org_id}/{repo_name}'")
 
@@ -283,8 +254,7 @@ class RepoClient(RestClient):
             self._remove_already_active_settings(update_data, result)
             await self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_webhook_id(self, org_id: str, repo_name: str, url: str) -> str:
         print_debug(f"retrieving id for repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
@@ -303,8 +273,7 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/hooks")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving webhooks for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_webhook(self, org_id: str, repo_name: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         print_debug(f"updating repo webhook '{webhook_id}' for repo '{org_id}/{repo_name}'")
@@ -313,8 +282,7 @@ class RepoClient(RestClient):
             await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}/hooks/{webhook_id}", webhook)
             print_debug(f"updated repo webhook '{webhook_id}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to update repo webhook {webhook_id}:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update repo webhook {webhook_id}:\n{ex}") from ex
 
     async def add_webhook(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         url = data["config"]["url"]
@@ -327,8 +295,7 @@ class RepoClient(RestClient):
             await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/hooks", data)
             print_debug(f"added repo webhook with url '{url}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to add repo webhook with url '{url}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add repo webhook with url '{url}':\n{ex}") from ex
 
     async def delete_webhook(self, org_id: str, repo_name: str, webhook_id: int, url: str) -> None:
         print_debug(f"deleting repo webhook with url '{url}' for repo '{org_id}/{repo_name}'")
@@ -364,8 +331,7 @@ class RepoClient(RestClient):
                 result.append(await self.get_ruleset(org_id, repo_name, str(ruleset["id"])))
             return result
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving rulesets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving rulesets for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_ruleset(self, org_id: str, repo_name: str, ruleset_id: str) -> dict[str, Any]:
         print_debug(f"retrieving ruleset '{ruleset_id}' for repo '{org_id}/{repo_name}'")
@@ -376,8 +342,7 @@ class RepoClient(RestClient):
                 "GET", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}", params=params
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving ruleset for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving ruleset for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, ruleset: dict[str, Any]) -> None:
         print_debug(f"updating repo ruleset '{ruleset_id}' for repo '{org_id}/{repo_name}'")
@@ -386,8 +351,7 @@ class RepoClient(RestClient):
             await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}", ruleset)
             print_debug(f"updated repo ruleset '{ruleset_id}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to update repo ruleset {ruleset_id}:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update repo ruleset {ruleset_id}:\n{ex}") from ex
 
     async def add_ruleset(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         name = data["name"]
@@ -397,8 +361,7 @@ class RepoClient(RestClient):
             await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/rulesets", data)
             print_debug(f"added repo ruleset with name '{name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to add repo ruleset with name '{name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add repo ruleset with name '{name}':\n{ex}") from ex
 
     async def delete_ruleset(self, org_id: str, repo_name: str, ruleset_id: int, name: str) -> None:
         print_debug(f"deleting repo ruleset with name '{name}' for repo '{org_id}/{repo_name}'")
@@ -421,8 +384,7 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/readme")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to get readme for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to get readme for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def delete_repo(self, org_id: str, repo_name: str) -> None:
         print_debug(f"deleting repo '{org_id}/{repo_name}'")
@@ -469,7 +431,7 @@ class RepoClient(RestClient):
 
                 time.sleep(1)
 
-            current_gh_pages: Any = current_repo_data.get("gh_pages", None)
+            current_gh_pages: Any = current_repo_data.get("gh_pages")
             if current_gh_pages is not None:
                 has_changes = False
                 for k, v in gh_pages.items():
@@ -482,7 +444,7 @@ class RepoClient(RestClient):
                     print_trace(f"github pages config for '{org_id}/{repo_name}' is already up-to-date")
                     return
 
-        build_type = gh_pages.get("build_type", None)
+        build_type = gh_pages.get("build_type")
         if build_type == "disabled":
             status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
             if status != 204:
@@ -493,7 +455,7 @@ class RepoClient(RestClient):
             status, _ = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
             if status != 200:
                 # check if the branch already exists
-                source: Any = gh_pages.get("source", None)
+                source: Any = gh_pages.get("source")
                 if source is not None:
                     branch = source.get("branch", None)
                     if branch is not None:
@@ -503,7 +465,7 @@ class RepoClient(RestClient):
                             print_debug(f"repo '{repo_name}' not yet initialized, skipping GH pages config")
                             return
 
-                        existing_branch_names = list(map(lambda x: x["name"], existing_branches))
+                        existing_branch_names = [x["name"] for x in existing_branches]
                         if branch not in existing_branch_names:
                             gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
                             gh_pages["source"]["branch"] = existing_branch_names[0]
@@ -540,15 +502,12 @@ class RepoClient(RestClient):
             )
             print_debug(f"updated code scanning config for repo '{org_id}/{repo_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed to update code scanning config for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed to update code scanning config for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
         print_debug(f"updating default branch for '{org_id}/{repo_name}'")
         existing_branches = await self.get_branches(org_id, repo_name)
-        existing_branch_names = list(map(lambda x: x["name"], existing_branches))
+        existing_branch_names = [x["name"] for x in existing_branches]
 
         if len(existing_branches) == 0:
             print_debug(f"skip updating of default branch for empty repo '{org_id}/{repo_name}'")
@@ -567,10 +526,7 @@ class RepoClient(RestClient):
                 )
                 print_debug(f"renamed default branch for '{org_id}/{repo_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed to update default branch for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed to update default branch for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _fill_vulnerability_alerts(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         print_debug(f"retrieving repo vulnerability alerts for '{org_id}/{repo_name}'")
@@ -584,10 +540,7 @@ class RepoClient(RestClient):
     async def _update_vulnerability_alerts(self, org_id: str, repo_name: str, vulnerability_reports: bool) -> None:
         print_debug(f"updating repo vulnerability alerts for '{org_id}/{repo_name}'")
 
-        if vulnerability_reports is True:
-            method = "PUT"
-        else:
-            method = "DELETE"
+        method = "PUT" if vulnerability_reports is True else "DELETE"
 
         status, body = await self.requester.request_raw(method, f"/repos/{org_id}/{repo_name}/vulnerability-alerts")
 
@@ -611,10 +564,7 @@ class RepoClient(RestClient):
     ) -> None:
         print_debug(f"updating repo private vulnerability reporting for '{org_id}/{repo_name}'")
 
-        if private_vulnerability_reporting_enabled is True:
-            method = "PUT"
-        else:
-            method = "DELETE"
+        method = "PUT" if private_vulnerability_reporting_enabled is True else "DELETE"
 
         status, body = await self.requester.request_raw(
             method, f"/repos/{org_id}/{repo_name}/private-vulnerability-reporting"
@@ -634,8 +584,7 @@ class RepoClient(RestClient):
             response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/topics")
             repo_data["topics"] = response.get("names", [])
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving topics for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving topics for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_topics(self, org_id: str, repo_name: str, topics: list[str]) -> None:
         print_debug(f"updating repo topics for '{org_id}/{repo_name}'")
@@ -650,10 +599,7 @@ class RepoClient(RestClient):
             response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/properties/values")
             repo_data["custom_properties"] = response
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed retrieving custom properties for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed retrieving custom properties for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_custom_properties(
         self, org_id: str, repo_name: str, custom_properties: list[dict[str, str | list[str]]]
@@ -675,8 +621,7 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/branches")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving environments for repo '{org_id}/{repo_name}'")
@@ -702,10 +647,7 @@ class RepoClient(RestClient):
         if "name" in env:
             env.pop("name")
 
-        if "branch_policies" in env:
-            branch_policies = env.pop("branch_policies")
-        else:
-            branch_policies = None
+        branch_policies = env.pop("branch_policies") if "branch_policies" in env else None
 
         try:
             await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/environments/{env_name}", env)
@@ -715,8 +657,7 @@ class RepoClient(RestClient):
 
             print_debug(f"updated repo environment '{env_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to update repo environment '{env_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update repo environment '{env_name}':\n{ex}") from ex
 
     async def add_environment(self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]) -> None:
         print_debug(f"adding environment '{env_name}' for repo '{org_id}/{repo_name}'")
@@ -741,8 +682,7 @@ class RepoClient(RestClient):
             response = await self.requester.request_json("GET", url)
             return response["branch_policies"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving deployment branch policies:\n{ex}") from ex
 
     async def _update_deployment_branch_policies(
         self, org_id: str, repo_name: str, env_name: str, branch_policies: list[str]
@@ -771,14 +711,13 @@ class RepoClient(RestClient):
                 else:
                     await self._create_deployment_branch_policy(org_id, repo_name, env_name, policy)
 
-            for policy_name, policy_dict in current_branch_policies_by_name.items():
+            for _policy_name, policy_dict in current_branch_policies_by_name.items():
                 await self._delete_deployment_branch_policy(org_id, repo_name, env_name, policy_dict["id"])
 
             print_debug(f"updated deployment branch policies for env '{env_name}'")
 
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating deployment branch policies:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating deployment branch policies:\n{ex}") from ex
 
     async def _create_deployment_branch_policy(
         self, org_id: str, repo_name: str, env_name: str, name_and_type: str
@@ -792,8 +731,7 @@ class RepoClient(RestClient):
             await self.requester.request_json("POST", url, data)
             print_debug(f"created deployment branch policy for env '{env_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating deployment branch policy:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating deployment branch policy:\n{ex}") from ex
 
     async def _delete_deployment_branch_policy(
         self, org_id: str, repo_name: str, env_name: str, policy_id: int
@@ -818,8 +756,7 @@ class RepoClient(RestClient):
             else:
                 return []
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
         print_debug(f"updating repo secret '{secret_name}' for repo '{org_id}/{repo_name}'")
@@ -885,8 +822,7 @@ class RepoClient(RestClient):
             else:
                 return []
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving variables for repo '{org_id}/{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving variables for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_variable(self, org_id: str, repo_name: str, variable_name: str, variable: dict[str, Any]) -> None:
         print_debug(f"updating repo variable '{variable_name}' for repo '{org_id}/{repo_name}'")
@@ -940,10 +876,7 @@ class RepoClient(RestClient):
             permissions = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions")
             workflow_settings.update(permissions)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
         allowed_actions = permissions.get("allowed_actions", "none")
         if allowed_actions == "selected":
@@ -994,10 +927,7 @@ class RepoClient(RestClient):
                 "GET", f"/repos/{org_id}/{repo_name}/actions/permissions/selected-actions"
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed retrieving allowed actions for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed retrieving allowed actions for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_selected_actions_for_workflow_settings(
         self, org_id: str, repo_name: str, data: dict[str, Any]
@@ -1019,10 +949,9 @@ class RepoClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/permissions/workflow")
         except GitHubException as ex:
-            tb = ex.__traceback__
             raise RuntimeError(
                 f"failed retrieving default workflow permissions for repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            ) from ex
 
     async def _update_default_workflow_permissions(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating default workflow permissions for repo '{org_id}/{repo_name}'")
@@ -1047,8 +976,7 @@ class RepoClient(RestClient):
             )
             return response["key_id"], response["key"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving repo public key:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving repo public key:\n{ex}") from ex
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         print_debug(f"dispatching workflow for repo '{org_id}/{repo_name}'")
@@ -1074,8 +1002,7 @@ class RepoClient(RestClient):
             response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_number}")
             return response["head"]["sha"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving ref for pull request:\n{ex}") from ex
 
     async def sync_from_template_repository(
         self,
@@ -1084,7 +1011,7 @@ class RepoClient(RestClient):
         template_repository: str,
         template_paths: list[str] | None,
     ) -> list[str]:
-        template_owner, template_repo = re.split("/", template_repository, 1)
+        template_owner, template_repo = re.split("/", template_repository, maxsplit=1)
 
         updated_files = []
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1133,7 +1060,6 @@ class RepoClient(RestClient):
                 await file.write(data)
 
         except GitHubException as ex:
-            tb = ex.__traceback__
             raise RuntimeError(
                 f"failed retrieving repository archive from " f"repo '{org_id}/{repo_name}':\n{ex}"
-            ).with_traceback(tb)
+            ) from ex

@@ -11,15 +11,17 @@ from __future__ import annotations
 import json
 import re
 import sys
-from argparse import Namespace
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generic, Literal, TextIO, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
 import click
 from colorama import Style
+
+if TYPE_CHECKING:
+    from argparse import Namespace
+    from collections.abc import Callable, Sequence
 
 T = TypeVar("T")
 
@@ -380,7 +382,7 @@ def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
     try:
         return json.loads(_gojsonnet.evaluate_file(file))
     except Exception as ex:
-        raise RuntimeError(f"failed to evaluate jsonnet file: {str(ex)}")
+        raise RuntimeError(f"failed to evaluate jsonnet file: {ex!s}") from ex
 
 
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
@@ -391,7 +393,7 @@ def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
     try:
         return json.loads(_gojsonnet.evaluate_snippet("", snippet))
     except Exception as ex:
-        raise RuntimeError(f"failed to evaluate snippet: {str(ex)}")
+        raise RuntimeError(f"failed to evaluate snippet: {ex!s}") from ex
 
 
 def get_or_default(namespace: Namespace, key: str, default: T) -> T:
@@ -444,7 +446,7 @@ def is_ghsa_repo(repo_name: str) -> bool:
 
 
 def strip_trailing_commas(lines: list[str]) -> list[str]:
-    return list(map(lambda line: line.rstrip(","), lines))
+    return [line.rstrip(",") for line in lines]
 
 
 def sort_jsonnet(lines: list[str]) -> list[str]:
@@ -453,14 +455,16 @@ def sort_jsonnet(lines: list[str]) -> list[str]:
 
     for line in lines:
         trimmed_line = line.rstrip().rstrip(",")
-        if trimmed_line.endswith("{") or trimmed_line.endswith("["):
+        if trimmed_line.endswith(("{", "[")):
             current_node: list[tuple[str, Any]] = []
             object_stack[-1].append((line, current_node))
             object_stack.append(current_node)
-        elif trimmed_line.endswith("}") and "{" not in trimmed_line:
-            object_stack[-1].append((line, None))
-            object_stack.pop()
-        elif trimmed_line.endswith("]") and "[" not in trimmed_line:
+        elif (
+            trimmed_line.endswith("}")
+            and "{" not in trimmed_line
+            or trimmed_line.endswith("]")
+            and "[" not in trimmed_line
+        ):
             object_stack[-1].append((line, None))
             object_stack.pop()
         else:
@@ -531,10 +535,7 @@ class PrettyFormatter:
         if len(value) == 0:
             return "{}"
 
-        if self.key_align == -1:
-            key_align = max(map(lambda x: len(repr(x)), value.keys())) + 1
-        else:
-            key_align = self.key_align
+        key_align = max(len(repr(x)) for x in value) + 1 if self.key_align == -1 else self.key_align
 
         items = [
             self.lfchar

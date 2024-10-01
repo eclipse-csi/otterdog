@@ -208,7 +208,7 @@ class JsonnetConfig:
             snippet = f"(import '{self.template_file}').{self.create_org}('{org_id}')"
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
-            raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}")
+            raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}") from ex
 
     @property
     def default_org_custom_property_config(self):

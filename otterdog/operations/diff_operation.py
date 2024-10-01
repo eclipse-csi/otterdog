@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Protocol
 
 import aiofiles.ospath
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
@@ -26,6 +25,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from otterdog.config import OrganizationConfig, OtterdogConfig
+    from otterdog.jsonnet import JsonnetConfig
     from otterdog.models import ModelObject
 
 
@@ -102,7 +102,7 @@ class DiffOperation(Operation):
         try:
             self._gh_client = self.setup_github_client(org_config)
         except RuntimeError as e:
-            self.printer.print_error(f"invalid credentials\n{str(e)}")
+            self.printer.print_error(f"invalid credentials\n{e!s}")
             return 1
 
         self.printer.level_up()
@@ -110,7 +110,7 @@ class DiffOperation(Operation):
         try:
             return await self.generate_diff(org_config)
         except RuntimeError as e:
-            self.printer.print_error(f"planning aborted: {str(e)}")
+            self.printer.print_error(f"planning aborted: {e!s}")
             return 1
         finally:
             self.printer.level_down()
@@ -150,7 +150,7 @@ class DiffOperation(Operation):
         try:
             expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{str(e)}")
+            self.printer.print_error(f"failed to load configuration\n{e!s}")
             return 1
 
         # We validate the configuration first and only calculate a plan if
@@ -173,7 +173,7 @@ class DiffOperation(Operation):
         try:
             current_org = await self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load current configuration\n{str(e)}")
+            self.printer.print_error(f"failed to load current configuration\n{e!s}")
             return 1
 
         expected_org, current_org = self.preprocess_orgs(expected_org, current_org)

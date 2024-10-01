@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from collections.abc import Callable, Iterator
-from typing import Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -26,7 +24,6 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     Change,
@@ -46,6 +43,12 @@ from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -181,7 +184,7 @@ class Repository(ModelObject):
         return "repository"
 
     def get_all_names(self) -> list[str]:
-        return [self.name] + self.aliases
+        return [self.name, *self.aliases]
 
     def get_all_key_values(self) -> list[Any]:
         return self.get_all_names()
@@ -356,7 +359,7 @@ class Repository(ModelObject):
 
         if is_set_and_present(self.custom_properties):
             defined_properties = associate_by_key(org_settings.custom_properties, lambda x: x.name)
-            for k, v in self.custom_properties.items():
+            for k, _v in self.custom_properties.items():
                 if k not in defined_properties:
                     context.add_failure(
                         FailureType.ERROR,
@@ -485,7 +488,7 @@ class Repository(ModelObject):
         return language in cls._valid_code_scanning_languages
 
     def _valid_code_scanning_languages_as_string(self) -> str:
-        return " | ".join(map(lambda x: f'"{x}"', self._valid_code_scanning_languages))
+        return " | ".join(f'"{x}"' for x in self._valid_code_scanning_languages)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
@@ -560,7 +563,7 @@ class Repository(ModelObject):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> Repository:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
         mapping.update(
             {
@@ -590,7 +593,7 @@ class Repository(ModelObject):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
         def status_to_bool(status):
             if status == "enabled":
@@ -695,7 +698,7 @@ class Repository(ModelObject):
             mapping.pop("gh_pages_build_type")
             gh_pages_mapping["build_type"] = S("gh_pages_build_type")
 
-        gh_pages_build_type = data.get("gh_pages_build_type", None)
+        gh_pages_build_type = data.get("gh_pages_build_type")
 
         if gh_pages_build_type is None or gh_pages_build_type == "legacy":
             gh_pages_legacy_mapping = {}
@@ -944,7 +947,7 @@ class Repository(ModelObject):
                 assert isinstance(to_value, dict)
                 assert change.to_value is not None
 
-                for k, v in from_value.items():
+                for k, _v in from_value.items():
                     if k not in to_value:
                         change.to_value[k] = None
 

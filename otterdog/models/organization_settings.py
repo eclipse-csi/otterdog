@@ -9,12 +9,10 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -25,7 +23,6 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     Change,
@@ -38,6 +35,12 @@ from otterdog.utils import (
 
 from .custom_property import CustomProperty
 from .organization_workflow_settings import OrganizationWorkflowSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -143,7 +146,7 @@ class OrganizationSettings(ModelObject):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
         mapping.update(
             {
@@ -166,7 +169,7 @@ class OrganizationSettings(ModelObject):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return mapping
 
@@ -185,7 +188,7 @@ class OrganizationSettings(ModelObject):
     def changes_require_web_ui(self, changes: dict[str, Change]) -> bool:
         from otterdog.providers.github import is_org_settings_key_retrieved_via_web_ui
 
-        return any(map(lambda key: is_org_settings_key_retrieved_via_web_ui(key), changes.keys()))
+        return any(is_org_settings_key_retrieved_via_web_ui(key) for key in changes)
 
     def to_jsonnet(
         self,

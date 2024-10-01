@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from otterdog.models import LivePatch
 from otterdog.models.webhook import Webhook
 from otterdog.utils import Change, IndentingPrinter, style
 
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from otterdog.config import OtterdogConfig
-    from otterdog.models import ModelObject
+    from otterdog.models import LivePatch, ModelObject
 
 
 class PlanOperation(DiffOperation):
@@ -109,7 +108,7 @@ class PlanOperation(DiffOperation):
                     )
 
         settings_to_change = 0
-        for k, v in modified_object.items():
+        for k, _v in modified_object.items():
             if current_object.is_read_only_key(k):
                 self.printer.println(
                     f"\n{style('Note', fg='yellow')}: setting '{k}' " f"is read-only, will be skipped."

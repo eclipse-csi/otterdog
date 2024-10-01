@@ -11,11 +11,10 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 from jsonbender import F, If, K, OptionalS, S, bend  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     EmbeddedModelObject,
     FailureType,
@@ -23,7 +22,6 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     IndentingPrinter,
@@ -34,6 +32,10 @@ from otterdog.utils import (
     print_warn,
     write_patch_object_as_json,
 )
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 RS = TypeVar("RS", bound="Ruleset")
 
@@ -367,7 +369,7 @@ class Ruleset(ModelObject, abc.ABC):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
         mapping.update(
             {
@@ -393,7 +395,7 @@ class Ruleset(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
         mapping.update(
             {
@@ -530,7 +532,7 @@ class Ruleset(ModelObject, abc.ABC):
 
             def extract_actor_and_bypass_mode(encoded_data: str) -> tuple[str, str]:
                 if ":" in encoded_data:
-                    a, m = re.split(":", encoded_data, 1)
+                    a, m = re.split(":", encoded_data, maxsplit=1)
                 else:
                     a = encoded_data
                     m = "always"
@@ -613,7 +615,7 @@ class Ruleset(ModelObject, abc.ABC):
 
                     for check in required_status_checks:
                         if ":" in check:
-                            app_slug, context = re.split(":", check, 1)
+                            app_slug, context = re.split(":", check, maxsplit=1)
 
                             if app_slug != "any":
                                 app_slugs.add(app_slug)
@@ -623,7 +625,7 @@ class Ruleset(ModelObject, abc.ABC):
                     transformed_checks = []
                     for check in required_status_checks:
                         if ":" in check:
-                            app_slug, context = re.split(":", check, 1)
+                            app_slug, context = re.split(":", check, maxsplit=1)
 
                             if app_slug == "any":
                                 app_slug = None

@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from aiofiles import open, os, ospath
@@ -22,6 +21,8 @@ from otterdog.utils import style
 from . import Operation
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from otterdog.config import OrganizationConfig
     from otterdog.models.webhook import Webhook
 
@@ -72,7 +73,7 @@ class ImportOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             if self.no_web_ui is True:

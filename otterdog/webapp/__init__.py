@@ -100,7 +100,7 @@ def create_app(app_config: AppConfig):
                 app.logger.error(f"did not find asset {file_path}")
                 return f"/assets/{file_path}"
 
-        return dict(asset=asset)
+        return {"asset": asset}
 
     set_github_cache(get_github_ghproxy_cache(app.config))
 

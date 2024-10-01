@@ -11,15 +11,11 @@ from __future__ import annotations
 import dataclasses
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
-from typing import Any, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
-from otterdog.config import SecretResolver
-from otterdog.jsonnet import JsonnetConfig
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     Change,
@@ -34,6 +30,13 @@ from otterdog.utils import (
     style,
     write_patch_object_as_json,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator, Sequence
+
+    from otterdog.config import SecretResolver
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 MT = TypeVar("MT", bound="ModelObject")
 EMT = TypeVar("EMT", bound="EmbeddedModelObject")
@@ -217,10 +220,10 @@ class EmbeddedModelObject(ABC):
 
     @classmethod
     def all_fields(cls) -> list[dataclasses.Field]:
-        return [field for field in dataclasses.fields(cls)]
+        return list(dataclasses.fields(cls))
 
     def keys(self, exclude_unset_keys: bool = True) -> list[str]:
-        result = list()
+        result = []
 
         for field in self.all_fields():
             if exclude_unset_keys:
@@ -248,7 +251,7 @@ class EmbeddedModelObject(ABC):
 
     @classmethod
     def get_mapping_from_model(cls) -> dict[str, Any]:
-        return {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
     def from_provider_data(cls: type[EMT], org_id: str, data: dict[str, Any]) -> EMT:
@@ -257,7 +260,7 @@ class EmbeddedModelObject(ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        return {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
     async def dict_to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
@@ -322,7 +325,8 @@ class ModelObject(ABC):
     def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
         validate_script = os.path.join(context.template_dir, filename)
         if os.path.exists(validate_script):
-            exec(open(validate_script).read())
+            with open(validate_script) as file:
+                exec(file.read())
 
     def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
@@ -380,7 +384,7 @@ class ModelObject(ABC):
 
     @classmethod
     def all_fields(cls) -> list[dataclasses.Field]:
-        return [field for field in dataclasses.fields(cls)]
+        return list(dataclasses.fields(cls))
 
     @classmethod
     def model_fields(cls) -> list[dataclasses.Field]:
@@ -535,7 +539,7 @@ class ModelObject(ABC):
         include_nested_models: bool = False,
         exclude_unset_keys: bool = True,
     ) -> list[str]:
-        result = list()
+        result = []
 
         for field in self.model_fields():
             if for_diff is True and not self.include_field_for_diff_computation(field):
@@ -587,13 +591,13 @@ class ModelObject(ABC):
         return False
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
-        pass
+        return
 
     def copy_secrets(self, other_object: ModelObject) -> None:
-        pass
+        return
 
     def update_dummy_secrets(self, new_value: str) -> None:
-        pass
+        return
 
     @abstractmethod
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None: ...
@@ -667,7 +671,7 @@ class ModelObject(ABC):
         expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
         expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
 
-        has_wildcard_keys = any(map(lambda x: x.get_key_value().endswith("*"), expected_objects))
+        has_wildcard_keys = any(x.get_key_value().endswith("*") for x in expected_objects)
 
         for current_object in current_objects:
             key = current_object.get_key_value()
@@ -697,4 +701,5 @@ class ModelObject(ABC):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod
+    @abstractmethod
     async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...

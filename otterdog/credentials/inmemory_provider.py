@@ -34,4 +34,4 @@ class InMemoryVault(CredentialProvider):
         raise RuntimeError("in-memory vault does not support secrets")
 
     def __repr__(self):
-        return "InmemoryProvider()"
+        return "InMemoryProvider()"

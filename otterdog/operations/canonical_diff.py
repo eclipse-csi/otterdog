@@ -49,7 +49,7 @@ class CanonicalDiffOperation(Operation):
         try:
             organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
         except RuntimeError as ex:
-            self.printer.print_error(f"failed to load configuration: {str(ex)}")
+            self.printer.print_error(f"failed to load configuration: {ex!s}")
             return 1
 
         async with open(org_file_name) as file:
@@ -97,5 +97,4 @@ class CanonicalDiffOperation(Operation):
                 for line in out.decode("utf-8").split("\n"):
                     yield line
             except BrokenPipeError as ex:
-                print(type(ex))
-                raise RuntimeError(f"failed to run diff command: {str(ex)}")
+                raise RuntimeError(f"failed to run diff command: {ex!s}") from ex

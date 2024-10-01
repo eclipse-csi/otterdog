@@ -12,8 +12,7 @@ import abc
 import dataclasses
 import fnmatch
 import re
-from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from jsonbender import K, OptionalS, S, bend  # type: ignore
 
@@ -25,8 +24,12 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, Change, is_set_and_present, is_unset
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from otterdog.providers.github import GitHubProvider
 
 ST = TypeVar("ST", bound="Secret")
 
@@ -89,7 +92,7 @@ class Secret(ModelObject, abc.ABC):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
@@ -99,7 +102,7 @@ class Secret(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         # the provider will never send the value itself, use a dummy secret.
         mapping["value"] = K("********")
         return mapping

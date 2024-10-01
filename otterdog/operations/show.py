@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 from aiofiles import open, os, ospath
 
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.repository import Repository
 from otterdog.utils import IndentingPrinter, is_info_enabled, is_set_and_valid, style
 
 from . import Operation
@@ -24,6 +23,7 @@ from . import Operation
 if TYPE_CHECKING:
     from otterdog.config import OrganizationConfig
     from otterdog.models import ModelObject
+    from otterdog.models.repository import Repository
 
 
 class ShowOperation(Operation):
@@ -65,7 +65,7 @@ class ShowOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {str(ex)}")
+                self.printer.print_error(f"failed to load configuration: {ex!s}")
                 return 1
 
             if not self.markdown:

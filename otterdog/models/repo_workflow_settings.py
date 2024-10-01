@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from jsonbender import S  # type: ignore
 
@@ -23,10 +23,12 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.models.organization_settings import OrganizationSettings
-from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, Change, is_set_and_valid, is_unset
+
+if TYPE_CHECKING:
+    from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass

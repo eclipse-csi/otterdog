@@ -12,15 +12,16 @@ import json
 import os
 import re
 from abc import abstractmethod
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from . import credentials
-from .credentials import CredentialProvider
 from .credentials.bitwarden_provider import BitwardenVault
 from .credentials.inmemory_provider import InMemoryVault
 from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
 from .utils import query_json
+
+if TYPE_CHECKING:
+    from otterdog.credentials import CredentialProvider, Credentials
 
 
 class OrganizationConfig:
@@ -198,11 +199,11 @@ class OtterdogConfig(SecretResolver):
 
     @property
     def project_names(self) -> list[str]:
-        return list(map(lambda config: config.name, self._organizations))
+        return [config.name for config in self._organizations]
 
     @property
     def organization_names(self) -> list[str]:
-        return list(map(lambda config: config.github_id, self._organizations))
+        return [config.github_id for config in self._organizations]
 
     def get_project_name(self, github_id: str) -> str | None:
         organization = self._organizations_map.get(github_id)
@@ -217,7 +218,7 @@ class OtterdogConfig(SecretResolver):
             raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
 
-    def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider | None:
+    def _get_credential_provider(self, provider_type: str) -> CredentialProvider | None:
         provider = self._credential_providers.get(provider_type)
         if provider is None:
             match provider_type:
@@ -252,7 +253,7 @@ class OtterdogConfig(SecretResolver):
 
         return provider
 
-    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> credentials.Credentials:
+    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
         provider_type = org_config.credential_data.get("provider")
 
         if provider_type is None:

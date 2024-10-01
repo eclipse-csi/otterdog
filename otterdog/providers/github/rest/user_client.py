@@ -6,9 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
 
-from ..exception import GitHubException
 from . import RestApi, RestClient
 
 
@@ -23,5 +23,4 @@ class UserClient(RestClient):
             response = await self.requester.request_json("GET", f"/users/{login}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving user node id:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving user node id:\n{ex}") from ex

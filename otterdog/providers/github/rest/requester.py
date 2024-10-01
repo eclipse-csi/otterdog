@@ -136,9 +136,11 @@ class Requester:
             text = await response.text()
             status = response.status
 
-            if hasattr(response, "from_cache") and response.from_cache:
-                self._statistics.received_cached_response()
-            elif response.headers.get("X-From-Cache", 0) == "1":
+            if (
+                hasattr(response, "from_cache")
+                and response.from_cache
+                or response.headers.get("X-From-Cache", 0) == "1"
+            ):
                 self._statistics.received_cached_response()
             else:
                 self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))

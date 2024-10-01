@@ -12,17 +12,15 @@ import asyncio
 import dataclasses
 import json
 import os
-from collections.abc import Callable, Iterator
 from datetime import datetime
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonschema
 from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 
 from otterdog import resources
-from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
 from otterdog.models import (
     LivePatchContext,
     LivePatchHandler,
@@ -44,7 +42,6 @@ from otterdog.models.repo_variable import RepositoryVariable
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -53,6 +50,12 @@ from otterdog.utils import (
     jsonnet_evaluate_file,
     print_debug,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+    from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
+    from otterdog.providers.github import GitHubProvider
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
@@ -369,9 +372,9 @@ class GitHubOrganization:
 
         if "custom_properties" in included_keys:
             github_custom_properties = await provider.get_org_custom_properties(github_id)
-            settings.custom_properties = list(
-                map(lambda x: CustomProperty.from_provider_data(github_id, x), github_custom_properties)
-            )
+            settings.custom_properties = [
+                CustomProperty.from_provider_data(github_id, x) for x in github_custom_properties
+            ]
 
         org = cls(github_id, settings)
 
@@ -588,4 +591,4 @@ async def _load_repos_from_provider(
 def divide_chunks(input_list, n):
     # looping till length of input_list
     for i in range(0, len(input_list), n):
-        yield input_list[i : i + n]  # noqa: E203
+        yield input_list[i : i + n]

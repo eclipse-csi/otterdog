@@ -25,17 +25,13 @@ class ContentClient(RestClient):
         print_debug(f"retrieving content '{path}' from repo '{org_id}/{repo_name}'")
 
         try:
-            if ref is not None:
-                params = {"ref": ref}
-            else:
-                params = None
+            params = {"ref": ref} if ref is not None else None
 
             return await self.requester.request_json(
                 "GET", f"/repos/{org_id}/{repo_name}/contents/{path}", params=params
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving content '{path}' from repo '{repo_name}':\n{ex}") from ex
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
@@ -79,10 +75,7 @@ class ContentClient(RestClient):
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
         base64_content = base64_encoded_data.decode("utf-8")
 
-        if message is None:
-            push_message = f"Updating file '{path}' with otterdog."
-        else:
-            push_message = message
+        push_message = f"Updating file '{path}' with otterdog." if message is None else message
 
         data: dict[str, Any] = {
             "message": push_message,
@@ -106,8 +99,7 @@ class ContentClient(RestClient):
             await self.requester.request_json("PUT", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
             return True
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed putting content '{path}' to repo '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed putting content '{path}' to repo '{repo_name}':\n{ex}") from ex
 
     async def delete_content(
         self,
@@ -128,10 +120,7 @@ class ContentClient(RestClient):
         if old_sha is None:
             return False
 
-        if message is None:
-            push_message = f"Deleting file '{path}' with otterdog."
-        else:
-            push_message = message
+        push_message = f"Deleting file '{path}' with otterdog." if message is None else message
 
         data = {"message": push_message, "sha": old_sha}
 
@@ -139,5 +128,4 @@ class ContentClient(RestClient):
             await self.requester.request_json("DELETE", f"/repos/{org_id}/{repo_name}/contents/{path}", data)
             return True
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed deleting content '{path}' in repo '{repo_name}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed deleting content '{path}' in repo '{repo_name}':\n{ex}") from ex

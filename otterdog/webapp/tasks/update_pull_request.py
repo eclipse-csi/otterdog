@@ -54,12 +54,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
 
-            approved_by_users = list(
-                map(
-                    lambda x: x["user"]["login"],
-                    filter(lambda x: x["state"] == "APPROVED", reviews),
-                )
-            )
+            approved_by_users = [x["user"]["login"] for x in filter(lambda x: x["state"] == "APPROVED", reviews)]
 
             self.logger.debug(f"approved by users: {approved_by_users}")
 

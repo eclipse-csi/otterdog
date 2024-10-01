@@ -211,4 +211,4 @@ class ShowDefaultOperation(Operation):
             snippet = f"(import '{jsonnet_config.template_file}').{function}"
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
-            raise RuntimeError(f"failed to evaluate snippet: {ex}")
+            raise RuntimeError(f"failed to evaluate snippet: {ex}") from ex

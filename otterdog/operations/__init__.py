@@ -51,7 +51,7 @@ class Operation(ABC):
     async def execute(self, org_config: OrganizationConfig) -> int: ...
 
     def post_execute(self) -> None:
-        pass
+        return
 
     async def check_config_file_exists(self, file_name: str) -> bool:
         from aiofiles import ospath
@@ -213,17 +213,17 @@ class Operation(ABC):
                 self.printer.level_down()
             else:
 
-                def should_redact(value: Any) -> bool:
+                def should_redact(current_key: Any, value: Any) -> bool:
                     if is_unset(value) or value is None:
                         return False
 
-                    if redacted_keys is not None and key is not None and key in redacted_keys:
+                    if redacted_keys is not None and current_key is not None and current_key in redacted_keys:
                         return True
                     else:
                         return False
 
-                c_v = "<redacted>" if should_redact(current_value) else current_value
-                e_v = "<redacted>" if should_redact(expected_value) else expected_value
+                c_v = "<redacted>" if should_redact(key, current_value) else current_value
+                e_v = "<redacted>" if should_redact(key, expected_value) else expected_value
 
                 self.printer.println(
                     f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="

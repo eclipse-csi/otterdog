@@ -62,13 +62,13 @@ class DeleteFileOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {str(ex)}")
+                self.printer.print_error(f"failed to load configuration: {ex!s}")
                 return 1
 
             try:
                 credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             async with GitHubProvider(credentials) as provider:
@@ -98,7 +98,7 @@ class DeleteFileOperation(Operation):
 
                     if collected_error is not None:
                         self.printer.println()
-                        self.printer.print_error(f"failure deleting file\n{str(collected_error)}")
+                        self.printer.print_error(f"failure deleting file\n{collected_error!s}")
                         return 1
             return 0
 

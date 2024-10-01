@@ -14,7 +14,6 @@ from . import Policy, PolicyType
 
 @dataclasses.dataclass
 class MacOSLargeRunnersUsagePolicy(Policy):
-
     allowed: bool
 
     @property

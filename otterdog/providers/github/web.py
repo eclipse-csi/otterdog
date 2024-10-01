@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 from asyncio import gather
-from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -21,6 +20,7 @@ from playwright.async_api import Page, async_playwright
 from otterdog.utils import is_debug_enabled, print_debug, print_trace, print_warn
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from typing import Any
 
     from otterdog.credentials import Credentials
@@ -86,7 +86,7 @@ class WebClient:
     def _get_pages(self, included_keys: set[str]) -> Iterator[tuple[str, Any]]:
         for page_url, page_def in self.web_settings_definition.items():
             # check if the page contains any setting that is requested
-            if not any(x in included_keys for x in list(map(lambda x: x["name"], page_def))):
+            if not any(x in included_keys for x in [x["name"] for x in page_def]):
                 continue
             else:
                 yield page_url, page_def
@@ -163,7 +163,7 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     print_warn(f"saved page screenshot to file '{screenshot_file}'")
 
-                print_warn(f"failed to retrieve setting '{setting}' via web ui:\n{str(e)}")
+                print_warn(f"failed to retrieve setting '{setting}' via web ui:\n{e!s}")
 
         return settings
 
@@ -260,7 +260,7 @@ class WebClient:
                         await page.screenshot(path=screenshot_file)
                         print_warn(f"saved page screenshot to file '{screenshot_file}'")
 
-                    print_warn(f"failed to update setting '{setting}' via web ui:\n{str(e)}")
+                    print_warn(f"failed to update setting '{setting}' via web ui:\n{e!s}")
                     raise e
 
     async def open_browser_with_logged_in_user(self, org_id: str) -> None:
@@ -415,9 +415,7 @@ class WebClient:
         urls = []
         for element in elements:
             url = await element.get_attribute("href")
-            if url is None:
-                continue
-            elif not url.endswith("/permissions/update"):
+            if url is None or not url.endswith("/permissions/update"):
                 continue
             else:
                 urls.append(url)
@@ -430,10 +428,7 @@ class WebClient:
                 url,
             )
 
-            if m is not None:
-                installation_id = m.group(2)
-            else:
-                installation_id = None
+            installation_id = m.group(2) if m is not None else None
 
             permissions = (
                 await page.locator(".Box")
@@ -465,7 +460,7 @@ class WebClient:
 
                     permission_type = m.group(2).lower()
 
-                    current_access_type = permissions_by_app.get(permission_type, None)
+                    current_access_type = permissions_by_app.get(permission_type)
                     if current_access_type is not None:
                         if access_level[current_access_type] > access_level[new_access_type]:
                             new_access_type = ""
@@ -551,7 +546,7 @@ class WebClient:
 
                     await page.type("#app_totp", self.credentials.totp)
         except PlaywrightError as e:
-            raise RuntimeError(f"could not log in to web UI: {str(e)}")
+            raise RuntimeError(f"could not log in to web UI: {e!s}") from e
 
     async def _logout(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
@@ -575,7 +570,7 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     print_warn(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {str(e)}")
+                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
         else:
             try:
                 selector = 'input[value = "Sign out"]'
@@ -586,4 +581,4 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     print_warn(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {str(e)}")
+                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e

@@ -68,7 +68,7 @@ class PushOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             # try to determine the git user configuration if possible
@@ -120,7 +120,7 @@ class PushOperation(Operation):
 
                 except RuntimeError as e:
                     self.printer.print_error(
-                        f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {str(e)}"
+                        f"failed to push definition to repo '{org_config.github_id}/{org_config.config_repo}': {e!s}"
                     )
                     return 1
 

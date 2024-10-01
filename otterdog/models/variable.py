@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
 from otterdog.models import FailureType, ModelObject, ValidationContext
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, is_unset
+
+if TYPE_CHECKING:
+    from otterdog.providers.github import GitHubProvider
 
 VT = TypeVar("VT", bound="Variable")
 
@@ -39,7 +41,7 @@ class Variable(ModelObject, abc.ABC):
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         return cls(**bend(mapping, data))
 
     @classmethod
@@ -49,7 +51,7 @@ class Variable(ModelObject, abc.ABC):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
         return mapping
 
     @classmethod

@@ -24,8 +24,7 @@ class PullRequestClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving pull request:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving pull request:\n{ex}") from ex
 
     async def create_pull_request(
         self, org_id: str, repo_name: str, title: str, head: str, base: str, body: str | None = None
@@ -44,8 +43,7 @@ class PullRequestClient(RestClient):
 
             return await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/pulls", data=data)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating pull request:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
 
     async def get_pull_requests(
         self, org_id: str, repo_name: str, state: str = "all", base_ref: str | None = None
@@ -60,8 +58,7 @@ class PullRequestClient(RestClient):
 
             return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/pulls", params=params)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving pull requests:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving pull requests:\n{ex}") from ex
 
     async def get_commits(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
         print_debug(f"getting commits for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
@@ -71,8 +68,7 @@ class PullRequestClient(RestClient):
                 "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/commits"
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving pull request commits:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving pull request commits:\n{ex}") from ex
 
     async def get_reviews(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
         print_debug(f"getting reviews for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
@@ -82,8 +78,7 @@ class PullRequestClient(RestClient):
                 "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/reviews"
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}") from ex
 
     async def get_files(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
         print_debug(f"getting files for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
@@ -93,8 +88,7 @@ class PullRequestClient(RestClient):
                 "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/files"
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving pull request files:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving pull request files:\n{ex}") from ex
 
     async def merge(
         self,
@@ -121,5 +115,4 @@ class PullRequestClient(RestClient):
             )
             return response["merged"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed merging pull request:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed merging pull request:\n{ex}") from ex

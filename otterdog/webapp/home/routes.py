@@ -187,7 +187,7 @@ async def project(project_name: str):
     from otterdog.webapp.db.service import get_policies
 
     github_organization = GitHubOrganization.from_model_data(config.config)
-    policies = list(map(lambda x: x.model_dump(), await get_policies(config.github_id)))
+    policies = [x.model_dump() for x in await get_policies(config.github_id)]
 
     return await render_home_template(
         "organization.html",
@@ -307,10 +307,7 @@ async def init():
 @blueprint.route("/<template>")
 async def route_template(template: str):
     try:
-        if template.endswith(".html"):
-            endpoint = template.rstrip(".html")
-        else:
-            endpoint = template
+        endpoint = template.rstrip(".html") if template.endswith(".html") else template
 
         return redirect(url_for(f".{endpoint}"))
     except BuildError:

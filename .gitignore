@@ -24,7 +24,7 @@ orgs/
 
 ### Ignoring data to test
 data
-
+approot
 
 #### Ignoring swp files
 *.swp
