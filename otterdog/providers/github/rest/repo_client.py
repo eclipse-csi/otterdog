@@ -248,9 +248,8 @@ class RepoClient(RestClient):
         # whether the repo should be initialized with an empty README
         data["auto_init"] = auto_init_repo
 
-        # if the repo does not get initialized and gh pages are disabled,
-        # do not try to update the config as it will fail
-        if auto_init_repo is False and "gh_pages" in update_data:
+        # if gh pages are disabled, do not try to update the config as it will fail
+        if "gh_pages" in update_data:
             gh_pages = update_data.get("gh_pages", {})
             build_type = gh_pages.get("build_type")
             if build_type == "disabled":
@@ -455,7 +454,7 @@ class RepoClient(RestClient):
         build_type = gh_pages.get("build_type")
         if build_type == "disabled":
             status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo_name}/pages")
-            if status != 204:
+            if status != 204 and status != 404:
                 raise RuntimeError(f"failed to disable github pages for repo '{repo_name}': {body}")
         else:
             gh_pages_data: list[tuple[str, str, int]] = []

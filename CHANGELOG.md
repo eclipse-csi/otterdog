@@ -32,7 +32,7 @@
 
 ### Fixed
 
-- Creating a repo with `auto_init: false` and `gh_pages_build_type: "disabled"` is now supported.
+- Creating a repo with `gh_pages_build_type: "disabled"` is now working again after changes on GitHub side.
 - Avoided unnecessary GitHub API calls when getting the `default_branch` or `id` of a repository.
 - Detect errors during an automatic `apply` operation and add a corresponding comment to the pull request.
 - Support showing dialog windows when using operation `web-login`.
