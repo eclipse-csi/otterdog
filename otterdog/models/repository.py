@@ -714,6 +714,10 @@ class Repository(ModelObject):
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
+        for prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+            if prop in mapping:
+                mapping.pop(prop)
+
         # code scanning default setup
         code_scanning_mapping = {}
         if "code_scanning_default_setup_enabled" in data:

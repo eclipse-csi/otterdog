@@ -248,6 +248,14 @@ class RepoClient(RestClient):
         # whether the repo should be initialized with an empty README
         data["auto_init"] = auto_init_repo
 
+        # if the repo does not get initialized and gh pages are disabled,
+        # do not try to update the config as it will fail
+        if auto_init_repo is False and "gh_pages" in update_data:
+            gh_pages = update_data.get("gh_pages", {})
+            build_type = gh_pages.get("build_type")
+            if build_type == "disabled":
+                update_data.pop("gh_pages")
+
         try:
             result = await self.requester.request_json("POST", f"/orgs/{org_id}/repos", data)
             print_debug(f"created repo with name '{repo_name}'")
