@@ -18,7 +18,7 @@ from .credentials.bitwarden_provider import BitwardenVault
 from .credentials.inmemory_provider import InMemoryVault
 from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
-from .utils import query_json
+from .utils import deep_merge_dict, print_trace, query_json
 
 if TYPE_CHECKING:
     from otterdog.credentials import CredentialProvider, Credentials
@@ -142,6 +142,16 @@ class OtterdogConfig(SecretResolver):
 
         with open(config_file) as f:
             self._configuration = json.load(f)
+
+        if working_dir is None:
+            override_defaults_file = os.path.join(self._config_dir, ".otterdog-defaults.json")
+            if os.path.exists(override_defaults_file):
+                with open(override_defaults_file) as defaults_file:
+                    defaults = json.load(defaults_file)
+                    print_trace(f"loading default overrides from '{override_defaults_file}'")
+                    self._configuration["defaults"] = deep_merge_dict(
+                        defaults, self._configuration.setdefault("defaults")
+                    )
 
         self._jsonnet_config = query_json("defaults.jsonnet", self._configuration) or {}
         self._github_config = query_json("defaults.github", self._configuration) or {}

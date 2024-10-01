@@ -576,3 +576,15 @@ def query_json(expr: str, data: dict[str, Any]) -> Any:
     from jsonata import Jsonata  # type: ignore
 
     return Jsonata.jsonata(expr).evaluate(data)
+
+
+def deep_merge_dict(source: dict[str, Any], destination: dict[str, Any]):
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            deep_merge_dict(value, node)
+        else:
+            destination[key] = value
+
+    return destination
