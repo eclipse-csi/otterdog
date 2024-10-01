@@ -29,25 +29,25 @@ configuration_type = ObjectType("Configuration")
 
 
 @query.field("projects")
-async def resolve_projects(*_, project_filter=None):
+async def resolve_projects(*_, filter=None):
     configurations = await get_configurations()
 
-    if project_filter:
-        project_filter = project_filter.replace("'", '"')
+    if filter:
+        filter = filter.replace("'", '"')
         data = [x.model_dump(exclude="id") for x in configurations]
-        result = query_json(f"$[{project_filter}][]", data)
+        result = query_json(f"$[{filter}][]", data)
         configurations = result if result else []
 
     return configurations
 
 
 @configuration_type.field("repositories")
-async def resolve_repositories(config: dict[str, Any], *_, repo_filter=None):
+async def resolve_repositories(config: dict[str, Any], *_, filter=None):
     repositories = config["repositories"]
 
-    if repo_filter:
-        repo_filter = repo_filter.replace("'", '"')
-        result = query_json(f"$[{repo_filter}][]", repositories)
+    if filter:
+        filter = filter.replace("'", '"')
+        result = query_json(f"$[{filter}][]", repositories)
         repositories = result if result else []
 
     return repositories
