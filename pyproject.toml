@@ -63,6 +63,7 @@ quart                = "^0.19"
 quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 python-dotenv        = "^1.0"
+pymongo              = "==4.9.1"
 pydantic             = "^2.7"
 odmantic             = "^1.0"
 quart-auth           = "^0.9"
@@ -154,4 +155,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/db/models.py" = ["UP007"] # new optional spec is not yet supported by odmantic
+"**/db/models.py" = ["UP007", "TCH003"] # new optional spec is not yet supported by odmantic

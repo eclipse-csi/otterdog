@@ -8,15 +8,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from odmantic import EmbeddedModel, Field, Model
 
 from otterdog.webapp.utils import current_utc_time
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 
 class InstallationStatus(str, Enum):
