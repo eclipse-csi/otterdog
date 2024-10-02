@@ -33,10 +33,7 @@ from otterdog.webapp.db.service import (
     get_open_or_incomplete_pull_requests_count,
     get_statistics,
     get_tasks,
-    update_data_for_installation,
-    update_installations_from_config,
 )
-from otterdog.webapp.utils import refresh_global_policies, refresh_otterdog_config
 
 from . import blueprint
 
@@ -285,23 +282,6 @@ async def tasks():
         "tasks.html",
         tasks=latest_tasks,
     )
-
-
-@blueprint.route("/health")
-async def health():
-    return {}, 200
-
-
-@blueprint.route("/init")
-async def init():
-    config = await refresh_otterdog_config()
-    policies = await refresh_global_policies()
-    await update_installations_from_config(config, policies)
-
-    for installation in await get_active_installations():
-        await update_data_for_installation(installation)
-
-    return {}, 200
 
 
 @blueprint.route("/<template>")

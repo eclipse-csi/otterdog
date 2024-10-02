@@ -31,7 +31,7 @@ from .utils import close_rest_apis, get_github_ghproxy_cache
 if TYPE_CHECKING:
     from .config import AppConfig
 
-_BLUEPRINT_MODULES: list[str] = ["home", "api", "auth"]
+_BLUEPRINT_MODULES: list[str] = ["home", "api", "internal", "auth"]
 
 mongo = Mongo()
 redis_handler = RedisHandler()

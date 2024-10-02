@@ -17,13 +17,13 @@ HOST="${1:-webapp}"
 PORT="${2:-5000}"
 DELAY_BETWEEN_ATTEMPTS=1
 
-HEAL_URL="http://${HOST}:${PORT}/health"
-INIT_URL="http://${HOST}:${PORT}/init"
+HEALTH_URL="http://${HOST}:${PORT}/internal/health"
+INIT_URL="http://${HOST}:${PORT}/internal/init"
 
 while true; do
-  echo "Checking health url ${HEAL_URL}..."
+  echo "Checking health url ${HEALTH_URL}..."
 
-  status_code=$(curl -s -I "${HEAL_URL}" -o /dev/null -w "%{http_code}")
+  status_code=$(curl -s -I "${HEALTH_URL}" -o /dev/null -w "%{http_code}")
   if [ "${status_code}" = "200" ]; then
     echo "Triggering init via ${INIT_URL}..."
     curl -s "${INIT_URL}"
