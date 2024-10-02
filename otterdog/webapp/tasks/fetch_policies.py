@@ -58,7 +58,7 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
 async def fetch_policies(
     rest_api: RestApi, org_id: str, repo: str, global_policies: list[Policy]
 ) -> dict[PolicyType, Policy]:
-    import yaml  # type: ignore
+    import yaml
 
     from otterdog.webapp.policies import read_policy
 

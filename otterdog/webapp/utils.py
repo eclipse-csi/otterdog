@@ -15,7 +15,7 @@ from functools import cache
 from logging import getLogger
 from typing import cast
 
-import yaml  # type: ignore
+import yaml
 from quart import Quart, current_app
 from quart_redis import get_redis  # type: ignore
 
