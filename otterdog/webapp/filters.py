@@ -54,6 +54,12 @@ def register_filters(app):
     def any_has_dummy_secrets(value):
         return any(x.has_dummy_secret() for x in value)
 
+    @app.template_filter("pretty_format")
+    def pretty_format(value):
+        from otterdog.utils import PrettyFormatter
+
+        return PrettyFormatter().format(value)
+
     @app.template_filter("pretty_format_model")
     def pretty_format_model(value):
         from otterdog.models import ModelObject
