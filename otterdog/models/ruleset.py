@@ -49,7 +49,7 @@ class PullRequestSettings(EmbeddedModelObject):
     requires_review_thread_resolution: bool
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        for key in ["required_approving_review_count"]:
+        for key in self.keys(False):
             value = self.__getattribute__(key)
             if is_unset(value):
                 context.add_failure(
@@ -662,15 +662,17 @@ class Ruleset(ModelObject, abc.ABC):
         # required merge queue
         if "required_merge_queue" in data:
             mapping.pop("required_merge_queue")
-            merge_queue_parameters = await MergeQueueSettings.dict_to_provider_data(
-                org_id, data["required_merge_queue"], provider
-            )
-            if merge_queue_parameters and len(merge_queue_parameters) > 0:
-                rule = {
-                    "type": K("merge_queue"),
-                    "parameters": K(merge_queue_parameters),
-                }
-                rules.append(rule)
+            required_merge_queue = data["required_merge_queue"]
+            if required_merge_queue is not None:
+                merge_queue_parameters = await MergeQueueSettings.dict_to_provider_data(
+                    org_id, data["required_merge_queue"], provider
+                )
+                if merge_queue_parameters and len(merge_queue_parameters) > 0:
+                    rule = {
+                        "type": K("merge_queue"),
+                        "parameters": K(merge_queue_parameters),
+                    }
+                    rules.append(rule)
 
         if len(rules) > 0:
             mapping["rules"] = rules
