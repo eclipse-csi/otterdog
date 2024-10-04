@@ -20,6 +20,7 @@
 
 ### Changed
 
+- Display changes in list properties using sequence comparison.
 - Converted pull request related settings of a Ruleset into an embedded model object similar to merge queue settings.
 - Use `jsonata` instead of `jq` for querying json objects.
 - Use `ghproxy` by default as transparent cache / proxy when accessing the GitHub API from the webapp. ([#274](https://github.com/eclipse-csi/otterdog/issues/274))
@@ -32,6 +33,8 @@
 
 ### Fixed
 
+- Fixed creation of a `Ruleset` if no merge queue is specified.
+- Ensured that validation for a `Ruleset` fails if any parameter of `required_pull_request` is missing as they are required.
 - Creating a repo with `gh_pages_build_type: "disabled"` is now working again after changes on GitHub side.
 - Avoided unnecessary GitHub API calls when getting the `default_branch` or `id` of a repository.
 - Detect errors during an automatic `apply` operation and add a corresponding comment to the pull request.
