@@ -584,20 +584,22 @@ class Ruleset(ModelObject, abc.ABC):
             if prop_key in data:
                 params[param_key] = S(prop_key)
 
-        # required merge queue
+        # required pull request
         if "required_pull_request" in data:
             mapping.pop("required_pull_request")
-            parameters = await PullRequestSettings.dict_to_provider_data(
-                org_id,
-                data["required_pull_request"],
-                provider,
-            )
-            if parameters and len(parameters) > 0:
-                rule = {
-                    "type": K("pull_request"),
-                    "parameters": K(parameters),
-                }
-                rules.append(rule)
+            required_pull_request = data["required_merge_queue"]
+            if required_pull_request is not None:
+                parameters = await PullRequestSettings.dict_to_provider_data(
+                    org_id,
+                    required_pull_request,
+                    provider,
+                )
+                if parameters and len(parameters) > 0:
+                    rule = {
+                        "type": K("pull_request"),
+                        "parameters": K(parameters),
+                    }
+                    rules.append(rule)
 
         # required status checks
         if "requires_status_checks" in data:
@@ -665,7 +667,9 @@ class Ruleset(ModelObject, abc.ABC):
             required_merge_queue = data["required_merge_queue"]
             if required_merge_queue is not None:
                 merge_queue_parameters = await MergeQueueSettings.dict_to_provider_data(
-                    org_id, data["required_merge_queue"], provider
+                    org_id,
+                    required_merge_queue,
+                    provider,
                 )
                 if merge_queue_parameters and len(merge_queue_parameters) > 0:
                     rule = {
