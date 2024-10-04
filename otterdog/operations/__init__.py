@@ -157,6 +157,19 @@ class Operation(ABC):
         else:
             return f'"{value}"'
 
+    def _get_max_key_length(self, data: dict[str, Change[Any]]) -> int:
+        length = 0
+
+        for key, change in sorted(data.items()):
+            expected_value = change.to_value
+
+            length = max(length, len(key))
+            if isinstance(expected_value, dict):
+                for k, _ in expected_value.items():
+                    length = max(length, len(k) + self.printer.spaces_per_level)
+
+        return length
+
     def print_modified_dict(
         self,
         data: dict[str, Change[Any]],
@@ -171,12 +184,14 @@ class Operation(ABC):
         self.printer.println(f"\n{prefix}{item_header} {{")
         self.printer.level_up()
 
+        max_key_length = self._get_max_key_length(data)
+
         for key, change in sorted(data.items()):
             current_value = change.from_value
             expected_value = change.to_value
 
             if isinstance(expected_value, dict):
-                self.printer.println(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} = {{")
+                self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = {{")
                 self.printer.level_up()
 
                 processed_keys = set()
@@ -186,17 +201,15 @@ class Operation(ABC):
                     if v != c_v:
                         if c_v is None:
                             self.printer.println(
-                                f"{style('+ ', fg='green')}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                f" {self._get_value(v)}"
+                                f"{style('+ ', fg='green')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
                             )
                         elif v is None:
                             self.printer.println(
-                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
-                                f" {self._get_value(c_v)}"
+                                f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}"
                             )
                         else:
                             self.printer.println(
-                                f"{prefix}{k.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                                f"{prefix}{k.ljust(max_key_length, ' ')} ="
                                 f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(v)}'
                             )
 
@@ -206,11 +219,17 @@ class Operation(ABC):
                     for k, v in sorted(current_value.items()):
                         if k not in processed_keys:
                             self.printer.println(
-                                f"{style('- ', fg='red')}{k.ljust(self._DEFAULT_WIDTH, ' ')} =" f" {self._get_value(v)}"
+                                f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
                             )
 
                 self.printer.println("}")
                 self.printer.level_down()
+            elif isinstance(expected_value, list):
+                self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = [")
+                self.printer.level_up()
+                self._print_modified_list(current_value, expected_value, prefix, color)
+                self.printer.level_down()
+                self.printer.println(f"{prefix}]")
             else:
 
                 def should_redact(current_key: Any, value: Any) -> bool:
@@ -226,9 +245,49 @@ class Operation(ABC):
                 e_v = "<redacted>" if should_redact(key, expected_value) else expected_value
 
                 self.printer.println(
-                    f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} ="
+                    f"{prefix}{key.ljust(max_key_length, ' ')} ="
                     f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(e_v)}'
                 )
 
         self.printer.level_down()
         self.printer.println(f"{closing_prefix}}}")
+
+    def _print_modified_list(self, a, b, prefix: str, color: str) -> None:
+        from difflib import SequenceMatcher
+
+        a = [str(x) for x in a]
+        b = [str(x) for x in b]
+
+        max_length_a = max((len(str(x)) for x in a), default=0)
+        max_length_b = max((len(str(x)) for x in b), default=0)
+
+        max_length = max(max_length_a, max_length_b)
+
+        for tag, i1, i2, j1, j2 in SequenceMatcher(None, a, b).get_opcodes():
+            match tag:
+                case "replace":
+                    diff_i = i2 - i1
+                    diff_j = j2 - j1
+
+                    i = i1
+                    j = j1
+
+                    for _ in range(i1, min(diff_i, diff_j)):
+                        self.printer.println(f"{prefix}{a[i].ljust(max_length, ' ')} {style('->', fg=color)} {b[j]}")
+                        j = j + 1
+                        i = i + 1
+
+                    while i < i2:
+                        self.printer.println(f"{style('- ', fg='red')}{a[i]}")
+                        i = i + 1
+
+                    while j < j2:
+                        self.printer.println(f"{style('+ ', fg='green')}{b[j]}")
+                        j = j + 1
+
+                case "delete":
+                    for i in range(i1, i2):
+                        self.printer.println(f"{style('- ', fg='red')}{a[i]}")
+                case "insert":
+                    for j in range(j1, j2):
+                        self.printer.println(f"{style('+ ', fg='green')}{b[j]}")

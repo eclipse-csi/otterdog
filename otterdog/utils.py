@@ -300,6 +300,10 @@ class IndentingPrinter:
         self._log_level = log_level
 
     @property
+    def spaces_per_level(self) -> int:
+        return self._spaces_per_level
+
+    @property
     def writer(self) -> TextIO:
         return self._writer
 
