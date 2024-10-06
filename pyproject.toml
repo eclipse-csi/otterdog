@@ -39,8 +39,8 @@ classifiers   = [
 [tool.poetry.dependencies]
 python               = "^3.10"
 aiofiles             = "^24.1"
-aiohttp              = "^3.10.5"
-aiohttp-client-cache = "^0.11"
+aiohttp              = "^3.10"
+aiohttp-client-cache = ">=0.12.3"
 aiohttp-retry        = "^2.8.3"
 aiosqlite            = "^0.20"
 chevron              = "^0.14"
@@ -69,7 +69,7 @@ odmantic             = "^1.0"
 quart-auth           = "^0.9"
 quart-redis          = "^2.0"
 github-flask         = "^3.2"
-aiohttp-client-cache = {version="^0.11.0", extras=["redis"]}
+aiohttp-client-cache = {version=">=0.12.3", extras=["redis"]}
 ariadne              = "^0.22"
 pyyaml               = "^6.0"
 
