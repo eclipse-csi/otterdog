@@ -1086,13 +1086,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "jsonata-python"
-version = "0.4.0"
+version = "0.5.0"
 description = "Pure Python implementation of JSONata"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "jsonata_python-0.4.0-py3-none-any.whl", hash = "sha256:7bcd193666e249765a2ea6680e9c406c54eb54c82c6ca9de2e1592b52d891c13"},
-    {file = "jsonata_python-0.4.0.tar.gz", hash = "sha256:e4323c89a33c1ed7f7dc596327106198d1ca919cbf584ad0c034eb4301ac2e8a"},
+    {file = "jsonata_python-0.5.0-py3-none-any.whl", hash = "sha256:921e8a4920e0746ff2d691336be44527b58b3e6bd160ba4a24e5a3b720c833b2"},
+    {file = "jsonata_python-0.5.0.tar.gz", hash = "sha256:a82d9677695fef47840400b3e21be17e6719e38aec1c62de30c5c530ec0a711f"},
 ]
 
 [[package]]
@@ -1896,13 +1896,13 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "pymdown-extensions"
-version = "10.11.1"
+version = "10.11.2"
 description = "Extension pack for Python Markdown."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pymdown_extensions-10.11.1-py3-none-any.whl", hash = "sha256:a2b28f5786e041f19cb5bb30a1c2c853668a7099da8e3dd822a5ad05f2e855e3"},
-    {file = "pymdown_extensions-10.11.1.tar.gz", hash = "sha256:a8836e955851542fa2625d04d59fdf97125ca001377478ed5618e04f9183a59a"},
+    {file = "pymdown_extensions-10.11.2-py3-none-any.whl", hash = "sha256:41cdde0a77290e480cf53892f5c5e50921a7ee3e5cd60ba91bf19837b33badcf"},
+    {file = "pymdown_extensions-10.11.2.tar.gz", hash = "sha256:bc8847ecc9e784a098efd35e20cba772bc5a1b529dfcef9dc1972db9021a1049"},
 ]
 
 [package.dependencies]
@@ -2608,13 +2608,13 @@ exceptiongroup = "*"
 
 [[package]]
 name = "tomli"
-version = "2.0.1"
+version = "2.0.2"
 description = "A lil' TOML parser"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
-    {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
+    {file = "tomli-2.0.2-py3-none-any.whl", hash = "sha256:2ebe24485c53d303f690b0ec092806a085f07af5a5aa1464f3931eec36caaa38"},
+    {file = "tomli-2.0.2.tar.gz", hash = "sha256:d46d457a85337051c36524bc5349dd91b1877838e2979ac5ced3e710ed8a60ed"},
 ]
 
 [[package]]
@@ -2692,6 +2692,17 @@ files = [
 [package.dependencies]
 cryptography = ">=35.0.0"
 types-cffi = "*"
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20240917"
+description = "Typing stubs for PyYAML"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "types-PyYAML-6.0.12.20240917.tar.gz", hash = "sha256:d1405a86f9576682234ef83bcb4e6fff7c9305c8b1fbad5e0bcd4f7dbdc9c587"},
+    {file = "types_PyYAML-6.0.12.20240917-py3-none-any.whl", hash = "sha256:392b267f1c0fe6022952462bf5d6523f31e37f6cea49b14cee7ad634b6301570"},
+]
 
 [[package]]
 name = "types-redis"
@@ -2976,4 +2987,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "34d8ac5fde406584ac5f7b93731a045026055d07713b5a05d583f91f83d856b2"
+content-hash = "c5d9b574c635fee8cbda4a5dbe1b5195ee786db563aa343d9fe25b5ac6810a3d"

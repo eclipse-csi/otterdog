@@ -533,6 +533,10 @@ class PrettyFormatter:
         return formatter(self, value, self.indent)
 
     def _format_object(self, value, indent):
+        if isinstance(value, str):
+            if "\n" in value:
+                return '"""\n' + value + '"""'
+
         return json.dumps(value, ensure_ascii=False)
 
     def _format_dict(self, value, indent):

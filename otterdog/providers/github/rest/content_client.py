@@ -55,6 +55,7 @@ class ContentClient(RestClient):
         message: str | None = None,
         author_name: str | None = None,
         author_email: str | None = None,
+        author_is_committer: bool = False,
     ) -> bool:
         print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
 
@@ -91,6 +92,9 @@ class ContentClient(RestClient):
                 "email": author_email if author_email is not None else "",
             }
             data["author"] = author
+
+            if author_is_committer is True:
+                data["committer"] = author
 
         if old_sha is not None:
             data["sha"] = old_sha
