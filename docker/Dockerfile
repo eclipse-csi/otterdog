@@ -1,7 +1,3 @@
-# build jsonnet-bundler using a go environment
-FROM golang:1.18 AS builder-go
-RUN go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
-
 FROM node:20-alpine as builder-node
 
 WORKDIR /app
@@ -25,7 +21,7 @@ WORKDIR /app
 ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    POETRY_VERSION=1.7.1
+    POETRY_VERSION=1.8.3
 
 COPY ./otterdog ./otterdog
 COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
@@ -41,7 +37,7 @@ RUN poetry config virtualenvs.in-project true && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
-FROM python:3.12.2-slim
+FROM python:3.12.7-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -49,7 +45,6 @@ RUN apt-get update \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder-go /go/bin/jb /usr/bin/jb
 COPY --from=builder-python3 /app/.venv /app/.venv
 COPY --from=builder-python3 /app/otterdog /app/otterdog
 COPY --from=builder-python3 /app/docker/entrypoint.sh /app/entrypoint.sh

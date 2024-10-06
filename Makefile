@@ -1,10 +1,4 @@
-.PHONY: init test clean container_build container_clean
-
-bw_version = "bw-linux-2023.2.0.zip"
-bw_release = "cli-v2023.2.0"
-dockerfile = "Dockerfile"
-image_version = "latest"
-container_name = "otterdog"
+.PHONY: init test clean
 
 POETRY := $(shell command -v poetry 2> /dev/null)
 OTTERDOG_SCRIPT := $(realpath ./otterdog.sh)
@@ -12,7 +6,7 @@ OTTERDOG_LINK := ~/.local/bin/otterdog
 
 init:
 ifndef POETRY
-	pip3 install "poetry==1.4.2"
+	pip3 install "poetry==1.8.3"
 endif
 	poetry config virtualenvs.in-project true
 	poetry install --only=main
@@ -28,32 +22,3 @@ clean:
 	rm -rf dist
 	rm -rf .pytest_cache
 	find -iname "*.pyc" -delete
-
-
-container_build:
-	$(call CONTAINER_BUILDER,$(image_version))
-
-container_build_dev:
-	echo "Freezing $(dockerfile) and commenting ENTRYPOINT line"
-	git update-index --assume-unchanged $(dockerfile)
-	sed -i '/^ENTRYPOINT/ s/./#&/' Dockerfile
-	$(call CONTAINER_BUILDER,"dev")
-	echo "Unfreezing $(dockerfile) and commenting ENTRYPOINT line"
-	sed -i '/^#ENTRYPOINT/ s/#//' Dockerfile
-	git update-index --no-assume-unchanged Dockerfile
-
-
-container_clean:
-	$(call CONTAINER_CLEANER,$(image_version))
-
-container_clean_dev:
-	$(call CONTAINER_CLEANER,"dev")
-
-define CONTAINER_BUILDER
-	docker build  --no-cache --build-arg BW_VERSION=$(bw_version) --build-arg BW_RELEASE=$(bw_release) -t eclipse/otterdog:$(1) -f $(dockerfile) .
-endef
-
-define CONTAINER_CLEANER
-	docker rm -f $(container_name)
-	docker rmi -f eclipse/$(container_name):$(1)
-endef

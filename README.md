@@ -18,8 +18,6 @@ It is actively developed by the Eclipse Foundation and used to manage its numero
 To install and use the cli part of otterdog you have to install the following:
 
 * otterdog (mandatory): install using `pipx install otterdog`
-* go (mandatory for installing jsonnet-bundler): install using `apt install golang`
-* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
 
@@ -35,10 +33,8 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 
 ### System requirements:
 
-* python3.10 (mandatory): install using `apt install python3`
+* python3.10+ (mandatory): install using `apt install python3`
 * poetry (mandatory): install using `curl -sSL https://install.python-poetry.org | python3 -` or `pipx install poetry`
-* go (mandatory for installing jsonnet-bundler): install using `apt install golang`
-* jsonnet-bundler (mandatory): install using `go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
 

@@ -6,8 +6,10 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import json
 import os
+from asyncio import Lock
+from functools import cached_property
+from shutil import ignore_patterns
 from typing import Any
 
 import aiofiles.os
@@ -15,12 +17,12 @@ import aiofiles.ospath
 
 from .utils import (
     jsonnet_evaluate_snippet,
+    parse_github_url,
     parse_template_url,
     print_debug,
-    print_trace,
-    print_warn,
-    run_command,
 )
+
+_template_lock = Lock()
 
 
 class JsonnetConfig:
@@ -89,120 +91,9 @@ class JsonnetConfig:
         if not await aiofiles.ospath.exists(self.template_file):
             raise RuntimeError(f"template file '{template_file}' does not exist")
 
-        # load the default settings for the organization
-        self._default_org_config = self.default_org_config_for_org_id("default")
-
-        try:
-            # load the default org custom property config
-            org_custom_property_snippet = f"(import '{template_file}').{self.create_org_custom_property}('default')"
-            self._default_org_custom_property_config = jsonnet_evaluate_snippet(org_custom_property_snippet)
-        except RuntimeError:
-            print_warn("no default org custom property config found, custom properties will be skipped")
-            self._default_org_custom_property_config = None
-
-        try:
-            # load the default org webhook config
-            org_webhook_snippet = f"(import '{template_file}').{self.create_org_webhook}('default')"
-            self._default_org_webhook_config = jsonnet_evaluate_snippet(org_webhook_snippet)
-        except RuntimeError:
-            print_warn("no default org webhook config found, webhooks will be skipped")
-            self._default_org_webhook_config = None
-
-        try:
-            # load the default org secret config
-            org_secret_snippet = f"(import '{template_file}').{self.create_org_secret}('default')"
-            self._default_org_secret_config = jsonnet_evaluate_snippet(org_secret_snippet)
-        except RuntimeError:
-            print_warn("no default org secret config found, secrets will be skipped")
-            self._default_org_secret_config = None
-
-        try:
-            # load the default org variable config
-            org_variable_snippet = f"(import '{template_file}').{self.create_org_variable}('default')"
-            self._default_org_variable_config = jsonnet_evaluate_snippet(org_variable_snippet)
-        except RuntimeError:
-            print_warn("no default org variable config found, variables will be skipped")
-            self._default_org_variable_config = None
-
-        try:
-            # load the default repo config
-            repo_snippet = f"(import '{template_file}').{self.create_repo}('default')"
-            self._default_repo_config = jsonnet_evaluate_snippet(repo_snippet)
-        except RuntimeError:
-            print_warn("no default repo config found, repos will be skipped")
-            self._default_repo_config = None
-
-        try:
-            # load the default repo webhook config
-            repo_webhook_snippet = f"(import '{template_file}').{self.create_repo_webhook}('default')"
-            self._default_repo_webhook_config = jsonnet_evaluate_snippet(repo_webhook_snippet)
-        except RuntimeError:
-            print_warn("no default repo webhook config found, webhooks will be skipped")
-            self._default_repo_webhook_config = None
-
-        try:
-            # load the default repo secret config
-            repo_secret_snippet = f"(import '{template_file}').{self.create_repo_secret}('default')"
-            self._default_repo_secret_config = jsonnet_evaluate_snippet(repo_secret_snippet)
-        except RuntimeError:
-            print_warn("no default repo secret config found, secrets will be skipped")
-            self._default_repo_secret_config = None
-
-        try:
-            # load the default repo variable config
-            repo_variable_snippet = f"(import '{template_file}').{self.create_repo_variable}('default')"
-            self._default_repo_variable_config = jsonnet_evaluate_snippet(repo_variable_snippet)
-        except RuntimeError:
-            print_warn("no default repo variable config found, variables will be skipped")
-            self._default_repo_variable_config = None
-
-        try:
-            # load the default branch protection rule config
-            branch_protection_snippet = f"(import '{template_file}').{self.create_branch_protection_rule}('default')"
-            self._default_branch_protection_rule_config = jsonnet_evaluate_snippet(branch_protection_snippet)
-        except RuntimeError:
-            print_warn("no default branch protection rule config found, branch protection rules will be skipped")
-            self._default_branch_protection_rule_config = None
-
-        try:
-            # load the default repo ruleset config
-            branch_protection_snippet = f"(import '{template_file}').{self.create_repo_ruleset}('default')"
-            self._default_repo_ruleset_config = jsonnet_evaluate_snippet(branch_protection_snippet)
-        except RuntimeError:
-            print_warn("no default repo ruleset config found, rulesets will be skipped")
-            self._default_repo_ruleset_config = None
-
-        try:
-            # load the default environment config
-            environment_snippet = f"(import '{template_file}').{self.create_environment}('default')"
-            self._default_environment_config = jsonnet_evaluate_snippet(environment_snippet)
-        except RuntimeError:
-            print_warn("no default environment config found, environments will be skipped")
-            self._default_environment_config = None
-
-        try:
-            # load the default pull request config
-            pull_request_snippet = f"(import '{template_file}').{self.create_pull_request}()"
-            self._default_merge_queue_config = jsonnet_evaluate_snippet(pull_request_snippet)
-        except RuntimeError:
-            print_warn("no default pull request config found, pull requests will be skipped")
-            self._default_pull_request_config = None
-
-        try:
-            # load the default merge queue config
-            merge_queue_snippet = f"(import '{template_file}').{self.create_merge_queue}()"
-            self._default_merge_queue_config = jsonnet_evaluate_snippet(merge_queue_snippet)
-        except RuntimeError:
-            print_warn("no default merge queue config found, merge queues will be skipped")
-            self._default_merge_queue_config = None
-
         self._initialized = True
 
-    @property
-    def default_org_config(self):
-        return self._default_org_config
-
-    def default_org_config_for_org_id(self, org_id: str):
+    def default_org_config_for_org_id(self, org_id: str) -> dict[str, Any]:
         try:
             # load the default settings for the organization
             snippet = f"(import '{self.template_file}').{self.create_org}('{org_id}')"
@@ -210,57 +101,143 @@ class JsonnetConfig:
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}") from ex
 
-    @property
+    @cached_property
+    def default_org_config(self) -> dict[str, Any]:
+        return self.default_org_config_for_org_id("default")
+
+    @cached_property
     def default_org_custom_property_config(self):
-        return self._default_org_custom_property_config
+        try:
+            # load the default org custom property config
+            org_custom_property_snippet = (
+                f"(import '{self.template_file}').{self.create_org_custom_property}('default')"
+            )
+            return jsonnet_evaluate_snippet(org_custom_property_snippet)
+        except RuntimeError:
+            print_debug("no default org custom property config found, custom properties will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_org_webhook_config(self):
-        return self._default_org_webhook_config
+        try:
+            # load the default org webhook config
+            org_webhook_snippet = f"(import '{self.template_file}').{self.create_org_webhook}('default')"
+            return jsonnet_evaluate_snippet(org_webhook_snippet)
+        except RuntimeError:
+            print_debug("no default org webhook config found, webhooks will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_org_secret_config(self):
-        return self._default_org_secret_config
+        try:
+            # load the default org secret config
+            org_secret_snippet = f"(import '{self.template_file}').{self.create_org_secret}('default')"
+            return jsonnet_evaluate_snippet(org_secret_snippet)
+        except RuntimeError:
+            print_debug("no default org secret config found, secrets will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_org_variable_config(self):
-        return self._default_org_variable_config
+        try:
+            # load the default org variable config
+            org_variable_snippet = f"(import '{self.template_file}').{self.create_org_variable}('default')"
+            return jsonnet_evaluate_snippet(org_variable_snippet)
+        except RuntimeError:
+            print_debug("no default org variable config found, variables will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_repo_config(self):
-        return self._default_repo_config
+        try:
+            # load the default repo config
+            repo_snippet = f"(import '{self.template_file}').{self.create_repo}('default')"
+            return jsonnet_evaluate_snippet(repo_snippet)
+        except RuntimeError:
+            print_debug("no default repo config found, repos will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_repo_webhook_config(self):
-        return self._default_repo_webhook_config
+        try:
+            # load the default repo webhook config
+            repo_webhook_snippet = f"(import '{self.template_file}').{self.create_repo_webhook}('default')"
+            return jsonnet_evaluate_snippet(repo_webhook_snippet)
+        except RuntimeError:
+            print_debug("no default repo webhook config found, webhooks will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_repo_secret_config(self):
-        return self._default_repo_secret_config
+        try:
+            # load the default repo secret config
+            repo_secret_snippet = f"(import '{self.template_file}').{self.create_repo_secret}('default')"
+            return jsonnet_evaluate_snippet(repo_secret_snippet)
+        except RuntimeError:
+            print_debug("no default repo secret config found, secrets will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_repo_variable_config(self):
-        return self._default_repo_variable_config
+        try:
+            # load the default repo variable config
+            repo_variable_snippet = f"(import '{self.template_file}').{self.create_repo_variable}('default')"
+            return jsonnet_evaluate_snippet(repo_variable_snippet)
+        except RuntimeError:
+            print_debug("no default repo variable config found, variables will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_branch_protection_rule_config(self):
-        return self._default_branch_protection_rule_config
+        try:
+            # load the default branch protection rule config
+            branch_protection_snippet = (
+                f"(import '{self.template_file}').{self.create_branch_protection_rule}('default')"
+            )
+            return jsonnet_evaluate_snippet(branch_protection_snippet)
+        except RuntimeError:
+            print_debug("no default branch protection rule config found, branch protection rules will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_repo_ruleset_config(self):
-        return self._default_repo_ruleset_config
+        try:
+            # load the default repo ruleset config
+            repo_ruleset_snippet = f"(import '{self.template_file}').{self.create_repo_ruleset}('default')"
+            return jsonnet_evaluate_snippet(repo_ruleset_snippet)
+        except RuntimeError:
+            print_debug("no default repo ruleset config found, rulesets will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_environment_config(self):
-        return self._default_environment_config
+        try:
+            # load the default environment config
+            environment_snippet = f"(import '{self.template_file}').{self.create_environment}('default')"
+            return jsonnet_evaluate_snippet(environment_snippet)
+        except RuntimeError:
+            print_debug("no default environment config found, environments will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_pull_request_config(self):
-        return self._default_pull_request_config
+        try:
+            # load the default pull request config
+            pull_request_snippet = f"(import '{self.template_file}').{self.create_pull_request}()"
+            return jsonnet_evaluate_snippet(pull_request_snippet)
+        except RuntimeError:
+            print_debug("no default pull request config found, pull requests will be skipped")
+            return None
 
-    @property
+    @cached_property
     def default_merge_queue_config(self):
-        return self._default_merge_queue_config
+        try:
+            # load the default merge queue config
+            merge_queue_snippet = f"(import '{self.template_file}').{self.create_merge_queue}()"
+            return jsonnet_evaluate_snippet(merge_queue_snippet)
+        except RuntimeError:
+            print_debug("no default merge queue config found, merge queues will be skipped")
+            return None
 
     @property
     def template_dir(self) -> str:
@@ -278,6 +255,10 @@ class JsonnetConfig:
         )
 
     @property
+    def base_dir(self) -> str:
+        return self._base_dir
+
+    @property
     def org_dir(self) -> str:
         return f"{self._base_dir}/{self.org_id}"
 
@@ -289,51 +270,42 @@ class JsonnetConfig:
     def import_statement(self) -> str:
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
-    @property
-    def jsonnet_bundle_file(self) -> str:
-        return f"{self.org_dir}/jsonnetfile.json"
-
-    @property
-    def jsonnet_bundle_lock_file(self) -> str:
-        return f"{self.org_dir}/jsonnetfile.lock.json"
-
     async def _init_base_template(self) -> None:
+        import git
+        from aiofiles.os import makedirs
+        from aiofiles.ospath import exists
+        from aioshutil import copytree, rmtree
+
+        print_debug(f"initializing base template '{self._base_template_repo_url}@{self._base_template_ref}'")
+
+        template_owner, template_repository = parse_github_url(self._base_template_repo_url)
+
+        async with _template_lock:
+            # cache the template repo with the requested ref in the 'templates' directory
+            template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
+
+            if not await exists(f"{template_dir}/.git"):
+                print_debug(f"cloning base template from url '{self._base_template_repo_url}'")
+                repo = git.Repo.clone_from(self._base_template_repo_url, template_dir)
+                repo.git.checkout(self._base_template_ref)
+            else:
+                repo = git.Repo(template_dir)
+                if not repo.head.is_detached:
+                    print_debug(
+                        f"pulling changes from base template url '{self._base_template_repo_url}' "
+                        f"for ref '{repo.head.ref}'"
+                    )
+                    repo.remotes.origin.pull()
+
         # create base directory if it does not exist yet
-        if not await aiofiles.ospath.exists(self.org_dir):
-            await aiofiles.os.makedirs(self.org_dir)
+        if not await exists(self.org_dir):
+            await makedirs(self.org_dir)
 
-        content = {
-            "version": 1,
-            "dependencies": [
-                {
-                    "source": {
-                        "git": {
-                            "remote": f"{self._base_template_repo_url}.git",
-                            "subdir": "",
-                        }
-                    },
-                    "version": f"{self._base_template_ref}",
-                }
-            ],
-            "legacyImports": True,
-        }
+        if await exists(f"{self.org_dir}/vendor"):
+            await rmtree(f"{self.org_dir}/vendor")
 
-        async with aiofiles.open(self.jsonnet_bundle_file, "w") as file:
-            await file.write(json.dumps(content, indent=2))
-
-        # create an empty lock file if it does not exist yet
-        lock_file = self.jsonnet_bundle_lock_file
-        if not await aiofiles.ospath.exists(lock_file):
-            async with aiofiles.open(lock_file, "w") as file:
-                await file.write("")
-
-        print_debug("running jsonnet-bundler update")
-
-        status, stdout, stderr = await run_command("jb", "update", cwd=self.org_dir)
-        print_trace(f"result = ({status}, {stdout})")
-
-        if status != 0:
-            raise RuntimeError(f"failed to run jsonnet-bundler update:\n{stdout}\n{stderr}")
+        # copy over the cloned template repository
+        await copytree(template_dir, self.template_dir, ignore=ignore_patterns(".git"))
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self._base_dir}, '{self._base_template_file}')"

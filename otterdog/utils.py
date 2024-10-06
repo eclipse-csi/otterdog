@@ -440,6 +440,15 @@ def parse_template_url(url: str) -> tuple[str, str, str]:
     return repo_url, file, ref
 
 
+def parse_github_url(url: str) -> tuple[str, str]:
+    pattern = re.compile(r"https://github.com/([A-Za-z0-9_.\-]+)/([A-Za-z0-9_.\-]+)")
+    m = pattern.match(url)
+    if m is None:
+        raise ValueError(f"unexpected GitHub url '{url}'")
+    else:
+        return m.group(1), m.group(2)
+
+
 def is_ghsa_repo(repo_name: str) -> bool:
     """
     Returns True if the given repo_name is considered to be a repo created for a GitHub security advisory.

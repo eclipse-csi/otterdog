@@ -8,10 +8,10 @@
 
 from __future__ import annotations
 
-import shutil
 from typing import TYPE_CHECKING
 
 from aiofiles import open, os, ospath
+from aioshutil import copy
 
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
@@ -62,7 +62,7 @@ class ImportOperation(Operation):
         if await ospath.exists(org_file_name):
             sync_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
-            shutil.copy(org_file_name, backup_file)
+            await copy(org_file_name, backup_file)
             self.printer.println(f"\nExisting definition copied to '{style(backup_file, bright=True)}'.\n")
         else:
             sync_from_previous_config = False
