@@ -34,6 +34,7 @@
 
 ### Fixed
 
+- Fixed throttling of comments generated when checking if the configuration is in sync with the live settings.
 - Fixed creation of a `Ruleset` if no merge queue is specified.
 - Ensured that validation for a `Ruleset` fails if any parameter of `required_pull_request` is missing as they are required.
 - Creating a repo with `gh_pages_build_type: "disabled"` is now working again after changes on GitHub side.

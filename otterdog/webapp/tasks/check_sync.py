@@ -119,7 +119,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                     )
 
                     # if a previous commit status was found, propagate it directly
-                    if len(commit_status) > 1:
+                    if len(commit_status) > 0:
                         await self._update_final_status(commit_status[0]["state"] == "success")
                         return False
 
