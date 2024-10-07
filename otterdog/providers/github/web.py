@@ -486,7 +486,9 @@ class WebClient:
         await page.goto(
             f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update"
         )
+
         await page.locator('button:text("Accept new permissions")').click()
+        await page.wait_for_url(f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}")
 
     async def _login_if_required(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
