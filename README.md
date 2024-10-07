@@ -18,6 +18,7 @@ It is actively developed by the Eclipse Foundation and used to manage its numero
 To install and use the cli part of otterdog you have to install the following:
 
 * git (mandatory): install using `apt install git`
+* go (mandatory): install using `apt install golang-go`
 * otterdog (mandatory): install using `pipx install otterdog`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
