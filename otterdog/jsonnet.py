@@ -43,6 +43,7 @@ class JsonnetConfig:
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
     create_pull_request = "newPullRequest"
+    create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"
 
     def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
@@ -71,6 +72,7 @@ class JsonnetConfig:
         self._default_repo_ruleset_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
         self._default_pull_request_config: dict[str, Any] | None = None
+        self._default_status_checks_config: dict[str, Any] | None = None
         self._default_merge_queue_config: dict[str, Any] | None = None
 
         self._initialized = False
@@ -227,6 +229,16 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(pull_request_snippet)
         except RuntimeError:
             print_debug("no default pull request config found, pull requests will be skipped")
+            return None
+
+    @cached_property
+    def default_status_checks_config(self):
+        try:
+            # load the default status check config
+            status_checks_snippet = f"(import '{self.template_file}').{self.create_status_checks}()"
+            return jsonnet_evaluate_snippet(status_checks_snippet)
+        except RuntimeError:
+            print_debug("no default status checks config found, status checks will be skipped")
             return None
 
     @cached_property

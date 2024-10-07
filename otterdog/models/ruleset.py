@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
-from jsonbender import F, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
 
 from otterdog.models import (
     EmbeddedModelObject,
@@ -106,6 +106,101 @@ class PullRequestSettings(EmbeddedModelObject):
             "requires_code_owner_review",
             "requires_last_push_approval",
             "requires_review_thread_resolution",
+        ]:
+            if key in mapping:
+                mapping.pop(key)
+
+        return mapping
+
+
+@dataclasses.dataclass
+class StatusCheckSettings(EmbeddedModelObject):
+    do_not_enforce_on_create: bool
+    strict: bool
+    status_checks: list[str]
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        for key in ["strict", "status_checks"]:
+            value = self.__getattribute__(key)
+            if is_unset(value):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header(parent_object)} has not set required parameter "
+                    f"'required_status_checks.{key}'.",
+                )
+
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
+        return f"orgs.{jsonnet_config.create_status_checks}"
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+
+        def transform_status_check(status_check):
+            if "app_slug" in status_check:
+                return status_check["app_slug"] + ":" + status_check["context"]
+            else:
+                return status_check["context"]
+
+        mapping.update(
+            {
+                "do_not_enforce_on_create": OptionalS("do_not_enforce_on_create", default=UNSET),
+                "strict": OptionalS("strict_required_status_checks_policy", default=UNSET),
+                "status_checks": OptionalS("required_status_checks", default=[]) >> Forall(transform_status_check),
+            }
+        )
+
+        return mapping
+
+    @classmethod
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+
+        if "status_checks" in data:
+
+            async def get_app_ids(status_checks) -> dict[str, str]:
+                app_slugs = set()
+
+                for check in status_checks:
+                    if ":" in check:
+                        app_slug, context = re.split(":", check, maxsplit=1)
+
+                        if app_slug != "any":
+                            app_slugs.add(app_slug)
+
+                return await provider.get_app_ids(app_slugs)
+
+            app_ids = await get_app_ids(data["status_checks"])
+        else:
+            app_ids = {}
+
+        def transform_status_check(status_check):
+            if ":" in status_check:
+                app_slug, context = re.split(":", status_check, maxsplit=1)
+
+                if app_slug == "any":
+                    app_slug = None
+            else:
+                app_slug = None
+                context = status_check
+
+            if app_slug is None:
+                return {"context": context}
+            else:
+                return {"integration_id": app_ids[app_slug], "context": context}
+
+        mapping.update(
+            {
+                "strict_required_status_checks_policy": S("strict"),
+                "required_status_checks": S("status_checks") >> Forall(transform_status_check),
+            }
+        )
+
+        for key in [
+            "strict",
+            "status_checks",
         ]:
             if key in mapping:
                 mapping.pop(key)
@@ -236,14 +331,11 @@ class Ruleset(ModelObject, abc.ABC):
     requires_commit_signatures: bool
     requires_linear_history: bool
 
-    requires_status_checks: bool
-    requires_strict_status_checks: bool
-    required_status_checks: list[str]
-
     requires_deployments: bool
     required_deployment_environments: list[str]
 
     required_pull_request: PullRequestSettings | None = dataclasses.field(metadata={"embedded_model": True})
+    required_status_checks: StatusCheckSettings | None = dataclasses.field(metadata={"embedded_model": True})
     required_merge_queue: MergeQueueSettings | None = dataclasses.field(metadata={"embedded_model": True})
 
     _roles: ClassVar[dict[str, str]] = {"5": "RepositoryAdmin", "4": "Write", "2": "Maintain", "1": "OrganizationAdmin"}
@@ -301,21 +393,6 @@ class Ruleset(ModelObject, abc.ABC):
                         f"'{ref}', only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
                     )
 
-        # if 'requires_status_checks' is disabled, issue a warning if required_status_checks is non-empty.
-        required_status_checks = self.required_status_checks
-        if (
-            self.requires_status_checks is False
-            and is_set_and_valid(required_status_checks)
-            and len(required_status_checks) > 0
-        ):
-            context.add_failure(
-                FailureType.INFO,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'requires_status_checks' disabled but "
-                f"'required_status_checks' is set to '{self.required_status_checks}', "
-                f"setting will be ignored.",
-            )
-
         # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
         if (
             self.requires_deployments is False
@@ -351,13 +428,6 @@ class Ruleset(ModelObject, abc.ABC):
             self.required_merge_queue.validate(context, parent_object)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        if self.requires_status_checks is False:
-            if field.name in [
-                "required_status_checks",
-                "requires_strict_status_checks",
-            ]:
-                return False
-
         if self.requires_deployments is False:
             if field.name in ["required_deployment_environments"]:
                 return False
@@ -377,6 +447,11 @@ class Ruleset(ModelObject, abc.ABC):
                     OptionalS("required_pull_request", default=None) == K(None),
                     K(None),
                     S("required_pull_request") >> F(lambda x: PullRequestSettings.from_model_data(x)),
+                ),
+                "required_status_checks": If(
+                    OptionalS("required_status_checks", default=None) == K(None),
+                    K(None),
+                    S("required_status_checks") >> F(lambda x: StatusCheckSettings.from_model_data(x)),
                 ),
                 "required_merge_queue": If(
                     OptionalS("required_merge_queue", default=None) == K(None),
@@ -460,26 +535,10 @@ class Ruleset(ModelObject, abc.ABC):
 
         # required status checks
         if any((found := rule) for rule in rules if rule["type"] == "required_status_checks"):
-            mapping["requires_status_checks"] = K(True)
             parameters = found.get("parameters", {})
-
-            mapping["requires_strict_status_checks"] = K(parameters.get("strict_required_status_checks_policy", UNSET))
-
-            raw_status_checks = parameters.get("required_status_checks", [])
-            status_checks = []
-            for status_check in raw_status_checks:
-                if "app_slug" in status_check:
-                    check = status_check["app_slug"] + ":" + status_check["context"]
-                else:
-                    check = status_check["context"]
-
-                status_checks.append(check)
-
-            mapping["required_status_checks"] = K(status_checks)
+            mapping["required_status_checks"] = K(StatusCheckSettings.from_provider_data(org_id, parameters))
         else:
-            mapping["requires_status_checks"] = K(False)
-            mapping["requires_strict_status_checks"] = K(UNSET)
-            mapping["required_status_checks"] = K([])
+            mapping["required_status_checks"] = K(None)
 
         # required deployments
         if any((found := rule) for rule in rules if rule["type"] == "required_deployments"):
@@ -587,65 +646,36 @@ class Ruleset(ModelObject, abc.ABC):
         # required pull request
         if "required_pull_request" in data:
             mapping.pop("required_pull_request")
-            required_pull_request = data["required_merge_queue"]
+            required_pull_request = data["required_pull_request"]
             if required_pull_request is not None:
-                parameters = await PullRequestSettings.dict_to_provider_data(
+                pull_request_parameters = await PullRequestSettings.dict_to_provider_data(
                     org_id,
                     required_pull_request,
                     provider,
                 )
-                if parameters and len(parameters) > 0:
+                if pull_request_parameters and len(pull_request_parameters) > 0:
                     rule = {
                         "type": K("pull_request"),
-                        "parameters": K(parameters),
+                        "parameters": K(pull_request_parameters),
                     }
                     rules.append(rule)
 
         # required status checks
-        if "requires_status_checks" in data:
-            value = data["requires_status_checks"]
-            if value is True:
-                rule = {"type": K("required_status_checks")}
-                status_checks_parameters: dict[str, Any] = {}
-                add_parameter(
-                    "requires_strict_status_checks", "strict_required_status_checks_policy", status_checks_parameters
+        if "required_status_checks" in data:
+            mapping.pop("required_status_checks")
+            required_status_checks = data["required_status_checks"]
+            if required_status_checks is not None:
+                status_check_parameters = await StatusCheckSettings.dict_to_provider_data(
+                    org_id,
+                    required_status_checks,
+                    provider,
                 )
-
-                if "required_status_checks" in data:
-                    required_status_checks = data["required_status_checks"]
-                    app_slugs = set()
-
-                    for check in required_status_checks:
-                        if ":" in check:
-                            app_slug, context = re.split(":", check, maxsplit=1)
-
-                            if app_slug != "any":
-                                app_slugs.add(app_slug)
-
-                    app_ids = await provider.get_app_ids(app_slugs)
-
-                    transformed_checks = []
-                    for check in required_status_checks:
-                        if ":" in check:
-                            app_slug, context = re.split(":", check, maxsplit=1)
-
-                            if app_slug == "any":
-                                app_slug = None
-                        else:
-                            app_slug = None
-                            context = check
-
-                        if app_slug is None:
-                            transformed_checks.append({"context": context})
-                        else:
-                            transformed_checks.append({"integration_id": app_ids[app_slug], "context": context})
-
-                    status_checks_parameters["required_status_checks"] = K(transformed_checks)
-
-                rule["parameters"] = status_checks_parameters
-                rules.append(rule)
-
-        pop_mapping(["requires_status_checks", "requires_strict_status_checks", "required_status_checks"])
+                if status_check_parameters and len(status_check_parameters) > 0:
+                    rule = {
+                        "type": K("required_status_checks"),
+                        "parameters": K(status_check_parameters),
+                    }
+                    rules.append(rule)
 
         # required deployments
         if "requires_deployments" in data:

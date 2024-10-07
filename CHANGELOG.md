@@ -20,6 +20,7 @@
 
 ### Changed
 
+- Converted status check related settings of a Ruleset into an embedded model object similar to merge queue settings.
 - Display changes in list properties using sequence comparison.
 - Converted pull request related settings of a Ruleset into an embedded model object similar to merge queue settings.
 - Use `jsonata` instead of `jq` for querying json objects.
