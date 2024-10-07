@@ -37,6 +37,7 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 
 * python3.10+ (mandatory): e.g. install using `apt install python3` or `pyenv`
 * git (mandatory): install using `apt install git`
+* go (mandatory): install using `apt install golang-1.23` or `snap install go`
 * poetry (mandatory): install using `curl -sSL https://install.python-poetry.org | python3 -` or `pipx install poetry`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
