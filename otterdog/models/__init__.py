@@ -536,6 +536,7 @@ class ModelObject(ABC):
         self,
         for_diff: bool = False,
         for_patch: bool = False,
+        include_model_only_fields: bool = False,
         include_nested_models: bool = False,
         exclude_unset_keys: bool = True,
     ) -> list[str]:
@@ -548,7 +549,7 @@ class ModelObject(ABC):
             if for_patch is True and not self.include_field_for_patch_computation(field):
                 continue
 
-            if (for_diff or for_patch) and self.is_model_only(field):
+            if (for_diff or for_patch) and not include_model_only_fields and self.is_model_only(field):
                 continue
 
             if include_nested_models is False and self.is_nested_model(field):
@@ -563,16 +564,25 @@ class ModelObject(ABC):
 
         return result
 
-    def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
+    def to_model_dict(
+        self,
+        for_diff: bool = False,
+        include_model_only_fields: bool = False,
+        include_nested_models: bool = False,
+        exclude_none_values: bool = False,
+    ) -> dict[str, Any]:
         result = {}
 
         for key in self.keys(
             for_diff=for_diff,
+            include_model_only_fields=include_model_only_fields,
             include_nested_models=include_nested_models,
             exclude_unset_keys=True,
         ):
             value = self.__getattribute__(key)
-            if self.is_nested_model_key(key):
+            if exclude_none_values and not is_set_and_valid(value):
+                continue
+            elif self.is_nested_model_key(key):
                 result[key] = cast(ModelObject, value).to_model_dict(for_diff, include_nested_models)
             elif self.is_embedded_model_key(key) and is_set_and_valid(value):
                 result[key] = cast(EmbeddedModelObject, value).to_model_dict()

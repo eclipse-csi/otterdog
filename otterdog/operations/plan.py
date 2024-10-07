@@ -63,7 +63,7 @@ class PlanOperation(DiffOperation):
         self.printer.println()
         model_header = model_object.get_model_header(parent_object)
         self.print_dict(
-            model_object.to_model_dict(for_diff=True),
+            model_object.to_model_dict(for_diff=True, include_model_only_fields=True, exclude_none_values=True),
             f"add {model_header}",
             "+",
             "green",

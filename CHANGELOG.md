@@ -20,6 +20,8 @@
 
 ### Changed
 
+- Do not include settings whose values is `null` in the plan operation output when a resource is added.
+- Include `model_only` settings in the plan operation output when a resource is added.
 - Converted status check related settings of a Ruleset into an embedded model object similar to merge queue settings.
 - Display changes in list properties using sequence comparison.
 - Converted pull request related settings of a Ruleset into an embedded model object similar to merge queue settings.
