@@ -27,5 +27,5 @@ async def test_list_installations():
 
         for installation in installations:
             permissions = installation["permissions"]
-            if "merge_queue" not in permissions:
+            if "merge_queues" not in permissions:
                 _logger.info(f"{installation['account']['login']} -> missing merge_queue permission")
