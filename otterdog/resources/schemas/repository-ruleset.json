@@ -38,13 +38,7 @@
       "items": { "type": "string" }
     },
 
-    "requires_status_checks": { "type": "boolean" },
-    "requires_strict_status_checks": { "type": "boolean" },
-    "required_status_checks": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-
+    "required_status_checks": { "$ref": "#/definitions/status_check_or_null" },
     "required_merge_queue": { "$ref": "#/definitions/merge_queue_or_null" }
   },
 
@@ -72,6 +66,24 @@
         "requires_code_owner_review": { "type": "boolean" },
         "requires_last_push_approval": { "type": "boolean" },
         "requires_review_thread_resolution": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "status_check_or_null": {
+      "anyOf": [
+          { "$ref": "#/definitions/status_check" },
+          { "type": "null" }
+        ]
+    },
+    "status_check": {
+      "type": "object",
+      "properties": {
+        "do_not_enforce_on_create": { "type": "boolean" },
+        "strict": { "type": "boolean" },
+        "status_checks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
       "additionalProperties": false
     },
