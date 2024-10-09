@@ -36,13 +36,21 @@ class ShowDefaultOperation(Operation):
         if not self.markdown:
             self.printer.println("Showing defaults configurations:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+            self.printer.println(
+                f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+                f"{self._format_progress(org_index, org_count)}"
+            )
             self.printer.level_up()
 
         try:

@@ -48,7 +48,12 @@ class Operation(ABC):
     def pre_execute(self) -> None: ...
 
     @abstractmethod
-    async def execute(self, org_config: OrganizationConfig) -> int: ...
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int: ...
 
     def post_execute(self) -> None:
         return
@@ -81,6 +86,13 @@ class Operation(ABC):
                 return False
 
         return True
+
+    @staticmethod
+    def _format_progress(org_index: int | None, org_count: int | None) -> str:
+        if org_index is None or org_count is None:
+            return ""
+        else:
+            return f" ({org_index}/{org_count})"
 
     def print_dict(
         self,

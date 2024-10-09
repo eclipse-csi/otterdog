@@ -94,10 +94,18 @@ class DiffOperation(Operation):
         super().init(config, printer)
         self._validator.init(config, printer)
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         self._org_config = org_config
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
         try:
             self._gh_client = self.setup_github_client(org_config)

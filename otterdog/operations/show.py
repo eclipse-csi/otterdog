@@ -48,13 +48,21 @@ class ShowOperation(Operation):
         if not self.markdown:
             self.printer.println("Showing organization resources:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
         if not self.markdown or is_info_enabled():
-            self.printer.println(f"\nOrganization {style(org_config.name)}[id={github_id}]")
+            self.printer.println(
+                f"\nOrganization {style(org_config.name)}[id={github_id}]"
+                f"{self._format_progress(org_index, org_count)}"
+            )
             self.printer.level_up()
 
         try:

@@ -743,9 +743,13 @@ def _execute_operation(organizations: list[str], operation: Operation):
         if len(organizations) == 0:
             organizations = config.organization_names
 
+        total_num_orgs = len(organizations)
+        current_org_number = 1
+
         for organization in organizations:
             org_config = config.get_organization_config(organization)
-            exit_code = max(exit_code, asyncio.run(operation.execute(org_config)))
+            exit_code = max(exit_code, asyncio.run(operation.execute(org_config, current_org_number, total_num_orgs)))
+            current_org_number += 1
 
         operation.post_execute()
         sys.exit(exit_code)
