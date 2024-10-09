@@ -125,14 +125,17 @@ class Operation(ABC):
         key_value_separator: str,
         value_separator: str,
     ):
-        self.printer.println(f"{prefix if include_prefix else ''}{{")
-        self.printer.level_up()
-        for key, value in sorted(data.items()):
-            self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} {key_value_separator} ")
-            self._print_internal(value, prefix, closing_prefix, False, key_value_separator, value_separator)
+        if len(data) > 0:
+            self.printer.println(f"{prefix if include_prefix else ''}{{")
+            self.printer.level_up()
+            for key, value in sorted(data.items()):
+                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} {key_value_separator} ")
+                self._print_internal(value, prefix, closing_prefix, False, key_value_separator, value_separator)
 
-        self.printer.level_down()
-        self.printer.println(f"{closing_prefix}}}{value_separator}")
+            self.printer.level_down()
+            self.printer.println(f"{closing_prefix}}}{value_separator}")
+        else:
+            self.printer.println(f"{prefix if include_prefix else ''}{{}}{value_separator}")
 
     def _print_list_internal(
         self, data: list[Any], prefix: str, closing_prefix: str, key_value_separator: str, value_separator: str

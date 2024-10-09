@@ -508,6 +508,13 @@ class Repository(ModelObject):
             if field.name in self._code_scanning_properties:
                 return False
 
+        if self.forked_repository is None and field.name == "fork_default_branch_only":
+            return False
+
+        # do not show certain model_only fields that are not of interest for the user
+        if field.name == "aliases" or field.name == "post_process_template_content":
+            return False
+
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:

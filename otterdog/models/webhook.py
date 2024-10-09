@@ -68,7 +68,7 @@ class Webhook(ModelObject, abc.ABC):
     def is_key_valid_for_diff_computation(self, key: str) -> bool:
         if key == "secret":
             return not self.has_dummy_secret()
-        elif key == "url":
+        elif key == "url" or key == "aliases":
             return False
         else:
             return True
