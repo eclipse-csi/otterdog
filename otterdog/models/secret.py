@@ -14,7 +14,7 @@ import fnmatch
 import re
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
-from jsonbender import K, OptionalS, S, bend  # type: ignore
+from jsonbender import K  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -24,12 +24,11 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import UNSET, Change, is_set_and_present, is_unset
+from otterdog.utils import Change, is_set_and_present, is_unset
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from otterdog.providers.github import GitHubProvider
 
 ST = TypeVar("ST", bound="Secret")
 
@@ -91,29 +90,11 @@ class Secret(ModelObject, abc.ABC):
         return not self.has_dummy_secret()
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
         # the provider will never send the value itself, use a dummy secret.
         mapping["value"] = K("********")
         return mapping
-
-    @classmethod
-    async def get_mapping_to_provider(
-        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]:
-        return {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
 
     def contains_secrets(self) -> bool:
         return True

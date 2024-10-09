@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -29,7 +29,6 @@ from otterdog.utils import (
     IndentingPrinter,
     is_set_and_present,
     is_set_and_valid,
-    is_unset,
     write_patch_object_as_json,
 )
 
@@ -145,8 +144,8 @@ class OrganizationSettings(ModelObject):
             yield from self.workflows.get_model_objects()
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
 
         mapping.update(
             {
@@ -160,26 +159,12 @@ class OrganizationSettings(ModelObject):
             }
         )
 
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> OrganizationSettings:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
-        mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return mapping
 
     @classmethod
-    async def get_mapping_to_provider(
-        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]:
-        mapping = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+        mapping["plan"] = OptionalS("plan", "name", default=UNSET)
         return mapping
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:

@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
-from jsonbender import F, Filter, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Filter, Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -20,7 +20,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import UNSET, is_set_and_valid, is_unset
+from otterdog.utils import is_set_and_valid, is_unset
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -99,18 +99,8 @@ class Environment(ModelObject):
             return True
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> Environment:
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Environment:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
 
         def transform_reviewers(x):
             match x["type"]:
@@ -165,9 +155,7 @@ class Environment(ModelObject):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         if "reviewers" in mapping:
             reviewers = data["reviewers"]

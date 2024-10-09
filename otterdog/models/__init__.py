@@ -12,7 +12,7 @@ import dataclasses
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, final
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
@@ -475,16 +475,24 @@ class ModelObject(ABC):
         return header
 
     @classmethod
-    @abstractmethod
-    def from_model_data(cls, data: dict[str, Any]): ...
+    @final
+    def from_model_data(cls: type[MT], data: dict[str, Any]) -> MT:
+        mapping = cls.get_mapping_from_model()
+        return cls(**bend(mapping, data))  # type: ignore
 
     @classmethod
-    @abstractmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]): ...
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
-    @abstractmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]: ...
+    @final
+    def from_provider_data(cls: type[MT], org_id: str, data: dict[str, Any]) -> MT:
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))  # type: ignore
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     async def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
         return await self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
@@ -501,10 +509,12 @@ class ModelObject(ABC):
         return bend(mapping, data)
 
     @classmethod
-    @abstractmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]: ...
+    ) -> dict[str, Any]:
+        return {
+            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
+        }
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True

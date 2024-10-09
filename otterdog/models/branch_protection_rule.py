@@ -12,7 +12,7 @@ import dataclasses
 import re
 from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import Forall, K, OptionalS, S, bend  # type: ignore
+from jsonbender import Forall, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -273,20 +273,6 @@ class BranchProtectionRule(ModelObject):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
-
-    @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
-
-        if "requires_approving_reviews" in data:
-            mapping["requires_pull_request"] = S("requires_approving_reviews")
-
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:

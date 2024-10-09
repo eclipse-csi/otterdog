@@ -12,7 +12,7 @@ import dataclasses
 import re
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -31,7 +31,6 @@ from otterdog.utils import (
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
-    is_unset,
     write_patch_object_as_json,
 )
 
@@ -569,8 +568,8 @@ class Repository(ModelObject):
             yield self.workflows, self
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> Repository:
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
 
         mapping.update(
             {
@@ -591,16 +590,11 @@ class Repository(ModelObject):
             }
         )
 
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Repository:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
 
         def status_to_bool(status):
             if status == "enabled":
@@ -671,9 +665,7 @@ class Repository(ModelObject):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         # add mapping for items that GitHub expects in a nested structure.
 
@@ -865,28 +857,26 @@ class Repository(ModelObject):
         # FIXME: support overriding branch protection rules for repos coming from
         #        the default configuration.
         if has_branch_protection_rules and not extend:
-            default_org_rule = BranchProtectionRule.from_model_data(
-                jsonnet_config.default_branch_protection_rule_config
-            )
+            default_bpr = BranchProtectionRule.from_model_data(jsonnet_config.default_branch_protection_rule_config)
 
             printer.println("branch_protection_rules: [")
             printer.level_up()
 
             for rule in self.branch_protection_rules:
-                rule.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
+                rule.to_jsonnet(printer, jsonnet_config, context, False, default_bpr)
 
             printer.level_down()
             printer.println("],")
 
         # FIXME: support overriding rulesets for repos coming from the default configuration.
         if has_rulesets and not extend:
-            default_org_rule = RepositoryRuleset.from_model_data(jsonnet_config.default_repo_ruleset_config)
+            default_ruleset = RepositoryRuleset.from_model_data(jsonnet_config.default_repo_ruleset_config)
 
             printer.println("rulesets: [")
             printer.level_up()
 
             for ruleset in self.rulesets:
-                ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
+                ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_ruleset)
 
             printer.level_down()
             printer.println("],")

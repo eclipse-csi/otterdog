@@ -81,6 +81,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
+
         mapping.update(
             {
                 "selected_repositories": If(
@@ -90,6 +91,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
                 ),
             }
         )
+
         return mapping
 
     @classmethod
