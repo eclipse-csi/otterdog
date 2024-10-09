@@ -169,6 +169,8 @@ class Operation(ABC):
             return "null"
         if isinstance(value, bool):
             return str(value).lower()
+        elif isinstance(value, int):
+            return str(value)
         else:
             return f'"{value}"'
 
