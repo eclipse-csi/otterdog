@@ -197,9 +197,10 @@ class InstallationBasedTask(Protocol):
 
         rest_api = await self.rest_api
 
-        async with aiofiles.tempfile.TemporaryDirectory(dir=get_temporary_base_directory()) as work_dir:
+        base_dir = get_temporary_base_directory()
+        async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
             assert rest_api.token is not None
-            org_config = await get_organization_config(installation, rest_api.token, work_dir)
+            org_config = await get_organization_config(installation, rest_api.token, base_dir, work_dir)
 
             if initialize_template:
                 jsonnet_config = org_config.jsonnet_config
@@ -262,7 +263,9 @@ class InstallationBasedTask(Protocol):
             await self.__graphql_api.close()
 
 
-async def get_organization_config(org_model: InstallationModel, token: str, work_dir: str) -> OrganizationConfig:
+async def get_organization_config(
+    org_model: InstallationModel, token: str, base_dir: str, work_dir: str
+) -> OrganizationConfig:
     assert org_model.project_name is not None
     assert org_model.config_repo is not None
     assert org_model.base_template is not None
@@ -273,6 +276,7 @@ async def get_organization_config(org_model: InstallationModel, token: str, work
         org_model.config_repo,
         org_model.base_template,
         {"provider": "inmemory", "api_token": token},
+        base_dir,
         work_dir,
     )
 

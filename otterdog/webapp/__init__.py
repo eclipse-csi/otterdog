@@ -26,7 +26,7 @@ from otterdog.cache import set_github_cache
 
 from .db import Mongo, init_mongo_database
 from .filters import register_filters
-from .utils import close_rest_apis, get_github_ghproxy_cache
+from .utils import close_rest_apis, get_github_ghproxy_cache, get_temporary_base_directory
 
 if TYPE_CHECKING:
     from .config import AppConfig
@@ -121,6 +121,11 @@ def create_app(app_config: AppConfig):
 
     @app.after_serving
     async def close_resources() -> None:
+        from aioshutil import rmtree
+
+        app.logger.info("shutting down app")
+
+        await rmtree(get_temporary_base_directory(app))
         await close_rest_apis()
 
     return app
