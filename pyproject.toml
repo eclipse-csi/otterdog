@@ -1,6 +1,6 @@
 [tool.poetry]
 name          = "otterdog"
-version       = "0.8.0.dev0"
+version       = "0.8.0-dev"
 description   = "Tool to manage GitHub organizations and their repositories."
 authors       = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
 readme        = "README.md"
@@ -18,6 +18,11 @@ include       = [
     "CHANGELOG.md",
     "README.md",
     { path = "tests", format = "sdist" }
+]
+
+exclude       = [
+    "otterdog/app.py",
+    "otterdog/webapp"
 ]
 
 classifiers   = [

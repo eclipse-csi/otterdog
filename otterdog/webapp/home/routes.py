@@ -490,9 +490,12 @@ async def get_project_navigation():
 
 
 async def render_home_template(template_name: str, **context: Any) -> str:
+    from otterdog import __version__
+
     return await render_template(
         f"home/{template_name}",
         segments=get_segments(request),
         projects=await get_project_navigation(),
+        version=__version__,
         **context,
     )
