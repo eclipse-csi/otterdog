@@ -21,7 +21,9 @@
     "chart.js": "^4.4.2",
     "codemirror": "^5.65.16",
     "codemirror-graphql": "^2.0.10",
+    "codemirror-mode-jsonnet": "^1.0.0",
     "jquery": "^3.7.1",
-    "jquery-ui-dist": "^1.13.2"
+    "jquery-ui-dist": "^1.13.2",
+    "highlight.js": "^11.10.0"
   }
 }

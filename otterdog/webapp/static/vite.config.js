@@ -67,6 +67,10 @@ export default defineConfig({
                 {
                     src: "../node_modules/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css",
                     dest: outVendorDir + "/datatables"
+                },
+                {
+                    src: "../node_modules/codemirror-mode-jsonnet",
+                    dest: outVendorDir
                 }
             ]
         }),
@@ -89,8 +93,10 @@ export default defineConfig({
           input: [
             "src/js/app.js",
             "src/js/editor.js",
+            "src/js/highlight.js",
             "src/css/app.css",
-            "src/css/editor.css"
+            "src/css/editor.css",
+            "src/css/highlight.css",
           ],
         },
     }

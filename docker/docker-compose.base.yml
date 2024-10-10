@@ -9,7 +9,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    command: ./start-webapp
     ports:
       - 5000:5000
     volumes:

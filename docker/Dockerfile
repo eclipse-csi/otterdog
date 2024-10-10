@@ -25,7 +25,6 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
 
 COPY ./otterdog ./otterdog
 COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
-COPY ./docker/entrypoint.sh ./docker/entrypoint.sh
 COPY ./docker/start-webapp ./docker/start-webapp
 COPY ./docker/init-webapp ./docker/init-webapp
 
@@ -47,13 +46,11 @@ RUN apt-get update \
 
 COPY --from=builder-python3 /app/.venv /app/.venv
 COPY --from=builder-python3 /app/otterdog /app/otterdog
-COPY --from=builder-python3 /app/docker/entrypoint.sh /app/entrypoint.sh
 COPY --from=builder-python3 /app/docker/start-webapp /app/start-webapp
 COPY --from=builder-python3 /app/docker/init-webapp /app/init-webapp
 COPY --from=builder-python3 /app/hypercorn-cfg.toml /app/hypercorn-cfg.toml
 COPY --from=builder-node /app/otterdog/webapp/static/assets /app/otterdog/webapp/static/assets
 
-RUN chmod +x /app/entrypoint.sh
 RUN chmod +x /app/start-webapp
 RUN chmod +x /app/init-webapp
 
@@ -63,4 +60,4 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/start-webapp"]

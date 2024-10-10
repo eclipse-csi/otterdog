@@ -46,9 +46,17 @@ class JsonnetConfig:
     create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"
 
-    def __init__(self, org_id: str, base_dir: str, base_template_url: str, local_only: bool):
+    def __init__(
+        self,
+        org_id: str,
+        base_dir: str,
+        base_template_url: str,
+        local_only: bool,
+        org_dir: str | None = None,
+    ):
         self._org_id = org_id
         self._base_dir = base_dir
+        self._base_org_dir = org_dir if org_dir is not None else base_dir
 
         repo_url, file, ref = parse_template_url(base_template_url)
 
@@ -266,13 +274,26 @@ class JsonnetConfig:
             self._base_template_file,
         )
 
+    async def jsonnet_template_files(self):
+        import os
+
+        import aiofiles
+
+        for file in await aiofiles.os.listdir(self.template_dir):
+            if file.endswith(".libsonnet"):
+                yield os.path.join(self.template_dir, file)
+
     @property
     def base_dir(self) -> str:
         return self._base_dir
 
     @property
+    def base_org_dir(self) -> str:
+        return self._base_org_dir
+
+    @property
     def org_dir(self) -> str:
-        return f"{self._base_dir}/{self.org_id}"
+        return f"{self.base_org_dir}/{self.org_id}"
 
     @property
     def org_config_file(self) -> str:
@@ -320,4 +341,4 @@ class JsonnetConfig:
         await copytree(template_dir, self.template_dir, ignore=ignore_patterns(".git"))
 
     def __repr__(self) -> str:
-        return f"JsonnetConfig('{self._base_dir}, '{self._base_template_file}')"
+        return f"JsonnetConfig('{self.base_dir}, '{self._base_template_file}')"

@@ -109,13 +109,15 @@ class OrganizationConfig:
         config_repo: str,
         base_template: str,
         credential_data: dict[str, Any],
+        base_dir: str,
         work_dir: str,
     ) -> OrganizationConfig:
         jsonnet_config = JsonnetConfig(
             github_id,
-            work_dir,
+            base_dir,
             base_template,
             False,
+            work_dir,
         )
 
         return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)

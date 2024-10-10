@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import json
+import os.path
 from typing import Any
 
 from quart import (
@@ -20,13 +21,15 @@ from quart import (
 from quart_auth import current_user, login_required
 from werkzeug.routing import BuildError
 
+from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import associate_by_key
+from otterdog.utils import PrettyFormatter, associate_by_key
 from otterdog.webapp.db.service import (
     get_active_installations,
     get_configuration_by_github_id,
     get_configuration_by_project_name,
     get_configurations,
+    get_installation_by_project_name,
     get_installations,
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
@@ -34,6 +37,8 @@ from otterdog.webapp.db.service import (
     get_statistics,
     get_tasks,
 )
+from otterdog.webapp.tasks import get_organization_config
+from otterdog.webapp.utils import get_temporary_base_directory
 
 from . import blueprint
 
@@ -230,6 +235,131 @@ def _get_branch_protection_data(org: GitHubOrganization) -> list[int]:
             not_protected += 1
 
     return [not_protected, protected]
+
+
+@blueprint.route("/projects/<project_name>/defaults")
+async def defaults(project_name: str):
+    import aiofiles
+
+    installation = await get_installation_by_project_name(project_name)
+    if installation is None:
+        return await render_template("home/page-404.html"), 404
+
+    default_elements = []
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = await get_organization_config(installation, "", base_dir, work_dir)
+
+        jsonnet_config = org_config.jsonnet_config
+        await jsonnet_config.init_template()
+
+        default_elements.append(
+            _get_snippet(
+                jsonnet_config,
+                "org",
+                "GitHub Organization",
+                f"{jsonnet_config.create_org}('<github-id>')",
+                "settings",
+            )
+        )
+
+        elements = [
+            ("org-webhook", "Organization Webhook", f"{jsonnet_config.create_org_webhook}('<url>')"),
+            ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
+            ("org-variable", "Organization Variable", f"{jsonnet_config.create_org_variable}('<name>')"),
+            (
+                "org-custom-property",
+                "Organization Custom Property",
+                f"{jsonnet_config.create_org_custom_property}('<name>')",
+            ),
+            ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
+            ("repo-secret", "Repository Secret", f"{jsonnet_config.create_repo_secret}('<name>')"),
+            ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
+            ("environment", "Environment", f"{jsonnet_config.create_environment}('<name>')"),
+            ("bpr", "Branch Protection Rule", f"{jsonnet_config.create_branch_protection_rule}('<pattern>')"),
+            ("repo-ruleset", "Repository Ruleset", f"{jsonnet_config.create_repo_ruleset}('<name>')"),
+            ("ruleset-pull-request", "Pull Request Settings", f"{jsonnet_config.create_pull_request}()"),
+            ("ruleset-status-check", "Status Check Settings", f"{jsonnet_config.create_status_checks}()"),
+            ("ruleset-merge-queue", "Merge Queue Settings", f"{jsonnet_config.create_merge_queue}()"),
+        ]
+
+        for element_id, name, function in elements:
+            default_elements.append(_get_snippet(jsonnet_config, element_id, name, function))
+
+    return await render_home_template(
+        "defaults.html",
+        project_name=project_name,
+        default_elements=default_elements,
+    )
+
+
+def _get_snippet(
+    jsonnet_config: JsonnetConfig,
+    element_id: str,
+    name: str,
+    function: str,
+    key: str | None = None,
+) -> dict[str, Any]:
+    data = _evaluate_default(jsonnet_config, function)
+    if key is not None:
+        data = {key: data[key]}
+
+    return {
+        "id": element_id,
+        "name": name,
+        "content": f"orgs.{function} = {_format_model(data)}",
+    }
+
+
+def _format_model(data) -> str:
+    return PrettyFormatter().format(data)
+
+
+def _evaluate_default(jsonnet_config: JsonnetConfig, function: str) -> dict[str, Any]:
+    from otterdog.utils import jsonnet_evaluate_snippet
+
+    try:
+        snippet = f"(import '{jsonnet_config.template_file}').{function}"
+        return jsonnet_evaluate_snippet(snippet)
+    except RuntimeError as ex:
+        raise RuntimeError(f"failed to evaluate snippet: {ex}") from ex
+
+
+@blueprint.route("/projects/<project_name>/playground")
+async def playground(project_name: str):
+    import aiofiles
+
+    installation = await get_installation_by_project_name(project_name)
+    if installation is None:
+        return await render_template("home/page-404.html"), 404
+
+    jsonnet_files = []
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = await get_organization_config(installation, "", base_dir, work_dir)
+
+        jsonnet_config = org_config.jsonnet_config
+        await jsonnet_config.init_template()
+
+        async for jsonnet_file in jsonnet_config.jsonnet_template_files():
+            async with aiofiles.open(jsonnet_file) as f:
+                filename = os.path.basename(jsonnet_file)
+                file_id = os.path.splitext(filename)[0]
+                jsonnet_files.append(
+                    {
+                        "id": file_id,
+                        "filename": filename,
+                        "content": await f.read(),
+                    }
+                )
+
+    return await render_home_template(
+        "playground.html",
+        project_name=project_name,
+        jsonnet_files=jsonnet_files,
+    )
 
 
 @blueprint.route("/projects/<project_name>/repos/<repo_name>")

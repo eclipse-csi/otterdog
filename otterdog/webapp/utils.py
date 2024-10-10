@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import asyncio
-import os.path
 import re
 import sys
 from datetime import datetime, timedelta
@@ -116,7 +115,9 @@ def get_db_root_directory(app: Quart | None = None) -> str:
 
 @cache
 def get_temporary_base_directory(app: Quart | None = None) -> str:
-    return os.path.join(get_app_root_directory(app), "tmp")
+    import os
+
+    return os.path.join(get_app_root_directory(app), "tmp", f"worker-{os.getpid()}")
 
 
 async def get_otterdog_config() -> OtterdogConfig:
