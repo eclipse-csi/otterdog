@@ -178,6 +178,15 @@ async def organization(org_name: str):
         return redirect(url_for(".project", project_name=config.project_name))
 
 
+@blueprint.route("/organizations/<org_name>/<path:subpath>")
+async def organization_catch_all_redirect(org_name: str, subpath: str):
+    config = await get_configuration_by_github_id(org_name)
+    if config is None:
+        return await render_template("home/page-404.html"), 404
+    else:
+        return redirect(url_for(".project", project_name=config.project_name) + "/" + subpath)
+
+
 @blueprint.route("/projects/<project_name>")
 async def project(project_name: str):
     config = await get_configuration_by_project_name(project_name)
