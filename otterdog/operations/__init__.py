@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from otterdog.utils import Change, IndentingPrinter, is_unset, style
+from otterdog.utils import Change, IndentingPrinter, style
 
 if TYPE_CHECKING:
     from typing import Any
@@ -191,7 +191,6 @@ class Operation(ABC):
         self,
         data: dict[str, Change[Any]],
         item_header: str,
-        redacted_keys: set[str] | None = None,
         forced_update: bool = False,
     ) -> None:
         prefix = style("! ", fg="magenta") if forced_update else style("~ ", fg="yellow")
@@ -206,74 +205,78 @@ class Operation(ABC):
         for key, change in sorted(data.items()):
             current_value = change.from_value
             expected_value = change.to_value
-
-            if isinstance(expected_value, dict):
-                self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = {{")
-                self.printer.level_up()
-
-                processed_keys = set()
-                for k, v in sorted(expected_value.items()):
-                    c_v = current_value.get(k) if current_value is not None else None
-
-                    if v != c_v:
-                        if c_v is None:
-                            self.printer.println(
-                                f"{style('+ ', fg='green')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
-                            )
-                        elif v is None:
-                            self.printer.println(
-                                f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}"
-                            )
-                        else:
-                            self.printer.println(
-                                f"{prefix}{k.ljust(max_key_length, ' ')} ="
-                                f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(v)}'
-                            )
-
-                    processed_keys.add(k)
-
-                if current_value is not None:
-                    for k, v in sorted(current_value.items()):
-                        if k not in processed_keys:
-                            self.printer.println(
-                                f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
-                            )
-
-                self.printer.println("}")
-                self.printer.level_down()
-            elif isinstance(expected_value, list):
-                self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = [")
-                self.printer.level_up()
-                self._print_modified_list(current_value, expected_value, prefix, color)
-                self.printer.level_down()
-                self.printer.println(f"{prefix}]")
-            else:
-
-                def should_redact(current_key: Any, value: Any) -> bool:
-                    if is_unset(value) or value is None:
-                        return False
-
-                    if redacted_keys is not None and current_key is not None and current_key in redacted_keys:
-                        return True
-                    else:
-                        return False
-
-                c_v = "<redacted>" if should_redact(key, current_value) else current_value
-                e_v = "<redacted>" if should_redact(key, expected_value) else expected_value
-
-                self.printer.println(
-                    f"{prefix}{key.ljust(max_key_length, ' ')} ="
-                    f' {self._get_value(c_v)} {style("->", fg=color)} {self._get_value(e_v)}'
-                )
+            self._print_modified_internal(
+                key,
+                max_key_length,
+                current_value,
+                expected_value,
+                prefix,
+                color,
+            )
 
         self.printer.level_down()
         self.printer.println(f"{closing_prefix}}}")
 
-    def _print_modified_list(self, a, b, prefix: str, color: str) -> None:
+    def _print_modified_internal(
+        self,
+        key: str,
+        max_key_length: int,
+        current_value,
+        expected_value,
+        prefix: str,
+        color: str,
+    ):
+        if isinstance(expected_value, dict):
+            self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = {{")
+            self.printer.level_up()
+            self._print_modified_dict_internal(max_key_length, current_value, expected_value, prefix, color)
+            self.printer.println("}")
+            self.printer.level_down()
+        elif isinstance(expected_value, list):
+            self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = [")
+            self.printer.level_up()
+            self._print_modified_list_internal(current_value, expected_value, prefix, color)
+            self.printer.level_down()
+            self.printer.println(f"{prefix}]")
+        else:
+            self.printer.println(
+                f"{prefix}{key.ljust(max_key_length, ' ')} ="
+                f' {self._get_value(current_value)} {style("->", fg=color)} {self._get_value(expected_value)}'
+            )
+
+    def _print_modified_dict_internal(
+        self, max_key_length: int, current_value, expected_value, prefix: str, color: str
+    ) -> None:
+        processed_keys = set()
+        for k, v in sorted(expected_value.items()):
+            c_v = current_value.get(k) if current_value is not None else None
+
+            if v != c_v:
+                if c_v is None:
+                    self.printer.println(
+                        f"{style('+ ', fg='green')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
+                    )
+                elif v is None:
+                    self.printer.println(
+                        f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}"
+                    )
+                else:
+                    self._print_modified_internal(k, max_key_length, c_v, v, prefix, color)
+
+            processed_keys.add(k)
+
+        if current_value is not None:
+            for k, v in sorted(current_value.items()):
+                if k not in processed_keys:
+                    self.printer.println(
+                        f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
+                    )
+
+    def _print_modified_list_internal(self, current_value, expected_value, prefix: str, color: str) -> None:
         from difflib import SequenceMatcher
 
-        a = [str(x) for x in a]
-        b = [str(x) for x in b]
+        a = [str(x) for x in current_value]
+        b = [str(x) for x in expected_value]
 
         max_length_a = max((len(str(x)) for x in a), default=0)
         max_length_b = max((len(str(x)) for x in b), default=0)
