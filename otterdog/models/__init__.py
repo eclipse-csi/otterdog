@@ -162,6 +162,7 @@ class LivePatchContext:
     update_webhooks: bool
     update_secrets: bool
     update_filter: str
+    current_org_settings: ModelObject | None
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 

@@ -225,6 +225,7 @@ class DiffOperation(Operation):
             self.update_webhooks,
             self.update_secrets,
             self.update_filter,
+            current_org.settings if self.coerce_current_org() else None,
             expected_org.settings,
         )
         expected_org.generate_live_patch(current_org, context, handle)
@@ -258,6 +259,9 @@ class DiffOperation(Operation):
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+
+    def coerce_current_org(self) -> bool:
+        return False
 
     async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(

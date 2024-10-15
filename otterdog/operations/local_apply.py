@@ -65,6 +65,9 @@ class LocalApplyOperation(ApplyOperation):
     def verbose_output(self):
         return False
 
+    def coerce_current_org(self) -> bool:
+        return True
+
     async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         other_org_file_name = jsonnet_config.org_config_file + self.suffix
 

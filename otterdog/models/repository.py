@@ -923,6 +923,10 @@ class Repository(ModelObject):
         else:
             assert isinstance(current_object, Repository)
 
+            if context.current_org_settings is not None:
+                current_org_settings = cast(OrganizationSettings, context.current_org_settings)
+                current_object = current_object.coerce_from_org_settings(current_org_settings)
+
             modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
             # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
