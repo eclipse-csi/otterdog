@@ -409,7 +409,7 @@ class Repository(ModelObject):
                 context.add_failure(
                     FailureType.ERROR,
                     f"'gh_pages_build_type' has value '{self.gh_pages_build_type}', "
-                    f"only values ('disabled' | 'legacy' | 'workflow') are allowed.",
+                    f"only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
                 )
 
             if self.gh_pages_build_type == "disabled":
@@ -432,12 +432,20 @@ class Repository(ModelObject):
                         f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
+            if self.gh_pages_build_type == "legacy" and self.gh_pages_source_path not in ["/", "/docs"]:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has"
+                    f" 'gh_pages_source_path' with value '{self.gh_pages_source_path}', "
+                    f"only values ['/' | '/docs'] are allowed.",
+                )
+
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
                 context.add_failure(
                     FailureType.ERROR,
                     f"'code_scanning_default_query_suite' has value '{self.code_scanning_default_query_suite}', "
-                    f"only values ('default' | 'extended') are allowed.",
+                    f"only values ['default' | 'extended'] are allowed.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_languages):

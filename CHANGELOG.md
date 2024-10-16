@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added validation for setting `gh_pages_source_path` of a repository to check for allowed values.
 - Added a playground and visualization of the default settings for a project to the dashboard. ([#293](https://github.com/eclipse-csi/otterdog/issues/293))
 - Added support for overriding default settings in the `otterdog config` from a file `.otterdog-defaults.json`.
 - Added support for setting `required_merge_queue` in repository rulesets. ([#282](https://github.com/eclipse-csi/otterdog/issues/282))
