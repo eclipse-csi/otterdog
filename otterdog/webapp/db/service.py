@@ -625,10 +625,10 @@ async def find_policy(owner: str, policy_type) -> PolicyModel | None:
 
 
 async def update_or_create_policy(owner: str, policy: Policy) -> None:
-    policy_model = await find_policy(owner, policy.type.value)
+    policy_model = await find_policy(owner, policy.policy_type().value)
     if policy_model is None:
         policy_model = PolicyModel(
-            id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            id=PolicyId(org_id=owner, policy_type=policy.policy_type().value),
             config=policy.config,
         )
     else:
