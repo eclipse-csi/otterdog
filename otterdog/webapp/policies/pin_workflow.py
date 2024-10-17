@@ -10,29 +10,22 @@ from __future__ import annotations
 
 from logging import getLogger
 
-from pydantic import BaseModel
 from quart import current_app
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.webapp.db.service import get_configuration_by_github_id, get_installation_by_github_id
 from otterdog.webapp.policies import Policy, PolicyType, RepoSelector
-from otterdog.webapp.tasks.check_file import CheckFileTask
+from otterdog.webapp.tasks.pin_workflow import PinWorkflowTask
 
 logger = getLogger(__name__)
 
 
-class RequiredFile(BaseModel):
-    path: str
+class PinWorkflowPolicy(Policy):
     repo_selector: RepoSelector
-    content: str
-
-
-class RequiredFilePolicy(Policy):
-    files: list[RequiredFile]
 
     @classmethod
     def policy_type(cls) -> PolicyType:
-        return PolicyType.REQUIRED_FILE
+        return PolicyType.PIN_WORKFLOW
 
     async def evaluate(self, github_id: str) -> None:
         installation = await get_installation_by_github_id(github_id)
@@ -45,22 +38,18 @@ class RequiredFilePolicy(Policy):
 
         github_organization = GitHubOrganization.from_model_data(config_data.config)
         for repo in github_organization.repositories:
-            for required_file in self.files:
-                if required_file.repo_selector.matches(repo):
-                    logger.debug(f"checking for required file '{required_file.path}' in repo '{github_id}/{repo.name}'")
+            if self.repo_selector.matches(repo):
+                logger.debug(f"checking for unpinned workflows in repo '{github_id}/{repo.name}'")
 
-                    title = f"Adding required file {required_file.path}"
-                    body = "This PR has been automatically created by otterdog due to a violated policy."
+                title = "Pinning workflows"
+                body = "This PR has been automatically created by otterdog due to an active policy."
 
-                    current_app.add_background_task(
-                        CheckFileTask(
-                            installation.installation_id,
-                            github_id,
-                            repo.name,
-                            required_file.path,
-                            required_file.content,
-                            "policy",
-                            title,
-                            body,
-                        )
+                current_app.add_background_task(
+                    PinWorkflowTask(
+                        installation.installation_id,
+                        github_id,
+                        repo.name,
+                        title,
+                        body,
                     )
+                )
