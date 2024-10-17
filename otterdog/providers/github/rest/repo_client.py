@@ -630,6 +630,14 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+    async def get_tags(self, owner: str, repo: str) -> list[dict[str, Any]] | None:
+        print_debug(f"retrieving tags for repo '{owner}/{repo}'")
+
+        try:
+            return await self.requester.request_paged_json("GET", f"/repos/{owner}/{repo}/tags")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting tags for repo '{owner}/{repo}':\n{ex}") from ex
+
     async def get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving environments for repo '{org_id}/{repo_name}'")
 

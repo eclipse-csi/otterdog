@@ -6,6 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from typing import Any
+
+from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
@@ -14,6 +17,15 @@ from . import RestApi, RestClient
 class ActionClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
+
+    async def get_workflows(self, owner: str, repo: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving workflows for repo '{owner}/{repo}'")
+
+        try:
+            result = await self.requester.request_json("GET", f"/repos/{owner}/{repo}/actions/workflows")
+            return result["workflows"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving workflows for '{owner}/{repo}':\n{ex}") from ex
 
     async def cancel_workflow_run(self, org_id: str, repo_name: str, run_id: str) -> bool:
         print_debug(f"cancelling workflow run #{run_id} in repo '{org_id}/{repo_name}'")

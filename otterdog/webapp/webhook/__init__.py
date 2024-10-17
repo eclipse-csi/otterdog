@@ -16,9 +16,10 @@ from otterdog.webapp.db.service import (
     update_installation_status,
     update_installations_from_config,
 )
-from otterdog.webapp.policies import create_policy
+from otterdog.webapp.policies import Policy
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
+from otterdog.webapp.tasks.delete_branch import DeleteBranchTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
@@ -73,6 +74,16 @@ async def on_pull_request_received(data):
 
     if event.installation is None or event.organization is None:
         return success()
+
+    if event.action in ["closed"] and event.pull_request.head.ref.startswith("otterdog/"):
+        current_app.add_background_task(
+            DeleteBranchTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request.head.ref,
+            )
+        )
 
     if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
@@ -313,7 +324,7 @@ async def on_workflow_job_received(data):
 
         policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE)
         if policy_model is not None:
-            policy = create_policy(policy_model.id.policy_type, policy_model.config)
+            policy = Policy.create(policy_model.id.policy_type, policy_model.config)
             assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
 
             if not policy.is_workflow_job_permitted(event.workflow_job.labels):

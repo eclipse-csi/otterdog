@@ -6,14 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 from . import Policy, PolicyType
 
 
 class MacOSLargeRunnersUsagePolicy(Policy):
     allowed: bool
 
-    @property
-    def type(self) -> PolicyType:
+    @classmethod
+    def policy_type(cls) -> PolicyType:
         return PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
     async def evaluate(self, github_id: str) -> None:

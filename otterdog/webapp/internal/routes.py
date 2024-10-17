@@ -18,7 +18,7 @@ from otterdog.webapp.db.service import (
     update_data_for_installation,
     update_installations_from_config,
 )
-from otterdog.webapp.policies import create_policy
+from otterdog.webapp.policies import Policy
 from otterdog.webapp.utils import refresh_global_policies, refresh_otterdog_config
 
 from . import blueprint
@@ -50,7 +50,7 @@ async def check():
         logger.debug(f"checking org {org_id}")
 
         for policy_model in await get_policies(org_id):
-            policy = create_policy(policy_model.id.policy_type, policy_model.config)
+            policy = Policy.create(policy_model.id.policy_type, policy_model.config)
 
             await policy.evaluate(org_id)
 

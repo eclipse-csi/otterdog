@@ -8,7 +8,7 @@
 
 import yaml
 
-from otterdog.webapp.policies import PolicyType, create_policy, read_policy
+from otterdog.webapp.policies import Policy, PolicyType, read_policy
 from otterdog.webapp.policies.macos_large_runners import MacOSLargeRunnersUsagePolicy
 
 disabled = """
@@ -30,7 +30,7 @@ def test_read_disabled():
     config = yaml.safe_load(disabled)
 
     policy = read_policy(config)
-    assert policy.type == PolicyType.MACOS_LARGE_RUNNERS_USAGE
+    assert policy.policy_type() == PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
     assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
     assert policy.is_workflow_job_permitted([]) is True
@@ -41,7 +41,7 @@ def test_read_enabled():
     config = yaml.safe_load(enabled)
 
     policy = read_policy(config)
-    assert policy.type == PolicyType.MACOS_LARGE_RUNNERS_USAGE
+    assert policy.policy_type() == PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
     assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
     assert policy.is_workflow_job_permitted([]) is True
@@ -51,9 +51,9 @@ def test_read_enabled():
 def test_create():
     config = yaml.safe_load(enabled)
 
-    policy = create_policy(PolicyType.MACOS_LARGE_RUNNERS_USAGE, config["config"])
+    policy = Policy.create(PolicyType.MACOS_LARGE_RUNNERS_USAGE, config["config"])
 
-    assert policy.type == PolicyType.MACOS_LARGE_RUNNERS_USAGE
+    assert policy.policy_type() == PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
     assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
     assert policy.is_workflow_job_permitted([]) is True

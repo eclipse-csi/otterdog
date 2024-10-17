@@ -63,7 +63,7 @@ async def fetch_policies(
     from otterdog.webapp.policies import read_policy
 
     config_file_path = "otterdog/policies"
-    policies = {p.type: p for p in global_policies}
+    policies = {p.policy_type(): p for p in global_policies}
     try:
         entries = await rest_api.content.get_content_object(org_id, repo, config_file_path)
     except RuntimeError:
@@ -75,7 +75,7 @@ async def fetch_policies(
             content = await rest_api.content.get_content(org_id, repo, path)
             try:
                 policy = read_policy(yaml.safe_load(content))
-                policies[policy.type] = policy
+                policies[policy.policy_type()] = policy
             except RuntimeError as ex:
                 print_error(f"failed reading policy from path '{path}': {ex!s}")
 

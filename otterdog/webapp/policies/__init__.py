@@ -8,22 +8,31 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, TypeVar, final
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from otterdog.models.repository import Repository
 
 
 class PolicyType(str, Enum):
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
     REQUIRED_FILE = "required_file"
+    PIN_WORKFLOW = "pin_workflow"
+
+
+PT = TypeVar("PT", bound="Policy")
 
 
 class Policy(ABC, BaseModel):
-    @property
+    @classmethod
     @abstractmethod
-    def type(self) -> PolicyType: ...
+    def policy_type(cls) -> PolicyType: ...
 
     @property
     def config(self) -> dict[str, Any]:
@@ -32,26 +41,30 @@ class Policy(ABC, BaseModel):
     @abstractmethod
     async def evaluate(self, github_id: str) -> None: ...
 
+    @classmethod
+    @final
+    def create(cls: type[PT], policy_type: PolicyType | str, config: dict[str, Any]) -> PT:
+        from .macos_large_runners import MacOSLargeRunnersUsagePolicy
+        from .pin_workflow import PinWorkflowPolicy
+        from .required_file import RequiredFilePolicy
+
+        if isinstance(policy_type, str):
+            policy_type = PolicyType(policy_type)
+
+        return next(c for c in cls.__subclasses__() if c.policy_type() == policy_type).model_validate(config)
+
 
 def read_policy(content: dict[str, Any]) -> Policy:
     policy_type = content["type"]
-    return create_policy(policy_type, content["config"])
+    return Policy.create(policy_type, content["config"])
 
 
-def create_policy(policy_type: PolicyType | str, config: dict[str, Any]) -> Policy:
-    if isinstance(policy_type, str):
-        policy_type = PolicyType(policy_type)
+class RepoSelector(BaseModel):
+    name_pattern: str | None
 
-    match policy_type:
-        case PolicyType.MACOS_LARGE_RUNNERS_USAGE:
-            from otterdog.webapp.policies.macos_large_runners import MacOSLargeRunnersUsagePolicy
+    @cached_property
+    def _pattern(self):
+        return re.compile(self.name_pattern)
 
-            return MacOSLargeRunnersUsagePolicy.model_validate(config)
-
-        case PolicyType.REQUIRED_FILE:
-            from otterdog.webapp.policies.required_file import RequiredFilePolicy
-
-            return RequiredFilePolicy.model_validate(config)
-
-        case _:
-            raise RuntimeError(f"unknown policy type '{policy_type}'")
+    def matches(self, repo: Repository) -> bool:
+        return self._pattern.match(repo.name)
