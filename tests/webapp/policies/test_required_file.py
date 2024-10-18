@@ -29,6 +29,6 @@ def test_read():
     config = yaml.safe_load(yaml_content)
 
     policy = read_policy(config)
-    assert policy.type == PolicyType.REQUIRED_FILE
+    assert policy.policy_type() == PolicyType.REQUIRED_FILE
 
     assert isinstance(policy, RequiredFilePolicy)
