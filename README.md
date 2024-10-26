@@ -1,6 +1,7 @@
 <a href="https://otterdog.eclipse.org"><p align="center"><img width="50%" src="https://raw.githubusercontent.com/eclipse-csi/.github/main/artwork/eclipse-otterdog/logo-full-square/500x500%20Transparent.png"></p></a>
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/eclipse-csi/otterdog/badge)](https://scorecard.dev/viewer/?uri=github.com/eclipse-csi/otterdog)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9624/badge)](https://www.bestpractices.dev/projects/9624)
 [![Build](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg)](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml)
 [![Documentation status](https://readthedocs.org/projects/otterdog/badge/?version=latest)](https://otterdog.readthedocs.io/en/latest/?badge=latest)
 [![PyPI](https://img.shields.io/pypi/v/otterdog?color=blue)](https://pypi.org/project/otterdog)
