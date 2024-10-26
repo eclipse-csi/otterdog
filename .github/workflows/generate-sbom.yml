@@ -10,6 +10,9 @@ on:
         default: 'main'
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   generate-sbom:
     runs-on: ubuntu-latest
