@@ -1,4 +1,4 @@
-FROM node:20-alpine as builder-node
+FROM node:20-alpine@sha256:c13b26e7e602ef2f1074aef304ce6e9b7dd284c419b35d89fcf3cc8e44a8def9 as builder-node
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN npm i
 RUN npm run build
 
 # build otterdog using a python environment
-FROM python:3.12.2-slim as builder-python3
+FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 as builder-python3
 
 RUN apt-get update \
     && apt-get install -y \
@@ -36,7 +36,7 @@ RUN poetry config virtualenvs.in-project true && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
-FROM python:3.12.7-slim
+FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
