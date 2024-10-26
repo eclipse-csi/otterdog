@@ -21,7 +21,7 @@ env:
   BOT_EMAIL: csi-bot@eclipse.org
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12s'
 
 permissions:
   contents: read
