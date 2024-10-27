@@ -48,7 +48,7 @@ jobs:
           VERSION="$(jq -r '.metadata.component.version' < otterdog-bom.json)"
           echo "version=$(echo ${VERSION})" >> $GITHUB_OUTPUT
 
-      - uses: DependencyTrack/gh-upload-sbom@1f0526714a54aeb1cdf780889cf1e917c477d775 # v3.0.0
+      - uses: DependencyTrack/gh-upload-sbom@48feab3080ff9e8f51f4d21861d9fc914eb744f5 # v3.1.0
         with:
           serverHostname: 'sbom.eclipse.org'
           apiKey: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
