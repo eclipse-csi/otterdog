@@ -28,7 +28,7 @@ jobs:
       - name: Generate sbom
         run: cyclonedx-py poetry --with main,app -o otterdog-bom.json
       - name: Upload sbom
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: otterdog-bom.json
           path: otterdog-bom.json
