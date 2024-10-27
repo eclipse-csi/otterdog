@@ -34,6 +34,7 @@ jobs:
           path: otterdog-bom.json
 
   upload-sbom:
+    if: github.repository == 'eclipse-csi/otterdog'
     runs-on: ubuntu-latest
     needs: [ 'generate-sbom' ]
     steps:

@@ -1,0 +1,186 @@
+name: Publish
+
+on:
+  workflow_call:
+    inputs:
+      release-tag:
+        required: true
+        type: string
+      release-version:
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+env:
+  REGISTRY: 'ghcr.io'
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.12'
+  POETRY_VERSION: '1.8.4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'eclipse-csi/otterdog'
+    runs-on: ubuntu-22.04
+    outputs:
+      release-tag: ${{ steps.context.outputs.RELEASE_TAG }}
+      release-version: ${{ steps.context.outputs.RELEASE_VERSION }}
+    steps:
+      - name: "Setup context"
+        id: context
+        shell: bash
+        run: |
+          if [ "${{ inputs.release-tag }}" != "" ]; then
+            echo "RELEASE_TAG=${{ inputs.release-tag }}" >> $GITHUB_OUTPUT
+            echo "RELEASE_VERSION=${{ inputs.release-version }}" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            VERSION=$(echo ${{ github.ref_name }} | sed 's/v//')
+            echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push-image:
+    runs-on: ubuntu-22.04
+    needs: ['prepare']
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ needs.release.outputs.release-tag }}
+
+      - name: "Log in to the Container registry"
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Extract metadata (tags, labels) for Docker"
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          tags: |
+            ${{ needs.prepare.outputs.release-version }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.prepare.outputs.release-version }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: "Build and push Docker image"
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.release-version }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-dist:
+    runs-on: ubuntu-22.04
+    needs: ["prepare"]
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ needs.prepare.outputs.release-tag }}
+
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3.4
+        with:
+          virtualenvs-in-project: true
+          version: ${{ env.POETRY_VERSION }}
+
+      - name: "Install dependencies"
+        run: poetry install --only=main
+
+      - name: "Build package"
+        run: poetry build
+
+      - name: "Generate hashes"
+        id: hash
+        run: |
+          cd dist && echo "hashes=$(sha256sum * | base64 -w0)" >> $GITHUB_OUTPUT
+
+      - name: "Upload dist"
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: "dist"
+          path: "dist/"
+          if-no-files-found: error
+          retention-days: 5
+
+  provenance:
+    needs: ['prepare', 'build-dist']
+    permissions:
+      actions: read
+      contents: write
+      id-token: write # Needed to access the workflow's OIDC identity.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0 # ignore: pin
+    with:
+      base64-subjects: "${{ needs.build-dist.outputs.hashes }}"
+      upload-assets: true
+      upload-tag-name: "${{ needs.prepare.outputs.release-tag }}"
+
+  github-publish:
+    runs-on: ubuntu-22.04
+    needs: ['prepare', 'build-dist', 'provenance']
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: "Download dists"
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: "dist"
+          path: "dist/"
+
+      - name: "Extract release notes"
+        id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@9989ccec43d726ef05aa1cd7b2854fb96b6df6ab # v2.2.0
+        with:
+          release_notes_file: RELEASE_NOTES.md
+
+      - name: "Create GitHub release"
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        with:
+          name: "Otterdog ${{ needs.prepare.outputs.release-tag }}"
+          tag_name: "${{ needs.prepare.outputs.release-tag }}"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          make_latest: true
+          files: dist/*
+
+  pypi-publish:
+    runs-on: ubuntu-22.04
+    needs: ['build-dist', 'provenance']
+    environment:
+      name: pypi
+      url: https://pypi.org/p/otterdog
+    permissions:
+      id-token: write
+    steps:
+      - name: "Download dists"
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: "dist"
+          path: "dist/"
+
+      - name: "Publish dists to PyPI"
+        uses: pypa/gh-action-pypi-publish@0ab0b79471669eb3a4d647e625009c62f9f3b241 # v1.10.1
+        with:
+          attestations: true
