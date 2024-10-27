@@ -22,10 +22,9 @@ class TeamClient(RestClient):
 
         try:
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/teams")
-            return list(map(lambda team: team["slug"], response))
+            return [team["slug"] for team in response]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving teams:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving teams:\n{ex}") from ex
 
     async def is_user_member_of_team(self, org_id: str, team_slug: str, user: str) -> bool:
         print_debug(f"retrieving membership of user '{user}' for team '{team_slug}' in org '{org_id}'")

@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass
 
-from otterdog.providers.github import RestApi
+from otterdog.providers.github.rest import RestApi
 from otterdog.utils import print_error
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
@@ -45,7 +45,7 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
 
             policies = await fetch_policies(rest_api, self.org_id, org_config.config_repo, self.global_policies)
 
-            valid_types = list(map(lambda x: x.value, policies.keys()))
+            valid_types = [x.value for x in policies]
             await cleanup_policies_of_owner(self.org_id, valid_types)
 
             for policy in list(policies.values()):
@@ -58,7 +58,7 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
 async def fetch_policies(
     rest_api: RestApi, org_id: str, repo: str, global_policies: list[Policy]
 ) -> dict[PolicyType, Policy]:
-    import yaml  # type: ignore
+    import yaml
 
     from otterdog.webapp.policies import read_policy
 
@@ -71,12 +71,12 @@ async def fetch_policies(
 
     for entry in entries:
         path = entry["path"]
-        if path.endswith(".yml") or path.endswith("yaml"):
+        if path.endswith((".yml", "yaml")):
             content = await rest_api.content.get_content(org_id, repo, path)
             try:
                 policy = read_policy(yaml.safe_load(content))
                 policies[policy.type] = policy
             except RuntimeError as ex:
-                print_error(f"failed reading policy from path '{path}': {str(ex)}")
+                print_error(f"failed reading policy from path '{path}': {ex!s}")
 
     return policies

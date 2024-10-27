@@ -6,16 +6,21 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING
 
-import aiofiles.ospath
+from aiofiles import open, tempfile
 
-from otterdog.config import OrganizationConfig
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import sort_jsonnet, strip_trailing_commas, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class CanonicalDiffOperation(Operation):
@@ -30,28 +35,32 @@ class CanonicalDiffOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Showing canonical diff:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
         org_file_name = jsonnet_config.org_config_file
-
-        if not await aiofiles.ospath.exists(org_file_name):
-            self.printer.print_error(
-                f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first."
-            )
+        if not await self.check_config_file_exists(org_file_name):
             return 1
 
         try:
             organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
         except RuntimeError as ex:
-            self.printer.print_error(f"failed to load configuration: {str(ex)}")
+            self.printer.print_error(f"failed to load configuration: {ex!s}")
             return 1
 
-        async with aiofiles.open(org_file_name, "r") as file:
+        async with open(org_file_name) as file:
             original_config = await file.read()
 
         original_config_without_comments: list[str] = strip_trailing_commas(
@@ -78,7 +87,7 @@ class CanonicalDiffOperation(Operation):
 
     @staticmethod
     async def _diff(a, b, name_a, name_b):
-        async with aiofiles.tempfile.NamedTemporaryFile() as file:
+        async with tempfile.NamedTemporaryFile() as file:
             await file.write(bytes("\n".join(a), "utf-8"))
             await file.flush()
 
@@ -96,5 +105,4 @@ class CanonicalDiffOperation(Operation):
                 for line in out.decode("utf-8").split("\n"):
                     yield line
             except BrokenPipeError as ex:
-                print(type(ex))
-                raise RuntimeError(f"failed to run diff command: {str(ex)}")
+                raise RuntimeError(f"failed to run diff command: {ex!s}") from ex

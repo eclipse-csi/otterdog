@@ -11,11 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from io import StringIO
+from typing import TYPE_CHECKING
 
 from quart import current_app, render_template
 
-from otterdog.models import LivePatch
-from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
@@ -34,6 +33,10 @@ from otterdog.webapp.utils import (
     make_aware_utc,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
+
+if TYPE_CHECKING:
+    from otterdog.models import LivePatch
+    from otterdog.operations.diff_operation import DiffStatus
 
 
 @dataclass(repr=False)
@@ -116,7 +119,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                     )
 
                     # if a previous commit status was found, propagate it directly
-                    if len(commit_status) > 1:
+                    if len(commit_status) > 0:
                         await self._update_final_status(commit_status[0]["state"] == "success")
                         return False
 

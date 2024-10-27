@@ -4,6 +4,7 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
+    "target": { "type": "string" },
     "enforcement": { "type": "string" },
 
     "bypass_actors": {
@@ -29,12 +30,7 @@
     "requires_commit_signatures": { "type": "boolean" },
     "requires_linear_history": { "type": "boolean" },
 
-    "requires_pull_request": { "type": "boolean" },
-    "required_approving_review_count": { "$ref": "#/definitions/integer_or_null" },
-    "dismisses_stale_reviews": { "type": "boolean" },
-    "requires_code_owner_review": { "type": "boolean" },
-    "requires_last_push_approval": { "type": "boolean" },
-    "requires_review_thread_resolution": { "type": "boolean" },
+    "required_pull_request": { "$ref": "#/definitions/pull_request_or_null" },
 
     "requires_deployments": { "type":  "boolean" },
     "required_deployment_environments": {
@@ -42,12 +38,8 @@
       "items": { "type": "string" }
     },
 
-    "requires_status_checks": { "type": "boolean" },
-    "requires_strict_status_checks": { "type": "boolean" },
-    "required_status_checks": {
-      "type": "array",
-      "items": { "type": "string" }
-    }
+    "required_status_checks": { "$ref": "#/definitions/status_check_or_null" },
+    "required_merge_queue": { "$ref": "#/definitions/merge_queue_or_null" }
   },
 
   "required": [ "name", "enforcement" ],
@@ -59,6 +51,60 @@
           { "type": "integer" },
           { "type": "null" }
         ]
+    },
+    "pull_request_or_null": {
+      "anyOf": [
+          { "$ref": "#/definitions/pull_request" },
+          { "type": "null" }
+        ]
+    },
+    "pull_request": {
+      "type": "object",
+      "properties": {
+        "required_approving_review_count": { "type": "integer" },
+        "dismisses_stale_reviews": { "type": "boolean" },
+        "requires_code_owner_review": { "type": "boolean" },
+        "requires_last_push_approval": { "type": "boolean" },
+        "requires_review_thread_resolution": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "status_check_or_null": {
+      "anyOf": [
+          { "$ref": "#/definitions/status_check" },
+          { "type": "null" }
+        ]
+    },
+    "status_check": {
+      "type": "object",
+      "properties": {
+        "do_not_enforce_on_create": { "type": "boolean" },
+        "strict": { "type": "boolean" },
+        "status_checks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "merge_queue_or_null": {
+      "anyOf": [
+          { "$ref": "#/definitions/merge_queue" },
+          { "type": "null" }
+        ]
+    },
+    "merge_queue": {
+      "type": "object",
+      "properties": {
+        "merge_method": { "type": "string" },
+        "build_concurrency": { "type": "integer" },
+        "min_group_size": { "type": "integer" },
+        "max_group_size": { "type": "integer" },
+        "wait_time_for_minimum_group_size": { "type": "integer" },
+        "status_check_timeout": { "type": "integer" },
+        "requires_all_group_entries_to_pass_required_checks": { "type": "boolean" }
+      },
+      "additionalProperties": false
     }
   }
 }

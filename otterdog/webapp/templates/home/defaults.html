@@ -1,0 +1,87 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Profile {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} sidebar-mini {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+  <!-- Editor -->
+  <link rel="stylesheet" href="{{ asset('css/highlight.css') }}">
+
+  <style>
+    pre { padding: 0px; }
+    code { padding: 0px; }
+    pre code.hljs { padding: 0px; }
+  </style>
+
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Default configuration @ {{ project_name }}</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}">{{ project_name }}</a></li>
+              <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}/default-config">Defaults</a></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <!-- /.container-fluid -->
+    </section>
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        <div class="card card-primary card-outline">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-4 col-sm-2">
+                <div class="nav flex-column nav-tabs h-100" id="vert-tabs-tab" role="tablist" aria-orientation="vertical">
+                  {% for element in default_elements %}
+                  {% set id = element['id'] %}
+                  {% set name = element['name'] %}
+                  <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ name }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="col-8 col-sm-10">
+                <div class="tab-content" id="tabContent">
+                  {% for element in default_elements %}
+                  {% set id = element['id'] %}
+                  {% set content = element['content'] %}
+                  <div class="tab-pane text-left {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
+                      <pre><code class="language-yaml">
+{{ content }}
+                      </code></pre>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+  <script type="module" src="{{ asset('js/highlight.js') }}"></script>
+{% endblock javascripts %}

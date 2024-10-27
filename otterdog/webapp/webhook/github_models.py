@@ -8,7 +8,6 @@
 
 """Data classes for events received via webhook from GitHub"""
 
-
 from __future__ import annotations
 
 from abc import ABC

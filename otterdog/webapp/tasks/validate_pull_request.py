@@ -11,13 +11,12 @@ from __future__ import annotations
 import filecmp
 from dataclasses import dataclass
 from io import StringIO
+from typing import TYPE_CHECKING
 
 from quart import current_app, render_template
 
 from otterdog.models import LivePatch, LivePatchType
-from otterdog.operations.diff_operation import DiffStatus
 from otterdog.operations.local_plan import LocalPlanOperation
-from otterdog.providers.github import RestApi
 from otterdog.utils import IndentingPrinter, LogLevel
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
@@ -29,6 +28,10 @@ from otterdog.webapp.utils import (
     get_otterdog_config,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
+
+if TYPE_CHECKING:
+    from otterdog.operations.diff_operation import DiffStatus
+    from otterdog.providers.github.rest import RestApi
 
 
 @dataclass
@@ -148,12 +151,10 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 operation = LocalPlanOperation("-BASE", "*", False, False, "")
 
                 def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
-                    validation_result.requires_secrets = any(list(map(lambda x: x.requires_secrets(), patches)))
-                    validation_result.requires_web_ui = any(list(map(lambda x: x.requires_web_ui(), patches)))
+                    validation_result.requires_secrets = any(x.requires_secrets() for x in patches)
+                    validation_result.requires_web_ui = any(x.requires_web_ui() for x in patches)
 
-                    validation_result.includes_deletions = any(
-                        list(map(lambda x: x.patch_type == LivePatchType.REMOVE, patches))
-                    )
+                    validation_result.includes_deletions = any(x.patch_type == LivePatchType.REMOVE for x in patches)
 
                 otterdog_config = await get_otterdog_config()
 
@@ -269,7 +270,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self.repo_name,
             str(self.pull_request_number),
         )
-        return list(map(lambda x: x["filename"], pull_request_data))
+        return [x["filename"] for x in pull_request_data]
 
     def __repr__(self) -> str:
         return (

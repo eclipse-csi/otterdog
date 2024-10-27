@@ -6,20 +6,24 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
+from __future__ import annotations
+
 import textwrap
 from io import StringIO
+from os import path
+from typing import TYPE_CHECKING
 
-import aiofiles.os
-import aiofiles.ospath
+from aiofiles import open, os, ospath
 
-from otterdog.config import OrganizationConfig
-from otterdog.models import ModelObject
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.repository import Repository
-from otterdog.utils import IndentingPrinter, is_set_and_valid, style
+from otterdog.utils import IndentingPrinter, is_info_enabled, is_set_and_valid, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
+    from otterdog.models import ModelObject
+    from otterdog.models.repository import Repository
 
 
 class ShowOperation(Operation):
@@ -44,28 +48,32 @@ class ShowOperation(Operation):
         if not self.markdown:
             self.printer.println("Showing organization resources:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        if not self.markdown:
-            self.printer.println(f"\nOrganization {style(org_config.name)}[id={github_id}]")
+        if not self.markdown or is_info_enabled():
+            self.printer.println(
+                f"\nOrganization {style(org_config.name)}[id={github_id}]"
+                f"{self._format_progress(org_index, org_count)}"
+            )
             self.printer.level_up()
 
         try:
             org_file_name = jsonnet_config.org_config_file
-
-            if not await aiofiles.ospath.exists(org_file_name):
-                self.printer.print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import first'"
-                )
+            if not await self.check_config_file_exists(org_file_name):
                 return 1
 
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {str(ex)}")
+                self.printer.print_error(f"failed to load configuration: {ex!s}")
                 return 1
 
             if not self.markdown:
@@ -86,8 +94,8 @@ class ShowOperation(Operation):
             self.print_dict(model_object.to_model_dict(), model_header, "", "black")
 
     async def _print_markdown(self, organization: GitHubOrganization) -> None:
-        if not await aiofiles.ospath.exists(self.output_dir):
-            await aiofiles.os.makedirs(self.output_dir, exist_ok=True)
+        if not await ospath.exists(self.output_dir):
+            await os.makedirs(self.output_dir, exist_ok=True)
 
         writer = StringIO()
         self.printer = IndentingPrinter(writer, spaces_per_level=4)
@@ -184,13 +192,13 @@ class ShowOperation(Operation):
 
         self.printer.level_down()
 
-        async with aiofiles.open(os.path.join(self.output_dir, "configuration.md"), "w") as file:
+        async with open(path.join(self.output_dir, "configuration.md"), "w") as file:
             await file.write(writer.getvalue())
 
         for repo in organization.repositories:
-            self._print_repo_markdown(organization, repo)
+            await self._print_repo_markdown(organization, repo)
 
-    def _print_repo_markdown(self, organization: GitHubOrganization, repo: Repository) -> None:
+    async def _print_repo_markdown(self, organization: GitHubOrganization, repo: Repository) -> None:
         writer = StringIO()
         self.printer = IndentingPrinter(writer, spaces_per_level=4)
 
@@ -279,8 +287,8 @@ class ShowOperation(Operation):
             self.printer.println("No rulesets.")
         self.printer.level_down()
 
-        with open(os.path.join(self.output_dir, f"repo-{repo.name}.md"), "w") as file:
-            file.write(writer.getvalue())
+        async with open(path.join(self.output_dir, f"repo-{repo.name}.md"), "w") as file:
+            await file.write(writer.getvalue())
 
     def _print_model_object(self, model_object: ModelObject, include_nested: bool = False):
         self.printer.println("``` jsonnet")

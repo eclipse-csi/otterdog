@@ -6,21 +6,25 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import shutil
-from collections.abc import Sequence
+from __future__ import annotations
 
-import aiofiles
-import aiofiles.os
-import aiofiles.ospath
+from typing import TYPE_CHECKING
 
-from otterdog.config import OrganizationConfig
+from aiofiles import open, os, ospath
+from aioshutil import copy
+
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.models.webhook import Webhook
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import get_approval, style
+from otterdog.utils import style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from otterdog.config import OrganizationConfig
+    from otterdog.models.webhook import Webhook
 
 
 class ImportOperation(Operation):
@@ -44,30 +48,29 @@ class ImportOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Importing resources:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
         org_file_name = jsonnet_config.org_config_file
+        if not await self.check_config_file_overwrite_if_exists(org_file_name, self.force_processing):
+            return 1
 
-        if await aiofiles.ospath.exists(org_file_name) and not self.force_processing:
-            self.printer.println()
-            self.printer.println(style("Definition already exists", bright=True) + f" at '{org_file_name}'.")
-            self.printer.println("  Performing this action will overwrite its contents.")
-            self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
-
-            self.printer.print(f"{style('Enter a value:', bright=True)} ")
-            if not get_approval():
-                self.printer.println("\nImport cancelled.")
-                return 1
-
-        if await aiofiles.ospath.exists(org_file_name):
+        if await ospath.exists(org_file_name):
             sync_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
-            shutil.copy(org_file_name, backup_file)
+            await copy(org_file_name, backup_file)
             self.printer.println(f"\nExisting definition copied to '{style(backup_file, bright=True)}'.\n")
         else:
             sync_from_previous_config = False
@@ -78,7 +81,7 @@ class ImportOperation(Operation):
             try:
                 credentials = self.config.get_credentials(org_config)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             if self.no_web_ui is True:
@@ -118,10 +121,10 @@ class ImportOperation(Operation):
             output = organization.to_jsonnet(jsonnet_config, context)
 
             output_dir = jsonnet_config.org_dir
-            if not await aiofiles.ospath.exists(output_dir):
-                await aiofiles.os.makedirs(output_dir)
+            if not await ospath.exists(output_dir):
+                await os.makedirs(output_dir)
 
-            async with aiofiles.open(org_file_name, "w") as file:
+            async with open(org_file_name, "w") as file:
                 await file.write(output)
 
             self.printer.println(f"Organization definition written to '{org_file_name}'.")

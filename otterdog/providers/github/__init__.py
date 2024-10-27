@@ -6,20 +6,23 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
+import contextlib
 import json
 from asyncio import CancelledError
-from typing import Any
+from typing import TYPE_CHECKING
 
 from importlib_resources import files
 
 from otterdog import resources
-from otterdog.credentials import Credentials
-from otterdog.providers.github.auth import token_auth
 from otterdog.utils import is_ghsa_repo, is_set_and_present, print_trace, print_warn
 
-from .graphql import GraphQLClient
-from .rest import RestApi
-from .web import WebClient
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.credentials import Credentials
+
 
 _ORG_SETTINGS_SCHEMA = json.loads(files(resources).joinpath("schemas/settings.json").read_text())
 
@@ -50,18 +53,19 @@ class GitHubProvider:
 
     async def close(self) -> None:
         if self._credentials is not None:
-            try:
+            with contextlib.suppress(CancelledError):
                 await self.rest_api.close()
-            except CancelledError:
-                pass
 
-            try:
+            with contextlib.suppress(CancelledError):
                 await self.graphql_client.close()
-            except CancelledError:
-                pass
 
     def _init_clients(self):
         from otterdog.cache import get_github_cache
+        from otterdog.providers.github.auth import token_auth
+
+        from .graphql import GraphQLClient
+        from .rest import RestApi
+        from .web import WebClient
 
         self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
         self.web_client = WebClient(self._credentials)
@@ -373,7 +377,7 @@ class GitHubProvider:
         return repo_ids
 
     async def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
-        return list(map(lambda x: x[1][1], await self.get_actor_ids_with_type(actor_names)))
+        return [x[1][1] for x in await self.get_actor_ids_with_type(actor_names)]
 
     async def get_actor_ids_with_type(self, actor_names: list[str]) -> list[tuple[str, tuple[int, str]]]:
         result = []

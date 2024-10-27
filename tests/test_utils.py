@@ -11,6 +11,7 @@ import pytest
 from otterdog.utils import (
     UNSET,
     camel_to_snake_case,
+    deep_merge_dict,
     is_different_ignoring_order,
     is_ghsa_repo,
     parse_template_url,
@@ -82,3 +83,20 @@ def test_is_ghsa_repo():
     assert is_ghsa_repo("name") is False
     assert is_ghsa_repo("name-wqjm-x66q-r2c6") is False
     assert is_ghsa_repo("jiro-ghsa-wqjm-x66q-r2c6") is True
+
+
+def test_deep_merge_dict():
+    src = {
+        "first": {"Matt": 10, "Arnie": 2},
+        "second": {"Peter": 2},
+    }
+    dst = {
+        "first": {"Matt": 1},
+        "third": {"Maria": 3},
+    }
+
+    assert deep_merge_dict(src, dst) == {
+        "first": {"Matt": 10, "Arnie": 2},
+        "second": {"Peter": 2},
+        "third": {"Maria": 3},
+    }

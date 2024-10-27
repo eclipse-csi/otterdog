@@ -45,7 +45,7 @@ from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
-_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"], max_content_width=120)
+_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
 
 _CONFIG: OtterdogConfig | None = None
 
@@ -58,7 +58,7 @@ def complete_organizations(ctx, param, incomplete):
     try:
         config = OtterdogConfig.from_file(config_file, False)
         out = []
-        for org in config.organization_configs.keys():
+        for org in config.organization_configs:
             if incomplete in org:
                 out.append(CompletionItem(org))
         return out
@@ -743,9 +743,13 @@ def _execute_operation(organizations: list[str], operation: Operation):
         if len(organizations) == 0:
             organizations = config.organization_names
 
+        total_num_orgs = len(organizations)
+        current_org_number = 1
+
         for organization in organizations:
             org_config = config.get_organization_config(organization)
-            exit_code = max(exit_code, asyncio.run(operation.execute(org_config)))
+            exit_code = max(exit_code, asyncio.run(operation.execute(org_config, current_org_number, total_num_orgs)))
+            current_org_number += 1
 
         operation.post_execute()
         sys.exit(exit_code)

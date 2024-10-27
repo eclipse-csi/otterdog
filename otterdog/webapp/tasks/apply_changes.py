@@ -166,10 +166,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self._pull_request.merge_commit_sha,
             )
             parents = merge_commit["parents"]
-            if len(parents) == 1:
-                parent_commit = parents[0]["sha"]
-            else:
-                parent_commit = "HEAD~1"
+            parent_commit = parents[0]["sha"] if len(parents) == 1 else "HEAD~1"
 
             base_file = org_config.jsonnet_config.org_config_file + "-BASE"
             await fetch_config_from_github(

@@ -6,15 +6,22 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
-from otterdog.models import LivePatch, LivePatchType, ModelObject
+from typing import TYPE_CHECKING
+
+from otterdog.models import LivePatch, LivePatchType
 from otterdog.utils import Change, IndentingPrinter, get_approval, style
 
-from .diff_operation import DiffStatus
 from .plan import PlanOperation
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig, OtterdogConfig
+    from otterdog.models import ModelObject
+
+    from .diff_operation import DiffStatus
 
 
 class ApplyOperation(PlanOperation):
@@ -142,6 +149,9 @@ class ApplyOperation(PlanOperation):
     def execute_custom_hook_if_present(
         self, org_config: OrganizationConfig, model_object: ModelObject, filename: str
     ) -> None:
+        import os
+
         hook_script = os.path.join(self.template_dir, filename)
         if os.path.exists(hook_script):
-            exec(open(hook_script).read())
+            with open(hook_script) as file:
+                exec(file.read())

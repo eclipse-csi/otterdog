@@ -6,11 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
 
-from aiohttp_client_cache import CacheBackend
+from typing import TYPE_CHECKING
 
 from . import CacheStrategy
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from aiohttp_client_cache import CacheBackend
 
 _AIOHTTP_CACHE_DIR = ".cache/async_http"
 

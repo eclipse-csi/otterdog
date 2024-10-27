@@ -6,17 +6,22 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from __future__ import annotations
+
 import filecmp
+from typing import TYPE_CHECKING
 
-import aiofiles
-import aiofiles.ospath
+from aiofiles import open
 
-from otterdog.config import OrganizationConfig
-from otterdog.providers.github import GitHubProvider, RestApi
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import get_approval, style
 
 from . import Operation
 from .local_plan import LocalPlanOperation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
+    from otterdog.providers.github.rest import RestApi
 
 
 class OpenPullRequestOperation(Operation):
@@ -45,31 +50,35 @@ class OpenPullRequestOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Open PR for local configuration changes:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
         org_file_name = jsonnet_config.org_config_file
-
-        if not await aiofiles.ospath.exists(org_file_name):
-            self.printer.print_error(
-                f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first"
-            )
+        if not await self.check_config_file_exists(org_file_name):
             return 1
 
         try:
             credentials = self.config.get_credentials(org_config, only_token=True)
         except RuntimeError as ex:
-            self.printer.print_error(f"invalid credentials\n{str(ex)}")
+            self.printer.print_error(f"invalid credentials\n{ex!s}")
             return 1
 
         self.printer.level_up()
 
         try:
-            async with aiofiles.open(org_file_name, "r") as file:
+            async with open(org_file_name) as file:
                 local_configuration = await file.read()
 
             async with GitHubProvider(credentials) as provider:
@@ -88,7 +97,7 @@ class OpenPullRequestOperation(Operation):
                     )
 
                     current_config_file = org_config.jsonnet_config.org_config_file + "-BASE"
-                    async with aiofiles.open(current_config_file, "w") as file:
+                    async with open(current_config_file, "w") as file:
                         await file.write(current_definition)
 
                     if filecmp.cmp(current_config_file, org_config.jsonnet_config.org_config_file):
@@ -135,7 +144,7 @@ class OpenPullRequestOperation(Operation):
                 except RuntimeError as e:
                     self.printer.print_error(
                         "failed to open pull request in repo "
-                        f"'{org_config.github_id}/{org_config.config_repo}': {str(e)}"
+                        f"'{org_config.github_id}/{org_config.config_repo}': {e!s}"
                     )
                     return 1
 

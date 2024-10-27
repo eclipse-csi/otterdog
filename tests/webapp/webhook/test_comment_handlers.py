@@ -41,7 +41,6 @@ class CommentHandlerTest(unittest.TestCase, ABC, Generic[T]):
 
 
 class HelpCommentHandlerTest(CommentHandlerTest[HelpCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return HelpCommentHandler()
@@ -59,7 +58,6 @@ class HelpCommentHandlerTest(CommentHandlerTest[HelpCommentHandler]):
 
 
 class TeamInfoCommentHandlerTest(CommentHandlerTest[TeamInfoCommentHandler]):
-
     @property
     def handler(self) -> TeamInfoCommentHandler:
         return TeamInfoCommentHandler()
@@ -77,7 +75,6 @@ class TeamInfoCommentHandlerTest(CommentHandlerTest[TeamInfoCommentHandler]):
 
 
 class CheckSyncCommentHandlerTest(CommentHandlerTest[CheckSyncCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return CheckSyncCommentHandler()
@@ -95,7 +92,6 @@ class CheckSyncCommentHandlerTest(CommentHandlerTest[CheckSyncCommentHandler]):
 
 
 class ApplyCommentHandlerTest(CommentHandlerTest[ApplyCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return ApplyCommentHandler()
@@ -113,7 +109,6 @@ class ApplyCommentHandlerTest(CommentHandlerTest[ApplyCommentHandler]):
 
 
 class DoneCommentHandlerTest(CommentHandlerTest[DoneCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return DoneCommentHandler()
@@ -131,7 +126,6 @@ class DoneCommentHandlerTest(CommentHandlerTest[DoneCommentHandler]):
 
 
 class MergeCommentHandlerTest(CommentHandlerTest[MergeCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return MergeCommentHandler()
@@ -149,7 +143,6 @@ class MergeCommentHandlerTest(CommentHandlerTest[MergeCommentHandler]):
 
 
 class ValidateCommentHandlerTest(CommentHandlerTest[ValidateCommentHandler]):
-
     @property
     def handler(self) -> CommentHandler:
         return ValidateCommentHandler()

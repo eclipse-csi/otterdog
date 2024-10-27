@@ -9,11 +9,14 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import TYPE_CHECKING
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.webhook import Webhook
-from otterdog.providers.github import GitHubProvider
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass

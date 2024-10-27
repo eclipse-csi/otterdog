@@ -8,16 +8,20 @@
 
 from __future__ import annotations
 
-from abc import ABC
 from datetime import datetime
 from functools import cached_property
+from typing import TYPE_CHECKING
 
-from otterdog.providers.github.auth import AuthStrategy
-from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.cache.file import file_cache
-from otterdog.providers.github.stats import RequestStatistics
 
 from .requester import Requester
+
+if TYPE_CHECKING:
+    from otterdog.providers.github.auth import AuthStrategy
+    from otterdog.providers.github.cache import CacheStrategy
+    from otterdog.providers.github.stats import RequestStatistics
+
+_DEFAULT_CACHE_STRATEGY = file_cache()
 
 
 class RestApi:
@@ -25,7 +29,11 @@ class RestApi:
     _GH_API_VERSION = "2022-11-28"
     _GH_API_URL_ROOT = "api.github.com"
 
-    def __init__(self, auth_strategy: AuthStrategy | None = None, cache_strategy: CacheStrategy = file_cache()):
+    def __init__(
+        self,
+        auth_strategy: AuthStrategy | None = None,
+        cache_strategy: CacheStrategy = _DEFAULT_CACHE_STRATEGY,
+    ):
         self._auth_strategy = auth_strategy
         self._cache_strategy = cache_strategy
         self._requester = Requester(auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
@@ -123,7 +131,7 @@ class RestApi:
         return TeamClient(self)
 
 
-class RestClient(ABC):
+class RestClient:
     def __init__(self, rest_api: RestApi):
         self.__rest_api = rest_api
 

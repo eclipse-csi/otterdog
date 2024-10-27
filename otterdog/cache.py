@@ -6,21 +6,27 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from otterdog.providers.github.cache import CacheStrategy
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from otterdog.providers.github.cache.file import file_cache
 from otterdog.utils import print_trace
+
+if TYPE_CHECKING:
+    from otterdog.providers.github.cache import CacheStrategy
 
 _GITHUB_CACHE = file_cache()
 
 
-def get_github_cache() -> "CacheStrategy":
+def get_github_cache() -> CacheStrategy:
     global _GITHUB_CACHE
 
     print_trace(f"Using {_GITHUB_CACHE} as GitHub cache strategy")
     return _GITHUB_CACHE
 
 
-def set_github_cache(cache: "CacheStrategy") -> None:
+def set_github_cache(cache: CacheStrategy) -> None:
     global _GITHUB_CACHE
 
     print_trace(f"Setting {cache} as GitHub cache strategy")

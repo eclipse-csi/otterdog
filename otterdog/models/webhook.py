@@ -11,10 +11,9 @@ from __future__ import annotations
 import abc
 import dataclasses
 import fnmatch
-from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
-from jsonbender import OptionalS, S, bend  # type: ignore
+from jsonbender import OptionalS, S  # type: ignore
 
 from otterdog.models import (
     FailureType,
@@ -24,8 +23,12 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from otterdog.providers.github import GitHubProvider
 
 WT = TypeVar("WT", bound="Webhook")
 
@@ -48,7 +51,7 @@ class Webhook(ModelObject, abc.ABC):
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
 
     def get_all_urls(self) -> list[str]:
-        return [self.url] + self.aliases
+        return [self.url, *self.aliases]
 
     def get_all_key_values(self) -> list[Any]:
         return self.get_all_urls()
@@ -65,7 +68,7 @@ class Webhook(ModelObject, abc.ABC):
     def is_key_valid_for_diff_computation(self, key: str) -> bool:
         if key == "secret":
             return not self.has_dummy_secret()
-        elif key == "url":
+        elif key == "url" or key == "aliases":
             return False
         else:
             return True
@@ -105,18 +108,8 @@ class Webhook(ModelObject, abc.ABC):
                 )
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]):
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
         mapping.update(
             {
                 "url": OptionalS("config", "url", default=UNSET),
@@ -131,9 +124,7 @@ class Webhook(ModelObject, abc.ABC):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         config_mapping = {}
         for config_prop in ["url", "content_type", "insecure_ssl", "secret"]:

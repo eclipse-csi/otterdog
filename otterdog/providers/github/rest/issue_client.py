@@ -25,5 +25,4 @@ class IssueClient(RestClient):
                 "POST", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/comments", data=data
             )
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating issue comment:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating issue comment:\n{ex}") from ex

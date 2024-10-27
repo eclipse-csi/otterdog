@@ -9,19 +9,24 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import aiofiles.ospath
 
-from otterdog.config import OrganizationConfig, OtterdogConfig
-from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import LivePatch, LivePatchContext, LivePatchType, ModelObject
+from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import Change, IndentingPrinter, style
 
 from . import Operation
 from .validate import ValidateOperation
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig, OtterdogConfig
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models import ModelObject
 
 
 class DiffStatus:
@@ -89,15 +94,23 @@ class DiffOperation(Operation):
         super().init(config, printer)
         self._validator.init(config, printer)
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         self._org_config = org_config
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
         try:
             self._gh_client = self.setup_github_client(org_config)
         except RuntimeError as e:
-            self.printer.print_error(f"invalid credentials\n{str(e)}")
+            self.printer.print_error(f"invalid credentials\n{e!s}")
             return 1
 
         self.printer.level_up()
@@ -105,7 +118,7 @@ class DiffOperation(Operation):
         try:
             return await self.generate_diff(org_config)
         except RuntimeError as e:
-            self.printer.print_error(f"planning aborted: {str(e)}")
+            self.printer.print_error(f"planning aborted: {e!s}")
             return 1
         finally:
             self.printer.level_down()
@@ -145,7 +158,7 @@ class DiffOperation(Operation):
         try:
             expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{str(e)}")
+            self.printer.print_error(f"failed to load configuration\n{e!s}")
             return 1
 
         # We validate the configuration first and only calculate a plan if
@@ -168,7 +181,7 @@ class DiffOperation(Operation):
         try:
             current_org = await self.load_current_org(github_id, jsonnet_config)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load current configuration\n{str(e)}")
+            self.printer.print_error(f"failed to load current configuration\n{e!s}")
             return 1
 
         expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
@@ -212,6 +225,7 @@ class DiffOperation(Operation):
             self.update_webhooks,
             self.update_secrets,
             self.update_filter,
+            current_org.settings if self.coerce_current_org() else None,
             expected_org.settings,
         )
         expected_org.generate_live_patch(current_org, context, handle)
@@ -245,6 +259,9 @@ class DiffOperation(Operation):
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+
+    def coerce_current_org(self) -> bool:
+        return False
 
     async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(

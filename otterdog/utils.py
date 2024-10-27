@@ -11,15 +11,17 @@ from __future__ import annotations
 import json
 import re
 import sys
-from argparse import Namespace
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generic, Literal, TextIO, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
 import click
 from colorama import Style
+
+if TYPE_CHECKING:
+    from argparse import Namespace
+    from collections.abc import Callable, Sequence
 
 T = TypeVar("T")
 
@@ -298,6 +300,10 @@ class IndentingPrinter:
         self._log_level = log_level
 
     @property
+    def spaces_per_level(self) -> int:
+        return self._spaces_per_level
+
+    @property
     def writer(self) -> TextIO:
         return self._writer
 
@@ -380,7 +386,7 @@ def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
     try:
         return json.loads(_gojsonnet.evaluate_file(file))
     except Exception as ex:
-        raise RuntimeError(f"failed to evaluate jsonnet file: {str(ex)}")
+        raise RuntimeError(f"failed to evaluate jsonnet file: {ex!s}") from ex
 
 
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
@@ -391,7 +397,7 @@ def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
     try:
         return json.loads(_gojsonnet.evaluate_snippet("", snippet))
     except Exception as ex:
-        raise RuntimeError(f"failed to evaluate snippet: {str(ex)}")
+        raise RuntimeError(f"failed to evaluate snippet: {ex!s}") from ex
 
 
 def get_or_default(namespace: Namespace, key: str, default: T) -> T:
@@ -434,6 +440,15 @@ def parse_template_url(url: str) -> tuple[str, str, str]:
     return repo_url, file, ref
 
 
+def parse_github_url(url: str) -> tuple[str, str]:
+    pattern = re.compile(r"https://github.com/([A-Za-z0-9_.\-]+)/([A-Za-z0-9_.\-]+)")
+    m = pattern.match(url)
+    if m is None:
+        raise ValueError(f"unexpected GitHub url '{url}'")
+    else:
+        return m.group(1), m.group(2)
+
+
 def is_ghsa_repo(repo_name: str) -> bool:
     """
     Returns True if the given repo_name is considered to be a repo created for a GitHub security advisory.
@@ -444,7 +459,7 @@ def is_ghsa_repo(repo_name: str) -> bool:
 
 
 def strip_trailing_commas(lines: list[str]) -> list[str]:
-    return list(map(lambda line: line.rstrip(","), lines))
+    return [line.rstrip(",") for line in lines]
 
 
 def sort_jsonnet(lines: list[str]) -> list[str]:
@@ -453,14 +468,16 @@ def sort_jsonnet(lines: list[str]) -> list[str]:
 
     for line in lines:
         trimmed_line = line.rstrip().rstrip(",")
-        if trimmed_line.endswith("{") or trimmed_line.endswith("["):
+        if trimmed_line.endswith(("{", "[")):
             current_node: list[tuple[str, Any]] = []
             object_stack[-1].append((line, current_node))
             object_stack.append(current_node)
-        elif trimmed_line.endswith("}") and "{" not in trimmed_line:
-            object_stack[-1].append((line, None))
-            object_stack.pop()
-        elif trimmed_line.endswith("]") and "[" not in trimmed_line:
+        elif (
+            trimmed_line.endswith("}")
+            and "{" not in trimmed_line
+            or trimmed_line.endswith("]")
+            and "[" not in trimmed_line
+        ):
             object_stack[-1].append((line, None))
             object_stack.pop()
         else:
@@ -525,16 +542,17 @@ class PrettyFormatter:
         return formatter(self, value, self.indent)
 
     def _format_object(self, value, indent):
+        if isinstance(value, str):
+            if "\n" in value:
+                return '"""\n' + value + '"""'
+
         return json.dumps(value, ensure_ascii=False)
 
     def _format_dict(self, value, indent):
         if len(value) == 0:
             return "{}"
 
-        if self.key_align == -1:
-            key_align = max(map(lambda x: len(repr(x)), value.keys())) + 1
-        else:
-            key_align = self.key_align
+        key_align = max(len(repr(x)) for x in value) + 1 if self.key_align == -1 else self.key_align
 
         items = [
             self.lfchar
@@ -575,3 +593,15 @@ def query_json(expr: str, data: dict[str, Any]) -> Any:
     from jsonata import Jsonata  # type: ignore
 
     return Jsonata.jsonata(expr).evaluate(data)
+
+
+def deep_merge_dict(source: dict[str, Any], destination: dict[str, Any]):
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            deep_merge_dict(value, node)
+        else:
+            destination[key] = value
+
+    return destination

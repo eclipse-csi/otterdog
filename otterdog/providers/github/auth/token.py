@@ -8,11 +8,14 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 from . import AuthImpl, AuthStrategy
+
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+    from typing import Any
 
 
 @dataclass(frozen=True)

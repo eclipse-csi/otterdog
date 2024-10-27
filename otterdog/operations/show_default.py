@@ -6,12 +6,17 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import textwrap
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
-from otterdog.utils import jsonnet_evaluate_snippet, style
+import textwrap
+from typing import TYPE_CHECKING
+
+from otterdog.utils import style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class ShowDefaultOperation(Operation):
@@ -31,13 +36,21 @@ class ShowDefaultOperation(Operation):
         if not self.markdown:
             self.printer.println("Showing defaults configurations:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+            self.printer.println(
+                f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+                f"{self._format_progress(org_index, org_count)}"
+            )
             self.printer.level_up()
 
         try:
@@ -200,8 +213,10 @@ class ShowDefaultOperation(Operation):
 
     @staticmethod
     def evaluate(jsonnet_config, function: str):
+        from otterdog.utils import jsonnet_evaluate_snippet
+
         try:
             snippet = f"(import '{jsonnet_config.template_file}').{function}"
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
-            raise RuntimeError(f"failed to evaluate snippet: {ex}")
+            raise RuntimeError(f"failed to evaluate snippet: {ex}") from ex

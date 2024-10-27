@@ -10,11 +10,10 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import Forall, K, OptionalS, S, bend  # type: ignore
+from jsonbender import Forall, K, OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -22,7 +21,6 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     associate_by_key,
@@ -30,6 +28,10 @@ from otterdog.utils import (
     is_unset,
     snake_to_camel_case,
 )
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -248,24 +250,20 @@ class BranchProtectionRule(ModelObject):
             ]:
                 return False
 
-        if self.restricts_review_dismissals is False:
-            if field.name in ["review_dismissal_allowances"]:
-                return False
+        if self.restricts_review_dismissals is False and field.name in ["review_dismissal_allowances"]:
+            return False
 
-        if self.allows_force_pushes is True:
-            if field.name in ["bypass_force_push_allowances"]:
-                return False
+        if self.allows_force_pushes is True and field.name in ["bypass_force_push_allowances"]:
+            return False
 
-        if self.requires_status_checks is False:
-            if field.name in [
-                "required_status_checks",
-                "requires_strict_status_checks",
-            ]:
-                return False
+        if self.requires_status_checks is False and field.name in [
+            "required_status_checks",
+            "requires_strict_status_checks",
+        ]:
+            return False
 
-        if self.requires_deployments is False:
-            if field.name in ["required_deployment_environments"]:
-                return False
+        if self.requires_deployments is False and field.name in ["required_deployment_environments"]:
+            return False
 
         if self.restricts_pushes is False:
             if field.name in ["push_restrictions"]:
@@ -277,22 +275,8 @@ class BranchProtectionRule(ModelObject):
         return True
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-
-        if "requires_approving_reviews" in data:
-            mapping["requires_pull_request"] = S("requires_approving_reviews")
-
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> BranchProtectionRule:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = {k: OptionalS(snake_to_camel_case(k), default=UNSET) for k in (x.name for x in cls.all_fields())}
         mapping["requires_pull_request"] = OptionalS("requiresApprovingReviews", default=UNSET)
 
         def transform_app(x):
@@ -303,10 +287,7 @@ class BranchProtectionRule(ModelObject):
                 app_prefix = "any:"
             else:
                 app_slug = app["slug"]
-                if app_slug == "github-actions":
-                    app_prefix = ""
-                else:
-                    app_prefix = f"{app_slug}:"
+                app_prefix = "" if app_slug == "github-actions" else f"{app_slug}:"
 
             return f"{app_prefix}{context}"
 
@@ -365,7 +346,7 @@ class BranchProtectionRule(ModelObject):
 
                 for check in required_status_checks:
                     if ":" in check:
-                        app_slug, context = re.split(":", check, 1)
+                        app_slug, context = re.split(":", check, maxsplit=1)
 
                         if app_slug != "any":
                             app_slugs.add(app_slug)
@@ -377,7 +358,7 @@ class BranchProtectionRule(ModelObject):
                 transformed_checks = []
                 for check in required_status_checks:
                     if ":" in check:
-                        app_slug, context = re.split(":", check, 1)
+                        app_slug, context = re.split(":", check, maxsplit=1)
                     else:
                         app_slug = "github-actions"
                         context = check

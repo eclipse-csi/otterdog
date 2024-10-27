@@ -6,12 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import os
-import subprocess
-from typing import Any
+from __future__ import annotations
+
+from subprocess import getstatusoutput
+from typing import TYPE_CHECKING
 
 from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class PassVault(CredentialProvider):
@@ -33,11 +37,13 @@ class PassVault(CredentialProvider):
         api_token_pattern: str,
     ):
         utils.print_debug("accessing pass vault")
-        status, output = subprocess.getstatusoutput("pass ls")
+        status, output = getstatusoutput("pass ls")
         if status != 0:
             raise RuntimeError(f"could not access pass vault:\n{output}")
 
         if password_store_dir:
+            import os
+
             utils.print_debug(f"setting password store dir to '{password_store_dir}'")
             os.environ["PASSWORD_STORE_DIR"] = password_store_dir
 
@@ -94,10 +100,10 @@ class PassVault(CredentialProvider):
 
     @staticmethod
     def _retrieve_resolved_key(key: str, strict: bool = True) -> str:
-        status, secret = subprocess.getstatusoutput(f"pass {key} 2>/dev/null")
+        status, secret = getstatusoutput(f"pass {key} 2>/dev/null")
         if status != 0:
             # run the process again, capturing any error output for debugging.
-            _, output = subprocess.getstatusoutput(f"pass {key}")
+            _, output = getstatusoutput(f"pass {key}")
 
             if strict:
                 raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")

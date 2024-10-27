@@ -6,14 +6,20 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OtterdogConfig
-from otterdog.models import LivePatch, ModelObject
+from typing import TYPE_CHECKING
+
 from otterdog.models.webhook import Webhook
 from otterdog.utils import Change, IndentingPrinter, style
 
 from .diff_operation import DiffOperation, DiffStatus
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OtterdogConfig
+    from otterdog.models import LivePatch, ModelObject
 
 
 class PlanOperation(DiffOperation):
@@ -57,7 +63,7 @@ class PlanOperation(DiffOperation):
         self.printer.println()
         model_header = model_object.get_model_header(parent_object)
         self.print_dict(
-            model_object.to_model_dict(for_diff=True),
+            model_object.to_model_dict(for_diff=True, include_model_only_fields=True, exclude_none_values=True),
             f"add {model_header}",
             "+",
             "green",
@@ -89,7 +95,7 @@ class PlanOperation(DiffOperation):
     ) -> int:
         self.printer.println()
         model_header = expected_object.get_model_header(parent_object)
-        self.print_modified_dict(modified_object, model_header, set(), forced_update)
+        self.print_modified_dict(modified_object, model_header, forced_update)
 
         # FIXME: this code should be moved to the Webhook model class.
         if isinstance(current_object, Webhook):
@@ -102,7 +108,7 @@ class PlanOperation(DiffOperation):
                     )
 
         settings_to_change = 0
-        for k, v in modified_object.items():
+        for k, _v in modified_object.items():
             if current_object.is_read_only_key(k):
                 self.printer.println(
                     f"\n{style('Note', fg='yellow')}: setting '{k}' " f"is read-only, will be skipped."

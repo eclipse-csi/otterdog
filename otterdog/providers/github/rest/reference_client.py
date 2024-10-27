@@ -24,8 +24,7 @@ class ReferenceClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/git/ref/heads/{branch_name}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving reference:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving reference:\n{ex}") from ex
 
     async def create_reference(self, org_id: str, repo_name: str, ref: str, sha: str) -> str:
         print_debug(f"creating reference with name '{ref}' and sha '{sha}' for repo '{org_id}/{repo_name}'")
@@ -39,5 +38,4 @@ class ReferenceClient(RestClient):
             await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/git/refs", data=data)
             return data["ref"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed creating reference:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed creating reference:\n{ex}") from ex

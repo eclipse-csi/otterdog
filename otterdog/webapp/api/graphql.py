@@ -34,12 +34,9 @@ async def resolve_projects(*_, filter=None):
 
     if filter:
         filter = filter.replace("'", '"')
-        data = list(map(lambda x: x.model_dump(exclude="id"), configurations))
+        data = [x.model_dump(exclude="id") for x in configurations]
         result = query_json(f"$[{filter}][]", data)
-        if result:
-            configurations = result
-        else:
-            configurations = []
+        configurations = result if result else []
 
     return configurations
 
@@ -51,10 +48,7 @@ async def resolve_repositories(config: dict[str, Any], *_, filter=None):
     if filter:
         filter = filter.replace("'", '"')
         result = query_json(f"$[{filter}][]", repositories)
-        if result:
-            repositories = result
-        else:
-            repositories = []
+        repositories = result if result else []
 
     return repositories
 

@@ -6,14 +6,18 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import aiofiles.ospath
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
+from typing import TYPE_CHECKING
+
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import associate_by_key, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
 
 
 class DeleteFileOperation(Operation):
@@ -42,33 +46,37 @@ class DeleteFileOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println(f"Deleting file '{self._path}' in organization repository '{self.repo}':")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
         self.printer.level_up()
 
         try:
             org_file_name = jsonnet_config.org_config_file
-
-            if not await aiofiles.ospath.exists(org_file_name):
-                self.printer.print_error(
-                    f"configuration file '{org_file_name}' does not yet exist, run 'fetch-config' or 'import' first."
-                )
+            if not await self.check_config_file_exists(org_file_name):
                 return 1
 
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {str(ex)}")
+                self.printer.print_error(f"failed to load configuration: {ex!s}")
                 return 1
 
             try:
                 credentials = self.config.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             async with GitHubProvider(credentials) as provider:
@@ -98,7 +106,7 @@ class DeleteFileOperation(Operation):
 
                     if collected_error is not None:
                         self.printer.println()
-                        self.printer.print_error(f"failure deleting file\n{str(collected_error)}")
+                        self.printer.print_error(f"failure deleting file\n{collected_error!s}")
                         return 1
             return 0
 

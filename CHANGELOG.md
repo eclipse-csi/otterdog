@@ -1,9 +1,19 @@
 # Change Log
 
-## [0.8.0] - unreleased
+## [0.9.0] - unreleased
 
 ### Added
 
+
+## [0.8.0] - 27/10/2024
+
+### Added
+
+- Added validation for setting `gh_pages_source_path` of a repository to check for allowed values.
+- Added a playground and visualization of the default settings for a project to the dashboard. ([#293](https://github.com/eclipse-csi/otterdog/issues/293))
+- Added support for overriding default settings in the `otterdog config` from a file `.otterdog-defaults.json`.
+- Added support for setting `required_merge_queue` in repository rulesets. ([#282](https://github.com/eclipse-csi/otterdog/issues/282))
+- Added support for setting `target` in repository rulesets.
 - Added support for parameter `--repo-filter` for `plan` and `apply` operations. ([#275](https://github.com/eclipse-csi/otterdog/issues/275))
 - Added support for tags for deployment policies in `environments`. ([#268](https://github.com/eclipse-csi/otterdog/issues/268))
 - Added support for `custom properties`. ([#256](https://github.com/eclipse-csi/otterdog/issues/256))
@@ -17,6 +27,11 @@
 
 ### Changed
 
+- Do not include settings whose values is `null` in the plan operation output when a resource is added.
+- Include `model_only` settings in the plan operation output when a resource is added.
+- Converted status check related settings of a Ruleset into an embedded model object similar to merge queue settings.
+- Display changes in list properties using sequence comparison.
+- Converted pull request related settings of a Ruleset into an embedded model object similar to merge queue settings.
 - Use `jsonata` instead of `jq` for querying json objects.
 - Use `ghproxy` by default as transparent cache / proxy when accessing the GitHub API from the webapp. ([#274](https://github.com/eclipse-csi/otterdog/issues/274))
 - Changed parameter `--update-filter` for various operations from a python regular expression to a shell pattern format.
@@ -28,6 +43,10 @@
 
 ### Fixed
 
+- Fixed throttling of comments generated when checking if the configuration is in sync with the live settings.
+- Fixed creation of a `Ruleset` if no merge queue is specified.
+- Ensured that validation for a `Ruleset` fails if any parameter of `required_pull_request` is missing as they are required.
+- Creating a repo with `gh_pages_build_type: "disabled"` is now working again after changes on GitHub side.
 - Avoided unnecessary GitHub API calls when getting the `default_branch` or `id` of a repository.
 - Detect errors during an automatic `apply` operation and add a corresponding comment to the pull request.
 - Support showing dialog windows when using operation `web-login`.

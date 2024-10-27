@@ -9,11 +9,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from jsonbender import OptionalS, S, bend  # type: ignore
+from jsonbender import OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -23,8 +22,11 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset
+from otterdog.utils import Change, is_set_and_present, is_set_and_valid
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -128,13 +130,11 @@ class CustomProperty(ModelObject):
                         )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        if self.required is not True:
-            if field.name in ["default_value"]:
-                return False
+        if self.required is not True and field.name in ["default_value"]:
+            return False
 
-        if self.value_type not in {"single_select", "multi_select"}:
-            if field.name in ["allowed_values"]:
-                return False
+        if self.value_type not in {"single_select", "multi_select"} and field.name in ["allowed_values"]:
+            return False
 
         return True
 
@@ -142,30 +142,21 @@ class CustomProperty(ModelObject):
         return True
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> CustomProperty:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> CustomProperty:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        mapping.update({"allowed_values": OptionalS("allowed_values", default=[])})
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-
-        mapping.update({"name": S("property_name")})
+        mapping = super().get_mapping_from_provider(org_id, data)
+        mapping.update(
+            {
+                "name": S("property_name"),
+                "allowed_values": OptionalS("allowed_values", default=[]),
+            }
+        )
         return mapping
 
     @classmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         if "name" in data:
             mapping.pop("name")

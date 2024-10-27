@@ -8,8 +8,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   LATEST_PY_VERSION: '3.12'
+  POETRY_VERSION: '1.8.4'
 
 jobs:
   test:
@@ -29,7 +33,7 @@ jobs:
       - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3
         with:
           virtualenvs-in-project: true
-          version: 1.7.1
+          version: ${{ env.POETRY_VERSION }}
 
       # Cache packages per python version, and reuse until lockfile changes
       - name: Cache python packages
@@ -57,6 +61,6 @@ jobs:
         with:
           python-version: ${{ env.LATEST_PY_VERSION }}
       - name: Run style checks and linting via pre-commit hooks
-        uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507 # v3.0.0
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
         env:
           SKIP: update-dependencies

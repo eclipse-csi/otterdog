@@ -16,11 +16,11 @@ from typing import TYPE_CHECKING
 from quart import current_app
 
 from otterdog.utils import LogLevel
-from otterdog.webapp.tasks import Task
 
 if TYPE_CHECKING:
     from re import Match, Pattern
 
+    from otterdog.webapp.tasks import Task
     from otterdog.webapp.webhook import IssueCommentEvent
 
 
@@ -46,7 +46,6 @@ class CommentHandler(ABC):
 
 
 class HelpCommentHandler(CommentHandler):
-
     def _create_pattern(self) -> re.Pattern:
         return re.compile(r"/otterdog\s+help")
 

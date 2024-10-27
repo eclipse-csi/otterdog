@@ -11,21 +11,19 @@ from __future__ import annotations
 import dataclasses
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator, Sequence
 from enum import Enum
-from typing import Any, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, final
 
-from jsonbender import bend  # type: ignore
+from jsonbender import OptionalS, S, bend  # type: ignore
 
-from otterdog.config import SecretResolver
-from otterdog.jsonnet import JsonnetConfig
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
+    UNSET,
     Change,
     IndentingPrinter,
     T,
     associate_by_key,
     is_different_ignoring_order,
+    is_set_and_valid,
     is_unset,
     multi_associate_by_key,
     patch_to_other,
@@ -33,7 +31,15 @@ from otterdog.utils import (
     write_patch_object_as_json,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator, Sequence
+
+    from otterdog.config import SecretResolver
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
+
 MT = TypeVar("MT", bound="ModelObject")
+EMT = TypeVar("EMT", bound="EmbeddedModelObject")
 
 
 class FailureType(Enum):
@@ -156,12 +162,117 @@ class LivePatchContext:
     update_webhooks: bool
     update_secrets: bool
     update_filter: str
+    current_org_settings: ModelObject | None
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 
 
 class LivePatchHandler(Protocol):
     def __call__(self, patch: LivePatch) -> None: ...
+
+
+@dataclasses.dataclass
+class EmbeddedModelObject(ABC):
+    """
+    The abstract base class for embedded model objects.
+    """
+
+    @abstractmethod
+    def validate(self, context: ValidationContext, parent_object: Any) -> None: ...
+
+    def get_patch_to(self, other: EmbeddedModelObject) -> dict[str, Any]:
+        if not isinstance(other, self.__class__):
+            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+
+        patch_result = {}
+        for key in self.keys(exclude_unset_keys=True):
+            value = self.__getattribute__(key)
+            other_value = other.__getattribute__(key)
+
+            if is_unset(other_value):
+                continue
+
+            patch_needed, diff = patch_to_other(value, other_value)
+            if patch_needed is True:
+                patch_result[key] = diff
+
+        return patch_result
+
+    @abstractmethod
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None: ...
+
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        context: PatchContext,
+        extend: bool,
+        default_object: EmbeddedModelObject,
+    ) -> None:
+        patch = self.get_patch_to(default_object)
+
+        template_function = self.get_jsonnet_template_function(jsonnet_config, False)
+        assert template_function is not None
+
+        if extend is False:
+            printer.print(f" {template_function}()")
+
+        write_patch_object_as_json(patch, printer)
+
+    @classmethod
+    def all_fields(cls) -> list[dataclasses.Field]:
+        return list(dataclasses.fields(cls))
+
+    def keys(self, exclude_unset_keys: bool = True) -> list[str]:
+        result = []
+
+        for field in self.all_fields():
+            if exclude_unset_keys:
+                value = self.__getattribute__(field.name)
+                if not is_unset(value):
+                    result.append(field.name)
+            else:
+                result.append(field.name)
+
+        return result
+
+    def to_model_dict(self) -> dict[str, Any]:
+        result = {}
+
+        for key in self.keys(exclude_unset_keys=True):
+            value = self.__getattribute__(key)
+            result[key] = value
+
+        return result
+
+    @classmethod
+    def from_model_data(cls: type[EMT], data: dict[str, Any]) -> EMT:
+        mapping = cls.get_mapping_from_model()
+        return cls(**bend(mapping, data))  # type: ignore
+
+    @classmethod
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+
+    @classmethod
+    def from_provider_data(cls: type[EMT], org_id: str, data: dict[str, Any]) -> EMT:
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))  # type: ignore
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
+
+    @classmethod
+    async def dict_to_provider_data(cls, org_id: str, data: dict[str, Any], provider: GitHubProvider) -> dict[str, Any]:
+        mapping = await cls.get_mapping_to_provider(org_id, data, provider)
+        return bend(mapping, data)
+
+    @classmethod
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        return {field.name: S(field.name) for field in cls.all_fields() if not is_unset(data.get(field.name, UNSET))}
 
 
 @dataclasses.dataclass
@@ -215,7 +326,8 @@ class ModelObject(ABC):
     def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
         validate_script = os.path.join(context.template_dir, filename)
         if os.path.exists(validate_script):
-            exec(open(validate_script).read())
+            with open(validate_script) as file:
+                exec(file.read())
 
     def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
@@ -236,6 +348,12 @@ class ModelObject(ABC):
 
             if is_unset(from_value):
                 continue
+
+            if isinstance(to_value, EmbeddedModelObject):
+                to_value = to_value.to_model_dict()
+
+            if isinstance(from_value, EmbeddedModelObject):
+                from_value = from_value.to_model_dict()
 
             if is_different_ignoring_order(to_value, from_value):
                 diff_result[key] = Change(from_value, to_value)
@@ -267,7 +385,7 @@ class ModelObject(ABC):
 
     @classmethod
     def all_fields(cls) -> list[dataclasses.Field]:
-        return [field for field in dataclasses.fields(cls)]
+        return list(dataclasses.fields(cls))
 
     @classmethod
     def model_fields(cls) -> list[dataclasses.Field]:
@@ -312,6 +430,10 @@ class ModelObject(ABC):
     def is_nested_model_key(cls, key: str) -> bool:
         return cls.is_nested_model(cls._get_field(key))
 
+    @classmethod
+    def is_embedded_model_key(cls, key: str) -> bool:
+        return cls.is_embedded_model(cls._get_field(key))
+
     @staticmethod
     def is_model_only(field: dataclasses.Field) -> bool:
         return field.metadata.get("model_only", False) is True
@@ -319,6 +441,10 @@ class ModelObject(ABC):
     @staticmethod
     def is_nested_model(field: dataclasses.Field) -> bool:
         return field.metadata.get("nested_model", False) is True
+
+    @staticmethod
+    def is_embedded_model(field: dataclasses.Field) -> bool:
+        return field.metadata.get("embedded_model", False) is True
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         yield from []
@@ -350,16 +476,24 @@ class ModelObject(ABC):
         return header
 
     @classmethod
-    @abstractmethod
-    def from_model_data(cls, data: dict[str, Any]): ...
+    @final
+    def from_model_data(cls: type[MT], data: dict[str, Any]) -> MT:
+        mapping = cls.get_mapping_from_model()
+        return cls(**bend(mapping, data))  # type: ignore
 
     @classmethod
-    @abstractmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]): ...
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
-    @abstractmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]: ...
+    @final
+    def from_provider_data(cls: type[MT], org_id: str, data: dict[str, Any]) -> MT:
+        mapping = cls.get_mapping_from_provider(org_id, data)
+        return cls(**bend(mapping, data))  # type: ignore
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     async def to_provider_data(self, org_id: str, provider: GitHubProvider) -> dict[str, Any]:
         return await self.dict_to_provider_data(org_id, self.to_model_dict(), provider)
@@ -376,10 +510,12 @@ class ModelObject(ABC):
         return bend(mapping, data)
 
     @classmethod
-    @abstractmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]: ...
+    ) -> dict[str, Any]:
+        return {
+            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
+        }
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True
@@ -411,10 +547,11 @@ class ModelObject(ABC):
         self,
         for_diff: bool = False,
         for_patch: bool = False,
+        include_model_only_fields: bool = False,
         include_nested_models: bool = False,
         exclude_unset_keys: bool = True,
     ) -> list[str]:
-        result = list()
+        result = []
 
         for field in self.model_fields():
             if for_diff is True and not self.include_field_for_diff_computation(field):
@@ -423,7 +560,7 @@ class ModelObject(ABC):
             if for_patch is True and not self.include_field_for_patch_computation(field):
                 continue
 
-            if (for_diff or for_patch) and self.is_model_only(field):
+            if (for_diff or for_patch) and not include_model_only_fields and self.is_model_only(field):
                 continue
 
             if include_nested_models is False and self.is_nested_model(field):
@@ -438,17 +575,28 @@ class ModelObject(ABC):
 
         return result
 
-    def to_model_dict(self, for_diff: bool = False, include_nested_models: bool = False) -> dict[str, Any]:
+    def to_model_dict(
+        self,
+        for_diff: bool = False,
+        include_model_only_fields: bool = False,
+        include_nested_models: bool = False,
+        exclude_none_values: bool = False,
+    ) -> dict[str, Any]:
         result = {}
 
         for key in self.keys(
             for_diff=for_diff,
+            include_model_only_fields=include_model_only_fields,
             include_nested_models=include_nested_models,
             exclude_unset_keys=True,
         ):
             value = self.__getattribute__(key)
-            if self.is_nested_model_key(key):
+            if exclude_none_values and not is_set_and_valid(value):
+                continue
+            elif self.is_nested_model_key(key):
                 result[key] = cast(ModelObject, value).to_model_dict(for_diff, include_nested_models)
+            elif self.is_embedded_model_key(key) and is_set_and_valid(value):
+                result[key] = cast(EmbeddedModelObject, value).to_model_dict()
             else:
                 result[key] = value
 
@@ -464,13 +612,13 @@ class ModelObject(ABC):
         return False
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
-        pass
+        return
 
     def copy_secrets(self, other_object: ModelObject) -> None:
-        pass
+        return
 
     def update_dummy_secrets(self, new_value: str) -> None:
-        pass
+        return
 
     @abstractmethod
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None: ...
@@ -544,7 +692,7 @@ class ModelObject(ABC):
         expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
         expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
 
-        has_wildcard_keys = any(map(lambda x: x.get_key_value().endswith("*"), expected_objects))
+        has_wildcard_keys = any(x.get_key_value().endswith("*") for x in expected_objects)
 
         for current_object in current_objects:
             key = current_object.get_key_value()
@@ -574,4 +722,5 @@ class ModelObject(ABC):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 
     @classmethod
+    @abstractmethod
     async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...

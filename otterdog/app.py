@@ -5,7 +5,6 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-
 import logging
 import os
 from sys import exit
@@ -55,6 +54,10 @@ else:
 
 if DEBUG:
     from otterdog.cache import get_github_cache
+    from otterdog.utils import init
+
+    # enable debug outputs
+    init(2)
 
     app.logger.info("DEBUG         = " + str(DEBUG))
     app.logger.info("Environment   = " + config_mode)
@@ -62,6 +65,7 @@ if DEBUG:
     app.logger.info("QUART_APP     = " + app_config.QUART_APP)
     app.logger.info("APP_ROOT      = " + app_config.APP_ROOT)
     app.logger.info("GH_CACHE      = " + str(get_github_cache()))
+    app.logger.info("TMP_DIR       = " + tmp_dir)
 
 
 def run():

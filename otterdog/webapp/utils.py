@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import asyncio
-import os.path
 import re
 import sys
 from datetime import datetime, timedelta
@@ -15,7 +14,7 @@ from functools import cache
 from logging import getLogger
 from typing import cast
 
-import yaml  # type: ignore
+import yaml
 from quart import Quart, current_app
 from quart_redis import get_redis  # type: ignore
 
@@ -116,7 +115,9 @@ def get_db_root_directory(app: Quart | None = None) -> str:
 
 @cache
 def get_temporary_base_directory(app: Quart | None = None) -> str:
-    return os.path.join(get_app_root_directory(app), "tmp")
+    import os
+
+    return os.path.join(get_app_root_directory(app), "tmp", f"worker-{os.getpid()}")
 
 
 async def get_otterdog_config() -> OtterdogConfig:
@@ -184,13 +185,13 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
 
         for entry in entries:
             path = entry["path"]
-            if path.endswith(".yml") or path.endswith("yaml"):
+            if path.endswith((".yml", "yaml")):
                 content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
                 try:
                     policy = read_policy(yaml.safe_load(content))
                     policies.append(policy)
                 except RuntimeError as e:
-                    print_error(f"failed reading global policy from path '{path}': {str(e)}")
+                    print_error(f"failed reading global policy from path '{path}': {e!s}")
 
     return policies
 
@@ -201,7 +202,7 @@ def get_admin_teams() -> list[str]:
 
 
 def get_full_admin_team_slugs(org_id: str) -> list[str]:
-    return list(map(lambda team_slug: f"{org_id}/{team_slug}", get_admin_teams()))
+    return [f"{org_id}/{team_slug}" for team_slug in get_admin_teams()]
 
 
 async def fetch_config_from_github(

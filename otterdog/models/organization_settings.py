@@ -9,12 +9,10 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -25,19 +23,23 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
     is_set_and_present,
     is_set_and_valid,
-    is_unset,
     write_patch_object_as_json,
 )
 
 from .custom_property import CustomProperty
 from .organization_workflow_settings import OrganizationWorkflowSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -142,8 +144,8 @@ class OrganizationSettings(ModelObject):
             yield from self.workflows.get_model_objects()
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> OrganizationSettings:
-        mapping: dict[str, Any] = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
 
         mapping.update(
             {
@@ -157,26 +159,12 @@ class OrganizationSettings(ModelObject):
             }
         )
 
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> OrganizationSettings:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        mapping.update({"plan": OptionalS("plan", "name", default=UNSET)})
         return mapping
 
     @classmethod
-    async def get_mapping_to_provider(
-        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]:
-        mapping = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+        mapping["plan"] = OptionalS("plan", "name", default=UNSET)
         return mapping
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
@@ -185,7 +173,7 @@ class OrganizationSettings(ModelObject):
     def changes_require_web_ui(self, changes: dict[str, Change]) -> bool:
         from otterdog.providers.github import is_org_settings_key_retrieved_via_web_ui
 
-        return any(map(lambda key: is_org_settings_key_retrieved_via_web_ui(key), changes.keys()))
+        return any(is_org_settings_key_retrieved_via_web_ui(key) for key in changes)
 
     def to_jsonnet(
         self,

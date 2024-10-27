@@ -9,15 +9,17 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import Forall, If, K, OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.variable import Variable
-from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_set_and_valid, is_unset
+from otterdog.utils import UNSET, is_set_and_valid
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -64,13 +66,9 @@ class OrganizationVariable(Variable):
                 )
 
     @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]):
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
+
         mapping.update(
             {
                 "visibility": If(
@@ -81,15 +79,14 @@ class OrganizationVariable(Variable):
                 "selected_repositories": OptionalS("selected_repositories", default=[]) >> Forall(lambda x: x["name"]),
             }
         )
+
         return mapping
 
     @classmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         if "visibility" in mapping:
             mapping["visibility"] = If(S("visibility") == K("public"), K("all"), S("visibility"))

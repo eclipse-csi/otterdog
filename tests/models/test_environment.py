@@ -22,7 +22,6 @@ class EnvironmentTest(ModelTest):
         return self.load_json_resource("github-environment.json")
 
     def test_load_from_model(self):
-        pass
         env = Environment.from_model_data(self.model_data)
 
         assert env.id is UNSET

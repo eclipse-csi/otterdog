@@ -5,12 +5,18 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-from typing import Any
 
-from aiohttp_client_cache import CacheBackend
-from redis.asyncio.client import Redis
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from . import CacheStrategy
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from aiohttp_client_cache import CacheBackend
+    from redis.asyncio.client import Redis
 
 
 def redis_cache(uri: str, connection: Redis | None = None) -> CacheStrategy:

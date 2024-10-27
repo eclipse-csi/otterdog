@@ -5,6 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
+
 import json
 
 
@@ -51,7 +52,13 @@ def register_filters(app):
 
     @app.template_filter("has_dummy_secrets")
     def any_has_dummy_secrets(value):
-        return any(map(lambda x: x.has_dummy_secret(), value))
+        return any(x.has_dummy_secret() for x in value)
+
+    @app.template_filter("pretty_format")
+    def pretty_format(value):
+        from otterdog.utils import PrettyFormatter
+
+        return PrettyFormatter().format(value)
 
     @app.template_filter("pretty_format_model")
     def pretty_format_model(value):

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jsonbender import Forall, If, K, S  # type: ignore
 
@@ -23,8 +23,10 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import Change, is_set_and_valid
+
+if TYPE_CHECKING:
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -79,6 +81,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
+
         mapping.update(
             {
                 "selected_repositories": If(
@@ -88,6 +91,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
                 ),
             }
         )
+
         return mapping
 
     @classmethod

@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from collections.abc import Callable, Iterator
-from typing import Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from jsonbender import F, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -26,7 +24,6 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import (
     UNSET,
     Change,
@@ -34,7 +31,6 @@ from otterdog.utils import (
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
-    is_unset,
     write_patch_object_as_json,
 )
 
@@ -46,6 +42,12 @@ from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
 from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -181,7 +183,7 @@ class Repository(ModelObject):
         return "repository"
 
     def get_all_names(self) -> list[str]:
-        return [self.name] + self.aliases
+        return [self.name, *self.aliases]
 
     def get_all_key_values(self) -> list[Any]:
         return self.get_all_names()
@@ -356,7 +358,7 @@ class Repository(ModelObject):
 
         if is_set_and_present(self.custom_properties):
             defined_properties = associate_by_key(org_settings.custom_properties, lambda x: x.name)
-            for k, v in self.custom_properties.items():
+            for k, _v in self.custom_properties.items():
                 if k not in defined_properties:
                     context.add_failure(
                         FailureType.ERROR,
@@ -407,7 +409,7 @@ class Repository(ModelObject):
                 context.add_failure(
                     FailureType.ERROR,
                     f"'gh_pages_build_type' has value '{self.gh_pages_build_type}', "
-                    f"only values ('disabled' | 'legacy' | 'workflow') are allowed.",
+                    f"only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
                 )
 
             if self.gh_pages_build_type == "disabled":
@@ -430,12 +432,20 @@ class Repository(ModelObject):
                         f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
+            if self.gh_pages_build_type == "legacy" and self.gh_pages_source_path not in ["/", "/docs"]:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has"
+                    f" 'gh_pages_source_path' with value '{self.gh_pages_source_path}', "
+                    f"only values ['/' | '/docs'] are allowed.",
+                )
+
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
                 context.add_failure(
                     FailureType.ERROR,
                     f"'code_scanning_default_query_suite' has value '{self.code_scanning_default_query_suite}', "
-                    f"only values ('default' | 'extended') are allowed.",
+                    f"only values ['default' | 'extended'] are allowed.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_languages):
@@ -485,7 +495,7 @@ class Repository(ModelObject):
         return language in cls._valid_code_scanning_languages
 
     def _valid_code_scanning_languages_as_string(self) -> str:
-        return " | ".join(map(lambda x: f'"{x}"', self._valid_code_scanning_languages))
+        return " | ".join(f'"{x}"' for x in self._valid_code_scanning_languages)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # private repos don't support security analysis.
@@ -504,6 +514,13 @@ class Repository(ModelObject):
         if self.code_scanning_default_setup_enabled is False:
             if field.name in self._code_scanning_properties:
                 return False
+
+        if self.forked_repository is None and field.name == "fork_default_branch_only":
+            return False
+
+        # do not show certain model_only fields that are not of interest for the user
+        if field.name == "aliases" or field.name == "post_process_template_content":
+            return False
 
         return True
 
@@ -559,8 +576,8 @@ class Repository(ModelObject):
             yield self.workflows, self
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> Repository:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
 
         mapping.update(
             {
@@ -581,16 +598,11 @@ class Repository(ModelObject):
             }
         )
 
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Repository:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
+        return mapping
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
 
         def status_to_bool(status):
             if status == "enabled":
@@ -661,9 +673,7 @@ class Repository(ModelObject):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         # add mapping for items that GitHub expects in a nested structure.
 
@@ -695,7 +705,7 @@ class Repository(ModelObject):
             mapping.pop("gh_pages_build_type")
             gh_pages_mapping["build_type"] = S("gh_pages_build_type")
 
-        gh_pages_build_type = data.get("gh_pages_build_type", None)
+        gh_pages_build_type = data.get("gh_pages_build_type")
 
         if gh_pages_build_type is None or gh_pages_build_type == "legacy":
             gh_pages_legacy_mapping = {}
@@ -710,6 +720,10 @@ class Repository(ModelObject):
 
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
+
+        for prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+            if prop in mapping:
+                mapping.pop(prop)
 
         # code scanning default setup
         code_scanning_mapping = {}
@@ -851,28 +865,26 @@ class Repository(ModelObject):
         # FIXME: support overriding branch protection rules for repos coming from
         #        the default configuration.
         if has_branch_protection_rules and not extend:
-            default_org_rule = BranchProtectionRule.from_model_data(
-                jsonnet_config.default_branch_protection_rule_config
-            )
+            default_bpr = BranchProtectionRule.from_model_data(jsonnet_config.default_branch_protection_rule_config)
 
             printer.println("branch_protection_rules: [")
             printer.level_up()
 
             for rule in self.branch_protection_rules:
-                rule.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
+                rule.to_jsonnet(printer, jsonnet_config, context, False, default_bpr)
 
             printer.level_down()
             printer.println("],")
 
         # FIXME: support overriding rulesets for repos coming from the default configuration.
         if has_rulesets and not extend:
-            default_org_rule = RepositoryRuleset.from_model_data(jsonnet_config.default_repo_ruleset_config)
+            default_ruleset = RepositoryRuleset.from_model_data(jsonnet_config.default_repo_ruleset_config)
 
             printer.println("rulesets: [")
             printer.level_up()
 
             for ruleset in self.rulesets:
-                ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_org_rule)
+                ruleset.to_jsonnet(printer, jsonnet_config, context, False, default_ruleset)
 
             printer.level_down()
             printer.println("],")
@@ -919,6 +931,10 @@ class Repository(ModelObject):
         else:
             assert isinstance(current_object, Repository)
 
+            if context.current_org_settings is not None:
+                current_org_settings = cast(OrganizationSettings, context.current_org_settings)
+                current_object = current_object.coerce_from_org_settings(current_org_settings)
+
             modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
             # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
@@ -944,7 +960,7 @@ class Repository(ModelObject):
                 assert isinstance(to_value, dict)
                 assert change.to_value is not None
 
-                for k, v in from_value.items():
+                for k, _v in from_value.items():
                     if k not in to_value:
                         change.to_value[k] = None
 

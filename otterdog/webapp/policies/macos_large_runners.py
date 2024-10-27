@@ -6,24 +6,19 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import dataclasses
-from typing import Any
-
 from . import Policy, PolicyType
 
 
-@dataclasses.dataclass
 class MacOSLargeRunnersUsagePolicy(Policy):
-
     allowed: bool
 
     @property
     def type(self) -> PolicyType:
         return PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
-    @property
-    def config(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
+    async def evaluate(self, github_id: str) -> None:
+        # nothing to evaluate for this policy
+        return
 
     def is_workflow_job_permitted(self, labels: list[str]) -> bool:
         if self.allowed is True:

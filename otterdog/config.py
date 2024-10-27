@@ -12,15 +12,16 @@ import json
 import os
 import re
 from abc import abstractmethod
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from . import credentials
-from .credentials import CredentialProvider
 from .credentials.bitwarden_provider import BitwardenVault
-from .credentials.inmemory_provider import InmemoryVault
+from .credentials.inmemory_provider import InMemoryVault
 from .credentials.pass_provider import PassVault
 from .jsonnet import JsonnetConfig
-from .utils import query_json
+from .utils import deep_merge_dict, print_trace, query_json
+
+if TYPE_CHECKING:
+    from otterdog.credentials import CredentialProvider, Credentials
 
 
 class OrganizationConfig:
@@ -108,13 +109,15 @@ class OrganizationConfig:
         config_repo: str,
         base_template: str,
         credential_data: dict[str, Any],
+        base_dir: str,
         work_dir: str,
     ) -> OrganizationConfig:
         jsonnet_config = JsonnetConfig(
             github_id,
-            work_dir,
+            base_dir,
             base_template,
             False,
+            work_dir,
         )
 
         return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)
@@ -141,6 +144,16 @@ class OtterdogConfig(SecretResolver):
 
         with open(config_file) as f:
             self._configuration = json.load(f)
+
+        if working_dir is None:
+            override_defaults_file = os.path.join(self._config_dir, ".otterdog-defaults.json")
+            if os.path.exists(override_defaults_file):
+                with open(override_defaults_file) as defaults_file:
+                    defaults = json.load(defaults_file)
+                    print_trace(f"loading default overrides from '{override_defaults_file}'")
+                    self._configuration["defaults"] = deep_merge_dict(
+                        defaults, self._configuration.setdefault("defaults")
+                    )
 
         self._jsonnet_config = query_json("defaults.jsonnet", self._configuration) or {}
         self._github_config = query_json("defaults.github", self._configuration) or {}
@@ -198,11 +211,11 @@ class OtterdogConfig(SecretResolver):
 
     @property
     def project_names(self) -> list[str]:
-        return list(map(lambda config: config.name, self._organizations))
+        return [config.name for config in self._organizations]
 
     @property
     def organization_names(self) -> list[str]:
-        return list(map(lambda config: config.github_id, self._organizations))
+        return [config.github_id for config in self._organizations]
 
     def get_project_name(self, github_id: str) -> str | None:
         organization = self._organizations_map.get(github_id)
@@ -217,7 +230,7 @@ class OtterdogConfig(SecretResolver):
             raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
 
-    def _get_credential_provider(self, provider_type: str) -> credentials.CredentialProvider | None:
+    def _get_credential_provider(self, provider_type: str) -> CredentialProvider | None:
         provider = self._credential_providers.get(provider_type)
         if provider is None:
             match provider_type:
@@ -232,7 +245,7 @@ class OtterdogConfig(SecretResolver):
                 case "pass":
                     pass_defaults = query_json("defaults.pass", self._configuration) or {}
 
-                    password_store_dir = pass_defaults.get("password_store", "")
+                    password_store_dir = pass_defaults.get("password_store_dir", "")
                     username_pattern = pass_defaults.get("username_pattern", "")
                     password_pattern = pass_defaults.get("password_pattern", "")
                     twofa_seed_pattern = pass_defaults.get("twofa_seed_pattern", "")
@@ -244,7 +257,7 @@ class OtterdogConfig(SecretResolver):
                     self._credential_providers[provider_type] = provider
 
                 case "inmemory":
-                    provider = InmemoryVault()
+                    provider = InMemoryVault()
                     self._credential_providers[provider_type] = provider
 
                 case _:
@@ -252,7 +265,7 @@ class OtterdogConfig(SecretResolver):
 
         return provider
 
-    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> credentials.Credentials:
+    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
         provider_type = org_config.credential_data.get("provider")
 
         if provider_type is None:

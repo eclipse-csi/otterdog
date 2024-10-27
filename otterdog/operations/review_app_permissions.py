@@ -6,13 +6,19 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from typing import Any
+from __future__ import annotations
 
-from otterdog.config import OrganizationConfig
+from typing import TYPE_CHECKING
+
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import get_approval, print_error, style
 
 from . import Operation
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from otterdog.config import OrganizationConfig
 
 
 class ReviewAppPermissionsOperation(Operation):
@@ -41,17 +47,25 @@ class ReviewAppPermissionsOperation(Operation):
     def pre_execute(self) -> None:
         self.printer.println("Reviewing permission updates for app installations:")
 
-    async def execute(self, org_config: OrganizationConfig) -> int:
+    async def execute(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]")
+        self.printer.println(
+            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
         self.printer.level_up()
 
         try:
             try:
                 credentials = self.config.get_credentials(org_config, only_token=False)
             except RuntimeError as e:
-                self.printer.print_error(f"invalid credentials\n{str(e)}")
+                self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             async with GitHubProvider(credentials) as provider:

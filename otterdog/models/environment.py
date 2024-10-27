@@ -9,11 +9,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from jsonbender import F, Filter, Forall, If, K, OptionalS, S, bend  # type: ignore
+from jsonbender import F, Filter, Forall, If, K, OptionalS, S  # type: ignore
 
-from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import (
     FailureType,
     LivePatch,
@@ -21,8 +20,11 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.providers.github import GitHubProvider
-from otterdog.utils import UNSET, is_set_and_valid, is_unset
+from otterdog.utils import is_set_and_valid, is_unset
+
+if TYPE_CHECKING:
+    from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -86,29 +88,19 @@ class Environment(ModelObject):
 
         # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
         # as it is automatically created, there is a validation rule to warn the user about it.
-        if parent_object.name.lower() == f"{org_id}.github.io".lower() and self.name == "github-pages":
-            return False
-        # if it's a github-pages environment and gh pages are enabled, ignore it.
-        # GitHub automatically creates it, a validation warning is output if it is missing
-        # in the configuration.
-        elif self.name == "github-pages" and parent_object.gh_pages_build_type != "disabled":
+        if (
+            parent_object.name.lower() == f"{org_id}.github.io".lower()
+            and self.name == "github-pages"
+            or self.name == "github-pages"
+            and parent_object.gh_pages_build_type != "disabled"
+        ):
             return False
         else:
             return True
 
     @classmethod
-    def from_model_data(cls, data: dict[str, Any]) -> Environment:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
-        return cls(**bend(mapping, data))
-
-    @classmethod
-    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Environment:
-        mapping = cls.get_mapping_from_provider(org_id, data)
-        return cls(**bend(mapping, data))
-
-    @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = {k: OptionalS(k, default=UNSET) for k in map(lambda x: x.name, cls.all_fields())}
+        mapping = super().get_mapping_from_provider(org_id, data)
 
         def transform_reviewers(x):
             match x["type"]:
@@ -133,14 +125,14 @@ class Environment(ModelObject):
                     raise ValueError(f"unexpected deployment_branch_policy {x}")
 
         def transform_branch_policy(x):
-            type = x.get("type", "branch")
-            match type:
+            branch_policy_type = x.get("type", "branch")
+            match branch_policy_type:
                 case "branch":
                     return x["name"]
                 case "tag":
                     return "tag:" + x["name"]
                 case _:
-                    raise RuntimeError(f"unexpected policy type '{type}'")
+                    raise RuntimeError(f"unexpected policy type '{branch_policy_type}'")
 
         mapping.update(
             {
@@ -163,16 +155,14 @@ class Environment(ModelObject):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping: dict[str, Any] = {
-            field.name: S(field.name) for field in cls.provider_fields() if not is_unset(data.get(field.name, UNSET))
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
         if "reviewers" in mapping:
             reviewers = data["reviewers"]
             reviewer_mapping = []
             for actor_type, (
                 actor_id,
-                actor_node_id,
+                _actor_node_id,
             ) in await provider.get_actor_ids_with_type(reviewers):
                 reviewer_mapping.append({"type": actor_type, "id": actor_id})
             mapping["reviewers"] = reviewer_mapping

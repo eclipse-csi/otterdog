@@ -26,8 +26,7 @@ class OrgClient(RestClient):
         try:
             settings = await self.requester.request_json("GET", f"/orgs/{org_id}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving settings for organization '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving settings for organization '{org_id}':\n{ex}") from ex
 
         if "security_managers" in included_keys:
             security_managers = await self.list_security_managers(org_id)
@@ -51,8 +50,7 @@ class OrgClient(RestClient):
         try:
             await self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to update settings for organization '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update settings for organization '{org_id}':\n{ex}") from ex
 
         if "security_managers" in data:
             await self.update_security_managers(org_id, data["security_managers"])
@@ -71,12 +69,9 @@ class OrgClient(RestClient):
 
         try:
             result = await self.requester.request_json("GET", f"/orgs/{org_id}/security-managers")
-            return list(map(lambda x: x["slug"], result))
+            return [x["slug"] for x in result]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed retrieving security managers for organization " f"'{org_id}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed retrieving security managers for organization " f"'{org_id}':\n{ex}") from ex
 
     async def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
         print_debug(f"updating security managers for organization {org_id}")
@@ -129,8 +124,7 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/properties/schema")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving custom properties for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving custom properties for org '{org_id}':\n{ex}") from ex
 
     async def add_custom_property(self, org_id: str, property_name: str, data: dict[str, Any]) -> None:
         print_debug(f"adding org custom property with name '{property_name}'")
@@ -139,10 +133,7 @@ class OrgClient(RestClient):
             await self.requester.request_json("PUT", f"/orgs/{org_id}/properties/schema/{property_name}", data)
             print_debug(f"added org custom property with name '{property_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to add org custom property with name '{property_name}':\n{ex}").with_traceback(
-                tb
-            )
+            raise RuntimeError(f"failed to add org custom property with name '{property_name}':\n{ex}") from ex
 
     async def update_custom_property(self, org_id: str, property_name: str, data: dict[str, Any]) -> None:
         print_debug(f"updating org custom property with name '{property_name}'")
@@ -151,10 +142,7 @@ class OrgClient(RestClient):
             await self.requester.request_json("PUT", f"/orgs/{org_id}/properties/schema/{property_name}", data)
             print_debug(f"updated org custom property with name '{property_name}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(
-                f"failed to update org custom property with name '{property_name}':\n{ex}"
-            ).with_traceback(tb)
+            raise RuntimeError(f"failed to update org custom property with name '{property_name}':\n{ex}") from ex
 
     async def delete_custom_property(self, org_id: str, property_name: str) -> None:
         print_debug(f"deleting org custom property with name '{property_name}'")
@@ -183,8 +171,7 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/hooks")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}") from ex
 
     async def update_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
         print_debug(f"updating org webhook '{webhook_id}' for organization {org_id}")
@@ -193,8 +180,7 @@ class OrgClient(RestClient):
             await self.requester.request_json("PATCH", f"/orgs/{org_id}/hooks/{webhook_id}", webhook)
             print_debug(f"updated webhook {webhook_id}")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to update org webhook {webhook_id}:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to update org webhook {webhook_id}:\n{ex}") from ex
 
     async def add_webhook(self, org_id: str, data: dict[str, Any]) -> None:
         url = data["config"]["url"]
@@ -207,8 +193,7 @@ class OrgClient(RestClient):
             await self.requester.request_json("POST", f"/orgs/{org_id}/hooks", data)
             print_debug(f"added org webhook with url '{url}'")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to add org webhook with url '{url}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to add org webhook with url '{url}':\n{ex}") from ex
 
     async def delete_webhook(self, org_id: str, webhook_id: int, url: str) -> None:
         print_debug(f"deleting org webhook with url '{url}'")
@@ -228,8 +213,7 @@ class OrgClient(RestClient):
             repos = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params=params)
             return [repo["name"] for repo in repos]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed to retrieve repos for organization '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed to retrieve repos for organization '{org_id}':\n{ex}") from ex
 
     async def get_secrets(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving secrets for org '{org_id}'")
@@ -245,8 +229,7 @@ class OrgClient(RestClient):
                     )
             return secrets
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}") from ex
 
     async def _get_selected_repositories_for_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving selected repositories for secret '{secret_name}'")
@@ -256,8 +239,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", url)
             return response["repositories"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
 
     async def add_secret(self, org_id: str, data: dict[str, str]) -> None:
         secret_name = data.pop("name")
@@ -321,8 +303,7 @@ class OrgClient(RestClient):
                     )
             return secrets
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed getting variables for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed getting variables for org '{org_id}':\n{ex}") from ex
 
     async def _get_selected_repositories_for_variable(self, org_id: str, variable_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving selected repositories for variable '{variable_name}'")
@@ -332,8 +313,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", url)
             return response["repositories"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
 
     async def _set_selected_repositories_for_variable(
         self, org_id: str, variable_name: str, selected_repository_ids: list[str]
@@ -351,8 +331,7 @@ class OrgClient(RestClient):
             print_debug(f"updated selected repositories for variable '{variable_name}'")
 
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
 
     async def update_variable(self, org_id: str, variable_name: str, variable: dict[str, Any]) -> None:
         print_debug(f"updating org variable '{variable_name}'")
@@ -360,10 +339,7 @@ class OrgClient(RestClient):
         if "name" in variable:
             variable.pop("name")
 
-        if "visibility" in variable:
-            visibility = variable["visibility"]
-        else:
-            visibility = None
+        visibility = variable.get("visibility")
 
         if "selected_repository_ids" in variable:
             selected_repository_ids = variable.pop("selected_repository_ids")
@@ -409,8 +385,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/secrets/public-key")
             return response["key_id"], response["key"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving org public key:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving org public key:\n{ex}") from ex
 
     async def get_team_ids(self, combined_slug: str) -> tuple[int, str]:
         print_debug("retrieving team ids")
@@ -420,8 +395,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/teams/{team_slug}")
             return response["id"], response["node_id"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving team node id:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving team node id:\n{ex}") from ex
 
     async def get_teams(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving teams for org '{org_id}'")
@@ -429,8 +403,7 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/teams")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}") from ex
 
     async def get_app_installations(self, org_id: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving app installations for org '{org_id}'")
@@ -439,8 +412,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/installations")
             return response["installations"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed getting app installations for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed getting app installations for org '{org_id}':\n{ex}") from ex
 
     async def get_workflow_settings(self, org_id: str) -> dict[str, Any]:
         print_debug(f"retrieving workflow settings for org '{org_id}'")
@@ -451,8 +423,7 @@ class OrgClient(RestClient):
             permissions = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions")
             workflow_settings.update(permissions)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving workflow settings for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving workflow settings for org '{org_id}':\n{ex}") from ex
 
         if permissions["enabled_repositories"] == "selected":
             workflow_settings["selected_repositories"] = await self._get_selected_repositories_for_workflow_settings(
@@ -508,8 +479,7 @@ class OrgClient(RestClient):
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/repositories")
             return response["repositories"]
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
 
     async def _update_selected_repositories_for_workflow_settings(
         self, org_id: str, selected_repository_ids: list[int]
@@ -534,8 +504,7 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/selected-actions")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving allowed actions for org '{org_id}':\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving allowed actions for org '{org_id}':\n{ex}") from ex
 
     async def _update_selected_actions_for_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating allowed actions for org '{org_id}'")
@@ -555,8 +524,7 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/actions/permissions/workflow")
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving org default workflow permissions:\n{ex}") from ex
 
     async def _update_default_workflow_permissions(self, org_id: str, data: dict[str, Any]) -> None:
         print_debug(f"updating default workflow permissions for org '{org_id}'")
@@ -577,8 +545,7 @@ class OrgClient(RestClient):
             url = f"/orgs/{org_id}/code-security/configurations/defaults"
             return await self.requester.request_json("GET", url)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving default code security configurations:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving default code security configurations:\n{ex}") from ex
 
     async def _disable_default_code_security_configurations(self, org_id: str) -> None:
         print_debug(f"retrieving default code security configurations for org '{org_id}'")
@@ -593,20 +560,15 @@ class OrgClient(RestClient):
                 url = f"/orgs/{org_id}/code-security/configurations/{configuration_id}/defaults"
                 await self.requester.request_json("PUT", url, data=data)
             except GitHubException as ex:
-                tb = ex.__traceback__
                 raise RuntimeError(
                     f"failed disabling default code security configuration with id {configuration_id}:\n{ex}"
-                ).with_traceback(tb)
+                ) from ex
 
     async def list_members(self, org_id: str, two_factor_disabled: bool) -> list[dict[str, Any]]:
         print_debug(f"retrieving list of organization members for org '{org_id}'")
 
         try:
-            if two_factor_disabled is True:
-                params = {"filter": "2fa_disabled"}
-            else:
-                params = None
+            params = {"filter": "2fa_disabled"} if two_factor_disabled is True else None
             return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/members", params=params)
         except GitHubException as ex:
-            tb = ex.__traceback__
-            raise RuntimeError(f"failed retrieving members:\n{ex}").with_traceback(tb)
+            raise RuntimeError(f"failed retrieving members:\n{ex}") from ex
