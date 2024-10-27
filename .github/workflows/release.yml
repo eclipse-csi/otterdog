@@ -1,20 +1,10 @@
-name: Release
+name: Prepare Release
 on:
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version'
         required: true
-      version-fragment:
-        description: 'Version fragment to increase for next development cycle'
-        required: true
-        default: 'minor'
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
-          - none
 
 env:
   BOT_USER_NAME: eclipse-csi-bot
@@ -42,7 +32,7 @@ jobs:
             exit 1
           fi
 
-  release:
+  prepare-release:
     runs-on: ubuntu-22.04
     needs: ['precheck']
     permissions:
