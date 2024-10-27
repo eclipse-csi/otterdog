@@ -47,15 +47,11 @@ jobs:
     needs: ['precheck']
     permissions:
       contents: write
+      pull-requests: write
     outputs:
       release-version: ${{ steps.prepare-release.outputs.RELEASE_VERSION }}
       release-tag: ${{ steps.prepare-release.outputs.RELEASE_TAG }}
     steps:
-      - name: "Setup Bot User"
-        run: |
-          git config --global user.name '${{ env.BOT_USER_NAME }}'
-          git config --global user.email '${{ env.BOT_EMAIL }}'
-
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           ref: ${{ github.ref }}
@@ -103,61 +99,17 @@ jobs:
             poetry version $RELEASE_VERSION
           fi
 
-          git commit -a -m "Releasing version $RELEASE_VERSION"
-          git push origin ${{ github.ref }}
-
           echo "RELEASE_TAG=v$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
-      - name: "Tag release"
-        id: tag-release
-        shell: bash
-        run: |
-          git tag ${{ steps.prepare-release.outputs.RELEASE_TAG }}
-          git push origin --tags
-
-  publish:
-    needs: ['release']
-    permissions:
-      actions: read
-      contents: write
-      id-token: write
-      packages: write
-    uses: ./.github/workflows/publish.yml
-    with:
-      release-tag: "${{ needs.release.outputs.release-tag }}"
-      release-version: "${{ needs.release.outputs.release-version }}"
-
-  prepare-for-next-development-cycle:
-    runs-on: ubuntu-22.04
-    needs: ['publish']
-    permissions:
-      contents: write
-    if: ${{ github.event.inputs.version-fragment != 'none' }}
-    steps:
-      - name: Setup Git User
-        run: |
-          git config --global user.name '${{ env.BOT_USER_NAME }}'
-          git config --global user.email '${{ env.BOT_EMAIL }}'
-
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v7
         with:
-          ref: ${{ github.ref }}
+          title: "Preparing to release ${{ steps.prepare-release.outputs.RELEASE_VERSION }}"
+          body: |
+            This PR has been created automatically by the release.yml workflow.
 
-      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - uses: snok/install-poetry@93ada01c735cc8a383ce0ce2ae205a21c415379b # v1.3
-        with:
-          virtualenvs-in-project: true
-          version: ${{ env.POETRY_VERSION }}
-
-      - name: Update next development version
-        env:
-          VERSION_FRAGMENT: ${{ github.event.inputs.version-fragment }}
-        run: |
-          NEXT_VERSION="$(poetry version ${VERSION_FRAGMENT} -s)"
-          poetry version "$NEXT_VERSION".dev0
-
-          git commit -a -m "Prepare for next development cycle"
-          git push origin ${{ github.ref }}
+            In order to release this version, merge this PR and tag the default branch afterwards with `${{ steps.prepare-release.outputs.RELEASE_TAG }}`.
+            The publish.yml workflow will get automatically triggered and build and publish the artifacts.
+          commit-message: "Preparing for release ${{ steps.prepare-release.outputs.RELEASE_VERSION }}"
+          committer: "${{ env.BOT_USER_NAME }} <${{ env.BOT_EMAIL }}>"
