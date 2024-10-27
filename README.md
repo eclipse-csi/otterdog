@@ -1,12 +1,21 @@
-<a href="https://otterdog.eclipse.org"><p align="center"><img width="50%" src="https://raw.githubusercontent.com/eclipse-csi/.github/main/artwork/eclipse-otterdog/logo-full-square/500x500%20Transparent.png"></p></a>
+<h1 align="center">
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/eclipse-csi/otterdog/badge)](https://scorecard.dev/viewer/?uri=github.com/eclipse-csi/otterdog)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9624/badge)](https://www.bestpractices.dev/projects/9624)
-[![Build](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg)](https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml)
-[![Documentation status](https://readthedocs.org/projects/otterdog/badge/?version=latest)](https://otterdog.readthedocs.io/en/latest/?badge=latest)
-[![PyPI](https://img.shields.io/pypi/v/otterdog?color=blue)](https://pypi.org/project/otterdog)
-[![PyPI - Python Versions](https://img.shields.io/pypi/pyversions/otterdog)](https://pypi.org/project/otterdog)
-[![EPLv2 License](https://img.shields.io/github/license/eclipse-csi/otterdog)](https://github.com/eclipse-csi/otterdog/blob/main/LICENSE)
+<a href="https://otterdog.eclipse.org">
+  <img style="width: 300px; height: 250px;" src="https://raw.githubusercontent.com/eclipse-csi/.github/main/artwork/eclipse-otterdog/logo-full-square/500x500%20Transparent.png">
+</a>
+
+</h1>
+
+<p align="center">
+  <a href="https://pypi.org/project/otterdog"><img alt="PyPI" src="https://img.shields.io/pypi/v/otterdog.svg?color=blue&maxAge=86400" /></a>
+  <a href="https://pypi.org/project/otterdog"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/otterdog.svg?maxAge=86400" /></a>
+  <a href="https://github.com/eclipse-csi/otterdog/blob/main/LICENSE"><img alt="EPLv2 License" src="https://img.shields.io/github/license/eclipse-csi/otterdog" /></a>
+  <a href="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml?query=branch%3Amain"><img alt="Build Status on GitHub" src="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg?branch:main&workflow:Build" /></a>
+  <a href="https://otterdog.readthedocs.io"><img alt="Documentation Status" src="https://readthedocs.org/projects/otterdog/badge/?version=latest" /></a><br>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/eclipse-csi/otterdog"><img alt="OpenSSF Scorecard" src="https://api.securityscorecards.dev/projects/github.com/eclipse-csi/otterdog/badge" /></a>
+  <a href="https://www.bestpractices.dev/projects/9624"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/9624/badge" /></a>
+  <a href="https://slsa.dev"><img alt="OpenSSF SLSA Level 3" src="https://slsa.dev/images/gh-badge-level3.svg" /></a>
+</p>
 
 # Eclipse Otterdog
 
