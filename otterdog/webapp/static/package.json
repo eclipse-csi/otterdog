@@ -24,5 +24,8 @@
     "jquery": "^3.7.1",
     "jquery-ui-dist": "^1.13.2",
     "highlight.js": "^11.10.0"
+  },
+  "overrides": {
+    "summernote": "^0.9.1"
   }
 }
