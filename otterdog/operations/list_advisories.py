@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_info_enabled, style
+from otterdog.utils import style
 
 from . import Operation
 
@@ -24,13 +24,21 @@ class ListAdvisoriesOperation(Operation):
     Lists repository security advisories for an organization.
     """
 
-    def __init__(self, state: str):
+    def __init__(self, state: str, details: bool):
         super().__init__()
-        self.state = state
+        self._state = state
+        self._details = details
+
+    @property
+    def state(self) -> str:
+        return self._state
+
+    @property
+    def details(self) -> bool:
+        return self._details
 
     def pre_execute(self) -> None:
-        if is_info_enabled():
-            self.printer.println("Listing repository security advisories:")
+        self.printer.println(f"Listing {self.state} repository security advisories:")
 
     def post_execute(self) -> None:
         pass
@@ -60,10 +68,15 @@ class ListAdvisoriesOperation(Operation):
                 advisories = await provider.rest_api.org.get_security_advisories(github_id, self.state)
 
             self.printer.println(f"Found {len(advisories)} advisories with state '{self.state}'.")
+            if not self.details:
+                self.printer.println()
 
             for advisory in advisories:
-                self.printer.println()
-                self.print_dict(advisory, f"advisory['{advisory['id']}']", "", "black")
+                if self.details:
+                    self.printer.println()
+                    self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
+                else:
+                    self.printer.println(f"{advisory['ghsa_id']}, {advisory['summary']}, {advisory['cve_id']}")
 
             return 0
         finally:

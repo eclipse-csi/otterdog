@@ -28,6 +28,7 @@ from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_config import FetchOperation
 from .operations.import_configuration import ImportOperation
 from .operations.install_app import InstallAppOperation
+from .operations.list_advisories import ListAdvisoriesOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
 from .operations.local_apply import LocalApplyOperation
@@ -42,7 +43,6 @@ from .operations.sync_template import SyncTemplateOperation
 from .operations.uninstall_app import UninstallAppOperation
 from .operations.validate import ValidateOperation
 from .operations.web_login import WebLoginOperation
-from .operations.list_advisories import ListAdvisoriesOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
@@ -707,16 +707,25 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
 
 @cli.command(cls=StdCommand, short_help="Lists repository security advisories for an organization.")
 @click.option(
+    "-s",
     "--state",
     type=click.Choice(["triage", "draft", "published", "closed"], case_sensitive=False),
-    default=None,
-    help="filter advisories by state",
+    default="draft",
+    help="list advisories by state",
 )
-def list_advisories(state: str, organizations: list[str]):
+@click.option(
+    "-d",
+    "--details",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="displays advisory details",
+)
+def list_advisories(state: str, details: bool, organizations: list[str]):
     """
     Lists repository security advisories for an organization.
     """
-    _execute_operation(organizations, ListAdvisoriesOperation(state))
+    _execute_operation(organizations, ListAdvisoriesOperation(state, details))
 
 
 @cli.command(short_help="Installs required dependencies.")
