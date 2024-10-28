@@ -1,7 +1,7 @@
 <h1 align="center">
 
 <a href="https://otterdog.eclipse.org">
-  <img style="width: 300px; height: 250px;" src="https://raw.githubusercontent.com/eclipse-csi/.github/main/artwork/eclipse-otterdog/logo-full-square/500x500%20Transparent.png">
+  <img style="width: 350px;" src="https://github.com/eclipse-csi/.github/blob/main/artwork/eclipse-otterdog/Logo%20Color%20-%20Transparent%20Bg.png">
 </a>
 
 </h1>
