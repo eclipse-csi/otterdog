@@ -75,22 +75,30 @@ class Requester:
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
+        from urllib import parse
+
+        json_data = None
+        if data is not None:
+            json_data = json.dumps(data)
+
         result = []
-        current_page = 1
-        while current_page > 0:
-            query_params = {"per_page": "100", "page": current_page}
+        query_params: dict[str, str] | None = {"per_page": "100"}
+
+        while query_params is not None:
             if params is not None:
                 query_params.update(params)
 
-            response: list[dict[str, Any]] = await self.request_json(method, url_path, data, query_params)
+            status, body, next_url = await self._request_raw_with_next_link(method, url_path, json_data, query_params)
+            self._check_response(url_path, status, body)
+            response = json.loads(body)
 
-            if len(response) == 0:
-                current_page = -1
+            if next_url is None:
+                query_params = None
             else:
-                for item in response:
-                    result.append(item)
+                query_params = {k: v[0] for k, v in parse.parse_qs(parse.urlparse(next_url).query).items()}
 
-                current_page += 1
+            for item in response:
+                result.append(item)
 
         return result
 
@@ -116,6 +124,16 @@ class Requester:
         data: str | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[int, str]:
+        status, body, _ = await self._request_raw_with_next_link(method, url_path, data, params)
+        return status, body
+
+    async def _request_raw_with_next_link(
+        self,
+        method: str,
+        url_path: str,
+        data: str | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> tuple[int, str, str | None]:
         print_trace(f"'{method}' url = {url_path}, data = {data}, params = {params}, headers = {self._headers}")
 
         headers = self._headers.copy()
@@ -135,6 +153,9 @@ class Requester:
 
             text = await response.text()
             status = response.status
+            links = response.links
+            next_link = links.get("next", None) if links is not None else None
+            next_url = next_link.get("url", None) if next_link is not None else None
 
             if (
                 hasattr(response, "from_cache")
@@ -148,7 +169,7 @@ class Requester:
             if is_trace_enabled():
                 print_trace(f"'{method}' result = ({status}, {text})")
 
-            return status, text
+            return status, text, str(next_url) if next_url is not None else None
 
     async def request_stream(
         self,
