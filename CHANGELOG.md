@@ -2,7 +2,9 @@
 
 ## [0.9.0] - unreleased
 
-### Added
+### Changed
+
+- Improved processing of organization settings `web_commit_signoff_required` and `actions_can_approve_pull_request_reviews` to force update the same settings on repo level as changes will be implicitly performed by GitHub.
 
 
 ## [0.8.0] - 27/10/2024

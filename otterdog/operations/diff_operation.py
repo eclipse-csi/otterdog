@@ -230,20 +230,6 @@ class DiffOperation(Operation):
         )
         expected_org.generate_live_patch(current_org, context, handle)
 
-        # add a warning that otterdog potentially must be run a second time
-        # to fully apply all settings.
-        if "web_commit_signoff_required" in context.modified_org_settings:
-            change = context.modified_org_settings["web_commit_signoff_required"]
-            if change.to_value is False:
-                if self.verbose_output():
-                    self.printer.print_warn(
-                        "Setting 'web_commit_signoff_required' setting has been disabled on "
-                        "organization level. \nThe effective setting on repo level can only be "
-                        "determined once this change has been applied.\n"
-                        "You need to run otterdog another time to fully ensure "
-                        "that the correct configuration is applied."
-                    )
-
         # resolve secrets for collected patches
         if self.resolve_secrets():
             for live_patch in live_patches:

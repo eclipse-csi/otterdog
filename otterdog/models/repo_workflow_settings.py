@@ -179,6 +179,17 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             if "allowed_actions" in modified_workflow_settings:
                 modified_workflow_settings["enabled"] = Change(current_object.enabled, coerced_object.enabled)
 
+        if "actions_can_approve_pull_request_reviews" in context.modified_org_workflow_settings:
+            change = context.modified_org_workflow_settings["actions_can_approve_pull_request_reviews"]
+            if change.to_value is True:
+                actions_can_approve_pull_request_reviews = cast(
+                    RepositoryWorkflowSettings, coerced_object
+                ).actions_can_approve_pull_request_reviews
+                if actions_can_approve_pull_request_reviews is False:
+                    modified_workflow_settings["actions_can_approve_pull_request_reviews"] = Change(
+                        actions_can_approve_pull_request_reviews, actions_can_approve_pull_request_reviews
+                    )
+
         if len(modified_workflow_settings) > 0:
             handler(
                 LivePatch.of_changes(

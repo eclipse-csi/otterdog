@@ -165,6 +165,7 @@ class LivePatchContext:
     current_org_settings: ModelObject | None
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
+    modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 
 
 class LivePatchHandler(Protocol):

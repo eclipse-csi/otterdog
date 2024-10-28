@@ -153,6 +153,7 @@ class Repository(ModelObject):
         "has_issues",
         "has_wiki",
         "has_projects",
+        "web_commit_signoff_required",
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
@@ -936,6 +937,15 @@ class Repository(ModelObject):
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
 
             modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
+
+            is_archived = cast(Repository, coerced_object).archived
+            if is_archived is False and "web_commit_signoff_required" in context.modified_org_settings:
+                change = context.modified_org_settings["web_commit_signoff_required"]
+                if change.to_value is False:
+                    web_commit_signoff_required = cast(Repository, coerced_object).web_commit_signoff_required
+                    modified_repo["web_commit_signoff_required"] = Change(
+                        web_commit_signoff_required, web_commit_signoff_required
+                    )
 
             # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
             #        the modified data as GitHub needs the path as well when the branch is changed.

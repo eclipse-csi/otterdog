@@ -138,6 +138,8 @@ class OrganizationWorkflowSettings(WorkflowSettings):
                 )
             )
 
+        context.modified_org_workflow_settings = modified_workflow_settings
+
     @classmethod
     async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
         assert patch.patch_type == LivePatchType.CHANGE
