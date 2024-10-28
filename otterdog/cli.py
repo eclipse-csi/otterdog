@@ -42,6 +42,7 @@ from .operations.sync_template import SyncTemplateOperation
 from .operations.uninstall_app import UninstallAppOperation
 from .operations.validate import ValidateOperation
 from .operations.web_login import WebLoginOperation
+from .operations.list_advisories import ListAdvisoriesOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error
 
 _CONFIG_FILE = "otterdog.json"
@@ -702,6 +703,20 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     """
 
     _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant, force))
+
+
+@cli.command(cls=StdCommand, short_help="Lists repository security advisories for an organization.")
+@click.option(
+    "--state",
+    type=click.Choice(["triage", "draft", "published", "closed"], case_sensitive=False),
+    default=None,
+    help="filter advisories by state",
+)
+def list_advisories(state: str, organizations: list[str]):
+    """
+    Lists repository security advisories for an organization.
+    """
+    _execute_operation(organizations, ListAdvisoriesOperation(state))
 
 
 @cli.command(short_help="Installs required dependencies.")

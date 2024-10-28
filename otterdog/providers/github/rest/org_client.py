@@ -572,3 +572,12 @@ class OrgClient(RestClient):
             return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/members", params=params)
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving members:\n{ex}") from ex
+
+    async def get_security_advisories(self, org_id: str, state: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving security advisories for org '{org_id}' with state '{state}'")
+
+        try:
+            params = {"state": state} if state is not None else None
+            return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/security-advisories", params=params)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving security advisories for org '{org_id}':\n{ex}") from ex
