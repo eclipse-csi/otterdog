@@ -711,6 +711,7 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     "--state",
     type=click.Choice(["triage", "draft", "published", "closed"], case_sensitive=False),
     default="draft",
+    show_default=True,
     help="list advisories by state",
 )
 @click.option(
@@ -719,7 +720,7 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     is_flag=True,
     show_default=True,
     default=False,
-    help="displays advisory details",
+    help="display advisory details",
 )
 def list_advisories(state: str, details: bool, organizations: list[str]):
     """
