@@ -12,6 +12,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
@@ -605,3 +606,10 @@ def deep_merge_dict(source: dict[str, Any], destination: dict[str, Any]):
             destination[key] = value
 
     return destination
+
+
+def format_date_for_csv(iso_date_str: str) -> str:
+    if iso_date_str is None:
+        return ""
+    date_obj = datetime.fromisoformat(iso_date_str)
+    return date_obj.strftime("%d/%m/%Y %H:%M:%S")

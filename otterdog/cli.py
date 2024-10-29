@@ -28,6 +28,7 @@ from .operations.dispatch_workflow import DispatchWorkflowOperation
 from .operations.fetch_config import FetchOperation
 from .operations.import_configuration import ImportOperation
 from .operations.install_app import InstallAppOperation
+from .operations.list_advisories import ListAdvisoriesOperation
 from .operations.list_apps import ListAppsOperation
 from .operations.list_members import ListMembersOperation
 from .operations.local_apply import LocalApplyOperation
@@ -702,6 +703,31 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     """
 
     _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant, force))
+
+
+@cli.command(cls=StdCommand, short_help="Lists repository security advisories for an organization.")
+@click.option(
+    "-s",
+    "--state",
+    type=click.Choice(["triage", "draft", "published", "closed", "all"], case_sensitive=False),
+    multiple=True,
+    default=["triage", "draft"],
+    show_default=True,
+    help="list advisories by state",
+)
+@click.option(
+    "-d",
+    "--details",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="display advisory details",
+)
+def list_advisories(state: list[str], details: bool, organizations: list[str]):
+    """
+    Lists repository security advisories for an organization.
+    """
+    _execute_operation(organizations, ListAdvisoriesOperation(state, details))
 
 
 @cli.command(short_help="Installs required dependencies.")

@@ -2,6 +2,10 @@
 
 ## [0.9.0] - unreleased
 
+### Added
+
+- Added a new operation `list-advisories` to list GitHub Security Advisories for organizations.
+
 ### Changed
 
 - Improved processing of organization settings `web_commit_signoff_required` and `actions_can_approve_pull_request_reviews` to force update the same settings on repo level as changes will be implicitly performed by GitHub.
