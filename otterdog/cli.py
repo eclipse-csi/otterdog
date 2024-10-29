@@ -729,6 +729,7 @@ def list_advisories(state: list[str], details: bool, organizations: list[str]):
     """
     _execute_operation(organizations, ListAdvisoriesOperation(state, details))
 
+
 @cli.command(short_help="Installs required dependencies.")
 def install_deps():
     """

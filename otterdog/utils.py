@@ -607,7 +607,8 @@ def deep_merge_dict(source: dict[str, Any], destination: dict[str, Any]):
 
     return destination
 
-def format_date_for_csv(iso_date_str : str) -> str:
+
+def format_date_for_csv(iso_date_str: str) -> str:
     if iso_date_str is None:
         return ""
     date_obj = datetime.fromisoformat(iso_date_str)

@@ -11,13 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_info_enabled, style, format_date_for_csv
+from otterdog.utils import format_date_for_csv, is_info_enabled, style
 
 from . import Operation
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from otterdog.config import OrganizationConfig
 
 
@@ -46,7 +44,9 @@ class ListAdvisoriesOperation(Operation):
         if is_info_enabled():
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
-            self.printer.println("organization,created_at,updated_at,published_at,state,ghsa_id,cve_id,html_url,summary")
+            self.printer.println(
+                "organization,created_at,updated_at,published_at,state,ghsa_id,cve_id,html_url,summary"
+            )
 
     def post_execute(self) -> None:
         pass
@@ -86,19 +86,19 @@ class ListAdvisoriesOperation(Operation):
 
             for advisory in advisories:
                 if not self.details:
-                    cve_id = advisory['cve_id'] if advisory['cve_id'] is not None else 'NO_CVE'
-                    summary = advisory['summary'].replace('"', '""')
+                    cve_id = advisory["cve_id"] if advisory["cve_id"] is not None else "NO_CVE"
+                    summary = advisory["summary"].replace('"', '""')
 
                     formatted_values = {
                         "org_name": org_config.name,
-                        "created_at": format_date_for_csv(advisory['created_at']),
-                        "updated_at": format_date_for_csv(advisory['updated_at']),
-                        "published_at": format_date_for_csv(advisory['published_at']),
-                        "state": advisory['state'],
-                        "ghsa_id": advisory['ghsa_id'],
+                        "created_at": format_date_for_csv(advisory["created_at"]),
+                        "updated_at": format_date_for_csv(advisory["updated_at"]),
+                        "published_at": format_date_for_csv(advisory["published_at"]),
+                        "state": advisory["state"],
+                        "ghsa_id": advisory["ghsa_id"],
                         "cve_id": cve_id,
-                        "html_url": advisory['html_url'],
-                        "summary": summary
+                        "html_url": advisory["html_url"],
+                        "summary": summary,
                     }
 
                     self.printer.println(
