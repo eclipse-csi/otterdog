@@ -709,8 +709,9 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
 @click.option(
     "-s",
     "--state",
-    type=click.Choice(["triage", "draft", "published", "closed"], case_sensitive=False),
-    default="draft",
+    type=click.Choice(["triage", "draft", "published", "closed", "all"], case_sensitive=False),
+    multiple=True,
+    default=["triage", "draft"],
     show_default=True,
     help="list advisories by state",
 )
@@ -722,12 +723,11 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     default=False,
     help="display advisory details",
 )
-def list_advisories(state: str, details: bool, organizations: list[str]):
+def list_advisories(state: list[str], details: bool, organizations: list[str]):
     """
     Lists repository security advisories for an organization.
     """
     _execute_operation(organizations, ListAdvisoriesOperation(state, details))
-
 
 @cli.command(short_help="Installs required dependencies.")
 def install_deps():

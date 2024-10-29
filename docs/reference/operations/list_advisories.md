@@ -8,8 +8,8 @@ The `list_advisories` operation lists the repository security advisories in a gi
   --local                    work in local mode, not updating the referenced default config
   -c, --config FILE          configuration file to use  [default: otterdog.json]
   -v, --verbose              enable verbose output (-vvv for more verbose output)
-  -s, --state [triage|draft|published|closed]
-                             filter advisories by state [default: draft]
+  -s, --state [triage|draft|published|closed|all]
+                             filter advisories by state(s) [default: triage,draft]
   -d, --details              display advisory details
   -h, --help                 Show this message and exit.
 ```

@@ -8,14 +8,17 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import style
+from otterdog.utils import is_info_enabled, style, format_date_for_csv
 
 from . import Operation
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from otterdog.config import OrganizationConfig
 
 
@@ -24,21 +27,27 @@ class ListAdvisoriesOperation(Operation):
     Lists repository security advisories for an organization.
     """
 
-    def __init__(self, state: str, details: bool):
+    def __init__(self, states: list[str], details: bool):
         super().__init__()
-        self._state = state
+        # if states contains "all", then we will get all advisories
+        if "all" in states:
+            states = ["triage", "draft", "published", "closed"]
+        self._states = states
         self._details = details
 
     @property
-    def state(self) -> str:
-        return self._state
+    def states(self) -> list[str]:
+        return self._states
 
     @property
     def details(self) -> bool:
         return self._details
 
     def pre_execute(self) -> None:
-        self.printer.println(f"Listing {self.state} repository security advisories:")
+        if is_info_enabled():
+            self.printer.println(f"Listing {self.states} repository security advisories:")
+        if not self.details:
+            self.printer.println("organization,created_at,updated_at,published_at,state,ghsa_id,cve_id,html_url,summary")
 
     def post_execute(self) -> None:
         pass
@@ -51,11 +60,12 @@ class ListAdvisoriesOperation(Operation):
     ) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
-        self.printer.level_up()
+        if is_info_enabled():
+            self.printer.println(
+                f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
+                f"{self._format_progress(org_index, org_count)}"
+            )
+            self.printer.level_up()
 
         try:
             try:
@@ -64,20 +74,49 @@ class ListAdvisoriesOperation(Operation):
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
-            async with GitHubProvider(credentials) as provider:
-                advisories = await provider.rest_api.org.get_security_advisories(github_id, self.state)
+            advisories = []
+            for state in self.states:
+                async with GitHubProvider(credentials) as provider:
+                    advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
+                    advisories += advisories_for_state
 
-            self.printer.println(f"Found {len(advisories)} advisories with state '{self.state}'.")
             if not self.details:
-                self.printer.println()
+                if is_info_enabled():
+                    self.printer.println(f"Found {len(advisories)} advisories with state '{self.states}'.")
+                    self.printer.println()
 
             for advisory in advisories:
-                if self.details:
-                    self.printer.println()
-                    self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
+                if not self.details:
+                    cve_id = advisory['cve_id'] if advisory['cve_id'] is not None else 'NO_CVE'
+                    summary = advisory['summary'].replace('"', '""')
+
+                    formatted_values = {
+                        "org_name": org_config.name,
+                        "created_at": format_date_for_csv(advisory['created_at']),
+                        "updated_at": format_date_for_csv(advisory['updated_at']),
+                        "published_at": format_date_for_csv(advisory['published_at']),
+                        "state": advisory['state'],
+                        "ghsa_id": advisory['ghsa_id'],
+                        "cve_id": cve_id,
+                        "html_url": advisory['html_url'],
+                        "summary": summary
+                    }
+
+                    self.printer.println(
+                        f"\"{formatted_values['org_name']}\","
+                        f"\"{formatted_values['created_at']}\","
+                        f"\"{formatted_values['updated_at']}\","
+                        f"\"{formatted_values['published_at']}\","
+                        f"\"{formatted_values['state']}\","
+                        f"\"{formatted_values['ghsa_id']}\","
+                        f"\"{formatted_values['cve_id']}\","
+                        f"\"{formatted_values['html_url']}\","
+                        f"\"{formatted_values['summary']}\""
+                    )
                 else:
-                    self.printer.println(f"{advisory['ghsa_id']}, {advisory['summary']}, {advisory['cve_id']}")
+                    self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
 
             return 0
         finally:
-            self.printer.level_down()
+            if is_info_enabled():
+                self.printer.level_down()
