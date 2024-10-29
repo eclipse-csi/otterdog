@@ -22,7 +22,7 @@ them locally in a file `<github-id>/<github-id>.jsonnet` in the organization spe
 ## Example
 
 ```shell
-tn@proteus:~/workspace/eclipse/EclipseFdn/otterdog-configs$ otterdog import adoptium -f
+$ otterdog import adoptium -f
 
 Importing resources for configuration at '.../otterdog-configs/otterdog.json'
 

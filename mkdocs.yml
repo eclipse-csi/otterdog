@@ -70,9 +70,9 @@ nav:
              - Status Check: reference/organization/repository/status-check.md
     - CLI Operations:
         - reference/operations/index.md
+        - Apply: reference/operations/apply.md
         - Import: reference/operations/import.md
         - Plan: reference/operations/plan.md
-        - Apply: reference/operations/apply.md
         - Validate: reference/operations/validate.md
 - User Guide:
     - Renaming of Resources: userguide/renaming.md
