@@ -73,7 +73,7 @@ class RequiredFilePolicy(Policy):
         github_organization = GitHubOrganization.from_model_data(config_data.config)
         for repo in github_organization.repositories:
             for required_file in self.files:
-                if required_file.repo_selector.matches(repo):
+                if repo.archived is False and required_file.repo_selector.matches(repo):
                     logger.debug(f"checking for required file '{required_file.path}' in repo '{github_id}/{repo.name}'")
 
                     title = f"Adding required file {required_file.path}"
