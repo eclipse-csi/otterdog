@@ -28,20 +28,30 @@ logger = getLogger(__name__)
 
 
 class RepoSelector(BaseModel):
-    name_pattern: str | None
+    name_pattern: str | list[str] | None
 
     @cached_property
-    def _pattern(self):
-        return re.compile(self.name_pattern)
+    def _pattern(self) -> re.Pattern | None:
+        if self.name_pattern is None:
+            return None
+        elif isinstance(self.name_pattern, str):
+            return re.compile(self.name_pattern)
+        else:
+            return re.compile("|".join(self.name_pattern))
 
     def matches(self, repo: Repository) -> bool:
-        return self._pattern.match(repo.name)
+        pattern = self._pattern
+        if pattern is not None:
+            return bool(pattern.fullmatch(repo.name))
+        else:
+            return False
 
 
 class RequiredFile(BaseModel):
     path: str
     repo_selector: RepoSelector
     content: str
+    strict: bool = False
 
 
 class RequiredFilePolicy(Policy):
@@ -67,7 +77,7 @@ class RequiredFilePolicy(Policy):
                     logger.debug(f"checking for required file '{required_file.path}' in repo '{github_id}/{repo.name}'")
 
                     title = f"Adding required file {required_file.path}"
-                    body = "This PR has been automatically created by otterdog due to a violated policy."
+                    body = "This PR has been automatically created by otterdog due to a policy."
 
                     current_app.add_background_task(
                         CheckFileTask(
@@ -76,6 +86,7 @@ class RequiredFilePolicy(Policy):
                             repo.name,
                             required_file.path,
                             required_file.content,
+                            required_file.strict,
                             "policy",
                             title,
                             body,

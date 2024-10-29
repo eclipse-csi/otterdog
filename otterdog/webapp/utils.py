@@ -25,7 +25,6 @@ from otterdog.providers.github.cache.ghproxy import ghproxy_cache
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
-from otterdog.utils import print_error
 from otterdog.webapp.policies import Policy, read_policy
 
 logger = getLogger(__name__)
@@ -190,8 +189,8 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
                 try:
                     policy = read_policy(yaml.safe_load(content))
                     policies.append(policy)
-                except RuntimeError as e:
-                    print_error(f"failed reading global policy from path '{path}': {e!s}")
+                except (ValueError, RuntimeError) as e:
+                    logger.error(f"failed reading global policy from path '{path}'", exc_info=e)
 
     return policies
 

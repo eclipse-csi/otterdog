@@ -8,14 +8,15 @@
 
 from dataclasses import dataclass
 
+import yaml
+
 from otterdog.providers.github.rest import RestApi
-from otterdog.utils import print_error
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
     cleanup_policies_of_owner,
     update_or_create_policy,
 )
-from otterdog.webapp.policies import Policy, PolicyType
+from otterdog.webapp.policies import Policy, PolicyType, read_policy
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 
 
@@ -43,7 +44,7 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
         async with self.get_organization_config() as org_config:
             rest_api = await self.rest_api
 
-            policies = await fetch_policies(rest_api, self.org_id, org_config.config_repo, self.global_policies)
+            policies = await self._fetch_policies(rest_api, self.org_id, org_config.config_repo, self.global_policies)
 
             valid_types = [x.value for x in policies]
             await cleanup_policies_of_owner(self.org_id, valid_types)
@@ -51,32 +52,31 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
             for policy in list(policies.values()):
                 await update_or_create_policy(self.org_id, policy)
 
+    async def _fetch_policies(
+        self,
+        rest_api: RestApi,
+        org_id: str,
+        repo: str,
+        global_policies: list[Policy],
+    ) -> dict[PolicyType, Policy]:
+        config_file_path = "otterdog/policies"
+        policies = {p.type: p for p in global_policies}
+        try:
+            entries = await rest_api.content.get_content_object(org_id, repo, config_file_path)
+        except RuntimeError:
+            entries = []
+
+        for entry in entries:
+            path = entry["path"]
+            if path.endswith((".yml", "yaml")):
+                content = await rest_api.content.get_content(org_id, repo, path)
+                try:
+                    policy = read_policy(yaml.safe_load(content))
+                    policies[policy.type] = policy
+                except (ValueError, RuntimeError) as ex:
+                    self.logger.error(f"failed reading policy from path '{path}'", exc_info=ex)
+
+        return policies
+
     def __repr__(self) -> str:
         return f"FetchPoliciesTask(repo='{self.org_id}/{self.repo_name}')"
-
-
-async def fetch_policies(
-    rest_api: RestApi, org_id: str, repo: str, global_policies: list[Policy]
-) -> dict[PolicyType, Policy]:
-    import yaml
-
-    from otterdog.webapp.policies import read_policy
-
-    config_file_path = "otterdog/policies"
-    policies = {p.type: p for p in global_policies}
-    try:
-        entries = await rest_api.content.get_content_object(org_id, repo, config_file_path)
-    except RuntimeError:
-        entries = []
-
-    for entry in entries:
-        path = entry["path"]
-        if path.endswith((".yml", "yaml")):
-            content = await rest_api.content.get_content(org_id, repo, path)
-            try:
-                policy = read_policy(yaml.safe_load(content))
-                policies[policy.type] = policy
-            except RuntimeError as ex:
-                print_error(f"failed reading policy from path '{path}': {ex!s}")
-
-    return policies

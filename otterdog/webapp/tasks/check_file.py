@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import os
 from dataclasses import dataclass
 
 from otterdog.providers.github.rest import RestApi
@@ -20,6 +21,7 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
     repo_name: str
     path: str
     content: str
+    strict: bool
     branch_prefix: str
     pr_title: str
     pr_body: str
@@ -42,8 +44,9 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
         rest_api = await self.rest_api
 
         try:
-            await rest_api.content.get_content(self.org_id, self.repo_name, self.path)
-            return
+            content = await rest_api.content.get_content(self.org_id, self.repo_name, self.path)
+            if self.strict is False or self.content == content:
+                return
         except RuntimeError:
             # file does not exist, so let's create it
             pass
@@ -53,7 +56,8 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
 
     async def _create_pull_request_if_necessary(self, rest_api: RestApi) -> None:
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
-        branch_name = f"otterdog/{self.branch_prefix}/{self.path}"
+        file_name = os.path.basename(self.path)
+        branch_name = f"otterdog/{self.branch_prefix}/{file_name}"
 
         try:
             await rest_api.reference.get_branch_reference(self.org_id, self.repo_name, branch_name)
@@ -73,20 +77,20 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
                 default_branch_sha,
             )
 
-            # FIXME: once the otterdog-app is added to the ECA allow list, this can be removed again
-            short_name = self.org_id if "-" not in self.org_id else self.org_id.partition("-")[2]
+        # FIXME: once the otterdog-app is added to the ECA allow list, this can be removed again
+        short_name = self.org_id if "-" not in self.org_id else self.org_id.partition("-")[2]
 
-            await rest_api.content.update_content(
-                self.org_id,
-                self.repo_name,
-                self.path,
-                self.content,
-                branch_name,
-                f"Updating file {self.path}",
-                f"{self.org_id}-bot",
-                f"{short_name}-bot@eclipse.org",
-                author_is_committer=True,
-            )
+        await rest_api.content.update_content(
+            self.org_id,
+            self.repo_name,
+            self.path,
+            self.content,
+            branch_name,
+            f"Updating file {self.path}",
+            f"{self.org_id}-bot",
+            f"{short_name}-bot@eclipse.org",
+            author_is_committer=True,
+        )
 
         open_pull_requests = await rest_api.pull_request.get_pull_requests(
             self.org_id, self.repo_name, "open", default_branch
