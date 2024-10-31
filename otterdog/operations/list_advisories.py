@@ -45,7 +45,7 @@ class ListAdvisoriesOperation(Operation):
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
             self.printer.println(
-                "organization,created_at,updated_at,published_at,state,ghsa_id,cve_id,html_url,summary"
+                "organization,created_at,updated_at,published_at,state,severity,ghsa_id,cve_id,html_url,summary"
             )
 
     def post_execute(self) -> None:
@@ -95,6 +95,7 @@ class ListAdvisoriesOperation(Operation):
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
                         "published_at": format_date_for_csv(advisory["published_at"]),
                         "state": advisory["state"],
+                        "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
                         "cve_id": cve_id,
                         "html_url": advisory["html_url"],
@@ -107,6 +108,7 @@ class ListAdvisoriesOperation(Operation):
                         f"\"{formatted_values['updated_at']}\","
                         f"\"{formatted_values['published_at']}\","
                         f"\"{formatted_values['state']}\","
+                        f"\"{formatted_values['severity']}\","
                         f"\"{formatted_values['ghsa_id']}\","
                         f"\"{formatted_values['cve_id']}\","
                         f"\"{formatted_values['html_url']}\","
