@@ -141,7 +141,7 @@ jobs:
           release_notes_file: RELEASE_NOTES.md
 
       - name: "Create GitHub release"
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
           name: "Otterdog ${{ needs.prepare.outputs.release-tag }}"
           tag_name: "${{ needs.prepare.outputs.release-tag }}"
