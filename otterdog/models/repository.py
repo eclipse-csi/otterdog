@@ -961,6 +961,12 @@ class Repository(ModelObject):
                     squash_merge_commit_message, squash_merge_commit_message
                 )
 
+            if "squash_merge_commit_message" in modified_repo:
+                squash_merge_commit_title = cast(Repository, coerced_object).squash_merge_commit_title
+                modified_repo["squash_merge_commit_title"] = Change(
+                    squash_merge_commit_title, squash_merge_commit_title
+                )
+
             if "custom_properties" in modified_repo:
                 change = modified_repo["custom_properties"]
                 from_value = change.from_value

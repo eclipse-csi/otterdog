@@ -10,6 +10,10 @@
 
 - Improved processing of organization settings `web_commit_signoff_required` and `actions_can_approve_pull_request_reviews` to force update the same settings on repo level as changes will be implicitly performed by GitHub.
 
+### Fixed
+
+- Changing setting `squash_merge_commit_message` also requires that setting `squash_merge_commit_title` is present in the payload sent to GitHub.
+
 
 ## [0.8.0] - 27/10/2024
 
