@@ -732,6 +732,9 @@ class Ruleset(ModelObject, abc.ABC):
         if "required_merge_queue" in patch and patch.get("required_merge_queue") is not None:
             patch.pop("required_merge_queue")
 
+        if "required_status_checks" in patch and patch.get("required_status_checks") is not None:
+            patch.pop("required_status_checks")
+
         write_patch_object_as_json(patch, printer, close_object=False)
 
         if is_set_and_present(self.required_pull_request):
@@ -772,6 +775,26 @@ class Ruleset(ModelObject, abc.ABC):
                     context,
                     embedded_extend,
                     default_merge_queue_config,
+                )
+
+        if is_set_and_present(self.required_status_checks):
+            default_status_check_config = cast(Ruleset, default_object).required_status_checks
+            if default_status_check_config is None:
+                default_status_check_config = StatusCheckSettings.from_model_data(
+                    jsonnet_config.default_status_checks_config
+                )
+                embedded_extend = False
+            else:
+                embedded_extend = True
+
+            if is_set_and_valid(default_status_check_config):
+                printer.print(f"required_status_checks{'+' if embedded_extend else ''}:")
+                self.required_status_checks.to_jsonnet(
+                    printer,
+                    jsonnet_config,
+                    context,
+                    embedded_extend,
+                    default_status_check_config,
                 )
 
         # close the object

@@ -356,6 +356,9 @@ class ModelObject(ABC):
             if isinstance(from_value, EmbeddedModelObject):
                 from_value = from_value.to_model_dict()
 
+            # TODO: improve diff computation for embedded model objects
+            #       right now a simple dict comparison is being made
+            #       but that does not take UNSET values into account
             if is_different_ignoring_order(to_value, from_value):
                 diff_result[key] = Change(from_value, to_value)
 

@@ -170,6 +170,17 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
     """
     if isinstance(value, list):
         return sorted(value) != sorted(other_value)
+    elif isinstance(value, dict):
+        for key, item_value in value.items():
+            other_item_value = other_value.get(key, None)
+            if isinstance(item_value, list):
+                if sorted(item_value) != sorted(other_item_value):
+                    return True
+            else:
+                if item_value != other_item_value:
+                    return True
+
+        return False
 
     return value != other_value
 

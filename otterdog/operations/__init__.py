@@ -275,8 +275,8 @@ class Operation(ABC):
     def _print_modified_list_internal(self, current_value, expected_value, prefix: str, color: str) -> None:
         from difflib import SequenceMatcher
 
-        a = [str(x) for x in current_value]
-        b = [str(x) for x in expected_value]
+        a = sorted([str(x) for x in current_value])
+        b = sorted([str(x) for x in expected_value])
 
         max_length_a = max((len(str(x)) for x in a), default=0)
         max_length_b = max((len(str(x)) for x in b), default=0)

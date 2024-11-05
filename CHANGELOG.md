@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Fixed importing of `rulesets` due to missing handling of embedded model object `required_status_checks`.
 - Changing setting `squash_merge_commit_message` also requires that setting `squash_merge_commit_title` is present in the payload sent to GitHub.
 
 
