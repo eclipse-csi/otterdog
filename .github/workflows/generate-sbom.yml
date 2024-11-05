@@ -10,6 +10,10 @@ on:
         default: 'main'
         required: true
 
+env:
+  PYTHON_VERSION: '3.12'
+  POETRY_VERSION: '1.8.4'
+
 permissions:
   contents: read
 
@@ -22,9 +26,18 @@ jobs:
           ref: ${{ github.event.inputs.version }}
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+        with:
+          virtualenvs-in-project: true
+          version: ${{ env.POETRY_VERSION }}
+          plugins: poetry-dynamic-versioning
       - name: Install cyclonedx-py
         run: pipx install cyclonedx-bom
+      - name: "Set static version for cyclonedx tool"
+        shell: bash
+        run: |
+          poetry version $(poetry version -s)
       - name: Generate sbom
         run: cyclonedx-py poetry --with main,app -o otterdog-bom.json
       - name: Upload sbom

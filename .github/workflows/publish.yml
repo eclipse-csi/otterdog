@@ -30,7 +30,14 @@ jobs:
       release-version: ${{ steps.context.outputs.RELEASE_VERSION }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+        with:
+          virtualenvs-in-project: true
+          version: ${{ env.POETRY_VERSION }}
+          plugins: poetry-dynamic-versioning
       - name: "Setup context"
         id: context
         shell: bash
@@ -38,7 +45,7 @@ jobs:
           if [[ "${{ github.ref }}" =~ ^refs/heads/.* ]]; then
             echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             # extract the current version from the pyproject.toml and replace .devN with -SNAPSHOT
-            VERSION=$(grep -m 1 version pyproject.toml | tr -s ' ' | tr -d '"' | tr -d "'" | cut -d' ' -f3 | sed 's/.dev[0-9]*/-SNAPSHOT/')
+            VERSION=$(poetry version -s | sed 's/.dev[0-9]*/-SNAPSHOT/')
             echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
           else
             echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
