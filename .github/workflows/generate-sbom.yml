@@ -38,7 +38,7 @@ jobs:
       - name: "Set static version for cyclonedx tool"
         shell: bash
         run: |
-          poetry version $(poetry version -s)
+          poetry version $(poetry version -s | sed 's/.dev[0-9]*/.dev/')
       - name: Generate sbom
         run: cyclonedx-py poetry --with main,app -o otterdog-bom.json
       - name: Upload sbom
