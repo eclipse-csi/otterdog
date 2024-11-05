@@ -130,7 +130,6 @@ jobs:
     with:
       base64-subjects: "${{ needs.build-dist.outputs.hashes }}"
       upload-assets: true
-      upload-tag-name: "${{ needs.prepare.outputs.release-tag }}"
 
   github-publish:
     if: startsWith(github.ref, 'refs/tags/')
