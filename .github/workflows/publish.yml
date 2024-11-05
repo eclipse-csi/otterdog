@@ -78,6 +78,8 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          build-args: |
+            version=${{ needs.prepare.outputs.release-version }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.release-version }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -100,6 +102,7 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
+          plugins: poetry-dynamic-versioning
 
       - name: "Install dependencies"
         run: poetry install --only=main

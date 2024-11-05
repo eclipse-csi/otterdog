@@ -40,7 +40,7 @@ start)
 	docker compose -p $project -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 	;;
 build)
-	docker compose -p $project -f docker-compose.base.yml -f docker-compose.dev.yml build
+	docker compose -p $project -f docker-compose.base.yml -f docker-compose.dev.yml build --build-arg version="$(poetry version -s)"
 	;;
 startdev)
 	docker compose -p $project -f docker-compose.base.yml down -t 1

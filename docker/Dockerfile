@@ -12,6 +12,8 @@ RUN npm run build
 # build otterdog using a python environment
 FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 as builder-python3
 
+ARG version
+
 RUN apt-get update \
     && apt-get install -y \
         golang gcc patch
@@ -21,7 +23,8 @@ WORKDIR /app
 ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    POETRY_VERSION=1.8.3
+    POETRY_VERSION=1.8.4 \
+    POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
 COPY ./otterdog ./otterdog
 COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
@@ -29,6 +32,8 @@ COPY ./docker/start-webapp ./docker/start-webapp
 COPY ./docker/init-webapp ./docker/init-webapp
 
 RUN pip install "poetry==$POETRY_VERSION"
+
+RUN poetry self add "poetry-dynamic-versioning[plugin]"
 
 RUN poetry config virtualenvs.in-project true && \
     poetry install --only=main,app --no-root && \

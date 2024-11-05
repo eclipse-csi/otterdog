@@ -34,6 +34,7 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
+          plugins: poetry-dynamic-versioning
 
       # Cache packages per python version, and reuse until lockfile changes
       - name: Cache python packages

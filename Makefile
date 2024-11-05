@@ -6,7 +6,8 @@ OTTERDOG_LINK := ~/.local/bin/otterdog
 
 init:
 ifndef POETRY
-	pip3 install "poetry==1.8.3"
+	pip3 install "poetry==1.8.4"
+	poetry self add "poetry-dynamic-versioning[plugin]"
 endif
 	poetry config virtualenvs.in-project true
 	poetry install --only=main

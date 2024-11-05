@@ -1,6 +1,6 @@
 [tool.poetry]
 name          = "otterdog"
-version       = "0.9.0.dev0"
+version       = "0.0.0"
 description   = "Tool to manage GitHub organizations and their repositories."
 authors       = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
 readme        = "README.md"
@@ -112,9 +112,15 @@ pymdown-extensions = "^10.7"
 [tool.poetry.scripts]
 otterdog     = "otterdog.cli:cli"
 
+[tool.poetry-dynamic-versioning]
+enable     = true
+vcs        = "git"
+latest-tag = true
+format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ distance }}{% endif %}"
+
 [build-system]
-requires      = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires      = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.pytest.ini_options]
 minversion = "7.2"

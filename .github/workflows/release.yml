@@ -54,6 +54,7 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
+          plugins: poetry-dynamic-versioning
 
       - name: "Install dependencies"
         run: poetry install -v --without dev,typing,docs
@@ -84,10 +85,6 @@ jobs:
 
           # fill out release date in CHANGELOG.md
           sed -i -e "s/unreleased/$(date '+%d\/%m\/%Y')/" CHANGELOG.md
-
-          if [ "$PROJECT_VERSION" != "$RELEASE_VERSION" ]; then
-            poetry version $RELEASE_VERSION
-          fi
 
           echo "RELEASE_TAG=v$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
