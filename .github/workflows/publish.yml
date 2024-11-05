@@ -28,6 +28,7 @@ jobs:
     outputs:
       release-tag: ${{ steps.context.outputs.RELEASE_TAG }}
       release-version: ${{ steps.context.outputs.RELEASE_VERSION }}
+      project-version: ${{ steps.context.outputs.PROJECT_VERSION }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -49,10 +50,13 @@ jobs:
             # extract the current version from the pyproject.toml and replace .devN with -SNAPSHOT
             VERSION=$(poetry version -s | sed 's/.dev[0-9]*/-SNAPSHOT/')
             echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
+            PROJECT_VERSION=$(poetry version -s)
+            echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             VERSION=$(echo ${{ github.ref_name }} | sed 's/v//')
             echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "PROJECT_VERSION=$VERSION" >> $GITHUB_OUTPUT
           fi
 
   build-and-push-image:
@@ -88,7 +92,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           build-args: |
-            version=${{ needs.prepare.outputs.release-version }}
+            version=${{ needs.prepare.outputs.project-version }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.prepare.outputs.release-version }}
           labels: ${{ steps.meta.outputs.labels }}

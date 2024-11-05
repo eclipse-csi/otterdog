@@ -116,7 +116,13 @@ otterdog     = "otterdog.cli:cli"
 enable     = true
 vcs        = "git"
 latest-tag = true
-format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ distance }}{% endif %}"
+format-jinja = """
+    {%- if distance == 0 -%}
+        {{ serialize_pep440(base, stage, revision) }}
+    {%- else -%}
+        {{ serialize_pep440(bump_version(base, 1), stage, revision, dev=distance) }}
+    {%- endif -%}
+"""
 
 [build-system]
 requires      = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
