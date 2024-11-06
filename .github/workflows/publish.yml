@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     branches:
-      # we publish to Test PyPO on pushes to the main branch
+      # we publish to Test PyPI on pushes to the main branch
       - "main"
     tags:
       - "v*"
