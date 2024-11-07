@@ -77,9 +77,6 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
                 default_branch_sha,
             )
 
-        # FIXME: once the otterdog-app is added to the ECA allow list, this can be removed again
-        short_name = self.org_id if "-" not in self.org_id else self.org_id.partition("-")[2]
-
         await rest_api.content.update_content(
             self.org_id,
             self.repo_name,
@@ -87,9 +84,6 @@ class CheckFileTask(InstallationBasedTask, Task[None]):
             self.content,
             branch_name,
             f"Updating file {self.path}",
-            f"{self.org_id}-bot",
-            f"{short_name}-bot@eclipse.org",
-            author_is_committer=True,
         )
 
         open_pull_requests = await rest_api.pull_request.get_pull_requests(
