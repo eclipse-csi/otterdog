@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from otterdog.webapp.db.service import increment_or_create_policy_status
+
 from . import Policy, PolicyType
 
 
@@ -29,3 +31,8 @@ class MacOSLargeRunnersUsagePolicy(Policy):
                 return label.startswith("macos") and label.endswith("large")
 
             return not any(map(larger_runner, labels))
+
+    async def update_status(self, owner: str, job_permitted: bool) -> None:
+        cancelled_increment = 0 if job_permitted else 1
+        status_diff = {"total_workflow_jobs": 1, "cancelled_workflow_jobs": cancelled_increment}
+        await increment_or_create_policy_status(owner, self, status_diff)

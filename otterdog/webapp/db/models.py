@@ -148,3 +148,8 @@ class PolicyId(EmbeddedModel):
 class PolicyModel(Model):
     id: PolicyId = Field(primary_field=True)
     config: dict
+
+
+class PolicyStatusModel(Model):
+    id: PolicyId = Field(primary_field=True)
+    status: dict = Field(default_factory=dict)

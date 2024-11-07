@@ -8,6 +8,8 @@
 
 import json
 
+from otterdog.utils import snake_to_normal_case
+
 
 def register_filters(app):
     @app.template_filter("status")
@@ -74,3 +76,7 @@ def register_filters(app):
             return ".".join(value.split(".")[1:])
         else:
             return value
+
+    @app.template_filter("snake_to_normal")
+    def snake_to_normal(value):
+        return snake_to_normal_case(value)

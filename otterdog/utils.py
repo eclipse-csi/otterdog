@@ -424,6 +424,11 @@ def snake_to_camel_case(string: str) -> str:
     return result[0].lower() + result[1:]
 
 
+def snake_to_normal_case(string: str) -> str:
+    result = re.sub(r"[_\-]+", " ", string).title()
+    return result[0] + result[1:]
+
+
 def camel_to_snake_case(string: str) -> str:
     string = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", string)
     string = re.sub("__([A-Z])", r"_\1", string)

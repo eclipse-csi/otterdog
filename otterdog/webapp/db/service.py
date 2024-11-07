@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from odmantic import query
 from quart import current_app
@@ -29,6 +29,7 @@ from .models import (
     InstallationStatus,
     PolicyId,
     PolicyModel,
+    PolicyStatusModel,
     PullRequestId,
     PullRequestModel,
     PullRequestStatus,
@@ -158,6 +159,7 @@ async def cleanup_data() -> None:
     await cleanup_statistics(valid_orgs)
     await cleanup_configurations(valid_orgs)
     await cleanup_policies(valid_orgs)
+    await cleanup_policies_status(valid_orgs)
 
 
 async def update_app_installations(
@@ -616,7 +618,7 @@ async def get_policies(owner: str) -> list[PolicyModel]:
     )
 
 
-async def find_policy(owner: str, policy_type) -> PolicyModel | None:
+async def find_policy(owner: str, policy_type: str) -> PolicyModel | None:
     return await mongo.odm.find_one(
         PolicyModel,
         PolicyModel.id.org_id == owner,
@@ -644,4 +646,60 @@ async def cleanup_policies(valid_orgs: list[str]) -> None:
 async def cleanup_policies_of_owner(owner: str, valid_types: list[str]) -> None:
     await mongo.odm.remove(
         PolicyModel, PolicyModel.id.org_id == owner, query.not_in(PolicyModel.id.policy_type, valid_types)
+    )
+
+
+async def get_policies_status(owner: str) -> list[PolicyStatusModel]:
+    return await mongo.odm.find(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        sort=PolicyModel.id.policy_type,
+    )
+
+
+async def find_policy_status(owner: str, policy_type: str) -> PolicyStatusModel | None:
+    return await mongo.odm.find_one(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        PolicyStatusModel.id.policy_type == policy_type,
+    )
+
+
+async def create_policy_status_if_needed(owner: str, policy: Policy, status: dict[str, Any]) -> bool:
+    policy_status_model = await find_policy_status(owner, policy.type.value)
+    if policy_status_model is None:
+        policy_status_model = PolicyStatusModel(
+            id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            status=status,
+        )
+
+        await mongo.odm.save(policy_status_model)
+        return True
+
+    return False
+
+
+async def increment_or_create_policy_status(owner: str, policy: Policy, status_diff: dict[str, Any]) -> None:
+    if await create_policy_status_if_needed(owner, policy, status_diff) is True:
+        return
+
+    collection = mongo.odm.get_collection(PolicyStatusModel)
+    update_filter = {"_id": {"org_id": owner, "policy_type": policy.type.value}}
+    update_data = {"$inc": {f"status.{k}": v for k, v in status_diff.items()}}
+
+    await collection.update_one(
+        update_filter,
+        update_data,
+    )
+
+
+async def cleanup_policies_status(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(PolicyStatusModel, query.not_in(PolicyStatusModel.id.org_id, valid_orgs))
+
+
+async def cleanup_policies_status_of_owner(owner: str, valid_types: list[str]) -> None:
+    await mongo.odm.remove(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        query.not_in(PolicyStatusModel.id.policy_type, valid_types),
     )

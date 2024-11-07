@@ -14,6 +14,7 @@ from otterdog.providers.github.rest import RestApi
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
     cleanup_policies_of_owner,
+    cleanup_policies_status_of_owner,
     update_or_create_policy,
 )
 from otterdog.webapp.policies import Policy, PolicyType, read_policy
@@ -48,6 +49,7 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
 
             valid_types = [x.value for x in policies]
             await cleanup_policies_of_owner(self.org_id, valid_types)
+            await cleanup_policies_status_of_owner(self.org_id, valid_types)
 
             for policy in list(policies.values()):
                 await update_or_create_policy(self.org_id, policy)

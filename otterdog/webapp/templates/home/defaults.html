@@ -8,15 +8,16 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- Editor -->
   <link rel="stylesheet" href="{{ asset('css/highlight.css') }}">
 
   <style>
     pre { padding: 0px; }
     code { padding: 0px; }
-    pre code.hljs { padding: 0px; }
+    pre code.hljs {
+      padding: 0px;
+      font-size: 12px;
+    }
   </style>
-
 {% endblock stylesheets %}
 
 {% block content %}

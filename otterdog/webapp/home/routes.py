@@ -34,6 +34,7 @@ from otterdog.webapp.db.service import (
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
+    get_policies_status,
     get_statistics,
     get_tasks,
 )
@@ -199,6 +200,7 @@ async def project(project_name: str):
 
     github_organization = GitHubOrganization.from_model_data(config.config)
     policies = [x.model_dump() for x in await get_policies(config.github_id)]
+    policies_status = {x.id.policy_type: x.model_dump() for x in await get_policies_status(config.github_id)}
 
     return await render_home_template(
         "organization.html",
@@ -206,6 +208,7 @@ async def project(project_name: str):
         github_id=config.github_id,
         config=github_organization,
         policies=policies,
+        policies_status=policies_status,
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
         branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
     )

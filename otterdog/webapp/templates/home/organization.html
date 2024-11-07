@@ -8,11 +8,15 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- Editor -->
-  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/highlight.css') }}">
 
   <style>
-    .CodeMirror { font-size: 12px; }
+    pre { padding: 0px; }
+    code { padding: 0px; }
+    pre code.hljs {
+      padding: 0px;
+      font-size: 12px;
+    }
   </style>
 {% endblock stylesheets %}
 
@@ -205,9 +209,42 @@
                           {% for policy in policies %}
                           {% set id = 'policy-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                    <textarea id="{{ id }}-textarea">
-{{ policy.config|pretty_format }}
-                    </textarea>
+                            <div class="card card-secondary">
+                              <div class="card-header">
+                                <h3 class="card-title">Config</h3>
+                              </div>
+                              <div class="card-body">
+                                <pre><code class="language-json">{{ policy.config|pretty_format }}</code></pre>
+                              </div>
+                            </div>
+                            {% if policy.id.policy_type in policies_status %}
+                            {% set policy_status = policies_status[policy.id.policy_type] %}
+                            <div class="card card-info">
+                              <div class="card-header">
+                                <h3 class="card-title">Status</h3>
+                              </div>
+                              <div class="card-body">
+                                <div class="table-responsive p-0">
+                                  <table class="table table-hover text-nowrap">
+                                    <thead>
+                                      <tr>
+                                        {% for key, value in policy_status.status.items() %}
+                                        <th>{{ key | snake_to_normal }}</th>
+                                        {% endfor %}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        {% for key, value in policy_status.status.items() %}
+                                        <td>{{ value }}</td>
+                                        {% endfor %}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                            {% endif %}
                           </div>
                           {% endfor %}
                         </div>
@@ -215,14 +252,9 @@
                     </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <textarea id="org-settings-textarea">
-{{ config.settings|pretty_format_model }}
-                    </textarea>
-                  </div>
+                    <pre><code class="language-json">{{ config.settings|pretty_format_model }}</code></pre></div>
                   <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
-                    <textarea id="org-workflow-settings-textarea">
-{{ config.settings.workflows|pretty_format_model }}
-                    </textarea>
+                    <pre><code class="language-json">{{ config.settings.workflows|pretty_format_model }}</code></pre>
                   </div>
                   <div class="tab-pane" id="custom-properties" role="tabpanel" aria-labelledby="custom-properties-tab">
                     <div class="table-responsive p-0">
@@ -489,10 +521,9 @@
   {{ super() }}
   <!-- Chart.js -->
   <script src="/assets/vendor/chartjs/chart.umd.js"></script>
+  <script type="module" src="{{ asset('js/highlight.js') }}"></script>
 
   <script type="module">
-    import {createJavascriptEditor} from '{{ asset('js/editor.js') }}';
-
     $(document).ready(function() {
       enableTabFromHash();
 
@@ -533,44 +564,6 @@
       // `this` is the clicked <a> tag
       $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
     });
-
-    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-      switch (e.target.id) {
-        case "settings-tab": {
-          enableEditor('#org-settings-textarea')
-          break;
-        }
-        case "policies-tab": {
-          var selector = "#policy-1-textarea";
-          var target = $(selector).get(0);
-          if (target != null) {
-            enableEditor(selector);
-          }
-          break;
-        }
-        case "workflow-settings-tab": {
-          enableEditor('#org-workflow-settings-textarea')
-          break;
-        }
-        default: {
-           var selector = '#'.concat(e.target.id.replace(/-tab/, ''), '-textarea');
-           enableEditor(selector);
-           break;
-        }
-      }
-    });
-
-    function enableEditor(selector) {
-      if ($(selector).length == 0) {
-        return;
-      }
-
-      var editor = $(selector).next('.CodeMirror').get(0);
-      if (editor == null) {
-        editor = createJavascriptEditor($(selector).get(0));
-        editor.setSize(null, 750);
-      }
-    };
 
     function drawSecretScanningChart() {
       const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
@@ -623,5 +616,4 @@
       });
     };
   </script>
-
 {% endblock javascripts %}
