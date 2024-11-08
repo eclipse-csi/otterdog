@@ -631,9 +631,15 @@ async def update_or_create_policy(owner: str, policy: Policy) -> None:
     if policy_model is None:
         policy_model = PolicyModel(
             id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            path=policy.path,
+            name=policy.name,
+            description=policy.description,
             config=policy.config,
         )
     else:
+        policy_model.path = policy.path
+        policy_model.name = policy.name
+        policy_model.description = policy.description
         policy_model.config = policy.config
 
     await mongo.odm.save(policy_model)

@@ -56,7 +56,7 @@ config:
 def test_read():
     config = yaml.safe_load(yaml_content)
 
-    policy = read_policy(config)
+    policy = read_policy("a", config)
     assert policy.type == PolicyType.REQUIRED_FILE
 
     assert isinstance(policy, RequiredFilePolicy)
@@ -65,7 +65,7 @@ def test_read():
 def test_repo_selector_multiple_repos():
     config = yaml.safe_load(multiple_repo_selection)
 
-    policy = read_policy(config)
+    policy = read_policy("a", config)
     assert policy.type == PolicyType.REQUIRED_FILE
 
     assert isinstance(policy, RequiredFilePolicy)

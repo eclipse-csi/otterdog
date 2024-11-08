@@ -1,6 +1,6 @@
 [tool.poetry]
 name          = "otterdog"
-version       = "0.9.0.dev36"
+version       = "0.0.0"
 description   = "Tool to manage GitHub organizations and their repositories."
 authors       = ["Thomas Neidhart <thomas.neidhart@eclipse-foundation.org>"]
 readme        = "README.md"
@@ -29,7 +29,6 @@ classifiers   = [
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: Eclipse Public License 2.0 (EPL-2.0)",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Environment :: Console",
@@ -42,7 +41,7 @@ classifiers   = [
 ]
 
 [tool.poetry.dependencies]
-python               = "^3.10"
+python               = ">=3.11, <4.0"
 aiofiles             = "^24.1"
 aiohttp              = "^3.10"
 aiohttp-client-cache = ">=0.12.3"
@@ -144,13 +143,13 @@ log_cli_format      = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 exclude        = ["scripts", "docs", "tests"]
 
 [tool.ruff]
 line-length    = 120
 indent-width   = 4
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = [

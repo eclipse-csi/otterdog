@@ -209,7 +209,22 @@
                           {% for policy in policies %}
                           {% set id = 'policy-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                            <div class="card card-secondary">
+                            <div class="card card-primary">
+                              <div class="card-header">
+                                <h3 class="card-title">{{ policy.name if policy.name is not none else 'Overview' }}</h3>
+                              </div>
+                              <div class="card-body">
+                                {% if policy.description %}
+                                <p class="border">
+                                  <code>
+                                    {{ policy.description }}
+                                  </code>
+                                </p>
+                                {% endif %}
+                                Reference: <a href="{{ policy.path }}" target="_blank">{{ policy.path }}</a>
+                              </div>
+                            </div>
+                            <div class="card card-primary">
                               <div class="card-header">
                                 <h3 class="card-title">Config</h3>
                               </div>

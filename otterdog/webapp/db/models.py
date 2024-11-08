@@ -147,6 +147,9 @@ class PolicyId(EmbeddedModel):
 
 class PolicyModel(Model):
     id: PolicyId = Field(primary_field=True)
+    path: str
+    name: Optional[str] = None
+    description: Optional[str] = None
     config: dict
 
 

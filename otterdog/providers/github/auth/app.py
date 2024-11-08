@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from . import AuthImpl, AuthStrategy
@@ -53,7 +53,7 @@ class _AppAuth(AuthImpl):
             signing_key = jwk_from_pem(pem_file.read())
 
         # use a start time slightly in the past
-        start_time = datetime.now(timezone.utc) - timedelta(seconds=10)
+        start_time = datetime.now(UTC) - timedelta(seconds=10)
         # JWT expiration time (10 minutes maximum)
         expire_time = start_time + timedelta(minutes=10)
 
@@ -66,7 +66,7 @@ class _AppAuth(AuthImpl):
         return JWT().encode(payload, signing_key, alg="RS256"), start_time, expire_time
 
     def get_jwt(self) -> str:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if self._jwt is None or self._expire is None or now > self._expire:
             self._jwt, _, self._expire = self._create_jwt()

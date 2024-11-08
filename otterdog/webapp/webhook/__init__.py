@@ -16,7 +16,7 @@ from otterdog.webapp.db.service import (
     update_installation_status,
     update_installations_from_config,
 )
-from otterdog.webapp.policies import create_policy
+from otterdog.webapp.policies import create_policy_from_model
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
@@ -313,7 +313,7 @@ async def on_workflow_job_received(data):
 
         policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE.value)
         if policy_model is not None:
-            policy = create_policy(policy_model.id.policy_type, policy_model.config)
+            policy = create_policy_from_model(policy_model)
             assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
             await policy.evaluate(
                 event.installation.id,

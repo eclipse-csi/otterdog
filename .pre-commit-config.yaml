@@ -29,4 +29,4 @@ repos:
     rev: v0.2.0
     hooks:
     -   id: update-dependencies
-        args: ["-m", "app,docs"]
+        args: ["-m", "app"]

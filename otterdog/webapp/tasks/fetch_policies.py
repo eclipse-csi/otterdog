@@ -73,7 +73,14 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
             if path.endswith((".yml", "yaml")):
                 content = await rest_api.content.get_content(org_id, repo, path)
                 try:
-                    policy = read_policy(yaml.safe_load(content))
+                    # TODO: do not hardcode the path to the default branch
+                    policy_path = f"https://github.com/{org_id}/{repo}/blob/main/{path}"
+                    policy = read_policy(policy_path, yaml.safe_load(content))
+
+                    if policy.type in policies:
+                        global_policy = policies[policy.type]
+                        policy = global_policy.merge(policy)
+
                     policies[policy.type] = policy
                 except (ValueError, RuntimeError) as ex:
                     self.logger.error(f"failed reading policy from path '{path}'", exc_info=ex)

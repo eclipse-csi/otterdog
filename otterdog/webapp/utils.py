@@ -172,7 +172,7 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    policies = []
+    policies = {}
 
     async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
         try:
@@ -187,12 +187,18 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
             if path.endswith((".yml", "yaml")):
                 content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
                 try:
-                    policy = read_policy(yaml.safe_load(content))
-                    policies.append(policy)
+                    # TODO: do not hardcode the path to the default branch
+                    policy_path = f"https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{path}"
+                    policy = read_policy(policy_path, yaml.safe_load(content))
+
+                    if policy.type in policies:
+                        logger.error(f"duplicate global policy with type '{policy.type}' in path '{path}', skipping")
+                    else:
+                        policies[policy.type] = policy
                 except (ValueError, RuntimeError) as e:
                     logger.error(f"failed reading global policy from path '{path}'", exc_info=e)
 
-    return policies
+    return list(policies.values())
 
 
 def get_admin_teams() -> list[str]:

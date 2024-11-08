@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 from logging import getLogger
-from typing import Any
+from typing import Any, Self
 
 from otterdog.webapp.db.service import increment_or_create_policy_status
 from otterdog.webapp.webhook.github_models import WorkflowJob
@@ -31,6 +31,11 @@ class MacOSLargeRunnersUsagePolicy(Policy):
     @property
     def requires_regular_check(self) -> bool:
         return False
+
+    def merge(self, other: Self) -> Self:
+        copy = super().merge(other)
+        copy.allowed = other.allowed
+        return copy
 
     async def evaluate(
         self, installation_id: int, github_id: str, repo_name: str | None = None, payload: Any | None = None
