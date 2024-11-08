@@ -12,10 +12,11 @@ from unittest import mock
 import yaml
 
 from otterdog.models.repository import Repository
-from otterdog.webapp.policies import PolicyType, read_policy
-from otterdog.webapp.policies.required_file import RequiredFilePolicy
+from otterdog.webapp.blueprints import BlueprintType, read_blueprint
+from otterdog.webapp.blueprints.required_file import RequiredFileBlueprint
 
 yaml_content = """
+id: require-default-security-md
 name: Requires SECURITY.md file
 type: required_file
 config:
@@ -29,6 +30,7 @@ config:
 """
 
 multiple_repo_selection = """
+id: require-yml-file
 name: Require file
 type: required_file
 config:
@@ -56,22 +58,22 @@ config:
 def test_read():
     config = yaml.safe_load(yaml_content)
 
-    policy = read_policy("a", config)
-    assert policy.type == PolicyType.REQUIRED_FILE
+    blueprint = read_blueprint("a", config)
+    assert blueprint.type == BlueprintType.REQUIRED_FILE
 
-    assert isinstance(policy, RequiredFilePolicy)
+    assert isinstance(blueprint, RequiredFileBlueprint)
 
 
 def test_repo_selector_multiple_repos():
     config = yaml.safe_load(multiple_repo_selection)
 
-    policy = read_policy("a", config)
-    assert policy.type == PolicyType.REQUIRED_FILE
+    blueprint = read_blueprint("a", config)
+    assert blueprint.type == BlueprintType.REQUIRED_FILE
 
-    assert isinstance(policy, RequiredFilePolicy)
-    assert len(policy.files) == 1
+    assert isinstance(blueprint, RequiredFileBlueprint)
+    assert len(blueprint.files) == 1
 
-    required_file = policy.files[0]
+    required_file = blueprint.files[0]
 
     assert required_file.strict is False
 

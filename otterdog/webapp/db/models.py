@@ -156,3 +156,17 @@ class PolicyModel(Model):
 class PolicyStatusModel(Model):
     id: PolicyId = Field(primary_field=True)
     status: dict = Field(default_factory=dict)
+
+
+class BlueprintId(EmbeddedModel):
+    org_id: str
+    blueprint_type: str
+    blueprint_id: str
+
+
+class BlueprintModel(Model):
+    id: BlueprintId = Field(primary_field=True)
+    path: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    config: dict

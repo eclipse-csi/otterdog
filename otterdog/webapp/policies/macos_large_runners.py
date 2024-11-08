@@ -28,10 +28,6 @@ class MacOSLargeRunnersUsagePolicy(Policy):
     def type(self) -> PolicyType:
         return PolicyType.MACOS_LARGE_RUNNERS_USAGE
 
-    @property
-    def requires_regular_check(self) -> bool:
-        return False
-
     def merge(self, other: Self) -> Self:
         copy = super().merge(other)
         copy.allowed = other.allowed

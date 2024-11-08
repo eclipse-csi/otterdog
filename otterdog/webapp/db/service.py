@@ -19,11 +19,14 @@ from otterdog.webapp import mongo
 from otterdog.webapp.utils import (
     current_utc_time,
     get_rest_api_for_app,
+    refresh_global_blueprints,
     refresh_global_policies,
 )
 
 from .models import (
     ApplyStatus,
+    BlueprintId,
+    BlueprintModel,
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
@@ -43,6 +46,7 @@ if TYPE_CHECKING:
     from odmantic.query import QueryExpression
 
     from otterdog.config import OtterdogConfig
+    from otterdog.webapp.blueprints import Blueprint
     from otterdog.webapp.policies import Policy
     from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -55,7 +59,8 @@ async def update_installation_status(installation_id: int, action: str) -> None:
     match action:
         case "created":
             policies = await refresh_global_policies()
-            await update_app_installations(policies)
+            blueprints = await refresh_global_blueprints()
+            await update_app_installations(policies, blueprints)
 
         case "deleted":
             installation = await mongo.odm.find_one(
@@ -93,7 +98,10 @@ async def update_installation_status(installation_id: int, action: str) -> None:
 
 
 async def update_installations_from_config(
-    otterdog_config: OtterdogConfig, global_policies: list[Policy], update_installations: bool = True
+    otterdog_config: OtterdogConfig,
+    global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
+    update_installations: bool = True,
 ) -> None:
     logger.info("updating installations from otterdog config")
 
@@ -150,7 +158,7 @@ async def update_installations_from_config(
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations(global_policies, projects_to_update)
+        await update_app_installations(global_policies, global_blueprints, projects_to_update)
 
 
 async def cleanup_data() -> None:
@@ -160,10 +168,12 @@ async def cleanup_data() -> None:
     await cleanup_configurations(valid_orgs)
     await cleanup_policies(valid_orgs)
     await cleanup_policies_status(valid_orgs)
+    await cleanup_blueprints(valid_orgs)
 
 
 async def update_app_installations(
     global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
     project_names_to_force_update: set[str] | None = None,
 ) -> None:
     logger.info("updating app installations")
@@ -192,7 +202,7 @@ async def update_app_installations(
         ):
             await update_data_for_installation(installation)
 
-        await update_policies_for_installation(installation, global_policies)
+        await update_policies_and_blueprints_for_installation(installation, global_policies, global_blueprints)
 
 
 async def update_data_for_installation(installation: InstallationModel) -> None:
@@ -218,7 +228,12 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
     )
 
 
-async def update_policies_for_installation(installation: InstallationModel, global_policies: list[Policy]) -> None:
+async def update_policies_and_blueprints_for_installation(
+    installation: InstallationModel,
+    global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
+) -> None:
+    from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
     from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 
     assert installation.config_repo is not None
@@ -229,6 +244,15 @@ async def update_policies_for_installation(installation: InstallationModel, glob
             installation.github_id,
             installation.config_repo,
             global_policies,
+        )
+    )
+
+    current_app.add_background_task(
+        FetchBlueprintsTask(
+            installation.installation_id,
+            installation.github_id,
+            installation.config_repo,
+            global_blueprints,
         )
     )
 
@@ -708,4 +732,49 @@ async def cleanup_policies_status_of_owner(owner: str, valid_types: list[str]) -
         PolicyStatusModel,
         PolicyStatusModel.id.org_id == owner,
         query.not_in(PolicyStatusModel.id.policy_type, valid_types),
+    )
+
+
+async def get_blueprints(owner: str) -> list[BlueprintModel]:
+    return await mongo.odm.find(
+        BlueprintModel,
+        BlueprintModel.id.org_id == owner,
+        sort=BlueprintModel.id.blueprint_id,
+    )
+
+
+async def find_blueprint(owner: str, blueprint_id: str) -> BlueprintModel | None:
+    return await mongo.odm.find_one(
+        BlueprintModel,
+        BlueprintModel.id.org_id == owner,
+        BlueprintModel.id.blueprint_id == blueprint_id,
+    )
+
+
+async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> None:
+    blueprint_model = await find_blueprint(owner, blueprint.id)
+    if blueprint_model is None:
+        blueprint_model = BlueprintModel(
+            id=BlueprintId(org_id=owner, blueprint_type=blueprint.type.value, blueprint_id=blueprint.id),
+            path=blueprint.path,
+            name=blueprint.name,
+            description=blueprint.description,
+            config=blueprint.config,
+        )
+    else:
+        blueprint_model.path = blueprint.path
+        blueprint_model.name = blueprint.name
+        blueprint_model.description = blueprint.description
+        blueprint_model.config = blueprint.config
+
+    await mongo.odm.save(blueprint_model)
+
+
+async def cleanup_blueprints(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(BlueprintModel, query.not_in(BlueprintModel.id.org_id, valid_orgs))
+
+
+async def cleanup_blueprints_of_owner(owner: str, valid_ids: list[str]) -> None:
+    await mongo.odm.remove(
+        BlueprintModel, PolicyModel.id.org_id == owner, query.not_in(BlueprintModel.id.blueprint_id, valid_ids)
     )

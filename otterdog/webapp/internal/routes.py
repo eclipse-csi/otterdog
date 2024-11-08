@@ -10,15 +10,15 @@ from quart import (
     render_template,
 )
 
+from otterdog.webapp.blueprints import create_blueprint_from_model
 from otterdog.webapp.db.service import (
     get_active_installations,
-    get_policies,
+    get_blueprints,
     logger,
     update_data_for_installation,
     update_installations_from_config,
 )
-from otterdog.webapp.policies import create_policy
-from otterdog.webapp.utils import refresh_global_policies, refresh_otterdog_config
+from otterdog.webapp.utils import refresh_global_blueprints, refresh_global_policies, refresh_otterdog_config
 
 from . import blueprint
 
@@ -32,7 +32,8 @@ async def health():
 async def init():
     config = await refresh_otterdog_config()
     policies = await refresh_global_policies()
-    await update_installations_from_config(config, policies)
+    blueprints = await refresh_global_blueprints()
+    await update_installations_from_config(config, policies, blueprints)
 
     for installation in await get_active_installations():
         await update_data_for_installation(installation)
@@ -42,17 +43,15 @@ async def init():
 
 @blueprint.route("/check")
 async def check():
-    logger.debug("checking policies...")
+    logger.debug("checking blueprints...")
 
     for installation in await get_active_installations():
         org_id = installation.github_id
-        logger.debug(f"checking org {org_id}")
+        logger.debug(f"checking org '{org_id}'")
 
-        for policy_model in await get_policies(org_id):
-            policy = create_policy(policy_model.id.policy_type, policy_model.config)
-
-            if policy.requires_regular_check:
-                await policy.evaluate(installation.installation_id, org_id)
+        for blueprint_model in await get_blueprints(org_id):
+            blueprint_instance = create_blueprint_from_model(blueprint_model)
+            await blueprint_instance.evaluate(installation.installation_id, org_id)
 
     return {}, 200
 

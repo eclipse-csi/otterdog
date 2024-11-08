@@ -18,9 +18,11 @@ if TYPE_CHECKING:
     from otterdog.webapp.db.models import PolicyModel
 
 
+POLICY_PATH = "otterdog/policies"
+
+
 class PolicyType(str, Enum):
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
-    REQUIRED_FILE = "required_file"
 
 
 class Policy(ABC, BaseModel):
@@ -35,10 +37,6 @@ class Policy(ABC, BaseModel):
     @property
     def config(self) -> dict[str, Any]:
         return self.model_dump(exclude={"path", "name", "description"})
-
-    @property
-    def requires_regular_check(self) -> bool:
-        return True
 
     def merge(self, other: Self) -> Self:
         """
@@ -94,11 +92,6 @@ def create_policy(
 
             return MacOSLargeRunnersUsagePolicy.model_validate(data)
 
-        case PolicyType.REQUIRED_FILE:
-            from otterdog.webapp.policies.required_file import RequiredFilePolicy
-
-            return RequiredFilePolicy.model_validate(data)
-
         case _:
             raise RuntimeError(f"unknown policy type '{policy_type}'")
 
@@ -111,3 +104,9 @@ def create_policy_from_model(model: PolicyModel) -> Policy:
         model.description,
         model.config,
     )
+
+
+def is_policy_path(path: str) -> bool:
+    from otterdog.webapp.utils import is_yaml_file
+
+    return path.startswith(POLICY_PATH) and is_yaml_file(path)
