@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-
 from quart import (
     render_template,
 )
@@ -52,7 +51,8 @@ async def check():
         for policy_model in await get_policies(org_id):
             policy = create_policy(policy_model.id.policy_type, policy_model.config)
 
-            await policy.evaluate(org_id)
+            if policy.requires_regular_check:
+                await policy.evaluate(installation.installation_id, org_id)
 
     return {}, 200
 

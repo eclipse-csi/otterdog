@@ -90,11 +90,12 @@ class GitHubWebhook:
         if data is None:
             abort(400, "Request body must contain data")
 
-        self._logger.info(
-            "%s (%s)",
-            _format_event(event_type, data),
-            _get_header("X-Github-Delivery"),
-        )
+        if _log_event(event_type, data):
+            self._logger.info(
+                "%s (%s)",
+                _format_event(event_type, data),
+                _get_header("X-Github-Delivery"),
+            )
 
         for hook in self._hooks.get(event_type, []):
             await hook(data)
@@ -148,6 +149,16 @@ EVENT_DESCRIPTIONS = {
     "workflow_job": "workflow '{workflow_job[name]}' on '{workflow_job[labels]}' {action} in repository "
     "{repository[full_name]}",
 }
+
+
+EVENT_FILTER = {"workflow_job": "'{action}' == 'queued'"}
+
+
+def _log_event(event_type, data) -> bool:
+    try:
+        return eval(EVENT_FILTER[event_type].format(**data))
+    except KeyError:
+        return True
 
 
 def _format_event(event_type, data):

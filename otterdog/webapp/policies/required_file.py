@@ -11,13 +11,13 @@ from __future__ import annotations
 import re
 from functools import cached_property
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from quart import current_app
 
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.webapp.db.service import get_configuration_by_github_id, get_installation_by_github_id
+from otterdog.webapp.db.service import get_configuration_by_github_id
 from otterdog.webapp.policies import Policy, PolicyType
 from otterdog.webapp.tasks.check_file import CheckFileTask
 
@@ -61,11 +61,13 @@ class RequiredFilePolicy(Policy):
     def type(self) -> PolicyType:
         return PolicyType.REQUIRED_FILE
 
-    async def evaluate(self, github_id: str) -> None:
-        installation = await get_installation_by_github_id(github_id)
-        if installation is None:
-            return
-
+    async def evaluate(
+        self,
+        installation_id: int,
+        github_id: str,
+        repo_name: str | None = None,
+        payload: Any | None = None,
+    ) -> None:
         config_data = await get_configuration_by_github_id(github_id)
         if config_data is None:
             return
@@ -81,7 +83,7 @@ class RequiredFilePolicy(Policy):
 
                     current_app.add_background_task(
                         CheckFileTask(
-                            installation.installation_id,
+                            installation_id,
                             github_id,
                             repo.name,
                             required_file.path,

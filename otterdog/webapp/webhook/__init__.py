@@ -315,22 +315,12 @@ async def on_workflow_job_received(data):
         if policy_model is not None:
             policy = create_policy(policy_model.id.policy_type, policy_model.config)
             assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
-
-            job_permitted = True
-            if not policy.is_workflow_job_permitted(event.workflow_job.labels):
-                from otterdog.webapp.utils import get_rest_api_for_installation
-
-                job_permitted = False
-
-                org_id = event.organization.login
-                repo_name = event.repository.name
-                run_id = event.workflow_job.run_id
-
-                rest_api = await get_rest_api_for_installation(event.installation.id)
-                cancelled = await rest_api.action.cancel_workflow_run(org_id, repo_name, run_id)
-                logger.info(f"cancelled workflow run #{run_id} in repo '{org_id}/{repo_name}': success={cancelled}")
-
-            await policy.update_status(event.organization.login, job_permitted)
+            await policy.evaluate(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.workflow_job,
+            )
 
     return success()
 

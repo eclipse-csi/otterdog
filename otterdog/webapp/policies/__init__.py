@@ -29,8 +29,18 @@ class Policy(ABC, BaseModel):
     def config(self) -> dict[str, Any]:
         return self.model_dump()
 
+    @property
+    def requires_regular_check(self) -> bool:
+        return True
+
     @abstractmethod
-    async def evaluate(self, github_id: str) -> None: ...
+    async def evaluate(
+        self,
+        installation_id: int,
+        github_id: str,
+        repo_name: str | None = None,
+        payload: Any | None = None,
+    ) -> None: ...
 
 
 def read_policy(content: dict[str, Any]) -> Policy:
