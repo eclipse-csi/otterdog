@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 from dataclasses import dataclass
-from textwrap import dedent
 
 from otterdog.providers.github.rest import RestApi
 from otterdog.webapp.blueprints.required_file import RequiredFile, RequiredFileBlueprint
@@ -146,13 +145,11 @@ class CheckFilesTask(InstallationBasedTask, Task[CheckResult]):
         )
 
         if self.blueprint.description is not None:
-            pr_body += dedent(f"""\
-            <br>
-            Description:
-            ```
-            {self.blueprint.description.rstrip()}
-            ```
-            """)
+            description_lines = self.blueprint.description.rstrip().split("\n")
+            description = "\n".join(f"> {x}" for x in description_lines)
+
+            pr_body += "\n\n"
+            pr_body += description
 
         created_pr = await rest_api.pull_request.create_pull_request(
             self.org_id,
