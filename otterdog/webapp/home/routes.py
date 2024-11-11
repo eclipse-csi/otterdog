@@ -362,7 +362,7 @@ async def playground(project_name: str):
                 jsonnet_files.append(
                     {
                         "id": file_id,
-                        "filename": filename,
+                        "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{filename}",
                         "content": await f.read(),
                     }
                 )
@@ -371,6 +371,7 @@ async def playground(project_name: str):
         "playground.html",
         project_name=project_name,
         jsonnet_files=jsonnet_files,
+        default_config=f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
     )
 
 
