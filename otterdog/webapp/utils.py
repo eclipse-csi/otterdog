@@ -215,7 +215,7 @@ async def _load_global_blueprints(ref: str | None = None) -> list[Blueprint]:
     config_file_path = "blueprints"
 
     logger.info(
-        f"loading global policies from url "
+        f"loading global blueprints from url "
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
