@@ -172,6 +172,7 @@ async def cleanup_data() -> None:
     await cleanup_policies(valid_orgs)
     await cleanup_policies_status(valid_orgs)
     await cleanup_blueprints(valid_orgs)
+    await cleanup_blueprints_status(valid_orgs)
 
 
 async def update_app_installations(
@@ -779,7 +780,7 @@ async def cleanup_blueprints(valid_orgs: list[str]) -> None:
 
 async def cleanup_blueprints_of_owner(owner: str, valid_ids: list[str]) -> None:
     await mongo.odm.remove(
-        BlueprintModel, PolicyModel.id.org_id == owner, query.not_in(BlueprintModel.id.blueprint_id, valid_ids)
+        BlueprintModel, BlueprintModel.id.org_id == owner, query.not_in(BlueprintModel.id.blueprint_id, valid_ids)
     )
 
 
@@ -832,3 +833,15 @@ async def update_or_create_blueprint_status(
 
 async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
     await mongo.odm.save(blueprint_status)
+
+
+async def cleanup_blueprints_status(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(BlueprintStatusModel, query.not_in(BlueprintStatusModel.id.org_id, valid_orgs))
+
+
+async def cleanup_blueprints_status_of_owner(owner: str, valid_ids: list[str]) -> None:
+    await mongo.odm.remove(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        query.not_in(BlueprintStatusModel.id.blueprint_id, valid_ids),
+    )

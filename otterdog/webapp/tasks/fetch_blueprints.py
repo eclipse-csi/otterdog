@@ -15,6 +15,7 @@ from otterdog.webapp.blueprints import BLUEPRINT_PATH, Blueprint, read_blueprint
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
     cleanup_blueprints_of_owner,
+    cleanup_blueprints_status_of_owner,
     update_or_create_blueprint,
 )
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -47,6 +48,7 @@ class FetchBlueprintsTask(InstallationBasedTask, Task[None]):
             blueprints = await self._fetch_blueprints(rest_api, org_config.config_repo)
 
             await cleanup_blueprints_of_owner(self.org_id, list(blueprints))
+            await cleanup_blueprints_status_of_owner(self.org_id, list(blueprints))
 
             for blueprint in list(blueprints.values()):
                 await update_or_create_blueprint(self.org_id, blueprint)
