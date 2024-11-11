@@ -27,6 +27,9 @@ from .models import (
     ApplyStatus,
     BlueprintId,
     BlueprintModel,
+    BlueprintStatus,
+    BlueprintStatusId,
+    BlueprintStatusModel,
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
@@ -778,3 +781,54 @@ async def cleanup_blueprints_of_owner(owner: str, valid_ids: list[str]) -> None:
     await mongo.odm.remove(
         BlueprintModel, PolicyModel.id.org_id == owner, query.not_in(BlueprintModel.id.blueprint_id, valid_ids)
     )
+
+
+async def get_blueprints_status(owner: str) -> list[BlueprintStatusModel]:
+    return await mongo.odm.find(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        sort=BlueprintStatusModel.id.repo_name,
+    )
+
+
+async def find_blueprint_status(owner: str, repo_name: str, blueprint_id: str) -> BlueprintStatusModel | None:
+    return await mongo.odm.find_one(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        BlueprintStatusModel.id.blueprint_id == blueprint_id,
+    )
+
+
+async def find_blueprint_status_by_pr(owner: str, repo_name: str, pr_number: int) -> BlueprintStatusModel | None:
+    return await mongo.odm.find_one(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        BlueprintStatusModel.remediation_pr == pr_number,
+    )
+
+
+async def update_or_create_blueprint_status(
+    owner: str,
+    repo_name: str,
+    blueprint_id: str,
+    status: BlueprintStatus | None = None,
+    remediation_pr: int | None = None,
+) -> None:
+    blueprint_status_model = await find_blueprint_status(owner, repo_name, blueprint_id)
+    if blueprint_status_model is None:
+        blueprint_status_model = BlueprintStatusModel(
+            id=BlueprintStatusId(org_id=owner, repo_name=repo_name, blueprint_id=blueprint_id),
+        )
+
+    if status is not None:
+        blueprint_status_model.status = status
+
+    blueprint_status_model.remediation_pr = remediation_pr
+
+    await mongo.odm.save(blueprint_status_model)
+
+
+async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
+    await mongo.odm.save(blueprint_status)

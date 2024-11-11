@@ -26,6 +26,7 @@ from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
+from otterdog.webapp.tasks.update_blueprint_status import UpdateBlueprintStatusTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_global_blueprints, refresh_global_policies, refresh_otterdog_config
@@ -84,6 +85,16 @@ async def on_pull_request_received(data):
                 event.organization.login,
                 event.repository.name,
                 event.pull_request.head.ref,
+            )
+        )
+
+    if event.action in ["closed", "reopened"] and event.pull_request.head.ref.startswith("otterdog/"):
+        current_app.add_background_task(
+            UpdateBlueprintStatusTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request,
             )
         )
 

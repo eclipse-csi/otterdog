@@ -6,9 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from quart import (
-    render_template,
-)
 
 from otterdog.webapp.blueprints import create_blueprint_from_model
 from otterdog.webapp.db.service import (
@@ -58,7 +55,7 @@ async def check():
 
 @blueprint.route("/<template>")
 async def route_template(template: str):
-    return await render_template("home/page-404.html"), 404
+    return {}, 404
 
 
 @blueprint.errorhandler(Exception)
@@ -66,4 +63,4 @@ async def error_exception(error):
     import traceback
 
     traceback.print_exception(error)
-    return await render_template("home/page-500.html"), 500
+    return {}, 500

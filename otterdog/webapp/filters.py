@@ -26,6 +26,22 @@ def register_filters(app):
             case _:
                 return "info"
 
+    @app.template_filter("blueprint_status_color")
+    def blueprint_status_color(status):
+        from otterdog.webapp.db.models import BlueprintStatus
+
+        match status:
+            case BlueprintStatus.NOT_CHECKED:
+                return "secondary"
+            case BlueprintStatus.FAILURE:
+                return "danger"
+            case BlueprintStatus.SUCCESS:
+                return "success"
+            case BlueprintStatus.REMEDIATION_PREPARED:
+                return "warning"
+            case _:
+                return "info"
+
     @app.template_filter("int_status")
     def int_status_color(value):
         if value == 0:

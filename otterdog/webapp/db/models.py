@@ -170,3 +170,28 @@ class BlueprintModel(Model):
     name: Optional[str] = None
     description: Optional[str] = None
     config: dict
+
+
+class BlueprintStatusId(EmbeddedModel):
+    org_id: str
+    repo_name: str
+    blueprint_id: str
+
+
+class BlueprintStatus(str, Enum):
+    NOT_CHECKED = "not_checked"
+    SUCCESS = "success"
+    FAILURE = "failure"
+    REMEDIATION_PREPARED = "remediation_prepared"
+    DISMISSED = "dismissed"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class BlueprintStatusModel(Model):
+    id: BlueprintStatusId = Field(primary_field=True)
+
+    updated_at: datetime = Field(index=True, default_factory=current_utc_time)
+    status: BlueprintStatus = Field(default=BlueprintStatus.NOT_CHECKED)
+    remediation_pr: Optional[int] = Field(index=True, default=None)
