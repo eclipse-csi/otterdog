@@ -20,10 +20,10 @@ id: require-default-security-md
 name: Requires SECURITY.md file
 type: required_file
 config:
+  repo_selector:
+    name_pattern: .github
   files:
     - path: SECURITY.md
-      repo_selector:
-        name_pattern: .github
       content: |
         This is our security policy.
         Please head over to....
@@ -34,14 +34,14 @@ id: require-yml-file
 name: Require file
 type: required_file
 config:
+    repo_selector:
+      name_pattern:
+        - .github
+        - repo-1
+        - repo-2
+        - repo-3
     files:
       - path: .github/workflows/dependabot-auto-merge.yml
-        repo_selector:
-          name_pattern:
-            - .github
-            - repo-1
-            - repo-2
-            - repo-3
         content: |
           name: Dependabot auto-merge
           on: pull_request_target
@@ -77,7 +77,7 @@ def test_repo_selector_multiple_repos():
 
     assert required_file.strict is False
 
-    selector = required_file.repo_selector
+    selector = blueprint.repo_selector
 
     assert selector.matches(create_repo_with_name(".github"))
     assert selector.matches(create_repo_with_name("repo-1"))
