@@ -28,7 +28,7 @@ logger = getLogger(__name__)
 
 
 class RepoSelector(BaseModel):
-    name_pattern: str | list[str] | None
+    name_pattern: str | list[str]
 
     @cached_property
     def _pattern(self) -> re.Pattern | None:
@@ -54,12 +54,18 @@ class RequiredFile(BaseModel):
 
 
 class RequiredFileBlueprint(Blueprint):
-    repo_selector: RepoSelector
+    repo_selector: RepoSelector | None = None
     files: list[RequiredFile]
 
     @property
     def type(self) -> BlueprintType:
         return BlueprintType.REQUIRED_FILE
+
+    def _matches(self, repo: Repository) -> bool:
+        if self.repo_selector is None:
+            return True
+        else:
+            return self.repo_selector.matches(repo)
 
     async def evaluate(self, installation_id: int, github_id: str, recheck: bool = False) -> None:
         config_data = await get_configuration_by_github_id(github_id)
@@ -68,7 +74,7 @@ class RequiredFileBlueprint(Blueprint):
 
         github_organization = GitHubOrganization.from_model_data(config_data.config)
         for repo in github_organization.repositories:
-            if repo.archived is False and self.repo_selector.matches(repo):
+            if repo.archived is False and self._matches(repo):
                 # if no recheck is requested, only check the repo if it was not checked before
                 if recheck is False:
                     blueprint_status_model = await find_blueprint_status(github_id, repo.name, self.id)

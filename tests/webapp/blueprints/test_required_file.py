@@ -43,15 +43,18 @@ config:
     files:
       - path: .github/workflows/dependabot-auto-merge.yml
         content: |
-          name: Dependabot auto-merge
-          on: pull_request_target
-          permissions: read-all
-          jobs:
-            dependabot:
-              permissions:
-                contents: write
-                pull-requests: write
-              uses: adoptium/.github/.github/workflows/dependabot-auto-merge.yml@main
+          blabla
+"""
+
+no_repo_selection = """
+id: require-yml-file
+name: Require file
+type: required_file
+config:
+    files:
+      - path: .github/workflows/dependabot-auto-merge.yml
+        content: |
+          blabla
 """
 
 
@@ -82,6 +85,28 @@ def test_repo_selector_multiple_repos():
     assert selector.matches(create_repo_with_name(".github"))
     assert selector.matches(create_repo_with_name("repo-1"))
     assert selector.matches(create_repo_with_name("repo-10")) is False
+
+
+def test_no_repo_selector():
+    config = yaml.safe_load(no_repo_selection)
+
+    blueprint = read_blueprint("a", config)
+    assert blueprint.type == BlueprintType.REQUIRED_FILE
+
+    assert isinstance(blueprint, RequiredFileBlueprint)
+    assert len(blueprint.files) == 1
+
+    required_file = blueprint.files[0]
+
+    assert required_file.strict is False
+
+    selector = blueprint.repo_selector
+
+    assert selector is None
+
+    assert blueprint._matches(create_repo_with_name(".github"))
+    assert blueprint._matches(create_repo_with_name("repo-1"))
+    assert blueprint._matches(create_repo_with_name("repo-10"))
 
 
 def create_repo_with_name(name: str) -> Repository:

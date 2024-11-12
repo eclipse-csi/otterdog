@@ -10,19 +10,19 @@ configured `content`.
 
 ### Settings
 
-| Setting       | Necessity | Value type                         |
-|---------------|-----------|------------------------------------|
-| repo_selector | mandatory | [RepoSelector](#repo-selector)     |
-| files         | mandatory | list[[FileSetting](#file-setting)] |
+| Setting       | Necessity | Value type                         | Description                       |
+|---------------|-----------|------------------------------------|-----------------------------------|
+| repo_selector | optional  | [RepoSelector](#repo-selector)     | If omitted, all repos are matched |
+| files         | mandatory | list[[FileSetting](#file-setting)] |                                   |
 
 #### Repo Selector
 
 Allows to define a list of repositories that this blueprint should apply to.
 The pattern is expected to be in [python regular expression format](https://docs.python.org/3/howto/regex.html).
 
-| Setting      | Necessity  | Value type   |
-|--------------|------------|--------------|
-| name_pattern | mandatory  | list[string] |
+| Setting      | Necessity  | Value type             |
+|--------------|------------|------------------------|
+| name_pattern | mandatory  | list[string] \| string |
 
 #### File setting
 

@@ -342,7 +342,7 @@
                                     <tbody>
                                       {% for blueprint_status in blueprints_status[blueprint_id.blueprint_id] %}
                                       <tr class="table-{{ blueprint_status.status | blueprint_status_color }}">
-                                        <td>{{ blueprint_status.id.repo_name }}</td>
+                                        <td><a href="https://github.com/{{ config.github_id }}/{{ blueprint_status.id.repo_name }}">{{ blueprint_status.id.repo_name }}</a></td>
                                         <td>{{ blueprint_status.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                                         <td>{{ blueprint_status.status }}</td>
                                         <td>
