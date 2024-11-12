@@ -5,6 +5,11 @@
 <!-- Element injected in the BODY element -->
 {% block body_class %} sidebar-mini {% endblock body_class %}
 
+{% block headscripts %}
+  {{ super() }}
+  <script src="/assets/vendor/marked/marked.min.js"></script>
+{% endblock headscripts %}
+
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
@@ -218,11 +223,11 @@
                               </div>
                               <div class="card-body">
                                 {% if policy.description %}
-                                <p class="border">
-                                  <code>
-                                    {{ policy.description }}
-                                  </code>
-                                </p>
+                                <div id="{{ id }}-desc"></div>
+                                <script>
+                                  document.getElementById('{{ id }}-desc').innerHTML =
+                                    marked.parse('{{ policy.description | replace('\n', '\\n') }}', { gfm: true, breaks: true});
+                                </script>
                                 {% endif %}
                                 Reference: <a href="{{ policy.path }}" target="_blank">{{ policy.path }}</a>
                               </div>
@@ -292,11 +297,11 @@
                               </div>
                               <div class="card-body">
                                 {% if blueprint.description %}
-                                <p class="border">
-                                  <code>
-                                    {{ blueprint.description }}
-                                  </code>
-                                </p>
+                                <div id="{{ id }}-desc"></div>
+                                <script>
+                                  document.getElementById('{{ id }}-desc').innerHTML =
+                                    marked.parse('{{ blueprint.description | replace('\n', '\\n') }}', { gfm: true, breaks: true});
+                                </script>
                                 {% endif %}
                                 Reference: <a href="{{ blueprint.path }}" target="_blank">{{ blueprint.path }}</a>
                               </div>

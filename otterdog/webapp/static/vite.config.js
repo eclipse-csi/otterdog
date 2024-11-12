@@ -71,7 +71,11 @@ export default defineConfig({
                 {
                     src: "../node_modules/codemirror-mode-jsonnet",
                     dest: outVendorDir
-                }
+                },
+                {
+                    src: "../node_modules/marked/marked.min.js",
+                    dest: outVendorDir + "/marked"
+                },
             ]
         }),
     ],
