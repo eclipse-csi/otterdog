@@ -755,7 +755,7 @@ async def find_blueprint(owner: str, blueprint_id: str) -> BlueprintModel | None
     )
 
 
-async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> None:
+async def update_or_create_blueprint(owner: str, blueprint: Blueprint, recheck_needed: bool | None = None) -> None:
     blueprint_model = await find_blueprint(owner, blueprint.id)
     if blueprint_model is None:
         blueprint_model = BlueprintModel(
@@ -771,6 +771,13 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> None:
         blueprint_model.description = blueprint.description
         blueprint_model.config = blueprint.config
 
+    if recheck_needed is not None:
+        blueprint_model.recheck_needed = recheck_needed
+
+    await save_blueprint(blueprint_model)
+
+
+async def save_blueprint(blueprint_model: BlueprintModel) -> None:
     await mongo.odm.save(blueprint_model)
 
 
@@ -789,6 +796,15 @@ async def get_blueprints_status(owner: str) -> list[BlueprintStatusModel]:
         BlueprintStatusModel,
         BlueprintStatusModel.id.org_id == owner,
         sort=BlueprintStatusModel.id.repo_name,
+    )
+
+
+async def get_blueprints_status_for_repo(owner: str, repo_name: str) -> list[BlueprintStatusModel]:
+    return await mongo.odm.find(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        sort=BlueprintStatusModel.id.blueprint_id,
     )
 
 

@@ -63,13 +63,14 @@ class FetchPoliciesTask(InstallationBasedTask, Task[None]):
         except RuntimeError:
             entries = []
 
+        default_branch = await rest_api.repo.get_default_branch(self.org_id, repo)
+
         for entry in entries:
             path = entry["path"]
             if is_yaml_file(path):
                 content = await rest_api.content.get_content(self.org_id, repo, path)
                 try:
-                    # TODO: do not hardcode the path to the default branch
-                    policy_path = f"https://github.com/{self.org_id}/{repo}/blob/main/{path}"
+                    policy_path = f"https://github.com/{self.org_id}/{repo}/blob/{default_branch}/{path}"
                     policy = read_policy(policy_path, yaml.safe_load(content))
 
                     if policy.type in policies:

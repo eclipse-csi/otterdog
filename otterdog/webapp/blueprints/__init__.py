@@ -37,10 +37,13 @@ class Blueprint(ABC, BaseModel):
 
     @property
     def config(self) -> dict[str, Any]:
-        return self.model_dump(exclude={"path", "name", "description"})
+        return self.model_dump(exclude={"id", "path", "name", "description"})
 
     @abstractmethod
-    async def evaluate(self, installation_id: int, github_id: str) -> None: ...
+    async def evaluate(self, installation_id: int, github_id: str, recheck: bool = False) -> None: ...
+
+    @abstractmethod
+    async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None: ...
 
 
 def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:

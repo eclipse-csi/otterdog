@@ -169,6 +169,7 @@ class BlueprintModel(Model):
     path: str
     name: Optional[str] = None
     description: Optional[str] = None
+    recheck_needed: bool = True
     config: dict
 
 

@@ -18,7 +18,8 @@ from quart import current_app
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.webapp.blueprints import Blueprint, BlueprintType
-from otterdog.webapp.db.service import get_configuration_by_github_id
+from otterdog.webapp.db.models import BlueprintStatus
+from otterdog.webapp.db.service import find_blueprint_status, get_configuration_by_github_id
 
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
@@ -60,7 +61,7 @@ class RequiredFileBlueprint(Blueprint):
     def type(self) -> BlueprintType:
         return BlueprintType.REQUIRED_FILE
 
-    async def evaluate(self, installation_id: int, github_id: str) -> None:
+    async def evaluate(self, installation_id: int, github_id: str, recheck: bool = False) -> None:
         config_data = await get_configuration_by_github_id(github_id)
         if config_data is None:
             return
@@ -68,17 +69,29 @@ class RequiredFileBlueprint(Blueprint):
         github_organization = GitHubOrganization.from_model_data(config_data.config)
         for repo in github_organization.repositories:
             if repo.archived is False and self.repo_selector.matches(repo):
+                # if no recheck is requested, only check the repo if it was not checked before
+                if recheck is False:
+                    blueprint_status_model = await find_blueprint_status(github_id, repo.name, self.id)
+                    if blueprint_status_model is not None and blueprint_status_model.status not in (
+                        BlueprintStatus.NOT_CHECKED,
+                        BlueprintStatus.FAILURE,
+                    ):
+                        continue
+
                 logger.debug(
                     f"checking for required files of blueprint with id '{self.id}' in repo '{github_id}/{repo.name}'"
                 )
 
-                from otterdog.webapp.tasks.check_files import CheckFilesTask
+                await self.evaluate_repo(installation_id, github_id, repo.name)
 
-                current_app.add_background_task(
-                    CheckFilesTask(
-                        installation_id,
-                        github_id,
-                        repo.name,
-                        self,
-                    )
-                )
+    async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None:
+        from otterdog.webapp.tasks.check_files import CheckFilesTask
+
+        current_app.add_background_task(
+            CheckFilesTask(
+                installation_id,
+                github_id,
+                repo_name,
+                self,
+            )
+        )

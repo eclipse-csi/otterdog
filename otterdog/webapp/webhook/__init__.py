@@ -11,8 +11,10 @@ from logging import getLogger
 from pydantic import ValidationError
 from quart import Response, current_app
 
-from otterdog.webapp.blueprints import is_blueprint_path
+from otterdog.webapp.blueprints import create_blueprint_from_model, is_blueprint_path
 from otterdog.webapp.db.service import (
+    find_blueprint,
+    get_blueprints_status_for_repo,
     get_installation,
     update_installation_status,
     update_installations_from_config,
@@ -243,13 +245,24 @@ async def on_push_received(data):
         logger.error("failed to load push event data", exc_info=True)
         return success()
 
+    installation_id = event.installation.id
+    org_id = event.organization.login
+    repo_name = event.repository.name
+
     # check if the push targets the default branch of the config repo of an installation,
     # in such a case, update the current config in the database
     if event.installation is not None and event.organization is not None:
         if event.ref != f"refs/heads/{event.repository.default_branch}":
             return success()
 
-        if not await targets_config_repo(event.repository.name, event.installation.id):
+        # check any blueprint that matches the repo that just got a new push on the default branch
+        for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
+            blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
+            if blueprint_model is not None:
+                blueprint_instance = create_blueprint_from_model(blueprint_model)
+                await blueprint_instance.evaluate(installation_id, org_id)
+
+        if not await targets_config_repo(repo_name, installation_id):
             return success()
 
         current_app.add_background_task(
@@ -272,9 +285,9 @@ async def on_push_received(data):
             global_policies = await refresh_global_policies()
             current_app.add_background_task(
                 FetchPoliciesTask(
-                    event.installation.id,
-                    event.organization.login,
-                    event.repository.name,
+                    installation_id,
+                    org_id,
+                    repo_name,
                     global_policies,
                 )
             )
@@ -291,9 +304,9 @@ async def on_push_received(data):
             global_blueprints = await refresh_global_blueprints()
             current_app.add_background_task(
                 FetchBlueprintsTask(
-                    event.installation.id,
-                    event.organization.login,
-                    event.repository.name,
+                    installation_id,
+                    org_id,
+                    repo_name,
                     global_blueprints,
                 )
             )

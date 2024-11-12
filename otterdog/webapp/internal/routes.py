@@ -12,6 +12,7 @@ from otterdog.webapp.db.service import (
     get_active_installations,
     get_blueprints,
     logger,
+    save_blueprint,
     update_data_for_installation,
     update_installations_from_config,
 )
@@ -48,7 +49,12 @@ async def check():
 
         for blueprint_model in await get_blueprints(org_id):
             blueprint_instance = create_blueprint_from_model(blueprint_model)
-            await blueprint_instance.evaluate(installation.installation_id, org_id)
+            await blueprint_instance.evaluate(installation.installation_id, org_id, blueprint_model.recheck_needed)
+
+            # if we were forced to do a recheck, reset it afterward
+            if blueprint_model.recheck_needed is True:
+                blueprint_model.recheck_needed = False
+                await save_blueprint(blueprint_model)
 
     return {}, 200
 

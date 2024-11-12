@@ -51,7 +51,7 @@ class FetchBlueprintsTask(InstallationBasedTask, Task[None]):
             await cleanup_blueprints_status_of_owner(self.org_id, list(blueprints))
 
             for blueprint in list(blueprints.values()):
-                await update_or_create_blueprint(self.org_id, blueprint)
+                await update_or_create_blueprint(self.org_id, blueprint, recheck_needed=True)
 
     async def _fetch_blueprints(self, rest_api: RestApi, repo: str) -> dict[str, Blueprint]:
         config_file_path = BLUEPRINT_PATH
@@ -62,13 +62,14 @@ class FetchBlueprintsTask(InstallationBasedTask, Task[None]):
         except RuntimeError:
             entries = []
 
+        default_branch = await rest_api.repo.get_default_branch(self.org_id, repo)
+
         for entry in entries:
             path = entry["path"]
             if is_yaml_file(path):
                 content = await rest_api.content.get_content(self.org_id, repo, path)
                 try:
-                    # TODO: do not hardcode the path to the default branch
-                    blueprint_path = f"https://github.com/{self.org_id}/{repo}/blob/main/{path}"
+                    blueprint_path = f"https://github.com/{self.org_id}/{repo}/blob/{default_branch}/{path}"
                     blueprint = read_blueprint(blueprint_path, yaml.safe_load(content))
 
                     if blueprint.id in blueprints:
