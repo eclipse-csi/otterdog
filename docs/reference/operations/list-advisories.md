@@ -1,6 +1,6 @@
 # List Advisories
 
-The `list_advisories` operation lists the repository security advisories in a given organization, with the ability to filter by the state of the advisories.
+The `list-advisories` operation lists the repository security advisories in a given organization, with the ability to filter by the state of the advisories.
 
 ## Options
 

@@ -68,12 +68,19 @@ nav:
              - Bypass Actor: reference/organization/repository/bypass-actor.md
              - Ref Matcher: reference/organization/repository/ref-matcher.md
              - Status Check: reference/organization/repository/status-check.md
+    - Policies:
+        - reference/policies/index.md
+        - Usage of macOS large runners: reference/policies/macos-large-runners.md
+    - Blueprints:
+        - reference/blueprints/index.md
+        - Required File: reference/blueprints/required-file.md
     - CLI Operations:
         - reference/operations/index.md
         - Apply: reference/operations/apply.md
         - Import: reference/operations/import.md
         - Plan: reference/operations/plan.md
         - Validate: reference/operations/validate.md
+        - List Advisories: reference/operations/list-advisories.md
 - User Guide:
     - Renaming of Resources: userguide/renaming.md
     - Unsupported Settings: userguide/unsupported.md
