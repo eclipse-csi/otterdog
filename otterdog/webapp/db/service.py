@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from odmantic import query
 from quart import current_app
@@ -19,16 +19,23 @@ from otterdog.webapp import mongo
 from otterdog.webapp.utils import (
     current_utc_time,
     get_rest_api_for_app,
+    refresh_global_blueprints,
     refresh_global_policies,
 )
 
 from .models import (
     ApplyStatus,
+    BlueprintId,
+    BlueprintModel,
+    BlueprintStatus,
+    BlueprintStatusId,
+    BlueprintStatusModel,
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
     PolicyId,
     PolicyModel,
+    PolicyStatusModel,
     PullRequestId,
     PullRequestModel,
     PullRequestStatus,
@@ -42,6 +49,7 @@ if TYPE_CHECKING:
     from odmantic.query import QueryExpression
 
     from otterdog.config import OtterdogConfig
+    from otterdog.webapp.blueprints import Blueprint
     from otterdog.webapp.policies import Policy
     from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -54,7 +62,8 @@ async def update_installation_status(installation_id: int, action: str) -> None:
     match action:
         case "created":
             policies = await refresh_global_policies()
-            await update_app_installations(policies)
+            blueprints = await refresh_global_blueprints()
+            await update_app_installations(policies, blueprints)
 
         case "deleted":
             installation = await mongo.odm.find_one(
@@ -92,7 +101,10 @@ async def update_installation_status(installation_id: int, action: str) -> None:
 
 
 async def update_installations_from_config(
-    otterdog_config: OtterdogConfig, global_policies: list[Policy], update_installations: bool = True
+    otterdog_config: OtterdogConfig,
+    global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
+    update_installations: bool = True,
 ) -> None:
     logger.info("updating installations from otterdog config")
 
@@ -149,7 +161,7 @@ async def update_installations_from_config(
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations(global_policies, projects_to_update)
+        await update_app_installations(global_policies, global_blueprints, projects_to_update)
 
 
 async def cleanup_data() -> None:
@@ -158,10 +170,14 @@ async def cleanup_data() -> None:
     await cleanup_statistics(valid_orgs)
     await cleanup_configurations(valid_orgs)
     await cleanup_policies(valid_orgs)
+    await cleanup_policies_status(valid_orgs)
+    await cleanup_blueprints(valid_orgs)
+    await cleanup_blueprints_status(valid_orgs)
 
 
 async def update_app_installations(
     global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
     project_names_to_force_update: set[str] | None = None,
 ) -> None:
     logger.info("updating app installations")
@@ -190,7 +206,7 @@ async def update_app_installations(
         ):
             await update_data_for_installation(installation)
 
-        await update_policies_for_installation(installation, global_policies)
+        await update_policies_and_blueprints_for_installation(installation, global_policies, global_blueprints)
 
 
 async def update_data_for_installation(installation: InstallationModel) -> None:
@@ -216,7 +232,12 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
     )
 
 
-async def update_policies_for_installation(installation: InstallationModel, global_policies: list[Policy]) -> None:
+async def update_policies_and_blueprints_for_installation(
+    installation: InstallationModel,
+    global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
+) -> None:
+    from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
     from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 
     assert installation.config_repo is not None
@@ -227,6 +248,15 @@ async def update_policies_for_installation(installation: InstallationModel, glob
             installation.github_id,
             installation.config_repo,
             global_policies,
+        )
+    )
+
+    current_app.add_background_task(
+        FetchBlueprintsTask(
+            installation.installation_id,
+            installation.github_id,
+            installation.config_repo,
+            global_blueprints,
         )
     )
 
@@ -616,7 +646,7 @@ async def get_policies(owner: str) -> list[PolicyModel]:
     )
 
 
-async def find_policy(owner: str, policy_type) -> PolicyModel | None:
+async def find_policy(owner: str, policy_type: str) -> PolicyModel | None:
     return await mongo.odm.find_one(
         PolicyModel,
         PolicyModel.id.org_id == owner,
@@ -629,9 +659,15 @@ async def update_or_create_policy(owner: str, policy: Policy) -> None:
     if policy_model is None:
         policy_model = PolicyModel(
             id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            path=policy.path,
+            name=policy.name,
+            description=policy.description,
             config=policy.config,
         )
     else:
+        policy_model.path = policy.path
+        policy_model.name = policy.name
+        policy_model.description = policy.description
         policy_model.config = policy.config
 
     await mongo.odm.save(policy_model)
@@ -644,4 +680,184 @@ async def cleanup_policies(valid_orgs: list[str]) -> None:
 async def cleanup_policies_of_owner(owner: str, valid_types: list[str]) -> None:
     await mongo.odm.remove(
         PolicyModel, PolicyModel.id.org_id == owner, query.not_in(PolicyModel.id.policy_type, valid_types)
+    )
+
+
+async def get_policies_status(owner: str) -> list[PolicyStatusModel]:
+    return await mongo.odm.find(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        sort=PolicyModel.id.policy_type,
+    )
+
+
+async def find_policy_status(owner: str, policy_type: str) -> PolicyStatusModel | None:
+    return await mongo.odm.find_one(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        PolicyStatusModel.id.policy_type == policy_type,
+    )
+
+
+async def create_policy_status_if_needed(owner: str, policy: Policy, status: dict[str, Any]) -> bool:
+    policy_status_model = await find_policy_status(owner, policy.type.value)
+    if policy_status_model is None:
+        policy_status_model = PolicyStatusModel(
+            id=PolicyId(org_id=owner, policy_type=policy.type.value),
+            status=status,
+        )
+
+        await mongo.odm.save(policy_status_model)
+        return True
+
+    return False
+
+
+async def increment_or_create_policy_status(owner: str, policy: Policy, status_diff: dict[str, Any]) -> None:
+    if await create_policy_status_if_needed(owner, policy, status_diff) is True:
+        return
+
+    collection = mongo.odm.get_collection(PolicyStatusModel)
+    update_filter = {"_id": {"org_id": owner, "policy_type": policy.type.value}}
+    update_data = {"$inc": {f"status.{k}": v for k, v in status_diff.items()}}
+
+    await collection.update_one(
+        update_filter,
+        update_data,
+    )
+
+
+async def cleanup_policies_status(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(PolicyStatusModel, query.not_in(PolicyStatusModel.id.org_id, valid_orgs))
+
+
+async def cleanup_policies_status_of_owner(owner: str, valid_types: list[str]) -> None:
+    await mongo.odm.remove(
+        PolicyStatusModel,
+        PolicyStatusModel.id.org_id == owner,
+        query.not_in(PolicyStatusModel.id.policy_type, valid_types),
+    )
+
+
+async def get_blueprints(owner: str) -> list[BlueprintModel]:
+    return await mongo.odm.find(
+        BlueprintModel,
+        BlueprintModel.id.org_id == owner,
+        sort=BlueprintModel.id.blueprint_id,
+    )
+
+
+async def find_blueprint(owner: str, blueprint_id: str) -> BlueprintModel | None:
+    return await mongo.odm.find_one(
+        BlueprintModel,
+        BlueprintModel.id.org_id == owner,
+        BlueprintModel.id.blueprint_id == blueprint_id,
+    )
+
+
+async def update_or_create_blueprint(owner: str, blueprint: Blueprint, recheck_needed: bool | None = None) -> None:
+    blueprint_model = await find_blueprint(owner, blueprint.id)
+    if blueprint_model is None:
+        blueprint_model = BlueprintModel(
+            id=BlueprintId(org_id=owner, blueprint_type=blueprint.type.value, blueprint_id=blueprint.id),
+            path=blueprint.path,
+            name=blueprint.name,
+            description=blueprint.description,
+            config=blueprint.config,
+        )
+    else:
+        blueprint_model.path = blueprint.path
+        blueprint_model.name = blueprint.name
+        blueprint_model.description = blueprint.description
+        blueprint_model.config = blueprint.config
+
+    if recheck_needed is not None:
+        blueprint_model.recheck_needed = recheck_needed
+
+    await save_blueprint(blueprint_model)
+
+
+async def save_blueprint(blueprint_model: BlueprintModel) -> None:
+    await mongo.odm.save(blueprint_model)
+
+
+async def cleanup_blueprints(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(BlueprintModel, query.not_in(BlueprintModel.id.org_id, valid_orgs))
+
+
+async def cleanup_blueprints_of_owner(owner: str, valid_ids: list[str]) -> None:
+    await mongo.odm.remove(
+        BlueprintModel, BlueprintModel.id.org_id == owner, query.not_in(BlueprintModel.id.blueprint_id, valid_ids)
+    )
+
+
+async def get_blueprints_status(owner: str) -> list[BlueprintStatusModel]:
+    return await mongo.odm.find(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        sort=BlueprintStatusModel.id.repo_name,
+    )
+
+
+async def get_blueprints_status_for_repo(owner: str, repo_name: str) -> list[BlueprintStatusModel]:
+    return await mongo.odm.find(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        sort=BlueprintStatusModel.id.blueprint_id,
+    )
+
+
+async def find_blueprint_status(owner: str, repo_name: str, blueprint_id: str) -> BlueprintStatusModel | None:
+    return await mongo.odm.find_one(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        BlueprintStatusModel.id.blueprint_id == blueprint_id,
+    )
+
+
+async def find_blueprint_status_by_pr(owner: str, repo_name: str, pr_number: int) -> BlueprintStatusModel | None:
+    return await mongo.odm.find_one(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        BlueprintStatusModel.remediation_pr == pr_number,
+    )
+
+
+async def update_or_create_blueprint_status(
+    owner: str,
+    repo_name: str,
+    blueprint_id: str,
+    status: BlueprintStatus | None = None,
+    remediation_pr: int | None = None,
+) -> None:
+    blueprint_status_model = await find_blueprint_status(owner, repo_name, blueprint_id)
+    if blueprint_status_model is None:
+        blueprint_status_model = BlueprintStatusModel(
+            id=BlueprintStatusId(org_id=owner, repo_name=repo_name, blueprint_id=blueprint_id),
+        )
+
+    if status is not None:
+        blueprint_status_model.status = status
+
+    blueprint_status_model.remediation_pr = remediation_pr
+
+    await mongo.odm.save(blueprint_status_model)
+
+
+async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
+    await mongo.odm.save(blueprint_status)
+
+
+async def cleanup_blueprints_status(valid_orgs: list[str]) -> None:
+    await mongo.odm.remove(BlueprintStatusModel, query.not_in(BlueprintStatusModel.id.org_id, valid_orgs))
+
+
+async def cleanup_blueprints_status_of_owner(owner: str, valid_ids: list[str]) -> None:
+    await mongo.odm.remove(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        query.not_in(BlueprintStatusModel.id.blueprint_id, valid_ids),
     )

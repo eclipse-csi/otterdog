@@ -8,6 +8,8 @@
 
 import json
 
+from otterdog.utils import snake_to_normal_case
+
 
 def register_filters(app):
     @app.template_filter("status")
@@ -20,6 +22,22 @@ def register_filters(app):
             case InstallationStatus.NOT_INSTALLED:
                 return "danger"
             case InstallationStatus.SUSPENDED:
+                return "warning"
+            case _:
+                return "info"
+
+    @app.template_filter("blueprint_status_color")
+    def blueprint_status_color(status):
+        from otterdog.webapp.db.models import BlueprintStatus
+
+        match status:
+            case BlueprintStatus.NOT_CHECKED:
+                return "secondary"
+            case BlueprintStatus.FAILURE:
+                return "danger"
+            case BlueprintStatus.SUCCESS:
+                return "success"
+            case BlueprintStatus.REMEDIATION_PREPARED:
                 return "warning"
             case _:
                 return "info"
@@ -74,3 +92,7 @@ def register_filters(app):
             return ".".join(value.split(".")[1:])
         else:
             return value
+
+    @app.template_filter("snake_to_normal")
+    def snake_to_normal(value):
+        return snake_to_normal_case(value)

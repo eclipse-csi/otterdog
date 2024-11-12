@@ -11,21 +11,27 @@ from logging import getLogger
 from pydantic import ValidationError
 from quart import Response, current_app
 
+from otterdog.webapp.blueprints import create_blueprint_from_model, is_blueprint_path
 from otterdog.webapp.db.service import (
+    find_blueprint,
+    get_blueprints_status_for_repo,
     get_installation,
     update_installation_status,
     update_installations_from_config,
 )
-from otterdog.webapp.policies import create_policy
+from otterdog.webapp.policies import create_policy_from_model, is_policy_path
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
+from otterdog.webapp.tasks.delete_branch import DeleteBranchTask
+from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
 from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
+from otterdog.webapp.tasks.update_blueprint_status import UpdateBlueprintStatusTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
-from otterdog.webapp.utils import refresh_global_policies, refresh_otterdog_config
+from otterdog.webapp.utils import refresh_global_blueprints, refresh_global_policies, refresh_otterdog_config
 
 from .comment_handlers import (
     ApplyCommentHandler,
@@ -73,6 +79,26 @@ async def on_pull_request_received(data):
 
     if event.installation is None or event.organization is None:
         return success()
+
+    if event.action in ["closed"] and event.pull_request.head.ref.startswith("otterdog/"):
+        current_app.add_background_task(
+            DeleteBranchTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request.head.ref,
+            )
+        )
+
+    if event.action in ["closed", "reopened"] and event.pull_request.head.ref.startswith("otterdog/"):
+        current_app.add_background_task(
+            UpdateBlueprintStatusTask(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.pull_request,
+            )
+        )
 
     if not await targets_config_repo(event.repository.name, event.installation.id):
         return success()
@@ -219,13 +245,24 @@ async def on_push_received(data):
         logger.error("failed to load push event data", exc_info=True)
         return success()
 
+    installation_id = event.installation.id
+    org_id = event.organization.login
+    repo_name = event.repository.name
+
     # check if the push targets the default branch of the config repo of an installation,
     # in such a case, update the current config in the database
     if event.installation is not None and event.organization is not None:
         if event.ref != f"refs/heads/{event.repository.default_branch}":
             return success()
 
-        if not await targets_config_repo(event.repository.name, event.installation.id):
+        # check any blueprint that matches the repo that just got a new push on the default branch
+        for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
+            blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
+            if blueprint_model is not None:
+                blueprint_instance = create_blueprint_from_model(blueprint_model)
+                await blueprint_instance.evaluate(installation_id, org_id)
+
+        if not await targets_config_repo(repo_name, installation_id):
             return success()
 
         current_app.add_background_task(
@@ -236,14 +273,11 @@ async def on_push_received(data):
             )
         )
 
-        def policy_path(path: str) -> bool:
-            return path.startswith("otterdog/policies")
-
         def modifies_any_policy(commit: Commit) -> bool:
             return (
-                any(map(policy_path, commit.added))
-                or any(map(policy_path, commit.modified))
-                or any(map(policy_path, commit.removed))
+                any(map(is_policy_path, commit.added))
+                or any(map(is_policy_path, commit.modified))
+                or any(map(is_policy_path, commit.removed))
             )
 
         policies_modified = any(map(modifies_any_policy, event.commits))
@@ -251,10 +285,29 @@ async def on_push_received(data):
             global_policies = await refresh_global_policies()
             current_app.add_background_task(
                 FetchPoliciesTask(
-                    event.installation.id,
-                    event.organization.login,
-                    event.repository.name,
+                    installation_id,
+                    org_id,
+                    repo_name,
                     global_policies,
+                )
+            )
+
+        def modifies_any_blueprint(commit: Commit) -> bool:
+            return (
+                any(map(is_blueprint_path, commit.added))
+                or any(map(is_blueprint_path, commit.modified))
+                or any(map(is_blueprint_path, commit.removed))
+            )
+
+        blueprints_modified = any(map(modifies_any_blueprint, event.commits))
+        if blueprints_modified is True:
+            global_blueprints = await refresh_global_blueprints()
+            current_app.add_background_task(
+                FetchBlueprintsTask(
+                    installation_id,
+                    org_id,
+                    repo_name,
+                    global_blueprints,
                 )
             )
 
@@ -271,7 +324,8 @@ async def on_push_received(data):
         async def update_installations() -> None:
             config = await refresh_otterdog_config(event.after)
             policies = await refresh_global_policies(event.after)
-            await update_installations_from_config(config, policies)
+            blueprints = await refresh_global_blueprints(event.after)
+            await update_installations_from_config(config, policies, blueprints)
 
         current_app.add_background_task(update_installations)
         return success()
@@ -311,30 +365,18 @@ async def on_workflow_job_received(data):
             MacOSLargeRunnersUsagePolicy,
         )
 
-        policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE)
+        policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE.value)
         if policy_model is not None:
-            policy = create_policy(policy_model.id.policy_type, policy_model.config)
+            policy = create_policy_from_model(policy_model)
             assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
-
-            if not policy.is_workflow_job_permitted(event.workflow_job.labels):
-                from otterdog.webapp.utils import get_rest_api_for_installation
-
-                org_id = event.organization.login
-                repo_name = event.repository.name
-                run_id = event.workflow_job.run_id
-
-                rest_api = await get_rest_api_for_installation(event.installation.id)
-                cancelled = await rest_api.action.cancel_workflow_run(org_id, repo_name, run_id)
-                logger.info(f"cancelled workflow run #{run_id} in repo '{org_id}/{repo_name}': success={cancelled}")
+            await policy.evaluate(
+                event.installation.id,
+                event.organization.login,
+                event.repository.name,
+                event.workflow_job,
+            )
 
     return success()
-
-
-def _uses_macos_larger_runner(labels: list[str]) -> bool:
-    def larger_runner(label: str) -> bool:
-        return label.startswith("macos") and label.endswith("large")
-
-    return any(map(larger_runner, labels))
 
 
 async def targets_config_repo(repo_name: str, installation_id: int) -> bool:

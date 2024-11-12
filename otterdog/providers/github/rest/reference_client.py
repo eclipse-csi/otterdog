@@ -39,3 +39,15 @@ class ReferenceClient(RestClient):
             return data["ref"]
         except GitHubException as ex:
             raise RuntimeError(f"failed creating reference:\n{ex}") from ex
+
+    async def delete_reference(self, org_id: str, repo: str, ref: str) -> bool:
+        print_debug(f"deleting reference with name '{ref}' in repo '{org_id}/{repo}'")
+
+        full_ref = f"refs/heads/{ref}"
+        status, body = await self.requester.request_raw("DELETE", f"/repos/{org_id}/{repo}/git/{full_ref}")
+        if status == 204:
+            return True
+        elif status in (409, 422):
+            return False
+        else:
+            raise RuntimeError(f"failed deleting reference '{ref}' in repo '{org_id}/{repo}'" f"\n{status}: {body}")

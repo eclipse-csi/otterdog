@@ -26,6 +26,8 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import PrettyFormatter, associate_by_key
 from otterdog.webapp.db.service import (
     get_active_installations,
+    get_blueprints,
+    get_blueprints_status,
     get_configuration_by_github_id,
     get_configuration_by_project_name,
     get_configurations,
@@ -34,6 +36,7 @@ from otterdog.webapp.db.service import (
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
+    get_policies_status,
     get_statistics,
     get_tasks,
 )
@@ -199,6 +202,15 @@ async def project(project_name: str):
 
     github_organization = GitHubOrganization.from_model_data(config.config)
     policies = [x.model_dump() for x in await get_policies(config.github_id)]
+    policies_status = {x.id.policy_type: x.model_dump() for x in await get_policies_status(config.github_id)}
+    blueprints = [x.model_dump() for x in await get_blueprints(config.github_id)]
+
+    all_blueprints_status = await get_blueprints_status(config.github_id)
+    blueprints_status: dict[str, list[dict]] = {}
+    for status in all_blueprints_status:
+        blueprint_id = status.id.blueprint_id
+        status_list = blueprints_status.setdefault(blueprint_id, [])
+        status_list.append(status.model_dump())
 
     return await render_home_template(
         "organization.html",
@@ -206,6 +218,9 @@ async def project(project_name: str):
         github_id=config.github_id,
         config=github_organization,
         policies=policies,
+        policies_status=policies_status,
+        blueprints=blueprints,
+        blueprints_status=blueprints_status,
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
         branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
     )
@@ -359,7 +374,7 @@ async def playground(project_name: str):
                 jsonnet_files.append(
                     {
                         "id": file_id,
-                        "filename": filename,
+                        "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{filename}",
                         "content": await f.read(),
                     }
                 )
@@ -368,6 +383,7 @@ async def playground(project_name: str):
         "playground.html",
         project_name=project_name,
         jsonnet_files=jsonnet_files,
+        default_config=f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
     )
 
 

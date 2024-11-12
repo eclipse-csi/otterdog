@@ -1,0 +1,4 @@
+<!-- Otterdog Comment: blueprint-dismissal -->
+The blueprint `{{ blueprint_id }}` has been dismissed for this repo.
+<br>
+To re-enable the blueprint for this repo, reopen the pull request (branch need to be restored first).

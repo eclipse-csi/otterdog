@@ -260,6 +260,14 @@ class JsonnetConfig:
             return None
 
     @property
+    def base_template_repo_name(self) -> str:
+        return self._base_template_repo_name
+
+    @property
+    def base_template_file_name(self) -> str:
+        return self._base_template_file
+
+    @property
     def template_dir(self) -> str:
         return os.path.join(
             self.org_dir,

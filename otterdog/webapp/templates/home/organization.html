@@ -5,14 +5,23 @@
 <!-- Element injected in the BODY element -->
 {% block body_class %} sidebar-mini {% endblock body_class %}
 
+{% block headscripts %}
+  {{ super() }}
+  <script src="/assets/vendor/marked/marked.min.js"></script>
+{% endblock headscripts %}
+
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- Editor -->
-  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/highlight.css') }}">
 
   <style>
-    .CodeMirror { font-size: 12px; }
+    pre { padding: 0px; }
+    code { padding: 0px; }
+    pre code.hljs {
+      padding: 0px;
+      font-size: 12px;
+    }
   </style>
 {% endblock stylesheets %}
 
@@ -52,6 +61,9 @@
                   </li>
                   <li class="nav-item">
                     <a class="nav-link" id="policies-tab" data-toggle="pill" href="#policies" role="tab" aria-controls="policies" aria-selected="false">Policies</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="blueprints-tab" data-toggle="pill" href="#blueprints" role="tab" aria-controls="blueprints" aria-selected="false">Blueprints</a>
                   </li>
                   <li class="nav-item">
                     <a class="nav-link" id="settings-tab" data-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
@@ -205,9 +217,148 @@
                           {% for policy in policies %}
                           {% set id = 'policy-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                    <textarea id="{{ id }}-textarea">
-{{ policy.config|pretty_format }}
-                    </textarea>
+                            <div class="card card-primary">
+                              <div class="card-header">
+                                <h3 class="card-title">{{ policy.name if policy.name is not none else 'Overview' }}</h3>
+                              </div>
+                              <div class="card-body">
+                                {% if policy.description %}
+                                <div id="{{ id }}-desc"></div>
+                                <script>
+                                  document.getElementById('{{ id }}-desc').innerHTML =
+                                    marked.parse('{{ policy.description | replace('\n', '\\n') }}', { gfm: true, breaks: true});
+                                </script>
+                                {% endif %}
+                                Reference: <a href="{{ policy.path }}" target="_blank">{{ policy.path }}</a>
+                              </div>
+                            </div>
+                            <div class="card card-primary">
+                              <div class="card-header">
+                                <h3 class="card-title">Config</h3>
+                              </div>
+                              <div class="card-body">
+                                <pre><code class="language-json">{{ policy.config|pretty_format }}</code></pre>
+                              </div>
+                            </div>
+                            {% if policy.id.policy_type in policies_status %}
+                            {% set policy_status = policies_status[policy.id.policy_type] %}
+                            <div class="card card-info">
+                              <div class="card-header">
+                                <h3 class="card-title">Status</h3>
+                              </div>
+                              <div class="card-body">
+                                <div class="table-responsive p-0">
+                                  <table class="table table-hover text-nowrap">
+                                    <thead>
+                                      <tr>
+                                        {% for key, value in policy_status.status.items() %}
+                                        <th>{{ key | snake_to_normal }}</th>
+                                        {% endfor %}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        {% for key, value in policy_status.status.items() %}
+                                        <td>{{ value }}</td>
+                                        {% endfor %}
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                            {% endif %}
+                          </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="blueprints" role="tabpanel" aria-labelledby="blueprints-tab">
+                    <div class="row">
+                      <div class="col-2">
+                        <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="blueprints-tabs" role="tablist" aria-orientation="vertical">
+                          {% for blueprint in blueprints %}
+                          {% set blueprint_id = blueprint.id %}
+                          {% set id = 'blueprint-' ~ loop.index %}
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ blueprint_id.blueprint_id }}</a>
+                          {% endfor %}
+                        </div>
+                      </div>
+                      <div class="col-10">
+                        <div class="tab-content" id="blueprints-tabContent">
+                          {% for blueprint in blueprints %}
+                          {% set blueprint_id = blueprint.id %}
+                          {% set id = 'blueprint-' ~ loop.index %}
+                          <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
+                            <div class="card card-primary">
+                              <div class="card-header">
+                                <h3 class="card-title">{{ blueprint.name if blueprint.name is not none else 'Overview' }}</h3>
+                              </div>
+                              <div class="card-body">
+                                {% if blueprint.description %}
+                                <div id="{{ id }}-desc"></div>
+                                <script>
+                                  document.getElementById('{{ id }}-desc').innerHTML =
+                                    marked.parse('{{ blueprint.description | replace('\n', '\\n') }}', { gfm: true, breaks: true});
+                                </script>
+                                {% endif %}
+                                Reference: <a href="{{ blueprint.path }}" target="_blank">{{ blueprint.path }}</a>
+                              </div>
+                            </div>
+                            <div class="card card-primary collapsed-card">
+                              <div class="card-header" data-card-widget="collapse">
+                                <h3 class="card-title">Config</h3>
+                                <div class="card-tools" style="margin: 0px;">
+                                  <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                    <i class="fas fa-plus"></i>
+                                  </button>
+                                </div>
+                              </div>
+                              <div class="card-body">
+                                <pre><code class="language-json">{{ blueprint.config|pretty_format }}</code></pre>
+                              </div>
+                            </div>
+                            <div class="card card-info">
+                              <div class="card-header" data-card-widget="collapse">
+                                <h3 class="card-title">Status</h3>
+                                <div class="card-tools" style="margin: 0px;">
+                                  <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                    <i class="fas fa-minus"></i>
+                                  </button>
+                                </div>
+                              </div>
+                              <div class="card-body">
+                                <div class="table-responsive p-0">
+                                  <table class="table table-hover text-nowrap">
+                                    <thead>
+                                      <tr>
+                                        <th>Repository</th>
+                                        <th>Updated At</th>
+                                        <th>Status</th>
+                                        <th>Remediation PR</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {% for blueprint_status in blueprints_status[blueprint_id.blueprint_id] %}
+                                      <tr class="table-{{ blueprint_status.status | blueprint_status_color }}">
+                                        <td><a href="https://github.com/{{ config.github_id }}/{{ blueprint_status.id.repo_name }}">{{ blueprint_status.id.repo_name }}</a></td>
+                                        <td>{{ blueprint_status.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                        <td>{{ blueprint_status.status }}</td>
+                                        <td>
+                                          {% if blueprint_status.remediation_pr is none %}
+                                            N/A
+                                          {% else %}
+                                            <a href="https://github.com/{{ config.github_id }}/{{ blueprint_status.id.repo_name }}/pull/{{ blueprint_status.remediation_pr }}">#{{ blueprint_status.remediation_pr }}</a>
+                                          {% endif %}
+                                        </td>
+                                      </tr>
+                                      {% endfor %}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                           {% endfor %}
                         </div>
@@ -215,14 +366,9 @@
                     </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <textarea id="org-settings-textarea">
-{{ config.settings|pretty_format_model }}
-                    </textarea>
-                  </div>
+                    <pre><code class="language-json">{{ config.settings|pretty_format_model }}</code></pre></div>
                   <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
-                    <textarea id="org-workflow-settings-textarea">
-{{ config.settings.workflows|pretty_format_model }}
-                    </textarea>
+                    <pre><code class="language-json">{{ config.settings.workflows|pretty_format_model }}</code></pre>
                   </div>
                   <div class="tab-pane" id="custom-properties" role="tabpanel" aria-labelledby="custom-properties-tab">
                     <div class="table-responsive p-0">
@@ -489,10 +635,9 @@
   {{ super() }}
   <!-- Chart.js -->
   <script src="/assets/vendor/chartjs/chart.umd.js"></script>
+  <script type="module" src="{{ asset('js/highlight.js') }}"></script>
 
   <script type="module">
-    import {createJavascriptEditor} from '{{ asset('js/editor.js') }}';
-
     $(document).ready(function() {
       enableTabFromHash();
 
@@ -533,44 +678,6 @@
       // `this` is the clicked <a> tag
       $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
     });
-
-    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-      switch (e.target.id) {
-        case "settings-tab": {
-          enableEditor('#org-settings-textarea')
-          break;
-        }
-        case "policies-tab": {
-          var selector = "#policy-1-textarea";
-          var target = $(selector).get(0);
-          if (target != null) {
-            enableEditor(selector);
-          }
-          break;
-        }
-        case "workflow-settings-tab": {
-          enableEditor('#org-workflow-settings-textarea')
-          break;
-        }
-        default: {
-           var selector = '#'.concat(e.target.id.replace(/-tab/, ''), '-textarea');
-           enableEditor(selector);
-           break;
-        }
-      }
-    });
-
-    function enableEditor(selector) {
-      if ($(selector).length == 0) {
-        return;
-      }
-
-      var editor = $(selector).next('.CodeMirror').get(0);
-      if (editor == null) {
-        editor = createJavascriptEditor($(selector).get(0));
-        editor.setSize(null, 750);
-      }
-    };
 
     function drawSecretScanningChart() {
       const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
@@ -623,5 +730,4 @@
       });
     };
   </script>
-
 {% endblock javascripts %}

@@ -17,6 +17,7 @@ from otterdog.utils import (
     parse_template_url,
     patch_to_other,
     snake_to_camel_case,
+    snake_to_normal_case,
 )
 
 
@@ -56,6 +57,12 @@ def test_snake_to_camel_case():
     assert snake_to_camel_case("name") == "name"
     assert snake_to_camel_case("required_status_checks") == "requiredStatusChecks"
     assert snake_to_camel_case("required__status_checks") == "requiredStatusChecks"
+
+
+def test_snake_to_normal_case():
+    assert snake_to_normal_case("name") == "Name"
+    assert snake_to_normal_case("required_status_checks") == "Required Status Checks"
+    assert snake_to_normal_case("required__status_checks") == "Required Status Checks"
 
 
 def test_camel_to_snake_case():

@@ -25,6 +25,7 @@ from otterdog.providers.github.cache.ghproxy import ghproxy_cache
 from otterdog.providers.github.cache.redis import redis_cache
 from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
+from otterdog.webapp.blueprints import Blueprint, read_blueprint
 from otterdog.webapp.policies import Policy, read_policy
 
 logger = getLogger(__name__)
@@ -33,6 +34,7 @@ _OTTERDOG_CONFIG: OtterdogConfig | None = None
 _CREATE_INSTALLATION_TOKEN_LOCK = asyncio.Lock()
 
 _GLOBAL_POLICIES: list[Policy] | None = None
+_GLOBAL_BLUEPRINTS: list[Blueprint] | None = None
 
 
 def get_github_redis_cache(app_config):
@@ -172,7 +174,7 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
         f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
     )
 
-    policies = []
+    policies = {}
 
     async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
         try:
@@ -184,15 +186,68 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
 
         for entry in entries:
             path = entry["path"]
-            if path.endswith((".yml", "yaml")):
+            if is_yaml_file(path):
                 content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
                 try:
-                    policy = read_policy(yaml.safe_load(content))
-                    policies.append(policy)
+                    # TODO: do not hardcode the path to the default branch
+                    policy_path = f"https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{path}"
+                    policy = read_policy(policy_path, yaml.safe_load(content))
+
+                    if policy.type in policies:
+                        logger.error(f"duplicate global policy with type '{policy.type}' in path '{path}', skipping")
+                    else:
+                        policies[policy.type] = policy
                 except (ValueError, RuntimeError) as e:
                     logger.error(f"failed reading global policy from path '{path}'", exc_info=e)
 
-    return policies
+    return list(policies.values())
+
+
+async def refresh_global_blueprints(sha: str | None = None) -> list[Blueprint]:
+    global _GLOBAL_BLUEPRINTS
+    _GLOBAL_BLUEPRINTS = await _load_global_blueprints(sha)
+    return _GLOBAL_BLUEPRINTS
+
+
+async def _load_global_blueprints(ref: str | None = None) -> list[Blueprint]:
+    config_file_owner = current_app.config["OTTERDOG_CONFIG_OWNER"]
+    config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
+    config_file_path = "blueprints"
+
+    logger.info(
+        f"loading global blueprints from url "
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+    )
+
+    blueprints = {}
+
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
+        try:
+            entries = await rest_api.content.get_content_object(
+                config_file_owner, config_file_repo, config_file_path, ref
+            )
+        except RuntimeError:
+            entries = []
+
+        for entry in entries:
+            path = entry["path"]
+            if is_yaml_file(path):
+                content = await rest_api.content.get_content(config_file_owner, config_file_repo, path, ref)
+                try:
+                    # TODO: do not hardcode the path to the default branch
+                    blueprint_path = f"https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{path}"
+                    blueprint = read_blueprint(blueprint_path, yaml.safe_load(content))
+
+                    if blueprint.type in blueprints:
+                        logger.error(
+                            f"duplicate global blueprint with type '{blueprint.type}' in path '{path}', skipping"
+                        )
+                    else:
+                        blueprints[blueprint.type] = blueprint
+                except (ValueError, RuntimeError) as e:
+                    logger.error(f"failed reading global blueprint from path '{path}'", exc_info=e)
+
+    return list(blueprints.values())
 
 
 def get_admin_teams() -> list[str]:
@@ -283,3 +338,7 @@ async def backoff_if_needed(last_event: datetime, required_timeout: timedelta) -
 
 def is_cache_control_enabled() -> bool:
     return bool(current_app.config["CACHE_CONTROL"]) is True
+
+
+def is_yaml_file(path: str) -> bool:
+    return path.endswith((".yml", ".yaml"))

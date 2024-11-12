@@ -8,13 +8,16 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- Editor -->
-  <link rel="stylesheet" href="{{ asset('css/editor.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/highlight.css') }}">
 
   <style>
-    .CodeMirror { font-size: 12px; }
+    pre { padding: 0px; }
+    code { padding: 0px; }
+    pre code.hljs {
+      padding: 0px;
+      font-size: 12px;
+    }
   </style>
-
 {% endblock stylesheets %}
 
 {% block content %}
@@ -131,14 +134,10 @@
                   </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <textarea id="settings-textarea">
-{{ repo_config|pretty_format_model }}
-                    </textarea>
+                    <pre><code class="language-json">{{ repo_config|pretty_format_model }}</code></pre>
                   </div>
                   <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
-                    <textarea id="workflow-settings-textarea">
-{{ repo_config.workflows|pretty_format_model }}
-                    </textarea>
+                    <pre><code class="language-json">{{ repo_config.workflows|pretty_format_model }}</code></pre>
                   </div>
                   <div class="tab-pane" id="secrets" role="tabpanel" aria-labelledby="secrets-tab">
                     <div class="table-responsive p-0">
@@ -244,7 +243,7 @@
                   </div>
                   <div class="tab-pane" id="environments" role="tabpanel" aria-labelledby="environments-tab">
                     <div class="row">
-                      <div class="col-1">
+                      <div class="col-2">
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="environments-tabs" role="tablist" aria-orientation="vertical">
                           {% for env in repo_config.environments %}
                           {% set env_id = 'env-' ~ loop.index %}
@@ -257,9 +256,7 @@
                           {% for env in repo_config.environments %}
                           {% set env_id = 'env-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ env_id }}" role="tabpanel" aria-labelledby="{{ env_id }}-tab">
-                    <textarea id="{{ env_id }}-textarea">
-{{ env|pretty_format_model }}
-                    </textarea>
+                            <pre><code class="language-json">{{ env|pretty_format_model }}</code></pre>
                           </div>
                           {% endfor %}
                         </div>
@@ -268,7 +265,7 @@
                   </div>
                   <div class="tab-pane" id="branch-protection-rules" role="tabpanel" aria-labelledby="branch-protection-rules-tab">
                     <div class="row">
-                      <div class="col-1">
+                      <div class="col-2">
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rules-tabs" role="tablist" aria-orientation="vertical">
                           {% for bpr in repo_config.branch_protection_rules %}
                           {% set id = 'rule-' ~ loop.index %}
@@ -281,9 +278,7 @@
                           {% for bpr in repo_config.branch_protection_rules %}
                           {% set id = 'rule-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                    <textarea id="{{ id }}-textarea">
-{{ bpr|pretty_format_model }}
-                    </textarea>
+                            <pre><code class="language-json">{{ bpr|pretty_format_model }}</code></pre>
                           </div>
                           {% endfor %}
                         </div>
@@ -305,9 +300,7 @@
                           {% for ruleset in repo_config.rulesets %}
                           {% set ruleset_id = 'ruleset-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}" role="tabpanel" aria-labelledby="{{ ruleset_id }}-tab">
-                    <textarea id="{{ ruleset_id }}-textarea">
-{{ ruleset|pretty_format_model }}
-                    </textarea>
+                            <pre><code class="language-json">{{ ruleset|pretty_format_model }}</code></pre>
                           </div>
                           {% endfor %}
                         </div>
@@ -332,9 +325,9 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
-  <script type="module">
-    import {createJavascriptEditor} from '{{ asset('js/editor.js') }}';
+  <script type="module" src="{{ asset('js/highlight.js') }}"></script>
 
+  <script type="module">
     $(document).ready(function() {
       enableTabFromHash();
 
@@ -372,60 +365,5 @@
       // `this` is the clicked <a> tag
       $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
     });
-
-    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-      switch (e.target.id){
-        case "settings-tab": {
-           enableEditor('#settings-textarea')
-           break;
-        }
-        case "workflow-settings-tab": {
-           enableEditor('#workflow-settings-textarea')
-           break;
-        }
-        case "environments-tab": {
-           var selector = "#env-1-textarea";
-           var target = $(selector).get(0);
-           if (target != null) {
-             enableEditor(selector);
-           }
-           break;
-        }
-        case "branch-protection-rules-tab": {
-           var selector = "#rule-1-textarea";
-           var target = $(selector).get(0);
-           if (target != null) {
-             enableEditor(selector);
-           }
-           break;
-        }
-        case "rulesets-tab": {
-           var selector = "#ruleset-1-textarea";
-           var target = $(selector).get(0);
-           if (target != null) {
-             enableEditor(selector);
-           }
-           break;
-        }
-        default: {
-           var selector = '#'.concat(e.target.id.replace(/-tab/, ''), '-textarea');
-           enableEditor(selector);
-           break;
-        }
-      }
-    });
-
-    function enableEditor(selector) {
-      if ($(selector).length == 0) {
-        return;
-      }
-
-      var editor = $(selector).next('.CodeMirror').get(0);
-      if (editor == null) {
-        editor = createJavascriptEditor($(selector).get(0));
-        editor.setSize(null, 770);
-      }
-    };
   </script>
-
 {% endblock javascripts %}

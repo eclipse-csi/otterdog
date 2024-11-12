@@ -123,10 +123,10 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                         await self._update_final_status(commit_status[0]["state"] == "success")
                         return False
 
-        latest_sync_or_apply_task = await get_latest_sync_task_for_organization(self.org_id, self.repo_name)
+        latest_sync_task = await get_latest_sync_task_for_organization(self.org_id, self.repo_name)
         # to avoid secondary rate limit failures, backoff at least 1 min before running another sync task
-        if latest_sync_or_apply_task is not None:
-            await backoff_if_needed(latest_sync_or_apply_task.created_at, timedelta(minutes=1))
+        if latest_sync_task is not None:
+            await backoff_if_needed(latest_sync_task.created_at, timedelta(minutes=1))
 
         await self._create_pending_status()
 
