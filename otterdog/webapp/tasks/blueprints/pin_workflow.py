@@ -125,7 +125,7 @@ class PinWorkflowTask(BlueprintTask):
             if comment is not None and "ignore" in comment:
                 return m.group(0)
 
-            pinned_action_with_comment = pinned_actions[unpinned_action]
+            pinned_action_with_comment = pinned_actions.get(unpinned_action)
             if pinned_action_with_comment is not None:
                 return prefix + pinned_action_with_comment
             else:
