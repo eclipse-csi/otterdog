@@ -26,6 +26,17 @@ class ReferenceClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving reference:\n{ex}") from ex
 
+    async def get_matching_references(self, org_id: str, repo_name: str, ref_pattern: str) -> list[dict[str, Any]]:
+        print_debug(f"getting matching references with pattern '{ref_pattern}' from repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_json(
+                "GET",
+                f"/repos/{org_id}/{repo_name}/git/matching-refs/{ref_pattern}",
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving matching references for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
     async def create_reference(self, org_id: str, repo_name: str, ref: str, sha: str) -> str:
         print_debug(f"creating reference with name '{ref}' and sha '{sha}' for repo '{org_id}/{repo_name}'")
 

@@ -68,6 +68,7 @@ pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.35.1
 pypi/pypi/-/requests/2.32.3
 pypi/pypi/-/rpds-py/0.20.1
+pypi/pypi/-/semver/3.0.2
 pypi/pypi/-/six/1.16.0
 pypi/pypi/-/smmap/5.0.1
 pypi/pypi/-/sniffio/1.3.1
