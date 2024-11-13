@@ -1,7 +1,7 @@
 bind = "0.0.0.0:5000"
 workers = 1
 accesslog = '-'
-loglevel = 'info'
+loglevel = 'debug'
 h11_max_incomplete_size = 4
 use_reloader = true
 debug = true

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added new blueprint `pin_workflow` to used GitHub actions in workflows.
 - Added a new operation `list-advisories` to list GitHub Security Advisories for organizations.
 
 ### Changed

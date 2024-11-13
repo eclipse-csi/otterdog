@@ -74,6 +74,7 @@ nav:
     - Blueprints:
         - reference/blueprints/index.md
         - Required File: reference/blueprints/required-file.md
+        - Pin Workflow: reference/blueprints/pin-workflow.md
     - CLI Operations:
         - reference/operations/index.md
         - Apply: reference/operations/apply.md

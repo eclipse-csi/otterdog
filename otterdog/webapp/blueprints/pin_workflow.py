@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
 from quart import current_app
 
 from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
@@ -19,19 +18,12 @@ if TYPE_CHECKING:
     from otterdog.models.repository import Repository
 
 
-class RequiredFile(BaseModel):
-    path: str
-    content: str
-    strict: bool = False
-
-
-class RequiredFileBlueprint(Blueprint):
+class PinWorkflowBlueprint(Blueprint):
     repo_selector: RepoSelector | None = None
-    files: list[RequiredFile]
 
     @property
     def type(self) -> BlueprintType:
-        return BlueprintType.REQUIRED_FILE
+        return BlueprintType.PIN_WORKFLOW
 
     def _matches(self, repo: Repository) -> bool:
         if self.repo_selector is None:
@@ -40,10 +32,10 @@ class RequiredFileBlueprint(Blueprint):
             return self.repo_selector.matches(repo)
 
     async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None:
-        from otterdog.webapp.tasks.blueprints.check_files import CheckFilesTask
+        from otterdog.webapp.tasks.blueprints.pin_workflow import PinWorkflowTask
 
         current_app.add_background_task(
-            CheckFilesTask(
+            PinWorkflowTask(
                 installation_id,
                 github_id,
                 repo_name,

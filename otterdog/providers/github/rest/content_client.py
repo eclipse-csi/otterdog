@@ -19,6 +19,13 @@ class ContentClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
+    async def get_contents(
+        self, org_id: str, repo_name: str, path: str, ref: str | None = None
+    ) -> list[dict[str, Any]]:
+        json_response = await self.get_content_object(org_id, repo_name, path, ref)
+        assert isinstance(json_response, list)
+        return json_response
+
     async def get_content_object(
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> dict[str, Any] | list[dict]:

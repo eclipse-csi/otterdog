@@ -861,3 +861,12 @@ async def cleanup_blueprints_status_of_owner(owner: str, valid_ids: list[str]) -
         BlueprintStatusModel.id.org_id == owner,
         query.not_in(BlueprintStatusModel.id.blueprint_id, valid_ids),
     )
+
+
+async def cleanup_blueprint_status_of_repo(owner: str, repo_name: str, blueprint_id: str) -> None:
+    await mongo.odm.remove(
+        BlueprintStatusModel,
+        BlueprintStatusModel.id.org_id == owner,
+        BlueprintStatusModel.id.repo_name == repo_name,
+        BlueprintStatusModel.id.blueprint_id == blueprint_id,
+    )

@@ -630,6 +630,14 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed getting branches for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+    async def get_tags(self, org_id: str, repo_name: str) -> list[dict[str, Any]] | None:
+        print_debug(f"retrieving tags for repo '{org_id}/{repo_name}'")
+
+        try:
+            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/tags")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting tags for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
     async def get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         print_debug(f"retrieving environments for repo '{org_id}/{repo_name}'")
 
@@ -732,8 +740,8 @@ class RepoClient(RestClient):
         print_debug(f"creating deployment branch policy for env '{env_name}' with type/name '{name_and_type}")
 
         try:
-            type, name = name_and_type.split(":", 1)
-            data = {"name": name, "type": type}
+            target_type, name = name_and_type.split(":", 1)
+            data = {"name": name, "type": target_type}
             url = f"/repos/{org_id}/{repo_name}/environments/{env_name}/deployment-branch-policies"
             await self.requester.request_json("POST", url, data)
             print_debug(f"created deployment branch policy for env '{env_name}'")
