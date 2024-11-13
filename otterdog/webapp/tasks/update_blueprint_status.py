@@ -56,7 +56,8 @@ class UpdateBlueprintStatusTask(InstallationBasedTask, Task[None]):
                 blueprint_status.status = BlueprintStatus.REMEDIATION_PREPARED
             else:
                 if self.pull_request.merged is True:
-                    blueprint_status.status = BlueprintStatus.SUCCESS
+                    blueprint_status.status = BlueprintStatus.RECHECK
+                    blueprint_status.remediation_pr = None
                 elif self.pull_request.merged is False:
                     blueprint_status.status = BlueprintStatus.DISMISSED
                     await self._add_comment_to_pr(blueprint_status.id.blueprint_id)

@@ -185,6 +185,7 @@ class BlueprintStatus(str, Enum):
     FAILURE = "failure"
     REMEDIATION_PREPARED = "remediation_prepared"
     DISMISSED = "dismissed"
+    RECHECK = "recheck"
 
     def __str__(self) -> str:
         return self.name

@@ -72,6 +72,7 @@ class Blueprint(ABC, BaseModel):
                     blueprint_status_model = await find_blueprint_status(github_id, repo.name, self.id)
                     if blueprint_status_model is not None and blueprint_status_model.status not in (
                         BlueprintStatus.NOT_CHECKED,
+                        BlueprintStatus.RECHECK,
                         BlueprintStatus.FAILURE,
                     ):
                         continue
