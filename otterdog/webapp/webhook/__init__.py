@@ -260,7 +260,7 @@ async def on_push_received(data):
             blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
             if blueprint_model is not None:
                 blueprint_instance = create_blueprint_from_model(blueprint_model)
-                await blueprint_instance.evaluate(installation_id, org_id)
+                await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
 
         if not await targets_config_repo(repo_name, installation_id):
             return success()
