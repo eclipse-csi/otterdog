@@ -27,6 +27,7 @@
     "marked": "^15.0.0"
   },
   "overrides": {
-    "summernote": "^0.9.1"
+    "summernote": "^0.9.1",
+    "sweetalert2": "../_EXCLUDED_"
   }
 }
