@@ -28,6 +28,9 @@
   },
   "overrides": {
     "summernote": "^0.9.1",
-    "sweetalert2": "../_EXCLUDED_"
+    "bootstrap-switch": {
+      "bootstrap": "^4.6.2"
+    },
+    "sweetalert2": "npm:dry-uninstall"
   }
 }
