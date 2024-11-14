@@ -93,9 +93,9 @@ def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:
         content["type"],
         content["id"],
         path,
-        content["name"],
+        content.get("name"),
         content.get("description"),
-        content["config"] if content["config"] is not None else {},
+        content["config"] if content.get("config") is not None else {},
     )
 
 
