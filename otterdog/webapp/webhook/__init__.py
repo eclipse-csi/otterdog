@@ -245,15 +245,15 @@ async def on_push_received(data):
         logger.error("failed to load push event data", exc_info=True)
         return success()
 
-    installation_id = event.installation.id
-    org_id = event.organization.login
-    repo_name = event.repository.name
-
     # check if the push targets the default branch of the config repo of an installation,
     # in such a case, update the current config in the database
     if event.installation is not None and event.organization is not None:
         if event.ref != f"refs/heads/{event.repository.default_branch}":
             return success()
+
+        installation_id = event.installation.id
+        org_id = event.organization.login
+        repo_name = event.repository.name
 
         # check any blueprint that matches the repo that just got a new push on the default branch
         for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
