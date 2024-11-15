@@ -16,7 +16,7 @@ ARG version
 
 RUN apt-get update \
     && apt-get install -y \
-        golang gcc patch
+        gcc patch
 
 WORKDIR /app
 
