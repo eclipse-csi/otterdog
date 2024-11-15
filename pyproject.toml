@@ -31,6 +31,7 @@ classifiers   = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
@@ -88,6 +89,7 @@ mypy       = "^1.8"
 pre-commit = "^4.0"
 
 [tool.poetry.group.test.dependencies]
+tox            = ">4.22"
 pytest         = "^8.0"
 pytest-asyncio = "^0.24"
 parameterized  = "^0.9"
@@ -143,6 +145,8 @@ log_cli_level       = "INFO"
 log_cli_format      = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
+asyncio_default_fixture_loop_scope="function"
+
 [tool.mypy]
 python_version = "3.11"
 exclude        = ["scripts", "docs", "tests"]
@@ -181,3 +185,14 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/db/models.py" = ["UP007", "TCH003"] # new optional spec is not yet supported by odmantic
 "**/webhook/github_models.py" = ["TCH003"]
+
+[tool.tox]
+requires = ["tox>=4.22"]
+env_list = ["3.11", "3.12", "3.13"]
+
+[tool.tox.env_run_base]
+description = "Run tests under {base_python}"
+skip_install = true
+allowlist_externals = ["poetry"]
+commands_pre = [["poetry", "install", "--without", "dev,typing,docs"]]
+commands = [["poetry", "run", "pytest", "tests/", "--import-mode", "importlib"]]
