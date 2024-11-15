@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for a `post-add-objects` hook in the default configuration that gets executed after resources have been added. ([#318](https://github.com/eclipse-csi/otterdog/issues/318))
 - Added new blueprint `pin_workflow` to used GitHub actions in workflows.
 - Added a new operation `list-advisories` to list GitHub Security Advisories for organizations.
 
