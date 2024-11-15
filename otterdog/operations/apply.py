@@ -63,7 +63,7 @@ class ApplyOperation(PlanOperation):
         parent_object: ModelObject | None = None,
     ) -> None:
         super().handle_add_object(org_id, model_object, parent_object)
-        self.execute_custom_hook_if_present(self.org_config, model_object, "pre-add-object-hook.py")
+        self.execute_custom_hook_if_present_with_model_object(self.org_config, model_object, "pre-add-object-hook.py")
 
     def handle_delete_object(
         self,
@@ -144,10 +144,24 @@ class ApplyOperation(PlanOperation):
             f"{diff_status.deletions} {delete_snippet}."
         )
 
+        add_patches = list(filter(lambda x: x.patch_type == LivePatchType.ADD, patches))
+        if len(add_patches) > 0:
+            self.execute_custom_hook_if_present_with_patches(self.org_config, add_patches, "post-add-objects-hook.py")
+
         return errors
 
-    def execute_custom_hook_if_present(
+    def execute_custom_hook_if_present_with_model_object(
         self, org_config: OrganizationConfig, model_object: ModelObject, filename: str
+    ) -> None:
+        import os
+
+        hook_script = os.path.join(self.template_dir, filename)
+        if os.path.exists(hook_script):
+            with open(hook_script) as file:
+                exec(file.read())
+
+    def execute_custom_hook_if_present_with_patches(
+        self, org_config: OrganizationConfig, patches: list[LivePatch], filename: str
     ) -> None:
         import os
 

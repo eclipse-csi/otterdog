@@ -95,21 +95,32 @@ def print_error(msg: str, printer: TextIO = sys.stdout) -> None:
     _print_message(msg, "red", "Error", printer)
 
 
-def _print_message(msg: str, color: str, level: str, printer: TextIO) -> None:
-    printer.write(style("╷\n", fg=color))
+def _print_message(msg: str, color: str, level: str, printer: TextIO, custom_prefix: str | None = None) -> None:
+    if custom_prefix is None:
+        printer.write(style("╷\n", fg=color))
 
     lines = msg.splitlines()
-    level_prefix = style(f"│ {level}:", fg=color)
+    if custom_prefix is None:
+        level_prefix = style(f"│ {level}:", fg=color)
+    else:
+        level_prefix = style(f"{custom_prefix} {level}:", fg=color)
 
     if len(lines) > 1:
         printer.write(f"{level_prefix} {lines[0]}\n")
-        printer.write(style("│\n", fg=color))
+        if custom_prefix is None:
+            printer.write(style("│\n", fg=color))
         for line in lines[1:]:
-            printer.write(f"{style('│', fg=color)}    {line}\n")
+            if custom_prefix is None:
+                printer.write(f"{style('│', fg=color)}    {line}\n")
+            else:
+                printer.write(f"{style(custom_prefix, fg=color)}    {line}\n")
     else:
         printer.write(f"{level_prefix} {msg}\n")
 
-    printer.write(style("╵\n", fg=color))
+    if custom_prefix is False:
+        printer.write(style("╵\n", fg=color))
+    else:
+        printer.write("\n")
 
 
 class _Unset:
@@ -302,7 +313,12 @@ class LogLevel(Enum):
 
 class IndentingPrinter:
     def __init__(
-        self, writer: TextIO, initial_offset: int = 0, spaces_per_level: int = 2, log_level: LogLevel = LogLevel.GLOBAL
+        self,
+        writer: TextIO,
+        initial_offset: int = 0,
+        spaces_per_level: int = 2,
+        log_level: LogLevel = LogLevel.GLOBAL,
+        output_for_github: bool = False,
     ):
         self._writer = writer
         self._initial_offset = " " * initial_offset
@@ -310,6 +326,7 @@ class IndentingPrinter:
         self._spaces_per_level = spaces_per_level
         self._indented_line = False
         self._log_level = log_level
+        self._output_for_github = output_for_github
 
     @property
     def spaces_per_level(self) -> int:
@@ -358,18 +375,18 @@ class IndentingPrinter:
 
     def print_info(self, msg: str) -> None:
         if self._is_logging_enabled(1, is_info_enabled):
-            _print_message(msg, "green", "Info", self._writer)
+            _print_message(msg, "green", "Info", self._writer, "+" if self._output_for_github else None)
 
     def is_info_enabled(self) -> bool:
         return self._is_logging_enabled(1, is_info_enabled)
 
     def print_warn(self, msg: str) -> None:
         if self._is_logging_enabled(2, lambda: True):
-            _print_message(msg, "yellow", "Warning", self._writer)
+            _print_message(msg, "yellow", "Warning", self._writer, "!" if self._output_for_github else None)
 
     def print_error(self, msg: str) -> None:
         if self._is_logging_enabled(3, lambda: True):
-            _print_message(msg, "red", "Error", self._writer)
+            _print_message(msg, "red", "Error", self._writer, "-" if self._output_for_github else None)
 
     def level_up(self) -> None:
         self._level += 1

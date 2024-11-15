@@ -179,7 +179,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             )
 
             output = StringIO()
-            printer = IndentingPrinter(output, log_level=LogLevel.WARN)
+            printer = IndentingPrinter(output, log_level=LogLevel.WARN, output_for_github=True)
 
             # let's create an apply operation that forces processing but does not update
             # any web UI settings and resources using credentials
