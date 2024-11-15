@@ -26,7 +26,6 @@ pypi/pypi/-/frozenlist/1.5.0
 pypi/pypi/-/gitdb/4.0.11
 pypi/pypi/-/github-flask/3.2.0
 pypi/pypi/-/gitpython/3.1.43
-pypi/pypi/-/gojsonnet/0.20.0
 pypi/pypi/-/graphql-core/3.2.5
 pypi/pypi/-/greenlet/3.1.1
 pypi/pypi/-/h11/0.14.0
@@ -67,6 +66,7 @@ pypi/pypi/-/quart-redis/2.0.0
 pypi/pypi/-/redis/4.6.0
 pypi/pypi/-/referencing/0.35.1
 pypi/pypi/-/requests/2.32.3
+pypi/pypi/-/rjsonnet/0.5.4
 pypi/pypi/-/rpds-py/0.20.1
 pypi/pypi/-/semver/3.0.2
 pypi/pypi/-/six/1.16.0

@@ -391,23 +391,23 @@ async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
 
 
 def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
-    import _gojsonnet  # type: ignore
+    import rjsonnet
 
     print_trace(f"evaluating jsonnet file {file}")
 
     try:
-        return json.loads(_gojsonnet.evaluate_file(file))
+        return json.loads(rjsonnet.evaluate_file(file))
     except Exception as ex:
         raise RuntimeError(f"failed to evaluate jsonnet file: {ex!s}") from ex
 
 
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
-    import _gojsonnet  # type: ignore
+    import rjsonnet
 
     print_trace(f"evaluating jsonnet snippet {snippet}")
 
     try:
-        return json.loads(_gojsonnet.evaluate_snippet("", snippet))
+        return json.loads(rjsonnet.evaluate_snippet("", snippet))
     except Exception as ex:
         raise RuntimeError(f"failed to evaluate snippet: {ex!s}") from ex
 

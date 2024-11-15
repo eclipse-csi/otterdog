@@ -859,16 +859,6 @@ doc = ["sphinx (==4.3.2)", "sphinx-autodoc-typehints", "sphinx-rtd-theme", "sphi
 test = ["coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre-commit", "pytest (>=7.3.1)", "pytest-cov", "pytest-instafail", "pytest-mock", "pytest-sugar", "typing-extensions"]
 
 [[package]]
-name = "gojsonnet"
-version = "0.20.0"
-description = "Python bindings for Jsonnet - The data templating language"
-optional = false
-python-versions = "*"
-files = [
-    {file = "gojsonnet-0.20.0.tar.gz", hash = "sha256:9aede3b5734dee1c99dbec75dee3b086baaae92bd262d93f9217e21bf19c9682"},
-]
-
-[[package]]
 name = "graphql-core"
 version = "3.2.5"
 description = "GraphQL implementation for Python, a port of GraphQL.js, the JavaScript reference implementation for GraphQL."
@@ -2549,6 +2539,30 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "rjsonnet"
+version = "0.5.4"
+description = "Python bindings to Rust jrsonnet crate"
+optional = false
+python-versions = "*"
+files = [
+    {file = "rjsonnet-0.5.4-cp37-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:fca45e06abbabf4c6b1f8ec9821e5be355687cbb1e73fbad5ce68c94a66a2154"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-macosx_10_12_x86_64.whl", hash = "sha256:97f55f4eb611aaa05f73eb93f318e5d15a7838849be0044adbba0c5bacc575e7"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a0eb4ab241206829955108c44d810342f1c19f447a4d7c44a49374e96770c08b"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:a8a2e51d319919eb480407fa98a098bec337035d9786c19b03a2b60735433a0e"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:e47beb353e4300d67f90803845e83be392346ece0b398dccd15b7576ee1c38db"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:044062aeb90bfc1e205e76d1312c010f4ef02ffed0c7e2a7bb0e78388e676c90"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c8d59ad043680b9984ae0328a64b63348f7ff366d1c439117d2c61e2c15c1869"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:10671a6b58a81da38cb9ae123fb0f9d0c444abdc2d82840465fd72ab09599cbf"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:1f4af448bf566880d9072eff10171c34374cdce104046fba601532ad11605f44"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:5044a082187f4172b7df36fa51c15ea87431dcd67260e1b8b8356684698c310e"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-musllinux_1_2_i686.whl", hash = "sha256:58b8e058f103010debedc2ded3f957abf63942d08c82c2af69ad736cc28836d5"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b71a0d25380b58c5e0bab0d98afdba19c7351fa7d2f5729b90d7e41759f3f4ae"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-win32.whl", hash = "sha256:e8449c8d3636f571854a158c6f6e1308a6e3adfab393f265e0f91950fd9fcd9b"},
+    {file = "rjsonnet-0.5.4-cp37-abi3-win_amd64.whl", hash = "sha256:c28f8405e1a9226ba5c03b0802cf3357cb7ac97ef90417fb2f337671a023d3ce"},
+    {file = "rjsonnet-0.5.4.tar.gz", hash = "sha256:4e32a8fff9400a9c7df8d8595f2986e86e5bac3544a8eeb70c2630bb16839df6"},
+]
+
+[[package]]
 name = "rpds-py"
 version = "0.20.1"
 description = "Python bindings to Rust's persistent data structures (rpds)"
@@ -3109,4 +3123,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11, <4.0"
-content-hash = "078cdd28398d45acf62210a722e050781c05e3959ea1bb2587ff062684ace2e9"
+content-hash = "75852fe5027e0407baae40fd9fad1aa9f0bd3c3f9717e5dad96d3108b6853876"
