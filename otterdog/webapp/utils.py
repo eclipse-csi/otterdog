@@ -37,6 +37,10 @@ _GLOBAL_POLICIES: list[Policy] | None = None
 _GLOBAL_BLUEPRINTS: list[Blueprint] | None = None
 
 
+def get_project_base_url():
+    return current_app.config["PROJECTS_BASE_URL"]
+
+
 def get_github_redis_cache(app_config):
     return redis_cache(app_config["REDIS_URI"], get_redis())
 

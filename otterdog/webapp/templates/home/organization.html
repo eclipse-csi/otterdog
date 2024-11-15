@@ -101,15 +101,21 @@
                             <div class="card-body">
                               <ul class="nav flex-column">
                                 <li class="nav-item">
-                                  <a href="#" class="nav-link">
+                                  <a href="{{ project_url }}" class="nav-link" target="_blank">
                                     Project
                                     <span class="float-right">{{ project_name }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="https://github.com/{{ github_id }}" class="nav-link">
+                                  <a href="https://github.com/{{ github_id }}" class="nav-link" target="_blank">
                                     GitHub Org
                                     <span class="float-right">{{ github_id }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="{{ base_template.url }}" class="nav-link" target="_blank">
+                                    Default Config
+                                    <span class="float-right">{{ base_template.ref }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">

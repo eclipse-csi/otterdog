@@ -41,7 +41,7 @@ from otterdog.webapp.db.service import (
     get_tasks,
 )
 from otterdog.webapp.tasks import get_organization_config
-from otterdog.webapp.utils import get_temporary_base_directory
+from otterdog.webapp.utils import get_project_base_url, get_temporary_base_directory
 
 from . import blueprint
 
@@ -192,9 +192,10 @@ async def organization_catch_all_redirect(org_name: str, subpath: str):
 
 @blueprint.route("/projects/<project_name>")
 async def project(project_name: str):
+    installation = await get_installation_by_project_name(project_name)
     config = await get_configuration_by_project_name(project_name)
 
-    if config is None:
+    if config is None or installation is None:
         return await render_template("home/page-404.html"), 404
 
     from otterdog.models.github_organization import GitHubOrganization
@@ -212,10 +213,23 @@ async def project(project_name: str):
         status_list = blueprints_status.setdefault(blueprint_id, [])
         status_list.append(status.model_dump())
 
+    template = installation.base_template
+    template_ref = "N/A"
+    if template is not None:
+        components = template.rsplit("@", 1)
+        if len(components) == 2:
+            template_ref = components[1]
+    else:
+        template = "#"
+
+    base_template = {"url": template, "ref": template_ref}
+
     return await render_home_template(
         "organization.html",
+        project_url=get_project_base_url() + config.project_name,
         project_name=config.project_name,
         github_id=config.github_id,
+        base_template=base_template,
         config=github_organization,
         policies=policies,
         policies_status=policies_status,

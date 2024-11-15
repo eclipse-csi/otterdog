@@ -52,6 +52,8 @@ class AppConfig:
     GITHUB_APP_ID = config("GITHUB_APP_ID")
     GITHUB_APP_PRIVATE_KEY = config("GITHUB_APP_PRIVATE_KEY")
 
+    PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
+
 
 class ProductionConfig(AppConfig):
     DEBUG = False
