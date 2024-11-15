@@ -41,7 +41,7 @@ class Requester:
         self._cache_strategy = cache_strategy
 
         if self._cache_strategy.is_external():
-            self._base_url = f"http://{base_url}"
+            self._base_url = cache_strategy.replace_base_url(f"https://{base_url}")
             self._session = ClientSession()
         else:
             self._base_url = f"https://{base_url}"

@@ -24,5 +24,8 @@ class CacheStrategy(ABC):
     @abstractmethod
     def is_external(self) -> bool: ...
 
+    def replace_base_url(self, base_url: str) -> str:
+        return base_url
+
     @abstractmethod
     def get_request_parameters(self) -> dict[str, Any]: ...

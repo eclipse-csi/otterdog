@@ -40,7 +40,7 @@ class GraphQLClient:
         self._cache_strategy = cache_strategy
 
         if cache_strategy is not None and cache_strategy.is_external():
-            self._base_url = f"http://{self._GH_GRAPHQL_URL_ROOT}"
+            self._base_url = cache_strategy.replace_base_url(f"https://{self._GH_GRAPHQL_URL_ROOT}")
             self._use_proxy = True
         else:
             self._base_url = f"https://{self._GH_GRAPHQL_URL_ROOT}"

@@ -22,7 +22,9 @@ def ghproxy_cache(uri: str) -> CacheStrategy:
 
 class _GHProxy(CacheStrategy):
     def __init__(self, proxy_uri: str):
-        self._proxy_uri = proxy_uri
+        from urllib import parse
+
+        self._proxy_uri = parse.urlparse(proxy_uri)
 
     def get_cache_backend(self) -> None:
         return None
@@ -30,8 +32,14 @@ class _GHProxy(CacheStrategy):
     def is_external(self) -> bool:
         return True
 
+    def replace_base_url(self, base_url: str) -> str:
+        from urllib import parse
+
+        url = parse.urlparse(base_url)
+        return parse.urlunparse(self._proxy_uri._replace(path=url.path))
+
     def get_request_parameters(self) -> dict[str, Any]:
-        return {"proxy": self._proxy_uri, "ssl": False}
+        return {}
 
     def __str__(self):
         return f"ghproxy-cache('{self._proxy_uri}')"
