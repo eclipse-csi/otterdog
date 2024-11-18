@@ -32,6 +32,34 @@ The pattern is expected to be in [python regular expression format](https://docs
 | content | mandatory  | string     | the content of the file                                                                                   |
 | strict  | optional   | boolean    | if `false` (default), the file will be only checked for existence, otherwise the content will be compared |
 
+### Templating
+
+It is possible to use [Mustache](https://mustache.github.io/) logic-less templates within the content of a blueprint.
+
+To use a context variable, simply enclose its name in curly braces:
+
+```yaml
+  This is an example to use mustache template for repo: {{repo_name}}
+```
+
+In this example, `{{repo_name}}` will be replaced with the actual name of the repository being processed. For more complex examples please refer
+to the [mustache documentation](https://mustache.github.io/mustache.5.html).
+
+
+#### Template Context
+
+The following context is injected during template evaluation when a specific repository is being processed:
+
+| Variable      | Type   | Description                                                                                                                   |
+|---------------|--------|-------------------------------------------------------------------------------------------------------------------------------|
+| project_name  | string | the project name of the associated GitHub organization, e.g. `technology.csi`                                                 |
+| github_id     | string | the name of the associated GitHub organization                                                                                |
+| repo_name     | string | the name of the repository being processed                                                                                    |
+| org           | dict   | the [organization settings](../organization/settings.md) for the associated GitHub organization                               |
+| repo          | dict   | the [repository settings](../organization/repository/index.md) for the repository being processed                             |
+| repo_url      | string | the url of the repository being processed, e.g. `https://github.com/eclipse-csi/otterdog`                                     |
+| blueprint_url | string | the url of the associated blueprint, e.g. `https://github.com/eclipse-csi/.eclipsefdn/blob/main/otterdog/blueprints/test.yml` |
+
 ## Example
 
 In this example a workflow file `.github/workflows/dependabot-auto-merge.yml` should be present in a set of repositories matching the configured content.
@@ -48,6 +76,7 @@ config:
   files:
     - path: .github/workflows/dependabot-auto-merge.yml
       content: |
+        # This is a templated file from {{blueprint_url}} for {{repo_name}}
         name: Dependabot auto-merge
         on: pull_request_target
 
@@ -58,7 +87,7 @@ config:
             permissions:
               contents: write
               pull-requests: write
-            uses: adoptium/.github/.github/workflows/dependabot-auto-merge.yml@main
+            uses: {{github_id}}/.github/.github/workflows/dependabot-auto-merge.yml@main
       # ensure that changes to the template are propagated
       strict: true
 ```
