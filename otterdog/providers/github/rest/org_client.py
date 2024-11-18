@@ -159,8 +159,12 @@ class OrgClient(RestClient):
 
         webhooks = await self.get_webhooks(org_id)
 
+        has_wildcard_url = url.endswith("*")
+        stripped_url = url.rstrip("*")
+
         for webhook in webhooks:
-            if webhook["config"]["url"] == url:
+            webhook_url = webhook["config"]["url"]
+            if has_wildcard_url is True and webhook_url.startswith(stripped_url) or webhook_url == url:
                 return webhook["id"]
 
         raise RuntimeError(f"failed to find org webhook with url '{url}'")
