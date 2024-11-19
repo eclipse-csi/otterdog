@@ -16,7 +16,6 @@ from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
-import jsonschema
 from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 
@@ -132,10 +131,23 @@ class GitHubOrganization:
 
     @staticmethod
     def _validate_org_config(data: dict[str, Any]) -> None:
+        from jsonschema import Draft202012Validator
+        from referencing import Registry, Resource
+        from referencing.exceptions import NoSuchResource
+
         with as_file(files(resources).joinpath("schemas")) as resource_dir:
-            schema_root = resource_dir.as_uri()
-            resolver = jsonschema.validators.RefResolver(base_uri=f"{schema_root}/", referrer=data)
-            jsonschema.validate(instance=data, schema=_ORG_SCHEMA, resolver=resolver)
+
+            def retrieve_from_filesystem(uri: str):
+                path = resource_dir.joinpath(uri)
+                if not path.exists():
+                    raise NoSuchResource(ref=uri)  # type: ignore
+
+                contents = json.loads(path.read_text())
+                return Resource.from_contents(contents)
+
+            registry = Registry(retrieve=retrieve_from_filesystem)  # type: ignore
+            validator = Draft202012Validator(_ORG_SCHEMA, registry=registry)
+            validator.validate(data)
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None

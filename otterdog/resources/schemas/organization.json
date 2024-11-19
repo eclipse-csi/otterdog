@@ -1,5 +1,5 @@
 {
-  "$id": "organization.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
@@ -16,6 +16,10 @@
     "variables": {
       "type": "array",
       "items": { "$ref": "org-variable.json" }
+    },
+    "rulesets": {
+      "type": "array",
+      "items": { "$ref": "org-ruleset.json" }
     },
     "repositories": {
       "type": "array",

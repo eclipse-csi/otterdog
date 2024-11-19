@@ -1,8 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
 
-  "$ref": "variable.json",
+  "$ref": "ruleset.json",
   "type": "object",
-  "required": [ "name", "value" ],
+  "properties": {
+  },
+  "required": [ "name", "enforcement" ],
   "unevaluatedProperties": false
 }

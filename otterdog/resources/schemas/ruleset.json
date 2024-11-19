@@ -1,5 +1,5 @@
 {
-  "$id": "repository-ruleset.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
@@ -30,7 +30,7 @@
     "requires_commit_signatures": { "type": "boolean" },
     "requires_linear_history": { "type": "boolean" },
 
-    "required_pull_request": { "$ref": "#/definitions/pull_request_or_null" },
+    "required_pull_request": { "$ref": "#/$defs/pull_request_or_null" },
 
     "requires_deployments": { "type":  "boolean" },
     "required_deployment_environments": {
@@ -38,14 +38,11 @@
       "items": { "type": "string" }
     },
 
-    "required_status_checks": { "$ref": "#/definitions/status_check_or_null" },
-    "required_merge_queue": { "$ref": "#/definitions/merge_queue_or_null" }
+    "required_status_checks": { "$ref": "#/$defs/status_check_or_null" },
+    "required_merge_queue": { "$ref": "#/$defs/merge_queue_or_null" }
   },
 
-  "required": [ "name", "enforcement" ],
-  "additionalProperties": false,
-
-  "definitions": {
+  "$defs": {
     "integer_or_null": {
       "anyOf": [
           { "type": "integer" },
@@ -54,7 +51,7 @@
     },
     "pull_request_or_null": {
       "anyOf": [
-          { "$ref": "#/definitions/pull_request" },
+          { "$ref": "#/$defs/pull_request" },
           { "type": "null" }
         ]
     },
@@ -71,7 +68,7 @@
     },
     "status_check_or_null": {
       "anyOf": [
-          { "$ref": "#/definitions/status_check" },
+          { "$ref": "#/$defs/status_check" },
           { "type": "null" }
         ]
     },
@@ -89,7 +86,7 @@
     },
     "merge_queue_or_null": {
       "anyOf": [
-          { "$ref": "#/definitions/merge_queue" },
+          { "$ref": "#/$defs/merge_queue" },
           { "type": "null" }
         ]
     },
