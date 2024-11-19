@@ -17,7 +17,8 @@
 
 ### Fixed
 
-- Fixed updating or deleting webhooks with wildcard patterns via the `local-apply` operations. ([#325](https://github.com/eclipse-csi/otterdog/issues/325))
+- Fixed exclusion of settings that can only be accessed via the Web UI in the `local-apply` operation. ([#330](https://github.com/eclipse-csi/otterdog/issues/330))
+- Fixed updating or deleting webhooks with wildcard patterns via the `local-apply` operation. ([#325](https://github.com/eclipse-csi/otterdog/issues/325))
 - Fixed importing of `rulesets` due to missing handling of embedded model object `required_status_checks`.
 - Changing setting `squash_merge_commit_message` also requires that setting `squash_merge_commit_title` is present in the payload sent to GitHub.
 

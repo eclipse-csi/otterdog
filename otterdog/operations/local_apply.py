@@ -74,4 +74,9 @@ class LocalApplyOperation(ApplyOperation):
         if not await ospath.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-        return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)
+        github_organization = GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)
+
+        if self.no_web_ui is True:
+            github_organization.unset_settings_requiring_web_ui()
+
+        return github_organization

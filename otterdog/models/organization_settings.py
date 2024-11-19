@@ -23,6 +23,7 @@ from otterdog.models import (
     PatchContext,
     ValidationContext,
 )
+from otterdog.providers.github import is_org_settings_key_retrieved_via_web_ui
 from otterdog.utils import (
     UNSET,
     Change,
@@ -174,6 +175,11 @@ class OrganizationSettings(ModelObject):
         from otterdog.providers.github import is_org_settings_key_retrieved_via_web_ui
 
         return any(is_org_settings_key_retrieved_via_web_ui(key) for key in changes)
+
+    def unset_settings_requiring_web_ui(self) -> None:
+        for key in self.keys():
+            if is_org_settings_key_retrieved_via_web_ui(key):
+                self.__setattr__(key, UNSET)
 
     def to_jsonnet(
         self,

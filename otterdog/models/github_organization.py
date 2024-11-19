@@ -206,6 +206,10 @@ class GitHubOrganization:
         for model_object, _ in self.get_model_objects():
             model_object.update_dummy_secrets(new_value)
 
+    def unset_settings_requiring_web_ui(self) -> None:
+        for model_object, _ in self.get_model_objects():
+            model_object.unset_settings_requiring_web_ui()
+
     def to_jsonnet(self, config: JsonnetConfig, context: PatchContext) -> str:
         default_org = GitHubOrganization.from_model_data(config.default_org_config_for_org_id(self.github_id))
 

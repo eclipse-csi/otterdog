@@ -612,6 +612,9 @@ class ModelObject(ABC):
     def changes_require_web_ui(self, changes: dict[str, Change]) -> bool:
         return False
 
+    def unset_settings_requiring_web_ui(self) -> None:
+        return
+
     def contains_secrets(self) -> bool:
         return False
 
