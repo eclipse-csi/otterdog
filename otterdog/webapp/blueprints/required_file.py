@@ -14,9 +14,11 @@ from pydantic import BaseModel
 from quart import current_app
 
 from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
+from otterdog.webapp.db.service import get_configuration_by_github_id
 
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
+    from otterdog.webapp.db.models import ConfigurationModel
 
 
 class RequiredFile(BaseModel):
@@ -39,8 +41,17 @@ class RequiredFileBlueprint(Blueprint):
         else:
             return self.repo_selector.matches(repo)
 
-    async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None:
+    async def evaluate_repo(
+        self,
+        installation_id: int,
+        github_id: str,
+        repo_name: str,
+        config: ConfigurationModel | None = None,
+    ) -> None:
         from otterdog.webapp.tasks.blueprints.check_files import CheckFilesTask
+
+        config_model = await get_configuration_by_github_id(github_id) if config is None else config
+        assert config_model is not None
 
         current_app.add_background_task(
             CheckFilesTask(
@@ -48,5 +59,6 @@ class RequiredFileBlueprint(Blueprint):
                 github_id,
                 repo_name,
                 self,
+                config_model,
             )
         )

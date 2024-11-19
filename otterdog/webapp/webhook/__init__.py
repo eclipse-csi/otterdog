@@ -21,6 +21,7 @@ from otterdog.webapp.db.service import (
 )
 from otterdog.webapp.policies import create_policy_from_model, is_policy_path
 from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
+from otterdog.webapp.tasks.blueprints.update_blueprint_status import UpdateBlueprintStatusTask
 from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 from otterdog.webapp.tasks.delete_branch import DeleteBranchTask
 from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
@@ -28,7 +29,6 @@ from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 from otterdog.webapp.tasks.help_comment import HelpCommentTask
 from otterdog.webapp.tasks.retrieve_team_membership import RetrieveTeamMembershipTask
-from otterdog.webapp.tasks.update_blueprint_status import UpdateBlueprintStatusTask
 from otterdog.webapp.tasks.update_pull_request import UpdatePullRequestTask
 from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 from otterdog.webapp.utils import refresh_global_blueprints, refresh_global_policies, refresh_otterdog_config

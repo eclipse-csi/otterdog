@@ -7,8 +7,11 @@
 #  *******************************************************************************
 
 from dataclasses import dataclass
+from functools import cached_property
 
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.webapp.blueprints.required_file import RequiredFile, RequiredFileBlueprint
+from otterdog.webapp.db.models import ConfigurationModel
 from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
 
 
@@ -18,6 +21,11 @@ class CheckFilesTask(BlueprintTask):
     org_id: str
     repo_name: str
     blueprint: RequiredFileBlueprint
+    config_model: ConfigurationModel
+
+    @cached_property
+    def github_organization_configuration(self) -> GitHubOrganization:
+        return GitHubOrganization.from_model_data(self.config_model.config)
 
     async def _execute(self) -> CheckResult:
         self.logger.info(
@@ -39,15 +47,17 @@ class CheckFilesTask(BlueprintTask):
 
         files_needing_update = []
         for file in self.blueprint.files:
+            file_content = self._render_content(file)
+
             try:
                 content = await rest_api.content.get_content(self.org_id, self.repo_name, file.path)
-                if file.strict is False or file.content == content:
+                if file.strict is False or file_content == content:
                     continue
             except RuntimeError:
                 # file does not exist, so let's create it
                 pass
 
-            files_needing_update.append(file)
+            files_needing_update.append((file, file_content))
 
         if len(files_needing_update) > 0:
             self.logger.debug(
@@ -57,9 +67,24 @@ class CheckFilesTask(BlueprintTask):
 
         return result
 
+    def _render_content(self, file: RequiredFile) -> str:
+        import chevron
+
+        context = {
+            "project_name": self.config_model.project_name,
+            "github_id": self.config_model.github_id,
+            "repo_name": self.repo_name,
+            "org": self.github_organization_configuration.settings,
+            "repo": self.github_organization_configuration.get_repository(self.repo_name),
+            "repo_url": f"https://github.com/{self.org_id}/{self.repo_name}",
+            "blueprint_url": self.blueprint.path,
+        }
+
+        return chevron.render(file.content, context)
+
     async def _process_files(
         self,
-        files_needing_update: list[RequiredFile],
+        files_needing_update: list[tuple[RequiredFile, str]],
         result: CheckResult,
     ) -> None:
         result.remediation_needed = True
@@ -70,12 +95,12 @@ class CheckFilesTask(BlueprintTask):
         await self._create_branch_if_needed(default_branch)
 
         # update content in the branch if necessary
-        for file in files_needing_update:
+        for file, content in files_needing_update:
             await rest_api.content.update_content(
                 self.org_id,
                 self.repo_name,
                 file.path,
-                file.content,
+                content,
                 self.branch_name,
                 f"Updating file {file.path}",
             )

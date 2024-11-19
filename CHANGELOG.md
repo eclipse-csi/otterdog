@@ -4,8 +4,10 @@
 
 ### Added
 
+- Added support for templates in `required-file` blueprints. ([#322](https://github.com/eclipse-csi/otterdog/issues/322))
 - Added support for a `post-add-objects` hook in the default configuration that gets executed after resources have been added. ([#318](https://github.com/eclipse-csi/otterdog/issues/318))
-- Added new blueprint `pin_workflow` to used GitHub actions in workflows.
+- Added new blueprint `pin_workflow` to pin used GitHub actions in workflows.
+- Added new blueprint `required_file` to create files in repositories.
 - Added a new operation `list-advisories` to list GitHub Security Advisories for organizations.
 
 ### Changed

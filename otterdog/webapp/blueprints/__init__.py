@@ -21,7 +21,7 @@ from otterdog.models.github_organization import GitHubOrganization
 
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
-    from otterdog.webapp.db.models import BlueprintModel
+    from otterdog.webapp.db.models import BlueprintModel, ConfigurationModel
 
 BLUEPRINT_PATH = "otterdog/blueprints"
 
@@ -78,14 +78,20 @@ class Blueprint(ABC, BaseModel):
                         continue
 
                 self.logger.debug(f"checking blueprint with id '{self.id}' in repo '{github_id}/{repo.name}'")
-                await self.evaluate_repo(installation_id, github_id, repo.name)
+                await self.evaluate_repo(installation_id, github_id, repo.name, config_data)
             else:
                 # if a recheck is needed, cleanup status of non-matching repos if they exist
                 if recheck:
                     await cleanup_blueprint_status_of_repo(github_id, repo.name, self.id)
 
     @abstractmethod
-    async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None: ...
+    async def evaluate_repo(
+        self,
+        installation_id: int,
+        github_id: str,
+        repo_name: str,
+        config: ConfigurationModel | None = None,
+    ) -> None: ...
 
 
 def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:

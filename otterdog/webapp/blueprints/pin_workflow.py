@@ -16,6 +16,7 @@ from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
 
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
+    from otterdog.webapp.db.models import ConfigurationModel
 
 
 class PinWorkflowBlueprint(Blueprint):
@@ -31,7 +32,13 @@ class PinWorkflowBlueprint(Blueprint):
         else:
             return self.repo_selector.matches(repo)
 
-    async def evaluate_repo(self, installation_id: int, github_id: str, repo_name: str) -> None:
+    async def evaluate_repo(
+        self,
+        installation_id: int,
+        github_id: str,
+        repo_name: str,
+        config: ConfigurationModel | None = None,
+    ) -> None:
         from otterdog.webapp.tasks.blueprints.pin_workflow import PinWorkflowTask
 
         current_app.add_background_task(
