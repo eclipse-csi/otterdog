@@ -172,6 +172,25 @@ class GitHubProvider:
 
         await self.rest_api.org.delete_webhook(org_id, webhook_id, url)
 
+    async def get_org_rulesets(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_rulesets(org_id)
+
+    async def update_org_ruleset(self, org_id: str, ruleset_id: int, name: str, ruleset: dict[str, Any]) -> None:
+        if len(ruleset) > 0:
+            if not is_set_and_present(ruleset_id):
+                ruleset_id = await self.rest_api.org.get_ruleset_id(org_id, name)
+
+            await self.rest_api.org.update_ruleset(org_id, ruleset_id, ruleset)
+
+    async def add_org_ruleset(self, org_id: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_ruleset(org_id, data)
+
+    async def delete_org_ruleset(self, org_id: str, ruleset_id: int, name: str) -> None:
+        if not is_set_and_present(ruleset_id):
+            ruleset_id = await self.rest_api.org.get_ruleset_id(org_id, name)
+
+        await self.rest_api.org.delete_ruleset(org_id, ruleset_id, name)
+
     async def get_repos(self, org_id: str) -> list[str]:
         # filter out repos which are created to work on GitHub Security Advisories
         # they should not be part of the visible configuration

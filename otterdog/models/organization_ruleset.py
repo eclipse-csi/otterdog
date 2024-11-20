@@ -9,12 +9,18 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+import fnmatch
+from typing import TYPE_CHECKING, Any, cast
 
+from jsonbender import K, OptionalS  # type: ignore
+
+from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.ruleset import Ruleset
+from otterdog.utils import is_set_and_valid
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclasses.dataclass
@@ -23,6 +29,10 @@ class OrganizationRuleset(Ruleset):
     Represents a ruleset defined on organization level.
     """
 
+    include_repo_names: list[str]
+    exclude_repo_names: list[str]
+    protect_repo_names: bool
+
     @property
     def model_object_name(self) -> str:
         return "org_ruleset"
@@ -30,35 +40,118 @@ class OrganizationRuleset(Ruleset):
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_ruleset}"
 
-    # @classmethod
-    # async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-    #     from .repository import Repository
-    #
-    #     match patch.patch_type:
-    #         case LivePatchType.ADD:
-    #             assert isinstance(patch.expected_object, OrganizationRuleset)
-    #             assert isinstance(patch.parent_object, Repository)
-    #             await provider.add_repo_ruleset(
-    #                 org_id,
-    #                 patch.parent_object.name,
-    #                 await patch.expected_object.to_provider_data(org_id, provider),
-    #             )
-    #
-    #         case LivePatchType.REMOVE:
-    #             assert isinstance(patch.current_object, OrganizationRuleset)
-    #             assert isinstance(patch.parent_object, Repository)
-    #             await provider.delete_repo_ruleset(
-    #                 org_id, patch.parent_object.name, patch.current_object.id, patch.current_object.name
-    #             )
-    #
-    #         case LivePatchType.CHANGE:
-    #             assert isinstance(patch.expected_object, OrganizationRuleset)
-    #             assert isinstance(patch.current_object, OrganizationRuleset)
-    #             assert isinstance(patch.parent_object, Repository)
-    #             await provider.update_repo_ruleset(
-    #                 org_id,
-    #                 patch.parent_object.name,
-    #                 patch.current_object.id,
-    #                 patch.current_object.name,
-    #                 await patch.expected_object.to_provider_data(org_id, provider),
-    #             )
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        from otterdog.models.github_organization import GitHubOrganization
+
+        super().validate(context, parent_object)
+
+        org_settings = cast(GitHubOrganization, context.root_object).settings
+
+        if is_set_and_valid(org_settings.plan):
+            if org_settings.plan != "enterprise":
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"use of organization rulesets requires an 'enterprise' plan, while this organization is "
+                    f"currently on a '{org_settings.plan}' plan.",
+                )
+
+        repositories = cast(GitHubOrganization, context.root_object).repositories
+        all_repo_names = (x.name for x in repositories)
+
+        if is_set_and_valid(self.include_repo_names):
+            for repo_name_pattern in self.include_repo_names:
+                if repo_name_pattern == "~ALL":
+                    continue
+                elif len(fnmatch.filter(all_repo_names, repo_name_pattern)) == 0:
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} has an 'include_repo_names' pattern "
+                        f"'{repo_name_pattern}' that does not match any existing repository",
+                    )
+
+        if is_set_and_valid(self.exclude_repo_names):
+            for repo_name_pattern in self.exclude_repo_names:
+                if repo_name_pattern == "~ALL":
+                    continue
+                elif len(fnmatch.filter(all_repo_names, repo_name_pattern)) == 0:
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} has an 'exclude_repo_names' pattern "
+                        f"'{repo_name_pattern}' that does not match any existing repository",
+                    )
+
+        if is_set_and_valid(self.protect_repo_names):
+            if (
+                self.protect_repo_names is True
+                and len(self.include_repo_names) == 0
+                and len(self.exclude_repo_names) == 0
+            ):
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} has 'protect_repo_names' set to "
+                    f"'{self.protect_repo_names}' but 'include_repo_names' and 'exclude_repo_names' are empty.",
+                )
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+
+        mapping.update(
+            {
+                "include_repo_names": OptionalS("conditions", "repository_name", "include", default=[]),
+                "exclude_repo_names": OptionalS("conditions", "repository_name", "exclude", default=[]),
+                "protect_repo_names": OptionalS("conditions", "repository_name", "protected", default=False),
+            }
+        )
+
+        return mapping
+
+    @classmethod
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
+
+        # include_repo_names / exclude_repo_names
+        repo_names = {}
+        if "include_repo_names" in data:
+            mapping.pop("include_repo_names")
+            repo_names["include"] = K(data["include_repo_names"])
+
+        if "exclude_repo_names" in data:
+            mapping.pop("exclude_repo_names")
+            repo_names["exclude"] = K(data["exclude_repo_names"])
+
+        if "protect_repo_names" in data:
+            mapping.pop("protect_repo_names")
+            repo_names["protected"] = K(data["protect_repo_names"])
+
+        if len(repo_names) > 0:
+            conditions = mapping.get("conditions", {})
+            conditions.update({"repository_name": repo_names})
+
+        return mapping
+
+    @classmethod
+    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                assert isinstance(patch.expected_object, OrganizationRuleset)
+                await provider.add_org_ruleset(
+                    org_id,
+                    await patch.expected_object.to_provider_data(org_id, provider),
+                )
+
+            case LivePatchType.REMOVE:
+                assert isinstance(patch.current_object, OrganizationRuleset)
+                await provider.delete_org_ruleset(org_id, patch.current_object.id, patch.current_object.name)
+
+            case LivePatchType.CHANGE:
+                assert isinstance(patch.expected_object, OrganizationRuleset)
+                assert isinstance(patch.current_object, OrganizationRuleset)
+                await provider.update_org_ruleset(
+                    org_id,
+                    patch.current_object.id,
+                    patch.current_object.name,
+                    await patch.expected_object.to_provider_data(org_id, provider),
+                )

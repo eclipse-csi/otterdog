@@ -117,7 +117,7 @@ def _print_message(msg: str, color: str, level: str, printer: TextIO, custom_pre
     else:
         printer.write(f"{level_prefix} {msg}\n")
 
-    if custom_prefix is False:
+    if custom_prefix is None:
         printer.write(style("╵\n", fg=color))
     else:
         printer.write("\n")
@@ -179,9 +179,9 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
     Note: two lists are considered to be equal if they contain the same elements,
     regardless or the order.
     """
-    if isinstance(value, list):
+    if isinstance(value, list) and isinstance(other_value, list):
         return sorted(value) != sorted(other_value)
-    elif isinstance(value, dict):
+    elif isinstance(value, dict) and isinstance(other_value, dict):
         for key, item_value in value.items():
             other_item_value = other_value.get(key, None)
             if isinstance(item_value, list):

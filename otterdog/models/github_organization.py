@@ -30,6 +30,7 @@ from otterdog.models import (
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
@@ -70,6 +71,7 @@ class GitHubOrganization:
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
+    rulesets: list[OrganizationRuleset] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     _secrets_resolved: bool = False
@@ -105,6 +107,15 @@ class GitHubOrganization:
     def set_variables(self, variables: list[OrganizationVariable]) -> None:
         self.variables = variables
 
+    def add_ruleset(self, ruleset: OrganizationRuleset) -> None:
+        self.rulesets.append(ruleset)
+
+    def get_ruleset(self, name: str) -> OrganizationRuleset | None:
+        return next(filter(lambda x: x.name == name, self.rulesets), None)  # type: ignore
+
+    def set_rulesets(self, rulesets: list[OrganizationRuleset]) -> None:
+        self.rulesets = rulesets
+
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
 
@@ -123,6 +134,9 @@ class GitHubOrganization:
 
         for secret in self.secrets:
             secret.validate(context, self)
+
+        for ruleset in self.rulesets:
+            ruleset.validate(context, self)
 
         for repo in self.repositories:
             repo.validate(context, self)
@@ -165,6 +179,10 @@ class GitHubOrganization:
             yield variable, None
             yield from variable.get_model_objects()
 
+        for ruleset in self.rulesets:
+            yield ruleset, None
+            yield from ruleset.get_model_objects()
+
         for repo in self.repositories:
             yield repo, None
             yield from repo.get_model_objects()
@@ -181,6 +199,7 @@ class GitHubOrganization:
             "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
             "variables": OptionalS("variables", default=[])
             >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
+            "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: OrganizationRuleset.from_model_data(x)),
             "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
@@ -276,6 +295,19 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        # print organization rulesets
+        if len(self.rulesets) > 0:
+            default_org_ruleset = OrganizationRuleset.from_model_data(config.default_org_ruleset_config)
+
+            printer.println("rulesets+: [")
+            printer.level_up()
+
+            for ruleset in self.rulesets:
+                ruleset.to_jsonnet(printer, config, context, False, default_org_ruleset)
+
+            printer.level_down()
+            printer.println("],")
+
         # print repositories
         if len(self.repositories) > 0:
             repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
@@ -313,23 +345,18 @@ class GitHubOrganization:
         self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
     ) -> None:
         OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
-
         OrganizationWebhook.generate_live_patch_of_list(
-            self.webhooks,
-            current_organization.webhooks,
-            None,
-            context,
-            handler,
+            self.webhooks, current_organization.webhooks, None, context, handler
         )
-
         OrganizationSecret.generate_live_patch_of_list(
             self.secrets, current_organization.secrets, None, context, handler
         )
-
         OrganizationVariable.generate_live_patch_of_list(
             self.variables, current_organization.variables, None, context, handler
         )
-
+        OrganizationRuleset.generate_live_patch_of_list(
+            self.rulesets, current_organization.rulesets, None, context, handler
+        )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
         )
@@ -439,6 +466,22 @@ class GitHubOrganization:
 
             for variable in github_variables:
                 org.add_variable(OrganizationVariable.from_provider_data(github_id, variable))
+        else:
+            print_debug("not reading org secrets, no default config available")
+
+        if jsonnet_config.default_org_ruleset_config is not None:
+            start = datetime.now()
+            if printer is not None and is_info_enabled():
+                printer.println("\nrulesets: Reading...")
+
+            github_rulesets = await provider.get_org_rulesets(github_id)
+
+            if printer is not None and is_info_enabled():
+                end = datetime.now()
+                printer.println(f"rulesets: Read complete after {(end - start).total_seconds()}s")
+
+            for ruleset in github_rulesets:
+                org.add_ruleset(OrganizationRuleset.from_provider_data(github_id, ruleset))
         else:
             print_debug("not reading org secrets, no default config available")
 

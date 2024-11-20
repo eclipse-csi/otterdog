@@ -52,6 +52,7 @@ nav:
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
         - Organization Variable: reference/organization/variable.md
+        - Organization Ruleset: reference/organization/ruleset.md
         - Custom Property: reference/organization/custom-property.md
         - Repository:
           - reference/organization/repository/index.md
@@ -61,13 +62,14 @@ nav:
           - Repository Variable: reference/organization/repository/variable.md
           - Environment: reference/organization/repository/environment.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
-          - Ruleset: reference/organization/repository/ruleset.md
-          - Referenced Types:
-             - Actor: reference/organization/repository/actor.md
-             - Branch or Tag: reference/organization/repository/branch-or-tag.md
-             - Bypass Actor: reference/organization/repository/bypass-actor.md
-             - Ref Matcher: reference/organization/repository/ref-matcher.md
-             - Status Check: reference/organization/repository/status-check.md
+          - Repository Ruleset: reference/organization/repository/ruleset.md
+        - Referenced Types:
+           - Actor: reference/organization/repository/actor.md
+           - Branch or Tag: reference/organization/repository/branch-or-tag.md
+           - Bypass Actor: reference/organization/repository/bypass-actor.md
+           - Repo Name Matcher: reference/organization/repo-name-matcher.md
+           - Ref Matcher: reference/organization/repository/ref-matcher.md
+           - Status Check: reference/organization/repository/status-check.md
     - Policies:
         - reference/policies/index.md
         - Usage of macOS large runners: reference/policies/macos-large-runners.md

@@ -373,7 +373,7 @@ class Ruleset(ModelObject, abc.ABC):
                 )
 
         def valid_condition_pattern(pattern: str) -> bool:
-            return pattern.startswith("refs/heads/") or ref == "~DEFAULT_BRANCH" or ref == "~ALL"
+            return pattern.startswith("refs/heads/") or pattern == "~DEFAULT_BRANCH" or pattern == "~ALL"
 
         if is_set_and_valid(self.include_refs):
             for ref in self.include_refs:
