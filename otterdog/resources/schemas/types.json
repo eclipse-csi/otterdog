@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "$defs": {
+    "boolean-or-null": {
+      "anyOf": [
+        { "type": "boolean" },
+        { "type": "null" }
+      ]
+    },
+    "integer-or-null": {
+      "anyOf": [
+        { "type": "integer" },
+        { "type": "null" }
+      ]
+    },
+    "string-or-null": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "string-or-list-or-null": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "array",
+          "items": { "type": "string" }
+        },
+        { "type": "null" }
+      ]
+    },
+    "object-or-null": {
+      "anyOf": [
+        { "type": "object",
+          "patternProperties": {
+            "^.*_": { "type": "string" }
+          }
+        },
+        { "type": "null" }
+      ]
+    }
+  }
+}

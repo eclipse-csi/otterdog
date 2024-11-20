@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "type": "object",
+  "properties": {
+    "allowed_actions": { "type": "string" },
+    "allow_github_owned_actions": { "type": "boolean" },
+    "allow_verified_creator_actions": { "type": "boolean" },
+    "allow_action_patterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "default_workflow_permissions": { "type": "string" },
+    "actions_can_approve_pull_request_reviews": { "type": "boolean" }
+  }
+}

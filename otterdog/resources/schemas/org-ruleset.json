@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "$ref": "ruleset.json",
+  "type": "object",
+  "properties": {
+    "include_repo_names": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exclude_repo_names": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "protect_repo_names": { "type": "boolean" }
+  },
+  "required": [ "name", "enforcement" ],
+  "unevaluatedProperties": false
+}

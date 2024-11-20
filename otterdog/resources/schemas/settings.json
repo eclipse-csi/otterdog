@@ -1,11 +1,11 @@
 {
-  "$id": "settings.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
     "name": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "plan": {
       "provider": "restapi",
@@ -17,27 +17,27 @@
     },
     "company": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "email": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "twitter_username": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "location": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "description": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "blog": {
       "provider": "restapi",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "has_organization_projects": {
       "provider": "restapi",
@@ -85,7 +85,7 @@
     },
     "readers_can_create_discussions": {
       "provider": "web",
-      "$ref": "#/definitions/boolean_or_null"
+      "$ref": "types.json#/$defs/boolean-or-null"
     },
     "members_can_create_teams": {
       "provider": "web",
@@ -117,7 +117,7 @@
     },
     "discussion_source_repository": {
       "provider": "web",
-      "$ref": "#/definitions/string_or_null"
+      "$ref": "types.json#/$defs/string-or-null"
     },
     "security_managers": {
       "provider": "restapi",
@@ -133,20 +133,5 @@
     }
   },
 
-  "additionalProperties": false,
-
-  "definitions": {
-    "string_or_null": {
-      "anyOf": [
-          { "type": "string" },
-          { "type": "null" }
-        ]
-      },
-    "boolean_or_null": {
-      "anyOf": [
-          { "type": "boolean" },
-          { "type": "null" }
-        ]
-      }
-  }
+  "additionalProperties": false
 }

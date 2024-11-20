@@ -585,3 +585,63 @@ class OrgClient(RestClient):
             return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/security-advisories", params=params)
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving security advisories for org '{org_id}':\n{ex}") from ex
+
+    async def get_rulesets(self, org_id: str) -> list[dict[str, Any]]:
+        print_debug(f"retrieving org rulesets for org '{org_id}'")
+
+        try:
+            result = []
+            response = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/rulesets")
+            for ruleset in response:
+                result.append(await self.get_ruleset(org_id, str(ruleset["id"])))
+            return result
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving org rulesets for org '{org_id}':\n{ex}") from ex
+
+    async def get_ruleset(self, org_id: str, ruleset_id: str) -> dict[str, Any]:
+        print_debug(f"retrieving org ruleset '{ruleset_id}' for org '{org_id}'")
+
+        try:
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/rulesets/{ruleset_id}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving org ruleset for org '{org_id}':\n{ex}") from ex
+
+    async def get_ruleset_id(self, org_id: str, name: str) -> str:
+        print_debug(f"retrieving id for org ruleset with name '{name}' for org '{org_id}'")
+
+        rulesets = await self.get_rulesets(org_id)
+
+        for ruleset in rulesets:
+            if ruleset["name"] == name:
+                return ruleset["id"]
+
+        raise RuntimeError(f"failed to find org ruleset with name '{name}'")
+
+    async def update_ruleset(self, org_id: str, ruleset_id: int, ruleset: dict[str, Any]) -> None:
+        print_debug(f"updating org ruleset '{ruleset_id}' for org '{org_id}'")
+
+        try:
+            await self.requester.request_json("PUT", f"/orgs/{org_id}/rulesets/{ruleset_id}", ruleset)
+            print_debug(f"updated org ruleset '{ruleset_id}'")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to update org ruleset {ruleset_id}:\n{ex}") from ex
+
+    async def add_ruleset(self, org_id: str, data: dict[str, Any]) -> None:
+        name = data["name"]
+        print_debug(f"adding org ruleset with name '{name}' for org '{org_id}'")
+
+        try:
+            await self.requester.request_json("POST", f"/orgs/{org_id}/rulesets", data)
+            print_debug(f"added org ruleset with name '{name}'")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to add org ruleset with name '{name}':\n{ex}") from ex
+
+    async def delete_ruleset(self, org_id: str, ruleset_id: int, name: str) -> None:
+        print_debug(f"deleting org ruleset with name '{name}' for org '{org_id}'")
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/rulesets/{ruleset_id}")
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete org ruleset with name '{name}'")
+
+        print_debug(f"removed org ruleset with name '{name}'")

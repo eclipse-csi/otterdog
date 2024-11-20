@@ -1,5 +1,5 @@
 {
-  "$id": "repository.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
@@ -8,20 +8,20 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "description": { "$ref": "#/definitions/string_or_null" },
-    "homepage": { "$ref": "#/definitions/string_or_null" },
+    "description": { "$ref": "types.json#/$defs/string-or-null"},
+    "homepage": { "$ref": "types.json#/$defs/string-or-null"},
     "private": { "type": "boolean" },
     "has_discussions": { "type": "boolean" },
     "has_issues": { "type": "boolean" },
     "has_projects": { "type": "boolean" },
     "has_wiki": { "type": "boolean" },
     "is_template": { "type": "boolean" },
-    "template_repository": { "$ref": "#/definitions/string_or_null" },
+    "template_repository": { "$ref": "types.json#/$defs/string-or-null"},
     "post_process_template_content": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "forked_repository": { "$ref": "#/definitions/string_or_null" },
+    "forked_repository": { "$ref": "types.json#/$defs/string-or-null"},
     "fork_default_branch_only": { "type": "boolean" },
     "auto_init": { "type": "boolean" },
     "topics": {
@@ -55,11 +55,11 @@
       "items": { "type": "string" }
     },
 
-    "custom_properties": { "$ref": "#/definitions/object_or_null" },
+    "custom_properties": { "$ref": "types.json#/$defs/object-or-null"},
 
     "gh_pages_build_type": { "type": "string" },
-    "gh_pages_source_branch": { "$ref": "#/definitions/string_or_null" },
-    "gh_pages_source_path": { "$ref": "#/definitions/string_or_null" },
+    "gh_pages_source_branch": { "$ref": "types.json#/$defs/string-or-null"},
+    "gh_pages_source_path": { "$ref": "types.json#/$defs/string-or-null"},
     "workflows": { "$ref": "repo-workflow-settings.json" },
     "branch_protection_rules": {
       "type": "array",
@@ -67,7 +67,7 @@
     },
     "rulesets": {
       "type": "array",
-      "items": { "$ref": "repository-ruleset.json" }
+      "items": { "$ref": "repo-ruleset.json"}
     },
     "webhooks": {
       "type": "array",
@@ -88,24 +88,5 @@
   },
 
   "required": [ "name", "private" ],
-  "additionalProperties": false,
-
-  "definitions": {
-    "string_or_null": {
-      "anyOf": [
-          { "type": "string" },
-          { "type": "null" }
-      ]
-    },
-    "object_or_null": {
-      "anyOf": [
-        { "type": "object",
-          "patternProperties": {
-            "^.*_": { "type": "string" }
-          }
-        },
-        { "type": "null" }
-      ]
-    }
-  }
+  "additionalProperties": false
 }

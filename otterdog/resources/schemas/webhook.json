@@ -1,5 +1,5 @@
 {
-  "$id": "webhook.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
@@ -15,18 +15,9 @@
     "url": { "type": "string" },
     "content_type": { "type": "string" },
     "insecure_ssl": { "type": "string" },
-    "secret": { "$ref": "#/definitions/string_or_null" }
+    "secret": { "$ref": "types.json#/$defs/string-or-null"}
   },
 
   "required": [ "active" ],
-  "additionalProperties": false,
-
-  "definitions": {
-    "string_or_null": {
-      "anyOf": [
-          { "type": "string" },
-          { "type": "null" }
-      ]
-    }
-  }
+  "additionalProperties": false
 }

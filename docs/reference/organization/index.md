@@ -9,7 +9,8 @@ This resource represents a GitHub organization with all supported settings and n
         webhooks+: [ ... ], // (2)!
         secrets+: [ ... ], // (3)!
         variables+: [ ... ], // (4)!
-        _repositories+:: [ ... ], // (5)!
+        rulesets+: [ ... ], // (5)!
+        _repositories+:: [ ... ], // (6)!
     }
     ```
 
@@ -17,7 +18,8 @@ This resource represents a GitHub organization with all supported settings and n
     2. see [Organization Webhook](webhook.md)
     3. see [Organization Secret](secret.md)
     4. see [Organization Variable](variable.md)
-    5. see [Repository](repository/index.md)
+    5. see [Organization Ruleset](ruleset.md)
+    6. see [Repository](repository/index.md)
 
 !!! note
 

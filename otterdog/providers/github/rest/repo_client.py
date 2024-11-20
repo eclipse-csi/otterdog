@@ -334,7 +334,7 @@ class RepoClient(RestClient):
 
         try:
             result = []
-            params = {"includes_parents": str(False)}
+            params = {"includes_parents": "false"}
             response = await self.requester.request_paged_json(
                 "GET", f"/repos/{org_id}/{repo_name}/rulesets", params=params
             )
@@ -348,7 +348,7 @@ class RepoClient(RestClient):
         print_debug(f"retrieving ruleset '{ruleset_id}' for repo '{org_id}/{repo_name}'")
 
         try:
-            params = {"includes_parents": str(False)}
+            params = {"includes_parents": "false"}
             return await self.requester.request_json(
                 "GET", f"/repos/{org_id}/{repo_name}/rulesets/{ruleset_id}", params=params
             )

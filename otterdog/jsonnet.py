@@ -34,6 +34,7 @@ class JsonnetConfig:
     create_org_webhook = "newOrgWebhook"
     create_org_secret = "newOrgSecret"
     create_org_variable = "newOrgVariable"
+    create_org_ruleset = "newOrgRuleset"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
@@ -72,6 +73,7 @@ class JsonnetConfig:
         self._default_org_webhook_config: dict[str, Any] | None = None
         self._default_org_secret_config: dict[str, Any] | None = None
         self._default_org_variable_config: dict[str, Any] | None = None
+        self._default_org_ruleset_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_repo_secret_config: dict[str, Any] | None = None
@@ -155,6 +157,16 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(org_variable_snippet)
         except RuntimeError:
             print_debug("no default org variable config found, variables will be skipped")
+            return None
+
+    @cached_property
+    def default_org_ruleset_config(self):
+        try:
+            # load the default org ruleset config
+            org_ruleset_snippet = f"(import '{self.template_file}').{self.create_org_ruleset}('default')"
+            return jsonnet_evaluate_snippet(org_ruleset_snippet)
+        except RuntimeError:
+            print_debug("no default org ruleset config found, rulesets will be skipped")
             return None
 
     @cached_property

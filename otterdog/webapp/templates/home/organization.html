@@ -84,6 +84,9 @@
                     <a class="nav-link" id="webhooks-tab" data-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="rulesets-tab" data-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="repositories-tab" data-toggle="pill" href="#repositories" role="tab" aria-controls="repositories" aria-selected="false">Repositories</a>
                   </li>
                 </ul>
@@ -528,6 +531,28 @@
                           {% endfor %}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="rulesets" role="tabpanel" aria-labelledby="rulesets-tab">
+                    <div class="row">
+                      <div class="col-1">
+                        <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rulesets-tabs" role="tablist" aria-orientation="vertical">
+                          {% for ruleset in config.rulesets %}
+                          {% set ruleset_id = 'ruleset-' ~ loop.index %}
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
+                          {% endfor %}
+                        </div>
+                      </div>
+                      <div class="col-10">
+                        <div class="tab-content" id="rulesets-tabContent">
+                          {% for ruleset in config.rulesets %}
+                          {% set ruleset_id = 'ruleset-' ~ loop.index %}
+                          <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}" role="tabpanel" aria-labelledby="{{ ruleset_id }}-tab">
+                            <pre><code class="language-json">{{ ruleset|pretty_format_model }}</code></pre>
+                          </div>
+                          {% endfor %}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div class="tab-pane" id="repositories" role="tabpanel" aria-labelledby="repositories-tab">

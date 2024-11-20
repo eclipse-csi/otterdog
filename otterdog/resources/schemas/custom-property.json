@@ -1,13 +1,13 @@
 {
-  "$id": "custom-property.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
 
   "type": "object",
   "properties": {
     "name": { "type": "string" },
     "value_type": { "type": "string" },
     "required": { "type": "boolean" },
-    "default_value": { "$ref": "#/definitions/string_or_list_or_null" },
-    "description": { "$ref": "#/definitions/string_or_null" },
+    "default_value": { "$ref": "types.json#/$defs/string-or-list-or-null"},
+    "description": { "$ref": "types.json#/$defs/string-or-null"},
     "allowed_values": {
       "type": "array",
       "items": { "type": "string" }
@@ -15,22 +15,5 @@
   },
 
   "required": [ "name" ],
-  "additionalProperties": false,
-  "definitions": {
-    "string_or_null": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "null" }
-      ]
-    },
-    "string_or_list_or_null": {
-      "anyOf": [
-        { "type": "string" },
-        { "type": "array",
-          "items": { "type": "string" }
-        },
-        { "type": "null" }
-      ]
-    }
-  }
+  "additionalProperties": false
 }
