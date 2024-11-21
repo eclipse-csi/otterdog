@@ -311,6 +311,7 @@ async def defaults(project_name: str):
                 "Organization Custom Property",
                 f"{jsonnet_config.create_org_custom_property}('<name>')",
             ),
+            ("org-ruleset", "Organization Ruleset", f"{jsonnet_config.create_org_ruleset}('<name>')"),
             ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
             ("repo-secret", "Repository Secret", f"{jsonnet_config.create_repo_secret}('<name>')"),
             ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
