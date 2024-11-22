@@ -19,6 +19,7 @@ from otterdog.webapp.db.service import get_configuration_by_github_id, get_insta
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
     from otterdog.webapp.db.models import ConfigurationModel
+    from otterdog.webapp.webhook.github_models import Commit
 
 
 class AppendConfigurationBlueprint(Blueprint):
@@ -41,6 +42,14 @@ class AppendConfigurationBlueprint(Blueprint):
 
     def _matches(self, repo: Repository) -> bool:
         return True
+
+    def should_reevaluate(self, commits: list[Commit]) -> bool:
+        from otterdog.webapp.webhook.github_models import touched_by_commits
+
+        def is_configuration_path(path: str) -> bool:
+            return path.startswith("otterdog/") and path.endswith(".jsonnet")
+
+        return touched_by_commits(is_configuration_path, commits)
 
     async def evaluate_repo(
         self,

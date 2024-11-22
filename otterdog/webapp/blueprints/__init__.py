@@ -22,6 +22,7 @@ from otterdog.models.github_organization import GitHubOrganization
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
     from otterdog.webapp.db.models import BlueprintModel, ConfigurationModel
+    from otterdog.webapp.webhook.github_models import Commit
 
 BLUEPRINT_PATH = "otterdog/blueprints"
 
@@ -87,6 +88,9 @@ class Blueprint(ABC, BaseModel):
                 # if a recheck is needed, cleanup status of non-matching repos if they exist
                 if recheck:
                     await cleanup_blueprint_status_of_repo(github_id, repo.name, self.id)
+
+    @abstractmethod
+    def should_reevaluate(self, commits: list[Commit]) -> bool: ...
 
     @abstractmethod
     async def evaluate_repo(

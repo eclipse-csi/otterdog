@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 
@@ -244,3 +245,14 @@ class WorkflowJobEvent(Event):
     action: str
     workflow_job: WorkflowJob
     repository: Repository
+
+
+def touched_by_commits(predicate: Callable[[str], bool], commits: list[Commit]):
+    def touched(commit: Commit) -> bool:
+        return (
+            any(map(predicate, commit.added))
+            or any(map(predicate, commit.modified))
+            or any(map(predicate, commit.removed))
+        )
+
+    return any(map(touched, commits))

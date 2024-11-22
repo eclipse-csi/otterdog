@@ -44,13 +44,13 @@ from .comment_handlers import (
     ValidateCommentHandler,
 )
 from .github_models import (
-    Commit,
     InstallationEvent,
     IssueCommentEvent,
     PullRequestEvent,
     PullRequestReviewEvent,
     PushEvent,
     WorkflowJobEvent,
+    touched_by_commits,
 )
 from .github_webhook import GitHubWebhook
 
@@ -270,21 +270,15 @@ async def on_push_received(data):
                 blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
                 if blueprint_model is not None:
                     blueprint_instance = create_blueprint_from_model(blueprint_model)
-                    await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
+                    if blueprint_instance.should_reevaluate(event.commits):
+                        await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
 
         current_app.add_background_task(fetch_config_and_check_blueprints_if_needed)
 
         if not config_repo_touched:
             return success()
 
-        def modifies_any_policy(commit: Commit) -> bool:
-            return (
-                any(map(is_policy_path, commit.added))
-                or any(map(is_policy_path, commit.modified))
-                or any(map(is_policy_path, commit.removed))
-            )
-
-        policies_modified = any(map(modifies_any_policy, event.commits))
+        policies_modified = touched_by_commits(is_policy_path, event.commits)
         if policies_modified is True:
             global_policies = await refresh_global_policies()
             current_app.add_background_task(
@@ -296,14 +290,7 @@ async def on_push_received(data):
                 )
             )
 
-        def modifies_any_blueprint(commit: Commit) -> bool:
-            return (
-                any(map(is_blueprint_path, commit.added))
-                or any(map(is_blueprint_path, commit.modified))
-                or any(map(is_blueprint_path, commit.removed))
-            )
-
-        blueprints_modified = any(map(modifies_any_blueprint, event.commits))
+        blueprints_modified = touched_by_commits(is_blueprint_path, event.commits)
         if blueprints_modified is True:
             global_blueprints = await refresh_global_blueprints()
             current_app.add_background_task(

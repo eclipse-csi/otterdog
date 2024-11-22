@@ -127,8 +127,8 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         )
 
         pr_body = (
-            f"This PR has automatically been created by Otterdog due to "
-            f"configured blueprint [{self.blueprint.name}]({self.blueprint.path})."
+            f"This PR has been created automatically by Otterdog due to "
+            f"the following blueprint: [{self.blueprint.name}]({self.blueprint.path})."
         )
 
         if self.blueprint.description is not None:

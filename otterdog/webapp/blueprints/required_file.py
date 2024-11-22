@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from otterdog.webapp.db.service import get_configuration_by_github_id
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
     from otterdog.webapp.db.models import ConfigurationModel
+    from otterdog.webapp.webhook.github_models import Commit
 
 
 class RequiredFile(BaseModel):
@@ -35,11 +37,23 @@ class RequiredFileBlueprint(Blueprint):
     def type(self) -> BlueprintType:
         return BlueprintType.REQUIRED_FILE
 
+    @cached_property
+    def required_paths(self) -> list[str]:
+        return [x.path for x in self.files]
+
     def _matches(self, repo: Repository) -> bool:
         if self.repo_selector is None:
             return True
         else:
             return self.repo_selector.matches(repo)
+
+    def should_reevaluate(self, commits: list[Commit]) -> bool:
+        from otterdog.webapp.webhook.github_models import touched_by_commits
+
+        def is_required_path(path: str) -> bool:
+            return path in self.required_paths
+
+        return touched_by_commits(is_required_path, commits)
 
     async def evaluate_repo(
         self,
