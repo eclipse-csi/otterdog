@@ -255,23 +255,27 @@ async def on_push_received(data):
         org_id = event.organization.login
         repo_name = event.repository.name
 
-        # check any blueprint that matches the repo that just got a new push on the default branch
-        for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
-            blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
-            if blueprint_model is not None:
-                blueprint_instance = create_blueprint_from_model(blueprint_model)
-                await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
+        config_repo_touched = await targets_config_repo(repo_name, installation_id)
 
-        if not await targets_config_repo(repo_name, installation_id):
+        async def fetch_config_and_check_blueprints_if_needed() -> None:
+            if config_repo_touched:
+                await FetchConfigTask(
+                    event.installation.id,
+                    event.organization.login,
+                    event.repository.name,
+                ).execute()
+
+            # check any blueprint that matches the repo that just got a new push on the default branch
+            for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
+                blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
+                if blueprint_model is not None:
+                    blueprint_instance = create_blueprint_from_model(blueprint_model)
+                    await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
+
+        current_app.add_background_task(fetch_config_and_check_blueprints_if_needed)
+
+        if not config_repo_touched:
             return success()
-
-        current_app.add_background_task(
-            FetchConfigTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
-            )
-        )
 
         def modifies_any_policy(commit: Commit) -> bool:
             return (
