@@ -38,7 +38,7 @@ local newSelectMenuInput(name, inputName, saveInputName, preSelector = null, opt
   ],
 
   'settings/security': [
-    newCheckbox('two_factor_requirement')
+    newCheckbox('two_factor_required')
   ],
 
   'settings/repository-defaults': [
