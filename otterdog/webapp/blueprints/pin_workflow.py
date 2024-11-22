@@ -17,6 +17,7 @@ from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
     from otterdog.webapp.db.models import ConfigurationModel
+    from otterdog.webapp.webhook.github_models import Commit
 
 
 class PinWorkflowBlueprint(Blueprint):
@@ -31,6 +32,14 @@ class PinWorkflowBlueprint(Blueprint):
             return True
         else:
             return self.repo_selector.matches(repo)
+
+    def should_reevaluate(self, commits: list[Commit]) -> bool:
+        from otterdog.webapp.webhook.github_models import touched_by_commits
+
+        def is_workflow_path(path: str) -> bool:
+            return path.startswith(".github/workflows/") and path.endswith((".yml", ".yaml"))
+
+        return touched_by_commits(is_workflow_path, commits)
 
     async def evaluate_repo(
         self,

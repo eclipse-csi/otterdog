@@ -22,6 +22,7 @@ from otterdog.models.github_organization import GitHubOrganization
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
     from otterdog.webapp.db.models import BlueprintModel, ConfigurationModel
+    from otterdog.webapp.webhook.github_models import Commit
 
 BLUEPRINT_PATH = "otterdog/blueprints"
 
@@ -29,6 +30,7 @@ BLUEPRINT_PATH = "otterdog/blueprints"
 class BlueprintType(str, Enum):
     REQUIRED_FILE = "required_file"
     PIN_WORKFLOW = "pin_workflow"
+    APPEND_CONFIGURATION = "append_configuration"
 
 
 class Blueprint(ABC, BaseModel):
@@ -49,6 +51,10 @@ class Blueprint(ABC, BaseModel):
     def config(self) -> dict[str, Any]:
         return self.model_dump(exclude={"id", "path", "name", "description"})
 
+    async def _get_repositories(self, config_model: ConfigurationModel) -> list[Repository]:
+        github_organization = GitHubOrganization.from_model_data(config_model.config)
+        return github_organization.repositories
+
     @abstractmethod
     def _matches(self, repo: Repository) -> bool: ...
 
@@ -60,12 +66,11 @@ class Blueprint(ABC, BaseModel):
             get_configuration_by_github_id,
         )
 
-        config_data = await get_configuration_by_github_id(github_id)
-        if config_data is None:
+        config_model = await get_configuration_by_github_id(github_id)
+        if config_model is None:
             return
 
-        github_organization = GitHubOrganization.from_model_data(config_data.config)
-        for repo in github_organization.repositories:
+        for repo in await self._get_repositories(config_model):
             if repo.archived is False and self._matches(repo):
                 # if no recheck is requested, only check the repo if it was not checked before
                 if recheck is False:
@@ -78,11 +83,14 @@ class Blueprint(ABC, BaseModel):
                         continue
 
                 self.logger.debug(f"checking blueprint with id '{self.id}' in repo '{github_id}/{repo.name}'")
-                await self.evaluate_repo(installation_id, github_id, repo.name, config_data)
+                await self.evaluate_repo(installation_id, github_id, repo.name, config_model)
             else:
                 # if a recheck is needed, cleanup status of non-matching repos if they exist
                 if recheck:
                     await cleanup_blueprint_status_of_repo(github_id, repo.name, self.id)
+
+    @abstractmethod
+    def should_reevaluate(self, commits: list[Commit]) -> bool: ...
 
     @abstractmethod
     async def evaluate_repo(
@@ -136,6 +144,11 @@ def create_blueprint(
             from otterdog.webapp.blueprints.pin_workflow import PinWorkflowBlueprint
 
             return PinWorkflowBlueprint.model_validate(data)
+
+        case BlueprintType.APPEND_CONFIGURATION:
+            from otterdog.webapp.blueprints.append_configuration import AppendConfigurationBlueprint
+
+            return AppendConfigurationBlueprint.model_validate(data)
 
         case _:
             raise RuntimeError(f"unknown blueprint type '{blueprint_type}'")

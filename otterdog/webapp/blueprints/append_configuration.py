@@ -8,14 +8,13 @@
 
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
 from quart import current_app
 
-from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
-from otterdog.webapp.db.service import get_configuration_by_github_id
+from otterdog.models.github_organization import GitHubOrganization
+from otterdog.webapp.blueprints import Blueprint, BlueprintType
+from otterdog.webapp.db.service import get_configuration_by_github_id, get_installation_by_github_id
 
 if TYPE_CHECKING:
     from otterdog.models.repository import Repository
@@ -23,37 +22,34 @@ if TYPE_CHECKING:
     from otterdog.webapp.webhook.github_models import Commit
 
 
-class RequiredFile(BaseModel):
-    path: str
+class AppendConfigurationBlueprint(Blueprint):
+    condition: str
     content: str
-    strict: bool = False
-
-
-class RequiredFileBlueprint(Blueprint):
-    repo_selector: RepoSelector | None = None
-    files: list[RequiredFile]
 
     @property
     def type(self) -> BlueprintType:
-        return BlueprintType.REQUIRED_FILE
+        return BlueprintType.APPEND_CONFIGURATION
 
-    @cached_property
-    def required_paths(self) -> list[str]:
-        return [x.path for x in self.files]
+    async def _get_repositories(self, config_model: ConfigurationModel) -> list[Repository]:
+        installation_model = await get_installation_by_github_id(config_model.github_id)
+        if installation_model is not None and installation_model.config_repo is not None:
+            github_organization = GitHubOrganization.from_model_data(config_model.config)
+            repo = github_organization.get_repository(installation_model.config_repo)
+            if repo is not None:
+                return [repo]
+
+        return []
 
     def _matches(self, repo: Repository) -> bool:
-        if self.repo_selector is None:
-            return True
-        else:
-            return self.repo_selector.matches(repo)
+        return True
 
     def should_reevaluate(self, commits: list[Commit]) -> bool:
         from otterdog.webapp.webhook.github_models import touched_by_commits
 
-        def is_required_path(path: str) -> bool:
-            return path in self.required_paths
+        def is_configuration_path(path: str) -> bool:
+            return path.startswith("otterdog/") and path.endswith(".jsonnet")
 
-        return touched_by_commits(is_required_path, commits)
+        return touched_by_commits(is_configuration_path, commits)
 
     async def evaluate_repo(
         self,
@@ -62,13 +58,13 @@ class RequiredFileBlueprint(Blueprint):
         repo_name: str,
         config: ConfigurationModel | None = None,
     ) -> None:
-        from otterdog.webapp.tasks.blueprints.check_files import CheckFilesTask
+        from otterdog.webapp.tasks.blueprints.append_configuration import AppendConfigurationTask
 
         config_model = await get_configuration_by_github_id(github_id) if config is None else config
         assert config_model is not None
 
         current_app.add_background_task(
-            CheckFilesTask(
+            AppendConfigurationTask(
                 installation_id,
                 github_id,
                 repo_name,
