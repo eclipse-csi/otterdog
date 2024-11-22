@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added new blueprint `append_configuration` to append configuration snippets depending on certain conditions.
 - Added support for organization rulesets. ([#158](https://github.com/eclipse-csi/otterdog/issues/158))
 - Added support for templates in `required-file` blueprints. ([#322](https://github.com/eclipse-csi/otterdog/issues/322))
 - Added support for a `post-add-objects` hook in the default configuration that gets executed after resources have been added. ([#318](https://github.com/eclipse-csi/otterdog/issues/318))

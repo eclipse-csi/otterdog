@@ -41,14 +41,18 @@ class AppendConfigurationTask(BlueprintTask):
         result = CheckResult(remediation_needed=False)
 
         try:
+            # evaluate the condition:
+            # - true: the snippet should be added
+            # - false: nothing to be done
+            # - else: report a failure, the condition did not produce a boolean result
             query_result = query_json(self.blueprint.condition, self.config_model.config)
-            if query_result is True:
+            if query_result is False:
                 return result
-            elif query_result is False:
-                # condition failed, so we need to remediate
+            elif query_result is True:
+                # condition succeeded, so we need to remediate
                 pass
             else:
-                # something unexpected happened wrong when checking the condition
+                # something unexpected happened when checking the condition
                 # result is not a boolean
                 self.logger.error(
                     "checking condition of blueprint '%s' for repo '%s/%s' resulting in: %s",
