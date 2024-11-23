@@ -16,7 +16,7 @@ from jsonbender import K, OptionalS  # type: ignore
 
 from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.ruleset import Ruleset
-from otterdog.utils import is_set_and_valid
+from otterdog.utils import is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -133,25 +133,28 @@ class OrganizationRuleset(Ruleset):
         return mapping
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[OrganizationRuleset],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, OrganizationRuleset)
                 await provider.add_org_ruleset(
                     org_id,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, OrganizationRuleset)
-                await provider.delete_org_ruleset(org_id, patch.current_object.id, patch.current_object.name)
+                current_object = unwrap(patch.current_object)
+                await provider.delete_org_ruleset(org_id, current_object.id, current_object.name)
 
             case LivePatchType.CHANGE:
-                assert isinstance(patch.expected_object, OrganizationRuleset)
-                assert isinstance(patch.current_object, OrganizationRuleset)
+                current_object = unwrap(patch.current_object)
                 await provider.update_org_ruleset(
                     org_id,
-                    patch.current_object.id,
-                    patch.current_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    current_object.id,
+                    current_object.name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )

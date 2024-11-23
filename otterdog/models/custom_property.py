@@ -22,7 +22,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import Change, is_set_and_present, is_set_and_valid
+from otterdog.utils import Change, is_set_and_present, is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -169,24 +169,20 @@ class CustomProperty(ModelObject):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: CustomProperty | None,
+        current_object: CustomProperty | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
-            assert isinstance(expected_object, cls)
+            expected_object = unwrap(expected_object)
             handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
             return
 
         if expected_object is None:
-            assert isinstance(current_object, cls)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
-
-        assert isinstance(expected_object, cls)
-        assert isinstance(current_object, cls)
 
         modified_property: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
 
@@ -209,27 +205,23 @@ class CustomProperty(ModelObject):
             )
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch[CustomProperty], org_id: str, provider: GitHubProvider) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, CustomProperty)
+                expected_object = unwrap(patch.expected_object)
                 await provider.add_org_custom_property(
                     org_id,
-                    patch.expected_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    expected_object.name,
+                    await expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, CustomProperty)
-                await provider.delete_org_custom_property(org_id, patch.current_object.name)
+                current_object = unwrap(patch.current_object)
+                await provider.delete_org_custom_property(org_id, current_object.name)
 
             case LivePatchType.CHANGE:
-                assert patch.changes is not None
-                assert isinstance(patch.current_object, CustomProperty)
-                assert isinstance(patch.expected_object, CustomProperty)
-
                 await provider.update_org_custom_property(
                     org_id,
-                    patch.current_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    unwrap(patch.current_object).name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )

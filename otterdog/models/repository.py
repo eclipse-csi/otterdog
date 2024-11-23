@@ -31,6 +31,7 @@ from otterdog.utils import (
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
+    unwrap,
     write_patch_object_as_json,
 )
 
@@ -248,7 +249,8 @@ class Repository(ModelObject):
                 current_property_value = self.custom_properties.get(custom_property.name, None)
                 if current_property_value is None:
                     if custom_property.required is True:
-                        assert custom_property.default_value is not None
+                        if custom_property.default_value is None:
+                            raise ValueError("unexpected None value")
                         self.custom_properties[custom_property.name] = custom_property.default_value
         return copy
 
@@ -911,18 +913,18 @@ class Repository(ModelObject):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: Repository | None,
+        current_object: Repository | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if expected_object is None:
-            assert isinstance(current_object, Repository)
+            current_object = unwrap(current_object)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
 
-        assert isinstance(expected_object, Repository)
+        expected_object = unwrap(expected_object)
 
         expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
         coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
@@ -930,8 +932,6 @@ class Repository(ModelObject):
         if current_object is None:
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
         else:
-            assert isinstance(current_object, Repository)
-
             if context.current_org_settings is not None:
                 current_org_settings = cast(OrganizationSettings, context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
@@ -972,9 +972,8 @@ class Repository(ModelObject):
                 from_value = change.from_value
                 to_value = change.to_value
 
-                assert isinstance(from_value, dict)
-                assert isinstance(to_value, dict)
-                assert change.to_value is not None
+                if not isinstance(from_value, dict) or not isinstance(to_value, dict) or change.to_value is None:
+                    raise RuntimeError(f"unexpected change '{change}'")
 
                 for k, _v in from_value.items():
                     if k not in to_value:
@@ -1054,30 +1053,31 @@ class Repository(ModelObject):
             )
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[Repository],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, Repository)
+                expected_object = unwrap(patch.expected_object)
                 await provider.add_repo(
                     org_id,
-                    await patch.expected_object.to_provider_data(org_id, provider),
-                    patch.expected_object.template_repository,
-                    patch.expected_object.post_process_template_content,
-                    patch.expected_object.forked_repository,
-                    patch.expected_object.fork_default_branch_only,
-                    patch.expected_object.auto_init,
+                    await expected_object.to_provider_data(org_id, provider),
+                    expected_object.template_repository,
+                    expected_object.post_process_template_content,
+                    expected_object.forked_repository,
+                    expected_object.fork_default_branch_only,
+                    expected_object.auto_init,
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, Repository)
-                await provider.delete_repo(org_id, patch.current_object.name)
+                await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
-                assert patch.changes is not None
-                assert isinstance(patch.expected_object, Repository)
-                assert isinstance(patch.current_object, Repository)
                 await provider.update_repo(
                     org_id,
-                    patch.current_object.name,
-                    await cls.changes_to_provider(org_id, patch.changes, provider),
+                    unwrap(patch.current_object).name,
+                    await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
                 )

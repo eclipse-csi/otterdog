@@ -23,7 +23,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset
+from otterdog.utils import UNSET, Change, is_set_and_present, is_set_and_valid, is_unset, unwrap
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -156,24 +156,21 @@ class Webhook(ModelObject, abc.ABC):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: WT | None,
+        current_object: WT | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
-            assert isinstance(expected_object, Webhook)
+            expected_object = unwrap(expected_object)
             handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
             return
 
         if expected_object is None:
-            assert isinstance(current_object, Webhook)
+            current_object = unwrap(current_object)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
-
-        assert isinstance(expected_object, Webhook)
-        assert isinstance(current_object, Webhook)
 
         # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
         if (

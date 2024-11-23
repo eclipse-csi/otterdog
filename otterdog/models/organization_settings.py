@@ -30,6 +30,7 @@ from otterdog.utils import (
     IndentingPrinter,
     is_set_and_present,
     is_set_and_valid,
+    unwrap,
     write_patch_object_as_json,
 )
 
@@ -220,14 +221,14 @@ class OrganizationSettings(ModelObject):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: OrganizationSettings | None,
+        current_object: OrganizationSettings | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        assert isinstance(expected_object, OrganizationSettings)
-        assert isinstance(current_object, OrganizationSettings)
+        expected_object = unwrap(expected_object)
+        current_object = unwrap(current_object)
 
         modified_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
 
@@ -263,8 +264,14 @@ class OrganizationSettings(ModelObject):
             )
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-        assert patch.patch_type == LivePatchType.CHANGE
-        assert patch.changes is not None
-        github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[OrganizationSettings],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
+        if patch.patch_type != LivePatchType.CHANGE:
+            raise ValueError(f"unexpected patch_type '{patch.patch_type}'")
+
+        github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
         await provider.update_org_settings(org_id, github_settings)

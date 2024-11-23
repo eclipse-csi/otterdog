@@ -12,7 +12,7 @@ import dataclasses
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast, final
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, final
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
@@ -28,6 +28,7 @@ from otterdog.utils import (
     multi_associate_by_key,
     patch_to_other,
     style,
+    unwrap,
     write_patch_object_as_json,
 )
 
@@ -73,41 +74,37 @@ class LivePatchType(Enum):
     CHANGE = 3
 
 
-class LivePatchApplyFn(Protocol):
-    async def __call__(self, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...
+class LivePatchApplyFn(Protocol[MT]):
+    async def __call__(self, patch: LivePatch[MT], org_id: str, provider: GitHubProvider) -> None: ...
 
 
 @dataclasses.dataclass(frozen=True)
-class LivePatch:
+class LivePatch(Generic[MT]):
     patch_type: LivePatchType
-    expected_object: ModelObject | None
-    current_object: ModelObject | None
+    expected_object: MT | None
+    current_object: MT | None
     changes: dict[str, Change] | None
     parent_object: ModelObject | None
     forced_update: bool
     fn: LivePatchApplyFn
 
     @classmethod
-    def of_addition(
-        cls, expected_object: ModelObject, parent_object: ModelObject | None, fn: LivePatchApplyFn
-    ) -> LivePatch:
+    def of_addition(cls, expected_object: MT, parent_object: ModelObject | None, fn: LivePatchApplyFn[MT]) -> LivePatch:
         return LivePatch(LivePatchType.ADD, expected_object, None, None, parent_object, False, fn)
 
     @classmethod
-    def of_deletion(
-        cls, current_object: ModelObject, parent_object: ModelObject | None, fn: LivePatchApplyFn
-    ) -> LivePatch:
+    def of_deletion(cls, current_object: MT, parent_object: ModelObject | None, fn: LivePatchApplyFn[MT]) -> LivePatch:
         return LivePatch(LivePatchType.REMOVE, None, current_object, None, parent_object, False, fn)
 
     @classmethod
     def of_changes(
         cls,
-        expected_object: ModelObject,
-        current_object: ModelObject,
+        expected_object: MT,
+        current_object: MT,
         changes: dict[str, Change],
         parent_object: ModelObject | None,
         forced_update: bool,
-        fn: LivePatchApplyFn,
+        fn: LivePatchApplyFn[MT],
     ) -> LivePatch:
         return LivePatch(
             LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
@@ -116,37 +113,31 @@ class LivePatch:
     def requires_web_ui(self) -> bool:
         match self.patch_type:
             case LivePatchType.ADD:
-                assert self.expected_object is not None
-                return self.expected_object.requires_web_ui()
+                return unwrap(self.expected_object).requires_web_ui()
 
             case LivePatchType.REMOVE:
                 return False
 
             case LivePatchType.CHANGE:
-                assert self.expected_object is not None
-                assert self.changes is not None
-                return self.expected_object.changes_require_web_ui(self.changes)
+                return unwrap(self.expected_object).changes_require_web_ui(unwrap(self.changes))
 
     def requires_secrets(self) -> bool:
         match self.patch_type:
             case LivePatchType.ADD:
-                assert self.expected_object is not None
-                return self.expected_object.contains_secrets()
+                return unwrap(self.expected_object).contains_secrets()
 
             case LivePatchType.REMOVE:
                 return False
 
             case LivePatchType.CHANGE:
-                assert self.expected_object is not None
-                return self.expected_object.contains_secrets()
+                return unwrap(self.expected_object).contains_secrets()
 
     async def apply(self, org_id: str, provider: GitHubProvider) -> None:
         await self.fn(self, org_id, provider)
 
     def __repr__(self) -> str:
         obj = self.expected_object if self.expected_object is not None else self.current_object
-        assert obj is not None
-        return f"{self.patch_type.name} - {obj.get_model_header(self.parent_object)}"
+        return f"{self.patch_type.name} - {unwrap(obj).get_model_header(self.parent_object)}"
 
 
 @dataclasses.dataclass
@@ -213,10 +204,9 @@ class EmbeddedModelObject(ABC):
         patch = self.get_patch_to(default_object)
 
         template_function = self.get_jsonnet_template_function(jsonnet_config, False)
-        assert template_function is not None
 
         if extend is False:
-            printer.print(f" {template_function}()")
+            printer.print(f" {unwrap(template_function)}()")
 
         write_patch_object_as_json(patch, printer)
 
@@ -304,7 +294,9 @@ class ModelObject(ABC):
 
     def get_key(self) -> str:
         """Returns the key property of this ModelObject if it keyed"""
-        assert self.is_keyed()
+        if not self.is_keyed():
+            raise RuntimeError("model object is not keyed")
+
         return next(
             filter(
                 lambda field: field.metadata.get("key", False) is True,
@@ -641,37 +633,33 @@ class ModelObject(ABC):
         patch = self.get_patch_to(default_object)
 
         template_function = self.get_jsonnet_template_function(jsonnet_config, False)
-        assert template_function is not None
 
         if self.is_keyed():
             key = patch.pop(self.get_key())
-            printer.print(f"{template_function}('{key}')")
+            printer.print(f"{unwrap(template_function)}('{key}')")
         else:
-            printer.print(f"{template_function}")
+            printer.print(f"{unwrap(template_function)}")
 
         write_patch_object_as_json(patch, printer)
 
     @classmethod
     def generate_live_patch(
-        cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        cls: type[MT],
+        expected_object: MT | None,
+        current_object: MT | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
-            assert isinstance(expected_object, cls)
+            expected_object = unwrap(expected_object)
             handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
             return
 
         if expected_object is None:
-            assert isinstance(current_object, cls)
+            current_object = unwrap(current_object)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
-
-        assert isinstance(expected_object, cls)
-        assert isinstance(current_object, cls)
 
         modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
 
@@ -730,4 +718,4 @@ class ModelObject(ABC):
 
     @classmethod
     @abstractmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None: ...
+    async def apply_live_patch(cls: type[MT], patch: LivePatch[MT], org_id: str, provider: GitHubProvider) -> None: ...

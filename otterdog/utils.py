@@ -167,6 +167,27 @@ def is_set_and_present(value: T | None) -> TypeGuard[T]:
     return is_set_and_valid(value)
 
 
+def unwrap(value: T | None, error_message: str = "unexpected None when unwrapping value") -> T:
+    """
+    Will unwrap the given value or raise a ValueError if it is None
+
+    :param value: the optional value to unwrap
+    :param error_message: the error message when failing to unwrap
+    :return: the value or a ValueError if it is None
+    """
+    if value is None:
+        raise ValueError(error_message)
+    else:
+        return value
+
+
+def expect_type(value: Any, expected_type: type[T]) -> T:
+    if isinstance(value, expected_type):
+        return value
+    else:
+        raise ValueError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
+
+
 @dataclass
 class Change(Generic[T]):
     from_value: T | None
@@ -392,8 +413,10 @@ class IndentingPrinter:
         self._level += 1
 
     def level_down(self) -> None:
+        if self._level == 0:
+            raise RuntimeError("tried to call level_down on level 0")
+
         self._level -= 1
-        assert self._level >= 0
 
 
 async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
@@ -506,11 +529,8 @@ def sort_jsonnet(lines: list[str]) -> list[str]:
             current_node: list[tuple[str, Any]] = []
             object_stack[-1].append((line, current_node))
             object_stack.append(current_node)
-        elif (
-            trimmed_line.endswith("}")
-            and "{" not in trimmed_line
-            or trimmed_line.endswith("]")
-            and "[" not in trimmed_line
+        elif (trimmed_line.endswith("}") and "{" not in trimmed_line) or (
+            trimmed_line.endswith("]") and "[" not in trimmed_line
         ):
             object_stack[-1].append((line, None))
             object_stack.pop()

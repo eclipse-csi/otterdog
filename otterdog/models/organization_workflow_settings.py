@@ -23,7 +23,7 @@ from otterdog.models import (
     ValidationContext,
 )
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.utils import Change, is_set_and_valid
+from otterdog.utils import Change, is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
@@ -109,14 +109,14 @@ class OrganizationWorkflowSettings(WorkflowSettings):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: OrganizationWorkflowSettings | None,
+        current_object: OrganizationWorkflowSettings | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        assert isinstance(expected_object, OrganizationWorkflowSettings)
-        assert isinstance(current_object, OrganizationWorkflowSettings)
+        expected_object = unwrap(expected_object)
+        current_object = unwrap(current_object)
 
         modified_workflow_settings: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
 
@@ -141,8 +141,14 @@ class OrganizationWorkflowSettings(WorkflowSettings):
         context.modified_org_workflow_settings = modified_workflow_settings
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
-        assert patch.patch_type == LivePatchType.CHANGE
-        assert patch.changes is not None
-        github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[OrganizationWorkflowSettings],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
+        if patch.patch_type != LivePatchType.CHANGE:
+            raise ValueError(f"unexpected patch_type '{patch.patch_type}'")
+
+        github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
         await provider.update_org_workflow_settings(org_id, github_settings)

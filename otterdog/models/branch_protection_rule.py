@@ -24,9 +24,11 @@ from otterdog.models import (
 from otterdog.utils import (
     UNSET,
     associate_by_key,
+    expect_type,
     is_set_and_valid,
     is_unset,
     snake_to_camel_case,
+    unwrap,
 )
 
 if TYPE_CHECKING:
@@ -376,38 +378,41 @@ class BranchProtectionRule(ModelObject):
         return f"orgs.{jsonnet_config.create_branch_protection_rule}"
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[BranchProtectionRule],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         from .repository import Repository
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, BranchProtectionRule)
-                assert isinstance(patch.parent_object, Repository)
+                repository = expect_type(patch.parent_object, Repository)
                 await provider.add_branch_protection_rule(
                     org_id,
-                    patch.parent_object.name,
-                    patch.parent_object.node_id,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    repository.name,
+                    repository.node_id,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, BranchProtectionRule)
-                assert isinstance(patch.parent_object, Repository)
+                current_object = unwrap(patch.current_object)
+                repository = expect_type(patch.parent_object, Repository)
                 await provider.delete_branch_protection_rule(
                     org_id,
-                    patch.parent_object.name,
-                    patch.current_object.id,
-                    patch.current_object.pattern,
+                    repository.name,
+                    current_object.id,
+                    current_object.pattern,
                 )
 
             case LivePatchType.CHANGE:
-                assert patch.changes is not None
-                assert isinstance(patch.current_object, BranchProtectionRule)
-                assert isinstance(patch.parent_object, Repository)
+                current_object = unwrap(patch.current_object)
+                repository = expect_type(patch.parent_object, Repository)
                 await provider.update_branch_protection_rule(
                     org_id,
-                    patch.parent_object.name,
-                    patch.current_object.id,
-                    patch.current_object.pattern,
-                    await cls.changes_to_provider(org_id, patch.changes, provider),
+                    repository.name,
+                    current_object.id,
+                    current_object.pattern,
+                    await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
                 )
