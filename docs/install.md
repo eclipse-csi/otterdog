@@ -1,4 +1,4 @@
-Otterdog requires Python 3.10+ to run.
+Otterdog requires Python 3.11+ to run.
 
 ## System requirements
 
@@ -6,7 +6,7 @@ A few system dependencies are required to be installed:
 
 ### Mandatory system dependencies
 
-* [`python 3.10+`](https://www.python.org/): Python 3 + pip
+* [`python 3.11+`](https://www.python.org/): Python 3 + pip
 
 ```bash
 apt install python3 python3-pip
@@ -15,19 +15,13 @@ apt install python3 python3-pip
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+pipx install poetry
 ```
 
-* [`go`](https://go.dev/): Go language compiler, v1.13+, needed for installing jsonnet-bundler
+* [`git`](https://git-scm.com/): popular distributed version control system
 
 ```bash
-apt install golang
-```
-
-* [`jsonnet-bundler`](https://github.com/jsonnet-bundler/jsonnet-bundler): Package manager for jsonnet
-
-```bash
-go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@v0.5.1
+apt install git
 ```
 
 ### Optional system dependencies
