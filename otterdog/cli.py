@@ -43,7 +43,7 @@ from .operations.sync_template import SyncTemplateOperation
 from .operations.uninstall_app import UninstallAppOperation
 from .operations.validate import ValidateOperation
 from .operations.web_login import WebLoginOperation
-from .utils import IndentingPrinter, init, is_debug_enabled, print_error
+from .utils import IndentingPrinter, init, is_debug_enabled, print_error, unwrap
 
 _CONFIG_FILE = "otterdog.json"
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
@@ -755,9 +755,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
 
     try:
         exit_code = 0
-        config = _CONFIG
-
-        assert config is not None
+        config = unwrap(_CONFIG)
 
         set_github_cache(file_cache())
 

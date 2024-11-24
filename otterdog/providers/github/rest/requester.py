@@ -157,11 +157,9 @@ class Requester:
             next_link = links.get("next", None) if links is not None else None
             next_url = next_link.get("url", None) if next_link is not None else None
 
-            if (
-                hasattr(response, "from_cache")
-                and response.from_cache
-                or response.headers.get("X-From-Cache", 0) == "1"
-            ):
+            if (hasattr(response, "from_cache") and response.from_cache) or response.headers.get(
+                "X-From-Cache", 0
+            ) == "1":
                 self._statistics.received_cached_response()
             else:
                 self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))

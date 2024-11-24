@@ -273,7 +273,7 @@ class RepoClient(RestClient):
 
         for webhook in webhooks:
             webhook_url = webhook["config"]["url"]
-            if has_wildcard_url is True and webhook_url.startswith(stripped_url) or webhook_url == url:
+            if (has_wildcard_url is True and webhook_url.startswith(stripped_url)) or webhook_url == url:
                 return webhook["id"]
 
         raise RuntimeError(f"failed to find repo webhook with url '{url}'")

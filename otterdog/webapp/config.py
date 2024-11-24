@@ -7,8 +7,7 @@
 #  *******************************************************************************
 
 import os
-import random
-import string
+import secrets
 
 from decouple import config  # type: ignore
 
@@ -36,7 +35,7 @@ class AppConfig:
     # Set up the App SECRET_KEY
     SECRET_KEY = config("SECRET_KEY", default=None)
     if not SECRET_KEY:
-        SECRET_KEY = "".join(random.choice(string.ascii_lowercase) for i in range(32))
+        SECRET_KEY = secrets.token_hex(16)
 
     GITHUB_ADMIN_TEAMS = config("GITHUB_ADMIN_TEAMS", default="otterdog-admins")
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")

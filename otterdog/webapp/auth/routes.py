@@ -51,7 +51,7 @@ async def authorized(oauth_token):
         "Authorization": f"Bearer {oauth_token}",
     }
 
-    response = get("https://api.github.com/user", headers=headers)
+    response = get("https://api.github.com/user", headers=headers, timeout=10)
     if response.ok:
         account_info = response.json()
         node_id = account_info["node_id"]
@@ -65,8 +65,6 @@ async def authorized(oauth_token):
             if user_model is None:
                 user_model = UserModel(node_id=node_id, username=username, email=email)
                 await save_user(user_model)
-
-            assert user_model is not None
 
             # update eclipse specific data
             eclipse_userdata = _retrieve_eclipse_user(username)
@@ -94,7 +92,7 @@ async def authorized(oauth_token):
 def _retrieve_eclipse_user(github_id: str) -> dict[str, Any] | None:
     from requests import get
 
-    response = get(f"https://api.eclipse.org/github/profile/{github_id}")
+    response = get(f"https://api.eclipse.org/github/profile/{github_id}", timeout=10)
 
     if response.status_code == 200:
         return response.json()
@@ -105,7 +103,7 @@ def _retrieve_eclipse_user(github_id: str) -> dict[str, Any] | None:
 def _retrieve_eclipse_projects(eclipse_user: str) -> dict[str, Any] | None:
     from requests import get
 
-    response = get(f"https://api.eclipse.org/account/profile/{eclipse_user}/projects")
+    response = get(f"https://api.eclipse.org/account/profile/{eclipse_user}/projects", timeout=10)
 
     if response.status_code == 200:
         return response.json()
