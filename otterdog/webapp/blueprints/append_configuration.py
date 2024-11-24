@@ -61,7 +61,11 @@ class AppendConfigurationBlueprint(Blueprint):
         from otterdog.webapp.tasks.blueprints.append_configuration import AppendConfigurationTask
 
         config_model = await get_configuration_by_github_id(github_id) if config is None else config
-        assert config_model is not None
+        if config_model is None:
+            self.logger.warning(
+                f"evaluating_repo for blueprint with id '{self.id}': no configuration found for github_id '{github_id}'"
+            )
+            return
 
         current_app.add_background_task(
             AppendConfigurationTask(

@@ -17,7 +17,7 @@ from quart import current_app, render_template
 
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.operations.local_plan import LocalPlanOperation
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import IndentingPrinter, LogLevel, unwrap
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -27,7 +27,7 @@ from otterdog.webapp.utils import (
     get_full_admin_team_slugs,
     get_otterdog_config,
 )
-from otterdog.webapp.webhook.github_models import PullRequest
+from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 if TYPE_CHECKING:
     from otterdog.operations.diff_operation import DiffStatus
@@ -120,15 +120,15 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 # PRs might not be up-to-date
             )
 
-            assert self._pull_request.head.repo is not None
+            head_repo: Repository = unwrap(self._pull_request.head.repo)
 
             # get HEAD config from PR
             head_file = org_config_file
             await fetch_config_from_github(
                 rest_api,
                 self.org_id,
-                self._pull_request.head.repo.owner.login,
-                self._pull_request.head.repo.name,
+                head_repo.owner.login,
+                head_repo.name,
                 head_file,
                 self._pull_request.head.ref,
             )

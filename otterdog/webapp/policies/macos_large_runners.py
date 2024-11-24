@@ -9,6 +9,7 @@
 from logging import getLogger
 from typing import Any, Self
 
+from otterdog.utils import expect_type, unwrap
 from otterdog.webapp.db.service import increment_or_create_policy_status
 from otterdog.webapp.webhook.github_models import WorkflowJob
 
@@ -36,8 +37,8 @@ class MacOSLargeRunnersUsagePolicy(Policy):
     async def evaluate(
         self, installation_id: int, github_id: str, repo_name: str | None = None, payload: Any | None = None
     ) -> None:
-        assert repo_name is not None
-        assert isinstance(payload, WorkflowJob)
+        repo_name = unwrap(repo_name)
+        payload = expect_type(payload, WorkflowJob)
 
         uses_restricted_runner, permitted = self._is_workflow_job_permitted(payload.labels)
         if not permitted:

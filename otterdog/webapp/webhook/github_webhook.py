@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import logging
+from ast import literal_eval
 
 from quart import abort, request
 
@@ -156,7 +157,7 @@ EVENT_FILTER = {"workflow_job": "'{action}' == 'queued'"}
 
 def _log_event(event_type, data) -> bool:
     try:
-        return eval(EVENT_FILTER[event_type].format(**data))
+        return literal_eval(EVENT_FILTER[event_type].format(**data))
     except KeyError:
         return True
 
