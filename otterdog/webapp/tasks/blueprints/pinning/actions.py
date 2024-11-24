@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from semver import Version
 
+from otterdog.utils import unwrap
+
 from .workflow_file import WorkflowFile
 
 if TYPE_CHECKING:
@@ -59,23 +61,18 @@ class ReusableWorkflow(ActionRef):
     _PATTERN: ClassVar[re.Pattern] = re.compile(r"(([^/]+)/([^@/]+)/)?([^@]+(?:\.yaml|\.yml))(@([^#\s]+))?")
 
     def can_be_pinned(self) -> bool:
-        return self.owner is not None
+        return self.owner is not None and self.repo is not None and self.ref is not None
 
     async def pin(self, rest_api: RestApi) -> tuple[str, ActionRef, str]:
-        assert self.owner is not None
-        assert self.repo is not None
-        assert self.ref is not None
-
-        pinned_reference, comment = await _pin_github_repo(rest_api, self.owner, self.repo, self.ref)
+        pinned_reference, comment = await _pin_github_repo(
+            rest_api, unwrap(self.owner), unwrap(self.repo), unwrap(self.ref)
+        )
         pinned_action = dataclasses.replace(self)
         pinned_action.ref = pinned_reference
         return f"{self!r}", pinned_action, comment
 
     async def pinned_version(self, rest_api: RestApi) -> str | None:
-        assert self.owner is not None
-        assert self.repo is not None
-        assert self.ref is not None
-        return await _get_pinned_version(rest_api, self.owner, self.repo, self.ref)
+        return await _get_pinned_version(rest_api, unwrap(self.owner), unwrap(self.repo), unwrap(self.ref))
 
     async def get_workflow_file(self, rest_api: RestApi) -> WorkflowFile | None:
         if self.owner is not None:
@@ -132,15 +129,13 @@ class GitHubAction(ActionRef):
         return self.ref is not None
 
     async def pin(self, rest_api: RestApi) -> tuple[str, ActionRef, str]:
-        assert self.ref is not None
-        pinned_reference, comment = await _pin_github_repo(rest_api, self.owner, self.repo, self.ref)
+        pinned_reference, comment = await _pin_github_repo(rest_api, self.owner, self.repo, unwrap(self.ref))
         pinned_action = dataclasses.replace(self)
         pinned_action.ref = pinned_reference
         return f"{self!r}", pinned_action, comment
 
     async def pinned_version(self, rest_api: RestApi) -> str | None:
-        assert self.ref is not None
-        return await _get_pinned_version(rest_api, self.owner, self.repo, self.ref)
+        return await _get_pinned_version(rest_api, self.owner, self.repo, unwrap(self.ref))
 
     async def get_workflow_file(self, rest_api: RestApi) -> WorkflowFile | None:
         version = self.ref

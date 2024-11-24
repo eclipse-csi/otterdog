@@ -19,6 +19,7 @@ from quart import current_app
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github.stats import RequestStatistics
+from otterdog.utils import unwrap
 from otterdog.webapp.db.service import (
     create_task,
     fail_task,
@@ -199,8 +200,7 @@ class InstallationBasedTask(Protocol):
 
         base_dir = get_temporary_base_directory()
         async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-            assert rest_api.token is not None
-            org_config = await get_organization_config(installation, rest_api.token, base_dir, work_dir)
+            org_config = await get_organization_config(installation, unwrap(rest_api.token), base_dir, work_dir)
 
             if initialize_template:
                 jsonnet_config = org_config.jsonnet_config
@@ -266,15 +266,11 @@ class InstallationBasedTask(Protocol):
 async def get_organization_config(
     org_model: InstallationModel, token: str, base_dir: str, work_dir: str
 ) -> OrganizationConfig:
-    assert org_model.project_name is not None
-    assert org_model.config_repo is not None
-    assert org_model.base_template is not None
-
     return OrganizationConfig.of(
-        org_model.project_name,
+        unwrap(org_model.project_name),
         org_model.github_id,
-        org_model.config_repo,
-        org_model.base_template,
+        unwrap(org_model.config_repo),
+        unwrap(org_model.base_template),
         {"provider": "inmemory", "api_token": token},
         base_dir,
         work_dir,

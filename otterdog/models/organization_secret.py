@@ -15,7 +15,7 @@ from jsonbender import Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.secret import Secret
-from otterdog.utils import UNSET, is_set_and_valid
+from otterdog.utils import UNSET, is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -103,24 +103,25 @@ class OrganizationSecret(Secret):
         return f"orgs.{jsonnet_config.create_org_secret}"
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[OrganizationSecret],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, OrganizationSecret)
                 await provider.add_org_secret(
                     org_id,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, OrganizationSecret)
-                await provider.delete_org_secret(org_id, patch.current_object.name)
+                await provider.delete_org_secret(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
-                assert isinstance(patch.expected_object, OrganizationSecret)
-                assert isinstance(patch.current_object, OrganizationSecret)
                 await provider.update_org_secret(
                     org_id,
-                    patch.current_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    unwrap(patch.current_object).name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )

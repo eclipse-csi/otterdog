@@ -24,7 +24,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import Change, is_set_and_present, is_unset
+from otterdog.utils import Change, is_set_and_present, is_unset, unwrap
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -115,24 +115,21 @@ class Secret(ModelObject, abc.ABC):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: ST | None,
+        current_object: ST | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
-            assert isinstance(expected_object, Secret)
+            expected_object = unwrap(expected_object)
             handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
             return
 
         if expected_object is None:
-            assert isinstance(current_object, Secret)
+            current_object = unwrap(current_object)
             handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
             return
-
-        assert isinstance(expected_object, Secret)
-        assert isinstance(current_object, Secret)
 
         # if secrets shall be updated and the secret contains a valid secret perform a forced update.
         if context.update_secrets and fnmatch.fnmatch(expected_object.name, context.update_filter):

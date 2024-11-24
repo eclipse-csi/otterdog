@@ -8,7 +8,7 @@
 
 import json
 
-from otterdog.utils import snake_to_normal_case
+from otterdog.utils import expect_type, snake_to_normal_case
 
 
 def register_filters(app):
@@ -83,8 +83,7 @@ def register_filters(app):
         from otterdog.models import ModelObject
         from otterdog.utils import PrettyFormatter
 
-        assert isinstance(value, ModelObject)
-        return PrettyFormatter().format(value.to_model_dict(False, False))
+        return PrettyFormatter().format(expect_type(value, ModelObject).to_model_dict(False, False))
 
     @app.template_filter("short_name")
     def project_short_name(value):

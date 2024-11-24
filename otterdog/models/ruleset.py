@@ -30,6 +30,7 @@ from otterdog.utils import (
     is_set_and_valid,
     is_unset,
     print_warn,
+    unwrap,
     write_patch_object_as_json,
 )
 
@@ -719,12 +720,11 @@ class Ruleset(ModelObject, abc.ABC):
         patch = self.get_patch_to(default_object)
 
         template_function = self.get_jsonnet_template_function(jsonnet_config, False)
-        assert template_function is not None
 
         if "name" in patch:
             patch.pop("name")
 
-        printer.print(f"{template_function}('{self.name}')")
+        printer.print(f"{unwrap(template_function)}('{self.name}')")
 
         if "required_pull_request" in patch and patch.get("required_pull_request") is not None:
             patch.pop("required_pull_request")

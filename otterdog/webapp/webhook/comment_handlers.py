@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from quart import current_app
 
-from otterdog.utils import LogLevel
+from otterdog.utils import LogLevel, unwrap
 
 if TYPE_CHECKING:
     from re import Match, Pattern
@@ -52,13 +52,10 @@ class HelpCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.help_comment import HelpCommentTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             HelpCommentTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
             )
@@ -74,13 +71,10 @@ class TeamInfoCommentHandler(CommentHandler):
             RetrieveTeamMembershipTask,
         )
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             RetrieveTeamMembershipTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
             )
@@ -94,13 +88,10 @@ class CheckSyncCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.check_sync import CheckConfigurationInSyncTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             CheckConfigurationInSyncTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
             )
@@ -114,13 +105,10 @@ class DoneCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.complete_pull_request import CompletePullRequestTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             CompletePullRequestTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -135,13 +123,10 @@ class ApplyCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.apply_changes import ApplyChangesTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             ApplyChangesTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -156,13 +141,10 @@ class MergeCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.merge_pull_request import MergePullRequestTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         self.schedule_task(
             MergePullRequestTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -177,9 +159,6 @@ class ValidateCommentHandler(CommentHandler):
     def process(self, match: re.Match, event: IssueCommentEvent) -> None:
         from otterdog.webapp.tasks.validate_pull_request import ValidatePullRequestTask
 
-        assert event.installation is not None
-        assert event.organization is not None
-
         log_level_str = match.group(1)
         log_level = LogLevel.WARN
 
@@ -188,8 +167,8 @@ class ValidateCommentHandler(CommentHandler):
 
         self.schedule_task(
             ValidatePullRequestTask(
-                event.installation.id,
-                event.organization.login,
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
                 event.repository.name,
                 event.issue.number,
                 log_level,

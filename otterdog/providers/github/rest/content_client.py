@@ -23,7 +23,8 @@ class ContentClient(RestClient):
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> list[dict[str, Any]]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
-        assert isinstance(json_response, list)
+        if not isinstance(json_response, list):
+            raise RuntimeError(f"unexpected result for retrieving contents of path '{path}': '{type(json_response)}'")
         return json_response
 
     async def get_content_object(
@@ -42,14 +43,16 @@ class ContentClient(RestClient):
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
-        assert isinstance(json_response, dict)
+        if not isinstance(json_response, dict):
+            raise RuntimeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
         return base64.b64decode(json_response["content"]).decode("utf-8")
 
     async def get_content_with_sha(
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> tuple[str, str]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
-        assert isinstance(json_response, dict)
+        if not isinstance(json_response, dict):
+            raise RuntimeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
         return base64.b64decode(json_response["content"]).decode("utf-8"), json_response["sha"]
 
     async def update_content(
@@ -68,7 +71,10 @@ class ContentClient(RestClient):
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path, ref)
-            assert isinstance(json_response, dict)
+            if not isinstance(json_response, dict):
+                raise RuntimeError(
+                    f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'"
+                )
             old_sha = json_response["sha"]
             old_content = base64.b64decode(json_response["content"]).decode("utf-8")
         except RuntimeError:
@@ -123,7 +129,10 @@ class ContentClient(RestClient):
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path)
-            assert isinstance(json_response, dict)
+            if not isinstance(json_response, dict):
+                raise RuntimeError(
+                    f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'"
+                )
             old_sha = json_response["sha"]
         except RuntimeError:
             old_sha = None

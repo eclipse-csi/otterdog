@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
-from otterdog.utils import is_debug_enabled, print_debug, print_trace, print_warn
+from otterdog.utils import is_debug_enabled, print_debug, print_trace, print_warn, unwrap
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -99,7 +99,7 @@ class WebClient:
 
         print_trace(f"loading page '{page_url}'")
         response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
-        assert response is not None
+        response = unwrap(response)
         if not response.ok:
             raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
@@ -208,7 +208,7 @@ class WebClient:
         for page_url, page_dict in pages_to_load.items():
             print_trace(f"loading page '{page_url}'")
             response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
-            assert response is not None
+            response = unwrap(response)
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
@@ -501,7 +501,7 @@ class WebClient:
     @staticmethod
     async def _logged_in_as(page: Page) -> str:
         response = await page.goto("https://github.com/settings/profile")
-        assert response is not None
+        response = unwrap(response)
         if not response.ok:
             raise RuntimeError(f"unable to load github profile page: {response.status}")
 
@@ -515,7 +515,7 @@ class WebClient:
 
     async def _login(self, page: Page) -> None:
         response = await page.goto("https://github.com/login")
-        assert response is not None
+        response = unwrap(response)
         if not response.ok:
             raise RuntimeError(f"unable to load github login page: {response.status}")
 
@@ -554,10 +554,10 @@ class WebClient:
         actor = await self._logged_in_as(page)
 
         response = await page.goto("https://github.com/logout")
-        assert response is not None
+        response = unwrap(response)
         if not response.ok:
             response = await page.goto("https://github.com/settings/profile")
-            assert response is not None
+            response = unwrap(response)
             if not response.ok:
                 raise RuntimeError("unable to load github logout page")
 

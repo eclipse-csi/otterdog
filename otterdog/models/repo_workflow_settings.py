@@ -24,7 +24,7 @@ from otterdog.models import (
 )
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.utils import UNSET, Change, is_set_and_valid, is_unset
+from otterdog.utils import UNSET, Change, expect_type, is_set_and_valid, is_unset, unwrap
 
 if TYPE_CHECKING:
     from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
@@ -151,13 +151,13 @@ class RepositoryWorkflowSettings(WorkflowSettings):
     @classmethod
     def generate_live_patch(
         cls,
-        expected_object: ModelObject | None,
-        current_object: ModelObject | None,
+        expected_object: RepositoryWorkflowSettings | None,
+        current_object: RepositoryWorkflowSettings | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
-        assert isinstance(expected_object, RepositoryWorkflowSettings)
+        expected_object = unwrap(expected_object)
 
         expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
         coerced_object = expected_object.coerce_from_org_settings(parent_object, expected_org_settings.workflows)
@@ -165,8 +165,6 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         if current_object is None:
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
             return
-
-        assert isinstance(current_object, RepositoryWorkflowSettings)
 
         modified_workflow_settings: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
@@ -203,24 +201,27 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             )
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[RepositoryWorkflowSettings],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         from .repository import Repository
 
-        assert isinstance(patch.parent_object, Repository)
+        repository = expect_type(patch.parent_object, Repository)
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, RepositoryWorkflowSettings)
                 await provider.update_repo_workflow_settings(
                     org_id,
-                    patch.parent_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    repository.name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.CHANGE:
-                assert patch.changes is not None
-                github_settings = await cls.changes_to_provider(org_id, patch.changes, provider)
-                await provider.update_repo_workflow_settings(org_id, patch.parent_object.name, github_settings)
+                github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
+                await provider.update_repo_workflow_settings(org_id, repository.name, github_settings)
 
             case _:
                 raise RuntimeError(f"unexpected patch type '{patch.patch_type}'")

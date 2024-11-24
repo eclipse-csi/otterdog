@@ -14,6 +14,7 @@ from aiofiles import ospath
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
+from otterdog.utils import unwrap
 
 from .plan import PlanOperation
 
@@ -44,8 +45,7 @@ class LocalPlanOperation(PlanOperation):
 
     @property
     def other_org(self) -> GitHubOrganization:
-        assert self._other_org is not None
-        return self._other_org
+        return unwrap(self._other_org)
 
     def pre_execute(self) -> None:
         self.printer.println("Printing local diff:")

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from odmantic import query
 from quart import current_app
 
+from otterdog.utils import unwrap
 from otterdog.webapp import mongo
 from otterdog.webapp.utils import (
     current_utc_time,
@@ -213,13 +214,13 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
     from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
-    assert installation.config_repo is not None
+    config_repo = unwrap(installation.config_repo)
 
     current_app.add_background_task(
         FetchConfigTask(
             installation.installation_id,
             installation.github_id,
-            installation.config_repo,
+            config_repo,
         )
     )
 
@@ -227,7 +228,7 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
         FetchAllPullRequestsTask(
             installation.installation_id,
             installation.github_id,
-            installation.config_repo,
+            config_repo,
         )
     )
 
@@ -240,13 +241,13 @@ async def update_policies_and_blueprints_for_installation(
     from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
     from otterdog.webapp.tasks.fetch_policies import FetchPoliciesTask
 
-    assert installation.config_repo is not None
+    config_repo = unwrap(installation.config_repo)
 
     current_app.add_background_task(
         FetchPoliciesTask(
             installation.installation_id,
             installation.github_id,
-            installation.config_repo,
+            config_repo,
             global_policies,
         )
     )
@@ -255,7 +256,7 @@ async def update_policies_and_blueprints_for_installation(
         FetchBlueprintsTask(
             installation.installation_id,
             installation.github_id,
-            installation.config_repo,
+            config_repo,
             global_blueprints,
         )
     )

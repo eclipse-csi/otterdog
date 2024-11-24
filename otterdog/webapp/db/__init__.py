@@ -12,6 +12,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from odmantic import AIOEngine
 from quart import Quart
 
+from otterdog.utils import unwrap
+
 
 class Mongo:
     def __init__(self) -> None:
@@ -34,8 +36,7 @@ class Mongo:
 
     @property
     def odm(self) -> AIOEngine:
-        assert self._engine is not None
-        return self._engine
+        return unwrap(self._engine)
 
 
 async def init_mongo_database(mongo: Mongo) -> None:

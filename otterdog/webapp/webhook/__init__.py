@@ -11,6 +11,7 @@ from logging import getLogger
 from pydantic import ValidationError
 from quart import Response, current_app
 
+from otterdog.utils import expect_type
 from otterdog.webapp.blueprints import create_blueprint_from_model, is_blueprint_path
 from otterdog.webapp.db.service import (
     find_blueprint,
@@ -359,7 +360,7 @@ async def on_workflow_job_received(data):
         policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE.value)
         if policy_model is not None:
             policy = create_policy_from_model(policy_model)
-            assert isinstance(policy, MacOSLargeRunnersUsagePolicy)
+            expect_type(policy, MacOSLargeRunnersUsagePolicy)
             await policy.evaluate(
                 event.installation.id,
                 event.organization.login,

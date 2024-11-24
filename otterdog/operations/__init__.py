@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from otterdog.utils import Change, IndentingPrinter, style
+from otterdog.utils import Change, IndentingPrinter, style, unwrap
 
 if TYPE_CHECKING:
     from typing import Any
@@ -32,13 +32,11 @@ class Operation(ABC):
 
     @property
     def config(self) -> OtterdogConfig:
-        assert self._config is not None
-        return self._config
+        return unwrap(self._config)
 
     @property
     def printer(self) -> IndentingPrinter:
-        assert self._printer is not None
-        return self._printer
+        return unwrap(self._printer)
 
     @printer.setter
     def printer(self, value: IndentingPrinter):

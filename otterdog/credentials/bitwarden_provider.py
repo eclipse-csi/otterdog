@@ -28,7 +28,7 @@ class BitwardenVault(CredentialProvider):
         self._api_token_key = api_token_key
 
         utils.print_debug("unlocking bitwarden vault")
-        self._status, output = subprocess.getstatusoutput("bw unlock --check")
+        self._status, output = subprocess.getstatusoutput("bw unlock --check")  # noqa: S605, S607
         if self._status != 0:
             raise RuntimeError(f"could not access bitwarden vault:\n{output}")
 
@@ -39,8 +39,6 @@ class BitwardenVault(CredentialProvider):
         return self._status == 0
 
     def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
-        assert self.is_unlocked()
-
         item_id = data.get("item_id")
         if item_id is None:
             raise RuntimeError("required key 'item_id' not found in authorization data")
@@ -49,7 +47,7 @@ class BitwardenVault(CredentialProvider):
         if api_token_key is None:
             api_token_key = self._api_token_key
 
-        status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
+        status, output = subprocess.getstatusoutput(f"bw get item {item_id}")  # noqa: S605
         if status != 0:
             raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
         else:
@@ -93,7 +91,7 @@ class BitwardenVault(CredentialProvider):
         try:
             item_id, secret_key = split("@", data)
 
-            status, output = subprocess.getstatusoutput(f"bw get item {item_id}")
+            status, output = subprocess.getstatusoutput(f"bw get item {item_id}")  # noqa: S605
             if status != 0:
                 raise RuntimeError(f"item with id '{item_id}' not found in your bitwarden vault: {output}")
 

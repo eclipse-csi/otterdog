@@ -20,7 +20,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import is_set_and_valid, is_unset
+from otterdog.utils import expect_type, is_set_and_valid, is_unset, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -84,15 +84,12 @@ class Environment(ModelObject):
     def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject | None) -> bool:
         from .repository import Repository
 
-        assert isinstance(parent_object, Repository)
+        parent_object = expect_type(parent_object, Repository)
 
         # if it's a repo in the form of "<orgid>.github.io", ignore a missing github-pages environment
         # as it is automatically created, there is a validation rule to warn the user about it.
-        if (
-            parent_object.name.lower() == f"{org_id}.github.io".lower()
-            and self.name == "github-pages"
-            or self.name == "github-pages"
-            and parent_object.gh_pages_build_type != "disabled"
+        if (parent_object.name.lower() == f"{org_id}.github.io".lower() and self.name == "github-pages") or (
+            self.name == "github-pages" and parent_object.gh_pages_build_type != "disabled"
         ):
             return False
         else:
@@ -197,32 +194,31 @@ class Environment(ModelObject):
         return f"orgs.{jsonnet_config.create_environment}"
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(cls, patch: LivePatch[Environment], org_id: str, provider: GitHubProvider) -> None:
         from .repository import Repository
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, Environment)
-                assert isinstance(patch.parent_object, Repository)
+                expected_object = unwrap(patch.expected_object)
+                repository = expect_type(patch.parent_object, Repository)
                 await provider.add_repo_environment(
                     org_id,
-                    patch.parent_object.name,
-                    patch.expected_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    repository.name,
+                    expected_object.name,
+                    await expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, Environment)
-                assert isinstance(patch.parent_object, Repository)
-                await provider.delete_repo_environment(org_id, patch.parent_object.name, patch.current_object.name)
+                current_object = unwrap(patch.current_object)
+                repository = expect_type(patch.parent_object, Repository)
+                await provider.delete_repo_environment(org_id, repository.name, current_object.name)
 
             case LivePatchType.CHANGE:
-                assert patch.changes is not None
-                assert isinstance(patch.current_object, Environment)
-                assert isinstance(patch.parent_object, Repository)
+                current_object = unwrap(patch.current_object)
+                repository = expect_type(patch.parent_object, Repository)
                 await provider.update_repo_environment(
                     org_id,
-                    patch.parent_object.name,
-                    patch.current_object.name,
-                    await cls.changes_to_provider(org_id, patch.changes, provider),
+                    repository.name,
+                    current_object.name,
+                    await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
                 )

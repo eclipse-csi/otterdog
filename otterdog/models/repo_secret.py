@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.secret import Secret
+from otterdog.utils import expect_type, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -33,31 +34,35 @@ class RepositorySecret(Secret):
         return f"orgs.{jsonnet_config.create_repo_secret}"
 
     @classmethod
-    async def apply_live_patch(cls, patch: LivePatch, org_id: str, provider: GitHubProvider) -> None:
+    async def apply_live_patch(
+        cls,
+        patch: LivePatch[RepositorySecret],
+        org_id: str,
+        provider: GitHubProvider,
+    ) -> None:
         from .repository import Repository
+
+        repository = expect_type(patch.parent_object, Repository)
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                assert isinstance(patch.expected_object, RepositorySecret)
-                assert isinstance(patch.parent_object, Repository)
                 await provider.add_repo_secret(
                     org_id,
-                    patch.parent_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    repository.name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
-                assert isinstance(patch.current_object, RepositorySecret)
-                assert isinstance(patch.parent_object, Repository)
-                await provider.delete_repo_secret(org_id, patch.parent_object.name, patch.current_object.name)
+                await provider.delete_repo_secret(
+                    org_id,
+                    repository.name,
+                    unwrap(patch.current_object).name,
+                )
 
             case LivePatchType.CHANGE:
-                assert isinstance(patch.expected_object, RepositorySecret)
-                assert isinstance(patch.current_object, RepositorySecret)
-                assert isinstance(patch.parent_object, Repository)
                 await provider.update_repo_secret(
                     org_id,
-                    patch.parent_object.name,
-                    patch.current_object.name,
-                    await patch.expected_object.to_provider_data(org_id, provider),
+                    repository.name,
+                    unwrap(patch.current_object).name,
+                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )

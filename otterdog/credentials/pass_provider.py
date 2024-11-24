@@ -37,7 +37,7 @@ class PassVault(CredentialProvider):
         api_token_pattern: str,
     ):
         utils.print_debug("accessing pass vault")
-        status, output = getstatusoutput("pass ls")
+        status, output = getstatusoutput("pass ls")  # noqa: S605, S607
         if status != 0:
             raise RuntimeError(f"could not access pass vault:\n{output}")
 
@@ -100,10 +100,10 @@ class PassVault(CredentialProvider):
 
     @staticmethod
     def _retrieve_resolved_key(key: str, strict: bool = True) -> str:
-        status, secret = getstatusoutput(f"pass {key} 2>/dev/null")
+        status, secret = getstatusoutput(f"pass {key} 2>/dev/null")  # noqa: S605
         if status != 0:
             # run the process again, capturing any error output for debugging.
-            _, output = getstatusoutput(f"pass {key}")
+            _, output = getstatusoutput(f"pass {key}")  # noqa: S605
 
             if strict:
                 raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")

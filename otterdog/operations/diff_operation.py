@@ -16,7 +16,7 @@ import aiofiles.ospath
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, IndentingPrinter, style
+from otterdog.utils import Change, IndentingPrinter, style, unwrap
 
 from . import Operation
 from .validate import ValidateOperation
@@ -71,13 +71,11 @@ class DiffOperation(Operation):
 
     @property
     def template_dir(self) -> str:
-        assert self._template_dir is not None
-        return self._template_dir
+        return unwrap(self._template_dir)
 
     @property
     def org_config(self) -> OrganizationConfig:
-        assert self._org_config is not None
-        return self._org_config
+        return unwrap(self._org_config)
 
     @property
     def concurrency(self) -> int | None:
@@ -129,8 +127,7 @@ class DiffOperation(Operation):
 
     @property
     def gh_client(self) -> GitHubProvider:
-        assert self._gh_client is not None
-        return self._gh_client
+        return unwrap(self._gh_client)
 
     def verbose_output(self):
         return True
@@ -197,25 +194,20 @@ class DiffOperation(Operation):
 
             match patch.patch_type:
                 case LivePatchType.ADD:
-                    assert patch.expected_object is not None
-                    self.handle_add_object(github_id, patch.expected_object, patch.parent_object)
+                    self.handle_add_object(github_id, unwrap(patch.expected_object), patch.parent_object)
                     diff_status.additions += 1
 
                 case LivePatchType.REMOVE:
-                    assert patch.current_object is not None
-                    self.handle_delete_object(github_id, patch.current_object, patch.parent_object)
+                    self.handle_delete_object(github_id, unwrap(patch.current_object), patch.parent_object)
                     diff_status.deletions += 1
 
                 case LivePatchType.CHANGE:
-                    assert patch.changes is not None
-                    assert patch.current_object is not None
-                    assert patch.expected_object is not None
                     diff_status.differences += self.handle_modified_object(
                         github_id,
-                        patch.changes,
+                        unwrap(patch.changes),
                         False,
-                        patch.current_object,
-                        patch.expected_object,
+                        unwrap(patch.current_object),
+                        unwrap(patch.expected_object),
                         patch.parent_object,
                     )
 
