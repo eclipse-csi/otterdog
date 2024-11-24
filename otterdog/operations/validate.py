@@ -94,8 +94,7 @@ class ValidateOperation(Operation):
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
-        assert self._config is not None
-        context = organization.validate(self._config, template_dir)
+        context = organization.validate(self.config, template_dir)
 
         validation_infos = 0
         validation_warnings = 0

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from aiofiles import ospath
 
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import unwrap
 
 from .apply import ApplyOperation
 
@@ -55,8 +56,7 @@ class LocalApplyOperation(ApplyOperation):
 
     @property
     def other_org(self) -> GitHubOrganization:
-        assert self._other_org is not None
-        return self._other_org
+        return unwrap(self._other_org)
 
     def pre_execute(self) -> None:
         self.printer.println("Applying local changes:")
