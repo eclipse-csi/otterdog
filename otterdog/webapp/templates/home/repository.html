@@ -92,6 +92,17 @@
                           <span class="float-right">{{ repo_name }}</span>
                         </a>
                       </li>
+                      <li class="nav-item">
+                        {% if scorecard_result %}
+                        <a href="https://scorecard.dev/viewer/?uri=github.com/{{ github_id }}/{{ repo_name }}" class="nav-link" target="_blank">
+                          OSSF Scorecard <span class="float-right badge" style="background-color:{{ scorecard_result.score | scorecard_badge_color }}; color: white;">{{ scorecard_result.score }}</span>
+                        </a>
+                        {% else %}
+                        <a href="#" class="nav-link tab-link" target="_blank">
+                          OSSF Scorecard <span class="float-right badge badge-secondary">N/A</span>
+                        </a>
+                        {% endif %}
+                      </li>
                       {% if repo_config.private_vulnerability_reporting_enabled != null %}
                       <li class="nav-item">
                         <a href="#settings" class="nav-link tab-link">

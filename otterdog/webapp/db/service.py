@@ -40,6 +40,8 @@ from .models import (
     PullRequestId,
     PullRequestModel,
     PullRequestStatus,
+    ScorecardId,
+    ScorecardResultModel,
     StatisticsModel,
     TaskModel,
     TaskStatus,
@@ -871,3 +873,37 @@ async def cleanup_blueprint_status_of_repo(owner: str, repo_name: str, blueprint
         BlueprintStatusModel.id.repo_name == repo_name,
         BlueprintStatusModel.id.blueprint_id == blueprint_id,
     )
+
+
+async def get_scorecard_results(owner: str) -> list[ScorecardResultModel]:
+    return await mongo.odm.find(
+        ScorecardResultModel,
+        ScorecardResultModel.id.org_id == owner,
+        sort=ScorecardResultModel.id.repo_name,
+    )
+
+
+async def find_scorecard_result(owner: str, repo_name: str) -> ScorecardResultModel | None:
+    return await mongo.odm.find_one(
+        ScorecardResultModel,
+        ScorecardResultModel.id.org_id == owner,
+        ScorecardResultModel.id.repo_name == repo_name,
+    )
+
+
+async def update_or_create_scorecard_result(
+    owner: str,
+    repo_name: str,
+    score: float,
+    scorecard_version: str,
+) -> None:
+    scorecard_result_model = await find_scorecard_result(owner, repo_name)
+    if scorecard_result_model is None:
+        scorecard_result_model = ScorecardResultModel(
+            id=ScorecardId(org_id=owner, repo_name=repo_name),
+        )
+
+    scorecard_result_model.score = score
+    scorecard_result_model.scorecard_version = scorecard_version
+
+    await mongo.odm.save(scorecard_result_model)

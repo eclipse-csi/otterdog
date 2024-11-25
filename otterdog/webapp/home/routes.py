@@ -25,6 +25,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import PrettyFormatter, associate_by_key
 from otterdog.webapp.db.service import (
+    find_scorecard_result,
     get_active_installations,
     get_blueprints,
     get_blueprints_status,
@@ -37,6 +38,7 @@ from otterdog.webapp.db.service import (
     get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
     get_policies_status,
+    get_scorecard_results,
     get_statistics,
     get_tasks,
 )
@@ -213,6 +215,8 @@ async def project(project_name: str):
         status_list = blueprints_status.setdefault(blueprint_id, [])
         status_list.append(status.model_dump())
 
+    scorecard_results = {m.id.repo_name: m.model_dump() for m in await get_scorecard_results(config.github_id)}
+
     template = installation.base_template
     template_ref = "N/A"
     if template is not None:
@@ -237,6 +241,7 @@ async def project(project_name: str):
         blueprints_status=blueprints_status,
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
         branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
+        scorecard_results=scorecard_results,
     )
 
 
@@ -417,6 +422,8 @@ async def repository(project_name: str, repo_name: str):
     if repo_config is None:
         return await render_template("home/page-404.html"), 404
 
+    scorecard_result = await find_scorecard_result(config.github_id, repo_name)
+
     return await render_home_template(
         "repository.html",
         project_name=project_name,
@@ -424,6 +431,7 @@ async def repository(project_name: str, repo_name: str):
         config=github_organization,
         repo_name=repo_name,
         repo_config=repo_config,
+        scorecard_result=scorecard_result,
     )
 
 
