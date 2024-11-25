@@ -12,7 +12,7 @@ import abc
 import dataclasses
 import fnmatch
 import re
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from jsonbender import K  # type: ignore
 
@@ -71,17 +71,17 @@ class Secret(ModelObject, abc.ABC):
     def has_dummy_secret(self) -> bool:
         if is_set_and_present(self.value) and len(self.value) > 0 and all(ch == "*" for ch in self.value):
             return True
-        else:
-            return False
+        return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        return self.is_key_valid_for_diff_computation(field.name)
+        if field.name == "value":
+            return not self.has_dummy_secret()
+        return True
 
-    def is_key_valid_for_diff_computation(self, key: str) -> bool:
+    def is_key_valid_for_diff_computation(self, key: str, expected_object: Self) -> bool:
         if key == "value":
             return not self.has_dummy_secret()
-        else:
-            return True
+        return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True

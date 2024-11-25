@@ -11,7 +11,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import fnmatch
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from jsonbender import OptionalS, S  # type: ignore
 
@@ -63,15 +63,16 @@ class Webhook(ModelObject, abc.ABC):
             return False
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
-        return self.is_key_valid_for_diff_computation(field.name)
+        if field.name == "secret":
+            return not self.has_dummy_secret()
+        elif field.name in ("url", "aliases"):
+            return False
+        return True
 
-    def is_key_valid_for_diff_computation(self, key: str) -> bool:
+    def is_key_valid_for_diff_computation(self, key: str, expected_object: Self) -> bool:
         if key == "secret":
             return not self.has_dummy_secret()
-        elif key == "url" or key == "aliases":
-            return False
-        else:
-            return True
+        return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True

@@ -122,7 +122,16 @@ class ApplyOperation(PlanOperation):
         errors = 0
 
         self.printer.println("\nApplying changes:\n")
-        with click.progressbar(patches, file=self.printer.writer) as bar:
+
+        # order patches by readonly status:
+        # - first: the patches that do not make a resource readonly
+        # - second: remaining patches
+        # this is necessary as readonly resources can't be modified afterward, so we perform first
+        # any necessary modification on them, and make them readonly at the end
+        patches_ordered_by_readonly_status = [p for p in patches if p.changes_object_to_readonly is False] + [
+            p for p in patches if p.changes_object_to_readonly is True
+        ]
+        with click.progressbar(patches_ordered_by_readonly_status, file=self.printer.writer) as bar:
             for patch in bar:
                 if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
                     continue
@@ -144,7 +153,7 @@ class ApplyOperation(PlanOperation):
             f"{diff_status.deletions} {delete_snippet}."
         )
 
-        add_patches = list(filter(lambda x: x.patch_type == LivePatchType.ADD, patches))
+        add_patches = [p for p in patches if p.patch_type == LivePatchType.ADD]
         if len(add_patches) > 0:
             self.execute_custom_hook_if_present_with_patches(self.org_config, add_patches, "post-add-objects-hook.py")
 
