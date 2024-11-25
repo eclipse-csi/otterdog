@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
@@ -506,10 +506,6 @@ class Repository(ModelObject):
             if field.name in self._security_properties or field.name in self._additional_security_properties:
                 return False
 
-        if self.archived is True:
-            if field.name in self._unavailable_fields_in_archived_repos:
-                return False
-
         if self.gh_pages_build_type in ["disabled", "workflow"]:
             if field.name in self._gh_pages_properties:
                 return False
@@ -543,6 +539,16 @@ class Repository(ModelObject):
 
         # when generating a patch, capture all the current configuration, even for
         # archived repos, the properties might be used when the repo gets unarchived.
+        return True
+
+    def is_key_valid_for_diff_computation(self, key: str, expected_object: Self) -> bool:
+        # disregard any field that can't be modified on archived repositories
+        # however, when the repo either got archived or unarchived in this operation,
+        # still take these fields into account
+        if self.archived is True and expected_object.archived is True:
+            if key in self._unavailable_fields_in_archived_repos:
+                return False
+
         return True
 
     def include_for_live_patch(self, context: LivePatchContext) -> bool:
@@ -928,6 +934,7 @@ class Repository(ModelObject):
 
         expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
         coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
+        changes_object_to_readonly = False
 
         if current_object is None:
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
@@ -980,6 +987,12 @@ class Repository(ModelObject):
                         change.to_value[k] = None
 
             if len(modified_repo) > 0:
+                if "archived" in modified_repo:
+                    change = modified_repo["archived"]
+                    from_value = change.from_value
+                    to_value = change.to_value
+                    changes_object_to_readonly = from_value is False and to_value is True
+
                 handler(
                     LivePatch.of_changes(
                         coerced_object,
@@ -988,6 +1001,7 @@ class Repository(ModelObject):
                         parent_object,
                         False,
                         coerced_object.apply_live_patch,
+                        changes_object_to_readonly,
                     )
                 )
 
@@ -1035,7 +1049,9 @@ class Repository(ModelObject):
         )
 
         # only take branch protection rules of non-archive projects into account
-        if coerced_object.archived is False:
+        # if the change to archived happens in this operation, still perform any
+        # other changes, the archiving will be done last.
+        if coerced_object.archived is False or changes_object_to_readonly is True:
             BranchProtectionRule.generate_live_patch_of_list(
                 coerced_object.branch_protection_rules,
                 current_object.branch_protection_rules if current_object is not None else [],

@@ -12,7 +12,7 @@ import dataclasses
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, final
+from typing import TYPE_CHECKING, Any, Generic, Protocol, Self, TypeVar, cast, final
 
 from jsonbender import OptionalS, S, bend  # type: ignore
 
@@ -87,6 +87,7 @@ class LivePatch(Generic[MT]):
     parent_object: ModelObject | None
     forced_update: bool
     fn: LivePatchApplyFn
+    changes_object_to_readonly: bool = False
 
     @classmethod
     def of_addition(cls, expected_object: MT, parent_object: ModelObject | None, fn: LivePatchApplyFn[MT]) -> LivePatch:
@@ -105,9 +106,17 @@ class LivePatch(Generic[MT]):
         parent_object: ModelObject | None,
         forced_update: bool,
         fn: LivePatchApplyFn[MT],
+        changes_object_to_readonly: bool = False,
     ) -> LivePatch:
         return LivePatch(
-            LivePatchType.CHANGE, expected_object, current_object, changes, parent_object, forced_update, fn
+            LivePatchType.CHANGE,
+            expected_object,
+            current_object,
+            changes,
+            parent_object,
+            forced_update,
+            fn,
+            changes_object_to_readonly,
         )
 
     def requires_web_ui(self) -> bool:
@@ -322,7 +331,7 @@ class ModelObject(ABC):
             with open(validate_script) as file:
                 exec(file.read())
 
-    def get_difference_from(self, other: ModelObject) -> dict[str, Change[T]]:
+    def get_difference_from(self, other: Self) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
@@ -336,7 +345,7 @@ class ModelObject(ABC):
             to_value = self.__getattribute__(key)
             from_value = other.__getattribute__(key)
 
-            if not other.is_key_valid_for_diff_computation(key):
+            if not other.is_key_valid_for_diff_computation(key, self):
                 continue
 
             if is_unset(from_value):
@@ -516,7 +525,7 @@ class ModelObject(ABC):
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def is_key_valid_for_diff_computation(self, key: str) -> bool:
+    def is_key_valid_for_diff_computation(self, key: str, expected_object: Self) -> bool:
         return True
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
