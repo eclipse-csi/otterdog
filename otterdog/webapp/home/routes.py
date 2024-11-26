@@ -40,7 +40,6 @@ from otterdog.webapp.db.service import (
     get_policies_status,
     get_scorecard_results,
     get_statistics,
-    get_tasks,
 )
 from otterdog.webapp.tasks import get_organization_config
 from otterdog.webapp.utils import get_project_base_url, get_temporary_base_directory
@@ -443,6 +442,11 @@ async def organizations():
     )
 
 
+@blueprint.route("/scorecard/checks")
+async def scorecards():
+    return await render_home_template("scorecards.html")
+
+
 @blueprint.route("/admin/pullrequests")
 async def pullrequests():
     open_pull_requests = await get_open_or_incomplete_pull_requests()
@@ -455,11 +459,7 @@ async def pullrequests():
 
 @blueprint.route("/admin/tasks")
 async def tasks():
-    latest_tasks = await get_tasks(100)
-    return await render_home_template(
-        "tasks.html",
-        tasks=latest_tasks,
-    )
+    return await render_home_template("tasks.html")
 
 
 @blueprint.route("/<template>")

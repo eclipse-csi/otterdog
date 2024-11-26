@@ -77,6 +77,7 @@ class CheckFilesTask(BlueprintTask):
             "org": self.github_organization_configuration.settings,
             "repo": self.github_organization_configuration.get_repository(self.repo_name),
             "repo_url": f"https://github.com/{self.org_id}/{self.repo_name}",
+            "blueprint_id": self.blueprint.id,
             "blueprint_url": self.blueprint.path,
         }
 

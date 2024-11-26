@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from aiohttp import ClientSession
 
@@ -46,10 +47,19 @@ class SyncScorecardResultTask(InstallationBasedTask, Task[None]):
         async with ClientSession() as session, session.get(scorecard_url, headers=headers) as response:
             if response.ok:
                 json_response = await response.json()
+                date = datetime.fromisoformat(json_response["date"])
                 score = json_response["score"]
                 scorecard_version = json_response["scorecard"]["version"]
+                checks = json_response["checks"]
 
-                await update_or_create_scorecard_result(self.org_id, self.repo_name, score, scorecard_version)
+                await update_or_create_scorecard_result(
+                    self.org_id,
+                    self.repo_name,
+                    date,
+                    score,
+                    scorecard_version,
+                    checks,
+                )
 
     def __repr__(self) -> str:
         return f"SyncScorecardResultTask(repo={self.org_id}/{self.repo_name})"

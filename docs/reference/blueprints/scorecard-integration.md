@@ -1,19 +1,22 @@
-# Required File
+# Scorecard Integration
 
-This blueprint type ensures that one or more files are present in the repositories that match this blueprint.
-Depending on the `strict` setting, it will be checked whether the file already exists or if it exactly matches the
-configured `content`.
+This blueprint type ensure that a workflow is present that performs .
+
+Furthermore, if actions are already pinned but the corresponding version in the comment does not matchup, this blueprint
+will also correct the comment to the tag / branch that matches the used commit hash.
 
 ## Configuration
 
-- `type` - `required_file`
+- `type` - `scorecard_integration`
 
 ### Settings
 
-| Setting       | Necessity | Value type                         | Description                       |
-|---------------|-----------|------------------------------------|-----------------------------------|
-| repo_selector | optional  | [RepoSelector](#repo-selector)     | If omitted, all repos are matched |
-| files         | mandatory | list[[FileSetting](#file-setting)] |                                   |
+| Setting          | Necessity | Value type                     | Description                                                                  |
+|------------------|-----------|--------------------------------|------------------------------------------------------------------------------|
+| repo_selector    | optional  | [RepoSelector](#repo-selector) | If omitted, all repos are matched                                            |
+| scorecard_action | optional  | string                         | the name of scorecard action to search for, default: 'ossf/scorecard-action' |
+| workflow_name    | optional  | string                         | the name of the workflow to be added, default: 'scorecard-analysis.yml'      |
+| workflow_content | mandatory | string                         | the workflow content to be added if no scorecard action can be found         |
 
 #### Repo Selector
 
@@ -24,17 +27,9 @@ The pattern is expected to be in [python regular expression format](https://docs
 |--------------|------------|------------------------|
 | name_pattern | mandatory  | list[string] \| string |
 
-#### File setting
-
-| Setting | Necessity  | Value type | Description                                                                                               |
-|---------|------------|------------|-----------------------------------------------------------------------------------------------------------|
-| path    | mandatory  | string     | the path of the file within the repository without leading slash                                          |
-| content | mandatory  | string     | the content of the file                                                                                   |
-| strict  | optional   | boolean    | if `false` (default), the file will be only checked for existence, otherwise the content will be compared |
-
 ### Templating
 
-It is possible to use [Mustache](https://mustache.github.io/) logic-less templates within the content of a blueprint.
+It is possible to use [Mustache](https://mustache.github.io/) logic-less templates within the workflow content of this blueprint.
 
 To use a context variable, simply enclose its name in curly braces:
 
@@ -44,7 +39,6 @@ To use a context variable, simply enclose its name in curly braces:
 
 In this example, `{{repo_name}}` will be replaced with the actual name of the repository being processed. For more complex examples please refer
 to the [mustache documentation](https://mustache.github.io/mustache.5.html).
-
 
 #### Template Context
 
@@ -63,32 +57,49 @@ The following context is injected during template evaluation when a specific rep
 
 ## Example
 
-In this example a workflow file `.github/workflows/dependabot-auto-merge.yml` should be present in a set of repositories matching the configured content.
-
 ``` yaml
-id: require-dependabot-auto-merge
-name: Require dependabot-auto-merge.yml
-type: required_file
+id: scorecard-integration
+name: Integrate OSSF Scorecard anaylsis
+description: |-
+  Integrate OSSF Scorecard analysis.
+type: scorecard_integration
 config:
   repo_selector:
     name_pattern:
-      - temurin-build
-      - containers
-  files:
-    - path: .github/workflows/dependabot-auto-merge.yml
-      content: |
-        # This is a templated file from {{blueprint_url}} for {{repo_name}}
-        name: Dependabot auto-merge
-        on: pull_request_target
+      - repoA
+      - repoB
+  workflow_name: scorecard-analysis.yml
+  workflow_content: |
+    name: Scorecard analysis workflow
+    on:
+      push:
+        branches:
+        - main
+      schedule:
+        # Weekly on Saturdays.
+        - cron:  '30 1 * * 6'
 
-        permissions: read-all
+    permissions: read-all
 
-        jobs:
-          dependabot:
-            permissions:
-              contents: write
-              pull-requests: write
-            uses: {{github_id}}/.github/.github/workflows/dependabot-auto-merge.yml@main
-      # ensure that changes to the template are propagated
-      strict: true
+    jobs:
+      analysis:
+        if: github.repository_owner == '{{github_id}}'
+        name: Scorecard analysis
+        runs-on: ubuntu-latest
+        permissions:
+          security-events: write
+          id-token: write
+
+        steps:
+          - name: "Checkout code"
+            uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+            with:
+              persist-credentials: false
+
+          - name: "Run analysis"
+            uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
+            with:
+              results_file: results.sarif
+              results_format: sarif
+              publish_results: true
 ```

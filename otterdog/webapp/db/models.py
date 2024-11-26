@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from odmantic import EmbeddedModel, Field, Model
 
@@ -210,3 +210,4 @@ class ScorecardResultModel(Model):
     updated_at: datetime = Field(index=True, default_factory=current_utc_time)
     score: Optional[float] = None
     scorecard_version: Optional[str] = None
+    checks: list[dict[str, Any]] = Field(default_factory=list)
