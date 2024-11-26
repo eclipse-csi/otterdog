@@ -234,6 +234,7 @@ class RepoClient(RestClient):
             "gh_pages",
             "code_scanning_default_config",
             "custom_properties",
+            "private_vulnerability_reporting_enabled",
         ]
 
         if auto_init_repo is True:
