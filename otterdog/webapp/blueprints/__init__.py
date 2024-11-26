@@ -31,6 +31,7 @@ class BlueprintType(str, Enum):
     REQUIRED_FILE = "required_file"
     PIN_WORKFLOW = "pin_workflow"
     APPEND_CONFIGURATION = "append_configuration"
+    SCORECARD_INTEGRATION = "scorecard_integration"
 
 
 class Blueprint(ABC, BaseModel):
@@ -72,9 +73,16 @@ class Blueprint(ABC, BaseModel):
 
         for repo in await self._get_repositories(config_model):
             if repo.archived is False and self._matches(repo):
+                blueprint_status_model = await find_blueprint_status(github_id, repo.name, self.id)
+
+                if blueprint_status_model is not None and blueprint_status_model.status == BlueprintStatus.SUCCESS:
+                    self.logger.debug(
+                        f"collecting auxiliary data for blueprint with id '{self.id}' in repo '{github_id}/{repo.name}'"
+                    )
+                    await self.collect_auxiliary_data(installation_id, github_id, repo.name)
+
                 # if no recheck is requested, only check the repo if it was not checked before
                 if recheck is False:
-                    blueprint_status_model = await find_blueprint_status(github_id, repo.name, self.id)
                     if blueprint_status_model is not None and blueprint_status_model.status not in (
                         BlueprintStatus.NOT_CHECKED,
                         BlueprintStatus.RECHECK,
@@ -100,6 +108,9 @@ class Blueprint(ABC, BaseModel):
         repo_name: str,
         config: ConfigurationModel | None = None,
     ) -> None: ...
+
+    async def collect_auxiliary_data(self, installation_id: int, github_id: str, repo_name: str) -> None:
+        return
 
 
 def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:
@@ -149,6 +160,11 @@ def create_blueprint(
             from otterdog.webapp.blueprints.append_configuration import AppendConfigurationBlueprint
 
             return AppendConfigurationBlueprint.model_validate(data)
+
+        case BlueprintType.SCORECARD_INTEGRATION:
+            from otterdog.webapp.blueprints.scorecard_integration import ScorecardIntegrationBlueprint
+
+            return ScorecardIntegrationBlueprint.model_validate(data)
 
         case _:
             raise RuntimeError(f"unknown blueprint type '{blueprint_type}'")

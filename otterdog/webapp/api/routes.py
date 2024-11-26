@@ -15,6 +15,7 @@ from otterdog.webapp.db.service import (
     get_configuration_by_project_name,
     get_installations,
     get_merged_pull_requests_paged,
+    get_scorecard_results_paged,
     get_tasks_paged,
 )
 
@@ -59,6 +60,20 @@ async def tasks():
 async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
     result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
+    return jsonify(result)
+
+
+@blueprint.route("/scorecard/results")
+async def scorecard_results():
+    paged_scorecard_results, count = await get_scorecard_results_paged(request.args.to_dict())
+
+    def json_transform(m):
+        json = m.model_dump()
+        for check in json["checks"]:
+            json.update({check["name"]: check["score"]})
+        return json
+
+    result = {"data": [json_transform(x) for x in paged_scorecard_results], "itemsCount": count}
     return jsonify(result)
 
 

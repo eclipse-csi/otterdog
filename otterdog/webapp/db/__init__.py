@@ -48,6 +48,7 @@ async def init_mongo_database(mongo: Mongo) -> None:
         PolicyModel,
         PolicyStatusModel,
         PullRequestModel,
+        ScorecardResultModel,
         StatisticsModel,
         TaskModel,
         UserModel,
@@ -65,5 +66,6 @@ async def init_mongo_database(mongo: Mongo) -> None:
             PolicyStatusModel,
             BlueprintModel,
             BlueprintStatusModel,
+            ScorecardResultModel,
         ]  # type: ignore
     )

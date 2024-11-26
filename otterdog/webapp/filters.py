@@ -95,3 +95,16 @@ def register_filters(app):
     @app.template_filter("snake_to_normal")
     def snake_to_normal(value):
         return snake_to_normal_case(value)
+
+    @app.template_filter("scorecard_badge_color")
+    def scorecard_badge_color(value: float):
+        if value < 2:
+            return "red"
+        elif value < 5:
+            return "yellow"
+        elif value < 8:
+            return "yellowgreen"
+        elif value < 10:
+            return "green"
+        else:
+            return "brightgreen"

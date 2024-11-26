@@ -567,6 +567,7 @@
                             <th class="text-center">Webhooks</th>
                             <th class="text-center">Secret Scanning</th>
                             <th class="text-center">Private Vulnerability Reporting</th>
+                            <th class="text-center">OSSF Scorecard</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -637,6 +638,16 @@
                               <i class="text-warning fa-solid fa-circle-xmark"></i>
                               {% else %}
                               <i class="text-muted fa-solid fa-circle"></i>
+                              {% endif %}
+                            </td>
+                            <td class="text-center">
+                              {% if repo.name in scorecard_results %}
+                              {% set result = scorecard_results[repo.name] %}
+                              <a href="https://scorecard.dev/viewer/?uri=github.com/{{ config.github_id }}/{{ repo.name }}" target="_blank">
+                                <span title="Scorecard" class="badge" style="background-color:{{ result.score | scorecard_badge_color}}; color: white;">{{ result.score }}</span>
+                              </a>
+                              {% else %}
+                              <span title="Scorecard" class="badge bg-secondary">N/A</span>
                               {% endif %}
                             </td>
                           </tr>

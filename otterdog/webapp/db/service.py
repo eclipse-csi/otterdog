@@ -40,6 +40,8 @@ from .models import (
     PullRequestId,
     PullRequestModel,
     PullRequestStatus,
+    ScorecardId,
+    ScorecardResultModel,
     StatisticsModel,
     TaskModel,
     TaskStatus,
@@ -47,6 +49,8 @@ from .models import (
 )
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from odmantic.query import QueryExpression
 
     from otterdog.config import OtterdogConfig
@@ -870,4 +874,98 @@ async def cleanup_blueprint_status_of_repo(owner: str, repo_name: str, blueprint
         BlueprintStatusModel.id.org_id == owner,
         BlueprintStatusModel.id.repo_name == repo_name,
         BlueprintStatusModel.id.blueprint_id == blueprint_id,
+    )
+
+
+async def get_scorecard_results(owner: str) -> list[ScorecardResultModel]:
+    return await mongo.odm.find(
+        ScorecardResultModel,
+        ScorecardResultModel.id.org_id == owner,
+        sort=ScorecardResultModel.id.repo_name,
+    )
+
+
+async def find_scorecard_result(owner: str, repo_name: str) -> ScorecardResultModel | None:
+    return await mongo.odm.find_one(
+        ScorecardResultModel,
+        ScorecardResultModel.id.org_id == owner,
+        ScorecardResultModel.id.repo_name == repo_name,
+    )
+
+
+async def update_or_create_scorecard_result(
+    owner: str,
+    repo_name: str,
+    date: datetime,
+    score: float,
+    scorecard_version: str,
+    checks: list[dict[str, Any]],
+) -> None:
+    scorecard_result_model = await find_scorecard_result(owner, repo_name)
+    if scorecard_result_model is None:
+        scorecard_result_model = ScorecardResultModel(
+            id=ScorecardId(org_id=owner, repo_name=repo_name),
+        )
+
+    scorecard_result_model.updated_at = date
+    scorecard_result_model.score = score
+    scorecard_result_model.scorecard_version = scorecard_version
+    scorecard_result_model.checks = checks
+
+    await mongo.odm.save(scorecard_result_model)
+
+
+async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[ScorecardResultModel], int]:
+    page_index = 1
+    page_size = 20
+    sort_field_name = "score"
+    sort_order = "desc"
+
+    queries: list[QueryExpression] = []
+
+    for k, v in params.items():
+        match k:
+            case "pageIndex":
+                page_index = int(v)
+            case "pageSize":
+                page_size = int(v)
+            case "sortField":
+                sort_field_name = v
+            case "sortOrder":
+                sort_order = v
+            case _:
+                if v:
+                    if k.startswith("id["):
+                        match k:
+                            case "id[org_id]":
+                                queries.append(query.match(ScorecardResultModel.id.org_id, v))
+                            case "id[repo_name]":
+                                queries.append(query.match(ScorecardResultModel.id.repo_name, v))
+                            case _:
+                                raise RuntimeError(f"unexpected query field '{k}'")
+                    else:
+                        queries.append(query.match(ScorecardResultModel.__dict__[k], v))
+
+    if sort_field_name.startswith("id."):
+        match sort_field_name:
+            case "id.org_id":
+                sort_field = ScorecardResultModel.id.org_id
+            case "id.repo_name":
+                sort_field = ScorecardResultModel.id.repo_name
+            case _:
+                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
+    else:
+        sort_field = ScorecardResultModel.__dict__[sort_field_name]
+
+    sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
+    skip = (page_index - 1) * page_size
+    return (
+        await mongo.odm.find(
+            ScorecardResultModel,
+            *queries,
+            skip=skip,
+            limit=page_size,
+            sort=sort,
+        ),
+        await mongo.odm.count(ScorecardResultModel, *queries),
     )

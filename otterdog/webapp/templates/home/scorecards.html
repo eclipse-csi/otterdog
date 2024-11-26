@@ -1,0 +1,253 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} OSSF Scorecard Checks {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+  <!-- jsGrid -->
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+
+  <style>
+    .jsgrid-header-cell { font-size: 11px; }
+    .simple-badge {
+      border-bottom-width: 3px;
+      border-bottom-style: solid;
+      border-radius: 0;
+    }
+  </style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>OSSF Scorecards</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">OSSF Scorecard Checks</li>
+            </ol>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <div id="taskGrid"></div>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+  <!-- jsGrid -->
+  <script src="/assets/vendor/moment/moment.min.js"></script>
+  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+
+  <!-- page script -->
+  <script>
+    var DateField = function (config) {
+      jsGrid.Field.call(this, config);
+    };
+
+    DateField.prototype = new jsGrid.Field({
+      sorter: function (date1, date2) {
+        return moment(date1) - moment(date2);
+      },
+      itemTemplate: function (value) {
+        return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
+      },
+    });
+
+    var renderScore = function(value) {
+      if (value < 0) {
+        return "?";
+      } else {
+        return value.toString();
+      }
+    }
+
+    var renderColor = function(value) {
+        if (value < 2) {
+            return "red";
+        } else if (value < 5) {
+            return "yellow";
+        } else if (value < 8) {
+            return "#9ACD32";
+        } else if (value < 10) {
+            return "green";
+        } else {
+            return "#66FF00";
+        }
+    }
+
+    jsGrid.fields.date = DateField;
+
+    $(function () {
+      $("#taskGrid").jsGrid({
+          height: "auto",
+          width: "100%",
+
+          pageSize: 20,
+
+          filtering: true,
+          sorting: true,
+          paging: true,
+          pageLoading: true,
+          autoload: true,
+
+          controller: {
+              loadData: function(filter) {
+                  var d = $.Deferred();
+
+                  $.ajax({
+                      url: "/api/scorecard/results",
+                      data: filter,
+                      dataType: "json"
+                  }).done(function(response) {
+                      d.resolve(response);
+                  });
+
+                  return d.promise();
+              }
+          },
+
+          rowClick: function(arg) {
+            window.open('https://scorecard.dev/viewer/?uri=github.com/' + arg.item.id.org_id + '/' + arg.item.id.repo_name, '_blank').focus();
+          },
+
+          fields: [
+              { name: "id.org_id", title: "GitHub Organization", type: "text", width: 70,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "id.repo_name", title: "Repo name", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + item.id.org_id + "/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "score", title: "Overall Score", type: "number", width: 25, align: "center", filtering: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge' style='background-color:" + renderColor(value) + ";color: white;'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Signed-Releases", title: "Signed Releases", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Dangerous-Workflow", title: "Workflows", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Branch-Protection", title: "Branch Protections", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Code-Review", title: "Code Reviews", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Maintained", title: "Maintained", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Token-Permissions", title: "Token Permissions", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Binary-Artifacts", title: "Binary Artifacts", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Dependency-Update-Tool", title: "Dependency Update Tool", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Vulnerabilities", title: "Vuln", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Packaging", title: "Packaging", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Security-Policy", title: "Security Policy", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "SAST", title: "Static Code Analysis", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Pinned-Dependencies", title: "Pinned Dependencies", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "CI-Tests", title: "CI Tests", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "Contributors", title: "Contributors", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              },
+              { name: "License", title: "License", type: "number", width: 25, align: "center", filtering: false, sorting: false,
+                itemTemplate: function(value, item) {
+                  return "<span class='badge simple-badge' style='border-color:" + renderColor(value) + ";'>" + renderScore(value) + "</span>";
+                }
+              }
+          ]
+      });
+    });
+  </script>
+
+{% endblock javascripts %}

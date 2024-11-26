@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from odmantic import EmbeddedModel, Field, Model
 
@@ -197,3 +197,17 @@ class BlueprintStatusModel(Model):
     updated_at: datetime = Field(index=True, default_factory=current_utc_time)
     status: BlueprintStatus = Field(default=BlueprintStatus.NOT_CHECKED)
     remediation_pr: Optional[int] = Field(index=True, default=None)
+
+
+class ScorecardId(EmbeddedModel):
+    org_id: str
+    repo_name: str
+
+
+class ScorecardResultModel(Model):
+    id: ScorecardId = Field(primary_field=True)
+
+    updated_at: datetime = Field(index=True, default_factory=current_utc_time)
+    score: Optional[float] = None
+    scorecard_version: Optional[str] = None
+    checks: list[dict[str, Any]] = Field(default_factory=list)
