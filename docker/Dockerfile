@@ -1,4 +1,4 @@
-FROM node:20-alpine@sha256:c13b26e7e602ef2f1074aef304ce6e9b7dd284c419b35d89fcf3cc8e44a8def9 as builder-node
+FROM node:20-alpine@sha256:c13b26e7e602ef2f1074aef304ce6e9b7dd284c419b35d89fcf3cc8e44a8def9 AS builder-node
 
 WORKDIR /app
 
@@ -10,13 +10,13 @@ RUN npm ci
 RUN npm run build
 
 # build otterdog using a python environment
-FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 as builder-python3
+FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 AS builder-python3
 
 ARG version
 
 RUN apt-get update \
     && apt-get install -y \
-        gcc patch
+        curl
 
 WORKDIR /app
 
@@ -24,6 +24,7 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=1.8.4 \
+    POETRY_HOME='/usr/local' \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
 COPY ./otterdog ./otterdog
@@ -31,7 +32,7 @@ COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
 COPY ./docker/start-webapp ./docker/start-webapp
 COPY ./docker/init-webapp ./docker/init-webapp
 
-RUN pip install "poetry==$POETRY_VERSION"
+RUN curl -sSL https://install.python-poetry.org | python -
 
 RUN poetry self add "poetry-dynamic-versioning[plugin]"
 
@@ -62,7 +63,7 @@ RUN chmod +x /app/init-webapp
 WORKDIR /app
 
 # set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT ["/app/start-webapp"]
