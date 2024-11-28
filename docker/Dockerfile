@@ -6,7 +6,7 @@ COPY ./otterdog ./otterdog
 
 WORKDIR /app/otterdog/webapp/static
 
-RUN npm i
+RUN npm ci
 RUN npm run build
 
 # build otterdog using a python environment
