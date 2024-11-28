@@ -46,7 +46,7 @@ class OperationTest(unittest.TestCase):
                 '      ~ 1 -> 3'
                 '      - 2'
                 '    ~ ]'
-                '    }'
+                '  ~ }'
                 '~ }',
             ),
         ]

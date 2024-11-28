@@ -228,8 +228,8 @@ class Operation(ABC):
             self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = {{")
             self.printer.level_up()
             self._print_modified_dict_internal(max_key_length, current_value, expected_value, prefix, color)
-            self.printer.println("}")
             self.printer.level_down()
+            self.printer.println(f"{prefix}}}")
         elif isinstance(expected_value, list):
             self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = [")
             self.printer.level_up()
