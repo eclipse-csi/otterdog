@@ -206,7 +206,7 @@ class OtterdogConfig(SecretResolver):
         return base_template
 
     def _get_organization_config(self, project_or_organization_name: str):
-        return self._organizations_map[project_or_organization_name.lower()]
+        return self._organizations_map.get(project_or_organization_name.lower())
 
     @property
     def project_names(self) -> list[str]:

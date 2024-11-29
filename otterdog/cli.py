@@ -15,34 +15,11 @@ import click
 from click.shell_completion import CompletionItem
 
 from otterdog.cache import set_github_cache
-from otterdog.operations.review_app_permissions import ReviewAppPermissionsOperation
 from otterdog.providers.github.cache.file import file_cache
 
 from . import __version__
 from .config import OtterdogConfig
 from .operations import Operation
-from .operations.apply import ApplyOperation
-from .operations.canonical_diff import CanonicalDiffOperation
-from .operations.delete_file import DeleteFileOperation
-from .operations.dispatch_workflow import DispatchWorkflowOperation
-from .operations.fetch_config import FetchOperation
-from .operations.import_configuration import ImportOperation
-from .operations.install_app import InstallAppOperation
-from .operations.list_advisories import ListAdvisoriesOperation
-from .operations.list_apps import ListAppsOperation
-from .operations.list_members import ListMembersOperation
-from .operations.local_apply import LocalApplyOperation
-from .operations.local_plan import LocalPlanOperation
-from .operations.open_pull_request import OpenPullRequestOperation
-from .operations.plan import PlanOperation
-from .operations.push_config import PushOperation
-from .operations.show import ShowOperation
-from .operations.show_default import ShowDefaultOperation
-from .operations.show_live import ShowLiveOperation
-from .operations.sync_template import SyncTemplateOperation
-from .operations.uninstall_app import UninstallAppOperation
-from .operations.validate import ValidateOperation
-from .operations.web_login import WebLoginOperation
 from .utils import IndentingPrinter, init, is_debug_enabled, print_error, unwrap
 
 _CONFIG_FILE = "otterdog.json"
@@ -139,6 +116,8 @@ def validate(organizations: list[str]):
     """
     Validates the configuration for organizations.
     """
+    from otterdog.operations.validate import ValidateOperation
+
     _execute_operation(organizations, ValidateOperation())
 
 
@@ -160,6 +139,8 @@ def show(organizations: list[str], markdown, output_dir):
     """
     Displays the full configuration for organizations.
     """
+    from otterdog.operations.show import ShowOperation
+
     _execute_operation(organizations, ShowOperation(markdown, output_dir))
 
 
@@ -176,6 +157,8 @@ def show_live(organizations: list[str], no_web_ui):
     """
     Displays the live configuration for organizations.
     """
+    from otterdog.operations.show_live import ShowLiveOperation
+
     _execute_operation(organizations, ShowLiveOperation(no_web_ui=no_web_ui))
 
 
@@ -190,6 +173,8 @@ def show_default(organizations: list[str], markdown):
     """
     Displays the default configuration for organizations.
     """
+    from otterdog.operations.show_default import ShowDefaultOperation
+
     _execute_operation(organizations, ShowDefaultOperation(markdown))
 
 
@@ -208,6 +193,8 @@ def dispatch_workflow(organizations: list[str], repo, workflow):
     """
     Dispatches a workflow in a repo of an organization.
     """
+    from otterdog.operations.dispatch_workflow import DispatchWorkflowOperation
+
     _execute_operation(organizations, DispatchWorkflowOperation(repo, workflow))
 
 
@@ -241,6 +228,8 @@ def fetch_config(organizations: list[str], force, pull_request, suffix, ref):
     """
     Fetches the configuration from the corresponding config repo of an organization.
     """
+    from otterdog.operations.fetch_config import FetchOperation
+
     _execute_operation(
         organizations, FetchOperation(force_processing=force, pull_request=pull_request, suffix=suffix, ref=ref)
     )
@@ -268,6 +257,8 @@ def push_config(organizations: list[str], no_diff, force, message):
     """
     Pushes the local configuration to the corresponding config repo of an organization.
     """
+    from otterdog.operations.push_config import PushOperation
+
     _execute_operation(
         organizations, PushOperation(show_diff=not no_diff, force_processing=force, push_message=message)
     )
@@ -281,6 +272,8 @@ def open_pr(organizations: list[str], branch, title, author):
     """
     Opens a pull request for local configuration changes in the corresponding config repo of an organization.
     """
+    from otterdog.operations.open_pull_request import OpenPullRequestOperation
+
     _execute_operation(organizations, OpenPullRequestOperation(branch=branch, title=title, author=author))
 
 
@@ -290,6 +283,8 @@ def list_apps(organizations: list[str], json):
     """
     Lists all app installations for the organization.
     """
+    from otterdog.operations.list_apps import ListAppsOperation
+
     _execute_operation(organizations, ListAppsOperation(json))
 
 
@@ -299,7 +294,19 @@ def list_members(organizations: list[str], two_factor_disabled: bool):
     """
     Lists members of the organization.
     """
+    from otterdog.operations.list_members import ListMembersOperation
+
     _execute_operation(organizations, ListMembersOperation(two_factor_disabled))
+
+
+@cli.command(cls=StdCommand)
+def list_projects(organizations: list[str]):
+    """
+    Lists all configured projects and their corresponding GitHub id.
+    """
+    from otterdog.operations.list_projects import ListProjectsOperation
+
+    _execute_operation(organizations, ListProjectsOperation())
 
 
 @cli.command(cls=StdCommand, name="import")
@@ -323,6 +330,8 @@ def import_command(organizations: list[str], force, no_web_ui):
     """
     Imports existing resources for a GitHub organization.
     """
+    from otterdog.operations.import_configuration import ImportOperation
+
     _execute_operation(organizations, ImportOperation(force_processing=force, no_web_ui=no_web_ui))
 
 
@@ -366,6 +375,8 @@ def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, upda
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
     """
+    from otterdog.operations.plan import PlanOperation
+
     _execute_operation(
         organizations,
         PlanOperation(
@@ -417,6 +428,8 @@ def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, u
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
     """
+    from otterdog.operations.local_plan import LocalPlanOperation
+
     _execute_operation(
         organizations,
         LocalPlanOperation(
@@ -493,6 +506,8 @@ def apply(
     """
     Apply changes based on the current configuration to the live configuration at GitHub.
     """
+    from otterdog.operations.apply import ApplyOperation
+
     _execute_operation(
         organizations,
         ApplyOperation(
@@ -579,6 +594,8 @@ def local_apply(
     """
     Apply changes based on the current configuration to another local configuration.
     """
+    from otterdog.operations.local_apply import LocalApplyOperation
+
     _execute_operation(
         organizations,
         LocalApplyOperation(
@@ -605,6 +622,8 @@ def sync_template(organizations: list[str], repo):
     """
     Sync contents of repositories created from a template repository.
     """
+    from otterdog.operations.sync_template import SyncTemplateOperation
+
     _execute_operation(organizations, SyncTemplateOperation(repo=repo))
 
 
@@ -624,6 +643,8 @@ def delete_file(organizations: list[str], repo, path, message):
     """
     Delete files in a repository.
     """
+    from otterdog.operations.delete_file import DeleteFileOperation
+
     _execute_operation(organizations, DeleteFileOperation(repo=repo, path=path, message=message))
 
 
@@ -632,6 +653,8 @@ def canonical_diff(organizations: list[str]):
     """
     Displays a diff of the current configuration to a canonical version.
     """
+    from otterdog.operations.canonical_diff import CanonicalDiffOperation
+
     _execute_operation(organizations, CanonicalDiffOperation())
 
 
@@ -640,6 +663,8 @@ def web_login(organizations: list[str]):
     """
     Opens a new browser window and logins to GitHub with the bot account for the organization.
     """
+    from otterdog.operations.web_login import WebLoginOperation
+
     _execute_operation(organizations, WebLoginOperation())
 
 
@@ -654,6 +679,7 @@ def install_app(app_slug: str, organizations: list[str]):
     """
     Installs a GitHub App.
     """
+    from otterdog.operations.install_app import InstallAppOperation
 
     _execute_operation(organizations, InstallAppOperation(app_slug))
 
@@ -669,6 +695,7 @@ def uninstall_app(app_slug: str, organizations: list[str]):
     """
     Uninstalls a GitHub App.
     """
+    from otterdog.operations.uninstall_app import UninstallAppOperation
 
     _execute_operation(organizations, UninstallAppOperation(app_slug))
 
@@ -701,6 +728,7 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     """
     Reviews permission updates for installed apps.
     """
+    from otterdog.operations.review_app_permissions import ReviewAppPermissionsOperation
 
     _execute_operation(organizations, ReviewAppPermissionsOperation(app_slug, grant, force))
 
@@ -727,6 +755,8 @@ def list_advisories(state: list[str], details: bool, organizations: list[str]):
     """
     Lists repository security advisories for an organization.
     """
+    from otterdog.operations.list_advisories import ListAdvisoriesOperation
+
     _execute_operation(organizations, ListAdvisoriesOperation(state, details))
 
 
@@ -751,7 +781,6 @@ def install_deps():
 
 def _execute_operation(organizations: list[str], operation: Operation):
     printer = IndentingPrinter(sys.stdout)
-    printer.println()
 
     try:
         exit_code = 0
@@ -778,11 +807,25 @@ def _execute_operation(organizations: list[str], operation: Operation):
         operation.post_execute()
         sys.exit(exit_code)
 
-    except Exception as e:
+    except Exception as exc:
         if is_debug_enabled():
-            traceback.print_exception(e)
+            from rich.traceback import Traceback
 
-        print_error(str(e))
+            rich_tb = Traceback.from_exception(
+                type(exc),
+                exc,
+                exc.__traceback__,
+                show_locals=True,
+                suppress=[asyncio],
+                width=None,
+            )
+
+            from rich.console import Console
+
+            console_stderr = Console(stderr=True)
+            console_stderr.print(rich_tb)
+        else:
+            print_error(str(exc))
         sys.exit(2)
 
 
