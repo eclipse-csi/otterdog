@@ -35,7 +35,7 @@ class OrganizationConfig:
         credential_data: dict[str, Any],
     ):
         self._name = name
-        self._github_id = github_id
+        self._github_id = github_id.lower()
         self._config_repo = config_repo
         self._base_template = base_template
         self._jsonnet_config = jsonnet_config

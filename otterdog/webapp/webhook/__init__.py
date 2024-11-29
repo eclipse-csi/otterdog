@@ -81,12 +81,16 @@ async def on_pull_request_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
+    installation_id = event.installation.id
+    owner = event.organization.login.lower()
+    repo_name = event.repository.name
+
     if event.action in ["closed"] and event.pull_request.head.ref.startswith("otterdog/"):
         current_app.add_background_task(
             DeleteBranchTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request.head.ref,
             )
         )
@@ -94,14 +98,14 @@ async def on_pull_request_received(data):
     if event.action in ["closed", "reopened"] and event.pull_request.head.ref.startswith("otterdog/"):
         current_app.add_background_task(
             UpdateBlueprintStatusTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
             )
         )
 
-    if not await targets_config_repo(event.repository.name, event.installation.id):
+    if not await targets_config_repo(repo_name, installation_id):
         return success()
 
     if event.action in [
@@ -115,9 +119,9 @@ async def on_pull_request_received(data):
     ]:
         current_app.add_background_task(
             UpdatePullRequestTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
             )
         )
@@ -125,18 +129,18 @@ async def on_pull_request_received(data):
     if event.action in ["opened", "ready_for_review"] and event.pull_request.draft is False:
         current_app.add_background_task(
             HelpCommentTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request.number,
             )
         )
 
         current_app.add_background_task(
             RetrieveTeamMembershipTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request.number,
             )
         )
@@ -149,9 +153,9 @@ async def on_pull_request_received(data):
         # schedule a validate task
         current_app.add_background_task(
             ValidatePullRequestTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
             )
         )
@@ -159,9 +163,9 @@ async def on_pull_request_received(data):
         # schedule a check-sync task
         current_app.add_background_task(
             CheckConfigurationInSyncTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
             )
         )
@@ -172,9 +176,9 @@ async def on_pull_request_received(data):
 
         current_app.add_background_task(
             ApplyChangesTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
             )
         )
@@ -193,15 +197,19 @@ async def on_pull_request_review_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
-    if not await targets_config_repo(event.repository.name, event.installation.id):
+    installation_id = event.installation.id
+    owner = event.organization.login.lower()
+    repo_name = event.repository.name
+
+    if not await targets_config_repo(event.repository.name, installation_id):
         return success()
 
     if event.action in ["submitted", "edited", "dismissed"]:
         current_app.add_background_task(
             UpdatePullRequestTask(
-                event.installation.id,
-                event.organization.login,
-                event.repository.name,
+                installation_id,
+                owner,
+                repo_name,
                 event.pull_request,
                 event.review,
             )
@@ -253,7 +261,7 @@ async def on_push_received(data):
             return success()
 
         installation_id = event.installation.id
-        org_id = event.organization.login
+        owner = event.organization.login.lower()
         repo_name = event.repository.name
 
         config_repo_touched = await targets_config_repo(repo_name, installation_id)
@@ -261,18 +269,18 @@ async def on_push_received(data):
         async def fetch_config_and_check_blueprints_if_needed() -> None:
             if config_repo_touched:
                 await FetchConfigTask(
-                    event.installation.id,
-                    event.organization.login,
-                    event.repository.name,
+                    installation_id,
+                    owner,
+                    repo_name,
                 ).execute()
 
             # check any blueprint that matches the repo that just got a new push on the default branch
-            for blueprint_status_model in await get_blueprints_status_for_repo(org_id, repo_name):
-                blueprint_model = await find_blueprint(org_id, blueprint_status_model.id.blueprint_id)
+            for blueprint_status_model in await get_blueprints_status_for_repo(owner, repo_name):
+                blueprint_model = await find_blueprint(owner, blueprint_status_model.id.blueprint_id)
                 if blueprint_model is not None:
                     blueprint_instance = create_blueprint_from_model(blueprint_model)
                     if blueprint_instance.should_reevaluate(event.commits):
-                        await blueprint_instance.evaluate_repo(installation_id, org_id, repo_name)
+                        await blueprint_instance.evaluate_repo(installation_id, owner, repo_name)
 
         current_app.add_background_task(fetch_config_and_check_blueprints_if_needed)
 
@@ -285,7 +293,7 @@ async def on_push_received(data):
             current_app.add_background_task(
                 FetchPoliciesTask(
                     installation_id,
-                    org_id,
+                    owner,
                     repo_name,
                     global_policies,
                 )
@@ -297,7 +305,7 @@ async def on_push_received(data):
             current_app.add_background_task(
                 FetchBlueprintsTask(
                     installation_id,
-                    org_id,
+                    owner,
                     repo_name,
                     global_blueprints,
                 )
@@ -348,6 +356,9 @@ async def on_workflow_job_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
+    installation_id = event.installation.id
+    owner = event.organization.login.lower()
+
     if event.action in ["queued"]:
         logger.debug(f"workflow job queued on runner: {', '.join(event.workflow_job.labels)}")
 
@@ -357,13 +368,13 @@ async def on_workflow_job_received(data):
             MacOSLargeRunnersUsagePolicy,
         )
 
-        policy_model = await find_policy(event.organization.login, PolicyType.MACOS_LARGE_RUNNERS_USAGE.value)
+        policy_model = await find_policy(owner, PolicyType.MACOS_LARGE_RUNNERS_USAGE.value)
         if policy_model is not None:
             policy = create_policy_from_model(policy_model)
             expect_type(policy, MacOSLargeRunnersUsagePolicy)
             await policy.evaluate(
-                event.installation.id,
-                event.organization.login,
+                installation_id,
+                owner,
                 event.repository.name,
                 event.workflow_job,
             )

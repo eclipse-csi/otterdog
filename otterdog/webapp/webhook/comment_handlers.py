@@ -55,7 +55,7 @@ class HelpCommentHandler(CommentHandler):
         self.schedule_task(
             HelpCommentTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
             )
@@ -74,7 +74,7 @@ class TeamInfoCommentHandler(CommentHandler):
         self.schedule_task(
             RetrieveTeamMembershipTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
             )
@@ -91,7 +91,7 @@ class CheckSyncCommentHandler(CommentHandler):
         self.schedule_task(
             CheckConfigurationInSyncTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
             )
@@ -108,7 +108,7 @@ class DoneCommentHandler(CommentHandler):
         self.schedule_task(
             CompletePullRequestTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -126,7 +126,7 @@ class ApplyCommentHandler(CommentHandler):
         self.schedule_task(
             ApplyChangesTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -144,7 +144,7 @@ class MergeCommentHandler(CommentHandler):
         self.schedule_task(
             MergePullRequestTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
                 event.sender.login,
@@ -168,7 +168,7 @@ class ValidateCommentHandler(CommentHandler):
         self.schedule_task(
             ValidatePullRequestTask(
                 unwrap(event.installation).id,
-                unwrap(event.organization).login,
+                unwrap(event.organization).login.lower(),
                 event.repository.name,
                 event.issue.number,
                 log_level,
