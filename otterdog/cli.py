@@ -59,7 +59,7 @@ def complete_organizations(ctx, param, incomplete):
     try:
         config = OtterdogConfig.from_file(config_file, False)
         out = []
-        for org in config.organization_configs:
+        for org in config.organization_names + config.project_names:
             if incomplete in org:
                 out.append(CompletionItem(org))
         return out

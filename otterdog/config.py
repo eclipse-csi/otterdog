@@ -173,8 +173,8 @@ class OtterdogConfig(SecretResolver):
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org, self)
             self._organizations.append(org_config)
-            self._organizations_map[org_config.name] = org_config
-            self._organizations_map[org_config.github_id] = org_config
+            self._organizations_map[org_config.name.lower()] = org_config
+            self._organizations_map[org_config.github_id.lower()] = org_config
 
     @property
     def config_file(self) -> str:
@@ -205,9 +205,8 @@ class OtterdogConfig(SecretResolver):
             )
         return base_template
 
-    @property
-    def organization_configs(self) -> dict[str, OrganizationConfig]:
-        return self._organizations_map
+    def _get_organization_config(self, project_or_organization_name: str):
+        return self._organizations_map[project_or_organization_name.lower()]
 
     @property
     def project_names(self) -> list[str]:
@@ -218,14 +217,14 @@ class OtterdogConfig(SecretResolver):
         return [config.github_id for config in self._organizations]
 
     def get_project_name(self, github_id: str) -> str | None:
-        organization = self._organizations_map.get(github_id)
-        if organization is not None:
-            return organization.name
+        org_config = self._get_organization_config(github_id)
+        if org_config is not None:
+            return org_config.name
         else:
             return None
 
     def get_organization_config(self, project_or_organization_name: str) -> OrganizationConfig:
-        org_config = self._organizations_map.get(project_or_organization_name)
+        org_config = self._get_organization_config(project_or_organization_name)
         if org_config is None:
             raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
