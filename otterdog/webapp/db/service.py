@@ -120,7 +120,6 @@ async def update_installations_from_config(
     async with mongo.odm.session() as session:
         # process all projects present in the otterdog config
         for github_id in otterdog_config.organization_names:
-            github_id = github_id.lower()
             project_name = otterdog_config.get_project_name(github_id)
             if project_name is None:
                 continue
@@ -272,7 +271,6 @@ async def get_installation(installation_id: int) -> InstallationModel | None:
 
 
 async def get_installation_by_github_id(github_id: str) -> InstallationModel | None:
-    github_id = github_id.lower()
     return await mongo.odm.find_one(InstallationModel, InstallationModel.github_id == github_id)
 
 
@@ -344,7 +342,6 @@ async def get_configurations() -> list[ConfigurationModel]:
 
 
 async def get_configuration_by_github_id(github_id: str) -> ConfigurationModel | None:
-    github_id = github_id.lower()
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.github_id == github_id)
 
 

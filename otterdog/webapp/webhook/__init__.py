@@ -82,7 +82,7 @@ async def on_pull_request_received(data):
         return success()
 
     installation_id = event.installation.id
-    owner = event.organization.login.lower()
+    owner = event.organization.login
     repo_name = event.repository.name
 
     if event.action in ["closed"] and event.pull_request.head.ref.startswith("otterdog/"):
@@ -198,7 +198,7 @@ async def on_pull_request_review_received(data):
         return success()
 
     installation_id = event.installation.id
-    owner = event.organization.login.lower()
+    owner = event.organization.login
     repo_name = event.repository.name
 
     if not await targets_config_repo(event.repository.name, installation_id):
@@ -261,7 +261,7 @@ async def on_push_received(data):
             return success()
 
         installation_id = event.installation.id
-        owner = event.organization.login.lower()
+        owner = event.organization.login
         repo_name = event.repository.name
 
         config_repo_touched = await targets_config_repo(repo_name, installation_id)
@@ -357,7 +357,7 @@ async def on_workflow_job_received(data):
         return success()
 
     installation_id = event.installation.id
-    owner = event.organization.login.lower()
+    owner = event.organization.login
 
     if event.action in ["queued"]:
         logger.debug(f"workflow job queued on runner: {', '.join(event.workflow_job.labels)}")
