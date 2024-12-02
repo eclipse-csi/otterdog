@@ -27,7 +27,6 @@ from otterdog.utils import (
     is_unset,
     multi_associate_by_key,
     patch_to_other,
-    style,
     unwrap,
     write_patch_object_as_json,
 )
@@ -455,27 +454,19 @@ class ModelObject(ABC):
         yield from []
 
     def get_model_header(self, parent_object: ModelObject | None = None) -> str:
-        header = style(self.model_object_name, bright=True)
+        header = f"[bold]{self.model_object_name}[/]"
 
         if self.is_keyed():
             key = self.get_key()
-            header = header + f'[{key}="{style(self.get_key_value(), bright=True)}"'
+            header = header + f'\\[{key}="[bold]{self.get_key_value()}[/]"'
 
             if isinstance(parent_object, ModelObject) and parent_object.is_keyed():
-                header = (
-                    header
-                    + f", {parent_object.model_object_name}="
-                    + f'"{style(parent_object.get_key_value(), bright=True)}"'
-                )
+                header = header + f", {parent_object.model_object_name}=" + f"[bold]{parent_object.get_key_value()}[/]"
 
             header = header + "]"
         elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
-            header = header + "["
-            header = (
-                header
-                + f"{parent_object.model_object_name}="
-                + f'"{style(parent_object.get_key_value(), bright=True)}"'
-            )
+            header = header + "\\["
+            header = header + f"{parent_object.model_object_name}=" + f"[bold]{parent_object.get_key_value()}[/]"
             header = header + "]"
 
         return header

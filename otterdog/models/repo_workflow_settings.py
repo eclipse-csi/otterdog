@@ -86,7 +86,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has enabled workflows, "
-                    f"while on organization level it disabled for all repositories, setting will be ignored.",
+                    f"while on organization level it is disabled for all repositories, setting will be ignored.",
                 )
 
             from otterdog.models.repository import Repository
@@ -123,8 +123,8 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             ):
                 context.add_failure(
                     FailureType.INFO,
-                    f"{self.get_model_header(parent_object)} has 'actions_can_approve_pull_request_reviews' "
-                    "enabled, while on organization level it is disabled, setting will be ignored.",
+                    f"{self.get_model_header(parent_object)} has 'actions_can_approve_pull_request_reviews' enabled, "
+                    f"while on organization level it is disabled, setting will be ignored.",
                 )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

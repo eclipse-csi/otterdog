@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import get_approval, print_error, style
+from otterdog.utils import get_approval
 
 from . import Operation
 
@@ -55,10 +55,7 @@ class ReviewAppPermissionsOperation(Operation):
     ) -> int:
         github_id = org_config.github_id
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:
@@ -77,7 +74,7 @@ class ReviewAppPermissionsOperation(Operation):
                     for installation_id, permissions in requested_permissions.items():
                         app_slug = _get_app_slug_by_installation_id(apps, installation_id)
                         if app_slug is None:
-                            print_error(f"failed to process app installation with id '{installation_id}'")
+                            self.printer.print_error(f"failed to process app installation with id '{installation_id}'")
                             continue
 
                         if self.app_slug is not None and self.app_slug != app_slug:
@@ -89,12 +86,12 @@ class ReviewAppPermissionsOperation(Operation):
                         if self.grant is True:
                             if self.force is False:
                                 self.printer.println()
-                                self.printer.println(style("Approve", bright=True) + " requested permissions?")
+                                self.printer.println("[bold]Approve[/] requested permissions?")
                                 self.printer.println(
                                     "  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n"
                                 )
 
-                                self.printer.print(f"{style('Enter a value:', bright=True)} ")
+                                self.printer.print("[bold]Enter a value:[/] ")
                                 if not get_approval():
                                     self.printer.println("\nApproval cancelled.")
                                     continue

@@ -11,6 +11,7 @@ from sys import exit
 
 from decouple import config  # type: ignore
 
+from otterdog.logging import init_logging
 from otterdog.webapp import create_app
 from otterdog.webapp.config import config_dict
 from otterdog.webapp.utils import get_temporary_base_directory
@@ -54,10 +55,9 @@ else:
 
 if DEBUG:
     from otterdog.cache import get_github_cache
-    from otterdog.utils import init
 
     # enable debug outputs
-    init(2)
+    init_logging(2)
 
     app.logger.info("DEBUG         = " + str(DEBUG))
     app.logger.info("Environment   = " + config_mode)
@@ -66,6 +66,9 @@ if DEBUG:
     app.logger.info("APP_ROOT      = " + app_config.APP_ROOT)
     app.logger.info("GH_CACHE      = " + str(get_github_cache()))
     app.logger.info("TMP_DIR       = " + tmp_dir)
+else:
+    # setup logging to level WARN
+    init_logging(0)
 
 
 def run():

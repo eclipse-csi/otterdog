@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from aiofiles import open, os, ospath
 
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import IndentingPrinter, is_info_enabled, is_set_and_valid, style
+from otterdog.utils import IndentingPrinter, is_set_and_valid
 
 from . import Operation
 
@@ -58,11 +58,8 @@ class ShowOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        if not self.markdown or is_info_enabled():
-            self.printer.println(
-                f"\nOrganization {style(org_config.name)}[id={github_id}]"
-                f"{self._format_progress(org_index, org_count)}"
-            )
+        if not self.markdown or self.printer.is_info_enabled():
+            self._print_project_header(org_config, org_index, org_count)
             self.printer.level_up()
 
         try:

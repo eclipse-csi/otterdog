@@ -45,9 +45,7 @@ class Secret(ModelObject, abc.ABC):
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(
-                FailureType.INFO,
-                f"{self.get_model_header()} will be skipped during processing:\n"
-                f"only a dummy value '{self.value}' is provided in the configuration.",
+                FailureType.INFO, f"{self.get_model_header()} only has a dummy value, resource will be skipped."
             )
         else:
             if ":" in self.value:

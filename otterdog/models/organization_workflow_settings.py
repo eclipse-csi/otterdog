@@ -66,7 +66,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'enabled_repositories' of value "
                     f"'{self.enabled_repositories}', "
-                    f"only values ('all' | 'none' | 'selected') are allowed.",
+                    f"while only values ('all' | 'none' | 'selected') are allowed.",
                 )
 
             if self.enabled_repositories != "selected" and len(self.selected_repositories) > 0:
@@ -74,8 +74,7 @@ class OrganizationWorkflowSettings(WorkflowSettings):
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has 'enabled_repositories' set to "
                     f"'{self.enabled_repositories}', "
-                    f"but 'selected_repositories' is set to '{self.selected_repositories}', "
-                    f"setting will be ignored.",
+                    f"but 'selected_repositories' is set to '{self.selected_repositories}', setting will be ignored.",
                 )
 
     @classmethod

@@ -9,10 +9,12 @@
 from datetime import datetime
 from typing import Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient, parse_iso_date_string
+
+_logger = get_logger(__name__)
 
 
 class AppClient(RestClient):
@@ -20,7 +22,7 @@ class AppClient(RestClient):
         super().__init__(rest_api)
 
     async def get_authenticated_app(self) -> dict[str, Any]:
-        print_debug("retrieving authenticated app")
+        _logger.debug("retrieving authenticated app")
 
         try:
             return await self.requester.request_json("GET", "/app")
@@ -28,7 +30,7 @@ class AppClient(RestClient):
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}") from ex
 
     async def get_app_installations(self) -> list[dict[str, Any]]:
-        print_debug("retrieving app installations")
+        _logger.debug("retrieving app installations")
 
         try:
             return await self.requester.request_paged_json("GET", "/app/installations")
@@ -36,7 +38,7 @@ class AppClient(RestClient):
             raise RuntimeError(f"failed retrieving authenticated app:\n{ex}") from ex
 
     async def create_installation_access_token(self, installation_id: str) -> tuple[str, datetime]:
-        print_debug(f"creating an installation access token for installation '{installation_id}'")
+        _logger.debug("creating an installation access token for installation '%s'", installation_id)
 
         try:
             response = await self.requester.request_json("POST", f"/app/installations/{installation_id}/access_tokens")
@@ -45,7 +47,7 @@ class AppClient(RestClient):
             raise RuntimeError(f"failed creating installation access token:\n{ex}") from ex
 
     async def get_app_ids(self, app_slug: str) -> tuple[int, str]:
-        print_debug("retrieving app node id")
+        _logger.debug("retrieving app node id")
 
         try:
             response = await self.requester.request_json("GET", f"/apps/{app_slug}")

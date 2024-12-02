@@ -6,10 +6,12 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
+
+_logger = get_logger(__name__)
 
 
 class UserClient(RestClient):
@@ -17,7 +19,7 @@ class UserClient(RestClient):
         super().__init__(rest_api)
 
     async def get_user_ids(self, login: str) -> tuple[int, str]:
-        print_debug(f"retrieving user ids for user '{login}'")
+        _logger.debug("retrieving user ids for user '%s'", login)
 
         try:
             response = await self.requester.request_json("GET", f"/users/{login}")

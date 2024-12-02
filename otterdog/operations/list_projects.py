@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rich.console import Console
+from rich import box
 from rich.table import Table
 
 from . import Operation
@@ -26,7 +26,7 @@ class ListProjectsOperation(Operation):
 
     def __init__(self):
         super().__init__()
-        self._table = Table(title="Projects")
+        self._table = Table(title="Projects", box=box.ROUNDED)
 
     @property
     def table(self) -> Table:
@@ -38,8 +38,7 @@ class ListProjectsOperation(Operation):
         self.table.add_column("Index", justify="right", style="green")
 
     def post_execute(self) -> None:
-        console = Console(file=self.printer.writer)
-        console.print(self.table)
+        self.printer.console.print(self.table)
 
     async def execute(
         self,

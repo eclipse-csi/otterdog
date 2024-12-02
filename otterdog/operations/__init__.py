@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from otterdog.utils import Change, IndentingPrinter, style, unwrap
+from otterdog.utils import Change, IndentingPrinter, unwrap
 
 if TYPE_CHECKING:
     from typing import Any
@@ -74,16 +74,27 @@ class Operation(ABC):
 
         if await ospath.exists(file_name) and not force:
             self.printer.println()
-            self.printer.println(style("Configuration already exists", bright=True) + f" at '{file_name}'.")
+            self.printer.println(f"[bold]Configuration already exists[/] at '{file_name}'.")
             self.printer.println("  Performing this action will overwrite its contents.")
             self.printer.println("  Do you want to continue? (Only 'yes' or 'y' will be accepted to approve)\n")
 
-            self.printer.print(f"{style('Enter a value:', bright=True)} ")
+            self.printer.print("[bold]Enter a value:[/] ")
             if not get_approval():
                 self.printer.println("\nOperation cancelled.")
                 return False
 
         return True
+
+    def _print_project_header(
+        self,
+        org_config: OrganizationConfig,
+        org_index: int | None = None,
+        org_count: int | None = None,
+    ) -> None:
+        self.printer.println(
+            f"\nProject [bold]{org_config.name}[/]\\[github_id={org_config.github_id}]"
+            f"{self._format_progress(org_index, org_count)}"
+        )
 
     @staticmethod
     def _format_progress(org_index: int | None, org_count: int | None) -> str:
@@ -101,7 +112,7 @@ class Operation(ABC):
         key_value_separator: str = "=",
         value_separator: str = "",
     ) -> None:
-        prefix = f"{style(action, fg=color)} " if action else ""
+        prefix = f"[{color}]{action}[/] " if action else ""
         closing_prefix = prefix
 
         if item_header:
@@ -124,7 +135,9 @@ class Operation(ABC):
         elif isinstance(data, list):
             self._print_list_internal(data, prefix, closing_prefix, key_value_separator, value_separator)
         else:
-            self.printer.println(f"{prefix if include_prefix else ''}{self._get_value(data)}{value_separator}")
+            self.printer.println(
+                f"{prefix if include_prefix else ''}{self._get_value(data)}{value_separator}", highlight=True
+            )
 
     def _print_dict_internal(
         self,
@@ -151,13 +164,13 @@ class Operation(ABC):
         self, data: list[Any], prefix: str, closing_prefix: str, key_value_separator: str, value_separator: str
     ):
         if len(data) > 0:
-            self.printer.println("[")
+            self.printer.println("[", highlight=True)
             self.printer.level_up()
             for entry in data:
                 self._print_internal(entry, prefix, closing_prefix, True, key_value_separator, value_separator)
 
             self.printer.level_down()
-            self.printer.println(f"{closing_prefix}],")
+            self.printer.println(f"{closing_prefix}],", highlight=True)
         else:
             self.printer.println(f"[]{value_separator}")
 
@@ -191,7 +204,7 @@ class Operation(ABC):
         item_header: str,
         forced_update: bool = False,
     ) -> None:
-        prefix = style("! ", fg="magenta") if forced_update else style("~ ", fg="yellow")
+        prefix = "[magenta]! [/]" if forced_update else "[yellow]~ [/]"
         closing_prefix = prefix
         color = "magenta" if forced_update else "yellow"
 
@@ -239,7 +252,7 @@ class Operation(ABC):
         else:
             self.printer.println(
                 f"{prefix}{key.ljust(max_key_length, ' ')} ="
-                f' {self._get_value(current_value)} {style("->", fg=color)} {self._get_value(expected_value)}'
+                f' {self._get_value(current_value)} [{color}]->[/] {self._get_value(expected_value)}'
             )
 
     def _print_modified_dict_internal(
@@ -251,13 +264,9 @@ class Operation(ABC):
 
             if v != c_v:
                 if c_v is None:
-                    self.printer.println(
-                        f"{style('+ ', fg='green')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
-                    )
+                    self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
                 elif v is None:
-                    self.printer.println(
-                        f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}"
-                    )
+                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}")
                 else:
                     self._print_modified_internal(k, max_key_length, c_v, v, prefix, color)
 
@@ -266,9 +275,7 @@ class Operation(ABC):
         if current_value is not None:
             for k, v in sorted(current_value.items()):
                 if k not in processed_keys:
-                    self.printer.println(
-                        f"{style('- ', fg='red')}{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}"
-                    )
+                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
 
     def _print_modified_list_internal(self, current_value, expected_value, prefix: str, color: str) -> None:
         from difflib import SequenceMatcher
@@ -291,21 +298,21 @@ class Operation(ABC):
                     j = j1
 
                     for _ in range(i1, min(diff_i, diff_j)):
-                        self.printer.println(f"{prefix}{a[i].ljust(max_length, ' ')} {style('->', fg=color)} {b[j]}")
+                        self.printer.println(f"{prefix}{a[i].ljust(max_length, ' ')} [{color}]->[/] {b[j]}")
                         j = j + 1
                         i = i + 1
 
                     while i < i2:
-                        self.printer.println(f"{style('- ', fg='red')}{a[i]}")
+                        self.printer.println(f"[red]- [/]{a[i]}")
                         i = i + 1
 
                     while j < j2:
-                        self.printer.println(f"{style('+ ', fg='green')}{b[j]}")
+                        self.printer.println(f"[green]+ [/]{b[j]}")
                         j = j + 1
 
                 case "delete":
                     for i in range(i1, i2):
-                        self.printer.println(f"{style('- ', fg='red')}{a[i]}")
+                        self.printer.println(f"[red]- [/]{a[i]}")
                 case "insert":
                     for j in range(j1, j2):
-                        self.printer.println(f"{style('+ ', fg='green')}{b[j]}")
+                        self.printer.println(f"[green]+ [/]{b[j]}")

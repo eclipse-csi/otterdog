@@ -8,19 +8,19 @@
 
 import asyncio
 import sys
-import traceback
 from typing import Any
 
 import click
 from click.shell_completion import CompletionItem
 
 from otterdog.cache import set_github_cache
+from otterdog.logging import CONSOLE_STDOUT, init_logging, print_error, print_exception
 from otterdog.providers.github.cache.file import file_cache
 
 from . import __version__
 from .config import OtterdogConfig
 from .operations import Operation
-from .utils import IndentingPrinter, init, is_debug_enabled, print_error, unwrap
+from .utils import IndentingPrinter, unwrap
 
 _CONFIG_FILE = "otterdog.json"
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
@@ -86,18 +86,15 @@ class StdCommand(click.Command):
         global _CONFIG
 
         verbose = ctx.params.pop("verbose")
-        init(verbose)
+        init_logging(verbose)
 
         config_file = ctx.params.pop("config")
         local_mode = ctx.params.pop("local")
 
         try:
             _CONFIG = OtterdogConfig.from_file(config_file, local_mode)
-        except Exception as e:
-            if is_debug_enabled():
-                traceback.print_exception(e)
-
-            print_error(str(e))
+        except Exception as exc:
+            print_exception(exc)
             sys.exit(2)
 
         return super().invoke(ctx)
@@ -780,7 +777,7 @@ def install_deps():
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
-    printer = IndentingPrinter(sys.stdout)
+    printer = IndentingPrinter(CONSOLE_STDOUT)
 
     try:
         exit_code = 0
@@ -798,7 +795,6 @@ def _execute_operation(organizations: list[str], operation: Operation):
 
         total_num_orgs = len(organizations)
         current_org_number = 1
-
         for organization in organizations:
             org_config = config.get_organization_config(organization)
             exit_code = max(exit_code, asyncio.run(operation.execute(org_config, current_org_number, total_num_orgs)))
@@ -808,24 +804,7 @@ def _execute_operation(organizations: list[str], operation: Operation):
         sys.exit(exit_code)
 
     except Exception as exc:
-        if is_debug_enabled():
-            from rich.traceback import Traceback
-
-            rich_tb = Traceback.from_exception(
-                type(exc),
-                exc,
-                exc.__traceback__,
-                show_locals=True,
-                suppress=[asyncio],
-                width=None,
-            )
-
-            from rich.console import Console
-
-            console_stderr = Console(stderr=True)
-            console_stderr.print(rich_tb)
-        else:
-            print_error(str(exc))
+        print_exception(exc)
         sys.exit(2)
 
 

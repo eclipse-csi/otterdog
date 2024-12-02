@@ -12,11 +12,13 @@ import json
 import subprocess
 from typing import TYPE_CHECKING
 
-from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.logging import get_logger
 
 if TYPE_CHECKING:
     from typing import Any
+
+_logger = get_logger(__name__)
 
 
 class BitwardenVault(CredentialProvider):
@@ -27,7 +29,7 @@ class BitwardenVault(CredentialProvider):
     def __init__(self, api_token_key: str):
         self._api_token_key = api_token_key
 
-        utils.print_debug("unlocking bitwarden vault")
+        _logger.debug("unlocking bitwarden vault")
         self._status, output = subprocess.getstatusoutput("bw unlock --check")  # noqa: S605, S607
         if self._status != 0:
             raise RuntimeError(f"could not access bitwarden vault:\n{output}")

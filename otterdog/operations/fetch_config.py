@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 from aiofiles import open, os, ospath
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import style
 
 from . import Operation
 
@@ -61,10 +60,7 @@ class FetchOperation(Operation):
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
 
         org_file_name = jsonnet_config.org_config_file + self.suffix
         if not await self.check_config_file_overwrite_if_exists(org_file_name, self.force_processing):

@@ -15,14 +15,11 @@ from typing import Any
 import aiofiles.os
 import aiofiles.ospath
 
-from .utils import (
-    jsonnet_evaluate_snippet,
-    parse_github_url,
-    parse_template_url,
-    print_debug,
-)
+from .logging import get_logger
+from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_url
 
 _template_lock = Lock()
+_logger = get_logger(__name__)
 
 
 class JsonnetConfig:
@@ -99,7 +96,7 @@ class JsonnetConfig:
             await self._init_base_template()
 
         template_file = self.template_file
-        print_debug(f"loading template file '{template_file}'")
+        _logger.debug("loading template file '%s'", template_file)
         if not await aiofiles.ospath.exists(self.template_file):
             raise RuntimeError(f"template file '{template_file}' does not exist")
 
@@ -126,7 +123,7 @@ class JsonnetConfig:
             )
             return jsonnet_evaluate_snippet(org_custom_property_snippet)
         except RuntimeError:
-            print_debug("no default org custom property config found, custom properties will be skipped")
+            _logger.debug("no default org custom property config found, custom properties will be skipped")
             return None
 
     @cached_property
@@ -136,7 +133,7 @@ class JsonnetConfig:
             org_webhook_snippet = f"(import '{self.template_file}').{self.create_org_webhook}('default')"
             return jsonnet_evaluate_snippet(org_webhook_snippet)
         except RuntimeError:
-            print_debug("no default org webhook config found, webhooks will be skipped")
+            _logger.debug("no default org webhook config found, webhooks will be skipped")
             return None
 
     @cached_property
@@ -146,7 +143,7 @@ class JsonnetConfig:
             org_secret_snippet = f"(import '{self.template_file}').{self.create_org_secret}('default')"
             return jsonnet_evaluate_snippet(org_secret_snippet)
         except RuntimeError:
-            print_debug("no default org secret config found, secrets will be skipped")
+            _logger.debug("no default org secret config found, secrets will be skipped")
             return None
 
     @cached_property
@@ -156,7 +153,7 @@ class JsonnetConfig:
             org_variable_snippet = f"(import '{self.template_file}').{self.create_org_variable}('default')"
             return jsonnet_evaluate_snippet(org_variable_snippet)
         except RuntimeError:
-            print_debug("no default org variable config found, variables will be skipped")
+            _logger.debug("no default org variable config found, variables will be skipped")
             return None
 
     @cached_property
@@ -166,7 +163,7 @@ class JsonnetConfig:
             org_ruleset_snippet = f"(import '{self.template_file}').{self.create_org_ruleset}('default')"
             return jsonnet_evaluate_snippet(org_ruleset_snippet)
         except RuntimeError:
-            print_debug("no default org ruleset config found, rulesets will be skipped")
+            _logger.debug("no default org ruleset config found, rulesets will be skipped")
             return None
 
     @cached_property
@@ -176,7 +173,7 @@ class JsonnetConfig:
             repo_snippet = f"(import '{self.template_file}').{self.create_repo}('default')"
             return jsonnet_evaluate_snippet(repo_snippet)
         except RuntimeError:
-            print_debug("no default repo config found, repos will be skipped")
+            _logger.debug("no default repo config found, repos will be skipped")
             return None
 
     @cached_property
@@ -186,7 +183,7 @@ class JsonnetConfig:
             repo_webhook_snippet = f"(import '{self.template_file}').{self.create_repo_webhook}('default')"
             return jsonnet_evaluate_snippet(repo_webhook_snippet)
         except RuntimeError:
-            print_debug("no default repo webhook config found, webhooks will be skipped")
+            _logger.debug("no default repo webhook config found, webhooks will be skipped")
             return None
 
     @cached_property
@@ -196,7 +193,7 @@ class JsonnetConfig:
             repo_secret_snippet = f"(import '{self.template_file}').{self.create_repo_secret}('default')"
             return jsonnet_evaluate_snippet(repo_secret_snippet)
         except RuntimeError:
-            print_debug("no default repo secret config found, secrets will be skipped")
+            _logger.debug("no default repo secret config found, secrets will be skipped")
             return None
 
     @cached_property
@@ -206,7 +203,7 @@ class JsonnetConfig:
             repo_variable_snippet = f"(import '{self.template_file}').{self.create_repo_variable}('default')"
             return jsonnet_evaluate_snippet(repo_variable_snippet)
         except RuntimeError:
-            print_debug("no default repo variable config found, variables will be skipped")
+            _logger.debug("no default repo variable config found, variables will be skipped")
             return None
 
     @cached_property
@@ -218,7 +215,7 @@ class JsonnetConfig:
             )
             return jsonnet_evaluate_snippet(branch_protection_snippet)
         except RuntimeError:
-            print_debug("no default branch protection rule config found, branch protection rules will be skipped")
+            _logger.debug("no default branch protection rule config found, branch protection rules will be skipped")
             return None
 
     @cached_property
@@ -228,7 +225,7 @@ class JsonnetConfig:
             repo_ruleset_snippet = f"(import '{self.template_file}').{self.create_repo_ruleset}('default')"
             return jsonnet_evaluate_snippet(repo_ruleset_snippet)
         except RuntimeError:
-            print_debug("no default repo ruleset config found, rulesets will be skipped")
+            _logger.debug("no default repo ruleset config found, rulesets will be skipped")
             return None
 
     @cached_property
@@ -238,7 +235,7 @@ class JsonnetConfig:
             environment_snippet = f"(import '{self.template_file}').{self.create_environment}('default')"
             return jsonnet_evaluate_snippet(environment_snippet)
         except RuntimeError:
-            print_debug("no default environment config found, environments will be skipped")
+            _logger.debug("no default environment config found, environments will be skipped")
             return None
 
     @cached_property
@@ -248,7 +245,7 @@ class JsonnetConfig:
             pull_request_snippet = f"(import '{self.template_file}').{self.create_pull_request}()"
             return jsonnet_evaluate_snippet(pull_request_snippet)
         except RuntimeError:
-            print_debug("no default pull request config found, pull requests will be skipped")
+            _logger.debug("no default pull request config found, pull requests will be skipped")
             return None
 
     @cached_property
@@ -258,7 +255,7 @@ class JsonnetConfig:
             status_checks_snippet = f"(import '{self.template_file}').{self.create_status_checks}()"
             return jsonnet_evaluate_snippet(status_checks_snippet)
         except RuntimeError:
-            print_debug("no default status checks config found, status checks will be skipped")
+            _logger.debug("no default status checks config found, status checks will be skipped")
             return None
 
     @cached_property
@@ -268,7 +265,7 @@ class JsonnetConfig:
             merge_queue_snippet = f"(import '{self.template_file}').{self.create_merge_queue}()"
             return jsonnet_evaluate_snippet(merge_queue_snippet)
         except RuntimeError:
-            print_debug("no default merge queue config found, merge queues will be skipped")
+            _logger.debug("no default merge queue config found, merge queues will be skipped")
             return None
 
     @property
@@ -329,8 +326,7 @@ class JsonnetConfig:
         from aiofiles.ospath import exists
         from aioshutil import copytree, rmtree
 
-        print_debug(f"initializing base template '{self._base_template_repo_url}@{self._base_template_ref}'")
-
+        _logger.debug("initializing base template '%s@%s'", self._base_template_repo_url, self._base_template_ref)
         template_owner, template_repository = parse_github_url(self._base_template_repo_url)
 
         async with _template_lock:
@@ -338,15 +334,16 @@ class JsonnetConfig:
             template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
 
             if not await exists(f"{template_dir}/.git"):
-                print_debug(f"cloning base template from url '{self._base_template_repo_url}'")
+                _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
                 repo = git.Repo.clone_from(self._base_template_repo_url, template_dir)
                 repo.git.checkout(self._base_template_ref)
             else:
                 repo = git.Repo(template_dir)
                 if not repo.head.is_detached:
-                    print_debug(
-                        f"pulling changes from base template url '{self._base_template_repo_url}' "
-                        f"for ref '{repo.head.ref}'"
+                    _logger.debug(
+                        "pulling changes from base template url '%s' with ref '%s'",
+                        self._base_template_repo_url,
+                        repo.head.ref,
                     )
                     repo.remotes.origin.pull()
 

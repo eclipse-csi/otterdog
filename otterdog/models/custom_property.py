@@ -51,9 +51,8 @@ class CustomProperty(ModelObject):
             if self.value_type not in {"string", "single_select", "multi_select", "true_false"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'value_type' of value "
-                    f"'{self.value_type}', "
-                    f"only values ('string' | 'single_select' | 'multi_select' | 'true_false') are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'value_type' set to '{self.value_type}',\n"
+                    f"while only values ('string' | 'single_select' | 'multi_select' | 'true_false') are allowed.",
                 )
 
             if (
@@ -63,8 +62,8 @@ class CustomProperty(ModelObject):
             ):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'value_type' of value "
-                    f"'{self.value_type}' but no 'allowed_values' defined.",
+                    f"{self.get_model_header(parent_object)} has 'value_type' set to '{self.value_type}',\n"
+                    f"but no 'allowed_values' are defined.",
                 )
 
             if (
@@ -74,8 +73,8 @@ class CustomProperty(ModelObject):
             ):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'value_type' of value "
-                    f"'{self.value_type}' but more than 200 elements as 'allowed_values' defined.",
+                    f"{self.get_model_header(parent_object)} has 'value_type' set to '{self.value_type}',\n"
+                    f"but more than 200 elements as 'allowed_values' are defined.",
                 )
 
         if is_set_and_valid(self.required):
@@ -83,20 +82,20 @@ class CustomProperty(ModelObject):
                 if not is_set_and_present(self.default_value):
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has 'required' set to 'True' "
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'true', "
                         f"but no property 'default_value' is specified.",
                     )
             elif is_set_and_present(self.default_value):
                 if isinstance(self.default_value, str) and len(self.default_value) > 0:
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has 'required' set to 'False' "
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'false' "
                         f"but property 'default_value' is set to a non-empty value.",
                     )
                 elif isinstance(self.default_value, list) and len(self.default_value) > 0:
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has 'required' set to 'False' "
+                        f"{self.get_model_header(parent_object)} has 'required' set to 'false' "
                         f"but property 'default_value' is set to a non-empty list.",
                     )
 
@@ -125,7 +124,7 @@ class CustomProperty(ModelObject):
                         context.add_failure(
                             FailureType.ERROR,
                             f"{self.get_model_header(parent_object)} has a 'default_value' set to "
-                            f"'{self.default_value}', "
+                            f"'{self.default_value}',\n"
                             f"but some of its elements are not in the list of allowed values '{self.allowed_values}'.",
                         )
 

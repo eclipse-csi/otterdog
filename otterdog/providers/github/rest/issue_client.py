@@ -6,10 +6,12 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
+
+_logger = get_logger(__name__)
 
 
 class IssueClient(RestClient):
@@ -17,7 +19,7 @@ class IssueClient(RestClient):
         super().__init__(rest_api)
 
     async def create_comment(self, org_id: str, repo_name: str, issue_number: str, body: str) -> None:
-        print_debug(f"creating issue comment for issue '{issue_number}' at '{org_id}/{repo_name}'")
+        _logger.debug("creating issue comment for issue '%s' in repo '%s/%s'", issue_number, org_id, repo_name)
 
         try:
             data = {"body": body}

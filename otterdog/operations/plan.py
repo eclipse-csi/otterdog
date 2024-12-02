@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.models.webhook import Webhook
-from otterdog.utils import Change, IndentingPrinter, style
 
 from .diff_operation import DiffOperation, DiffStatus
 
@@ -20,6 +19,7 @@ if TYPE_CHECKING:
 
     from otterdog.config import OtterdogConfig
     from otterdog.models import LivePatch, ModelObject
+    from otterdog.utils import Change, IndentingPrinter
 
 
 class PlanOperation(DiffOperation):
@@ -46,10 +46,10 @@ class PlanOperation(DiffOperation):
 
     def print_legend(self) -> None:
         self.printer.println("\nActions are indicated with the following symbols:")
-        self.printer.println(f"  {style('+', fg='green')} create")
-        self.printer.println(f"  {style('~', fg='yellow')} modify")
-        self.printer.println(f"  {style('!', fg='magenta')} forced update")
-        self.printer.println(f"  {style('-', fg='red')} delete")
+        self.printer.println("  [green]+[/] create")
+        self.printer.println("  [yellow]~[/] modify")
+        self.printer.println("  [magenta]![/] forced update")
+        self.printer.println("  [red]-[/] delete")
 
     def resolve_secrets(self) -> bool:
         return False
@@ -103,16 +103,13 @@ class PlanOperation(DiffOperation):
                 new_secret = modified_object["secret"].to_value
                 if not new_secret:
                     self.printer.println(
-                        f"\n{style('Warning', fg='red')}: removing secret for webhook "
-                        f"with url '{current_object.url}'"
+                        f"\n[red]Warning[/]: removing secret for webhook with url '{current_object.url}'"
                     )
 
         settings_to_change = 0
         for k, _v in modified_object.items():
             if current_object.is_read_only_key(k):
-                self.printer.println(
-                    f"\n{style('Note', fg='yellow')}: setting '{k}' " f"is read-only, will be skipped."
-                )
+                self.printer.println(f"\n[yellow]Note[/]: setting '{k}' is read-only, will be skipped.")
             else:
                 settings_to_change += 1
 
@@ -120,9 +117,10 @@ class PlanOperation(DiffOperation):
 
     async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int:
         self.printer.println(
-            f"\n{style('Plan', bright=True)}: {diff_status.additions} to add, "
+            f"\n[bold]Plan[/]: {diff_status.additions} to add, "
             f"{diff_status.differences} to change, "
-            f"{diff_status.deletions} to delete."
+            f"{diff_status.deletions} to delete.",
+            highlight=True,
         )
 
         return 0

@@ -46,23 +46,21 @@ class OrganizationSecret(Secret):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'visibility' of value "
-                    f"'{self.visibility}' which is not available for organization with free plan.",
+                    f"'{self.visibility}', which is not available for an organization with free plan.",
                 )
             elif self.visibility not in {"public", "private", "selected"}:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'visibility' of value "
-                    f"'{self.visibility}', "
-                    f"only values ('public' | 'private' | 'selected') are allowed.",
+                    f"'{self.visibility}',\n"
+                    f"while only values ('public' | 'private' | 'selected') are allowed.",
                 )
 
             if self.visibility != "selected" and len(self.selected_repositories) > 0:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has 'visibility' set to "
-                    f"'{self.visibility}', "
-                    f"but 'selected_repositories' is set to '{self.selected_repositories}', "
-                    f"setting will be ignored.",
+                    f"{self.get_model_header(parent_object)} has 'visibility' set to '{self.visibility}',\n"
+                    f"but 'selected_repositories' is set to '{self.selected_repositories}', setting will be ignored.",
                 )
 
     @classmethod

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_info_enabled, style
+from otterdog.utils import is_info_enabled
 
 from . import Operation
 
@@ -54,10 +54,7 @@ class ListMembersOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:
@@ -83,16 +80,12 @@ class ListMembersOperation(Operation):
                 if self.two_factor_disabled is True:
                     all_members = await provider.rest_api.org.list_members(github_id, False)
                     two_factor_status = (
-                        style("enabled", fg="green")
+                        "[green]enabled[/]"
                         if organization.settings.two_factor_requirement is True
-                        else style("disabled", fg="red")
+                        else "[red]disabled[/]"
                     )
 
-                    member_status = (
-                        style(str(len(members)), fg="green")
-                        if len(members) == 0
-                        else style(str(len(members)), fg="red")
-                    )
+                    member_status = f"[green]{len(members)!s}[/]" if len(members) == 0 else f"[red]{len(members)!s}[/]"
 
                     self.printer.println(
                         f"Found {member_status} / {len(all_members)} members with 2FA disabled. "

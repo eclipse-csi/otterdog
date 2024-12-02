@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import associate_by_key, is_set_and_present, style
+from otterdog.utils import associate_by_key, is_set_and_present
 
 from . import Operation
 
@@ -46,10 +46,7 @@ class SyncTemplateOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:
@@ -76,7 +73,7 @@ class SyncTemplateOperation(Operation):
                 repo = repositories_by_name.get(self.repo)
                 if repo is not None and repo.archived is False:
                     if is_set_and_present(repo.template_repository):
-                        self.printer.println(f'Syncing repository["{style(repo.name, bright=True)}"]')
+                        self.printer.println(f'Syncing repository["[bold]{repo.name}[/]"]')
                         updated_files = await rest_api.repo.sync_from_template_repository(
                             github_id,
                             repo.name,

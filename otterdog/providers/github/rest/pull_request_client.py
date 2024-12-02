@@ -8,18 +8,25 @@
 
 from typing import Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
+
+_logger = get_logger(__name__)
 
 
 class PullRequestClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    async def get_pull_request(self, org_id: str, repo_name: str, pull_request_number: str) -> dict[str, Any]:
-        print_debug(f"getting pull request with number '{pull_request_number}' from repo '{org_id}/{repo_name}'")
+    async def get_pull_request(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+    ) -> dict[str, Any]:
+        _logger.debug("getting pull request with number '%s' from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
@@ -27,9 +34,15 @@ class PullRequestClient(RestClient):
             raise RuntimeError(f"failed retrieving pull request:\n{ex}") from ex
 
     async def create_pull_request(
-        self, org_id: str, repo_name: str, title: str, head: str, base: str, body: str | None = None
+        self,
+        org_id: str,
+        repo_name: str,
+        title: str,
+        head: str,
+        base: str,
+        body: str | None = None,
     ) -> dict[str, Any]:
-        print_debug(f"creating pull request for repo '{org_id}/{repo_name}'")
+        _logger.debug("creating pull request for repo '%s/%s'", org_id, repo_name)
 
         try:
             data = {
@@ -46,9 +59,13 @@ class PullRequestClient(RestClient):
             raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
 
     async def get_pull_requests(
-        self, org_id: str, repo_name: str, state: str = "all", base_ref: str | None = None
+        self,
+        org_id: str,
+        repo_name: str,
+        state: str = "all",
+        base_ref: str | None = None,
     ) -> list[dict[str, Any]]:
-        print_debug(f"getting pull requests from repo '{org_id}/{repo_name}'")
+        _logger.debug("getting pull requests from repo '%s/%s'", org_id, repo_name)
 
         try:
             params = {"state": state}
@@ -60,8 +77,13 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull requests:\n{ex}") from ex
 
-    async def get_commits(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
-        print_debug(f"getting commits for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+    async def get_commits(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+    ) -> list[dict[str, Any]]:
+        _logger.debug("getting commits for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
             return await self.requester.request_paged_json(
@@ -70,8 +92,13 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull request commits:\n{ex}") from ex
 
-    async def get_reviews(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
-        print_debug(f"getting reviews for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+    async def get_reviews(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+    ) -> list[dict[str, Any]]:
+        _logger.debug("getting reviews for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
             return await self.requester.request_paged_json(
@@ -80,8 +107,13 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}") from ex
 
-    async def get_files(self, org_id: str, repo_name: str, pull_request_number: str) -> list[dict[str, Any]]:
-        print_debug(f"getting files for pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+    async def get_files(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+    ) -> list[dict[str, Any]]:
+        _logger.debug("getting files for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
             return await self.requester.request_paged_json(
@@ -98,7 +130,7 @@ class PullRequestClient(RestClient):
         commit_message: str | None = None,
         merge_method: str = "squash",
     ) -> bool:
-        print_debug(f"merging pull request #{pull_request_number} from repo '{org_id}/{repo_name}'")
+        _logger.debug("merging pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
 
         try:
             data = {

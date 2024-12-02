@@ -16,7 +16,7 @@ import aiofiles.ospath
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import Change, IndentingPrinter, style, unwrap
+from otterdog.utils import Change, IndentingPrinter, unwrap
 
 from . import Operation
 from .validate import ValidateOperation
@@ -100,10 +100,7 @@ class DiffOperation(Operation):
     ) -> int:
         self._org_config = org_config
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={org_config.github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
 
         try:
             self._gh_client = self.setup_github_client(org_config)
@@ -171,8 +168,7 @@ class DiffOperation(Operation):
 
         if validation_infos > 0 and not self.printer.is_info_enabled():
             self.printer.println(
-                f"there have been {validation_infos} validation infos, "
-                f"enable verbose output with '-v' to to display them."
+                f"there have been {validation_infos} validation infos, enable verbose output to display them."
             )
 
         try:

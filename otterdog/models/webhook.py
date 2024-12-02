@@ -84,28 +84,30 @@ class Webhook(ModelObject, abc.ABC):
         if self.has_dummy_secret():
             context.add_failure(
                 FailureType.INFO,
-                f"{self.get_model_header(parent_object)} will be skipped during processing:\n"
-                f"webhook has a secret set, but only a dummy secret '{self.secret}' is provided in "
-                f"the configuration.",
+                f"{self.get_model_header(parent_object)} has a secret set, but only a dummy secret '{self.secret}' "
+                f"is provided in the configuration, will be skipped.",
             )
         elif is_set_and_present(self.secret) and ":" not in self.secret:
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header()} has a secret '{self.secret}' that does not use a credential provider.",
+                f"{self.get_model_header(parent_object)} has a secret '{self.secret}' "
+                f"that does not use a credential provider.",
             )
 
         if is_set_and_valid(self.content_type):
             if self.content_type not in {"json", "form"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'content_type' has value '{self.content_type}', " f"only values ('json' | 'form') are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'content_type' of value '{self.content_type}', "
+                    f"while only values ('json' | 'form') are allowed.",
                 )
 
         if is_set_and_valid(self.insecure_ssl):
             if self.insecure_ssl not in {"0", "1"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'insecure_ssl' has value '{self.insecure_ssl}', " f"only values ('0' | '1') are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'insecure_ssl' of value '{self.insecure_ssl}', "
+                    f"while only values ('0' | '1') are allowed.",
                 )
 
     @classmethod

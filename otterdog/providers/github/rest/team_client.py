@@ -8,9 +8,11 @@
 
 from typing import Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest import RestApi, RestClient
-from otterdog.utils import print_debug
+
+_logger = get_logger(__name__)
 
 
 class TeamClient(RestClient):
@@ -18,7 +20,7 @@ class TeamClient(RestClient):
         super().__init__(rest_api)
 
     async def get_team_slugs(self, org_id: str) -> list[dict[str, Any]]:
-        print_debug(f"retrieving teams for org '{org_id}'")
+        _logger.debug("retrieving teams for org '%s'", org_id)
 
         try:
             response = await self.requester.request_json("GET", f"/orgs/{org_id}/teams")
@@ -27,7 +29,7 @@ class TeamClient(RestClient):
             raise RuntimeError(f"failed retrieving teams:\n{ex}") from ex
 
     async def is_user_member_of_team(self, org_id: str, team_slug: str, user: str) -> bool:
-        print_debug(f"retrieving membership of user '{user}' for team '{team_slug}' in org '{org_id}'")
+        _logger.debug("retrieving membership of user '%s' for team '%s' in org '%s'", user, team_slug, org_id)
 
         status, body = await self.requester.request_raw("GET", f"/orgs/{org_id}/teams/{team_slug}/memberships/{user}")
 
