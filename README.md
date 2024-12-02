@@ -68,28 +68,57 @@ Running `make init` will also install `poetry` and the `dynamic versioning plugi
 $ ./otterdog.sh -h
 ```
 
-## Setup
+## Quick Setup
 
-The general configuration for supported organizations and their corresponding credentials in order
-to access their GitHub settings has to be placed in a json file (default: __otterdog.json__, can be changed
-with the __-c__ flag), e.g.:
+To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
+
+- define a default configuration to use, you can use the [default config](https://github.com/EclipseFdn/otterdog-defaults/) of the Eclipse Foundation as starting point
+- create a `otterdog.json` file that contains the list of organizations you want to manage and some customizations
+- start managing your organizations using the cli
+
+### Default configuration @ Eclipse Foundation
+
+The default configuration that is in use by the Eclipse Foundation can be used right away. It has some hooks and configurations
+defined that are not meaningful for other uses though. Also the `config` repsitory is set to `.eclipsefdn` and is defined like
+that in the default configuration and will be created upon the first `apply` execution.
+
+For simple testing though, you can use this base template: `https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main`.
+
+### Otterdog configuration
+
+The following example configuration is used to the manage the [Otterdogtest organization](https://github.com/OtterdogTest):
 
 ```json
 {
+  "defaults": {
+    "bitwarden": {
+      "api_token_key": "api_token_admin"
+    },
+    "jsonnet": {
+      "base_template": "https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main",
+      "config_dir": "orgs"
+    },
+    "github": {
+      "config_repo": ".eclipsefdn"
+    }
+  },
   "organizations": [
     {
-      "name": "<org name>",
-      "github_id": "<github org id>",
+      "name": "OtterdogTest",
+      "github_id": "OtterdogTest",
       "credentials": {
-        "provider": "<bitwarden | pass>",
-        "item_id" : "39adacc9-2b51-41a9-a27e-ac7c00eea6a5"
+        "provider": "bitwarden",
+        "item_id": "118276ad-158c-4720-b68d-af8c00fe3481"
       }
     }
   ]
 }
 ```
 
-## Credentials
+The name of the configuration file can be freely chosen (can be specified with the __-c__ flag).
+However, when named `otterdog.json`, the cli tool will automatically detect and use that file if it is in the current working directory.
+
+### Credentials
 
 Otterdog needs certain credentials to access information from an organization and its repositories on GitHub:
 
@@ -109,7 +138,7 @@ The GitHub api token needs to have the following scopes enabled:
 
 The credentials can be stored in different providers (bitwarden, pass).
 
-### Bitwarden
+#### Bitwarden
 
 When using **bitwarden** to store the credentials, you need to enter a valid __item id__ as additional credential data:
 
@@ -156,7 +185,7 @@ Mandatory items:
 * __login.password__ the password of that user
 * __login.totp__ the TOTP text code
 
-### Pass
+#### Pass
 
 When using **pass** to store the credentials, you need to enter fully qualified pass names to access the various
 required credential data:
@@ -192,24 +221,27 @@ configurate that in the `defaults`:
 }
 ```
 
-## Usage
+As the `password_store_dir` might be different on different machines, you can also customize that in a separate `.otterdog-defaults.json` file:
 
-Run the **import** operation to retrieve the current live configuration for an organization:
-
-```console
-$ otterdog.sh import <organization>
+```json
+{
+  "pass": {
+    "password_store_dir": "path/to/storage/dir"
+  }
+}
 ```
 
-The created configuration file for the organization can be found at `<data-directory>/orgs/<organization>.jsonnet`
+## Typical Workflow
 
-Run the **plan** operation to highlight differences between the live configuration and the written configuration:
+In general, all operations act on the local configuration stored in `<cwd>/<config-dir>/<organization>/<organization>.jsonnet`.
 
-```console
-$ otterdog.sh plan <organization>
-```
+A typical workflow to handle changes to an organization are as follows:
 
-Run **apply** operation to reflect the written configuration on github itself:
-
-```console
-$ otterdog.sh apply <organization>
-```
+1. (first time) run an initial `import` of the organization
+2. (first time) run an `apply` operation to create all resources already inherited from the default config (e.g. config repo)
+3. (regular) fetch the latest config from the config repo using `fetch-config`
+4. (optional) make any local changes to the configuration
+5. (optional) run the `validate` operation to see if the configuration is syntactically and semantically correct
+6. (optional) run the `plan` operation to see which changes would be applied taking the current live configuration into account
+7. (regular) run the `apply` operation to actually apply the changes (also runs `validate` and `plan`, so steps 6 & 7 are redundant)
+8. (regular) push the local configuration to the config repo using the `push-config` operation
