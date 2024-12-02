@@ -74,19 +74,14 @@ def init_logging(verbose: int) -> None:
             level = TRACE
             show_time = True
 
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="%(message)s",
-        datefmt="%X.%f",
-        handlers=[
-            RichHandler(
-                rich_tracebacks=True,
-                tracebacks_show_locals=True,
-                show_time=show_time,
-                omit_repeated_times=False,
-                console=CONSOLE_STDOUT,
-            )
-        ],
+    logging.root.addHandler(
+        RichHandler(
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+            show_time=show_time,
+            omit_repeated_times=False,
+            console=CONSOLE_STDOUT,
+        )
     )
 
     import otterdog

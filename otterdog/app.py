@@ -67,8 +67,8 @@ if DEBUG:
     app.logger.info("GH_CACHE      = " + str(get_github_cache()))
     app.logger.info("TMP_DIR       = " + tmp_dir)
 else:
-    # setup logging to level WARN
-    init_logging(0)
+    # setup app logging to level INFO
+    init_logging(1)
 
 
 def run():
