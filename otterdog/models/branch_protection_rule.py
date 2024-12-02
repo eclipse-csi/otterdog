@@ -91,9 +91,9 @@ class BranchProtectionRule(ModelObject):
             if is_set_and_valid(self.required_approving_review_count):
                 context.add_failure(
                     FailureType.INFO,
-                    f"{self.get_model_header(parent_object)} has"
-                    f" 'requires_pull_request' disabled but 'required_approving_review_count' "
-                    f"is set to '{self.required_approving_review_count}', setting will be ignored.",
+                    f"{self.get_model_header(parent_object)} has 'requires_pull_request' disabled, "
+                    f"but 'required_approving_review_count' is set to "
+                    f"'{self.required_approving_review_count}', setting will be ignored.",
                 )
 
             for key in [
@@ -105,9 +105,8 @@ class BranchProtectionRule(ModelObject):
                 if self.__getattribute__(key) is True:
                     context.add_failure(
                         FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} has"
-                        f" 'requires_pull_request' disabled but '{key}' "
-                        f"is enabled, setting will be ignored.",
+                        f"{self.get_model_header(parent_object)} has 'requires_pull_request' disabled, "
+                        f"but '{key}' is enabled, setting will be ignored.",
                     )
 
             for key in [
@@ -118,9 +117,8 @@ class BranchProtectionRule(ModelObject):
                 if not is_unset(value) and len(value) > 0:
                     context.add_failure(
                         FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} has"
-                        f" 'requires_pull_request' disabled but '{key}' "
-                        f"is set to '{value}', setting will be ignored.",
+                        f"{self.get_model_header(parent_object)} has 'requires_pull_request' disabled, "
+                        f"but '{key}' is set to '{value}', setting will be ignored.",
                     )
 
         # required_approving_review_count must be defined when requires_pull_request is enabled
@@ -129,9 +127,8 @@ class BranchProtectionRule(ModelObject):
             if required_approving_review_count is None or required_approving_review_count < 0:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has"
-                    f" 'requires_pull_request' enabled but 'required_approving_review_count' "
-                    f"is not set (must be set to a non negative number).",
+                    f"{self.get_model_header(parent_object)} has 'requires_pull_request' enabled, "
+                    f"but 'required_approving_review_count' is not set (must be set to a non negative number).",
                 )
 
         # if 'review_dismissal_allowances' is disabled, issue a warning if review_dismissal_allowances is non-empty.
@@ -143,9 +140,8 @@ class BranchProtectionRule(ModelObject):
         ):
             context.add_failure(
                 FailureType.INFO,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'restricts_review_dismissals' disabled but "
-                f"'review_dismissal_allowances' is set to '{self.review_dismissal_allowances}', "
+                f"{self.get_model_header(parent_object)} has 'restricts_review_dismissals' disabled, "
+                f"but 'review_dismissal_allowances' is set to '{self.review_dismissal_allowances}', "
                 f"setting will be ignored.",
             )
 
@@ -157,9 +153,8 @@ class BranchProtectionRule(ModelObject):
         ):
             context.add_failure(
                 FailureType.INFO,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'allows_force_pushes' enabled but "
-                f"'bypass_force_push_allowances' is set to '{self.bypass_force_push_allowances}', "
+                f"{self.get_model_header(parent_object)} has 'allows_force_pushes' enabled, "
+                f"but 'bypass_force_push_allowances' is set to '{self.bypass_force_push_allowances}', "
                 f"setting will be ignored.",
             )
 
@@ -172,10 +167,8 @@ class BranchProtectionRule(ModelObject):
         ):
             context.add_failure(
                 FailureType.INFO,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'requires_status_checks' disabled but "
-                f"'required_status_checks' is set to '{self.required_status_checks}', "
-                f"setting will be ignored.",
+                f"{self.get_model_header(parent_object)} has 'requires_status_checks' disabled, "
+                f"but 'required_status_checks' is set to '{self.required_status_checks}', setting will be ignored.",
             )
 
         # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
@@ -186,10 +179,9 @@ class BranchProtectionRule(ModelObject):
         ):
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header(parent_object)} has "
-                f"'requires_deployments' disabled but "
-                f"'required_deployment_environments' is set to "
-                f"'{self.required_deployment_environments}', setting will be ignored.",
+                f"{self.get_model_header(parent_object)} has 'requires_deployments' disabled, "
+                f"but 'required_deployment_environments' is set to '{self.required_deployment_environments}', "
+                f"setting will be ignored.",
             )
 
         if self.requires_deployments is True and len(self.required_deployment_environments) > 0:
@@ -214,9 +206,8 @@ class BranchProtectionRule(ModelObject):
         ):
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'restricts_pushes' disabled but "
-                f"'push_restrictions' is set to '{self.push_restrictions}', "
+                f"{self.get_model_header(parent_object)} has "
+                f"'restricts_pushes' disabled but 'push_restrictions' is set to '{self.push_restrictions}', "
                 f"setting will be ignored.",
             )
 
@@ -224,9 +215,8 @@ class BranchProtectionRule(ModelObject):
         if self.restricts_pushes is False and self.blocks_creations is True:
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header(parent_object)} has"
-                f" 'restricts_pushes' disabled but "
-                f"'blocks_creations' is set to '{self.blocks_creations}', "
+                f"{self.get_model_header(parent_object)} has "
+                f"'restricts_pushes' disabled but 'blocks_creations' is set to '{self.blocks_creations}', "
                 f"setting will be ignored.",
             )
 

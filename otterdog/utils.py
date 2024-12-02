@@ -10,15 +10,15 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
-import click
-from colorama import Style
+from rich.console import Console
+
+from otterdog.logging import _print_message, get_logger, is_info_enabled
 
 if TYPE_CHECKING:
     from argparse import Namespace
@@ -26,101 +26,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-
-# verbose levels
-# 0: off
-# 1: info
-# 2: debug
-# 3: trace
-_verbose_level = 0
-
-
-def init(verbose: int) -> None:
-    global _verbose_level
-    _verbose_level = verbose
-
-
-def is_info_enabled() -> bool:
-    return _verbose_level >= 1
-
-
-def is_debug_enabled() -> bool:
-    return _verbose_level >= 2
-
-
-def is_trace_enabled() -> bool:
-    return _verbose_level >= 3
-
-
-def style(
-    text: str,
-    fg: int | tuple[int, int, int] | str | None = None,
-    bg: int | tuple[int, int, int] | str | None = None,
-    bold: bool | None = None,
-    bright: bool | None = None,
-    dim: bool | None = None,
-    underline: bool | None = None,
-    overline: bool | None = None,
-    italic: bool | None = None,
-    blink: bool | None = None,
-    reverse: bool | None = None,
-    strikethrough: bool | None = None,
-    reset: bool = True,
-) -> str:
-    if bright is True:
-        text = f"{Style.BRIGHT}{text}"
-    return click.style(text, fg, bg, bold, dim, underline, overline, italic, blink, reverse, strikethrough, reset)
-
-
-def print_info(msg: str, printer: TextIO = sys.stdout) -> None:
-    if is_info_enabled():
-        _print_message(msg, "green", "Info", printer)
-
-
-def print_debug(msg: str, printer: TextIO = sys.stdout) -> None:
-    if is_debug_enabled():
-        printer.write(f"{style('[DEBUG]', fg='cyan')} {msg}\n")
-
-
-def print_trace(msg: str, printer: TextIO = sys.stdout) -> None:
-    if is_trace_enabled():
-        printer.write(f"{style('[TRACE]', fg='magenta')} {msg}\n")
-
-
-def print_warn(msg: str, printer: TextIO = sys.stdout) -> None:
-    _print_message(msg, "yellow", "Warning", printer)
-
-
-def print_error(msg: str, printer: TextIO = sys.stdout) -> None:
-    _print_message(msg, "red", "Error", printer)
-
-
-def _print_message(msg: str, color: str, level: str, printer: TextIO, custom_prefix: str | None = None) -> None:
-    if custom_prefix is None:
-        printer.write(style("╷\n", fg=color))
-
-    lines = msg.splitlines()
-    if custom_prefix is None:
-        level_prefix = style(f"│ {level}:", fg=color)
-    else:
-        level_prefix = style(f"{custom_prefix} {level}:", fg=color)
-
-    if len(lines) > 1:
-        printer.write(f"{level_prefix} {lines[0]}\n")
-        if custom_prefix is None:
-            printer.write(style("│\n", fg=color))
-        for line in lines[1:]:
-            if custom_prefix is None:
-                printer.write(f"{style('│', fg=color)}    {line}\n")
-            else:
-                printer.write(f"{style(custom_prefix, fg=color)}    {line}\n")
-    else:
-        printer.write(f"{level_prefix} {msg}\n")
-
-    if custom_prefix is None:
-        printer.write(style("╵\n", fg=color))
-    else:
-        printer.write("\n")
+_logger = get_logger(__name__)
 
 
 class _Unset:
@@ -265,7 +171,7 @@ def write_patch_object_as_json(
 
     for key, value in sorted(diff_object.items()):
         if is_unset(value):
-            print_warn(f"key '{key}' defined in default configuration not present in config, skipping")
+            _logger.warning("key '%s' defined in default configuration not present in config, skipping", key)
             continue
 
         if isinstance(value, list):
@@ -335,13 +241,19 @@ class LogLevel(Enum):
 class IndentingPrinter:
     def __init__(
         self,
-        writer: TextIO,
+        output: TextIO | Console,
         initial_offset: int = 0,
         spaces_per_level: int = 2,
         log_level: LogLevel = LogLevel.GLOBAL,
         output_for_github: bool = False,
     ):
-        self._writer = writer
+        if isinstance(output, Console):
+            self._console = output
+            self._writer = self._console.file
+        else:
+            self._console = Console(file=output, no_color=output_for_github, width=110)
+            self._writer = output
+
         self._initial_offset = " " * initial_offset
         self._level = 0
         self._spaces_per_level = spaces_per_level
@@ -354,36 +266,40 @@ class IndentingPrinter:
         return self._spaces_per_level
 
     @property
-    def writer(self) -> TextIO:
-        return self._writer
+    def console(self) -> Console:
+        return self._console
 
     @property
-    def _current_indentation(self) -> str:
+    def writer(self) -> TextIO:
+        return self._writer  # type: ignore
+
+    @property
+    def current_indentation(self) -> str:
         return self._initial_offset + " " * (self._level * self._spaces_per_level)
 
-    def print(self, text: str = "") -> None:
+    def print(self, text: str = "", highlight: bool = False) -> None:
         lines = text.splitlines(keepends=True)
         if len(lines) > 0:
             for line in lines:
                 self._print_indentation()
 
                 if line.endswith("\n"):
-                    self._writer.write(line[:-1])
+                    self._console.print(line[:-1], end="", highlight=highlight)
                     self.print_line_break()
                 else:
-                    self._writer.write(line)
+                    self._console.print(line, end="", highlight=highlight)
 
-    def println(self, text: str = "") -> None:
-        self.print(text)
+    def println(self, text: str = "", highlight: bool = False) -> None:
+        self.print(text, highlight=highlight)
         self.print_line_break()
 
     def print_line_break(self) -> None:
-        self._writer.write("\n")
+        self._console.print("")
         self._indented_line = False
 
     def _print_indentation(self) -> None:
         if not self._indented_line:
-            self._writer.write(self._current_indentation)
+            self._console.print(self.current_indentation, end="")
             self._indented_line = True
 
     def _is_logging_enabled(self, level: int, global_fn: Callable[[], bool]) -> bool:
@@ -396,18 +312,18 @@ class IndentingPrinter:
 
     def print_info(self, msg: str) -> None:
         if self._is_logging_enabled(1, is_info_enabled):
-            _print_message(msg, "green", "Info", self._writer, "+" if self._output_for_github else None)
+            _print_message(msg, "green", "Info", self._console, "+" if self._output_for_github else None)
 
     def is_info_enabled(self) -> bool:
         return self._is_logging_enabled(1, is_info_enabled)
 
     def print_warn(self, msg: str) -> None:
         if self._is_logging_enabled(2, lambda: True):
-            _print_message(msg, "yellow", "Warning", self._writer, "!" if self._output_for_github else None)
+            _print_message(msg, "yellow", "Warning", self._console, "!" if self._output_for_github else None)
 
     def print_error(self, msg: str) -> None:
         if self._is_logging_enabled(3, lambda: True):
-            _print_message(msg, "red", "Error", self._writer, "-" if self._output_for_github else None)
+            _print_message(msg, "red", "Error", self._console, "-" if self._output_for_github else None)
 
     def level_up(self) -> None:
         self._level += 1
@@ -433,7 +349,7 @@ async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
 def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
     import rjsonnet
 
-    print_trace(f"evaluating jsonnet file {file}")
+    _logger.trace("evaluating jsonnet file '%s'", file)
 
     try:
         return json.loads(rjsonnet.evaluate_file(file))
@@ -444,7 +360,7 @@ def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
 def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
     import rjsonnet
 
-    print_trace(f"evaluating jsonnet snippet {snippet}")
+    _logger.trace("evaluating jsonnet snippet '%s'", snippet)
 
     try:
         return json.loads(rjsonnet.evaluate_snippet("", snippet))

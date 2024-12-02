@@ -12,10 +12,12 @@ import dataclasses
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Protocol
 
-from otterdog.utils import print_info, print_trace
+from otterdog.logging import get_logger
 
 if TYPE_CHECKING:
     from typing import Any
+
+_logger = get_logger(__name__)
 
 
 @dataclasses.dataclass
@@ -56,13 +58,13 @@ class Credentials:
 
         while True:
             totp = mintotp.totp(self._totp_secret)
-            print_trace(f"generated totp '{totp}'")
+            _logger.trace("generated totp '%s'", totp)
 
             if self._last_totp is None or totp != self._last_totp:
                 self._last_totp = totp
                 return totp
             else:
-                print_info("waiting 3s till generating new totp ...")
+                _logger.info("waiting 3s till generating new totp ...")
                 time.sleep(3)
 
     @property

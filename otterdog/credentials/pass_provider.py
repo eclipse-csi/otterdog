@@ -11,11 +11,13 @@ from __future__ import annotations
 from subprocess import getstatusoutput
 from typing import TYPE_CHECKING
 
-from otterdog import utils
 from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.logging import get_logger
 
 if TYPE_CHECKING:
     from typing import Any
+
+_logger = get_logger(__name__)
 
 
 class PassVault(CredentialProvider):
@@ -36,7 +38,7 @@ class PassVault(CredentialProvider):
         twofa_seed_pattern: str,
         api_token_pattern: str,
     ):
-        utils.print_debug("accessing pass vault")
+        _logger.debug("accessing pass vault")
         status, output = getstatusoutput("pass ls")  # noqa: S605, S607
         if status != 0:
             raise RuntimeError(f"could not access pass vault:\n{output}")
@@ -44,7 +46,7 @@ class PassVault(CredentialProvider):
         if password_store_dir:
             import os
 
-            utils.print_debug(f"setting password store dir to '{password_store_dir}'")
+            _logger.debug("setting password store dir to '%s'", password_store_dir)
             os.environ["PASSWORD_STORE_DIR"] = password_store_dir
 
         self._username_pattern = username_pattern
@@ -106,9 +108,9 @@ class PassVault(CredentialProvider):
             _, output = getstatusoutput(f"pass {key}")  # noqa: S605
 
             if strict:
-                raise RuntimeError(f"{key} could not be retrieved from your pass vault:\n{output}")
+                raise RuntimeError(f"'{key}' could not be retrieved from your pass vault:\n{output}")
             else:
-                utils.print_warn(f"{key} could not be retrieved from your pass vault:\n{output}")
+                _logger.warning("'%s' could not be retrieved from your pass vault:\n%s", key, output)
                 secret = ""
 
         return secret

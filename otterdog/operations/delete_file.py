@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import associate_by_key, style
+from otterdog.utils import associate_by_key
 
 from . import Operation
 
@@ -56,10 +56,7 @@ class DeleteFileOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:
@@ -88,8 +85,7 @@ class DeleteFileOperation(Operation):
                     collected_error = None
                     repo_name = f"{github_id}/{repo.name}"
                     self.printer.print(
-                        f"Deleting file '{style(self.path, bright=True)}' "
-                        f"in repository '{style(repo_name, bright=True)}': "
+                        f"Deleting file '[bold]{self.path}[/]' " f"in repository '[bold]{repo_name}[/]': "
                     )
 
                     try:
@@ -100,9 +96,9 @@ class DeleteFileOperation(Operation):
                         collected_error = e
 
                     if deleted_file is True:
-                        self.printer.println(style("succeeded", fg="green"))
+                        self.printer.println("[green]succeeded[/]")
                     else:
-                        self.printer.println(style("failed", fg="red"))
+                        self.printer.println("[red]succeeded[/]")
 
                     if collected_error is not None:
                         self.printer.println()

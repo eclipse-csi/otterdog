@@ -308,16 +308,15 @@ class Repository(ModelObject):
         if is_private and has_wiki and free_plan:
             context.add_failure(
                 FailureType.WARNING,
-                f"private {self.get_model_header()} has 'has_wiki' enabled which"
-                f"requires at least GitHub Team billing, "
-                f"currently using '{org_settings.plan}' plan.",
+                f"private {self.get_model_header()} has 'has_wiki' enabled, which requires at least "
+                f"GitHub Team billing, currently using '{org_settings.plan}' plan.",
             )
 
         has_discussions_disabled = self.has_discussions is False
         if has_discussions_disabled and org_has_discussions_enabled_with_repo_as_source:
             context.add_failure(
                 FailureType.ERROR,
-                f"{self.get_model_header()} has 'has_discussions' disabled "
+                f"{self.get_model_header()} has 'has_discussions' disabled, "
                 f"while the organization uses this repo as source repository for discussions.",
             )
 
@@ -326,21 +325,21 @@ class Repository(ModelObject):
         if self.has_projects is True and org_has_projects_disabled:
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header()} has 'has_projects' enabled "
+                f"{self.get_model_header()} has 'has_projects' enabled, "
                 f"while the organization disables 'has_organization_projects', setting will be ignored.",
             )
 
         if is_private and org_members_cannot_fork_private_repositories and allow_forking:
             context.add_failure(
                 FailureType.ERROR,
-                f"private {self.get_model_header()} has 'allow_forking' enabled "
+                f"private {self.get_model_header()} has 'allow_forking' enabled, "
                 f"while the organization disables 'members_can_fork_private_repositories'.",
             )
 
         if self.web_commit_signoff_required is False and org_web_commit_signoff_required:
             context.add_failure(
                 FailureType.WARNING,
-                f"{self.get_model_header()} has 'web_commit_signoff_required' disabled while "
+                f"{self.get_model_header()} has 'web_commit_signoff_required' disabled, while "
                 f"the organization requires it, setting will be ignored.",
             )
 
@@ -349,7 +348,7 @@ class Repository(ModelObject):
         if secret_scanning_disabled and secret_scanning_push_protection_enabled and self.archived is False:
             context.add_failure(
                 FailureType.ERROR,
-                f"{self.get_model_header()} has 'secret_scanning' disabled while "
+                f"{self.get_model_header()} has 'secret_scanning' disabled, while "
                 f"'secret_scanning_push_protection' is enabled.",
             )
 
@@ -375,8 +374,7 @@ class Repository(ModelObject):
             if len(self.branch_protection_rules) > 0:
                 context.add_failure(
                     FailureType.INFO,
-                    f"{self.get_model_header()} is archived but has branch_protection_rules, "
-                    f"rules will be ignored.",
+                    f"{self.get_model_header()} is archived but has branch_protection_rules which will be ignored.",
                 )
 
         if self.name.lower() == f"{github_id}.github.io".lower():
@@ -411,8 +409,9 @@ class Repository(ModelObject):
             if self.gh_pages_build_type not in {"disabled", "legacy", "workflow"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'gh_pages_build_type' has value '{self.gh_pages_build_type}', "
-                    f"only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_build_type' set to "
+                    f"value '{self.gh_pages_build_type}', "
+                    f"while only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
                 )
 
             if self.gh_pages_build_type == "disabled":
@@ -422,7 +421,7 @@ class Repository(ModelObject):
                         context.add_failure(
                             FailureType.WARNING,
                             f"{self.get_model_header(parent_object)} has"
-                            f" 'gh_pages_build_type' disabled but '{key}' "
+                            f" 'gh_pages_build_type' disabled, but '{key}' "
                             f"is set to a value '{value}', setting will be ignored.",
                         )
 
@@ -431,7 +430,7 @@ class Repository(ModelObject):
                     context.add_failure(
                         FailureType.WARNING,
                         f"{self.get_model_header(parent_object)} has"
-                        f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}' "
+                        f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}', "
                         f"but no corresponding 'github-pages' environment, please add such an environment.",
                     )
 
@@ -440,15 +439,16 @@ class Repository(ModelObject):
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has"
                     f" 'gh_pages_source_path' with value '{self.gh_pages_source_path}', "
-                    f"only values ['/' | '/docs'] are allowed.",
+                    f"while only values ['/' | '/docs'] are allowed.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'code_scanning_default_query_suite' has value '{self.code_scanning_default_query_suite}', "
-                    f"only values ['default' | 'extended'] are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'code_scanning_default_query_suite' set to "
+                    f"value '{self.code_scanning_default_query_suite}', "
+                    f"while only values ['default' | 'extended'] are allowed.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_languages):
@@ -456,8 +456,8 @@ class Repository(ModelObject):
                 if not self._valid_code_scanning_language(language):
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{self.get_model_header()} has defined an invalid code scanning language '{language}'.\n"
-                        f"Only values ({self._valid_code_scanning_languages_as_string()}) are allowed.",
+                        f"{self.get_model_header(parent_object)} has defined an invalid code scanning language"
+                        f" '{language}', only values ({self._valid_code_scanning_languages_as_string()}) are allowed.",
                     )
 
         if is_set_and_present(self.forked_repository):
@@ -467,7 +467,7 @@ class Repository(ModelObject):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has"
-                    f" 'forked_repository' with value '{self.forked_repository}' which does not match the"
+                    f" 'forked_repository' with value '{self.forked_repository}', which does not match the"
                     f" the required format '<owner>/<repo>'.",
                 )
 

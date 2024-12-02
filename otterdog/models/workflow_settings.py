@@ -73,7 +73,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'allowed_actions' of value "
                     f"'{self.allowed_actions}', "
-                    f"only values ('all' | 'local_only' | 'selected') are allowed.",
+                    f"while only values ('all' | 'local_only' | 'selected') are allowed.",
                 )
 
             if self.allowed_actions != "selected" and len(self.allow_action_patterns) > 0:
@@ -89,8 +89,9 @@ class WorkflowSettings(ModelObject, abc.ABC):
             if self.default_workflow_permissions not in {"read", "write"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'default_workflow_permissions' has value '{self.default_workflow_permissions}', "
-                    f"only values ('read' | 'write') are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'default_workflow_permissions' of value "
+                    f"'{self.default_workflow_permissions}', "
+                    f"while only values ('read' | 'write') are allowed.",
                 )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:

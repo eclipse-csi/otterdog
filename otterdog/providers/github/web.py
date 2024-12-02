@@ -17,13 +17,16 @@ from typing import TYPE_CHECKING
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
-from otterdog.utils import is_debug_enabled, print_debug, print_trace, print_warn, unwrap
+from otterdog.logging import get_logger, is_debug_enabled
+from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Any
 
     from otterdog.credentials import Credentials
+
+_logger = get_logger(__name__)
 
 
 class WebClient:
@@ -42,13 +45,13 @@ class WebClient:
 
         # load the definition file which describes how the web settings
         # can be retrieved / modified.
-        print_trace("getting web_settings config using jsonnet")
+        _logger.trace("getting web_settings config using jsonnet")
 
         web_settings_config = files(resources).joinpath("github-web-settings.jsonnet")
         return jsonnet_evaluate_file(str(web_settings_config))
 
     async def get_org_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
-        print_debug("retrieving settings via web interface")
+        _logger.debug("retrieving settings via web interface")
 
         async with async_playwright() as playwright:
             try:
@@ -97,7 +100,7 @@ class WebClient:
     ) -> dict[str, Any]:
         settings: dict[str, Any] = {}
 
-        print_trace(f"loading page '{page_url}'")
+        _logger.trace("loading page '%s'", page_url)
         response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
         response = unwrap(response)
         if not response.ok:
@@ -106,7 +109,7 @@ class WebClient:
         for setting_def in page_def:
             setting = setting_def["name"]
             optional = setting_def["optional"]
-            print_trace(f"checking setting '{setting}'")
+            _logger.trace("checking setting '%s'", setting)
 
             if setting not in included_keys:
                 continue
@@ -151,7 +154,7 @@ class WebClient:
                     value = value.strip()
 
                 settings[setting] = value
-                print_trace(f"retrieved setting for '{setting}' = '{value}'")
+                _logger.trace("retrieved setting for '%s' = '%s'", setting, value)
 
             except Exception as e:
                 if optional:
@@ -161,14 +164,14 @@ class WebClient:
                     page_name = page_url.split("/")[-1]
                     screenshot_file = f"screenshot_{page_name}.png"
                     await page.screenshot(path=screenshot_file)
-                    print_warn(f"saved page screenshot to file '{screenshot_file}'")
+                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                print_warn(f"failed to retrieve setting '{setting}' via web ui:\n{e!s}")
+                _logger.warning(f"failed to retrieve setting '{setting}' via web ui:\n{e!s}")
 
         return settings
 
     async def update_org_settings(self, org_id: str, data: dict[str, Any]) -> None:
-        print_debug("updating settings via web interface")
+        _logger.debug("updating settings via web interface")
 
         async with async_playwright() as playwright:
             try:
@@ -190,7 +193,7 @@ class WebClient:
             await page.close()
             await browser.close()
 
-            print_debug(f"updated {len(data)} setting(s) via web interface")
+            _logger.debug(f"updated {len(data)} setting(s) via web interface")
 
     async def _update_settings(self, org_id: str, settings: dict[str, Any], page: Page) -> None:
         # first, collect the set of pages that are need to be loaded
@@ -199,21 +202,21 @@ class WebClient:
             for setting_def in page_def:
                 setting = setting_def["name"]
                 if setting in settings:
-                    print_trace(f"adding page '{page_url}' with setting '{setting}'")
+                    _logger.trace("adding page '%s' with setting '%s'", page_url, setting)
                     page_dict = pages_to_load.get(page_url, {})
                     page_dict[setting] = setting_def
                     pages_to_load[page_url] = page_dict
 
         # second, load the required pages and modify the settings
         for page_url, page_dict in pages_to_load.items():
-            print_trace(f"loading page '{page_url}'")
+            _logger.trace("loading page '%s'", page_url)
             response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
             response = unwrap(response)
             if not response.ok:
                 raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
 
             for setting, setting_def in page_dict.items():
-                print_trace(f"updating setting '{setting}'")
+                _logger.trace("updating setting '%s'", setting)
                 new_value = settings[setting]
 
                 try:
@@ -252,19 +255,19 @@ class WebClient:
                     await page.click(setting_def["save"], trial=True)
                     await page.click(setting_def["save"], trial=False)
 
-                    print_trace(f"updated setting for '{setting}' = '{new_value}'")
+                    _logger.trace("updated setting for '%s' = '%s'", setting, new_value)
                 except Exception as e:
                     if is_debug_enabled():
                         page_name = page_url.split("/")[-1]
                         screenshot_file = f"screenshot_{page_name}.png"
                         await page.screenshot(path=screenshot_file)
-                        print_warn(f"saved page screenshot to file '{screenshot_file}'")
+                        _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                    print_warn(f"failed to update setting '{setting}' via web ui:\n{e!s}")
+                    _logger.warning(f"failed to update setting '{setting}' via web ui:\n{e!s}")
                     raise e
 
     async def open_browser_with_logged_in_user(self, org_id: str) -> None:
-        print_debug("opening browser window")
+        _logger.trace("opening browser window")
 
         async with async_playwright() as playwright:
             try:
@@ -296,7 +299,7 @@ class WebClient:
             await browser.close()
 
     async def install_github_app(self, org_int_id: str, app_slug: str) -> None:
-        print_debug(f"installing github app '{app_slug}'")
+        _logger.debug("installing github app '%s'", app_slug)
 
         async with async_playwright() as playwright:
             try:
@@ -329,7 +332,7 @@ class WebClient:
             await browser.close()
 
     async def uninstall_github_app(self, org_id: str, installation_id: str) -> None:
-        print_debug(f"deleting app installation with id '{installation_id}'")
+        _logger.debug("deleting app installation with id '%s'", installation_id)
 
         async with async_playwright() as playwright:
             try:
@@ -404,7 +407,7 @@ class WebClient:
 
     @staticmethod
     async def get_requested_permission_updates(org_id: str, page: Page) -> dict[str, dict[str, str]]:
-        print_debug(f"getting GitHub app permission updates for '{org_id}'")
+        _logger.debug("getting GitHub app permission updates for '%s'", org_id)
 
         await page.goto(f"https://github.com/organizations/{org_id}/settings/installations")
 
@@ -476,7 +479,7 @@ class WebClient:
 
     @staticmethod
     async def approve_requested_permission_updates(org_id: str, installation_id: str, page: Page) -> None:
-        print_debug(f"approving requested permission updates for '{installation_id}'")
+        _logger.debug("approving requested permission updates for '%s'", installation_id)
 
         async def accept_dialog(dialog):
             await dialog.accept()
@@ -529,7 +532,7 @@ class WebClient:
         try:
             meta_element = page.locator('meta[name="octolytics-actor-login"]')
             actor = await meta_element.evaluate("element => element.content")
-            print_trace(f"logged in as {actor}")
+            _logger.trace("logged in as '%s'", actor)
 
             if await page.title() == "Verify two-factor authentication":
                 verify_button = page.get_by_role("button", name="Verify 2FA now")
@@ -570,7 +573,7 @@ class WebClient:
                 if is_debug_enabled():
                     screenshot_file = "screenshot_profile.png"
                     await page.screenshot(path=screenshot_file)
-                    print_warn(f"saved page screenshot to file '{screenshot_file}'")
+                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
                 raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
         else:
@@ -581,6 +584,6 @@ class WebClient:
                 if is_debug_enabled():
                     screenshot_file = "screenshot_profile.png"
                     await page.screenshot(path=screenshot_file)
-                    print_warn(f"saved page screenshot to file '{screenshot_file}'")
+                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
                 raise RuntimeError(f"failed to logout via web ui: {e!s}") from e

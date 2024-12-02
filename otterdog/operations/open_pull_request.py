@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from aiofiles import open
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import get_approval, style
+from otterdog.utils import get_approval
 
 from . import Operation
 from .local_plan import LocalPlanOperation
@@ -60,10 +60,7 @@ class OpenPullRequestOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
 
         org_file_name = jsonnet_config.org_config_file
         if not await self.check_config_file_exists(org_file_name):
@@ -125,7 +122,7 @@ class OpenPullRequestOperation(Operation):
                         "(Only 'yes' or 'y' will be accepted as approval)\n"
                     )
 
-                    self.printer.print(f"{style('Enter a value', bright=True)}: ")
+                    self.printer.print("[bold]Enter a value:[/] ")
                     if not get_approval():
                         self.printer.println("\nOpen PR cancelled.")
                         return 1

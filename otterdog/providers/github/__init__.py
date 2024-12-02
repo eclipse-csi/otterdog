@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from importlib_resources import files
 
 from otterdog import resources
-from otterdog.utils import is_ghsa_repo, is_set_and_present, print_trace, print_warn
+from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 
 if TYPE_CHECKING:
     from typing import Any
@@ -32,6 +32,8 @@ _SETTINGS_RESTAPI_KEYS = {k for k, v in _ORG_SETTINGS_SCHEMA["properties"].items
 _SETTINGS_WEB_KEYS = {k for k, v in _ORG_SETTINGS_SCHEMA["properties"].items() if v.get("provider") == "web"}
 # TODO: make this cleaner
 _SETTINGS_WEB_KEYS.add("discussion_source_repository_id")
+
+_logger = get_logger(__name__)
 
 
 def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
@@ -109,7 +111,7 @@ class GitHubProvider:
                 web_settings = await self.web_client.get_org_settings(org_id, required_web_keys)
                 merged_settings.update(web_settings)
 
-            print_trace(f"merged org settings = {merged_settings}")
+            _logger.trace(f"merged org settings = {merged_settings}")
 
         return merged_settings
 
@@ -125,7 +127,7 @@ class GitHubProvider:
             elif k in _SETTINGS_WEB_KEYS:
                 web_fields[k] = v
             else:
-                print_warn(f"encountered unknown field '{k}' during update, ignoring")
+                _logger.warning(f"encountered unknown field '{k}' during update, ignoring")
 
         # update any settings via the rest api
         if len(rest_fields) > 0:
@@ -409,18 +411,18 @@ class GitHubProvider:
                     try:
                         result.append(("Team", await self.rest_api.org.get_team_ids(actor[1:])))
                     except RuntimeError:
-                        print_warn(f"team '{actor[1:]}' does not exist, skipping")
+                        _logger.warning(f"team '{actor[1:]}' does not exist, skipping")
                 else:
                     try:
                         result.append(("User", await self.rest_api.user.get_user_ids(actor[1:])))
                     except RuntimeError:
-                        print_warn(f"user '{actor[1:]}' does not exist, skipping")
+                        _logger.warning(f"user '{actor[1:]}' does not exist, skipping")
             else:
                 # it's an app
                 try:
                     result.append(("App", await self.rest_api.app.get_app_ids(actor)))
                 except RuntimeError:
-                    print_warn(f"app '{actor}' does not exist, skipping")
+                    _logger.warning(f"app '{actor}' does not exist, skipping")
 
         return result
 

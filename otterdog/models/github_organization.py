@@ -20,6 +20,7 @@ from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 
 from otterdog import resources
+from otterdog.logging import get_logger
 from otterdog.models import (
     LivePatchContext,
     LivePatchHandler,
@@ -42,14 +43,7 @@ from otterdog.models.repo_variable import RepositoryVariable
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
-from otterdog.utils import (
-    IndentingPrinter,
-    associate_by_key,
-    is_debug_enabled,
-    is_info_enabled,
-    jsonnet_evaluate_file,
-    print_debug,
-)
+from otterdog.utils import IndentingPrinter, associate_by_key, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -58,6 +52,8 @@ if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
+
+_logger = get_logger(__name__)
 
 
 @dataclasses.dataclass
@@ -373,7 +369,7 @@ class GitHubOrganization:
             msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
             raise RuntimeError(msg)
 
-        print_debug(f"loading configuration for organization {github_id} from file {config_file}")
+        _logger.debug("loading configuration for organization '%s' from file '%s'", github_id, config_file)
         data = jsonnet_evaluate_file(config_file)
 
         org = cls.from_model_data(data)
@@ -394,8 +390,7 @@ class GitHubOrganization:
         concurrency: int | None = None,
     ) -> GitHubOrganization:
         start = datetime.now()
-        if printer is not None and is_info_enabled():
-            printer.println("\norganization settings: Reading...")
+        _logger.trace("organization settings: reading...")
 
         # FIXME: this uses the keys from the model schema which might be different to the provider schema
         #        for now this is the same for organization settings, but there might be cases where it is different.
@@ -403,9 +398,8 @@ class GitHubOrganization:
         included_keys = set(default_settings.keys())
         github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
-        if printer is not None and is_info_enabled():
-            end = datetime.now()
-            printer.println(f"organization settings: Read complete after {(end - start).total_seconds()}s")
+        end = datetime.now()
+        _logger.trace(f"organization settings: read complete after {(end - start).total_seconds()}s")
 
         settings = OrganizationSettings.from_provider_data(github_id, github_settings)
 
@@ -421,81 +415,72 @@ class GitHubOrganization:
 
         org = cls(github_id, settings)
 
-        if printer is not None and is_info_enabled():
-            start = datetime.now()
-            printer.println("\nwebhooks: Reading...")
+        start = datetime.now()
+        _logger.trace("webhooks: reading...")
 
         if jsonnet_config.default_org_webhook_config is not None:
             github_webhooks = await provider.get_org_webhooks(github_id)
 
-            if printer is not None and is_info_enabled():
-                end = datetime.now()
-                printer.println(f"webhooks: Read complete after {(end - start).total_seconds()}s")
+            end = datetime.now()
+            _logger.trace(f"webhooks: read complete after {(end - start).total_seconds()}s")
 
             for webhook in github_webhooks:
                 org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
         else:
-            print_debug("not reading org webhooks, no default config available")
+            _logger.debug("not reading org webhooks, no default config available")
 
         if jsonnet_config.default_org_secret_config is not None:
             start = datetime.now()
-            if printer is not None and is_info_enabled():
-                printer.println("\nsecrets: Reading...")
+            _logger.trace("secrets: reading...")
 
             github_secrets = await provider.get_org_secrets(github_id)
 
-            if printer is not None and is_info_enabled():
-                end = datetime.now()
-                printer.println(f"secrets: Read complete after {(end - start).total_seconds()}s")
+            end = datetime.now()
+            _logger.trace(f"secrets: read complete after {(end - start).total_seconds()}s")
 
             for secret in github_secrets:
                 org.add_secret(OrganizationSecret.from_provider_data(github_id, secret))
         else:
-            print_debug("not reading org secrets, no default config available")
+            _logger.debug("not reading org secrets, no default config available")
 
         if jsonnet_config.default_org_variable_config is not None:
             start = datetime.now()
-            if printer is not None and is_info_enabled():
-                printer.println("\nvariables: Reading...")
+            _logger.trace("variables: reading...")
 
             github_variables = await provider.get_org_variables(github_id)
 
-            if printer is not None and is_info_enabled():
-                end = datetime.now()
-                printer.println(f"variables: Read complete after {(end - start).total_seconds()}s")
+            end = datetime.now()
+            _logger.trace(f"variables: read complete after {(end - start).total_seconds()}s")
 
             for variable in github_variables:
                 org.add_variable(OrganizationVariable.from_provider_data(github_id, variable))
         else:
-            print_debug("not reading org secrets, no default config available")
+            _logger.debug("not reading org secrets, no default config available")
 
         if jsonnet_config.default_org_ruleset_config is not None:
             start = datetime.now()
-            if printer is not None and is_info_enabled():
-                printer.println("\nrulesets: Reading...")
+            _logger.trace("rulesets: reading...")
 
             github_rulesets = await provider.get_org_rulesets(github_id)
 
-            if printer is not None and is_info_enabled():
-                end = datetime.now()
-                printer.println(f"rulesets: Read complete after {(end - start).total_seconds()}s")
+            end = datetime.now()
+            _logger.trace(f"rulesets: read complete after {(end - start).total_seconds()}s")
 
             for ruleset in github_rulesets:
                 org.add_ruleset(OrganizationRuleset.from_provider_data(github_id, ruleset))
         else:
-            print_debug("not reading org secrets, no default config available")
+            _logger.debug("not reading org secrets, no default config available")
 
         if jsonnet_config.default_repo_config is not None:
             for repo in await _load_repos_from_provider(
                 github_id,
                 provider,
                 jsonnet_config,
-                printer,
                 concurrency,
             ):
                 org.add_repository(repo)
         else:
-            print_debug("not reading repos, no default config available")
+            _logger.debug("not reading repos, no default config available")
 
         return org
 
@@ -523,7 +508,7 @@ async def _process_single_repo(
         for github_rule in rules:
             repo.add_branch_protection_rule(BranchProtectionRule.from_provider_data(github_id, github_rule))
     else:
-        print_debug("not reading branch protection rules, no default config available")
+        _logger.debug("not reading branch protection rules, no default config available")
 
     # repository rulesets are not available for private repos and free plan
     # TODO: support rulesets in private repos with enterprise plan
@@ -554,7 +539,7 @@ async def _process_single_repo(
 
             repo.add_ruleset(RepositoryRuleset.from_provider_data(github_id, github_ruleset))
     else:
-        print_debug("not reading repo rulesets, no default config available")
+        _logger.debug("not reading repo rulesets, no default config available")
 
     if jsonnet_config.default_org_webhook_config is not None:
         # get webhooks of the repo
@@ -562,7 +547,7 @@ async def _process_single_repo(
         for github_webhook in webhooks:
             repo.add_webhook(RepositoryWebhook.from_provider_data(github_id, github_webhook))
     else:
-        print_debug("not reading repo webhooks, no default config available")
+        _logger.debug("not reading repo webhooks, no default config available")
 
     if jsonnet_config.default_repo_secret_config is not None:
         # get secrets of the repo
@@ -570,7 +555,7 @@ async def _process_single_repo(
         for github_secret in secrets:
             repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
     else:
-        print_debug("not reading repo secrets, no default config available")
+        _logger.debug("not reading repo secrets, no default config available")
 
     if jsonnet_config.default_repo_variable_config is not None:
         # get variables of the repo
@@ -578,7 +563,7 @@ async def _process_single_repo(
         for github_variable in variables:
             repo.add_variable(RepositoryVariable.from_provider_data(github_id, github_variable))
     else:
-        print_debug("not reading repo variables, no default config available")
+        _logger.debug("not reading repo variables, no default config available")
 
     if jsonnet_config.default_environment_config is not None:
         # get environments of the repo
@@ -586,10 +571,9 @@ async def _process_single_repo(
         for github_environment in environments:
             repo.add_environment(Environment.from_provider_data(github_id, github_environment))
     else:
-        print_debug("not reading environments, no default config available")
+        _logger.debug("not reading environments, no default config available")
 
-    if is_debug_enabled():
-        print_debug(f"done retrieving data for repo '{repo_name}'")
+    _logger.debug("done retrieving data for repo '%s'", repo_name)
 
     return repo_name, repo
 
@@ -598,12 +582,10 @@ async def _load_repos_from_provider(
     github_id: str,
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
-    printer: IndentingPrinter | None = None,
     concurrency: int | None = None,
 ) -> list[Repository]:
     start = datetime.now()
-    if printer is not None and is_info_enabled():
-        printer.println("\nrepositories: Reading...")
+    _logger.trace("repositories: reading...")
 
     repo_names = await provider.get_repos(github_id)
 
@@ -640,9 +622,8 @@ async def _load_repos_from_provider(
         _, repo_data = data
         github_repos.append(repo_data)
 
-    if printer is not None and is_info_enabled():
-        end = datetime.now()
-        printer.println(f"repositories: Read complete after {(end - start).total_seconds()}s")
+    end = datetime.now()
+    _logger.trace(f"repositories: read complete after {(end - start).total_seconds()}s")
 
     return github_repos
 

@@ -9,10 +9,12 @@
 import base64
 from typing import Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
+
+_logger = get_logger(__name__)
 
 
 class ContentClient(RestClient):
@@ -30,7 +32,7 @@ class ContentClient(RestClient):
     async def get_content_object(
         self, org_id: str, repo_name: str, path: str, ref: str | None = None
     ) -> dict[str, Any] | list[dict]:
-        print_debug(f"retrieving content '{path}' from repo '{org_id}/{repo_name}'")
+        _logger.debug("retrieving content '%s' from repo '%s/%s'", path, org_id, repo_name)
 
         try:
             params = {"ref": ref} if ref is not None else None
@@ -67,7 +69,7 @@ class ContentClient(RestClient):
         author_email: str | None = None,
         author_is_committer: bool = False,
     ) -> bool:
-        print_debug(f"putting content '{path}' to repo '{org_id}/{repo_name}'")
+        _logger.debug("putting content '%s' to repo '%s/%s'", path, org_id, repo_name)
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path, ref)
@@ -83,7 +85,7 @@ class ContentClient(RestClient):
 
         # check if the content has changed, otherwise do not update
         if old_content is not None and content == old_content:
-            print_debug("not updating content, no changes")
+            _logger.debug("not updating content, no changes")
             return False
 
         base64_encoded_data = base64.b64encode(content.encode("utf-8"))
@@ -125,7 +127,7 @@ class ContentClient(RestClient):
         path: str,
         message: str | None = None,
     ) -> bool:
-        print_debug(f"deleting content '{path}' in repo '{org_id}/{repo_name}'")
+        _logger.debug("deleting content '%s' in repo '%s/%s'", path, org_id, repo_name)
 
         try:
             json_response = await self.get_content_object(org_id, repo_name, path)

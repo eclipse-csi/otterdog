@@ -14,11 +14,14 @@ from aiohttp import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
 from otterdog.providers.github.exception import BadCredentialsException, GitHubException
 from otterdog.providers.github.stats import RequestStatistics
-from otterdog.utils import is_trace_enabled, print_trace
+from otterdog.utils import get_logger
+
+_logger = get_logger(__name__)
 
 
 class Requester:
@@ -115,7 +118,10 @@ class Requester:
 
         status, body = await self.request_raw(method, url_path, input_data, params)
         self._check_response(url_path, status, body)
-        return json.loads(body)
+        json_result = json.loads(body)
+        if is_trace_enabled():
+            _logger.trace("'%s' url = %s, json = %s", method, url_path, json.dumps(json_result, indent=2))
+        return json_result
 
     async def request_raw(
         self,
@@ -125,6 +131,7 @@ class Requester:
         params: dict[str, Any] | None = None,
     ) -> tuple[int, str]:
         status, body, _ = await self._request_raw_with_next_link(method, url_path, data, params)
+        _logger.trace("'%s' url = %s, result = (%d)", method, url_path, status)
         return status, body
 
     async def _request_raw_with_next_link(
@@ -134,7 +141,7 @@ class Requester:
         data: str | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[int, str, str | None]:
-        print_trace(f"'{method}' url = {url_path}, data = {data}, params = {params}, headers = {self._headers}")
+        _logger.trace("'%s' url = %s, data = %s, params = %s", method, url_path, data, params)
 
         headers = self._headers.copy()
         if self._auth is not None:
@@ -164,9 +171,6 @@ class Requester:
             else:
                 self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 
-            if is_trace_enabled():
-                print_trace(f"'{method}' result = ({status}, {text})")
-
             return status, text, str(next_url) if next_url is not None else None
 
     async def request_stream(
@@ -176,7 +180,13 @@ class Requester:
         data: str | None = None,
         params: dict[str, Any] | None = None,
     ) -> AsyncIterable[bytes]:
-        print_trace(f"stream '{method}' url = {url_path}, data = {data}, headers = {self._headers}")
+        _logger.trace(
+            "stream '%s' url = %s, data = %s, headers = %s",
+            method,
+            url_path,
+            data,
+            self._headers,
+        )
 
         headers = self._headers.copy()
         if self._auth is not None:

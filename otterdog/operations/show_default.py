@@ -11,8 +11,6 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
-from otterdog.utils import style
-
 from . import Operation
 
 if TYPE_CHECKING:
@@ -42,15 +40,11 @@ class ShowDefaultOperation(Operation):
         org_index: int | None = None,
         org_count: int | None = None,
     ) -> int:
-        github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
         if not self.markdown:
-            self.printer.println(
-                f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-                f"{self._format_progress(org_index, org_count)}"
-            )
+            self._print_project_header(org_config, org_index, org_count)
             self.printer.level_up()
 
         try:

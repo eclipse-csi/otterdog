@@ -15,7 +15,7 @@ from aiofiles import open, tempfile
 
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import sort_jsonnet, strip_trailing_commas, style
+from otterdog.utils import sort_jsonnet, strip_trailing_commas
 
 from . import Operation
 
@@ -45,10 +45,7 @@ class CanonicalDiffOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
 
         org_file_name = jsonnet_config.org_config_file
         if not await self.check_config_file_exists(org_file_name):
@@ -77,9 +74,9 @@ class CanonicalDiffOperation(Operation):
             canonical_config_as_lines, original_config_without_comments, "canonical", "original"
         ):
             if line.startswith("+"):
-                self.printer.println(style(line, fg="green"))
+                self.printer.println(f"[green]{line}[/]")
             elif line.startswith("-"):
-                self.printer.println(style(line, fg="red"))
+                self.printer.println(f"[red]{line}[/]")
             else:
                 self.printer.println(line)
 

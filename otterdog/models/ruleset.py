@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
+from otterdog.logging import get_logger
 from otterdog.models import (
     EmbeddedModelObject,
     FailureType,
@@ -29,7 +30,6 @@ from otterdog.utils import (
     is_set_and_present,
     is_set_and_valid,
     is_unset,
-    print_warn,
     unwrap,
     write_patch_object_as_json,
 )
@@ -39,6 +39,8 @@ if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
 
 RS = TypeVar("RS", bound="Ruleset")
+
+_logger = get_logger(__name__)
 
 
 @dataclasses.dataclass
@@ -352,8 +354,7 @@ class Ruleset(ModelObject, abc.ABC):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'target' of value "
-                    f"'{self.target}', "
-                    f"only values ('branch' | 'tag' | 'push') are allowed.",
+                    f"'{self.target}', while only values ('branch' | 'tag' | 'push') are allowed.",
                 )
 
         enterprise_plan = org_settings.plan == "enterprise"
@@ -361,9 +362,8 @@ class Ruleset(ModelObject, abc.ABC):
             if self.enforcement not in {"active", "disabled", "evaluate"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'enforcement' of value "
-                    f"'{self.enforcement}', "
-                    f"only values ('active' | 'disabled' | 'evaluate') are allowed.",
+                    f"{self.get_model_header(parent_object)} has 'enforcement' of value '{self.enforcement}', "
+                    f"while only values ('active' | 'disabled' | 'evaluate') are allowed.",
                 )
 
             if enterprise_plan is False and self.enforcement == "evaluate":
@@ -382,7 +382,7 @@ class Ruleset(ModelObject, abc.ABC):
                     context.add_failure(
                         FailureType.ERROR,
                         f"{self.get_model_header(parent_object)} has an invalid 'include_refs' pattern "
-                        f"'{ref}', only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
+                        f"'{ref}', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
                     )
 
         if is_set_and_valid(self.exclude_refs):
@@ -391,7 +391,7 @@ class Ruleset(ModelObject, abc.ABC):
                     context.add_failure(
                         FailureType.ERROR,
                         f"{self.get_model_header(parent_object)} has an invalid 'exclude_refs' pattern "
-                        f"'{ref}', only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
+                        f"'{ref}', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
                     )
 
         # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
@@ -403,8 +403,7 @@ class Ruleset(ModelObject, abc.ABC):
             context.add_failure(
                 FailureType.WARNING,
                 f"{self.get_model_header(parent_object)} has "
-                f"'requires_deployments' disabled but "
-                f"'required_deployment_environments' is set to "
+                f"'requires_deployments' disabled but 'required_deployment_environments' is set to "
                 f"'{self.required_deployment_environments}', setting will be ignored.",
             )
 
@@ -501,7 +500,7 @@ class Ruleset(ModelObject, abc.ABC):
                 if actor_type == "RepositoryRole" or actor_type == "OrganizationAdmin":
                     role = cls._roles.get(str(actor["actor_id"]), None)
                     if role is None:
-                        print_warn(f"fail to map repository role '{actor['actor_id']}', skipping")
+                        _logger.warning("fail to map repository role '%s', skipping", actor["actor_id"])
                         continue
                     transformed_actor = f"#{role}"
                 elif actor_type == "Team":

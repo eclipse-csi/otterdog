@@ -15,6 +15,8 @@
 
 ### Changed
 
+- Integrated existing logging with standard python logging facility.
+- Utilized `rich` console formatting instead of low-level colorama styles.
 - Improved processing when archiving repositories to process all other requested changes before archiving them. ([#134](https://github.com/eclipse-csi/otterdog/issues/134))
 - Split up policies into policies and blueprint and added support for them in the UI
 - Improved processing of organization settings `web_commit_signoff_required` and `actions_can_approve_pull_request_reviews` to force update the same settings on repo level as changes will be implicitly performed by GitHub.

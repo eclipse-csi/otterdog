@@ -9,10 +9,12 @@
 import json
 from typing import Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.utils import print_debug
 
 from . import RestApi, RestClient
+
+_logger = get_logger(__name__)
 
 
 class CommitClient(RestClient):
@@ -20,7 +22,7 @@ class CommitClient(RestClient):
         super().__init__(rest_api)
 
     async def get_commit(self, org_id: str, repo_name: str, ref: str) -> dict[str, Any]:
-        print_debug(f"getting commit for ref '{ref}' from repo '{org_id}/{repo_name}'")
+        _logger.debug("getting commit for ref '%s' from repo '%s/%s'", ref, org_id, repo_name)
 
         try:
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/commits/{ref}")
@@ -28,7 +30,7 @@ class CommitClient(RestClient):
             raise RuntimeError(f"failed retrieving commit:\n{ex}") from ex
 
     async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
-        print_debug(f"getting commit statuses for ref '{ref}' from repo '{org_id}/{repo_name}'")
+        _logger.debug("getting commit statuses for ref '%s' from repo '%s/%s'", ref, org_id, repo_name)
 
         try:
             return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/commits/{ref}/statuses")
@@ -45,7 +47,7 @@ class CommitClient(RestClient):
         description: str | None = None,
         target_url: str | None = None,
     ) -> None:
-        print_debug(f"creating a commit status for sha '{sha}'")
+        _logger.debug("creating a commit status for sha '%s' in repo '%s/%s'", sha, org_id, repo_name)
 
         data = {"state": state, "target_url": target_url, "description": description, "context": context}
         status, body = await self.requester.request_raw(
@@ -55,4 +57,4 @@ class CommitClient(RestClient):
         if status != 201:
             raise RuntimeError(f"failed creating commit status for '{org_id}/{repo_name}/{sha}'\n{status}: {body}")
 
-        print_debug(f"created commit status for sha '{org_id}/{repo_name}/{sha}'")
+        _logger.debug("created commit status for sha '%s' in repo '%s/%s'", sha, org_id, repo_name)

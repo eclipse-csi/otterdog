@@ -15,14 +15,17 @@ from typing import TYPE_CHECKING
 from aiohttp.client import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_retry import ExponentialRetry, RetryClient
 
+from otterdog.logging import get_logger, is_trace_enabled
 from otterdog.providers.github.stats import RequestStatistics
-from otterdog.utils import is_trace_enabled, print_debug, print_trace, query_json
+from otterdog.utils import query_json
 
 if TYPE_CHECKING:
     from typing import Any
 
     from otterdog.providers.github.auth import AuthStrategy
     from otterdog.providers.github.cache import CacheStrategy
+
+_logger = get_logger(__name__)
 
 
 class GraphQLClient:
@@ -70,7 +73,7 @@ class GraphQLClient:
         return self._statistics
 
     async def get_branch_protection_rule_id(self, org_id: str, repo_name: str, pattern: str) -> str:
-        print_debug(f"getting branch protection rule id for pattern '{pattern}' at repo '{org_id}/{repo_name}'")
+        _logger.debug(f"getting branch protection rule id for pattern '{pattern}' at repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
         branch_protection_rules = await self._run_paged_query(variables, "get-branch-protection-rule-ids.gql")
@@ -82,7 +85,7 @@ class GraphQLClient:
         raise RuntimeError(f"failed to find branch protection rule with pattern '{pattern}'")
 
     async def get_branch_protection_rules(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        print_debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
+        _logger.debug(f"retrieving branch protection rules for repo '{org_id}/{repo_name}'")
 
         variables = {"organization": org_id, "repository": repo_name}
         branch_protection_rules = await self._run_paged_query(variables, "get-branch-protection-rules.gql")
@@ -146,7 +149,7 @@ class GraphQLClient:
         rule_id: str,
         data: dict[str, Any],
     ) -> None:
-        print_debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
+        _logger.debug(f"updating branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["branchProtectionRuleId"] = rule_id
         variables = {"ruleInput": data}
@@ -169,13 +172,13 @@ class GraphQLClient:
         if "data" not in json_data:
             raise RuntimeError(f"failed to update branch protection rule '{rule_pattern}': {body}")
 
-        print_debug(f"successfully updated branch protection rule '{rule_pattern}'")
+        _logger.debug(f"successfully updated branch protection rule '{rule_pattern}'")
 
     async def add_branch_protection_rule(
         self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]
     ) -> None:
         rule_pattern = data["pattern"]
-        print_debug(
+        _logger.debug(
             f"creating branch_protection_rule with pattern '{rule_pattern}' " f"for repo '{org_id}/{repo_name}'"
         )
 
@@ -201,10 +204,10 @@ class GraphQLClient:
         if "data" not in json_data:
             raise RuntimeError(f"failed to create branch protection rule '{rule_pattern}': {body}")
 
-        print_debug(f"successfully created branch protection rule '{rule_pattern}'")
+        _logger.debug(f"successfully created branch protection rule '{rule_pattern}'")
 
     async def delete_branch_protection_rule(self, org_id: str, repo_name: str, rule_pattern: str, rule_id: str) -> None:
-        print_debug(f"deleting branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
+        _logger.debug(f"deleting branch protection rule '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         variables = {"ruleInput": {"branchProtectionRuleId": rule_id}}
 
@@ -220,10 +223,10 @@ class GraphQLClient:
                 f"failed removing branch protection rule '{rule_pattern}' for repo '{repo_name}': {body}"
             )
 
-        print_debug(f"successfully removed branch protection rule '{rule_pattern}'")
+        _logger.debug(f"successfully removed branch protection rule '{rule_pattern}'")
 
     async def get_issue_comments(self, org_id: str, repo_name: str, issue_number: int) -> list[dict[str, Any]]:
-        print_debug(f"retrieving issue comments for issue '{org_id}/{repo_name}/#{issue_number}'")
+        _logger.debug(f"retrieving issue comments for issue '{org_id}/{repo_name}/#{issue_number}'")
 
         variables = {"owner": org_id, "repo": repo_name, "number": issue_number}
         issue_comments = await self._run_paged_query(
@@ -232,7 +235,7 @@ class GraphQLClient:
         return issue_comments
 
     async def minimize_comment(self, comment_id: str, classifier: str) -> None:
-        print_debug("minimizing comment")
+        _logger.debug("minimizing comment")
 
         variables = {"input": {"subjectId": comment_id, "classifier": classifier}}
 
@@ -246,10 +249,10 @@ class GraphQLClient:
         if status >= 400:
             raise RuntimeError(f"failed minimizing comment: {body}")
 
-        print_debug("successfully minimized comment")
+        _logger.debug("successfully minimized comment")
 
     async def get_team_membership(self, org_id: str, user_login: str) -> list[dict[str, Any]]:
-        print_debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
+        _logger.debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
 
         variables = {"owner": org_id, "user": user_login}
         return await self._run_paged_query(variables, "get-team-membership.gql", "data.organization.teams")
@@ -260,7 +263,7 @@ class GraphQLClient:
         query_file: str,
         prefix_selector: str = "data.repository.branchProtectionRules",
     ) -> list[dict[str, Any]]:
-        print_debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
+        _logger.debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = _get_query_from_file(query_file)
 
@@ -274,6 +277,9 @@ class GraphQLClient:
 
             status, body = await self._request_raw("POST", query, variables)
             json_data = json.loads(body)
+
+            if is_trace_enabled():
+                _logger.trace("graphql result = %s", json.dumps(json_data, indent=2))
 
             if "data" in json_data:
                 rules_result = query_json(prefix_selector + ".nodes", json_data)
@@ -293,7 +299,7 @@ class GraphQLClient:
         return result
 
     async def _request_raw(self, method: str, query: str, variables: dict[str, Any]) -> tuple[int, str]:
-        print_trace(f"'{method}', query = {query}, variables = {variables}")
+        _logger.trace("'%s', query = %s, variables = %s", method, query[0:300] + "...", variables)
 
         headers = self._headers.copy()
         if self._auth is not None:
@@ -317,14 +323,10 @@ class GraphQLClient:
             status = response.status
 
             if status == 403 or status == 429:
-                print_trace(f"graphql '{method}' result = ({status}, {text})")
+                _logger.trace(f"graphql '{method}' result = ({status}, {text})")
                 raise RuntimeError("failed running graphql query, hitting rate limit")
 
             self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
-
-            if is_trace_enabled():
-                print_trace(f"graphql '{method}' result = ({status}, {text})")
-
             return status, text
 
     @staticmethod

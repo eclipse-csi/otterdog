@@ -16,7 +16,6 @@ from aioshutil import copy
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import style
 
 from . import Operation
 
@@ -58,10 +57,7 @@ class ImportOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
 
         org_file_name = jsonnet_config.org_config_file
         if not await self.check_config_file_overwrite_if_exists(org_file_name, self.force_processing):
@@ -71,7 +67,7 @@ class ImportOperation(Operation):
             sync_from_previous_config = True
             backup_file = f"{org_file_name}.bak"
             await copy(org_file_name, backup_file)
-            self.printer.println(f"\nExisting definition copied to '{style(backup_file, bright=True)}'.\n")
+            self.printer.println(f"\nExisting definition copied to '[bold]{backup_file}[/]'.\n")
         else:
             sync_from_previous_config = False
 

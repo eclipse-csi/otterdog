@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.models import LivePatch, LivePatchType
-from otterdog.utils import Change, IndentingPrinter, get_approval, style
+from otterdog.utils import Change, IndentingPrinter, get_approval
 
 from .plan import PlanOperation
 
@@ -111,17 +111,17 @@ class ApplyOperation(PlanOperation):
                 "Do you want to perform these actions? (Only 'yes' or 'y' will be accepted to approve)\n"
             )
 
-            self.printer.print(f"{style('Enter a value', bright=True)}: ")
+            self.printer.print("[bold]Enter a value:[/] ")
             if not get_approval():
                 self.printer.println("\nApply cancelled.")
                 return 0
 
         # apply patches
-        import click
+        from rich.progress import Progress
 
         errors = 0
 
-        self.printer.println("\nApplying changes:\n")
+        self.printer.println("\nApplying changes:")
 
         # order patches by readonly status:
         # - first: the patches that do not make a resource readonly
@@ -131,9 +131,12 @@ class ApplyOperation(PlanOperation):
         patches_ordered_by_readonly_status = [p for p in patches if p.changes_object_to_readonly is False] + [
             p for p in patches if p.changes_object_to_readonly is True
         ]
-        with click.progressbar(patches_ordered_by_readonly_status, file=self.printer.writer) as bar:
-            for patch in bar:
+
+        with Progress(console=self.printer.console) as progress:
+            task = progress.add_task(self.printer.current_indentation, total=len(patches_ordered_by_readonly_status))
+            for patch in patches_ordered_by_readonly_status:
                 if patch.patch_type == LivePatchType.REMOVE and not self._delete_resources:
+                    progress.advance(task)
                     continue
                 else:
                     try:
@@ -142,15 +145,18 @@ class ApplyOperation(PlanOperation):
                         errors += 1
                         self.printer.println()
                         self.printer.print_error(f"failed to apply patch: {patch!r}\n{ex}")
+                    finally:
+                        progress.advance(task)
 
         delete_snippet = "deleted" if self._delete_resources else "live resources ignored"
 
-        self.printer.println("Done.")
+        self.printer.println("\nDone.")
 
         self.printer.println(
-            f"\n{style('Executed plan', bright=True)}: {diff_status.additions} added, "
+            f"\n[bold]Executed plan:[/] {diff_status.additions} added, "
             f"{diff_status.differences} changed, "
-            f"{diff_status.deletions} {delete_snippet}."
+            f"{diff_status.deletions} {delete_snippet}.",
+            highlight=True,
         )
 
         add_patches = [p for p in patches if p.patch_type == LivePatchType.ADD]

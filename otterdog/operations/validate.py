@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from otterdog.logging import is_info_enabled
 from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import is_info_enabled, style
 
 from . import Operation
 
@@ -41,10 +41,7 @@ class ValidateOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:
@@ -64,17 +61,17 @@ class ValidateOperation(Operation):
             validation_count = validation_infos + validation_warnings + validation_errors
 
             if validation_count == 0:
-                self.printer.println(style("Validation succeeded", fg="green"))
+                self.printer.println("[green]Validation succeeded[/]")
             else:
                 if validation_errors == 0:
                     self.printer.println(
-                        f"{style('Validation succeeded', fg='green')}: "
+                        f"[green]Validation succeeded[/]': "
                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
                         f"{validation_errors} error(s)"
                     )
                 else:
                     self.printer.println(
-                        f"{style('Validation failed', fg='red')}: "
+                        f"[red]Validation failed[/]: "
                         f"{validation_infos} info(s), {validation_warnings} warning(s), "
                         f"{validation_errors} error(s)"
                     )

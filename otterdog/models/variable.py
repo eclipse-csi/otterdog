@@ -30,5 +30,6 @@ class Variable(ModelObject, abc.ABC):
         if self.name.startswith("GITHUB_"):
             context.add_failure(
                 FailureType.ERROR,
-                f"{self.get_model_header()} starts with prefix 'GITHUB_' which is not allowed for variables.",
+                f"{self.get_model_header(parent_object)} starts with prefix 'GITHUB_', "
+                f"which is not allowed for variables.",
             )

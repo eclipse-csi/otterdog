@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import style
 
 from . import Operation
 
@@ -46,10 +45,7 @@ class ShowLiveOperation(Operation):
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
 
-        self.printer.println(
-            f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-            f"{self._format_progress(org_index, org_count)}"
-        )
+        self._print_project_header(org_config, org_index, org_count)
         self.printer.level_up()
 
         try:

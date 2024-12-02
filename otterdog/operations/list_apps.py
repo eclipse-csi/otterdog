@@ -12,7 +12,7 @@ import json
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import is_info_enabled, style
+from otterdog.utils import is_info_enabled
 
 from . import Operation
 
@@ -52,10 +52,7 @@ class ListAppsOperation(Operation):
         github_id = org_config.github_id
 
         if not self.json_output or is_info_enabled():
-            self.printer.println(
-                f"\nOrganization {style(org_config.name, bright=True)}[id={github_id}]"
-                f"{self._format_progress(org_index, org_count)}"
-            )
+            self._print_project_header(org_config, org_index, org_count)
             self.printer.level_up()
 
         try:
