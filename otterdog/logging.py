@@ -52,7 +52,7 @@ class CustomLogger(logging.Logger):
 logging.setLoggerClass(CustomLogger)
 
 
-def init_logging(verbose: int) -> None:
+def init_logging(verbose: int, setup_python_logger: bool = True) -> None:
     global _verbose_level
     _verbose_level = verbose
 
@@ -74,15 +74,21 @@ def init_logging(verbose: int) -> None:
             level = TRACE
             show_time = True
 
-    logging.root.addHandler(
-        RichHandler(
-            rich_tracebacks=True,
-            tracebacks_show_locals=True,
-            show_time=show_time,
-            omit_repeated_times=False,
-            console=CONSOLE_STDOUT,
+    if setup_python_logger is True:
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(message)s",
+            datefmt="%X.%f",
+            handlers=[
+                RichHandler(
+                    rich_tracebacks=True,
+                    tracebacks_show_locals=True,
+                    show_time=show_time,
+                    omit_repeated_times=False,
+                    console=CONSOLE_STDOUT,
+                )
+            ],
         )
-    )
 
     import otterdog
 

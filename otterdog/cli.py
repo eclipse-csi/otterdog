@@ -7,7 +7,6 @@
 #  *******************************************************************************
 
 import asyncio
-import logging
 import sys
 from typing import Any
 
@@ -27,12 +26,6 @@ _CONFIG_FILE = "otterdog.json"
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
 
 _CONFIG: OtterdogConfig | None = None
-
-logging.basicConfig(
-    level=logging.WARNING,
-    format="%(message)s",
-    datefmt="%X.%f",
-)
 
 
 def complete_organizations(ctx, param, incomplete):

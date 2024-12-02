@@ -57,7 +57,7 @@ if DEBUG:
     from otterdog.cache import get_github_cache
 
     # enable debug outputs
-    init_logging(2)
+    init_logging(2, False)
 
     app.logger.info("DEBUG         = " + str(DEBUG))
     app.logger.info("Environment   = " + config_mode)
@@ -68,7 +68,7 @@ if DEBUG:
     app.logger.info("TMP_DIR       = " + tmp_dir)
 else:
     # setup app logging to level INFO
-    init_logging(1)
+    init_logging(1, False)
 
 
 def run():
