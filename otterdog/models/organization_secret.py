@@ -52,14 +52,14 @@ class OrganizationSecret(Secret):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'visibility' of value "
-                    f"'{self.visibility}',\n"
+                    f"'{self.visibility}', "
                     f"while only values ('public' | 'private' | 'selected') are allowed.",
                 )
 
             if self.visibility != "selected" and len(self.selected_repositories) > 0:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has 'visibility' set to '{self.visibility}',\n"
+                    f"{self.get_model_header(parent_object)} has 'visibility' set to '{self.visibility}', "
                     f"but 'selected_repositories' is set to '{self.selected_repositories}', setting will be ignored.",
                 )
 

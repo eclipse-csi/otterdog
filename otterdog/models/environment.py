@@ -58,7 +58,7 @@ class Environment(ModelObject):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'deployment_branch_policy' of value "
-                    f"'{self.deployment_branch_policy}',\n"
+                    f"'{self.deployment_branch_policy}', "
                     f"while only values ('all' | 'protected' | 'selected') are allowed.",
                 )
 
@@ -66,7 +66,7 @@ class Environment(ModelObject):
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has 'deployment_branch_policy' set to "
-                    f"'{self.deployment_branch_policy}',\n"
+                    f"'{self.deployment_branch_policy}', "
                     f"but 'branch_policies' is set to '{self.branch_policies}', setting will be ignored.",
                 )
 

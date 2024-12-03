@@ -124,7 +124,7 @@ class OrganizationSettings(ModelObject):
             if self.default_repository_permission not in {"none", "read", "write", "admin"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"'default_repository_permission' has value '{self.default_repository_permission}',\n"
+                    f"'default_repository_permission' has value '{self.default_repository_permission}', "
                     f"while only values ('none' | 'read' | 'write' | 'admin') are allowed.",
                 )
 

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added validation rules for `squash` and `merge` commit title and message settings of a repository.
 - Added new blueprint `scorecard_integration` to integrate OSSF Scorecard evaluations. ([#345](https://github.com/eclipse-csi/otterdog/issues/345))
 - Added new blueprint `append_configuration` to append configuration snippets depending on certain conditions.
 - Added support for organization rulesets. ([#158](https://github.com/eclipse-csi/otterdog/issues/158))

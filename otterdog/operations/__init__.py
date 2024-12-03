@@ -298,21 +298,23 @@ class Operation(ABC):
                     j = j1
 
                     for _ in range(i1, min(diff_i, diff_j)):
-                        self.printer.println(f"{prefix}{a[i].ljust(max_length, ' ')} [{color}]->[/] {b[j]}")
+                        self.printer.println(
+                            f"{prefix}{self._get_value(a[i]).ljust(max_length, ' ')} [{color}]->[/] {self._get_value(b[j])}"
+                        )
                         j = j + 1
                         i = i + 1
 
                     while i < i2:
-                        self.printer.println(f"[red]- [/]{a[i]}")
+                        self.printer.println(f"[red]- [/]{self._get_value(a[i])}")
                         i = i + 1
 
                     while j < j2:
-                        self.printer.println(f"[green]+ [/]{b[j]}")
+                        self.printer.println(f"[green]+ [/]{self._get_value(b[j])}")
                         j = j + 1
 
                 case "delete":
                     for i in range(i1, i2):
-                        self.printer.println(f"[red]- [/]{a[i]}")
+                        self.printer.println(f"[red]- [/]{self._get_value(a[i])}")
                 case "insert":
                     for j in range(j1, j2):
-                        self.printer.println(f"[green]+ [/]{b[j]}")
+                        self.printer.println(f"[green]+ [/]{self._get_value(b[j])}")

@@ -471,6 +471,73 @@ class Repository(ModelObject):
                     f" the required format '<owner>/<repo>'.",
                 )
 
+        if is_set_and_valid(self.squash_merge_commit_title):
+            if self.squash_merge_commit_title not in {"PR_TITLE", "COMMIT_OR_PR_TITLE"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'squash_merge_commit_title' of value "
+                    f"'{self.squash_merge_commit_title}', "
+                    f"while only values ('PR_TITLE' | 'COMMIT_OR_PR_TITLE') are allowed.",
+                )
+
+        if is_set_and_valid(self.squash_merge_commit_message):
+            if self.squash_merge_commit_message not in {"PR_BODY", "COMMIT_MESSAGES", "BLANK"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'squash_merge_commit_message' of value "
+                    f"'{self.squash_merge_commit_message}', "
+                    f"while only values ('PR_BODY' | 'COMMIT_MESSAGES' | 'BLANK') are allowed.",
+                )
+
+        if is_set_and_valid(self.squash_merge_commit_title) and is_set_and_valid(self.squash_merge_commit_message):
+            if (self.squash_merge_commit_title, self.squash_merge_commit_message) not in [
+                ("PR_TITLE", "PR_BODY"),
+                ("PR_TITLE", "BLANK"),
+                ("PR_TITLE", "COMMIT_MESSAGES"),
+                ("COMMIT_OR_PR_TITLE", "COMMIT_MESSAGES"),
+            ]:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has ('squash_merge_commit_title', "
+                    f"'squash_merge_commit_message') of value "
+                    f"('{self.squash_merge_commit_title}', '{self.squash_merge_commit_message}'), "
+                    f"while only combinations ('PR_TITLE', 'PR_BODY') | ('PR_TITLE', 'BLANK') | "
+                    f"('PR_TITLE', 'COMMIT_MESSAGES') | ('COMMIT_OR_PR_TITLE', 'COMMIT_MESSAGES') are allowed.",
+                )
+
+        if is_set_and_valid(self.merge_commit_title):
+            if self.merge_commit_title not in {"PR_TITLE", "MERGE_MESSAGE"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'merge_commit_title' of value "
+                    f"'{self.merge_commit_title}', "
+                    f"while only values ('PR_TITLE' | 'MERGE_MESSAGE') are allowed.",
+                )
+
+        if is_set_and_valid(self.merge_commit_message):
+            if self.merge_commit_message not in {"PR_TITLE", "PR_BODY", "BLANK"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'merge_commit_message' of value "
+                    f"'{self.merge_commit_message}', "
+                    f"while only values ('PR_TITLE' | 'PR_BODY' | 'BLANK') are allowed.",
+                )
+
+        if is_set_and_valid(self.merge_commit_title) and is_set_and_valid(self.merge_commit_message):
+            if (self.merge_commit_title, self.merge_commit_message) not in [
+                ("PR_TITLE", "PR_BODY"),
+                ("PR_TITLE", "BLANK"),
+                ("MERGE_MESSAGE", "PR_TITLE"),
+            ]:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has ('merge_commit_title', "
+                    f"'merge_commit_message') of value "
+                    f"('{self.merge_commit_title}', '{self.merge_commit_message}'), "
+                    f"while only combinations ('PR_TITLE', 'PR_BODY') | ('PR_TITLE', 'BLANK') | "
+                    f"('MERGE_MESSAGE', 'PR_TITLE') are allowed.",
+                )
+
         if is_set_and_valid(self.workflows):
             self.workflows.validate(context, self)
 
