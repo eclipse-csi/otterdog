@@ -62,7 +62,7 @@ class OperationTest(unittest.TestCase):
 
         operation.print_modified_dict(test_input, "", False)
 
-        assert expected == _strip_string(output.getvalue())
+        assert _strip_string(output.getvalue()) == expected
 
 
 def _strip_string(input_string: str) -> str:
