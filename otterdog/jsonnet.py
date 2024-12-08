@@ -355,7 +355,26 @@ class JsonnetConfig:
             await rmtree(f"{self.org_dir}/vendor")
 
         # copy over the cloned template repository
-        await copytree(template_dir, self.template_dir, ignore=ignore_patterns(".git"))
+        base_template_directory = os.path.dirname(self.base_template_file_name)
+        if len(base_template_directory) > 0:
+            # if the base template is in a subdir, only copy this subdir
+            pattern = f"{base_template_directory}/**"
+
+            def _include_pattern(path, names):
+                from pathlib import PurePath
+
+                ignored_names = []
+                for name in names:
+                    p = PurePath(os.path.join(path, name))
+                    relative_path = p.relative_to(template_dir)
+                    if not base_template_directory.startswith(str(relative_path)) and not p.match(pattern):
+                        ignored_names.append(name)
+                return set(ignored_names)
+
+            ignore = _include_pattern
+        else:
+            ignore = ignore_patterns(".git")
+        await copytree(template_dir, self.template_dir, ignore=ignore)
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self.base_dir}, '{self._base_template_file}')"
