@@ -336,7 +336,7 @@ local newOrg(id) = {
 
     members_can_change_project_visibility: true,
 
-    security_managers: ["eclipsefdn-security"],
+    security_managers: [],
 
     custom_properties: [],
 
