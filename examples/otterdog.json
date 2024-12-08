@@ -1,13 +1,10 @@
 {
   "defaults": {
     "github": {
-      "config_repo": ".eclipsefdn"
-    },
-    "bitwarden": {
-      "api_token_key": "api_token_admin"
+      "config_repo": ".otterdog"
     },
     "jsonnet": {
-      "base_template": "https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main",
+      "base_template": "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     }
   },
