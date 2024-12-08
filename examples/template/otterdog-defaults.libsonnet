@@ -267,7 +267,7 @@ local newOrg(id) = {
   settings: {
     name: null,
     plan: "free",
-    billing_email: null,
+    billing_email: "",
     company: null,
     email: null,
     twitter_username: null,

@@ -386,7 +386,6 @@ class GitHubOrganization:
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
         no_web_ui: bool = False,
-        printer: IndentingPrinter | None = None,
         concurrency: int | None = None,
     ) -> GitHubOrganization:
         start = datetime.now()
@@ -457,7 +456,7 @@ class GitHubOrganization:
         else:
             _logger.debug("not reading org secrets, no default config available")
 
-        if jsonnet_config.default_org_ruleset_config is not None:
+        if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
             start = datetime.now()
             _logger.trace("rulesets: reading...")
 

@@ -72,43 +72,36 @@ $ ./otterdog.sh -h
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
-- define a default configuration to use, you can use the [default config](https://github.com/EclipseFdn/otterdog-defaults/) of the Eclipse Foundation as starting point
+- define a default configuration to use, you can use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) as a starting point
 - create a `otterdog.json` file that contains the list of organizations you want to manage and some customizations
 - start managing your organizations using the cli
 
-### Default configuration @ Eclipse Foundation
+### Default configuration
 
-The default configuration that is in use by the Eclipse Foundation can be used right away. It has some hooks and configurations
-defined that are not meaningful for other uses though. Also the `config` repsitory is set to `.eclipsefdn` and is defined like
-that in the default configuration and will be created upon the first `apply` execution.
-
-For simple testing though, you can use this base template: `https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main`.
+You can define your own default configuration or use the following base template right away: `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main`.
 
 ### Otterdog configuration
 
-The following example configuration is used to the manage the [Otterdogtest organization](https://github.com/OtterdogTest):
+Create a `otterdog.json` file with the following content (replace bracketed values according to your setup):
 
 ```json
 {
   "defaults": {
-    "bitwarden": {
-      "api_token_key": "api_token_admin"
-    },
     "jsonnet": {
-      "base_template": "https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@main",
+      "base_template": "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     },
     "github": {
-      "config_repo": ".eclipsefdn"
+      "config_repo": ".otterdog"
     }
   },
   "organizations": [
     {
-      "name": "OtterdogTest",
-      "github_id": "OtterdogTest",
+      "name": "<project-name>",
+      "github_id": "<github-id>",
       "credentials": {
         "provider": "bitwarden",
-        "item_id": "118276ad-158c-4720-b68d-af8c00fe3481"
+        "item_id": "<bitwarden item id>"
       }
     }
   ]
