@@ -26,9 +26,12 @@ jobs:
     steps:
       - name: "Check ref"
         shell: bash
+        env:
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "Release shall only be made from 'main' branch, triggered branch '${{ github.ref_name }}', aborting."
+          if [ "${REF}" != "refs/heads/main" ]; then
+            echo "Release shall only be made from 'main' branch, triggered branch '${REF_NAME}', aborting."
             exit 1
           fi
 
@@ -44,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: true
           ref: ${{ github.ref }}
 
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
