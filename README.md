@@ -7,8 +7,8 @@
 </h1>
 
 <p align="center">
-  <a href="https://pypi.org/project/otterdog"><img alt="PyPI" src="https://img.shields.io/pypi/v/otterdog.svg?color=blue&maxAge=86400" /></a>
-  <a href="https://pypi.org/project/otterdog"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/otterdog.svg?maxAge=86400" /></a>
+  <a href="https://pypi.org/project/otterdog"><img alt="PyPI" src="https://img.shields.io/pypi/v/otterdog.svg?color=blue&maxAge=600" /></a>
+  <a href="https://pypi.org/project/otterdog"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/otterdog.svg?maxAge=600" /></a>
   <a href="https://github.com/eclipse-csi/otterdog/blob/main/LICENSE"><img alt="EPLv2 License" src="https://img.shields.io/github/license/eclipse-csi/otterdog" /></a>
   <a href="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml?query=branch%3Amain"><img alt="Build Status on GitHub" src="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg?branch:main&workflow:Build" /></a>
   <a href="https://otterdog.readthedocs.io"><img alt="Documentation Status" src="https://readthedocs.org/projects/otterdog/badge/?version=latest" /></a><br>
