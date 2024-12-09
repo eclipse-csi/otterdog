@@ -11,7 +11,7 @@ ifndef PIPX
 endif
 
 ifndef POETRY
-	pipx install "poetry==1.8.4"
+	pipx install "poetry==1.8.5"
 	pipx inject poetry "poetry-dynamic-versioning[plugin]"
 endif
 
