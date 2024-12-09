@@ -10,7 +10,7 @@ env:
   BOT_USER_NAME: eclipse-csi-bot
   BOT_EMAIL: csi-bot@eclipse.org
   PYTHON_VERSION: '3.12'
-  POETRY_VERSION: '1.8.4'
+  POETRY_VERSION: '1.8.5'
 
 permissions:
   contents: read

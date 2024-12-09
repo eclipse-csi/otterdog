@@ -12,7 +12,7 @@ env:
   REGISTRY: 'ghcr.io'
   IMAGE_NAME: ${{ github.repository }}
   PYTHON_VERSION: '3.12'
-  POETRY_VERSION: '1.8.4'
+  POETRY_VERSION: '1.8.5'
 
 permissions:
   contents: read
