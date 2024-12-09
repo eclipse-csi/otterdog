@@ -29,19 +29,45 @@ class GitHubException(Exception):
         return f"Exception while accessing '{self.url}': (status={self.status}, body={self.data})"
 
 
-class BadCredentialsException(GitHubException):
+class BadCredentialsException(Exception):
+    def __init__(self, url: str, message: str):
+        self.__url = url
+        self.__message = message
+
+    @property
+    def url(self) -> str:
+        return self.__url
+
+    @property
+    def message(self) -> str:
+        return self.__message
+
     def __str__(self):
-        return f"Bad Credentials while accessing '{self.url}': (body={self.data})"
+        return f"Bad Credentials while accessing '{self.url}': (message={self.message})"
 
 
-class InsufficientPermissionsException(GitHubException):
-    def __init__(self, url: str | None, status: int, data: str, missing_scopes: list[str]):
-        super().__init__(url, status, data)
+class InsufficientPermissionsException(Exception):
+    def __init__(self, url: str, status: int, message: str, missing_scopes: list[str]):
+        self.__url = url
+        self.__status = status
+        self.__message = message
         self.__missing_scopes = missing_scopes
+
+    @property
+    def url(self) -> str:
+        return self.__url
+
+    @property
+    def status(self) -> int:
+        return self.__status
+
+    @property
+    def message(self) -> str:
+        return self.__message
 
     @property
     def missing_scopes(self) -> list[str]:
         return self.__missing_scopes
 
     def __str__(self):
-        return f"Insufficient permissions while accessing '{self.url}': missing scopes={self.missing_scopes})"
+        return f"Insufficient permissions while accessing '{self.url}': " f"(missing scopes={self.missing_scopes})"

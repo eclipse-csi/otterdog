@@ -227,6 +227,6 @@ class Requester:
     @staticmethod
     def _create_exception(url: str, status_code: int, body: str):
         if status_code == 401:
-            raise BadCredentialsException(url, status_code, body)
+            raise BadCredentialsException(url, body)
         else:
             raise GitHubException(url, status_code, body)
