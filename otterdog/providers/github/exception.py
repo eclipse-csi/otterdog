@@ -26,9 +26,22 @@ class GitHubException(Exception):
         return self.__data
 
     def __str__(self):
-        return f"Exception while accessing {self.url}: (status={self.status}, body={self.data})"
+        return f"Exception while accessing '{self.url}': (status={self.status}, body={self.data})"
 
 
 class BadCredentialsException(GitHubException):
     def __str__(self):
-        return f"Bad Credentials while accessing {self.url}: (body={self.data})"
+        return f"Bad Credentials while accessing '{self.url}': (body={self.data})"
+
+
+class InsufficientPermissionsException(GitHubException):
+    def __init__(self, url: str | None, status: int, data: str, missing_scopes: list[str]):
+        super().__init__(url, status, data)
+        self.__missing_scopes = missing_scopes
+
+    @property
+    def missing_scopes(self) -> list[str]:
+        return self.__missing_scopes
+
+    def __str__(self):
+        return f"Insufficient permissions while accessing '{self.url}': missing scopes={self.missing_scopes})"

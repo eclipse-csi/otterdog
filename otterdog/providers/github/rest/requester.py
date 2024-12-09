@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import json
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Mapping
 from typing import Any
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector
@@ -17,7 +17,11 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.auth import AuthStrategy
 from otterdog.providers.github.cache import CacheStrategy
-from otterdog.providers.github.exception import BadCredentialsException, GitHubException
+from otterdog.providers.github.exception import (
+    BadCredentialsException,
+    GitHubException,
+    InsufficientPermissionsException,
+)
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import get_logger
 
@@ -164,6 +168,8 @@ class Requester:
             next_link = links.get("next", None) if links is not None else None
             next_url = next_link.get("url", None) if next_link is not None else None
 
+            self._check_permissions(url_path, status, text, response.headers)
+
             if (hasattr(response, "from_cache") and response.from_cache) or response.headers.get(
                 "X-From-Cache", 0
             ) == "1":
@@ -207,6 +213,16 @@ class Requester:
     def _check_response(self, url_path: str, status_code: int, body: str) -> None:
         if status_code >= 400:
             self._create_exception(self._build_url(url_path), status_code, body)
+
+    @staticmethod
+    def _check_permissions(url_path: str, status_code: int, body: str, headers: Mapping[str, str]):
+        if status_code >= 400:
+            existing_scopes = {x.strip() for x in headers.get("X-OAuth-Scopes", "").split(",") if len(x) > 0}
+            required_scopes = {x.strip() for x in headers.get("X-Accepted-OAuth-Scopes", "").split(",") if len(x) > 0}
+
+            missing_scopes = required_scopes - existing_scopes
+            if len(missing_scopes) > 0:
+                raise InsufficientPermissionsException(url_path, status_code, body, list(missing_scopes))
 
     @staticmethod
     def _create_exception(url: str, status_code: int, body: str):

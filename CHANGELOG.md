@@ -16,6 +16,7 @@
 
 ### Changed
 
+- Added raising an `InsufficientPermissionsException` if the token lacks required OAuth scopes for a specific endpoint. ([#126](https://github.com/eclipse-csi/otterdog/issues/126))
 - Improved the check mechanism for blueprints by only checking a certain number each run and by taking the last check time into account.
 - Improved the update mechanism when installing a new GitHub organization to only update the newly added organization. ([#349](https://github.com/eclipse-csi/otterdog/issues/349))
 - Integrated existing logging with standard python logging facility.
