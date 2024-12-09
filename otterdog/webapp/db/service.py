@@ -68,7 +68,7 @@ async def update_installation_status(installation_id: int, action: str) -> None:
         case "created":
             policies = await refresh_global_policies()
             blueprints = await refresh_global_blueprints()
-            await update_app_installations(policies, blueprints)
+            await add_app_installation(installation_id, policies, blueprints)
 
         case "deleted":
             installation = await mongo.odm.find_one(
@@ -212,6 +212,35 @@ async def update_app_installations(
             await update_data_for_installation(installation)
 
         await update_policies_and_blueprints_for_installation(installation, global_policies, global_blueprints)
+
+
+async def add_app_installation(
+    installation_id: int,
+    global_policies: list[Policy],
+    global_blueprints: list[Blueprint],
+):
+    logger.info("adding app installation for id '%d'", installation_id)
+
+    rest_api = get_rest_api_for_app()
+    app_installation = await rest_api.app.get_app_installation(installation_id)
+
+    async with mongo.odm.session() as session:
+        installation_id = app_installation["id"]
+        github_id = app_installation["account"]["login"]
+        suspended_at = app_installation["suspended_at"]
+        installation_status = InstallationStatus.INSTALLED if suspended_at is None else InstallationStatus.SUSPENDED
+
+        installation_model = await get_installation_by_github_id(github_id)
+        if installation_model is not None:
+            installation_model.installation_id = int(installation_id)
+            installation_model.installation_status = installation_status
+
+            await session.save(installation_model)
+        else:
+            return
+
+    await update_data_for_installation(installation_model)
+    await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
 
 
 async def update_data_for_installation(installation: InstallationModel) -> None:
@@ -752,6 +781,14 @@ async def get_blueprints(owner: str) -> list[BlueprintModel]:
     )
 
 
+async def get_blueprints_by_last_checked_time(limit: int) -> list[BlueprintModel]:
+    return await mongo.odm.find(
+        BlueprintModel,
+        limit=limit,
+        sort=query.asc(BlueprintModel.last_checked),
+    )
+
+
 async def find_blueprint(owner: str, blueprint_id: str) -> BlueprintModel | None:
     return await mongo.odm.find_one(
         BlueprintModel,
@@ -760,7 +797,7 @@ async def find_blueprint(owner: str, blueprint_id: str) -> BlueprintModel | None
     )
 
 
-async def update_or_create_blueprint(owner: str, blueprint: Blueprint, recheck_needed: bool | None = None) -> None:
+async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
     blueprint_model = await find_blueprint(owner, blueprint.id)
     if blueprint_model is None:
         blueprint_model = BlueprintModel(
@@ -771,15 +808,24 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint, recheck_n
             config=blueprint.config,
         )
     else:
-        blueprint_model.path = blueprint.path
-        blueprint_model.name = blueprint.name
-        blueprint_model.description = blueprint.description
-        blueprint_model.config = blueprint.config
+        recheck = False
 
-    if recheck_needed is not None:
-        blueprint_model.recheck_needed = recheck_needed
+        def update_if_changed(obj: BlueprintModel, attr: str, value: Any) -> bool:
+            if obj.__getattribute__(attr) != value:
+                obj.__setattr__(attr, value)
+                return True
+            else:
+                return False
+
+        recheck = recheck or update_if_changed(blueprint_model, "path", blueprint.path)
+        recheck = recheck or update_if_changed(blueprint_model, "name", blueprint.name)
+        recheck = recheck or update_if_changed(blueprint_model, "description", blueprint.description)
+        recheck = recheck or update_if_changed(blueprint_model, "config", blueprint.config)
+
+        blueprint_model.recheck_needed = recheck
 
     await save_blueprint(blueprint_model)
+    return blueprint_model.recheck_needed
 
 
 async def save_blueprint(blueprint_model: BlueprintModel) -> None:

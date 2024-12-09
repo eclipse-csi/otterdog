@@ -35,7 +35,15 @@ class AppClient(RestClient):
         try:
             return await self.requester.request_paged_json("GET", "/app/installations")
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving authenticated app:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving app installations:\n{ex}") from ex
+
+    async def get_app_installation(self, installation_id: int) -> list[dict[str, Any]]:
+        _logger.debug("retrieving app installation for id '%d'", installation_id)
+
+        try:
+            return await self.requester.request_paged_json("GET", f"/app/installations/{installation_id}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving app installation:\n{ex}") from ex
 
     async def create_installation_access_token(self, installation_id: str) -> tuple[str, datetime]:
         _logger.debug("creating an installation access token for installation '%s'", installation_id)

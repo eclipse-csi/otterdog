@@ -16,6 +16,8 @@
 
 ### Changed
 
+- Improved the check mechanism for blueprints by only checking a certain number each run and by taking the last check time into account.
+- Improved the update mechanism when installing a new GitHub organization to only update the newly added organization. ([#349](https://github.com/eclipse-csi/otterdog/issues/349))
 - Integrated existing logging with standard python logging facility.
 - Utilized `rich` console formatting instead of low-level colorama styles.
 - Improved processing when archiving repositories to process all other requested changes before archiving them. ([#134](https://github.com/eclipse-csi/otterdog/issues/134))
