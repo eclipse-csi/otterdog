@@ -306,6 +306,15 @@ def escape_for_github(text: str) -> str:
     return "\n".join(output)
 
 
+def epoch_utc_time():
+    if sys.version_info < (3, 12):
+        return datetime.utcfromtimestamp(0)
+    else:
+        from datetime import UTC
+
+        return datetime.fromtimestamp(0, UTC)
+
+
 def current_utc_time() -> datetime:
     if sys.version_info < (3, 12):
         return datetime.utcnow()
@@ -338,6 +347,14 @@ async def backoff_if_needed(last_event: datetime, required_timeout: timedelta) -
         remaining_backoff_seconds = remaining_backoff.total_seconds() + 1
         logger.debug(f"backing off {remaining_backoff_seconds}s")
         await asyncio.sleep(remaining_backoff_seconds)
+
+
+def has_minimum_timedelta_elapsed(last_event: datetime, minimum_timedelta: timedelta) -> bool:
+    last_event = make_aware_utc(last_event)
+    now = make_aware_utc(current_utc_time())
+
+    current_timedelta = now - last_event
+    return current_timedelta >= minimum_timedelta
 
 
 def is_cache_control_enabled() -> bool:

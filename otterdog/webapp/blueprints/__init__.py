@@ -42,7 +42,7 @@ class Blueprint(ABC, BaseModel):
 
     @cached_property
     def logger(self) -> Logger:
-        return getLogger(type(self).__name__)
+        return getLogger(__name__)
 
     @property
     @abstractmethod

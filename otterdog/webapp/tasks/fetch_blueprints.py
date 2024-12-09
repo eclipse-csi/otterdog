@@ -51,7 +51,16 @@ class FetchBlueprintsTask(InstallationBasedTask, Task[None]):
             await cleanup_blueprints_status_of_owner(self.org_id, list(blueprints))
 
             for blueprint in list(blueprints.values()):
-                await update_or_create_blueprint(self.org_id, blueprint, recheck_needed=True)
+                recheck = await update_or_create_blueprint(self.org_id, blueprint)
+                self.logger.debug(
+                    "updating blueprint with id '%s' for repo '%s/%s', recheck = %s",
+                    blueprint.id,
+                    self.org_id,
+                    self.repo_name,
+                    str(recheck),
+                )
+
+        self.logger.info("done fetching blueprints for repo '%s/%s'", self.org_id, self.repo_name)
 
     async def _fetch_blueprints(self, rest_api: RestApi, repo: str) -> dict[str, Blueprint]:
         config_file_path = BLUEPRINT_PATH

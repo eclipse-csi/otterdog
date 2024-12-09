@@ -170,6 +170,7 @@ class BlueprintModel(Model):
     name: Optional[str] = None
     description: Optional[str] = None
     recheck_needed: bool = True
+    last_checked: Optional[datetime] = Field(index=True, default=None)
     config: dict
 
 

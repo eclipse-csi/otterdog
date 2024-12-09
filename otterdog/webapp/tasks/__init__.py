@@ -47,7 +47,7 @@ T = TypeVar("T")
 class Task(ABC, Generic[T]):
     @cached_property
     def logger(self) -> Logger:
-        return getLogger(type(self).__name__)
+        return getLogger(__name__)
 
     def create_task_model(self) -> TaskModel | None:
         return None
