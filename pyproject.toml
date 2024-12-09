@@ -17,7 +17,16 @@ packages      = [
 include       = [
     "CHANGELOG.md",
     "README.md",
-    { path = "tests", format = "sdist" }
+    "LICENSE",
+    { path = ".dockerignore", format = "sdist"},
+    { path = "Makefile", format = "sdist"},
+    { path = "docker", format = "sdist"},
+    { path = "docs", format = "sdist"},
+    { path = "examples", format = "sdist"},
+    { path = "mkdocs.yml", format = "sdist"},
+    { path = "otterdog.sh", format = "sdist"},
+    { path = "poetry.lock", format = "sdist"},
+    { path = "tests", format = "sdist" },
 ]
 
 exclude       = [
