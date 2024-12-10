@@ -37,6 +37,10 @@ _GLOBAL_POLICIES: list[Policy] | None = None
 _GLOBAL_BLUEPRINTS: list[Blueprint] | None = None
 
 
+def get_base_url():
+    return current_app.config["BASE_URL"]
+
+
 def get_project_base_url():
     return current_app.config["PROJECTS_BASE_URL"]
 

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from otterdog.webapp.db.models import BlueprintStatus, TaskModel
 from otterdog.webapp.db.service import find_blueprint_status, update_or_create_blueprint_status
 from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.utils import get_base_url
 
 if TYPE_CHECKING:
     from otterdog.webapp.blueprints import Blueprint
@@ -132,16 +133,27 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         )
 
         pr_body = (
-            f"This PR has been created automatically by Otterdog due to "
-            f"the following blueprint: [{self.blueprint.name}]({self.blueprint.path})."
+            f"This PR has been automatically created by Otterdog due to "
+            f"blueprint: [{self.blueprint.name}]({self.blueprint.path})."
         )
 
         if self.blueprint.description is not None:
             description_lines = self.blueprint.description.rstrip().split("\n")
-            description = "\n".join(f"> {x}" for x in description_lines)
+            description = " ".join(description_lines)
 
             pr_body += "\n\n"
-            pr_body += description
+            pr_body += f"> {description}"
+
+        pr_body += "\n\n"
+        pr_body += "> [!NOTE]\n"
+        pr_body += "> Closing this PR without merging will dismiss this blueprint for this repository.\n"
+        pr_body += "> To re-enable the blueprint, re-open the PR."
+
+        dashboard_url = get_base_url() + f"/organizations/{self.org_id}#blueprint-{self.blueprint.id}"
+
+        pr_body += "\n\n"
+        pr_body += "> [!TIP]\n"
+        pr_body += f"> The status of the blueprint can also be accessed via the [dashboard]({dashboard_url})."
 
         rest_api = await self.rest_api
         created_pr = await rest_api.pull_request.create_pull_request(
