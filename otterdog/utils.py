@@ -251,7 +251,9 @@ class IndentingPrinter:
             self._console = output
             self._writer = self._console.file
         else:
-            self._console = Console(file=output, no_color=output_for_github, width=110)
+            no_color = output_for_github
+            width = 110 if output_for_github else None
+            self._console = Console(file=output, no_color=no_color, width=width)
             self._writer = output
 
         self._initial_offset = " " * initial_offset

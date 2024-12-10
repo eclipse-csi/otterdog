@@ -2,6 +2,14 @@
 
 ## [0.10.0] - unreleased
 
+### Added
+
+- Added view for currently active remediation PRs for configured blueprints.
+
+### Fixed
+
+- Prevent wrapping of long texts when importing the configuration.
+
 
 ## [0.9.0] - 09/12/2024
 
