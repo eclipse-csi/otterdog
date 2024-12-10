@@ -131,7 +131,7 @@ pymdown-extensions = "^10.7"
 otterdog     = "otterdog.cli:cli"
 
 [tool.poetry-dynamic-versioning]
-enable     = false
+enable     = true
 vcs        = "git"
 latest-tag = true
 format-jinja = """
