@@ -5,7 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-
+import json
 from typing import Any
 
 from otterdog.logging import get_logger
@@ -106,6 +106,61 @@ class PullRequestClient(RestClient):
             )
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}") from ex
+
+    async def request_reviews(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+        reviewers: list[str] | None = None,
+        team_reviewers: list[str] | None = None,
+    ) -> bool:
+        _logger.debug(
+            "requesting reviews for pull request #%s in repo '%s/%s': %s, %s",
+            pull_request_number,
+            org_id,
+            repo_name,
+            reviewers,
+            team_reviewers,
+        )
+
+        if (reviewers is None or len(reviewers) == 0) and (team_reviewers is None or len(team_reviewers) == 0):
+            _logger.error(
+                "requesting reviews for pull request #%s in repo '%s/%s' without any reviewer specified",
+                pull_request_number,
+                org_id,
+                repo_name,
+            )
+            return False
+
+        try:
+            data = {}
+
+            if reviewers is not None:
+                data["reviewers"] = reviewers
+
+            if team_reviewers is not None:
+                data["team_reviewers"] = team_reviewers
+
+            status, body = await self.requester.request_raw(
+                "POST",
+                f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/requested_reviewers",
+                data=json.dumps(data),
+            )
+
+            if status == 201:
+                return True
+            elif status == 422:
+                _logger.warning("failed to request reviews for reviewers (%s, %s): %s", reviewers, team_reviewers, body)
+                return False
+            else:
+                raise RuntimeError(
+                    f"failed requesting reviews for pull request #{pull_request_number} in repo "
+                    f"'{org_id}/{repo_name}'\n{status}: {body}"
+                )
+
+        except GitHubException as ex:
+            raise RuntimeError(f"failed requesting pull request reviews:\n{ex}") from ex
 
     async def get_files(
         self,

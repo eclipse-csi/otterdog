@@ -42,5 +42,5 @@ class ActionClient(RestClient):
             return False
         else:
             raise RuntimeError(
-                f"failed cancelling workflow run #{run_id} in repo '{org_id}/{repo_name}'" f"\n{status}: {body}"
+                f"failed cancelling workflow run #{run_id} in repo '{org_id}/{repo_name}'\n{status}: {body}"
             )

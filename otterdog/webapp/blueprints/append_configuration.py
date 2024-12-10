@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pydantic import Field
 from quart import current_app
 
 from otterdog.models.github_organization import GitHubOrganization
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 class AppendConfigurationBlueprint(Blueprint):
     condition: str
     content: str
+    reviewers: list[str] = Field(default_factory=list)
 
     @property
     def type(self) -> BlueprintType:

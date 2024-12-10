@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added option to specify reviewers for blueprint type `append_configuration`.
 - Added view for currently active remediation PRs for configured blueprints.
 
 ### Fixed

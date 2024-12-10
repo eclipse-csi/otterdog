@@ -121,7 +121,12 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
         return None
 
-    async def _create_pull_request(self, pr_title: str, default_branch: str) -> int:
+    async def _create_pull_request(
+        self,
+        pr_title: str,
+        default_branch: str,
+        team_reviewers: list[str] | None = None,
+    ) -> int:
         self.logger.debug(
             f"creating pull request for blueprint '{self.blueprint.id}' " f"in repo '{self.org_id}/{self.repo_name}'"
         )
@@ -148,4 +153,11 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             pr_body,
         )
 
-        return created_pr["number"]
+        pull_request_number = created_pr["number"]
+
+        if team_reviewers is not None and len(team_reviewers) > 0:
+            await rest_api.pull_request.request_reviews(
+                self.org_id, self.repo_name, pull_request_number, team_reviewers=team_reviewers
+            )
+
+        return pull_request_number

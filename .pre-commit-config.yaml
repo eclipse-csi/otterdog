@@ -20,7 +20,7 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-aiofiles, types-redis, types-PyYAML]
+        additional_dependencies: [types-requests, types-aiofiles, types-redis, types-PyYAML, types-python-slugify]
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:

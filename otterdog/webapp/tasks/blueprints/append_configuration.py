@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 import aiofiles
+from slugify import slugify
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file, query_json
@@ -136,7 +137,9 @@ class AppendConfigurationTask(BlueprintTask):
             return
 
         pr_title = f"chore(otterdog): updating configuration due to blueprint `{self.blueprint.id}`"
-        result.remediation_pr = await self._create_pull_request(pr_title, default_branch)
+
+        reviewers = [slugify(self._render_configuration_snippet(r)) for r in self.blueprint.reviewers]
+        result.remediation_pr = await self._create_pull_request(pr_title, default_branch, reviewers)
 
     def __repr__(self) -> str:
         return f"AppendConfigurationTask(repo='{self.org_id}/{self.repo_name}', blueprint='{self.blueprint.id}')"
