@@ -286,10 +286,10 @@ class IndentingPrinter:
                 self._print_indentation()
 
                 if line.endswith("\n"):
-                    self._console.print(line[:-1], end="", highlight=highlight)
+                    self._console.print(line[:-1], end="", highlight=highlight, new_line_start=True)
                     self.print_line_break()
                 else:
-                    self._console.print(line, end="", highlight=highlight)
+                    self._console.print(line, end="", highlight=highlight, new_line_start=True)
 
     def println(self, text: str = "", highlight: bool = False) -> None:
         self.print(text, highlight=highlight)
