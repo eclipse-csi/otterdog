@@ -289,7 +289,7 @@
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="blueprints-tabs" role="tablist" aria-orientation="vertical">
                           {% for blueprint in blueprints %}
                           {% set blueprint_id = blueprint.id %}
-                          {% set id = 'blueprint-' ~ loop.index %}
+                          {% set id = 'blueprint-' ~ blueprint_id.blueprint_id %}
                           <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ blueprint_id.blueprint_id }}</a>
                           {% endfor %}
                         </div>
@@ -298,7 +298,7 @@
                         <div class="tab-content" id="blueprints-tabContent">
                           {% for blueprint in blueprints %}
                           {% set blueprint_id = blueprint.id %}
-                          {% set id = 'blueprint-' ~ loop.index %}
+                          {% set id = 'blueprint-' ~ blueprint_id.blueprint_id %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
                             <div class="card card-primary">
                               <div class="card-header">
@@ -696,6 +696,11 @@
       if (!hash) {
         hash = "#overview";
       }
+
+      if (hash.startsWith('#blueprint-')) {
+          $('[data-toggle="pill"][href="#blueprints"]').trigger('click', false);
+      }
+
       $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
     }
 

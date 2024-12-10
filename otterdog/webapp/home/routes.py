@@ -457,6 +457,11 @@ async def pullrequests():
     )
 
 
+@blueprint.route("/admin/blueprints")
+async def blueprints():
+    return await render_home_template("blueprints.html")
+
+
 @blueprint.route("/admin/tasks")
 async def tasks():
     return await render_home_template("tasks.html")

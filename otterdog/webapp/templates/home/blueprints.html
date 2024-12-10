@@ -1,0 +1,139 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Blueprints {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+  <!-- jsGrid -->
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Blueprints</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">Blueprints</li>
+            </ol>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Blueprints with remediations:</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <div id="blueprintsWithRemediationsGrid"></div>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+
+  <!-- jsGrid -->
+  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+
+  <!-- page script -->
+  <script>
+    $(function () {
+      $("#blueprintsWithRemediationsGrid").jsGrid({
+          height: "auto",
+          width: "100%",
+
+          pageSize: 20,
+
+          filtering: true,
+          sorting: true,
+          paging: true,
+          pageLoading: true,
+          autoload: true,
+
+          controller: {
+              loadData: function(filter) {
+                  var d = $.Deferred();
+
+                  $.ajax({
+                      url: "/api/blueprints/remediations",
+                      data: filter,
+                      dataType: "json"
+                  }).done(function(response) {
+                      d.resolve(response);
+                  });
+
+                  return d.promise();
+              }
+          },
+
+          fields: [
+              { name: "id.org_id", title: "GitHub Organization", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "id.repo_name", title: "Repo name", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + item.id.org_id + "/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "id.blueprint_id", title: "Blueprint ID", type: "text", width: 70,
+                itemTemplate: function(value, item) {
+                  return "<a href='/organizations/" + item.id.org_id + "#blueprint-" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "updated_at", title: "Update Time", type: "text", width: 50 },
+              { name: "status", title: "Status", type: "text", align: "center", width: 40,
+                itemTemplate: function(value) {
+                 return value.toUpperCase();
+                }
+              },
+              { name: "remediation_pr", title: "Remediation PR", type: "number", align: "center", width: 50,
+                itemTemplate: function(value, item) {
+                  if (value > 0) {
+                    return "<a href='https://github.com/" + item.id.org_id + "/" + item.id.repo_name + "/pull/" + value + "'>#" + value + "</a>";
+                  } else {
+                    return "N/A";
+                  }
+                }
+              }
+          ]
+      });
+    });
+  </script>
+
+{% endblock javascripts %}

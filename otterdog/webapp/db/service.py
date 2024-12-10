@@ -859,6 +859,14 @@ async def get_blueprints_status_for_repo(owner: str, repo_name: str) -> list[Blu
     )
 
 
+async def get_blueprints_status_with_remediation() -> list[BlueprintStatusModel]:
+    return await mongo.odm.find(
+        BlueprintStatusModel,
+        BlueprintStatusModel.status == BlueprintStatus.REMEDIATION_PREPARED,
+        sort=query.desc(PullRequestModel.created_at),
+    )
+
+
 async def find_blueprint_status(owner: str, repo_name: str, blueprint_id: str) -> BlueprintStatusModel | None:
     return await mongo.odm.find_one(
         BlueprintStatusModel,
@@ -900,6 +908,66 @@ async def update_or_create_blueprint_status(
 
 async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
     await mongo.odm.save(blueprint_status)
+
+
+async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int]:
+    page_index = 1
+    page_size = 20
+    sort_field_name = "updated_at"
+    sort_order = "desc"
+
+    queries: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.REMEDIATION_PREPARED)]
+
+    for k, v in params.items():
+        match k:
+            case "pageIndex":
+                page_index = int(v)
+            case "pageSize":
+                page_size = int(v)
+            case "sortField":
+                sort_field_name = v
+            case "sortOrder":
+                sort_order = v
+            case _:
+                if v:
+                    if k.startswith("id["):
+                        match k:
+                            case "id[org_id]":
+                                queries.append(query.match(BlueprintStatusModel.id.org_id, v))
+                            case "id[repo_name]":
+                                queries.append(query.match(BlueprintStatusModel.id.repo_name, v))
+                            case "id[blueprint_id]":
+                                queries.append(query.match(BlueprintStatusModel.id.blueprint_id, v))
+                            case _:
+                                raise RuntimeError(f"unexpected query field '{k}'")
+                    else:
+                        queries.append(query.match(BlueprintStatusModel.__dict__[k], v))
+
+    if sort_field_name.startswith("id."):
+        match sort_field_name:
+            case "id.org_id":
+                sort_field = BlueprintStatusModel.id.org_id
+            case "id.repo_name":
+                sort_field = BlueprintStatusModel.id.repo_name
+            case "id.blueprint_id":
+                sort_field = BlueprintStatusModel.id.blueprint_id
+            case _:
+                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
+    else:
+        sort_field = BlueprintStatusModel.__dict__[sort_field_name]
+
+    sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
+    skip = (page_index - 1) * page_size
+    return (
+        await mongo.odm.find(
+            BlueprintStatusModel,
+            *queries,
+            skip=skip,
+            limit=page_size,
+            sort=sort,
+        ),
+        await mongo.odm.count(BlueprintStatusModel, *queries),
+    )
 
 
 async def cleanup_blueprints_status(valid_orgs: list[str]) -> None:
