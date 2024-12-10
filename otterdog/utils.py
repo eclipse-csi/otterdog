@@ -252,7 +252,9 @@ class IndentingPrinter:
             self._writer = self._console.file
         else:
             no_color = output_for_github
-            width = 110 if output_for_github else None
+            width = (
+                110 if output_for_github else 9999
+            )  # set a ridiculous high width for the normal case, otherwise rich will try to wrap lines
             self._console = Console(file=output, no_color=no_color, width=width)
             self._writer = output
 
@@ -286,10 +288,10 @@ class IndentingPrinter:
                 self._print_indentation()
 
                 if line.endswith("\n"):
-                    self._console.print(line[:-1], end="", highlight=highlight, new_line_start=True)
+                    self._console.print(line[:-1], end="", highlight=highlight)
                     self.print_line_break()
                 else:
-                    self._console.print(line, end="", highlight=highlight, new_line_start=True)
+                    self._console.print(line, end="", highlight=highlight)
 
     def println(self, text: str = "", highlight: bool = False) -> None:
         self.print(text, highlight=highlight)
