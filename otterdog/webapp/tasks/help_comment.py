@@ -12,6 +12,7 @@ from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.webhook.github_models import PullRequest
 
 
 @dataclass(repr=False)
@@ -19,7 +20,15 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
     installation_id: int
     org_id: str
     repo_name: str
-    pull_request_number: int
+    pull_request_or_number: PullRequest | int
+
+    @property
+    def pull_request_number(self) -> int:
+        return (
+            self.pull_request_or_number
+            if isinstance(self.pull_request_or_number, int)
+            else self.pull_request_or_number.number
+        )
 
     def create_task_model(self):
         return TaskModel(
@@ -28,6 +37,14 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
             repo_name=self.repo_name,
             pull_request=self.pull_request_number,
         )
+
+    async def _pre_execute(self) -> bool:
+        if isinstance(self.pull_request_or_number, PullRequest):
+            if self.pull_request_or_number.user.type.lower() == "bot":
+                self.logger.debug("not adding help comment for bot user '%s'", self.pull_request_or_number.user.login)
+                return False
+
+        return True
 
     async def _execute(self) -> None:
         self.logger.info(

@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Disabled adding automatic help comments for bot users creating a pull request in the config repo.
 - Disabled checking of team membership for bot users creating a pull request in the config repo.
 
 ### Fixed

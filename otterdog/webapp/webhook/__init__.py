@@ -132,7 +132,7 @@ async def on_pull_request_received(data):
                 installation_id,
                 owner,
                 repo_name,
-                event.pull_request.number,
+                event.pull_request,
             )
         )
 
@@ -141,7 +141,7 @@ async def on_pull_request_received(data):
                 installation_id,
                 owner,
                 repo_name,
-                event.pull_request.number,
+                event.pull_request,
             )
         )
 
