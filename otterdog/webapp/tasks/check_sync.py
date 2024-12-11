@@ -184,7 +184,10 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                     admin_teams=get_full_admin_team_slugs(self.org_id),
                 )
             else:
-                comment = await render_template("comment/in_sync_comment.txt")
+                # comment = await render_template("comment/in_sync_comment.txt")
+                # in case the config is in sync, do not add a redundant comment
+                # there is already the commit status that is visible in the PR itself
+                comment = None
 
             await self.minimize_outdated_comments(
                 self.org_id,
@@ -193,13 +196,14 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 "<!-- Otterdog Comment: check-sync -->",
             )
 
-            rest_api = await self.rest_api
-            await rest_api.issue.create_comment(
-                self.org_id,
-                org_config.config_repo,
-                self.pull_request_number,
-                comment,
-            )
+            if comment is not None:
+                rest_api = await self.rest_api
+                await rest_api.issue.create_comment(
+                    self.org_id,
+                    org_config.config_repo,
+                    self.pull_request_number,
+                    comment,
+                )
 
             return config_in_sync
 
