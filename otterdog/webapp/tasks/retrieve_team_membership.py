@@ -53,6 +53,10 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         else:
             self._pull_request = self.pull_request_or_number
 
+        if self._pull_request.user.type.lower() == "bot":
+            self.logger.info("not checking team membership for bot user '%s'", self._pull_request.user.login)
+            return False
+
         return True
 
     async def _execute(self) -> None:

@@ -7,6 +7,10 @@
 - Added option to specify reviewers for blueprint type `append_configuration`.
 - Added view for currently active remediation PRs for configured blueprints.
 
+### Changed
+
+- Disabled checking of team membership for bot users creating a pull request in the config repo.
+
 ### Fixed
 
 - Prevent wrapping of long texts when importing the configuration.
