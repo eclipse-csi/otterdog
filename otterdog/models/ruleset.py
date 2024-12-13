@@ -170,7 +170,7 @@ class StatusCheckSettings(EmbeddedModelObject):
                     if ":" in check:
                         app_slug, context = re.split(":", check, maxsplit=1)
 
-                        if app_slug != "any":
+                        if app_slug != "any" and " " not in app_slug:
                             app_slugs.add(app_slug)
 
                 return await provider.get_app_ids(app_slugs)
@@ -183,7 +183,7 @@ class StatusCheckSettings(EmbeddedModelObject):
             if ":" in status_check:
                 app_slug, context = re.split(":", status_check, maxsplit=1)
 
-                if app_slug == "any":
+                if app_slug == "any" or " " in app_slug:
                     app_slug = None
             else:
                 app_slug = None
