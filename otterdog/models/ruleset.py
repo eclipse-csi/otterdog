@@ -183,7 +183,10 @@ class StatusCheckSettings(EmbeddedModelObject):
             if ":" in status_check:
                 app_slug, context = re.split(":", status_check, maxsplit=1)
 
-                if app_slug == "any" or " " in app_slug:
+                if app_slug == "any":
+                    app_slug = None
+                elif " " in app_slug:
+                    context = f"{app_slug}:{context}"
                     app_slug = None
             else:
                 app_slug = None
