@@ -141,7 +141,9 @@ async def on_pull_request_received(data):
                 installation_id,
                 owner,
                 repo_name,
-                event.pull_request,
+                # use the PR number to retrieve all data in the task itself
+                # author_association might contain invalid data otherwise
+                event.pull_request.number,
             )
         )
 

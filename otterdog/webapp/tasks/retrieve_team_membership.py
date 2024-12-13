@@ -71,15 +71,24 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         rest_api = await self.rest_api
 
         user = self._pull_request.user.login
-        association = self._pull_request.author_association
 
-        graphql_api = await self.graphql_api
-        team_data = await graphql_api.get_team_membership(self.org_id, user)
-        team_membership = [team["name"] for team in team_data]
+        try:
+            membership = await rest_api.org.get_membership(self.org_id, user)
+            state = membership["state"]
+            role = membership["role"]
 
-        if self._pull_request.author_association == "MEMBER":
+            is_member = bool(state == "active" and role in ("admin", "member"))
+        except RuntimeError:
+            is_member = False
+
+        if is_member is True:
+            graphql_api = await self.graphql_api
+            team_data = await graphql_api.get_team_membership(self.org_id, user)
+            team_membership = [team["name"] for team in team_data]
+            teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
             author_can_auto_merge = contains_eligible_team_for_auto_merge(team_membership)
         else:
+            teams = []
             author_can_auto_merge = False
 
         await update_or_create_pull_request(
@@ -89,11 +98,10 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
             author_can_auto_merge=author_can_auto_merge,
         )
 
-        teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
         comment = await render_template(
             "comment/team_membership_comment.txt",
             user=user,
-            association=association,
+            association=self._pull_request.author_association,
             teams=teams,
         )
 

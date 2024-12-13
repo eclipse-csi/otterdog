@@ -411,6 +411,14 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}") from ex
 
+    async def get_membership(self, org_id: str, user_name: str) -> dict[str, Any]:
+        _logger.debug("retrieving membership for user '%s' in org '%s'", user_name, org_id)
+
+        try:
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/memberships/{user_name}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving membership for user '{user_name}' in org '{org_id}':\n{ex}") from ex
+
     async def get_app_installations(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving app installations for org '%s'", org_id)
 
