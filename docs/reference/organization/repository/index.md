@@ -84,14 +84,22 @@ Definition of a Repository for a GitHub organization, the following properties a
 - disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
 - specifying a `template_repository` and `forked_repository` at the same time triggers an error
 
+!!! tip
+
+    Changing the default branch of a repository has the same behavior as doing it via the Web UI. If the new branch
+    already exists, the default branch will be switched, otherwise, the current default branch will be renamed to the
+    newly specified name.
+
 !!! note
 
     When enabling GitHub Pages by setting `gh_pages_build_type` to either `legacy` or `workflow`, you should also
     define a `github-pages` environment, as it will be created automatically by GitHub.
 
-!!! note
+!!! warning
 
     Specifying a code scanning language that is not detected by GitHub in the repo itself will lead to an error during applying.
+    In general, default setup for code scanning should be used with care as it has some weird behavior, using a custom workflow
+    is the preferred way to use CodeQL. For the custom workflow to succeed, you need to disable the default setup though.
 
 ## Example usage
 
