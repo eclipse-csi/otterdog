@@ -156,7 +156,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             "comment/blueprint_pr_body.txt",
             blueprint=self.blueprint,
             description=description,
-            dasboard_url=dashboard_url,
+            dashboard_url=dashboard_url,
         )
 
         rest_api = await self.rest_api
