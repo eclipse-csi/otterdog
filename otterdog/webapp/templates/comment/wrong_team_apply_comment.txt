@@ -1,2 +1,2 @@
-This is your friendly self-service bot.
-Only members of the admin team(s) `{{ admin_teams|join(', ') }}` are allowed to apply the changes manually.
+> [!WARNING]
+> Only members of the admin team(s) `{{ admin_teams|join(', ') }}` are allowed to apply the changes manually.

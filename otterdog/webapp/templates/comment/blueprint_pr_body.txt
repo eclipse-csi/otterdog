@@ -1,0 +1,12 @@
+This PR has been automatically created by Otterdog due to blueprint: [{{ blueprint.name }}]({{ blueprint.path }}).
+
+{% if description is not none %}
+> {{ description }}
+{% endif %}
+
+> [!NOTE]
+> Closing this PR without merging will dismiss this blueprint for this repository.
+> To re-enable the blueprint, re-open the PR.
+
+> [!TIP]
+> The status of the blueprint can also be accessed via the [Dashboard]({{ dashboard_url }}).

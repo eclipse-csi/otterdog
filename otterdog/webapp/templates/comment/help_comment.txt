@@ -1,6 +1,4 @@
 <!-- Otterdog Comment: help -->
-This is your friendly self-service bot.
-
 Thank you for raising a pull request to update the configuration of your GitHub organization.
 You can manually add reviewers to this PR to eventually enable auto-merging.
 

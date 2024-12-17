@@ -1,2 +1,2 @@
-This is your friendly self-service bot.
-Only members of the admin team(s) `{{ admin_teams|join(', ') }}` are allowed to mark the PR as being completed.
+> [!WARNING]
+> Only members of the admin team(s) `{{ admin_teams|join(', ') }}` are allowed to mark the PR as being completed.

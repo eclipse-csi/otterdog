@@ -93,10 +93,16 @@ class CheckFilesTask(BlueprintTask):
         rest_api = await self.rest_api
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
 
-        await self._create_branch_if_needed(default_branch)
+        branch_created = await self._create_branch_if_needed(default_branch)
 
         # update content in the branch if necessary
         for file, content in files_needing_update:
+            # if the branch already existed and the required file is not strict
+            # do not update the file content in the branch as it would override
+            # any maintainer modifications.
+            if file.strict is False and branch_created is False:
+                continue
+
             await rest_api.content.update_content(
                 self.org_id,
                 self.repo_name,
@@ -109,10 +115,9 @@ class CheckFilesTask(BlueprintTask):
         existing_pr_number = await self._find_existing_pull_request(default_branch)
         if existing_pr_number is not None:
             result.remediation_pr = existing_pr_number
-            return
-
-        pr_title = f"chore(otterdog): adding / updating file(s) due to blueprint `{self.blueprint.id}`"
-        result.remediation_pr = await self._create_pull_request(pr_title, default_branch)
+        else:
+            pr_title = f"chore(otterdog): adding / updating file(s) due to blueprint `{self.blueprint.id}`"
+            result.remediation_pr = await self._create_pull_request(pr_title, default_branch)
 
     def __repr__(self) -> str:
         return f"CheckFilesTask(repo='{self.org_id}/{self.repo_name}', blueprint='{self.blueprint.id}')"

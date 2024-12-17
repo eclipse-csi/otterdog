@@ -1,5 +1,4 @@
 <!-- Otterdog Comment: validate -->
-This is your friendly self-service bot.
 Please find below the validation of the requested configuration changes:
 
 <details>

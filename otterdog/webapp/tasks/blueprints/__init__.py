@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from quart import render_template
+
 from otterdog.webapp.db.models import BlueprintStatus, TaskModel
 from otterdog.webapp.db.service import find_blueprint_status, update_or_create_blueprint_status
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -84,7 +86,13 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
                 result_or_exception.remediation_pr,
             )
 
-    async def _create_branch_if_needed(self, default_branch: str) -> None:
+    async def _create_branch_if_needed(self, default_branch: str) -> bool:
+        """
+        Create a new branch for the associated blueprint if it does not exist yet.
+
+        :param default_branch: the name of the default branch
+        :return: True if a branch was created, False otherwise
+        """
         rest_api = await self.rest_api
 
         try:
@@ -109,6 +117,10 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
                 default_branch_sha,
             )
 
+            return True
+        else:
+            return False
+
     async def _find_existing_pull_request(self, default_branch: str) -> int | None:
         rest_api = await self.rest_api
         open_pull_requests = await rest_api.pull_request.get_pull_requests(
@@ -132,28 +144,20 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             f"creating pull request for blueprint '{self.blueprint.id}' " f"in repo '{self.org_id}/{self.repo_name}'"
         )
 
-        pr_body = (
-            f"This PR has been automatically created by Otterdog due to "
-            f"blueprint: [{self.blueprint.name}]({self.blueprint.path})."
-        )
-
         if self.blueprint.description is not None:
             description_lines = self.blueprint.description.rstrip().split("\n")
             description = " ".join(description_lines)
-
-            pr_body += "\n\n"
-            pr_body += f"> {description}"
-
-        pr_body += "\n\n"
-        pr_body += "> [!NOTE]\n"
-        pr_body += "> Closing this PR without merging will dismiss this blueprint for this repository.\n"
-        pr_body += "> To re-enable the blueprint, re-open the PR."
+        else:
+            description = None
 
         dashboard_url = get_base_url() + f"/organizations/{self.org_id}#blueprint-{self.blueprint.id}"
 
-        pr_body += "\n\n"
-        pr_body += "> [!TIP]\n"
-        pr_body += f"> The status of the blueprint can also be accessed via the [dashboard]({dashboard_url})."
+        pr_body = await render_template(
+            "comment/blueprint_pr_body.txt",
+            blueprint=self.blueprint,
+            description=description,
+            dasboard_url=dashboard_url,
+        )
 
         rest_api = await self.rest_api
         created_pr = await rest_api.pull_request.create_pull_request(
