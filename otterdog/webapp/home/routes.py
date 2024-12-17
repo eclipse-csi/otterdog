@@ -35,7 +35,6 @@ from otterdog.webapp.db.service import (
     get_installation_by_project_name,
     get_installations,
     get_merged_pull_requests_count,
-    get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
     get_policies_status,
     get_scorecard_results,
@@ -449,12 +448,7 @@ async def scorecards():
 
 @blueprint.route("/admin/pullrequests")
 async def pullrequests():
-    open_pull_requests = await get_open_or_incomplete_pull_requests()
-
-    return await render_home_template(
-        "pullrequests.html",
-        open_pull_requests=open_pull_requests,
-    )
+    return await render_home_template("pullrequests.html")
 
 
 @blueprint.route("/admin/blueprints")

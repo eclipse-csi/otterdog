@@ -8,9 +8,6 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- DataTables -->
-  <link rel="stylesheet" href="/assets/vendor/datatables/dataTables.bootstrap4.min.css">
-  <link rel="stylesheet" href="/assets/vendor/datatables/responsive.bootstrap4.min.css">
   <!-- jsGrid -->
   <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
   <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
@@ -44,45 +41,11 @@
           <div class="col-12">
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">Currently open Pull Requests:</h3>
+                <h3 class="card-title">Open Pull Requests:</h3>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="open-pull-requests" class="table table-bordered table-hover">
-                  <thead>
-                  <tr>
-                    <th>Organization</th>
-                    <th>Repo</th>
-                    <th>PR</th>
-                    <th>Created</th>
-                    <th>PR Status</th>
-                    <th>Draft</th>
-                    <th>In-sync</th>
-                    <th>Requires manual</th>
-                    <th>Support automerge</th>
-                    <th>Approved</th>
-                    <th>Apply Status</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                    {% for pr in open_pull_requests %}
-                    {% set id = pr.id %}
-                    <tr class="{{ 'table-secondary' if pr.draft == True else ''}}">
-                      <td><a href="https://github.com/{{ id.org_id }}">{{ id.org_id }}</a></td>
-                      <td><a href="https://github.com/{{ id.org_id }}/{{ id.repo_name }}">{{ id.repo_name }}</a></td>
-                      <td><a href="https://github.com/{{ id.org_id }}/{{ id.repo_name }}/pull/{{ id.pull_request }}">#{{ id.pull_request }}</a></td>
-                      <td>{{ pr.created_at }}</td>
-                      <td>{{ pr.status }}</td>
-                      <td class="{{ 'text-primary' if pr.draft == True else '' }}">{{ pr.draft }}</td>
-                      <td>{{ pr.in_sync }}</td>
-                      <td>{{ pr.requires_manual_apply }}</td>
-                      <td>{{ pr.supports_auto_merge }}</td>
-                      <td>{{ pr.has_required_approvals }}</td>
-                      <td>{{ pr.apply_status }}</td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                <div id="openPullRequestsGrid"></div>
               </div>
               <!-- /.card-body -->
             </div>
@@ -121,21 +84,72 @@
 {% block javascripts %}
   {{ super() }}
 
-  <!-- DataTables -->
-  <script src="/assets/vendor/datatables/jquery.dataTables.min.js"></script>
-  <script src="/assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
-  <script src="/assets/vendor/datatables/dataTables.responsive.min.js"></script>
-  <script src="/assets/vendor/datatables/responsive.bootstrap4.min.js"></script>
   <!-- jsGrid -->
   <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
 
   <!-- page script -->
   <script>
     $(function () {
-      $('#merged-pull-requests').DataTable({
-        "order": [[3, 'desc']],
-        "autoWidth": false,
-        "responsive": true,
+      $("#openPullRequestsGrid").jsGrid({
+          height: "auto",
+          width: "100%",
+
+          pageSize: 10,
+
+          filtering: true,
+          sorting: true,
+          paging: true,
+          pageLoading: true,
+          autoload: true,
+
+          controller: {
+              loadData: function(filter) {
+                  var d = $.Deferred();
+
+                  $.ajax({
+                      url: "/api/pullrequests/open",
+                      data: filter,
+                      dataType: "json"
+                  }).done(function(response) {
+                      d.resolve(response);
+                  });
+
+                  return d.promise();
+              }
+          },
+
+          fields: [
+              { name: "id.org_id", title: "GitHub Organization", type: "text", width: 60,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "id.repo_name", title: "Repo name", type: "text", width: 50,
+                itemTemplate: function(value, item) {
+                  return "<a href='https://github.com/" + item.id.org_id + "/" + value + "'>" + value + "</a>";
+                }
+              },
+              { name: "id.pull_request", title: "Pull Request", type: "number", align: "center", width: 30,
+                itemTemplate: function(value, item) {
+                  if (value > 0) {
+                    return "<a href='https://github.com/" + item.id.org_id + "/" + item.id.repo_name + "/pull/" + value + "'>#" + value + "</a>";
+                  } else {
+                    return "N/A";
+                  }
+                }
+              },
+              { name: "created_at", title: "Create Time", type: "text", align: "center", width: 50 },
+              { name: "status", title: "Status", type: "text", align: "center", width: 30,
+                itemTemplate: function(value) {
+                  return value.toUpperCase();
+                }
+              },
+              { name: "draft", title: "Draft", type: "checkbox", width: 20 },
+              { name: "in_sync", title: "In-Sync", type: "checkbox", width: 20 },
+              { name: "requires_manual_apply", title: "Requires Manual", type: "checkbox", width: 20 },
+              { name: "supports_auto_merge", title: "Supports auto-merge", type: "checkbox", width: 20 },
+              { name: "has_required_approvals", title: "Approved", type: "checkbox", width: 20 }
+          ]
       });
     });
 
@@ -144,7 +158,7 @@
           height: "auto",
           width: "100%",
 
-          pageSize: 20,
+          pageSize: 10,
 
           filtering: true,
           sorting: true,
@@ -179,7 +193,7 @@
                   return "<a href='https://github.com/" + item.id.org_id + "/" + value + "'>" + value + "</a>";
                 }
               },
-              { name: "id.pull_request", title: "Pull Request", type: "number", align: "center", width: 50,
+              { name: "id.pull_request", title: "Pull Request", type: "number", align: "center", width: 30,
                 itemTemplate: function(value, item) {
                   if (value > 0) {
                     return "<a href='https://github.com/" + item.id.org_id + "/" + item.id.repo_name + "/pull/" + value + "'>#" + value + "</a>";
@@ -188,15 +202,15 @@
                   }
                 }
               },
-              { name: "merged_at", title: "Merge Time", type: "text", width: 70 },
+              { name: "merged_at", title: "Merge Time", type: "text", align: "center", width: 50 },
               { name: "status", title: "Status", type: "text", align: "center", width: 40,
                 itemTemplate: function(value) {
-                 return value.toUpperCase();
+                  return value.toUpperCase();
                 }
               },
               { name: "apply_status", title: "Applied", type: "text", align: "center", width: 40,
                 itemTemplate: function(value) {
-                 return value.toUpperCase();
+                  return value.toUpperCase();
                 }
               }
           ]

@@ -14,8 +14,10 @@ from otterdog.webapp.db.service import (
     get_blueprints_with_remediations_paged,
     get_configuration_by_github_id,
     get_configuration_by_project_name,
+    get_dismissed_blueprints_paged,
     get_installations,
     get_merged_pull_requests_paged,
+    get_open_pull_requests_paged,
     get_scorecard_results_paged,
     get_tasks_paged,
 )
@@ -57,6 +59,13 @@ async def tasks():
     return jsonify(result)
 
 
+@blueprint.route("/pullrequests/open")
+async def open_pullrequests():
+    paged_pull_requests, count = await get_open_pull_requests_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
+    return jsonify(result)
+
+
 @blueprint.route("/pullrequests/merged")
 async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
@@ -67,6 +76,13 @@ async def merged_pullrequests():
 @blueprint.route("/blueprints/remediations")
 async def blueprints_with_remediations():
     paged_blueprints, count = await get_blueprints_with_remediations_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count}
+    return jsonify(result)
+
+
+@blueprint.route("/blueprints/dismissed")
+async def dismissed_blueprints():
+    paged_blueprints, count = await get_dismissed_blueprints_paged(request.args.to_dict())
     result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count}
     return jsonify(result)
 
