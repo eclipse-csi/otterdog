@@ -38,40 +38,31 @@
     <section class="content">
       <div class="container-fluid">
         <div class="row">
-          <div class="col-12">
-            <div class="card">
-              <div class="card-header">
-                <h3 class="card-title">Open Pull Requests:</h3>
+          <div class="col-md-12">
+            <div class="card card-primary card-outline card-outline-tabs">
+              <div class="card-header p-0 border-bottom-0">
+                <ul class="nav nav-tabs" id="pr-tabs" role="tablist">
+                  <li class="nav-item">
+                    <a class="nav-link active" id="open-pr-tab" data-toggle="pill" href="#open-prs" role="tab" aria-controls="open-prs" aria-selected="true">Open</a>
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="merged-pr-tab" data-toggle="pill" href="#merged-prs" role="tab" aria-controls="merged-prs" aria-selected="false">Merged</a>
+                  </li>
+                </ul>
               </div>
-              <!-- /.card-header -->
               <div class="card-body">
-                <div id="openPullRequestsGrid"></div>
+                <div class="tab-content" id="pr-tabContent">
+                  <div class="tab-pane show active" id="open-prs" role="tabpanel" aria-labelledby="open-pr-tab">
+                    <div id="openPullRequestsGrid"></div>
+                  </div>
+                  <div class="tab-pane" id="merged-prs" role="tabpanel" aria-labelledby="merged-pr-tab">
+                    <div id="mergedPullRequestsGrid"></div>
+                  </div>
+                </div>
               </div>
-              <!-- /.card-body -->
             </div>
-            <!-- /.card -->
           </div>
-          <!-- /.col -->
         </div>
-        <!-- /.row -->
-
-        <div class="row">
-          <div class="col-12">
-            <div class="card">
-              <div class="card-header">
-                <h3 class="card-title">Merged Pull Requests:</h3>
-              </div>
-              <!-- /.card-header -->
-              <div class="card-body">
-                <div id="mergedPullRequestsGrid"></div>
-              </div>
-              <!-- /.card-body -->
-            </div>
-            <!-- /.card -->
-          </div>
-          <!-- /.col -->
-        </div>
-        <!-- /.row -->
       </div>
       <!-- /.container-fluid -->
     </section>
@@ -89,12 +80,43 @@
 
   <!-- page script -->
   <script>
+    $(document).ready(function() {
+      enableTabFromHash();
+
+      window.onhashchange = function() {
+        enableTabFromHash();
+      };
+    });
+
+    function enableTabFromHash() {
+      var hash = window.location.hash;
+      if (!hash) {
+        hash = "#open-prs";
+      }
+
+      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+    }
+
+    $(".nav-tabs").find("li a").each(function(key, val) {
+      $(val).on("click", function(e, updateHistory) {
+        if (updateHistory == false) {
+          return;
+        }
+
+        if(history.pushState) {
+          history.pushState(null, null, $(this).attr('href'));
+        } else {
+          window.location.hash = $(this).attr('href');
+        }
+      });
+    });
+
     $(function () {
       $("#openPullRequestsGrid").jsGrid({
           height: "auto",
           width: "100%",
 
-          pageSize: 10,
+          pageSize: 20,
 
           filtering: true,
           sorting: true,
@@ -158,7 +180,7 @@
           height: "auto",
           width: "100%",
 
-          pageSize: 10,
+          pageSize: 20,
 
           filtering: true,
           sorting: true,
