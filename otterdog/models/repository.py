@@ -756,7 +756,7 @@ class Repository(ModelObject):
         # private repos do not support secret scanning settings, remove them.
         is_private = data.get("private", False)
         if is_private:
-            for security_prop in cls._security_properties:
+            for security_prop in cls._security_properties + cls._additional_security_properties:
                 if security_prop in mapping:
                     mapping.pop(security_prop)
         else:

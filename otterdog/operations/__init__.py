@@ -115,13 +115,18 @@ class Operation(ABC):
         prefix = f"[{color}]{action}[/] " if action else ""
         closing_prefix = prefix
 
+        max_key_length = self._get_max_key_length_for_nested_dict(data)
+
         if item_header:
             self.printer.print(f"{prefix}{item_header} ")
-        self._print_dict_internal(data, prefix, closing_prefix, False, key_value_separator, value_separator)
+        self._print_dict_internal(
+            data, max_key_length, prefix, closing_prefix, False, key_value_separator, value_separator
+        )
 
     def _print_internal(
         self,
         data: Any,
+        max_key_length: int,
         prefix: str,
         closing_prefix: str,
         include_prefix: bool,
@@ -130,10 +135,23 @@ class Operation(ABC):
     ):
         if isinstance(data, dict):
             self._print_dict_internal(
-                data, prefix, closing_prefix, include_prefix, key_value_separator, value_separator
+                data,
+                max_key_length,
+                prefix,
+                closing_prefix,
+                include_prefix,
+                key_value_separator,
+                value_separator,
             )
         elif isinstance(data, list):
-            self._print_list_internal(data, prefix, closing_prefix, key_value_separator, value_separator)
+            self._print_list_internal(
+                data,
+                max_key_length,
+                prefix,
+                closing_prefix,
+                key_value_separator,
+                value_separator,
+            )
         else:
             self.printer.println(
                 f"{prefix if include_prefix else ''}{self._get_value(data)}{value_separator}", highlight=True
@@ -142,6 +160,7 @@ class Operation(ABC):
     def _print_dict_internal(
         self,
         data: dict[str, Any],
+        max_key_length: int,
         prefix: str,
         closing_prefix: str,
         include_prefix: bool,
@@ -152,8 +171,10 @@ class Operation(ABC):
             self.printer.println(f"{prefix if include_prefix else ''}{{")
             self.printer.level_up()
             for key, value in sorted(data.items()):
-                self.printer.print(f"{prefix}{key.ljust(self._DEFAULT_WIDTH, ' ')} {key_value_separator} ")
-                self._print_internal(value, prefix, closing_prefix, False, key_value_separator, value_separator)
+                self.printer.print(f"{prefix}{key.ljust(max_key_length, ' ')} {key_value_separator} ")
+                self._print_internal(
+                    value, max_key_length, prefix, closing_prefix, False, key_value_separator, value_separator
+                )
 
             self.printer.level_down()
             self.printer.println(f"{closing_prefix}}}{value_separator}")
@@ -161,13 +182,27 @@ class Operation(ABC):
             self.printer.println(f"{prefix if include_prefix else ''}{{}}{value_separator}")
 
     def _print_list_internal(
-        self, data: list[Any], prefix: str, closing_prefix: str, key_value_separator: str, value_separator: str
+        self,
+        data: list[Any],
+        max_key_length: int,
+        prefix: str,
+        closing_prefix: str,
+        key_value_separator: str,
+        value_separator: str,
     ):
         if len(data) > 0:
             self.printer.println("[", highlight=True)
             self.printer.level_up()
             for entry in data:
-                self._print_internal(entry, prefix, closing_prefix, True, key_value_separator, value_separator)
+                self._print_internal(
+                    entry,
+                    max_key_length,
+                    prefix,
+                    closing_prefix,
+                    True,
+                    key_value_separator,
+                    value_separator,
+                )
 
             self.printer.level_down()
             self.printer.println(f"{closing_prefix}],", highlight=True)
@@ -194,6 +229,17 @@ class Operation(ABC):
             length = max(length, len(key))
             if isinstance(expected_value, dict):
                 for k, _ in expected_value.items():
+                    length = max(length, len(k) + self.printer.spaces_per_level)
+
+        return length
+
+    def _get_max_key_length_for_nested_dict(self, data: dict[str, Any]) -> int:
+        length = 0
+
+        for key, value in sorted(data.items()):
+            length = max(length, len(key))
+            if isinstance(value, dict):
+                for k, _ in value.items():
                     length = max(length, len(k) + self.printer.spaces_per_level)
 
         return length

@@ -5,6 +5,10 @@
   "properties": {
     "github_id": { "type": "string" },
     "settings": { "$ref": "settings.json" },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "org-role.json" }
+    },
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }

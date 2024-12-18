@@ -31,6 +31,7 @@ from otterdog.models import (
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
@@ -64,6 +65,7 @@ class GitHubOrganization:
 
     github_id: str
     settings: OrganizationSettings
+    roles: list[OrganizationRole] = dataclasses.field(default_factory=list)
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
@@ -75,6 +77,15 @@ class GitHubOrganization:
     @property
     def secrets_resolved(self) -> bool:
         return self._secrets_resolved
+
+    def add_role(self, role: OrganizationRole) -> None:
+        self.roles.append(role)
+
+    def get_role(self, name: str) -> OrganizationRole | None:
+        return next(filter(lambda x: x.name == name, self.roles), None)  # type: ignore
+
+    def set_roles(self, roles: list[OrganizationRole]) -> None:
+        self.roles = roles
 
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
@@ -125,6 +136,9 @@ class GitHubOrganization:
         context = ValidationContext(self, secret_resolver, template_dir)
         self.settings.validate(context, self)
 
+        for role in self.roles:
+            role.validate(context, self)
+
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
@@ -163,6 +177,10 @@ class GitHubOrganization:
         yield self.settings, None
         yield from self.settings.get_model_objects()
 
+        for role in self.roles:
+            yield role, None
+            yield from role.get_model_objects()
+
         for webhook in self.webhooks:
             yield webhook, None
             yield from webhook.get_model_objects()
@@ -191,6 +209,7 @@ class GitHubOrganization:
         mapping = {
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
+            "roles": OptionalS("roles", default=[]) >> Forall(lambda x: OrganizationRole.from_model_data(x)),
             "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
             "variables": OptionalS("variables", default=[])
@@ -251,6 +270,19 @@ class GitHubOrganization:
         # print organization settings
         printer.print("settings+:")
         self.settings.to_jsonnet(printer, config, context, False, default_org.settings)
+
+        # print organization roles
+        if len(self.roles) > 0:
+            default_org_role = OrganizationRole.from_model_data(config.default_org_role_config)
+
+            printer.println("roles+: [")
+            printer.level_up()
+
+            for role in self.roles:
+                role.to_jsonnet(printer, config, context, False, default_org_role)
+
+            printer.level_down()
+            printer.println("],")
 
         # print organization webhooks
         if len(self.webhooks) > 0:
@@ -341,6 +373,7 @@ class GitHubOrganization:
         self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
     ) -> None:
         OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
+        OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
         OrganizationWebhook.generate_live_patch_of_list(
             self.webhooks, current_organization.webhooks, None, context, handler
         )
@@ -414,10 +447,22 @@ class GitHubOrganization:
 
         org = cls(github_id, settings)
 
-        start = datetime.now()
-        _logger.trace("webhooks: reading...")
+        if jsonnet_config.default_org_role_config is not None and org.settings.plan == "enterprise":
+            start = datetime.now()
+            _logger.trace("roles: reading...")
+            github_roles = await provider.get_org_custom_roles(github_id)
+
+            end = datetime.now()
+            _logger.trace(f"roles: read complete after {(end - start).total_seconds()}s")
+
+            for role in github_roles:
+                org.add_role(OrganizationRole.from_provider_data(github_id, role))
+        else:
+            _logger.debug("not reading org webhooks, no default config available")
 
         if jsonnet_config.default_org_webhook_config is not None:
+            start = datetime.now()
+            _logger.trace("webhooks: reading...")
             github_webhooks = await provider.get_org_webhooks(github_id)
 
             end = datetime.now()
