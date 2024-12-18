@@ -130,6 +130,12 @@ class RestApi:
 
         return TeamClient(self)
 
+    @cached_property
+    def meta(self):
+        from .meta_client import MetaClient
+
+        return MetaClient(self)
+
 
 class RestClient:
     def __init__(self, rest_api: RestApi):

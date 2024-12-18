@@ -95,7 +95,9 @@ class Requester:
             if params is not None:
                 query_params.update(params)
 
-            status, body, next_url = await self._request_raw_with_next_link(method, url_path, json_data, query_params)
+            status, body, next_url, _ = await self._request_raw_with_next_link(
+                method, url_path, json_data, query_params
+            )
             self._check_response(url_path, status, body)
             response = json.loads(body)
 
@@ -134,9 +136,20 @@ class Requester:
         data: str | None = None,
         params: dict[str, Any] | None = None,
     ) -> tuple[int, str]:
-        status, body, _ = await self._request_raw_with_next_link(method, url_path, data, params)
+        status, body, _, _ = await self._request_raw_with_next_link(method, url_path, data, params)
         _logger.trace("'%s' url = %s, result = (%d)", method, url_path, status)
         return status, body
+
+    async def request_raw_with_scopes(
+        self,
+        method: str,
+        url_path: str,
+        data: str | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> tuple[int, str, str]:
+        status, body, _, scopes = await self._request_raw_with_next_link(method, url_path, data, params)
+        _logger.trace("'%s' url = %s, result = (%d)", method, url_path, status)
+        return status, body, scopes
 
     async def _request_raw_with_next_link(
         self,
@@ -144,7 +157,7 @@ class Requester:
         url_path: str,
         data: str | None = None,
         params: dict[str, Any] | None = None,
-    ) -> tuple[int, str, str | None]:
+    ) -> tuple[int, str, str | None, str]:
         _logger.trace("'%s' url = %s, data = %s, params = %s", method, url_path, data, params)
 
         headers = self._headers.copy()
@@ -177,7 +190,12 @@ class Requester:
             else:
                 self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 
-            return status, text, str(next_url) if next_url is not None else None
+            return (
+                status,
+                text,
+                str(next_url) if next_url is not None else None,
+                response.headers.get("X-OAuth-Scopes", ""),
+            )
 
     async def request_stream(
         self,

@@ -757,6 +757,24 @@ def list_advisories(state: list[str], details: bool, organizations: list[str]):
     _execute_operation(organizations, ListAdvisoriesOperation(state, details))
 
 
+@cli.command(cls=StdCommand, short_help="Checks granted scopes for the otterdog token.")
+@click.option(
+    "-l",
+    "--list-granted-scopes",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="display granted scopes",
+)
+def check_token_permissions(list_granted_scopes: bool, organizations: list[str]):
+    """
+    Checks the granted scopes for the otterdog-token.
+    """
+    from otterdog.operations.check_token_permissions import CheckTokenPermissionsOperation
+
+    _execute_operation(organizations, CheckTokenPermissionsOperation(list_granted_scopes))
+
+
 @cli.command(short_help="Installs required dependencies.")
 def install_deps():
     """

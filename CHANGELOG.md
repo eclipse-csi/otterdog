@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operation `check-token-permissions` to list all granted and missing scopes for the cli token.
 - Added option to specify reviewers for blueprint type `append_configuration`.
 - Added view for currently active remediation PRs for configured blueprints.
 
