@@ -300,12 +300,13 @@ async def defaults(project_name: str):
                 jsonnet_config,
                 "org",
                 "GitHub Organization",
-                f"{jsonnet_config.create_org}('<github-id>')",
+                f"{jsonnet_config.create_org}('<project-name>', '<github-id>')",
                 "settings",
             )
         )
 
         elements = [
+            ("org-role", "Organization Role", f"{jsonnet_config.create_org_role}('<name>')"),
             ("org-webhook", "Organization Webhook", f"{jsonnet_config.create_org_webhook}('<url>')"),
             ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
             ("org-variable", "Organization Variable", f"{jsonnet_config.create_org_variable}('<name>')"),
