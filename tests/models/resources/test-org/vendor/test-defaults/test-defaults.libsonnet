@@ -97,7 +97,8 @@ local newBranchProtectionRule(pattern) = {
 };
 
 # Function to create a new organization with default settings.
-local newOrg(id) = {
+local newOrg(name, id) = {
+  project_name: name,
   github_id: id,
   settings: {
     name: null,

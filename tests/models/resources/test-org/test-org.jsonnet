@@ -1,7 +1,7 @@
 
 local orgs = import 'vendor/test-defaults/test-defaults.libsonnet';
 
-orgs.newOrg('test-org') {
+orgs.newOrg('test-org', 'test-org') {
     settings+: {
       billing_email: "info@test.org",
       blog: "https://www.test.org",

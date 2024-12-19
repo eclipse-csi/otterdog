@@ -80,6 +80,7 @@ class OrganizationSettings(ModelObject):
     packages_containers_internal: bool
     members_can_change_project_visibility: bool
     security_managers: list[str]
+    security_manager_role: str | None = dataclasses.field(metadata={"model_only": True})
 
     # nested model fields
     workflows: OrganizationWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
@@ -131,6 +132,17 @@ class OrganizationSettings(ModelObject):
         if is_set_and_present(self.custom_properties):
             for custom_property in self.custom_properties:
                 custom_property.validate(context, self)
+
+        if is_set_and_present(self.security_manager_role):
+            from .github_organization import GitHubOrganization
+
+            security_manager_role = cast(GitHubOrganization, parent_object).get_role(self.security_manager_role)
+            if security_manager_role is None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'security_manager_role' has value '{self.security_manager_role}', "
+                    f"while such an organization role is not defined.",
+                )
 
         if is_set_and_present(self.workflows):
             self.workflows.validate(context, self)
@@ -274,4 +286,10 @@ class OrganizationSettings(ModelObject):
             raise ValueError(f"unexpected patch_type '{patch.patch_type}'")
 
         github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
-        await provider.update_org_settings(org_id, github_settings)
+        security_manager_role = unwrap(patch.expected_object).security_manager_role
+
+        await provider.update_org_settings(
+            org_id,
+            security_manager_role if is_set_and_present(security_manager_role) else None,
+            github_settings,
+        )

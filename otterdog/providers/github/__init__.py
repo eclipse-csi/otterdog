@@ -98,10 +98,16 @@ class GitHubProvider:
             author_email,
         )
 
-    async def get_org_settings(self, org_id: str, included_keys: set[str], no_web_ui: bool) -> dict[str, Any]:
+    async def get_org_settings(
+        self,
+        org_id: str,
+        security_manager_role: str | None,
+        included_keys: set[str],
+        no_web_ui: bool,
+    ) -> dict[str, Any]:
         # first, get supported settings via the rest api.
         required_rest_keys = {x for x in included_keys if x in _SETTINGS_RESTAPI_KEYS}
-        merged_settings = await self.rest_api.org.get_settings(org_id, required_rest_keys)
+        merged_settings = await self.rest_api.org.get_settings(org_id, security_manager_role, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings, unless --no-web-ui is specified.
@@ -115,7 +121,9 @@ class GitHubProvider:
 
         return merged_settings
 
-    async def update_org_settings(self, org_id: str, settings: dict[str, Any]) -> None:
+    async def update_org_settings(
+        self, org_id: str, security_manager_role: str | None, settings: dict[str, Any]
+    ) -> None:
         rest_fields = {}
         web_fields = {}
 
@@ -131,7 +139,7 @@ class GitHubProvider:
 
         # update any settings via the rest api
         if len(rest_fields) > 0:
-            await self.rest_api.org.update_settings(org_id, rest_fields)
+            await self.rest_api.org.update_settings(org_id, security_manager_role, rest_fields)
 
         # update any settings via the web interface
         if len(web_fields) > 0:
@@ -142,6 +150,18 @@ class GitHubProvider:
 
     async def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
         await self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
+
+    async def get_org_custom_roles(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_custom_roles(org_id)
+
+    async def add_org_custom_role(self, org_id: str, role_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_custom_role(org_id, role_name, data)
+
+    async def update_org_custom_role(self, org_id: str, role_id: int, role_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.update_custom_role(org_id, role_id, role_name, data)
+
+    async def delete_org_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
+        await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
 
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_custom_properties(org_id)

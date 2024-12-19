@@ -241,6 +241,14 @@ local newOrgVariable(name) = newRepoVariable(name) {
   selected_repositories: [],
 };
 
+# Function to create a new organization role with default settings.
+local newOrgRole(name) = {
+  name: name,
+  description: "",
+  permissions: [],
+  base_role: "none",
+};
+
 # Function to create a new environment with default settings.
 local newEnvironment(name) = {
   name: name,
@@ -262,7 +270,8 @@ local newCustomProperty(name) = {
 };
 
 # Function to create a new organization with default settings.
-local newOrg(id) = {
+local newOrg(name, id=name) = {
+  project_name: name,
   github_id: id,
   settings: {
     name: null,
@@ -359,6 +368,9 @@ local newOrg(id) = {
     }
   },
 
+  # organization roles
+  roles: [],
+
   # organization secrets
   secrets: [],
 
@@ -385,6 +397,7 @@ local newOrg(id) = {
 
 {
   newOrg:: newOrg,
+  newOrgRole:: newOrgRole,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,

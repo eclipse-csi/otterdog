@@ -27,6 +27,7 @@ class JsonnetConfig:
     #        rather follow a convention to add new resources more easily.
 
     create_org = "newOrg"
+    create_org_role = "newOrgRole"
     create_org_custom_property = "newCustomProperty"
     create_org_webhook = "newOrgWebhook"
     create_org_secret = "newOrgSecret"
@@ -66,6 +67,7 @@ class JsonnetConfig:
         self._local_only = local_only
 
         self._default_org_config: dict[str, Any] | None = None
+        self._default_org_role_config: dict[str, Any] | None = None
         self._default_org_custom_property_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
         self._default_org_secret_config: dict[str, Any] | None = None
@@ -102,17 +104,27 @@ class JsonnetConfig:
 
         self._initialized = True
 
-    def default_org_config_for_org_id(self, org_id: str) -> dict[str, Any]:
+    def default_org_config_for_org_id(self, project_name: str, org_id: str) -> dict[str, Any]:
         try:
             # load the default settings for the organization
-            snippet = f"(import '{self.template_file}').{self.create_org}('{org_id}')"
+            snippet = f"(import '{self.template_file}').{self.create_org}('{project_name}', '{org_id}')"
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}") from ex
 
     @cached_property
     def default_org_config(self) -> dict[str, Any]:
-        return self.default_org_config_for_org_id("default")
+        return self.default_org_config_for_org_id("default", "default")
+
+    @cached_property
+    def default_org_role_config(self):
+        try:
+            # load the default org role config
+            org_role_snippet = f"(import '{self.template_file}').{self.create_org_role}('default')"
+            return jsonnet_evaluate_snippet(org_role_snippet)
+        except RuntimeError:
+            _logger.debug("no default org role config found, roles will be skipped")
+            return None
 
     @cached_property
     def default_org_custom_property_config(self):

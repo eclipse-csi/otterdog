@@ -63,7 +63,7 @@ class ShowLiveOperation(Operation):
                     )
 
                 organization = await GitHubOrganization.load_from_provider(
-                    github_id, jsonnet_config, provider, self.no_web_ui
+                    org_config.name, github_id, jsonnet_config, provider, self.no_web_ui
                 )
 
             for model_object, parent_object in organization.get_model_objects():
