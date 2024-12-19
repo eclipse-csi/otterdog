@@ -104,17 +104,17 @@ class JsonnetConfig:
 
         self._initialized = True
 
-    def default_org_config_for_org_id(self, org_id: str) -> dict[str, Any]:
+    def default_org_config_for_org_id(self, project_name: str, org_id: str) -> dict[str, Any]:
         try:
             # load the default settings for the organization
-            snippet = f"(import '{self.template_file}').{self.create_org}('{org_id}')"
+            snippet = f"(import '{self.template_file}').{self.create_org}('{project_name}', '{org_id}')"
             return jsonnet_evaluate_snippet(snippet)
         except RuntimeError as ex:
             raise RuntimeError(f"failed to get default organization config for org '{org_id}': {ex}") from ex
 
     @cached_property
     def default_org_config(self) -> dict[str, Any]:
-        return self.default_org_config_for_org_id("default")
+        return self.default_org_config_for_org_id("default", "default")
 
     @cached_property
     def default_org_role_config(self):

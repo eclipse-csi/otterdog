@@ -88,7 +88,7 @@ class ImportOperation(Operation):
 
             async with GitHubProvider(credentials) as provider:
                 organization = await GitHubOrganization.load_from_provider(
-                    github_id, jsonnet_config, provider, self.no_web_ui
+                    org_config.name, github_id, jsonnet_config, provider, self.no_web_ui
                 )
 
             # copy secrets from existing configuration if it is present.

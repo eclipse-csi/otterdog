@@ -172,7 +172,7 @@ class DiffOperation(Operation):
             )
 
         try:
-            current_org = await self.load_current_org(github_id, jsonnet_config)
+            current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config)
         except RuntimeError as e:
             self.printer.print_error(f"failed to load current configuration\n{e!s}")
             return 1
@@ -237,9 +237,11 @@ class DiffOperation(Operation):
     def coerce_current_org(self) -> bool:
         return False
 
-    async def load_current_org(self, github_id: str, jsonnet_config: JsonnetConfig) -> GitHubOrganization:
+    async def load_current_org(
+        self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
+    ) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
-            github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.concurrency
+            project_name, github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.concurrency
         )
 
     def preprocess_orgs(

@@ -64,6 +64,7 @@ class GitHubOrganization:
     Represents a GitHub Organization with its associated resources.
     """
 
+    project_name: str
     github_id: str
     settings: OrganizationSettings
     roles: list[OrganizationRole] = dataclasses.field(default_factory=list)
@@ -224,6 +225,7 @@ class GitHubOrganization:
         cls._validate_org_config(data)
 
         mapping = {
+            "project_name": S("project_name"),
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
             "roles": OptionalS("roles", default=[]) >> Forall(lambda x: OrganizationRole.from_model_data(x)),
@@ -274,14 +276,16 @@ class GitHubOrganization:
             model_object.unset_settings_requiring_web_ui()
 
     def to_jsonnet(self, config: JsonnetConfig, context: PatchContext) -> str:
-        default_org = GitHubOrganization.from_model_data(config.default_org_config_for_org_id(self.github_id))
+        default_org = GitHubOrganization.from_model_data(
+            config.default_org_config_for_org_id(self.project_name, self.github_id)
+        )
 
         output = StringIO()
         printer = IndentingPrinter(output)
 
         printer.println(f"local orgs = {config.import_statement};")
         printer.println()
-        printer.println(f"orgs.{config.create_org}('{self.github_id}') {{")
+        printer.println(f"orgs.{config.create_org}('{self.project_name}', '{self.github_id}') {{")
         printer.level_up()
 
         # print organization settings
@@ -389,8 +393,8 @@ class GitHubOrganization:
     def generate_live_patch(
         self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
     ) -> None:
-        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
         OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
+        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
         OrganizationWebhook.generate_live_patch_of_list(
             self.webhooks, current_organization.webhooks, None, context, handler
         )
@@ -432,6 +436,7 @@ class GitHubOrganization:
     @classmethod
     async def load_from_provider(
         cls,
+        project_name: str,
         github_id: str,
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
@@ -445,7 +450,8 @@ class GitHubOrganization:
         #        for now this is the same for organization settings, but there might be cases where it is different.
         default_settings = jsonnet_config.default_org_config["settings"]
         included_keys = set(default_settings.keys())
-        github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
+        security_manager_role = default_settings.get("security_manager_role")
+        github_settings = await provider.get_org_settings(github_id, security_manager_role, included_keys, no_web_ui)
 
         end = datetime.now()
         _logger.trace(f"organization settings: read complete after {(end - start).total_seconds()}s")
@@ -462,7 +468,7 @@ class GitHubOrganization:
                 CustomProperty.from_provider_data(github_id, x) for x in github_custom_properties
             ]
 
-        org = cls(github_id, settings)
+        org = cls(project_name, github_id, settings)
 
         if jsonnet_config.default_org_role_config is not None and org.settings.plan == "enterprise":
             start = datetime.now()

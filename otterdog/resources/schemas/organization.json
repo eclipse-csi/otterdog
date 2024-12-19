@@ -3,6 +3,7 @@
 
   "type": "object",
   "properties": {
+    "project_name": { "type": "string" },
     "github_id": { "type": "string" },
     "settings": { "$ref": "settings.json" },
     "roles": {
@@ -31,6 +32,6 @@
     }
   },
 
-  "required": [ "settings" ],
+  "required": [ "project_name", "github_id", "settings" ],
   "additionalProperties": false
 }

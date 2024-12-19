@@ -22,17 +22,35 @@ class OrgClient(RestClient):
     def __init__(self, rest_api: RestApi):
         super().__init__(rest_api)
 
-    async def get_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
+    async def get_id(self, org_id: str) -> int:
+        _logger.debug("retrieving id for org '%s'", org_id)
+
+        try:
+            settings = await self.requester.request_json("GET", f"/orgs/{org_id}")
+            return settings["id"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving id for org '{org_id}':\n{ex}") from ex
+
+    async def get_settings(
+        self, org_id: str, security_manager_role: str | None, included_keys: set[str]
+    ) -> dict[str, Any]:
         _logger.debug("retrieving settings for org '%s'", org_id)
 
         try:
             settings = await self.requester.request_json("GET", f"/orgs/{org_id}")
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving settings for organization '{org_id}':\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving settings for org '{org_id}':\n{ex}") from ex
 
         if "security_managers" in included_keys:
-            security_managers = await self.list_security_managers(org_id)
-            settings["security_managers"] = security_managers
+            security_manager_role_id = await self.get_role_id(
+                org_id, security_manager_role if security_manager_role is not None else "security_manager"
+            )
+            # handle gracefully if the role does not exist yet
+            if security_manager_role_id is None:
+                settings["security_managers"] = []
+            else:
+                security_managers = await self.list_security_managers(org_id, str(security_manager_role_id))
+                settings["security_managers"] = security_managers
 
         if "default_code_security_configurations_disabled" in included_keys:
             default_configs = await self._get_default_code_security_configurations(org_id)
@@ -46,16 +64,16 @@ class OrgClient(RestClient):
 
         return result
 
-    async def update_settings(self, org_id: str, data: dict[str, Any]) -> None:
-        _logger.debug("updating settings for organization '%s'", org_id)
+    async def update_settings(self, org_id: str, security_manager_role: str | None, data: dict[str, Any]) -> None:
+        _logger.debug("updating settings for org '%s'", org_id)
 
         try:
             await self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
         except GitHubException as ex:
-            raise RuntimeError(f"failed to update settings for organization '{org_id}':\n{ex}") from ex
+            raise RuntimeError(f"failed to update settings for org '{org_id}':\n{ex}") from ex
 
         if "security_managers" in data:
-            await self.update_security_managers(org_id, data["security_managers"])
+            await self.update_security_managers(org_id, security_manager_role, data["security_managers"])
 
         if "default_code_security_configurations_disabled" in data:
             default_code_security_configuration_disabled = data["default_code_security_configurations_disabled"]
@@ -66,59 +84,96 @@ class OrgClient(RestClient):
 
         _logger.debug("updated %d setting(s)", len(data))
 
-    async def list_security_managers(self, org_id: str) -> list[str]:
-        _logger.debug("retrieving security managers for organization '%s'", org_id)
+    async def list_security_managers(self, org_id: str, role_id: str) -> list[str]:
+        _logger.debug("retrieving security managers for org '%s'", org_id)
 
         try:
-            result = await self.requester.request_json("GET", f"/orgs/{org_id}/security-managers")
+            result = await self.requester.request_json("GET", f"/orgs/{org_id}/organization-roles/{role_id}/teams")
             return [x["slug"] for x in result]
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving security managers for organization " f"'{org_id}':\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving security managers for org " f"'{org_id}':\n{ex}") from ex
 
-    async def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
-        _logger.debug("updating security managers for organization '%s'", org_id)
+    async def update_security_managers(
+        self, org_id: str, security_manager_role: str | None, security_managers: list[str]
+    ) -> None:
+        _logger.debug("updating security managers for org '%s'", org_id)
 
-        current_managers = set(await self.list_security_managers(org_id))
+        # if a custom security manager role is used, ensure that the default one has no teams assigned to
+        if security_manager_role is not None:
+            await self.update_security_managers(org_id, None, [])
+
+        security_manager_role_id = await self.get_role_id(
+            org_id, security_manager_role if security_manager_role is not None else "security_manager"
+        )
+
+        if security_manager_role_id is None:
+            _logger.warning(
+                "failed to update security managers for org '%s' as role '%s' does not exist yet",
+                org_id,
+                security_manager_role,
+            )
+            return
+
+        current_managers = set(await self.list_security_managers(org_id, str(security_manager_role_id)))
 
         # first, add all security managers that are not yet configured.
         for team_slug in security_managers:
             if team_slug in current_managers:
                 current_managers.remove(team_slug)
             else:
-                await self.add_security_manager_team(org_id, team_slug)
+                await self.assign_role_to_team(org_id, str(security_manager_role_id), team_slug)
 
         # second, remove the current managers that are left.
         for team_slug in current_managers:
-            await self.remove_security_manager_team(org_id, team_slug)
+            await self.remove_role_from_team(org_id, str(security_manager_role_id), team_slug)
 
-    async def add_security_manager_team(self, org_id: str, team_slug: str) -> None:
-        _logger.debug("adding team '%s' to security managers for organization '%s'", team_slug, org_id)
+    async def assign_role_to_team(self, org_id: str, role_id: str, team_slug: str) -> None:
+        _logger.debug("assigning role with id '%s' to team '%s' for org '%s'", role_id, team_slug, org_id)
 
-        status, body = await self.requester.request_raw("PUT", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
+        status, body = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/organization-roles/teams/{team_slug}/{role_id}"
+        )
 
         if status == 204:
-            _logger.debug("added team '%s' to security managers for organization '%s'", team_slug, org_id)
+            _logger.debug("assigned role '%s' to team '%s' for org '%s'", role_id, team_slug, org_id)
         elif status == 404:
             _logger.warning(
-                "failed to add team '%s' to security managers for organization '%s': team not found", team_slug, org_id
+                "failed to assign role '%s' to team '%s' for org '%s': %s",
+                role_id,
+                team_slug,
+                org_id,
+                body,
             )
         else:
             raise RuntimeError(
-                f"failed adding team '{team_slug}' to security managers of organization '{org_id}'"
-                f"\n{status}: {body}"
+                f"failed assigning role '{role_id}' to team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
             )
 
-    async def remove_security_manager_team(self, org_id: str, team_slug: str) -> None:
-        _logger.debug("removing team '%s' from security managers for organization '%s'", team_slug, org_id)
+    async def remove_role_from_team(self, org_id: str, role_id: str, team_slug: str) -> None:
+        _logger.debug("removing role '%s' from team '%s' in org '%s'", role_id, team_slug, org_id)
 
-        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/security-managers/teams/{team_slug}")
+        status, body = await self.requester.request_raw(
+            "DELETE", f"/orgs/{org_id}/organization-roles/teams/{team_slug}/{role_id}"
+        )
         if status != 204:
             raise RuntimeError(
-                f"failed removing team '{team_slug}' from security managers of organization '{org_id}'"
-                f"\n{status}: {body}"
+                f"failed removing role '{role_id}' from team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
             )
 
-        _logger.debug("removed team '%s' from security managers for organization '%s'", team_slug, org_id)
+        _logger.debug("removed role '%s' from team '%s' in org '%s'", role_id, team_slug, org_id)
+
+    async def get_role_id(self, org_id: str, role_name: str) -> int | None:
+        _logger.debug("retrieving id for role with name '%s' in org '%s'", role_name, org_id)
+
+        try:
+            result = await self.requester.request_json("GET", f"/orgs/{org_id}/organization-roles")
+            for role in result["roles"]:
+                if role["name"] == role_name:
+                    return role["id"]
+
+            return None
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving custom roles for org '{org_id}':\n{ex}") from ex
 
     async def get_custom_roles(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving custom roles for org '%s'", org_id)
@@ -166,7 +221,7 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed retrieving custom properties for org '{org_id}':\n{ex}") from ex
 
     async def add_custom_property(self, org_id: str, property_name: str, data: dict[str, Any]) -> None:
-        _logger.debug("adding org custom property with name '%s' for organization '%s'", property_name, org_id)
+        _logger.debug("adding org custom property with name '%s' for org '%s'", property_name, org_id)
 
         try:
             await self.requester.request_json("PUT", f"/orgs/{org_id}/properties/schema/{property_name}", data)
@@ -217,7 +272,7 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed retrieving webhooks for org '{org_id}':\n{ex}") from ex
 
     async def update_webhook(self, org_id: str, webhook_id: int, webhook: dict[str, Any]) -> None:
-        _logger.debug("updating org webhook '%d' for organization '%s'", webhook_id, org_id)
+        _logger.debug("updating org webhook '%d' for org '%s'", webhook_id, org_id)
 
         try:
             await self.requester.request_json("PATCH", f"/orgs/{org_id}/hooks/{webhook_id}", webhook)
@@ -249,14 +304,14 @@ class OrgClient(RestClient):
         _logger.debug("removed org webhook with url '%s'", url)
 
     async def get_repos(self, org_id: str) -> list[str]:
-        _logger.debug("retrieving repos for organization '%s'", org_id)
+        _logger.debug("retrieving repos for org '%s'", org_id)
 
         params = {"type": "all"}
         try:
             repos = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/repos", params=params)
             return [repo["name"] for repo in repos]
         except GitHubException as ex:
-            raise RuntimeError(f"failed to retrieve repos for organization '{org_id}':\n{ex}") from ex
+            raise RuntimeError(f"failed to retrieve repos for org '{org_id}':\n{ex}") from ex
 
     async def get_secrets(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving secrets for org '%s'", org_id)
@@ -616,7 +671,7 @@ class OrgClient(RestClient):
                 ) from ex
 
     async def list_members(self, org_id: str, two_factor_disabled: bool) -> list[dict[str, Any]]:
-        _logger.debug("retrieving list of organization members for org '%s'", org_id)
+        _logger.debug("retrieving list of org members for org '%s'", org_id)
 
         try:
             params = {"filter": "2fa_disabled"} if two_factor_disabled is True else None

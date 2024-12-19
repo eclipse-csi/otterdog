@@ -67,9 +67,7 @@ class InstallAppOperation(Operation):
                         self.printer.println("app already installed, skipping.")
                         return 0
 
-                settings = await rest_api.org.get_settings(github_id, {"id"})
-                org_int_id = str(settings["id"])
-
+                org_int_id = str(await rest_api.org.get_id(github_id))
                 await provider.web_client.install_github_app(org_int_id, self.app_slug)
 
             self.printer.println("app installed.")
