@@ -45,16 +45,6 @@ class OrganizationRuleset(Ruleset):
 
         super().validate(context, parent_object)
 
-        org_settings = cast(GitHubOrganization, context.root_object).settings
-
-        if is_set_and_valid(org_settings.plan):
-            if org_settings.plan != "enterprise":
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"use of organization rulesets requires an 'enterprise' plan, while this organization is "
-                    f"currently on a '{org_settings.plan}' plan.",
-                )
-
         repositories = cast(GitHubOrganization, context.root_object).repositories
         all_repo_names = (x.name for x in repositories)
 

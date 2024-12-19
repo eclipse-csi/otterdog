@@ -22,6 +22,7 @@ from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 from otterdog import resources
 from otterdog.logging import get_logger
 from otterdog.models import (
+    FailureType,
     LivePatchContext,
     LivePatchHandler,
     ModelObject,
@@ -136,8 +137,17 @@ class GitHubOrganization:
         context = ValidationContext(self, secret_resolver, template_dir)
         self.settings.validate(context, self)
 
-        for role in self.roles:
-            role.validate(context, self)
+        enterprise_plan = self.settings.plan == "enterprise"
+
+        if len(self.roles) > 0 and not enterprise_plan:
+            context.add_failure(
+                FailureType.ERROR,
+                f"use of organization roles requires an 'enterprise' plan, while this organization is "
+                f"currently on a '{self.settings.plan}' plan.",
+            )
+        else:
+            for role in self.roles:
+                role.validate(context, self)
 
         for webhook in self.webhooks:
             webhook.validate(context, self)
@@ -145,8 +155,15 @@ class GitHubOrganization:
         for secret in self.secrets:
             secret.validate(context, self)
 
-        for ruleset in self.rulesets:
-            ruleset.validate(context, self)
+        if len(self.rulesets) > 0 and not enterprise_plan:
+            context.add_failure(
+                FailureType.ERROR,
+                f"use of organization rulesets requires an 'enterprise' plan, while this organization is "
+                f"currently on a '{self.settings.plan}' plan.",
+            )
+        else:
+            for ruleset in self.rulesets:
+                ruleset.validate(context, self)
 
         for repo in self.repositories:
             repo.validate(context, self)

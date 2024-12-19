@@ -9,11 +9,11 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
-from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
+from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.role import Role
-from otterdog.utils import is_set_and_valid, unwrap
+from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -32,21 +32,6 @@ class OrganizationRole(Role):
     @property
     def model_object_name(self) -> str:
         return "org_role"
-
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        from otterdog.models.github_organization import GitHubOrganization
-
-        super().validate(context, parent_object)
-
-        org_settings = cast(GitHubOrganization, context.root_object).settings
-
-        if is_set_and_valid(org_settings.plan):
-            if org_settings.plan != "enterprise":
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"use of organization roles requires an 'enterprise' plan, while this organization is "
-                    f"currently on a '{org_settings.plan}' plan.",
-                )
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_role}"

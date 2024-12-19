@@ -49,6 +49,7 @@ nav:
         - reference/organization/index.md
         - Organization Settings: reference/organization/settings.md
         - Organization Workflow Settings: reference/organization/workflow-settings.md
+        - Organization Role: reference/organization/role.md
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
         - Organization Variable: reference/organization/variable.md

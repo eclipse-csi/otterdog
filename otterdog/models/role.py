@@ -12,6 +12,8 @@ import abc
 import dataclasses
 from typing import Any, TypeVar
 
+from jsonbender import F, OptionalS  # type: ignore
+
 from otterdog.models import (
     FailureType,
     ModelObject,
@@ -51,3 +53,16 @@ class Role(ModelObject, abc.ABC):
                     f"{self.get_model_header(parent_object)} has 'base_role' of value '{self.base_role}', "
                     f"and specified additional permissions, which is not allowed.",
                 )
+
+        # TODO: add validation for allowed permissions
+
+    @classmethod
+    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mapping = super().get_mapping_from_provider(org_id, data)
+
+        mapping.update(
+            {
+                "base_role": OptionalS("base_role") >> F(lambda x: x if x is not None else "none"),
+            }
+        )
+        return mapping
