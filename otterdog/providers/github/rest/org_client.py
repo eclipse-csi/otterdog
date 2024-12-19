@@ -120,6 +120,43 @@ class OrgClient(RestClient):
 
         _logger.debug("removed team '%s' from security managers for organization '%s'", team_slug, org_id)
 
+    async def get_custom_roles(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving custom roles for org '%s'", org_id)
+
+        try:
+            result = await self.requester.request_json("GET", f"/orgs/{org_id}/organization-roles")
+            return [r for r in result["roles"] if r["source"] != "Predefined"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving custom roles for org '{org_id}':\n{ex}") from ex
+
+    async def update_custom_role(self, org_id: str, role_id: int, role_name: str, role: dict[str, Any]) -> None:
+        _logger.debug("updating org role with name '%s' for org '%s'", role_name, org_id)
+
+        try:
+            await self.requester.request_json("PATCH", f"/orgs/{org_id}/organization-roles/{role_id}", role)
+            _logger.debug("updated org role with name '%s'", role_name)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to update org role '{role_name}':\n{ex}") from ex
+
+    async def add_custom_role(self, org_id: str, role_name: str, data: dict[str, Any]) -> None:
+        _logger.debug("adding org role with name '%s' for org '%s'", role_name, org_id)
+
+        try:
+            await self.requester.request_json("POST", f"/orgs/{org_id}/organization-roles", data)
+            _logger.debug("added org role with name '%s'", role_name)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to add org role with name '{role_name}':\n{ex}") from ex
+
+    async def delete_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
+        _logger.debug("deleting org role with name '%s' for org '%s'", role_name, org_id)
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/organization-roles/{role_id}")
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete org role with name '{role_name}'")
+
+        _logger.debug("removed org role with name '%s'", role_name)
+
     async def get_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving custom properties for org '%s'", org_id)
 

@@ -143,6 +143,18 @@ class GitHubProvider:
     async def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
         await self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
 
+    async def get_org_custom_roles(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_custom_roles(org_id)
+
+    async def add_org_custom_role(self, org_id: str, role_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_custom_role(org_id, role_name, data)
+
+    async def update_org_custom_role(self, org_id: str, role_id: int, role_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.update_custom_role(org_id, role_id, role_name, data)
+
+    async def delete_org_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
+        await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
+
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_custom_properties(org_id)
 
