@@ -442,6 +442,7 @@ class GitHubOrganization:
         provider: GitHubProvider,
         no_web_ui: bool = False,
         concurrency: int | None = None,
+        repo_filter: str | None = None,
     ) -> GitHubOrganization:
         start = datetime.now()
         _logger.trace("organization settings: reading...")
@@ -543,6 +544,7 @@ class GitHubOrganization:
                 provider,
                 jsonnet_config,
                 concurrency,
+                repo_filter,
             ):
                 org.add_repository(repo)
         else:
@@ -649,11 +651,17 @@ async def _load_repos_from_provider(
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
     concurrency: int | None = None,
+    repo_filter: str | None = None,
 ) -> list[Repository]:
+    import fnmatch
+
     start = datetime.now()
     _logger.trace("repositories: reading...")
 
     repo_names = await provider.get_repos(github_id)
+
+    if repo_filter is not None:
+        repo_names = fnmatch.filter(repo_names, repo_filter)
 
     teams = {
         str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.rest_api.org.get_teams(github_id)

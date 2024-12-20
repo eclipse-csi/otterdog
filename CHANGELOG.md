@@ -2,8 +2,9 @@
 
 ## [0.11.0] - unreleased
 
-### Added
+### Changed
 
+- Included option `repo-filter` of diff related operations already when getting live data from GitHub to speed up execution.
 
 ## [0.10.0] - 20/12/2024
 

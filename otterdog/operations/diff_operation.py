@@ -241,7 +241,7 @@ class DiffOperation(Operation):
         self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
     ) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
-            project_name, github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.concurrency
+            project_name, github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.concurrency, self.repo_filter
         )
 
     def preprocess_orgs(
