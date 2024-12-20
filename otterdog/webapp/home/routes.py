@@ -8,6 +8,7 @@
 
 import json
 import os.path
+from collections.abc import Mapping, MutableMapping
 from typing import Any
 
 from quart import (
@@ -455,6 +456,28 @@ async def pullrequests():
 @blueprint.route("/admin/blueprints")
 async def blueprints():
     return await render_home_template("blueprints.html")
+
+
+@blueprint.route("/admin/policies")
+async def policies():
+    all_orgs = [x.github_id for x in await get_installations()]
+    aggregate_status = {}
+    for github_id in all_orgs:
+        org_status = {x.id.policy_type: x.status for x in await get_policies_status(github_id)}
+        _merge_policy_status(aggregate_status, org_status)
+
+    return await render_home_template("policies.html", policy_status=aggregate_status)
+
+
+def _merge_policy_status(aggregate_status: MutableMapping[str, Any], org_status: Mapping[str, Any]) -> None:
+    def merge_dict(a: Mapping[str, Any], b: Mapping[str, Any]) -> dict[str, int]:
+        return {k: a.get(k, 0) + b.get(k, 0) for k in set(a).union(set(b))}
+
+    for policy_type, status in org_status.items():
+        if policy_type in aggregate_status:
+            aggregate_status[policy_type] = merge_dict(aggregate_status[policy_type], status)
+        else:
+            aggregate_status.update({policy_type: status})
 
 
 @blueprint.route("/admin/tasks")

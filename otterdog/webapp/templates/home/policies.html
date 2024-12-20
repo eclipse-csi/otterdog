@@ -1,0 +1,86 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Policies {% endblock %}
+
+<!-- Element injected in the BODY element -->
+{% block body_class %} {% endblock body_class %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+  <!-- jsGrid -->
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
+  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Policies</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-right">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">Policies</li>
+            </ol>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+
+    <!-- Main content -->
+    <section class="content">
+      <div class="container-fluid">
+        {% for policy_type, status in policy_status.items() %}
+        <div class="card card-info">
+          <div class="card-header">
+            <h3 class="card-title">{{policy_type}}</h3>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive p-0">
+              <table class="table table-hover text-nowrap">
+                <thead>
+                  <tr>
+                    {% for key, value in status.items() %}
+                    <th>{{ key | snake_to_normal }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {% for key, value in status.items() %}
+                    <td>{{ value }}</td>
+                    {% endfor %}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+  </div>
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}
+  {{ super() }}
+
+  <!-- jsGrid -->
+  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+
+  <!-- page script -->
+  <script>
+  </script>
+
+{% endblock javascripts %}
