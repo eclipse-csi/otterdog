@@ -31,9 +31,7 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving id for org '{org_id}':\n{ex}") from ex
 
-    async def get_settings(
-        self, org_id: str, security_manager_role: str | None, included_keys: set[str]
-    ) -> dict[str, Any]:
+    async def get_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
         _logger.debug("retrieving settings for org '%s'", org_id)
 
         try:
@@ -42,10 +40,8 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed retrieving settings for org '{org_id}':\n{ex}") from ex
 
         if "security_managers" in included_keys:
-            security_manager_role_id = await self.get_role_id(
-                org_id, security_manager_role if security_manager_role is not None else "security_manager"
-            )
-            # handle gracefully if the role does not exist yet
+            security_manager_role_id = await self.get_role_id(org_id, "security_manager")
+            # handle gracefully if the role does not exist
             if security_manager_role_id is None:
                 settings["security_managers"] = []
             else:
@@ -64,7 +60,7 @@ class OrgClient(RestClient):
 
         return result
 
-    async def update_settings(self, org_id: str, security_manager_role: str | None, data: dict[str, Any]) -> None:
+    async def update_settings(self, org_id: str, data: dict[str, Any]) -> None:
         _logger.debug("updating settings for org '%s'", org_id)
 
         try:
@@ -73,7 +69,7 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to update settings for org '{org_id}':\n{ex}") from ex
 
         if "security_managers" in data:
-            await self.update_security_managers(org_id, security_manager_role, data["security_managers"])
+            await self.update_security_managers(org_id, data["security_managers"])
 
         if "default_code_security_configurations_disabled" in data:
             default_code_security_configuration_disabled = data["default_code_security_configurations_disabled"]
@@ -93,24 +89,16 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving security managers for org " f"'{org_id}':\n{ex}") from ex
 
-    async def update_security_managers(
-        self, org_id: str, security_manager_role: str | None, security_managers: list[str]
-    ) -> None:
+    async def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
         _logger.debug("updating security managers for org '%s'", org_id)
 
-        # if a custom security manager role is used, ensure that the default one has no teams assigned to
-        if security_manager_role is not None:
-            await self.update_security_managers(org_id, None, [])
-
-        security_manager_role_id = await self.get_role_id(
-            org_id, security_manager_role if security_manager_role is not None else "security_manager"
-        )
+        security_manager_role_id = await self.get_role_id(org_id, "security_manager")
 
         if security_manager_role_id is None:
             _logger.warning(
                 "failed to update security managers for org '%s' as role '%s' does not exist yet",
                 org_id,
-                security_manager_role,
+                "security_manager",
             )
             return
 

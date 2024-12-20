@@ -101,13 +101,12 @@ class GitHubProvider:
     async def get_org_settings(
         self,
         org_id: str,
-        security_manager_role: str | None,
         included_keys: set[str],
         no_web_ui: bool,
     ) -> dict[str, Any]:
         # first, get supported settings via the rest api.
         required_rest_keys = {x for x in included_keys if x in _SETTINGS_RESTAPI_KEYS}
-        merged_settings = await self.rest_api.org.get_settings(org_id, security_manager_role, required_rest_keys)
+        merged_settings = await self.rest_api.org.get_settings(org_id, required_rest_keys)
 
         # second, get settings only accessible via the web interface and merge
         # them with the other settings, unless --no-web-ui is specified.
@@ -121,9 +120,7 @@ class GitHubProvider:
 
         return merged_settings
 
-    async def update_org_settings(
-        self, org_id: str, security_manager_role: str | None, settings: dict[str, Any]
-    ) -> None:
+    async def update_org_settings(self, org_id: str, settings: dict[str, Any]) -> None:
         rest_fields = {}
         web_fields = {}
 
@@ -139,7 +136,7 @@ class GitHubProvider:
 
         # update any settings via the rest api
         if len(rest_fields) > 0:
-            await self.rest_api.org.update_settings(org_id, security_manager_role, rest_fields)
+            await self.rest_api.org.update_settings(org_id, rest_fields)
 
         # update any settings via the web interface
         if len(web_fields) > 0:

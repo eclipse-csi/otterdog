@@ -124,9 +124,6 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "security_manager_role": {
-      "$ref": "types.json#/$defs/string-or-null"
-    },
     "custom_properties": {
       "type": "array",
       "items": { "$ref": "custom-property.json" }

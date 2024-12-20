@@ -450,8 +450,7 @@ class GitHubOrganization:
         #        for now this is the same for organization settings, but there might be cases where it is different.
         default_settings = jsonnet_config.default_org_config["settings"]
         included_keys = set(default_settings.keys())
-        security_manager_role = default_settings.get("security_manager_role")
-        github_settings = await provider.get_org_settings(github_id, security_manager_role, included_keys, no_web_ui)
+        github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
         end = datetime.now()
         _logger.trace(f"organization settings: read complete after {(end - start).total_seconds()}s")
