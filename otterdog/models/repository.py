@@ -756,7 +756,7 @@ class Repository(ModelObject):
         # private repos do not support secret scanning settings, remove them.
         is_private = data.get("private", False)
         if is_private:
-            for security_prop in cls._security_properties:
+            for security_prop in cls._security_properties + cls._additional_security_properties:
                 if security_prop in mapping:
                     mapping.pop(security_prop)
         else:
@@ -1028,14 +1028,17 @@ class Repository(ModelObject):
                 gh_pages_source_path = cast(Repository, coerced_object).gh_pages_source_path
                 modified_repo["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
 
-            # similar fix as above for squash_merge_commit_title as well
-            if "squash_merge_commit_title" in modified_repo:
+            # similar fix as above for squash_merge_commit_title and squash_merge_commit_message as well
+            squash_merge_commit_title_present = "squash_merge_commit_title" in modified_repo
+            squash_merge_commit_message_present = "squash_merge_commit_message" in modified_repo
+
+            if squash_merge_commit_title_present and not squash_merge_commit_message_present:
                 squash_merge_commit_message = cast(Repository, coerced_object).squash_merge_commit_message
                 modified_repo["squash_merge_commit_message"] = Change(
                     squash_merge_commit_message, squash_merge_commit_message
                 )
 
-            if "squash_merge_commit_message" in modified_repo:
+            if squash_merge_commit_message_present and not squash_merge_commit_title_present:
                 squash_merge_commit_title = cast(Repository, coerced_object).squash_merge_commit_title
                 modified_repo["squash_merge_commit_title"] = Change(
                     squash_merge_commit_title, squash_merge_commit_title

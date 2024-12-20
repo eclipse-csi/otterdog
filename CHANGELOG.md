@@ -4,18 +4,23 @@
 
 ### Added
 
+- Added support for organization roles.
 - Added operation `check-token-permissions` to list all granted and missing scopes for the cli token.
 - Added option to specify reviewers for blueprint type `append_configuration`.
 - Added view for currently active remediation PRs for configured blueprints.
 
 ### Changed
 
+- Adapted default template for GitHub organizations to take an additional parameter: project_name.
+- Changed accessing security managers of an organization using the organization roles api. ([#365](https://github.com/eclipse-csi/otterdog/issues/365))
 - Disabled adding automatic help comments for bot users creating a pull request in the config repo.
 - Disabled checking of team membership for bot users creating a pull request in the config repo.
 
 ### Fixed
 
-- Prevent wrapping of long texts when importing the configuration.
+- Fixed displaying changes when settings `squash_merge_commit_title` and `squash_merge_commit_message` were changed at the same time.
+- Prevented setting `private_vulnerability_reporting_enabled` for private repositories.
+- Prevented wrapping of long texts when importing the configuration.
 
 
 ## [0.9.0] - 09/12/2024

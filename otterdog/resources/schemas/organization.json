@@ -3,8 +3,13 @@
 
   "type": "object",
   "properties": {
+    "project_name": { "type": "string" },
     "github_id": { "type": "string" },
     "settings": { "$ref": "settings.json" },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "org-role.json" }
+    },
     "webhooks": {
       "type": "array",
       "items": { "$ref": "webhook.json" }
@@ -27,6 +32,6 @@
     }
   },
 
-  "required": [ "settings" ],
+  "required": [ "project_name", "github_id", "settings" ],
   "additionalProperties": false
 }

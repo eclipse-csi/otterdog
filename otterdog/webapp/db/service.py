@@ -146,12 +146,17 @@ async def update_installations_from_config(
 
                 projects_to_update.add(project_name)
             else:
-                if model.base_template != org_config.base_template:
+                if model.project_name != project_name:
+                    model.project_name = project_name
                     projects_to_update.add(project_name)
 
-                model.project_name = project_name
-                model.config_repo = org_config.config_repo
-                model.base_template = org_config.base_template
+                if model.base_template != org_config.base_template:
+                    model.base_template = org_config.base_template
+                    projects_to_update.add(project_name)
+
+                if model.config_repo != org_config.config_repo:
+                    model.config_repo = org_config.config_repo
+                    projects_to_update.add(project_name)
 
             await session.save(model)
 

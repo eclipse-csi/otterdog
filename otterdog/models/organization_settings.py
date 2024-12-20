@@ -274,4 +274,8 @@ class OrganizationSettings(ModelObject):
             raise ValueError(f"unexpected patch_type '{patch.patch_type}'")
 
         github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
-        await provider.update_org_settings(org_id, github_settings)
+
+        await provider.update_org_settings(
+            org_id,
+            github_settings,
+        )

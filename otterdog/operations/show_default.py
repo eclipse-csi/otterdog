@@ -48,12 +48,30 @@ class ShowDefaultOperation(Operation):
             self.printer.level_up()
 
         try:
-            default_org = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org}('<github-id>')")
+            default_org = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org}('<project-name>', '<github-id>')")
             default_org_settings = {"settings": default_org["settings"]}
             self.printer.println()
             self._print_header("Organization Settings")
             self.print_dict(
-                default_org_settings, f"orgs.{jsonnet_config.create_org}('<github-id>') =", "", "red", ":", ","
+                default_org_settings,
+                f"orgs.{jsonnet_config.create_org}('<project-name>', '<github-id>') =",
+                "",
+                "red",
+                ":",
+                ",",
+            )
+            self._print_footer()
+
+            default_org_role = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org_role}('<name>')")
+            self.printer.println()
+            self._print_header("Organization Role")
+            self.print_dict(
+                default_org_role,
+                f"orgs.{jsonnet_config.create_org_role}('<name>') =",
+                "",
+                "black",
+                ":",
+                ",",
             )
             self._print_footer()
 

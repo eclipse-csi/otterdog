@@ -4,7 +4,7 @@ This resource represents a GitHub organization with all supported settings and n
 
 === "jsonnet"
     ```jsonnet
-    orgs.newOrg('<github-id>') {
+    orgs.newOrg('<project-name>', '<github-id>') {
         settings+: { ... }, // (1)!
         webhooks+: [ ... ], // (2)!
         secrets+: [ ... ], // (3)!
@@ -30,7 +30,7 @@ This resource represents a GitHub organization with all supported settings and n
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newOrg('<github-id>') {
+orgs.newOrg('<project-name>', <github-id>') {
   <key>: <value>
 }
 ```
@@ -43,7 +43,7 @@ The configuration of a GitHub Organization is considered to be valid if all nest
 
 === "jsonnet"
     ``` jsonnet
-    orgs.newOrg('adoptium') {
+    orgs.newOrg('adoptium', 'adoptium') {
       settings+: {
         blog: "https://adoptium.net",
         default_repository_permission: "none",
