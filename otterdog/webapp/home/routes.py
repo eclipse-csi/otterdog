@@ -29,9 +29,9 @@ from otterdog.webapp.db.service import (
     get_active_installations,
     get_blueprints,
     get_blueprints_status,
-    get_configuration_by_github_id,
     get_configuration_by_project_name,
     get_configurations,
+    get_installation_by_github_id,
     get_installation_by_project_name,
     get_installations,
     get_merged_pull_requests_count,
@@ -174,20 +174,20 @@ async def query():
 
 @blueprint.route("/organizations/<org_name>")
 async def organization(org_name: str):
-    config = await get_configuration_by_github_id(org_name)
-    if config is None:
+    installation = await get_installation_by_github_id(org_name)
+    if installation is None:
         return await render_template("home/page-404.html"), 404
     else:
-        return redirect(url_for(".project", project_name=config.project_name))
+        return redirect(url_for(".project", project_name=installation.project_name))
 
 
 @blueprint.route("/organizations/<org_name>/<path:subpath>")
 async def organization_catch_all_redirect(org_name: str, subpath: str):
-    config = await get_configuration_by_github_id(org_name)
-    if config is None:
+    installation = await get_installation_by_github_id(org_name)
+    if installation is None:
         return await render_template("home/page-404.html"), 404
     else:
-        return redirect(url_for(".project", project_name=config.project_name) + "/" + subpath)
+        return redirect(url_for(".project", project_name=installation.project_name) + "/" + subpath)
 
 
 @blueprint.route("/projects/<project_name>")
