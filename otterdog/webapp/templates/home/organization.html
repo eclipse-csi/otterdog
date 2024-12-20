@@ -72,6 +72,9 @@
                     <a class="nav-link" id="workflow-settings-tab" data-toggle="pill" href="#workflow-settings" role="tab" aria-controls="workflow-settings" aria-selected="false">Workflow Settings</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="roles-tab" data-toggle="pill" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="custom-properties-tab" data-toggle="pill" href="#custom-properties" role="tab" aria-controls="custom-properties" aria-selected="false">Custom Properties</a>
                   </li>
                   <li class="nav-item">
@@ -378,6 +381,36 @@
                     <pre><code class="language-json">{{ config.settings|pretty_format_model }}</code></pre></div>
                   <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
                     <pre><code class="language-json">{{ config.settings.workflows|pretty_format_model }}</code></pre>
+                  </div>
+                  <div class="tab-pane" id="roles" role="tabpanel" aria-labelledby="roles-tab">
+                    <div class="table-responsive p-0">
+                      <table class="table table-hover text-nowrap">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Permissions</th>
+                            <th>Base Role</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for role in config.roles|sort(attribute='name') %}
+                          <tr>
+                            <td>{{ role.name }}</td>
+                            <td>{{ role.description }}</td>
+                            <td>
+                              <ul>
+                              {% for permission in role.permissions %}
+                                <li>{{ permission }}</li>
+                              {% endfor %}
+                              </ul>
+                            </td>
+                            <td>{{ role.base_role }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                   <div class="tab-pane" id="custom-properties" role="tabpanel" aria-labelledby="custom-properties-tab">
                     <div class="table-responsive p-0">
