@@ -2,6 +2,10 @@
 
 ## [0.11.0] - unreleased
 
+### Added
+
+- Use asyncer to speed up retrieval of live settings. ([#209](https://github.com/eclipse-csi/otterdog/issues/209))
+
 ### Changed
 
 - Included option `repo-filter` of diff related operations already when getting live data from GitHub to speed up execution.
