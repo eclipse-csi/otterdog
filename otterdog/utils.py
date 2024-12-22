@@ -586,3 +586,36 @@ def format_date_for_csv(iso_date_str: str) -> str:
         return ""
     date_obj = datetime.fromisoformat(iso_date_str)
     return date_obj.strftime("%d/%m/%Y %H:%M:%S")
+
+
+def debug_times(category: str):
+    import asyncio
+    import functools
+
+    def decorator_timed(func):
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def wrapper_timed(*args, **kwargs):
+                start = datetime.now()
+                _logger.debug(f"{category}: starting ...")
+                value = await func(*args, **kwargs)
+                end = datetime.now()
+                _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
+                return value
+
+            return wrapper_timed
+        else:
+
+            @functools.wraps(func)
+            def wrapper_timed(*args, **kwargs):
+                start = datetime.now()
+                _logger.debug(f"{category}: starting ...")
+                value = func(*args, **kwargs)
+                end = datetime.now()
+                _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
+                return value
+
+            return wrapper_timed
+
+    return decorator_timed

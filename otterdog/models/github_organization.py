@@ -12,7 +12,6 @@ import asyncio
 import dataclasses
 import json
 import os
-from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
@@ -45,10 +44,10 @@ from otterdog.models.repo_variable import RepositoryVariable
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
-from otterdog.utils import IndentingPrinter, associate_by_key, jsonnet_evaluate_file
+from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import AsyncIterator, Callable, Iterator
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.providers.github import GitHubProvider
@@ -444,111 +443,100 @@ class GitHubOrganization:
         concurrency: int | None = None,
         repo_filter: str | None = None,
     ) -> GitHubOrganization:
-        start = datetime.now()
-        _logger.trace("organization settings: reading...")
+        import asyncer
 
-        # FIXME: this uses the keys from the model schema which might be different to the provider schema
-        #        for now this is the same for organization settings, but there might be cases where it is different.
-        default_settings = jsonnet_config.default_org_config["settings"]
-        included_keys = set(default_settings.keys())
-        github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
+        @debug_times("settings")
+        async def _load_settings() -> OrganizationSettings:
+            # FIXME: this uses the keys from the model schema which might be different to the provider schema
+            #        for now this is the same for organization settings, but there might be cases where it is different.
+            default_settings = jsonnet_config.default_org_config["settings"]
+            included_keys = set(default_settings.keys())
+            github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
-        end = datetime.now()
-        _logger.trace(f"organization settings: read complete after {(end - start).total_seconds()}s")
+            settings = OrganizationSettings.from_provider_data(github_id, github_settings)
 
-        settings = OrganizationSettings.from_provider_data(github_id, github_settings)
+            if "workflows" in included_keys:
+                workflow_settings = await provider.get_org_workflow_settings(github_id)
+                settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
 
-        if "workflows" in included_keys:
-            workflow_settings = await provider.get_org_workflow_settings(github_id)
-            settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
+            if "custom_properties" in included_keys:
+                github_custom_properties = await provider.get_org_custom_properties(github_id)
+                settings.custom_properties = [
+                    CustomProperty.from_provider_data(github_id, x) for x in github_custom_properties
+                ]
 
-        if "custom_properties" in included_keys:
-            github_custom_properties = await provider.get_org_custom_properties(github_id)
-            settings.custom_properties = [
-                CustomProperty.from_provider_data(github_id, x) for x in github_custom_properties
-            ]
+            return settings
 
-        org = cls(project_name, github_id, settings)
+        org_settings = await _load_settings()
+        org = cls(project_name, github_id, org_settings)
 
-        if jsonnet_config.default_org_role_config is not None and org.settings.plan == "enterprise":
-            start = datetime.now()
-            _logger.trace("roles: reading...")
-            github_roles = await provider.get_org_custom_roles(github_id)
+        @debug_times("roles")
+        async def _load_roles() -> None:
+            if jsonnet_config.default_org_role_config is not None and org.settings.plan == "enterprise":
+                github_roles = await provider.get_org_custom_roles(github_id)
+                for role in github_roles:
+                    org.add_role(OrganizationRole.from_provider_data(github_id, role))
+            else:
+                _logger.debug("not reading org webhooks, no default config available")
 
-            end = datetime.now()
-            _logger.trace(f"roles: read complete after {(end - start).total_seconds()}s")
+        @debug_times("webhooks")
+        async def _load_webhooks() -> None:
+            if jsonnet_config.default_org_webhook_config is not None:
+                github_webhooks = await provider.get_org_webhooks(github_id)
+                for webhook in github_webhooks:
+                    org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
+            else:
+                _logger.debug("not reading org webhooks, no default config available")
 
-            for role in github_roles:
-                org.add_role(OrganizationRole.from_provider_data(github_id, role))
-        else:
-            _logger.debug("not reading org webhooks, no default config available")
+        @debug_times("secrets")
+        async def _load_secrets() -> None:
+            if jsonnet_config.default_org_secret_config is not None:
+                github_secrets = await provider.get_org_secrets(github_id)
+                for secret in github_secrets:
+                    org.add_secret(OrganizationSecret.from_provider_data(github_id, secret))
+            else:
+                _logger.debug("not reading org secrets, no default config available")
 
-        if jsonnet_config.default_org_webhook_config is not None:
-            start = datetime.now()
-            _logger.trace("webhooks: reading...")
-            github_webhooks = await provider.get_org_webhooks(github_id)
+        @debug_times("variables")
+        async def _load_variables() -> None:
+            if jsonnet_config.default_org_variable_config is not None:
+                github_variables = await provider.get_org_variables(github_id)
+                for variable in github_variables:
+                    org.add_variable(OrganizationVariable.from_provider_data(github_id, variable))
+            else:
+                _logger.debug("not reading org secrets, no default config available")
 
-            end = datetime.now()
-            _logger.trace(f"webhooks: read complete after {(end - start).total_seconds()}s")
+        @debug_times("rulesets")
+        async def _load_rulesets() -> None:
+            if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
+                github_rulesets = await provider.get_org_rulesets(github_id)
+                for ruleset in github_rulesets:
+                    org.add_ruleset(OrganizationRuleset.from_provider_data(github_id, ruleset))
+            else:
+                _logger.debug("not reading org secrets, no default config available")
 
-            for webhook in github_webhooks:
-                org.add_webhook(OrganizationWebhook.from_provider_data(github_id, webhook))
-        else:
-            _logger.debug("not reading org webhooks, no default config available")
+        @debug_times("repos")
+        async def _load_repos() -> None:
+            if jsonnet_config.default_repo_config is not None:
+                async for repo in _load_repos_from_provider(
+                    github_id,
+                    org.settings,
+                    provider,
+                    jsonnet_config,
+                    concurrency,
+                    repo_filter,
+                ):
+                    org.add_repository(repo)
+            else:
+                _logger.debug("not reading repos, no default config available")
 
-        if jsonnet_config.default_org_secret_config is not None:
-            start = datetime.now()
-            _logger.trace("secrets: reading...")
-
-            github_secrets = await provider.get_org_secrets(github_id)
-
-            end = datetime.now()
-            _logger.trace(f"secrets: read complete after {(end - start).total_seconds()}s")
-
-            for secret in github_secrets:
-                org.add_secret(OrganizationSecret.from_provider_data(github_id, secret))
-        else:
-            _logger.debug("not reading org secrets, no default config available")
-
-        if jsonnet_config.default_org_variable_config is not None:
-            start = datetime.now()
-            _logger.trace("variables: reading...")
-
-            github_variables = await provider.get_org_variables(github_id)
-
-            end = datetime.now()
-            _logger.trace(f"variables: read complete after {(end - start).total_seconds()}s")
-
-            for variable in github_variables:
-                org.add_variable(OrganizationVariable.from_provider_data(github_id, variable))
-        else:
-            _logger.debug("not reading org secrets, no default config available")
-
-        if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
-            start = datetime.now()
-            _logger.trace("rulesets: reading...")
-
-            github_rulesets = await provider.get_org_rulesets(github_id)
-
-            end = datetime.now()
-            _logger.trace(f"rulesets: read complete after {(end - start).total_seconds()}s")
-
-            for ruleset in github_rulesets:
-                org.add_ruleset(OrganizationRuleset.from_provider_data(github_id, ruleset))
-        else:
-            _logger.debug("not reading org secrets, no default config available")
-
-        if jsonnet_config.default_repo_config is not None:
-            for repo in await _load_repos_from_provider(
-                github_id,
-                provider,
-                jsonnet_config,
-                concurrency,
-                repo_filter,
-            ):
-                org.add_repository(repo)
-        else:
-            _logger.debug("not reading repos, no default config available")
+        async with asyncer.create_task_group() as task_group:
+            task_group.soonify(_load_roles)()
+            task_group.soonify(_load_webhooks)()
+            task_group.soonify(_load_secrets)()
+            task_group.soonify(_load_variables)()
+            task_group.soonify(_load_rulesets)()
+            task_group.soonify(_load_repos)()
 
         return org
 
@@ -556,6 +544,7 @@ class GitHubOrganization:
 async def _process_single_repo(
     gh_client: GitHubProvider,
     github_id: str,
+    org_settings: OrganizationSettings,
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
@@ -578,9 +567,9 @@ async def _process_single_repo(
     else:
         _logger.debug("not reading branch protection rules, no default config available")
 
-    # repository rulesets are not available for private repos and free plan
-    # TODO: support rulesets in private repos with enterprise plan
-    if jsonnet_config.default_repo_ruleset_config is not None and repo.private is False:
+    if jsonnet_config.default_repo_ruleset_config is not None and (
+        repo.private is False or org_settings.plan == "enterprise"
+    ):
         # get rulesets of the repo
         rulesets = await rest_api.repo.get_rulesets(github_id, repo_name)
         for github_ruleset in rulesets:
@@ -648,15 +637,13 @@ async def _process_single_repo(
 
 async def _load_repos_from_provider(
     github_id: str,
+    org_settings: OrganizationSettings,
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
     concurrency: int | None = None,
     repo_filter: str | None = None,
-) -> list[Repository]:
+) -> AsyncIterator[Repository]:
     import fnmatch
-
-    start = datetime.now()
-    _logger.trace("repositories: reading...")
 
     repo_names = await provider.get_repos(github_id)
 
@@ -677,7 +664,15 @@ async def _load_repos_from_provider(
 
     async def safe_process(repo_name):
         async with sem:
-            return await _process_single_repo(provider, github_id, repo_name, jsonnet_config, teams, app_installations)
+            return await _process_single_repo(
+                provider,
+                github_id,
+                org_settings,
+                repo_name,
+                jsonnet_config,
+                teams,
+                app_installations,
+            )
 
     if concurrency is not None:
         chunk_size = 50
@@ -691,15 +686,9 @@ async def _load_repos_from_provider(
     else:
         result = await asyncio.gather(*[safe_process(repo_name) for repo_name in repo_names])
 
-    github_repos = []
     for data in result:
         _, repo_data = data
-        github_repos.append(repo_data)
-
-    end = datetime.now()
-    _logger.trace(f"repositories: read complete after {(end - start).total_seconds()}s")
-
-    return github_repos
+        yield repo_data
 
 
 def divide_chunks(input_list, n):
