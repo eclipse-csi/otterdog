@@ -12,9 +12,10 @@ import dataclasses
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Protocol
 
-from otterdog.logging import get_logger
+from otterdog.logging import get_logger, print_warn
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
     from typing import Any
 
 _logger = get_logger(__name__)
@@ -84,3 +85,47 @@ class CredentialProvider(Protocol):
 
     @abstractmethod
     def get_secret(self, data: str) -> str: ...
+
+    @classmethod
+    def create(cls, provider_type: str, defaults: Mapping[str, Any]) -> CredentialProvider | None:
+        match provider_type:
+            case "bitwarden":
+                from .bitwarden_provider import BitwardenVault
+
+                valid_keys = _check_valid_keys(provider_type, defaults, BitwardenVault.__init__)
+                return BitwardenVault(**valid_keys)
+
+            case "pass":
+                from .pass_provider import PassVault
+
+                valid_keys = _check_valid_keys(provider_type, defaults, PassVault.__init__)
+                return PassVault(**valid_keys)
+
+            case "inmemory":
+                from .inmemory_provider import InMemoryVault
+
+                _check_valid_keys(provider_type, defaults, InMemoryVault.__init__)
+                return InMemoryVault()
+
+            case "plain":
+                from .plain_provider import PlainVault
+
+                _check_valid_keys(provider_type, defaults, PlainVault.__init__)
+                return PlainVault()
+
+            case _:
+                return None
+
+
+def _check_valid_keys(provider_type: str, defaults: Mapping[str, Any], func: Callable) -> dict[str, Any]:
+    import inspect
+
+    result = {}
+    signature = inspect.signature(func)
+    for k, v in defaults.items():
+        if k in signature.parameters:
+            result[k] = v
+        else:
+            print_warn(f"found unexpected key/value pair '{k}:{v}' in defaults for provider '{provider_type}'")
+
+    return result

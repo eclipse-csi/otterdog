@@ -25,7 +25,7 @@ class InMemoryVault(CredentialProvider):
 
     def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         if only_token is not True:
-            raise RuntimeError("in-memory vault only contains github tokens")
+            raise RuntimeError("in-memory vault can only contain GitHub tokens")
 
         github_token = data[self.KEY_API_TOKEN]
         return Credentials(None, None, None, github_token)
@@ -34,4 +34,4 @@ class InMemoryVault(CredentialProvider):
         raise RuntimeError("in-memory vault does not support secrets")
 
     def __repr__(self):
-        return "InMemoryProvider()"
+        return "InMemoryVault()"

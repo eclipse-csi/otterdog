@@ -72,13 +72,14 @@ $ ./otterdog.sh -h
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
-- define a default configuration to use, you can use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) as a starting point
-- create a `otterdog.json` file that contains the list of organizations you want to manage and some customizations
+- define a default configuration to use, or use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) right away
+- create a `otterdog.json` file that contains a list of GitHub organizations to manager and their respective credentials
 - start managing your organizations using the cli
 
 ### Default configuration
 
-You can define your own default configuration or use the following base template right away: `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main`.
+The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
+However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
 
 ### Otterdog configuration
 
@@ -90,9 +91,6 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
     "jsonnet": {
       "base_template": "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
-    },
-    "github": {
-      "config_repo": ".otterdog"
     }
   },
   "organizations": [
@@ -100,16 +98,23 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
       "name": "<project-name>",
       "github_id": "<github-id>",
       "credentials": {
-        "provider": "bitwarden",
-        "item_id": "<bitwarden item id>"
+        "provider": "plain",
+        "api_token": "<GitHub PAT>",
+        "username": "<Username>",
+        "password": "<Password>",
+        "2fa_seed": "<2FA TOTP seed>"
       }
     }
   ]
 }
 ```
 
-The name of the configuration file can be freely chosen (can be specified with the __-c__ flag).
+The name of the configuration file can be freely chosen (can be overridden with the __-c__ flag).
 However, when named `otterdog.json`, the cli tool will automatically detect and use that file if it is in the current working directory.
+
+> ![IMPORTANT]
+> In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
+> However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
 ### Credentials
 
@@ -238,3 +243,8 @@ A typical workflow to handle changes to an organization are as follows:
 6. (optional) run the `plan` operation to see which changes would be applied taking the current live configuration into account
 7. (regular) run the `apply` operation to actually apply the changes (also runs `validate` and `plan`, so steps 6 & 7 are redundant)
 8. (regular) push the local configuration to the config repo using the `push-config` operation
+
+> ![NOTE]
+> It is not mandatory to store the configuration in the remote config repository (`<org>/.otterdog` by default).
+> It could be stored anywhere else, however the operations `fetch-config` and `push-config` expect this repository to exist
+> to function properly.

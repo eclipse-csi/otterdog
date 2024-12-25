@@ -26,8 +26,8 @@ class BitwardenVault(CredentialProvider):
     A class to provide convenient access to a bitwarden vault.
     """
 
-    def __init__(self, api_token_key: str):
-        self._api_token_key = api_token_key
+    def __init__(self, api_token_key: str | None):
+        self._api_token_key = api_token_key or "api_token_admin"
 
         _logger.debug("unlocking bitwarden vault")
         self._status, output = subprocess.getstatusoutput("bw unlock --check")  # noqa: S605, S607
@@ -36,6 +36,10 @@ class BitwardenVault(CredentialProvider):
 
         if not self.is_unlocked():
             raise RuntimeError("bitwarden vault is locked, run 'bw unlock' and follow instructions first")
+
+    @property
+    def api_token_key(self) -> str:
+        return self._api_token_key
 
     def is_unlocked(self) -> bool:
         return self._status == 0
@@ -47,7 +51,7 @@ class BitwardenVault(CredentialProvider):
 
         api_token_key = data.get("api_token_key")
         if api_token_key is None:
-            api_token_key = self._api_token_key
+            api_token_key = self.api_token_key
 
         status, output = subprocess.getstatusoutput(f"bw get item {item_id}")  # noqa: S605
         if status != 0:
@@ -116,4 +120,4 @@ class BitwardenVault(CredentialProvider):
             raise RuntimeError(f"failed to parse secret data '{data}'") from None
 
     def __repr__(self):
-        return f"BitWardenVault(unlocked={self.is_unlocked()})"
+        return f"BitWardenVault(api_token_key='{self.api_token_key}')"

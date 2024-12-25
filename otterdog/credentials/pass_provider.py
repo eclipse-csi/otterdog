@@ -28,21 +28,22 @@ class PassVault(CredentialProvider):
     KEY_API_TOKEN = "api_token"
     KEY_USERNAME = "username"
     KEY_PASSWORD = "password"
-    KEY_2FA_SEED = "2fa_seed"
+    KEY_TWOFA_SEED = "2fa_seed"
 
     def __init__(
         self,
-        password_store_dir: str,
-        username_pattern: str,
-        password_pattern: str,
-        twofa_seed_pattern: str,
-        api_token_pattern: str,
+        password_store_dir: str | None = None,
+        username_pattern: str | None = None,
+        password_pattern: str | None = None,
+        twofa_seed_pattern: str | None = None,
+        api_token_pattern: str | None = None,
     ):
         _logger.debug("accessing pass vault")
         status, output = getstatusoutput("pass ls")  # noqa: S605, S607
         if status != 0:
             raise RuntimeError(f"could not access pass vault:\n{output}")
 
+        self._password_store_dir = password_store_dir
         if password_store_dir:
             import os
 
@@ -57,13 +58,33 @@ class PassVault(CredentialProvider):
         if status > 0:
             raise RuntimeError("pass vault is not accessible")
 
+    @property
+    def password_store_dir(self) -> str | None:
+        return self._password_store_dir
+
+    @property
+    def username_pattern(self) -> str | None:
+        return self._username_pattern
+
+    @property
+    def password_pattern(self) -> str | None:
+        return self._password_pattern
+
+    @property
+    def twofa_seed_pattern(self) -> str | None:
+        return self._twofa_seed_pattern
+
+    @property
+    def api_token_pattern(self) -> str | None:
+        return self._api_token_pattern
+
     def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, org_name, data)
 
         if only_token is False:
             username = self._retrieve_key(self.KEY_USERNAME, org_name, data)
             password = self._retrieve_key(self.KEY_PASSWORD, org_name, data)
-            totp_secret = self._retrieve_key(self.KEY_2FA_SEED, org_name, data)
+            totp_secret = self._retrieve_key(self.KEY_TWOFA_SEED, org_name, data)
         else:
             username = None
             password = None
@@ -81,13 +102,13 @@ class PassVault(CredentialProvider):
         if resolved_key is None:
             match key:
                 case PassVault.KEY_USERNAME:
-                    pattern = self._username_pattern
+                    pattern = self.username_pattern
                 case PassVault.KEY_PASSWORD:
-                    pattern = self._password_pattern
-                case PassVault.KEY_2FA_SEED:
-                    pattern = self._twofa_seed_pattern
+                    pattern = self.password_pattern
+                case PassVault.KEY_TWOFA_SEED:
+                    pattern = self.twofa_seed_pattern
                 case PassVault.KEY_API_TOKEN:
-                    pattern = self._api_token_pattern
+                    pattern = self.api_token_pattern
                     strict = False
                 case _:
                     raise RuntimeError(f"unexpected key '{key}'")
@@ -116,4 +137,4 @@ class PassVault(CredentialProvider):
         return secret
 
     def __repr__(self):
-        return "PassVault()"
+        return f"PassVault(password_store_dir='{self.password_store_dir}')"

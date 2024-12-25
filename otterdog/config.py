@@ -14,15 +14,14 @@ import re
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Protocol
 
-from .credentials.bitwarden_provider import BitwardenVault
-from .credentials.inmemory_provider import InMemoryVault
-from .credentials.pass_provider import PassVault
+from otterdog.credentials import CredentialProvider
+
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
 from .utils import deep_merge_dict, query_json
 
 if TYPE_CHECKING:
-    from otterdog.credentials import CredentialProvider, Credentials
+    from otterdog.credentials import Credentials
 
 _logger = get_logger(__name__)
 
@@ -235,35 +234,11 @@ class OtterdogConfig(SecretResolver):
     def _get_credential_provider(self, provider_type: str) -> CredentialProvider | None:
         provider = self._credential_providers.get(provider_type)
         if provider is None:
-            match provider_type:
-                case "bitwarden":
-                    api_token_key = (
-                        query_json("defaults.bitwarden.api_token_key", self._configuration) or "api_token_admin"
-                    )
-
-                    provider = BitwardenVault(api_token_key)
-                    self._credential_providers[provider_type] = provider
-
-                case "pass":
-                    pass_defaults = query_json("defaults.pass", self._configuration) or {}
-
-                    password_store_dir = pass_defaults.get("password_store_dir", "")
-                    username_pattern = pass_defaults.get("username_pattern", "")
-                    password_pattern = pass_defaults.get("password_pattern", "")
-                    twofa_seed_pattern = pass_defaults.get("twofa_seed_pattern", "")
-                    api_token_pattern = pass_defaults.get("api_token_pattern", "")
-
-                    provider = PassVault(
-                        password_store_dir, username_pattern, password_pattern, twofa_seed_pattern, api_token_pattern
-                    )
-                    self._credential_providers[provider_type] = provider
-
-                case "inmemory":
-                    provider = InMemoryVault()
-                    self._credential_providers[provider_type] = provider
-
-                case _:
-                    return None
+            provider = CredentialProvider.create(
+                provider_type, query_json(f"defaults.{provider_type}", self._configuration) or {}
+            )
+            if provider is not None:
+                self._credential_providers[provider_type] = provider
 
         return provider
 
