@@ -112,7 +112,7 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
 The name of the configuration file can be freely chosen (can be overridden with the __-c__ flag).
 However, when named `otterdog.json`, the cli tool will automatically detect and use that file if it is in the current working directory.
 
-> ![IMPORTANT]
+> [!IMPORTANT]
 > In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
 > However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
@@ -244,7 +244,7 @@ A typical workflow to handle changes to an organization are as follows:
 7. (regular) run the `apply` operation to actually apply the changes (also runs `validate` and `plan`, so steps 6 & 7 are redundant)
 8. (regular) push the local configuration to the config repo using the `push-config` operation
 
-> ![NOTE]
+> [!NOTE]
 > It is not mandatory to store the configuration in the remote config repository (`<org>/.otterdog` by default).
 > It could be stored anywhere else, however the operations `fetch-config` and `push-config` expect this repository to exist
 > to function properly.
