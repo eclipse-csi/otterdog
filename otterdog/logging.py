@@ -117,18 +117,28 @@ def print_exception(exc: Exception) -> None:
 
         from rich.traceback import Traceback
 
-        rich_tb = Traceback.from_exception(
-            type(exc),
-            exc,
-            exc.__traceback__,
-            show_locals=True,
-            suppress=[asyncio],
-            width=None,
-        )
+        def get_rich_tb(exception: Exception) -> Traceback:
+            return Traceback.from_exception(
+                type(exception),
+                exception,
+                exception.__traceback__,
+                show_locals=is_trace_enabled(),
+                suppress=[asyncio],
+                width=None,
+            )
 
-        CONSOLE_STDERR.print(rich_tb)
+        if isinstance(exc, ExceptionGroup):
+            CONSOLE_STDERR.print(get_rich_tb(exc))
+            for nested_exception in exc.exceptions:
+                CONSOLE_STDERR.print(get_rich_tb(nested_exception))
+        else:
+            CONSOLE_STDERR.print(get_rich_tb(exc))
     else:
-        print_error(str(exc))
+        if isinstance(exc, ExceptionGroup):
+            for nested_exception in exc.exceptions:
+                print_error(str(nested_exception))
+        else:
+            print_error(str(exc))
 
 
 def print_info(msg: str, console: Console = CONSOLE_STDOUT) -> None:

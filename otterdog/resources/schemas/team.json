@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "members": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "privacy": { "type": "string" },
+    "notifications": { "type": "boolean" },
+    "skip_members": { "type": "boolean" },
+    "skip_non_organization_members": { "type": "boolean" }
+  },
+
+  "required": [ "name", "privacy" ],
+  "additionalProperties": false
+}

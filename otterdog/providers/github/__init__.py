@@ -160,6 +160,21 @@ class GitHubProvider:
     async def delete_org_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
         await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
 
+    async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_teams(org_id)
+
+    async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_team_members(org_id, team_slug)
+
+    async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
+        return await self.rest_api.org.add_team(org_id, team_name, data)
+
+    async def update_org_team(self, org_id: str, team_slug: str, data: dict[str, str]) -> None:
+        return await self.rest_api.org.update_team(org_id, team_slug, data)
+
+    async def delete_org_team(self, org_id: str, team_slug: str) -> None:
+        return await self.rest_api.org.delete_team(org_id, team_slug)
+
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_custom_properties(org_id)
 

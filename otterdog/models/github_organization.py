@@ -44,6 +44,7 @@ from otterdog.models.repo_variable import RepositoryVariable
 from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
+from otterdog.models.team import Team
 from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class GitHubOrganization:
     github_id: str
     settings: OrganizationSettings
     roles: list[OrganizationRole] = dataclasses.field(default_factory=list)
+    teams: list[Team] = dataclasses.field(default_factory=list)
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
@@ -87,6 +89,15 @@ class GitHubOrganization:
 
     def set_roles(self, roles: list[OrganizationRole]) -> None:
         self.roles = roles
+
+    def add_team(self, team: Team) -> None:
+        self.teams.append(team)
+
+    def get_team(self, name: str) -> Team | None:
+        return next(filter(lambda x: x.name == name, self.teams), None)  # type: ignore
+
+    def set_teams(self, teams: list[Team]) -> None:
+        self.teams = teams
 
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
@@ -149,6 +160,9 @@ class GitHubOrganization:
             for role in self.roles:
                 role.validate(context, self)
 
+        for team in self.teams:
+            team.validate(context, self)
+
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
@@ -198,6 +212,10 @@ class GitHubOrganization:
             yield role, None
             yield from role.get_model_objects()
 
+        for team in self.teams:
+            yield team, None
+            yield from team.get_model_objects()
+
         for webhook in self.webhooks:
             yield webhook, None
             yield from webhook.get_model_objects()
@@ -228,6 +246,7 @@ class GitHubOrganization:
             "github_id": S("github_id"),
             "settings": S("settings") >> F(lambda x: OrganizationSettings.from_model_data(x)),
             "roles": OptionalS("roles", default=[]) >> Forall(lambda x: OrganizationRole.from_model_data(x)),
+            "teams": OptionalS("teams", default=[]) >> Forall(lambda x: Team.from_model_data(x)),
             "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
             "variables": OptionalS("variables", default=[])
@@ -300,6 +319,19 @@ class GitHubOrganization:
 
             for role in self.roles:
                 role.to_jsonnet(printer, config, context, False, default_org_role)
+
+            printer.level_down()
+            printer.println("],")
+
+        # print teams
+        if len(self.teams) > 0:
+            default_team = Team.from_model_data(config.default_team_config)
+
+            printer.println("teams+: [")
+            printer.level_up()
+
+            for team in self.teams:
+                team.to_jsonnet(printer, config, context, False, default_team)
 
             printer.level_down()
             printer.println("],")
@@ -393,6 +425,7 @@ class GitHubOrganization:
         self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
     ) -> None:
         OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
+        Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, context, handler)
         OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
         OrganizationWebhook.generate_live_patch_of_list(
             self.webhooks, current_organization.webhooks, None, context, handler
@@ -479,6 +512,17 @@ class GitHubOrganization:
             else:
                 _logger.debug("not reading org webhooks, no default config available")
 
+        @debug_times("teams")
+        async def _load_teams() -> None:
+            if jsonnet_config.default_team_config is not None:
+                github_teams = await provider.get_org_teams(github_id)
+                for team in github_teams:
+                    team_members = await provider.get_org_team_members(github_id, team["slug"])
+                    team["members"] = team_members
+                    org.add_team(Team.from_provider_data(github_id, team))
+            else:
+                _logger.debug("not reading teams, no default config available")
+
         @debug_times("webhooks")
         async def _load_webhooks() -> None:
             if jsonnet_config.default_org_webhook_config is not None:
@@ -532,6 +576,7 @@ class GitHubOrganization:
 
         async with asyncer.create_task_group() as task_group:
             task_group.soonify(_load_roles)()
+            task_group.soonify(_load_teams)()
             task_group.soonify(_load_webhooks)()
             task_group.soonify(_load_secrets)()
             task_group.soonify(_load_variables)()
