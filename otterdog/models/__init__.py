@@ -53,6 +53,7 @@ class ValidationContext:
     root_object: Any
     secret_resolver: SecretResolver
     template_dir: str
+    org_members: set[str]
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 
     def add_failure(self, failure_type: FailureType, message: str):

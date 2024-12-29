@@ -60,6 +60,9 @@ class Team(ModelObject, abc.ABC):
         return True
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        # execute custom validation rules if present
+        self.execute_custom_validation_if_present(context, "validate-team.py")
+
         if is_set_and_valid(self.privacy):
             if self.privacy not in {"secret", "visible"}:
                 context.add_failure(
@@ -67,6 +70,22 @@ class Team(ModelObject, abc.ABC):
                     f"{self.get_model_header(parent_object)} has 'privacy' of value '{self.privacy}', "
                     f"while only values ('secret' | 'closed') are allowed.",
                 )
+
+        if self.skip_members is True and is_set_and_valid(self.members) and len(self.members) > 0:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'skip_members' enabled, "
+                f"but 'members' is set to {self.members}.",
+            )
+
+        if is_set_and_valid(self.members) and self.skip_non_organization_members is True:
+            for member in self.members:
+                if member not in context.org_members:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'skip_non_organization_members' enabled, "
+                        f"but 'members' contains user '{member}' who is not an organization member.",
+                    )
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -118,10 +137,11 @@ class Team(ModelObject, abc.ABC):
     ) -> None:
         match patch.patch_type:
             case LivePatchType.ADD:
+                expected_object = unwrap(patch.expected_object)
                 await provider.add_org_team(
                     org_id,
-                    unwrap(patch.expected_object).name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                    expected_object.name,
+                    await expected_object.to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:

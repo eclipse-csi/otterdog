@@ -281,6 +281,8 @@ def _get_branch_protection_data(org: GitHubOrganization) -> list[int]:
 
 @blueprint.route("/projects/<project_name>/defaults")
 async def defaults(project_name: str):
+    import contextlib
+
     import aiofiles
 
     installation = await get_installation_by_project_name(project_name)
@@ -308,18 +310,19 @@ async def defaults(project_name: str):
 
         elements = [
             ("org-role", "Organization Role", f"{jsonnet_config.create_org_role}('<name>')"),
-            ("org-webhook", "Organization Webhook", f"{jsonnet_config.create_org_webhook}('<url>')"),
+            ("org-ruleset", "Organization Ruleset", f"{jsonnet_config.create_org_ruleset}('<name>')"),
+            ("org-team", "Organization Team", f"{jsonnet_config.create_org_team}('<name>')"),
             ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
             ("org-variable", "Organization Variable", f"{jsonnet_config.create_org_variable}('<name>')"),
+            ("org-webhook", "Organization Webhook", f"{jsonnet_config.create_org_webhook}('<url>')"),
             (
                 "org-custom-property",
                 "Organization Custom Property",
                 f"{jsonnet_config.create_org_custom_property}('<name>')",
             ),
-            ("org-ruleset", "Organization Ruleset", f"{jsonnet_config.create_org_ruleset}('<name>')"),
-            ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
             ("repo-secret", "Repository Secret", f"{jsonnet_config.create_repo_secret}('<name>')"),
             ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
+            ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
             ("environment", "Environment", f"{jsonnet_config.create_environment}('<name>')"),
             ("bpr", "Branch Protection Rule", f"{jsonnet_config.create_branch_protection_rule}('<pattern>')"),
             ("repo-ruleset", "Repository Ruleset", f"{jsonnet_config.create_repo_ruleset}('<name>')"),
@@ -329,7 +332,9 @@ async def defaults(project_name: str):
         ]
 
         for element_id, name, function in elements:
-            default_elements.append(_get_snippet(jsonnet_config, element_id, name, function))
+            # if evaluation fails, the default config might not define this resource
+            with contextlib.suppress(RuntimeError):
+                default_elements.append(_get_snippet(jsonnet_config, element_id, name, function))
 
     return await render_home_template(
         "defaults.html",

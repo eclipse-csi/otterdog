@@ -199,6 +199,10 @@ class OtterdogConfig(SecretResolver):
         return self._github_config.get("config_repo", ".otterdog")
 
     @property
+    def default_team_exclusions(self) -> list[str]:
+        return self._github_config.get("exclude_teams", [])
+
+    @property
     def default_base_template(self) -> str:
         base_template = self._jsonnet_config.get("base_template")
         if base_template is None:

@@ -144,8 +144,19 @@ class GitHubOrganization:
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
-    def validate(self, secret_resolver: SecretResolver, template_dir: str) -> ValidationContext:
-        context = ValidationContext(self, secret_resolver, template_dir)
+    async def validate(
+        self,
+        secret_resolver: SecretResolver,
+        template_dir: str,
+        provider: GitHubProvider,
+    ) -> ValidationContext:
+        # only retrieve the list of current organization members if there are teams defined
+        if len(self.teams) > 0:
+            org_members = {x["login"] for x in await provider.rest_api.org.list_members(self.github_id)}
+        else:
+            org_members = set()
+
+        context = ValidationContext(self, secret_resolver, template_dir, org_members)
         self.settings.validate(context, self)
 
         enterprise_plan = self.settings.plan == "enterprise"

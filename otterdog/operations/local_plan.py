@@ -13,13 +13,11 @@ from typing import TYPE_CHECKING
 from aiofiles import ospath
 
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.providers.github import GitHubProvider
 from otterdog.utils import unwrap
 
 from .plan import PlanOperation
 
 if TYPE_CHECKING:
-    from otterdog.config import OrganizationConfig
     from otterdog.jsonnet import JsonnetConfig
 
 
@@ -56,9 +54,6 @@ class LocalPlanOperation(PlanOperation):
 
     def resolve_secrets(self) -> bool:
         return False
-
-    def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(None)
 
     def coerce_current_org(self) -> bool:
         return True

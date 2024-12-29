@@ -747,7 +747,7 @@ class OrgClient(RestClient):
                     f"failed disabling default code security configuration with id {configuration_id}:\n{ex}"
                 ) from ex
 
-    async def list_members(self, org_id: str, two_factor_disabled: bool) -> list[dict[str, Any]]:
+    async def list_members(self, org_id: str, two_factor_disabled: bool = False) -> list[dict[str, Any]]:
         _logger.debug("retrieving list of org members for org '%s'", org_id)
 
         try:
