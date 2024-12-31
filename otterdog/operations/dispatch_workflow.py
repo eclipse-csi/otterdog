@@ -52,7 +52,7 @@ class DispatchWorkflowOperation(Operation):
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1

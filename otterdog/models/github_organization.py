@@ -49,6 +49,7 @@ from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, json
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
+    from re import Pattern
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.providers.github import GitHubProvider
@@ -146,6 +147,7 @@ class GitHubOrganization:
 
     async def validate(
         self,
+        config: OtterdogConfig,
         secret_resolver: SecretResolver,
         template_dir: str,
         provider: GitHubProvider,
@@ -156,7 +158,13 @@ class GitHubOrganization:
         else:
             org_members = set()
 
-        context = ValidationContext(self, secret_resolver, template_dir, org_members)
+        context = ValidationContext(
+            self,
+            secret_resolver,
+            template_dir,
+            org_members,
+            config.exclude_teams_pattern,
+        )
         self.settings.validate(context, self)
 
         enterprise_plan = self.settings.plan == "enterprise"
@@ -455,13 +463,7 @@ class GitHubOrganization:
         )
 
     @classmethod
-    def load_from_file(
-        cls,
-        github_id: str,
-        config_file: str,
-        config: OtterdogConfig,
-        resolve_secrets: bool = False,
-    ) -> GitHubOrganization:
+    def load_from_file(cls, github_id: str, config_file: str) -> GitHubOrganization:
         if not os.path.exists(config_file):
             msg = f"configuration file '{config_file}' for organization '{github_id}' does not exist"
             raise RuntimeError(msg)
@@ -469,12 +471,7 @@ class GitHubOrganization:
         _logger.debug("loading configuration for organization '%s' from file '%s'", github_id, config_file)
         data = jsonnet_evaluate_file(config_file)
 
-        org = cls.from_model_data(data)
-
-        if resolve_secrets:
-            org.resolve_secrets(config.get_secret)
-
-        return org
+        return cls.from_model_data(data)
 
     @classmethod
     async def load_from_provider(
@@ -486,6 +483,7 @@ class GitHubOrganization:
         no_web_ui: bool = False,
         concurrency: int | None = None,
         repo_filter: str | None = None,
+        exclude_teams: Pattern | None = None,
     ) -> GitHubOrganization:
         import asyncer
 
@@ -528,6 +526,8 @@ class GitHubOrganization:
             if jsonnet_config.default_team_config is not None:
                 github_teams = await provider.get_org_teams(github_id)
                 for team in github_teams:
+                    if exclude_teams is not None and exclude_teams.match(team["slug"]):
+                        continue
                     team_members = await provider.get_org_team_members(github_id, team["slug"])
                     team["members"] = team_members
                     org.add_team(Team.from_provider_data(github_id, team))

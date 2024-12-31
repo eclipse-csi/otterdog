@@ -51,13 +51,13 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name)
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {ex!s}")
                 return 1
 
             try:
-                credentials = self.config.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -104,7 +104,7 @@ class ValidateOperation(Operation):
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
-        context = await organization.validate(self.config, template_dir, provider)
+        context = await organization.validate(self.config, self.credential_resolver, template_dir, provider)
 
         validation_infos = 0
         validation_warnings = 0

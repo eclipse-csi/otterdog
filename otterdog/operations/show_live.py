@@ -50,7 +50,7 @@ class ShowLiveOperation(Operation):
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config)
+                credentials = self.get_credentials(org_config)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -63,7 +63,12 @@ class ShowLiveOperation(Operation):
                     )
 
                 organization = await GitHubOrganization.load_from_provider(
-                    org_config.name, github_id, jsonnet_config, provider, self.no_web_ui
+                    org_config.name,
+                    github_id,
+                    jsonnet_config,
+                    provider,
+                    self.no_web_ui,
+                    exclude_teams=self.config.exclude_teams_pattern,
                 )
 
             for model_object, parent_object in organization.get_model_objects():

@@ -13,11 +13,13 @@ from typing import TYPE_CHECKING
 from aiofiles import ospath
 
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.providers.github import GitHubProvider
 from otterdog.utils import unwrap
 
 from .plan import PlanOperation
 
 if TYPE_CHECKING:
+    from otterdog.config import OrganizationConfig
     from otterdog.jsonnet import JsonnetConfig
 
 
@@ -58,6 +60,9 @@ class LocalPlanOperation(PlanOperation):
     def coerce_current_org(self) -> bool:
         return True
 
+    def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
+        return GitHubProvider(self.get_credentials(org_config, only_token=True))
+
     async def load_current_org(
         self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
     ) -> GitHubOrganization:
@@ -66,7 +71,7 @@ class LocalPlanOperation(PlanOperation):
         if not await ospath.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-        return GitHubOrganization.load_from_file(github_id, other_org_file_name, self.config)
+        return GitHubOrganization.load_from_file(github_id, other_org_file_name)
 
     def preprocess_orgs(
         self, expected_org: GitHubOrganization, current_org: GitHubOrganization

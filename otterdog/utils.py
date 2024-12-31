@@ -22,7 +22,7 @@ from otterdog.logging import _print_message, get_logger, is_info_enabled
 
 if TYPE_CHECKING:
     from argparse import Namespace
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
 T = TypeVar("T")
 
@@ -560,7 +560,7 @@ class PrettyFormatter:
         return "(%s)" % (",".join(items) + self.lfchar + self.htchar * indent)
 
 
-def query_json(expr: str, data: dict[str, Any]) -> Any:
+def query_json(expr: str, data: Mapping[str, Any]) -> Any:
     """
     Evaluates a jsonata expression on the given dictionary.
     """

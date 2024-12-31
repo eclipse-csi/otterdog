@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import asyncio
+import json
 import re
 import sys
 from datetime import datetime, timedelta
@@ -31,6 +32,9 @@ from otterdog.webapp.policies import Policy, read_policy
 logger = getLogger(__name__)
 
 _OTTERDOG_CONFIG: OtterdogConfig | None = None
+_OTTERDOG_CONFIG_RETRIEVED_AT: datetime | None = None
+_OTTERDOG_CONFIG_LOCK = asyncio.Lock()
+
 _CREATE_INSTALLATION_TOKEN_LOCK = asyncio.Lock()
 
 _GLOBAL_POLICIES: list[Policy] | None = None
@@ -130,18 +134,68 @@ def get_temporary_base_directory(app: Quart | None = None) -> str:
 
 
 async def get_otterdog_config() -> OtterdogConfig:
-    global _OTTERDOG_CONFIG
+    global _OTTERDOG_CONFIG, _OTTERDOG_CONFIG_RETRIEVED_AT
 
-    if _OTTERDOG_CONFIG is None:
-        _OTTERDOG_CONFIG = await _load_otterdog_config()
+    redis = get_redis()
+
+    async with _OTTERDOG_CONFIG_LOCK:
+        key = f"config:{_get_otterdog_config_url()}"
+        current_data = decode_bytes_dict(await redis.hgetall(key))
+
+        configuration = current_data.get("configuration", None)
+        created_at_str = current_data.get("created_at", None)
+
+        if created_at_str is None or configuration is None:
+            return await refresh_otterdog_config()
+
+        created_at = datetime.fromisoformat(created_at_str)
+        if (
+            _OTTERDOG_CONFIG_RETRIEVED_AT is None
+            or _OTTERDOG_CONFIG is None
+            or created_at > _OTTERDOG_CONFIG_RETRIEVED_AT
+        ):
+            logger.info("loading otterdog config from cache")
+            _OTTERDOG_CONFIG = OtterdogConfig.from_dict(
+                json.loads(configuration), False, current_app.config["APP_ROOT"]
+            )
+            _OTTERDOG_CONFIG_RETRIEVED_AT = created_at
+        else:
+            logger.info("re-using locally cached otterdog config")
 
     return _OTTERDOG_CONFIG
 
 
 async def refresh_otterdog_config(sha: str | None = None) -> OtterdogConfig:
-    global _OTTERDOG_CONFIG
-    _OTTERDOG_CONFIG = await _load_otterdog_config(sha)
-    return _OTTERDOG_CONFIG
+    global _OTTERDOG_CONFIG, _OTTERDOG_CONFIG_RETRIEVED_AT
+
+    config_url = _get_otterdog_config_url()
+    logger.info(f"refreshing otterdog config from config url '{config_url}'")
+
+    redis = get_redis()
+    config = await _load_otterdog_config(sha)
+
+    created_at = current_utc_time()
+
+    _OTTERDOG_CONFIG = config
+    _OTTERDOG_CONFIG_RETRIEVED_AT = created_at
+
+    await redis.hset(
+        f"config:{config_url}",
+        mapping={
+            "configuration": json.dumps(config.configuration),
+            "created_at": created_at.isoformat(),
+        },
+    )
+
+    return config
+
+
+def _get_otterdog_config_url() -> str:
+    config_file_owner = current_app.config["OTTERDOG_CONFIG_OWNER"]
+    config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
+    config_file_path = current_app.config["OTTERDOG_CONFIG_PATH"]
+
+    return f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
 
 
 async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
@@ -163,7 +217,7 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
             name = cast(str, file.name)
             await file.write(content)
             await file.flush()
-            return OtterdogConfig(name, False, app_root)
+            return OtterdogConfig.from_file(name, False, app_root)
 
 
 async def refresh_global_policies(sha: str | None = None) -> list[Policy]:

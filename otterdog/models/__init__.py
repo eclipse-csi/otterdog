@@ -33,6 +33,7 @@ from otterdog.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
+    from re import Pattern
 
     from otterdog.config import SecretResolver
     from otterdog.jsonnet import JsonnetConfig
@@ -54,6 +55,7 @@ class ValidationContext:
     secret_resolver: SecretResolver
     template_dir: str
     org_members: set[str]
+    exclude_teams_pattern: Pattern | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 
     def add_failure(self, failure_type: FailureType, message: str):

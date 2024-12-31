@@ -63,6 +63,13 @@ class Team(ModelObject, abc.ABC):
         # execute custom validation rules if present
         self.execute_custom_validation_if_present(context, "validate-team.py")
 
+        if context.exclude_teams_pattern is not None and context.exclude_teams_pattern.match(self.name):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'name' of value '{self.name}', "
+                f"which is not allowed due to exclusion pattern '{context.exclude_teams_pattern.pattern}'.",
+            )
+
         if is_set_and_valid(self.privacy):
             if self.privacy not in {"secret", "visible"}:
                 context.add_failure(
@@ -151,5 +158,5 @@ class Team(ModelObject, abc.ABC):
                 await provider.update_org_team(
                     org_id,
                     unwrap(patch.current_object).slug,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                    await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
                 )
