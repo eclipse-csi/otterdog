@@ -29,7 +29,7 @@ class PlainVault(CredentialProvider):
     KEY_API_TOKEN = "api_token"
     KEY_USERNAME = "username"
     KEY_PASSWORD = "password"
-    KEY_TWOFA_SEED = "2fa_seed"
+    KEY_TWOFA_SEED = "twofa_seed"
 
     def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, data)
