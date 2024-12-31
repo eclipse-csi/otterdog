@@ -26,8 +26,10 @@ class BitwardenVault(CredentialProvider):
     A class to provide convenient access to a bitwarden vault.
     """
 
-    def __init__(self, api_token_key: str | None):
-        self._api_token_key = api_token_key or "api_token_admin"
+    _KEY_API_TOKEN = "api_token_admin"
+
+    def __init__(self, api_token_key: str = _KEY_API_TOKEN):
+        self._api_token_key = api_token_key
 
         _logger.debug("unlocking bitwarden vault")
         self._status, output = subprocess.getstatusoutput("bw unlock --check")  # noqa: S605, S607
