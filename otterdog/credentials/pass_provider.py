@@ -28,7 +28,7 @@ class PassVault(CredentialProvider):
     KEY_API_TOKEN = "api_token"
     KEY_USERNAME = "username"
     KEY_PASSWORD = "password"
-    KEY_TWOFA_SEED = "2fa_seed"
+    KEY_TWOFA_SEED = "twofa_seed"
 
     def __init__(
         self,
