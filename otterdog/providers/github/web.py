@@ -30,8 +30,8 @@ _logger = get_logger(__name__)
 
 
 class WebClient:
-    # use 10s as default timeout
-    _DEFAULT_TIMEOUT = 15000
+    # use 30s as default timeout
+    _DEFAULT_TIMEOUT = 30000
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
@@ -575,7 +575,7 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
+                _logger.warning(f"failed to logout via web ui: {e!s}")
         else:
             try:
                 selector = 'input[value = "Sign out"]'
@@ -586,4 +586,4 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
+                _logger.warning(f"failed to logout via web ui: {e!s}")
