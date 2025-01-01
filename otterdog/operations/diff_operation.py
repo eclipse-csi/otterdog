@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -101,23 +101,28 @@ class DiffOperation(Operation):
         self._org_config = org_config
 
         self._print_project_header(org_config, org_index, org_count)
+        self.printer.level_up()
 
+        try:
+            return await self.generate_diff(org_config)
+        finally:
+            self.printer.level_down()
+
+    async def generate_diff(self, org_config: OrganizationConfig) -> int:
         try:
             self._gh_client = self.setup_github_client(org_config)
         except RuntimeError as e:
             self.printer.print_error(f"invalid credentials\n{e!s}")
             return 1
 
-        self.printer.level_up()
-
         try:
-            return await self.generate_diff(org_config)
+            return await self._generate_diff_internal(org_config)
         except RuntimeError as e:
             self.printer.print_error(f"planning aborted: {e!s}")
             return 1
         finally:
-            self.printer.level_down()
-            await self._gh_client.close()
+            if self._gh_client is not None:
+                await self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
         return GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui))
@@ -135,7 +140,7 @@ class DiffOperation(Operation):
     def resolve_secrets(self) -> bool:
         return True
 
-    async def generate_diff(self, org_config: OrganizationConfig) -> int:
+    async def _generate_diff_internal(self, org_config: OrganizationConfig) -> int:
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()

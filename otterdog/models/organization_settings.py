@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -28,6 +28,7 @@ from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
+    associate_by_key,
     is_set_and_present,
     is_set_and_valid,
     unwrap,
@@ -190,14 +191,23 @@ class OrganizationSettings(ModelObject):
         extend: bool,
         default_object: ModelObject,
     ) -> None:
+        default_org_settings = cast(OrganizationSettings, default_object)
+
         patch = self.get_patch_to(default_object)
         write_patch_object_as_json(patch, printer, False)
 
         # print custom properties
         if is_set_and_present(self.custom_properties) and len(self.custom_properties) > 0:
+            properties_by_name = associate_by_key(self.custom_properties, lambda x: x.name)
+            default_properties_by_name = associate_by_key(default_org_settings.custom_properties, lambda x: x.name)
+
+            for default_property_name in set(default_properties_by_name):
+                if default_property_name in properties_by_name:
+                    properties_by_name.pop(default_property_name)
+
             default_org_custom_property = CustomProperty.from_model_data(config.default_org_custom_property_config)
 
-            if len(self.custom_properties) > 0:
+            if len(properties_by_name) > 0:
                 printer.println("custom_properties+: [")
                 printer.level_up()
 

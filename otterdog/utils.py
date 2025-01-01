@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -131,7 +131,16 @@ def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
             else:
                 return False, None
         else:
-            raise ValueError("non-empty dictionary values not supported yet")
+            diff = dict(value)
+
+            for k, v in other_value.items():
+                if diff.get(k) == v:
+                    diff.pop(k)
+
+            if len(diff) == 0:
+                return False, None
+            else:
+                return True, diff
     elif isinstance(value, list):
         sorted_value_list = sorted(value)
 
@@ -141,7 +150,7 @@ def patch_to_other(value: Any, other_value: Any) -> tuple[bool, Any]:
         sorted_other_list = sorted(other_value)
 
         if sorted_value_list != sorted_other_list:
-            diff = _diff_list(sorted_value_list, sorted_other_list)
+            diff = _diff_list(sorted_value_list, sorted_other_list)  # type: ignore
             if len(diff) > 0:
                 return True, diff
             else:

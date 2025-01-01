@@ -417,24 +417,24 @@
                   </div>
                   <div class="tab-pane" id="teams" role="tabpanel" aria-labelledby="teams-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover">
                         <thead>
-                          <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Privacy</th>
-                            <th>Notifications</th>
-                            <th>Members</th>
+                          <tr class="d-flex">
+                            <th class="col-2">Name</th>
+                            <th class="col-6">Description</th>
+                            <th class="col-1">Privacy</th>
+                            <th class="col-1">Notifications</th>
+                            <th class="col-2">Members</th>
                           </tr>
                         </thead>
                         <tbody>
                           {% for team in config.teams|sort(attribute='name') %}
-                          <tr>
-                            <td>{{ team.name }}</td>
-                            <td>{{ team.description }}</td>
-                            <td>{{ team.privacy }}</td>
-                            <td>{{ team.notifications }}</td>
-                            <td>
+                          <tr class="d-flex">
+                            <td class="col-2">{{ team.name }}</td>
+                            <td class="col-6" style="word-wrap: break-word;">{{ team.description }}</td>
+                            <td class="col-1">{{ team.privacy }}</td>
+                            <td class="col-1">{{ team.notifications }}</td>
+                            <td class="col-2">
                               <ul>
                               {% for member in team.members %}
                                 <li>{{ member }}</li>

@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -750,14 +750,16 @@ class Ruleset(ModelObject, abc.ABC):
                 embedded_extend = True
 
             if is_set_and_valid(default_pull_request_config):
-                printer.print(f"required_pull_request{'+' if embedded_extend else ''}:")
-                self.required_pull_request.to_jsonnet(
-                    printer,
-                    jsonnet_config,
-                    context,
-                    embedded_extend,
-                    default_pull_request_config,
-                )
+                patch = self.required_pull_request.get_patch_to(default_pull_request_config)
+                if len(patch) > 0:
+                    printer.print(f"required_pull_request{'+' if embedded_extend else ''}:")
+                    self.required_pull_request.to_jsonnet(
+                        printer,
+                        jsonnet_config,
+                        context,
+                        embedded_extend,
+                        default_pull_request_config,
+                    )
 
         if is_set_and_present(self.required_merge_queue):
             default_merge_queue_config = cast(Ruleset, default_object).required_merge_queue
@@ -770,14 +772,16 @@ class Ruleset(ModelObject, abc.ABC):
                 embedded_extend = True
 
             if is_set_and_valid(default_merge_queue_config):
-                printer.print(f"required_merge_queue{'+' if embedded_extend else ''}:")
-                self.required_merge_queue.to_jsonnet(
-                    printer,
-                    jsonnet_config,
-                    context,
-                    embedded_extend,
-                    default_merge_queue_config,
-                )
+                patch = self.required_merge_queue.get_patch_to(default_merge_queue_config)
+                if len(patch) > 0:
+                    printer.print(f"required_merge_queue{'+' if embedded_extend else ''}:")
+                    self.required_merge_queue.to_jsonnet(
+                        printer,
+                        jsonnet_config,
+                        context,
+                        embedded_extend,
+                        default_merge_queue_config,
+                    )
 
         if is_set_and_present(self.required_status_checks):
             default_status_check_config = cast(Ruleset, default_object).required_status_checks
@@ -790,14 +794,16 @@ class Ruleset(ModelObject, abc.ABC):
                 embedded_extend = True
 
             if is_set_and_valid(default_status_check_config):
-                printer.print(f"required_status_checks{'+' if embedded_extend else ''}:")
-                self.required_status_checks.to_jsonnet(
-                    printer,
-                    jsonnet_config,
-                    context,
-                    embedded_extend,
-                    default_status_check_config,
-                )
+                patch = self.required_status_checks.get_patch_to(default_status_check_config)
+                if len(patch) > 0:
+                    printer.print(f"required_status_checks{'+' if embedded_extend else ''}:")
+                    self.required_status_checks.to_jsonnet(
+                        printer,
+                        jsonnet_config,
+                        context,
+                        embedded_extend,
+                        default_status_check_config,
+                    )
 
         # close the object
         printer.level_down()

@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -235,7 +235,7 @@ class Repository(ModelObject):
     def set_environments(self, environments: list[Environment]) -> None:
         self.environments = environments
 
-    def coerce_from_org_settings(self, org_settings: OrganizationSettings) -> Repository:
+    def coerce_from_org_settings(self, org_settings: OrganizationSettings, for_patch: bool = False) -> Repository:
         copy = dataclasses.replace(self)
 
         if org_settings.has_organization_projects is False:
@@ -247,11 +247,16 @@ class Repository(ModelObject):
         if is_set_and_present(self.custom_properties):
             for custom_property in org_settings.custom_properties:
                 current_property_value = self.custom_properties.get(custom_property.name, None)
-                if current_property_value is None:
+                if current_property_value is None and for_patch is False:
                     if custom_property.required is True:
                         if custom_property.default_value is None:
                             raise ValueError("unexpected None value")
                         self.custom_properties[custom_property.name] = custom_property.default_value
+                elif current_property_value is not None and for_patch is True:
+                    if custom_property.required is True:
+                        if current_property_value == custom_property.default_value:
+                            self.custom_properties.pop(custom_property.name)
+
         return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -864,7 +869,8 @@ class Repository(ModelObject):
         extend: bool,
         default_object: ModelObject,
     ) -> None:
-        patch = self.get_patch_to(default_object)
+        coerced_repo = self.coerce_from_org_settings(cast(OrganizationSettings, context.org_settings), for_patch=True)
+        patch = coerced_repo.get_patch_to(default_object)
 
         has_webhooks = len(self.webhooks) > 0
         has_secrets = len(self.secrets) > 0

@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -274,7 +274,9 @@ class GitHubOrganization:
             "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
-        return cls(**bend(mapping, data))
+        org = cls(**bend(mapping, data))
+        org.repositories = [x.coerce_from_org_settings(org.settings) for x in org.repositories]
+        return org
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         for webhook in self.webhooks:
@@ -344,12 +346,18 @@ class GitHubOrganization:
 
         # print teams
         if len(self.teams) > 0:
+            teams_by_name = associate_by_key(self.teams, lambda x: x.name)
+            default_teams_by_name = associate_by_key(default_org.teams, lambda x: x.name)
+
             default_team = Team.from_model_data(config.default_team_config)
 
             printer.println("teams+: [")
             printer.level_up()
 
-            for team in self.teams:
+            for team_name, team in sorted(teams_by_name.items()):
+                if team_name in default_teams_by_name:
+                    continue
+
                 team.to_jsonnet(printer, config, context, False, default_team)
 
             printer.level_down()
