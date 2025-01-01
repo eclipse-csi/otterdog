@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
-    "description": { "type": "string" },
+    "description": { "$ref": "types.json#/$defs/string-or-null"},
     "members": {
       "type": "array",
       "items": { "type": "string" }

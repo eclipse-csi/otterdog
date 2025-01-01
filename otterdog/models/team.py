@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -39,7 +39,7 @@ class Team(ModelObject, abc.ABC):
     id: int = dataclasses.field(metadata={"external_only": True})
     slug: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
-    description: str
+    description: str | None
     privacy: str
     notifications: bool
     members: list[str]
