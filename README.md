@@ -102,7 +102,7 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
         "api_token": "<GitHub PAT>",
         "username": "<Username>",
         "password": "<Password>",
-        "2fa_seed": "<2FA TOTP seed>"
+        "twofa_seed": "<2FA TOTP seed>"
       }
     }
   ]
@@ -199,7 +199,7 @@ required credential data:
         "api_token": "<path/to/api_token>",
         "username": "<path/to/username>",
         "password": "<path/to/password>",
-        "2fa_seed": "<path/to/2fa_seed>"
+        "twofa_seed": "<path/to/2fa_seed>"
       }
     }
   ]

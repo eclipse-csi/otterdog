@@ -75,7 +75,7 @@ class ImportOperation(Operation):
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config)
+                credentials = self.get_credentials(org_config)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -88,12 +88,17 @@ class ImportOperation(Operation):
 
             async with GitHubProvider(credentials) as provider:
                 organization = await GitHubOrganization.load_from_provider(
-                    org_config.name, github_id, jsonnet_config, provider, self.no_web_ui
+                    org_config.name,
+                    github_id,
+                    jsonnet_config,
+                    provider,
+                    self.no_web_ui,
+                    exclude_teams=self.config.exclude_teams_pattern,
                 )
 
             # copy secrets from existing configuration if it is present.
             if sync_from_previous_config:
-                previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+                previous_organization = GitHubOrganization.load_from_file(github_id, org_file_name)
 
                 self.printer.println("Copying secrets from previous configuration.")
                 organization.copy_secrets(previous_organization)

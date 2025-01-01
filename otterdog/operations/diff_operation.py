@@ -120,7 +120,7 @@ class DiffOperation(Operation):
             await self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.config.get_credentials(org_config, only_token=self.no_web_ui))
+        return GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui))
 
     @property
     def gh_client(self) -> GitHubProvider:
@@ -161,7 +161,7 @@ class DiffOperation(Operation):
             validation_infos,
             validation_warnings,
             validation_errors,
-        ) = self._validator.validate(expected_org, jsonnet_config.template_dir)
+        ) = await self._validator.validate(expected_org, jsonnet_config.template_dir, self.gh_client)
         if validation_errors > 0:
             self.printer.println("Planning aborted due to validation errors.")
             return validation_errors
@@ -222,7 +222,7 @@ class DiffOperation(Operation):
         if self.resolve_secrets():
             for live_patch in live_patches:
                 if live_patch.expected_object is not None:
-                    live_patch.expected_object.resolve_secrets(self.config.get_secret)
+                    live_patch.expected_object.resolve_secrets(self.credential_resolver.get_secret)
 
         status = await self.handle_finish(github_id, diff_status, live_patches)
 
@@ -232,7 +232,7 @@ class DiffOperation(Operation):
         return status
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
-        return GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+        return GitHubOrganization.load_from_file(github_id, org_file_name)
 
     def coerce_current_org(self) -> bool:
         return False
@@ -241,7 +241,14 @@ class DiffOperation(Operation):
         self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
     ) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
-            project_name, github_id, jsonnet_config, self.gh_client, self.no_web_ui, self.concurrency, self.repo_filter
+            project_name,
+            github_id,
+            jsonnet_config,
+            self.gh_client,
+            self.no_web_ui,
+            self.concurrency,
+            self.repo_filter,
+            exclude_teams=self.config.exclude_teams_pattern,
         )
 
     def preprocess_orgs(

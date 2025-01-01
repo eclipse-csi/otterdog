@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -31,7 +31,7 @@ _logger = get_logger(__name__)
 
 class WebClient:
     # use 10s as default timeout
-    _DEFAULT_TIMEOUT = 15000
+    _DEFAULT_TIMEOUT = 10000
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
@@ -405,8 +405,7 @@ class WebClient:
 
             await context_manager.__aexit__()
 
-    @staticmethod
-    async def get_requested_permission_updates(org_id: str, page: Page) -> dict[str, dict[str, str]]:
+    async def get_requested_permission_updates(self, org_id: str, page: Page) -> dict[str, dict[str, str]]:
         _logger.debug("getting GitHub app permission updates for '%s'", org_id)
 
         await page.goto(f"https://github.com/organizations/{org_id}/settings/installations")
@@ -426,6 +425,9 @@ class WebClient:
         for url in urls:
             await page.goto(f"https://github.com{url}")
 
+            if await page.title() == "Confirm access":
+                await page.type("#app_totp", self.credentials.totp)
+
             m = re.search(
                 r"/organizations/([a-zA-Z0-9-]+)/settings/installations/(\d+)/permissions/update",
                 url,
@@ -437,9 +439,17 @@ class WebClient:
                 await page.locator(".Box")
                 .locator(".Box-row")
                 .locator("visible=true")
-                .filter(has=page.locator("span"))
+                .filter(has=page.locator("span"), has_not=page.locator("svg"))
                 .all()
             )
+
+            if len(permissions) == 0:
+                if is_debug_enabled():
+                    screenshot_file = f"screenshot_get_permissions_{org_id}.png"
+                    await page.screenshot(path=screenshot_file)
+                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
+
+                _logger.warning(f"no permissions found when reviewing requested permission updates at url '{url}'")
 
             permissions_by_app: dict[str, str] = {}
             for permission in permissions:
@@ -471,7 +481,7 @@ class WebClient:
                     if new_access_type:
                         permissions_by_app[permission_type] = new_access_type
                 else:
-                    pass
+                    _logger.debug(f"unmatched permission: {permission_text}, url: {url}")
 
             requested_app_permissions[str(installation_id)] = permissions_by_app
 
@@ -484,14 +494,26 @@ class WebClient:
         async def accept_dialog(dialog):
             await dialog.accept()
 
-        page.on("dialog", accept_dialog)
+        try:
+            page.on("dialog", accept_dialog)
 
-        await page.goto(
-            f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update"
-        )
+            await page.goto(
+                f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update"
+            )
 
-        await page.locator('button:text("Accept new permissions")').click()
-        await page.wait_for_url(f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}")
+            button = page.locator('button:text("Accept new permissions")')
+            await button.wait_for(state="visible")
+            await button.click()
+            await page.wait_for_url(
+                f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}"
+            )
+        except PlaywrightError as e:
+            if is_debug_enabled():
+                screenshot_file = f"screenshot_approve_{org_id}.png"
+                await page.screenshot(path=screenshot_file)
+                _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
+
+            raise e
 
     async def _login_if_required(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
@@ -575,7 +597,7 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
+                _logger.warning(f"failed to logout via web ui: {e!s}")
         else:
             try:
                 selector = 'input[value = "Sign out"]'
@@ -586,4 +608,4 @@ class WebClient:
                     await page.screenshot(path=screenshot_file)
                     _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
 
-                raise RuntimeError(f"failed to logout via web ui: {e!s}") from e
+                _logger.warning(f"failed to logout via web ui: {e!s}")

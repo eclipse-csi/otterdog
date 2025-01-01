@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from otterdog.logging import is_info_enabled
 from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.providers.github import GitHubProvider
 
 from . import Operation
 
@@ -50,15 +51,22 @@ class ValidateOperation(Operation):
                 return 1
 
             try:
-                organization = GitHubOrganization.load_from_file(github_id, org_file_name, self.config)
+                organization = GitHubOrganization.load_from_file(github_id, org_file_name)
             except RuntimeError as ex:
                 self.printer.print_error(f"Validation failed\nfailed to load configuration: {ex!s}")
                 return 1
 
-            validation_infos, validation_warnings, validation_errors = self.validate(
-                organization, jsonnet_config.template_dir
-            )
-            validation_count = validation_infos + validation_warnings + validation_errors
+            try:
+                credentials = self.get_credentials(org_config, only_token=True)
+            except RuntimeError as e:
+                self.printer.print_error(f"invalid credentials\n{e!s}")
+                return 1
+
+            async with GitHubProvider(credentials) as provider:
+                validation_infos, validation_warnings, validation_errors = await self.validate(
+                    organization, jsonnet_config.template_dir, provider
+                )
+                validation_count = validation_infos + validation_warnings + validation_errors
 
             if validation_count == 0:
                 self.printer.println("[green]Validation succeeded[/]")
@@ -87,11 +95,16 @@ class ValidateOperation(Operation):
         finally:
             self.printer.level_down()
 
-    def validate(self, organization: GitHubOrganization, template_dir: str) -> tuple[int, int, int]:
+    async def validate(
+        self,
+        organization: GitHubOrganization,
+        template_dir: str,
+        provider: GitHubProvider,
+    ) -> tuple[int, int, int]:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
-        context = organization.validate(self.config, template_dir)
+        context = await organization.validate(self.config, self.credential_resolver, template_dir, provider)
 
         validation_infos = 0
         validation_warnings = 0

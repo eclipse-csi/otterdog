@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import re
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Protocol
 
 from otterdog.credentials import CredentialProvider
@@ -21,6 +23,8 @@ from .logging import get_logger
 from .utils import deep_merge_dict, query_json
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from otterdog.credentials import Credentials
 
 _logger = get_logger(__name__)
@@ -133,45 +137,83 @@ class SecretResolver(Protocol):
     def get_secret(self, data: str) -> str: ...
 
 
-class OtterdogConfig(SecretResolver):
-    def __init__(self, config_file: str, local_mode: bool, working_dir: str | None = None):
-        if not os.path.exists(config_file):
-            raise RuntimeError(f"configuration file '{config_file}' not found")
-
-        self._config_file = os.path.realpath(config_file)
-        self._config_dir = os.path.dirname(self._config_file)
+class CredentialResolver(SecretResolver):
+    def __init__(self, config: OtterdogConfig) -> None:
+        self._config = config
         self._credential_providers: dict[str, CredentialProvider] = {}
 
-        self._local_mode = local_mode
+    def _get_credential_provider(self, provider_type: str) -> CredentialProvider | None:
+        provider = self._credential_providers.get(provider_type)
+        if provider is None:
+            provider = CredentialProvider.create(
+                provider_type, query_json(f"defaults.{provider_type}", self._config.configuration) or {}
+            )
+            if provider is not None:
+                self._credential_providers[provider_type] = provider
 
-        with open(config_file) as f:
-            self._configuration = json.load(f)
+        return provider
 
-        if working_dir is None:
-            override_defaults_file = os.path.join(self._config_dir, ".otterdog-defaults.json")
-            if os.path.exists(override_defaults_file):
-                with open(override_defaults_file) as defaults_file:
-                    defaults = json.load(defaults_file)
-                    _logger.trace("loading default overrides from '%s'", override_defaults_file)
-                    self._configuration["defaults"] = deep_merge_dict(
-                        defaults, self._configuration.setdefault("defaults")
-                    )
+    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
+        provider_type = org_config.credential_data.get("provider")
 
-        self._jsonnet_config = query_json("defaults.jsonnet", self._configuration) or {}
-        self._github_config = query_json("defaults.github", self._configuration) or {}
-        self._default_credential_provider = query_json("defaults.credentials.provider", self._configuration) or ""
+        if provider_type is None:
+            provider_type = self._config.default_credential_provider
 
-        if working_dir is None:
-            self._jsonnet_base_dir = os.path.join(self._config_dir, self._jsonnet_config.get("config_dir", "orgs"))
+        if not provider_type:
+            raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
+
+        provider = self._get_credential_provider(provider_type)
+        if provider is not None:
+            return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
         else:
-            self._jsonnet_base_dir = os.path.join(working_dir, self._jsonnet_config.get("config_dir", "orgs"))
-            if not os.path.exists(self._jsonnet_base_dir):
-                os.makedirs(self._jsonnet_base_dir)
+            raise RuntimeError(f"unsupported credential provider '{provider_type}'")
 
-        organizations = self._configuration.get("organizations", [])
+    def is_supported_secret_provider(self, provider_type: str) -> bool:
+        # TODO: make this cleaner
+        return provider_type in ["pass", "bitwarden"]
 
-        self._organizations_map = {}
-        self._organizations = []
+    def get_secret(self, secret_data: str) -> str:
+        if secret_data and ":" in secret_data:
+            provider_type, data = re.split(":", secret_data)
+            provider = self._get_credential_provider(provider_type)
+            if provider is not None:
+                return provider.get_secret(data)
+            else:
+                return secret_data
+        else:
+            return secret_data
+
+
+@dataclasses.dataclass(frozen=True)
+class OtterdogConfig:
+    configuration: Mapping[str, Any]
+    local_mode: bool
+    working_dir: str
+
+    _jsonnet_config: Mapping[str, Any] = dataclasses.field(init=False)
+    _github_config: Mapping[str, Any] = dataclasses.field(init=False)
+    _default_credential_provider: str = dataclasses.field(init=False)
+    _jsonnet_base_dir: str = dataclasses.field(init=False)
+
+    _organizations_map: dict[str, OrganizationConfig] = dataclasses.field(init=False, default_factory=dict)
+    _organizations: list[OrganizationConfig] = dataclasses.field(init=False, default_factory=list)
+
+    def __post_init__(self):
+        object.__setattr__(self, "_jsonnet_config", query_json("defaults.jsonnet", self.configuration) or {})
+        object.__setattr__(self, "_github_config", query_json("defaults.github", self.configuration) or {})
+        object.__setattr__(
+            self, "_default_credential_provider", query_json("defaults.credentials.provider", self.configuration) or ""
+        )
+
+        object.__setattr__(
+            self,
+            "_jsonnet_base_dir",
+            os.path.join(self.working_dir, self._jsonnet_config.get("config_dir", "orgs")),
+        )
+        if not os.path.exists(self._jsonnet_base_dir):
+            os.makedirs(self._jsonnet_base_dir)
+
+        organizations = self.configuration.get("organizations", [])
         for org in organizations:
             org_config = OrganizationConfig.from_dict(org, self)
             self._organizations.append(org_config)
@@ -179,24 +221,28 @@ class OtterdogConfig(SecretResolver):
             self._organizations_map[org_config.github_id.lower()] = org_config
 
     @property
-    def config_file(self) -> str:
-        return self._config_file
-
-    @property
-    def config_dir(self) -> str:
-        return self._config_dir
-
-    @property
     def jsonnet_base_dir(self) -> str:
         return self._jsonnet_base_dir
 
     @property
-    def local_mode(self) -> bool:
-        return self._local_mode
-
-    @property
     def default_config_repo(self) -> str:
         return self._github_config.get("config_repo", ".otterdog")
+
+    @property
+    def default_team_exclusions(self) -> list[str]:
+        return self._github_config.get("exclude_teams", [])
+
+    @cached_property
+    def exclude_teams_pattern(self) -> re.Pattern | None:
+        team_exclusions = self.default_team_exclusions
+        if len(team_exclusions) == 0:
+            return None
+        else:
+            return re.compile("|".join(team_exclusions))
+
+    @property
+    def default_credential_provider(self) -> str:
+        return self._default_credential_provider
 
     @property
     def default_base_template(self) -> str:
@@ -231,50 +277,27 @@ class OtterdogConfig(SecretResolver):
             raise RuntimeError(f"unknown organization with name / github_id '{project_or_organization_name}'")
         return org_config
 
-    def _get_credential_provider(self, provider_type: str) -> CredentialProvider | None:
-        provider = self._credential_providers.get(provider_type)
-        if provider is None:
-            provider = CredentialProvider.create(
-                provider_type, query_json(f"defaults.{provider_type}", self._configuration) or {}
-            )
-            if provider is not None:
-                self._credential_providers[provider_type] = provider
+    @classmethod
+    def from_file(cls, config_file: str, local_mode: bool, working_dir: str | None = None) -> OtterdogConfig:
+        if not os.path.exists(config_file):
+            raise RuntimeError(f"configuration file '{config_file}' not found")
 
-        return provider
+        config_file_file = os.path.realpath(config_file)
+        config_file_dir = os.path.dirname(config_file)
 
-    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
-        provider_type = org_config.credential_data.get("provider")
+        with open(config_file_file) as f:
+            configuration = json.load(f)
 
-        if provider_type is None:
-            provider_type = self._default_credential_provider
+        if working_dir is None:
+            override_defaults_file = os.path.join(config_file_dir, ".otterdog-defaults.json")
+            if os.path.exists(override_defaults_file):
+                with open(override_defaults_file) as defaults_file:
+                    defaults = json.load(defaults_file)
+                    _logger.trace("loading default overrides from '%s'", override_defaults_file)
+                    configuration["defaults"] = deep_merge_dict(defaults, configuration.setdefault("defaults", {}))
 
-        if not provider_type:
-            raise RuntimeError(f"no credential provider configured for organization '{org_config.name}'")
-
-        provider = self._get_credential_provider(provider_type)
-        if provider is not None:
-            return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
-        else:
-            raise RuntimeError(f"unsupported credential provider '{provider_type}'")
-
-    def is_supported_secret_provider(self, provider_type: str) -> bool:
-        # TODO: make this cleaner
-        return provider_type in ["pass", "bitwarden"]
-
-    def get_secret(self, secret_data: str) -> str:
-        if secret_data and ":" in secret_data:
-            provider_type, data = re.split(":", secret_data)
-            provider = self._get_credential_provider(provider_type)
-            if provider is not None:
-                return provider.get_secret(data)
-            else:
-                return secret_data
-        else:
-            return secret_data
-
-    def __repr__(self):
-        return f"OtterdogConfig('{self.config_file}')"
+        return cls(configuration, local_mode, working_dir if working_dir is not None else config_file_dir)
 
     @classmethod
-    def from_file(cls, config_file: str, local_mode: bool):
-        return cls(config_file, local_mode)
+    def from_dict(cls, configuration: Mapping[str, Any], local_mode: bool, working_dir: str) -> OtterdogConfig:
+        return cls(configuration, local_mode, working_dir)

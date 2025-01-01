@@ -71,7 +71,7 @@ class PushOperation(Operation):
 
         try:
             try:
-                credentials = self.config.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -80,7 +80,7 @@ class PushOperation(Operation):
             # if no configuration can be found, omit adding author information
 
             try:
-                git_config_reader = Repo(self.config.config_dir).config_reader()
+                git_config_reader = Repo(self.config.working_dir).config_reader()
             except InvalidGitRepositoryError:
                 # if the config dir is not a git repo, just read the global config
                 git_config_reader = GitConfigParser(None, read_only=True)

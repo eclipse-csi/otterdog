@@ -75,6 +75,9 @@
                     <a class="nav-link" id="roles-tab" data-toggle="pill" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="teams-tab" data-toggle="pill" href="#teams" role="tab" aria-controls="teams" aria-selected="false">Teams</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="custom-properties-tab" data-toggle="pill" href="#custom-properties" role="tab" aria-controls="custom-properties" aria-selected="false">Custom Properties</a>
                   </li>
                   <li class="nav-item">
@@ -406,6 +409,38 @@
                               </ul>
                             </td>
                             <td>{{ role.base_role }}</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div class="tab-pane" id="teams" role="tabpanel" aria-labelledby="teams-tab">
+                    <div class="table-responsive p-0">
+                      <table class="table table-hover text-nowrap">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Privacy</th>
+                            <th>Notifications</th>
+                            <th>Members</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for team in config.teams|sort(attribute='name') %}
+                          <tr>
+                            <td>{{ team.name }}</td>
+                            <td>{{ team.description }}</td>
+                            <td>{{ team.privacy }}</td>
+                            <td>{{ team.notifications }}</td>
+                            <td>
+                              <ul>
+                              {% for member in team.members %}
+                                <li>{{ member }}</li>
+                              {% endfor %}
+                              </ul>
+                            </td>
                           </tr>
                           {% endfor %}
                         </tbody>

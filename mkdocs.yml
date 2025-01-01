@@ -55,6 +55,7 @@ nav:
         - Organization Variable: reference/organization/variable.md
         - Organization Ruleset: reference/organization/ruleset.md
         - Custom Property: reference/organization/custom-property.md
+        - Team: reference/organization/team.md
         - Repository:
           - reference/organization/repository/index.md
           - Workflow Settings: reference/organization/repository/workflow-settings.md

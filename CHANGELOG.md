@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added support for teams.
 - Use asyncer to speed up retrieval of live settings. ([#209](https://github.com/eclipse-csi/otterdog/issues/209))
 
 ### Changed

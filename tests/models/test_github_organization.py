@@ -21,15 +21,13 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources")
         otterdog_config_file = os.path.join(base_dir, "otterdog.json")
 
-        self.otterdog_config = OtterdogConfig(otterdog_config_file, True)
+        self.otterdog_config = OtterdogConfig.from_file(otterdog_config_file, True)
         self.org_config = self.otterdog_config.get_organization_config(self.TEST_ORG)
         self.jsonnet_config = self.org_config.jsonnet_config
         await self.jsonnet_config.init_template()
 
     def test_load_from_file(self):
-        organization = GitHubOrganization.load_from_file(
-            self.TEST_ORG, self.jsonnet_config.org_config_file, self.otterdog_config
-        )
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
 
         assert organization.github_id == "test-org"
         assert len(organization.webhooks) == 1

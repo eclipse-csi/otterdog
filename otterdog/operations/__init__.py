@@ -9,14 +9,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
+from otterdog.config import CredentialResolver
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
 if TYPE_CHECKING:
     from typing import Any
 
     from otterdog.config import OrganizationConfig, OtterdogConfig
+    from otterdog.credentials import Credentials
 
 
 class Operation(ABC):
@@ -33,6 +36,13 @@ class Operation(ABC):
     @property
     def config(self) -> OtterdogConfig:
         return unwrap(self._config)
+
+    @cached_property
+    def credential_resolver(self) -> CredentialResolver:
+        return CredentialResolver(self.config)
+
+    def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
+        return self.credential_resolver.get_credentials(org_config, only_token)
 
     @property
     def printer(self) -> IndentingPrinter:
@@ -345,7 +355,8 @@ class Operation(ABC):
 
                     for _ in range(i1, min(diff_i, diff_j)):
                         self.printer.println(
-                            f"{prefix}{self._get_value(a[i]).ljust(max_length, ' ')} [{color}]->[/] {self._get_value(b[j])}"
+                            f"{prefix}{self._get_value(a[i]).ljust(max_length, ' ')} [{color}]->[/] "
+                            f"{self._get_value(b[j])}"
                         )
                         j = j + 1
                         i = i + 1
