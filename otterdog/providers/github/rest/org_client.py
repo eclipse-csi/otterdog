@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -573,7 +573,7 @@ class OrgClient(RestClient):
     async def delete_team(self, org_id: str, team_slug: str) -> None:
         _logger.debug("deleting team '%s' for org '%s'", team_slug, org_id)
 
-        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/team/{team_slug}")
+        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/teams/{team_slug}")
 
         if status != 204:
             raise RuntimeError(f"failed to delete team '{team_slug}': {body}")
