@@ -249,6 +249,17 @@ local newOrgRole(name) = {
   base_role: "none",
 };
 
+# Function to create a new team with default settings.
+local newTeam(name) = {
+  name: name,
+  description: "",
+  privacy: "visible",
+  notifications: true,
+  members: [],
+  skip_members: false,
+  skip_non_organization_members: false,
+};
+
 # Function to create a new environment with default settings.
 local newEnvironment(name) = {
   name: name,
@@ -371,6 +382,9 @@ local newOrg(name, id=name) = {
   # organization roles
   roles: [],
 
+  # organization teams
+  teams: [],
+
   # organization secrets
   secrets: [],
 
@@ -398,6 +412,7 @@ local newOrg(name, id=name) = {
 {
   newOrg:: newOrg,
   newOrgRole:: newOrgRole,
+  newTeam:: newTeam,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,

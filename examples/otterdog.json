@@ -25,7 +25,7 @@
         "api_token": "bots/technology.cbi/github.com/api_token",
         "username": "bots/technology.cbi/github.com/username",
         "password": "bots/technology.cbi/github.com/password",
-        "2fa_seed": "bots/technology.cbi/github.com/2FA-seed"
+        "twofa_seed": "bots/technology.cbi/github.com/2FA-seed"
       }
     }
   ]
