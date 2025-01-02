@@ -349,19 +349,22 @@ class GitHubOrganization:
             teams_by_name = associate_by_key(self.teams, lambda x: x.name)
             default_teams_by_name = associate_by_key(default_org.teams, lambda x: x.name)
 
-            default_team = Team.from_model_data(config.default_team_config)
+            # remove teams inherited from the default config
+            for default_team_name in set(default_teams_by_name):
+                if default_team_name in teams_by_name:
+                    teams_by_name.pop(default_team_name)
 
-            printer.println("teams+: [")
-            printer.level_up()
+            if len(teams_by_name) > 0:
+                default_team = Team.from_model_data(config.default_team_config)
 
-            for team_name, team in sorted(teams_by_name.items()):
-                if team_name in default_teams_by_name:
-                    continue
+                printer.println("teams+: [")
+                printer.level_up()
 
-                team.to_jsonnet(printer, config, context, False, default_team)
+                for _, team in sorted(teams_by_name.items()):
+                    team.to_jsonnet(printer, config, context, False, default_team)
 
-            printer.level_down()
-            printer.println("],")
+                printer.level_down()
+                printer.println("],")
 
         # print organization webhooks
         if len(self.webhooks) > 0:
