@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -70,6 +70,9 @@ class FetchBlueprintsTask(InstallationBasedTask, Task[None]):
             entries = await rest_api.content.get_content_object(self.org_id, repo, config_file_path)
         except RuntimeError:
             entries = []
+
+        if len(entries) == 0:
+            return blueprints
 
         default_branch = await rest_api.repo.get_default_branch(self.org_id, repo)
 
