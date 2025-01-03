@@ -7,10 +7,10 @@ by the means of `otterdog`. The following non-exhaustive list outlines settings 
 - secrets and variables for codespaces and dependabot
 - managing GitHub apps or oauth policies
 - managing pinned repositories for an organization
-- ~~(deprecated) tag protections~~ [#143](https://github.com/eclipse-csi/otterdog/issues/143)
 - supporting merge queue settings for a branch protection rule [#86](https://github.com/eclipse-csi/otterdog/issues/86)
 - transfer a repo from one organization to another organization
+- (deprecated) ~~tag protections~~ [#143](https://github.com/eclipse-csi/otterdog/issues/143), use rulesets instead
 
 Most of the unsupported settings are only accessible via the Web UI of GitHub.
 In case you would like to have a specific feature of GitHub being supported by `otterdog`,
-please open a ticket [at](https://github.com/eclipse-csi/otterdog/issues/new?template=Blank+issue).
+please open a [ticket](https://github.com/eclipse-csi/otterdog/issues/new?template=Blank+issue).
