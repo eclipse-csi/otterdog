@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -10,14 +10,29 @@ import json
 import os
 import unittest
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import Any
 from unittest.mock import MagicMock
+
+from otterdog.models import ModelObject
+from otterdog.utils import jsonnet_evaluate_snippet
+
+_EXAMPLE_CONFIG = "../examples/template/otterdog-defaults.libsonnet"
 
 
 class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):
     @property
     def org_id(self) -> str:
         return "OtterdogTest"
+
+    @property
+    @abstractmethod
+    def template_function(self) -> str:
+        pass
+
+    @abstractmethod
+    def create_model(self, data: Mapping[str, Any]) -> ModelObject:
+        pass
 
     @property
     @abstractmethod
@@ -59,3 +74,12 @@ class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):
         filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"resources/{file}")
         with open(filename) as fp:
             return json.load(fp)
+
+    def test_example_config(self) -> None:
+        snippet = f"(import '{_EXAMPLE_CONFIG}').{self.template_function}('default')"
+        json_data = jsonnet_evaluate_snippet(snippet)
+
+        model_object = self.create_model(json_data)
+        assert model_object is not None
+        if model_object.is_keyed():
+            assert model_object.get_key_value() == "default"

@@ -1,0 +1,13 @@
+{
+  "id": 1102681190,
+  "slug": "test-team",
+  "name": "Test Team",
+  "description": "Blabla",
+  "notification_setting": "notifications_enabled",
+  "privacy": "closed",
+  "members": [
+    {
+      "login": "netomi"
+    }
+  ]
+}

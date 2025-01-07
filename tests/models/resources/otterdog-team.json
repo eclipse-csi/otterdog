@@ -1,0 +1,10 @@
+{
+  "name": "Test Team",
+  "description": "Blabla",
+  "notifications": true,
+  "privacy": "visible",
+  "members": [
+    "netomi"
+  ],
+  "skip_members": false
+}

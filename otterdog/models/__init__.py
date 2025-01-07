@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -32,7 +32,7 @@ from otterdog.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterator, Mapping, Sequence
     from re import Pattern
 
     from otterdog.config import SecretResolver
@@ -476,7 +476,7 @@ class ModelObject(ABC):
 
     @classmethod
     @final
-    def from_model_data(cls: type[MT], data: dict[str, Any]) -> MT:
+    def from_model_data(cls: type[MT], data: Mapping[str, Any]) -> MT:
         mapping = cls.get_mapping_from_model()
         return cls(**bend(mapping, data))  # type: ignore
 
