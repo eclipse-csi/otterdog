@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -161,19 +161,19 @@ class GitHubProvider:
         await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
 
     async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
-        return await self.rest_api.org.get_teams(org_id)
+        return await self.rest_api.team.get_teams(org_id)
 
     async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
-        return await self.rest_api.org.get_team_members(org_id, team_slug)
+        return await self.rest_api.team.get_team_members(org_id, team_slug)
 
     async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
-        return await self.rest_api.org.add_team(org_id, team_name, data)
+        await self.rest_api.team.add_team(org_id, team_name, data)
 
     async def update_org_team(self, org_id: str, team_slug: str, data: dict[str, str]) -> None:
-        return await self.rest_api.org.update_team(org_id, team_slug, data)
+        await self.rest_api.team.update_team(org_id, team_slug, data)
 
     async def delete_org_team(self, org_id: str, team_slug: str) -> None:
-        return await self.rest_api.org.delete_team(org_id, team_slug)
+        await self.rest_api.team.delete_team(org_id, team_slug)
 
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_custom_properties(org_id)
@@ -441,7 +441,7 @@ class GitHubProvider:
                 #    - user-names are not allowed to contain a /
                 if "/" in actor:
                     try:
-                        result.append(("Team", await self.rest_api.org.get_team_ids(actor[1:])))
+                        result.append(("Team", await self.rest_api.team.get_team_ids(actor[1:])))
                     except RuntimeError:
                         _logger.warning(f"team '{actor[1:]}' does not exist, skipping")
                 else:

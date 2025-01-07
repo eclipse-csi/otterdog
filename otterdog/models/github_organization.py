@@ -717,9 +717,7 @@ async def _load_repos_from_provider(
     if repo_filter is not None:
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
-    teams = {
-        str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.rest_api.org.get_teams(github_id)
-    }
+    teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
 
     app_installations = {
         str(installation["app_id"]): installation["app_slug"]

@@ -606,7 +606,7 @@ class Ruleset(ModelObject, abc.ABC):
                 elif actor.startswith("@"):
                     team, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
                     actor_type = "Team"
-                    actor_id = (await provider.rest_api.org.get_team_ids(team))[0]
+                    actor_id = (await provider.rest_api.team.get_team_ids(team))[0]
                 else:
                     app, bypass_mode = extract_actor_and_bypass_mode(actor)
                     actor_type = "Integration"

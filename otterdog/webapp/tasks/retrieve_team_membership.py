@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -73,7 +73,7 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
         user = self._pull_request.user.login
 
         try:
-            membership = await rest_api.org.get_membership(self.org_id, user)
+            membership = await rest_api.team.get_membership(self.org_id, user)
             state = membership["state"]
             role = membership["role"]
 
