@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -177,6 +177,7 @@ def show_default(organizations: list[str], markdown):
 
 @cli.command(cls=StdCommand)
 @click.option(
+    "-r",
     "--repo",
     show_default=True,
     default=".eclipsefdn",
@@ -342,6 +343,7 @@ def import_command(organizations: list[str], force, no_web_ui):
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "-r",
     "--repo-filter",
     show_default=True,
     default="*",
@@ -395,6 +397,7 @@ def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, upda
     help="suffix to append to the configuration for comparison",
 )
 @click.option(
+    "-r",
     "--repo-filter",
     show_default=True,
     default="*",
@@ -457,6 +460,7 @@ def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, u
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "-r",
     "--repo-filter",
     show_default=True,
     default="*",
@@ -544,6 +548,7 @@ def apply(
     help="skip settings retrieved via web ui",
 )
 @click.option(
+    "-r",
     "--repo-filter",
     show_default=True,
     default="*",
