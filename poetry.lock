@@ -2389,28 +2389,27 @@ pyyaml = "*"
 
 [[package]]
 name = "quart"
-version = "0.19.9"
-description = "A Python ASGI web microframework with the same API as Flask"
+version = "0.20.0"
+description = "A Python ASGI web framework with the same API as Flask"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "quart-0.19.9-py3-none-any.whl", hash = "sha256:8acb8b299c72b66ee9e506ae141498bbbfcc250b5298fbdb712e97f3d7e4082f"},
-    {file = "quart-0.19.9.tar.gz", hash = "sha256:30a61a0d7bae1ee13e6e99dc14c929b3c945e372b9445d92d21db053e91e95a5"},
+    {file = "quart-0.20.0-py3-none-any.whl", hash = "sha256:003c08f551746710acb757de49d9b768986fd431517d0eb127380b656b98b8f1"},
+    {file = "quart-0.20.0.tar.gz", hash = "sha256:08793c206ff832483586f5ae47018c7e40bdd75d886fee3fabbdaa70c2cf505d"},
 ]
 
 [package.dependencies]
 aiofiles = "*"
 blinker = ">=1.6"
-click = ">=8.0.0"
-flask = ">=3.0.0"
+click = ">=8.0"
+flask = ">=3.0"
 hypercorn = ">=0.11.2"
 itsdangerous = "*"
 jinja2 = "*"
 markupsafe = "*"
-werkzeug = ">=3.0.0"
+werkzeug = ">=3.0"
 
 [package.extras]
-docs = ["pydata_sphinx_theme"]
 dotenv = ["python-dotenv"]
 
 [[package]]
@@ -3266,4 +3265,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11, <4.0"
-content-hash = "40199ceaa64df02d801204e701bbeb5b904a2e5fc02b3783e91177b71d9ed0fe"
+content-hash = "146ae824002ef993d98f5c4250a1dc82e7e823845a024f34879bac02edc5ae0c"

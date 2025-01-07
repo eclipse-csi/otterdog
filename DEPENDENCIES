@@ -64,7 +64,7 @@ pypi/pypi/-/python-decouple/3.8
 pypi/pypi/-/python-dotenv/1.0.1
 pypi/pypi/-/python-slugify/8.0.4
 pypi/pypi/-/pyyaml/6.0.2
-pypi/pypi/-/quart/0.19.9
+pypi/pypi/-/quart/0.20.0
 pypi/pypi/-/quart-auth/0.10.1
 pypi/pypi/-/quart-flask-patch/0.3.0
 pypi/pypi/-/quart-redis/2.0.0

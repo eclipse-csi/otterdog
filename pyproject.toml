@@ -75,7 +75,7 @@ rich                 = "^13.9"
 asyncer              = "^0.0.8"
 
 [tool.poetry.group.app.dependencies]
-quart                = "^0.19"
+quart                = "^0.20"
 quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 python-dotenv        = "^1.0"
