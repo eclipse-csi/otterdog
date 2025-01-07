@@ -17,7 +17,7 @@ from unittest.mock import MagicMock
 from otterdog.models import ModelObject
 from otterdog.utils import jsonnet_evaluate_snippet
 
-_EXAMPLE_CONFIG = "../examples/template/otterdog-defaults.libsonnet"
+_EXAMPLE_CONFIG = "./examples/template/otterdog-defaults.libsonnet"
 
 
 class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):
