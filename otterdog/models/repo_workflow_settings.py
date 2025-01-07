@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -110,7 +110,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and self.default_workflow_permissions == "write"
             ):
                 context.add_failure(
-                    FailureType.INFO,
+                    FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has 'default_workflow_permissions' of value "
                     f"'{self.default_workflow_permissions}', "
                     f"while on organization level it is restricted to "
@@ -122,7 +122,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and self.actions_can_approve_pull_request_reviews is True
             ):
                 context.add_failure(
-                    FailureType.INFO,
+                    FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has 'actions_can_approve_pull_request_reviews' enabled, "
                     f"while on organization level it is disabled, setting will be ignored.",
                 )
