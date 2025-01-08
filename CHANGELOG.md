@@ -9,7 +9,12 @@
 
 ### Changed
 
+- Converted workflow related settings into an embedded model object.
 - Included option `repo-filter` of diff related operations already when getting live data from GitHub to speed up execution.
+
+### Fixed
+
+- Fixed display of forced updates in `plan` operations.
 
 ## [0.10.0] - 20/12/2024
 

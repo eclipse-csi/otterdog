@@ -103,7 +103,7 @@ class Repository(ModelObject):
     forked_repository: str | None = dataclasses.field(metadata={"model_only": True})
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
 
-    workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
+    workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -155,6 +155,7 @@ class Repository(ModelObject):
         "has_wiki",
         "has_projects",
         "web_commit_signoff_required",
+        "workflows",
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
@@ -543,7 +544,7 @@ class Repository(ModelObject):
                     f"('MERGE_MESSAGE', 'PR_TITLE') are allowed.",
                 )
 
-        if is_set_and_valid(self.workflows):
+        if is_set_and_present(self.workflows):
             self.workflows.validate(context, self)
 
         for secret in self.secrets:
@@ -653,9 +654,6 @@ class Repository(ModelObject):
             yield env, self
             yield from env.get_model_objects()
 
-        if is_set_and_valid(self.workflows):
-            yield self.workflows, self
-
     @classmethod
     def get_mapping_from_model(cls) -> dict[str, Any]:
         mapping = super().get_mapping_from_model()
@@ -748,6 +746,7 @@ class Repository(ModelObject):
                 "template_repository": OptionalS("template_repository", "full_name", default=None),
             }
         )
+
         return mapping
 
     @classmethod
@@ -879,14 +878,17 @@ class Repository(ModelObject):
         has_rulesets = len(self.rulesets) > 0
         has_environments = len(self.environments) > 0
 
+        if "name" in patch:
+            patch.pop("name")
+
+        if "workflows" in patch and patch.get("workflows") is not None:
+            patch.pop("workflows")
+
         # FIXME: take webhooks, branch protection rules and environments into account once
         #        it is supported for repos that get extended.
         has_changes = len(patch) > 0
         if extend and has_changes is False:
             return
-
-        if "name" in patch:
-            patch.pop("name")
 
         function = self.get_jsonnet_template_function(jsonnet_config, extend)
         printer.print(f"{function}('{self.name}')")
@@ -896,14 +898,14 @@ class Repository(ModelObject):
         if is_set_and_present(self.workflows):
             default_workflow_settings = cast(Repository, default_object).workflows
 
-            if is_set_and_valid(default_workflow_settings):
+            if is_set_and_present(default_workflow_settings):
                 coerced_settings = self.workflows.coerce_from_org_settings(
                     self, cast(OrganizationSettings, context.org_settings).workflows
                 )
                 patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
                     printer.print("workflows+:")
-                    coerced_settings.to_jsonnet(printer, jsonnet_config, context, False, default_workflow_settings)
+                    coerced_settings.to_jsonnet(printer, jsonnet_config, context, True, default_workflow_settings)
 
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
@@ -1007,6 +1009,12 @@ class Repository(ModelObject):
 
         expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
         coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
+        # also coerce the workflow settings if present
+        if is_set_and_present(coerced_object.workflows) and is_set_and_present(expected_org_settings.workflows):
+            coerced_object.workflows = coerced_object.workflows.coerce_from_org_settings(
+                coerced_object, expected_org_settings.workflows
+            )
+
         changes_object_to_readonly = False
 
         if current_object is None:
@@ -1083,15 +1091,6 @@ class Repository(ModelObject):
 
         parent_repo = coerced_object if current_object is None else current_object
 
-        if is_set_and_valid(coerced_object.workflows):
-            RepositoryWorkflowSettings.generate_live_patch(
-                coerced_object.workflows,
-                current_object.workflows if current_object is not None else None,
-                parent_repo,
-                context,
-                handler,
-            )
-
         RepositoryWebhook.generate_live_patch_of_list(
             coerced_object.webhooks,
             current_object.webhooks if current_object is not None else [],
@@ -1164,12 +1163,31 @@ class Repository(ModelObject):
                     expected_object.auto_init,
                 )
 
+                if is_set_and_present(expected_object.workflows):
+                    workflow_data = expected_object.workflows.to_model_dict(for_diff=True)
+                    await provider.update_repo_workflow_settings(
+                        org_id,
+                        expected_object.name,
+                        await expected_object.workflows.dict_to_provider_data(org_id, workflow_data, provider),
+                    )
+
             case LivePatchType.REMOVE:
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
-                await provider.update_repo(
-                    org_id,
-                    unwrap(patch.current_object).name,
-                    await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
-                )
+                expected_object = unwrap(patch.expected_object)
+                github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
+
+                if "workflows" in github_settings:
+                    github_settings.pop("workflows")
+                    update_workflows = True
+                else:
+                    update_workflows = False
+
+                await provider.update_repo(org_id, unwrap(patch.current_object).name, github_settings)
+
+                if update_workflows is True:
+                    data = unwrap(patch.expected_object).workflows.to_model_dict(for_diff=True)
+                    github_data = await RepositoryWorkflowSettings.dict_to_provider_data(org_id, data, provider)
+
+                    await provider.update_repo_workflow_settings(org_id, expected_object.name, github_data)

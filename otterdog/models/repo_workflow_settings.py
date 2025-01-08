@@ -15,16 +15,11 @@ from jsonbender import S  # type: ignore
 
 from otterdog.models import (
     FailureType,
-    LivePatch,
-    LivePatchContext,
-    LivePatchHandler,
-    LivePatchType,
     ModelObject,
     ValidationContext,
 )
-from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.utils import UNSET, Change, expect_type, is_set_and_valid, is_unset, unwrap
+from otterdog.utils import UNSET, is_set_and_valid, is_unset
 
 if TYPE_CHECKING:
     from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
@@ -38,10 +33,6 @@ class RepositoryWorkflowSettings(WorkflowSettings):
     """
 
     enabled: bool
-
-    @property
-    def model_object_name(self) -> str:
-        return "repo_workflow_settings"
 
     def coerce_from_org_settings(
         self, parent_object: ModelObject | None, org_workflow_settings: OrganizationWorkflowSettings
@@ -61,8 +52,9 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         ):
             copy.enabled = UNSET  # type: ignore
 
-        if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
-            copy.allowed_actions = UNSET  # type: ignore
+        if org_workflow_settings.are_actions_restricted():
+            if org_workflow_settings.are_actions_more_restricted(copy.allowed_actions):
+                copy.allowed_actions = UNSET  # type: ignore
             for prop in self._selected_action_properties:
                 copy.__setattr__(prop, UNSET)
 
@@ -85,7 +77,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             if org_workflow_settings.enabled_repositories == "none" and self.enabled is True:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has enabled workflows, "
+                    f"{parent_object.get_model_header()} has enabled workflows, "
                     f"while on organization level it is disabled for all repositories, setting will be ignored.",
                 )
 
@@ -98,10 +90,27 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and repository_name not in org_workflow_settings.selected_repositories
                 and self.enabled is True
             ):
+                repo = cast(Repository, parent_object)
+                if repo.code_scanning_default_setup_enabled is True:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{parent_object.get_model_header()} has 'code_scanning_default_setup_enabled' of "
+                        f"value '{repo.code_scanning_default_setup_enabled}' while GitHub Actions are disabled.",
+                    )
+
+                if self.enabled is True:
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{parent_object.get_model_header()} has enabled workflows, "
+                        f"while on organization level it is only enabled for selected repositories, "
+                        f"setting will be ignored.",
+                    )
+
+            if org_workflow_settings.are_actions_more_restricted(self.allowed_actions) and self.enabled is True:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has enabled workflows, "
-                    f"while on organization level it is only enabled for selected repositories, "
+                    f"{parent_object.get_model_header()} has set 'allowed_actions' to '{self.allowed_actions}', "
+                    f"while on organization level it is more restricted to '{org_workflow_settings.allowed_actions}', "
                     f"setting will be ignored.",
                 )
 
@@ -111,7 +120,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             ):
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has 'default_workflow_permissions' of value "
+                    f"{parent_object.get_model_header()} has 'default_workflow_permissions' of value "
                     f"'{self.default_workflow_permissions}', "
                     f"while on organization level it is restricted to "
                     f"'{org_workflow_settings.default_workflow_permissions}', setting will be ignored.",
@@ -123,7 +132,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             ):
                 context.add_failure(
                     FailureType.INFO,
-                    f"{self.get_model_header(parent_object)} has 'actions_can_approve_pull_request_reviews' enabled, "
+                    f"{parent_object.get_model_header()} has 'actions_can_approve_pull_request_reviews' enabled, "
                     f"while on organization level it is disabled, setting will be ignored.",
                 )
 
@@ -147,81 +156,3 @@ class RepositoryWorkflowSettings(WorkflowSettings):
             return {"enabled": S("enabled")}
         else:
             return await super().get_mapping_to_provider(org_id, data, provider)
-
-    @classmethod
-    def generate_live_patch(
-        cls,
-        expected_object: RepositoryWorkflowSettings | None,
-        current_object: RepositoryWorkflowSettings | None,
-        parent_object: ModelObject | None,
-        context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        expected_object = unwrap(expected_object)
-
-        expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
-        coerced_object = expected_object.coerce_from_org_settings(parent_object, expected_org_settings.workflows)
-
-        if current_object is None:
-            handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
-            return
-
-        modified_workflow_settings: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
-
-        # FIXME: needed to add this hack to ensure that enabled is also present in
-        #        the modified data as GitHub has made this property required.
-        if len(modified_workflow_settings) > 0:
-            if coerced_object.enabled is True and expected_org_settings.workflows.allowed_actions == "local_only":
-                modified_workflow_settings["allowed_actions"] = Change(current_object.allowed_actions, "local_only")
-
-            if "allowed_actions" in modified_workflow_settings:
-                modified_workflow_settings["enabled"] = Change(current_object.enabled, coerced_object.enabled)
-
-        if "actions_can_approve_pull_request_reviews" in context.modified_org_workflow_settings:
-            change = context.modified_org_workflow_settings["actions_can_approve_pull_request_reviews"]
-            if change.to_value is True:
-                actions_can_approve_pull_request_reviews = cast(
-                    RepositoryWorkflowSettings, coerced_object
-                ).actions_can_approve_pull_request_reviews
-                if actions_can_approve_pull_request_reviews is False:
-                    modified_workflow_settings["actions_can_approve_pull_request_reviews"] = Change(
-                        actions_can_approve_pull_request_reviews, actions_can_approve_pull_request_reviews
-                    )
-
-        if len(modified_workflow_settings) > 0:
-            handler(
-                LivePatch.of_changes(
-                    coerced_object,
-                    current_object,
-                    modified_workflow_settings,
-                    parent_object,
-                    False,
-                    cls.apply_live_patch,
-                )
-            )
-
-    @classmethod
-    async def apply_live_patch(
-        cls,
-        patch: LivePatch[RepositoryWorkflowSettings],
-        org_id: str,
-        provider: GitHubProvider,
-    ) -> None:
-        from .repository import Repository
-
-        repository = expect_type(patch.parent_object, Repository)
-
-        match patch.patch_type:
-            case LivePatchType.ADD:
-                await provider.update_repo_workflow_settings(
-                    org_id,
-                    repository.name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
-                )
-
-            case LivePatchType.CHANGE:
-                github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
-                await provider.update_repo_workflow_settings(org_id, repository.name, github_settings)
-
-            case _:
-                raise RuntimeError(f"unexpected patch type '{patch.patch_type}'")

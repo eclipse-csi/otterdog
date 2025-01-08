@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from jsonbender import OptionalS, S  # type: ignore
 
-from otterdog.models import FailureType, ModelObject, PatchContext, ValidationContext
+from otterdog.models import EmbeddedModelObject, FailureType, PatchContext, ValidationContext
 from otterdog.utils import (
     UNSET,
     IndentingPrinter,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass
-class WorkflowSettings(ModelObject, abc.ABC):
+class WorkflowSettings(EmbeddedModelObject, abc.ABC):
     """
     Represents workflow settings on organizational / repository level.
     """
@@ -48,8 +48,8 @@ class WorkflowSettings(ModelObject, abc.ABC):
 
     _allowed_actions_level: ClassVar[dict[str, int]] = {
         "all": 1,
-        "local_only": 3,
         "selected": 2,
+        "local_only": 3,
     }
 
     @classmethod
@@ -59,11 +59,17 @@ class WorkflowSettings(ModelObject, abc.ABC):
         else:
             return 0
 
+    def are_actions_restricted(self) -> bool:
+        if is_set_and_valid(self.allowed_actions):
+            org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
+            return org_level >= 2
+        return False
+
     def are_actions_more_restricted(self, repo_allowed_actions: str) -> bool:
         if is_set_and_valid(self.allowed_actions):
             org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
             repo_level = WorkflowSettings.get_allowed_actions_level(repo_allowed_actions)
-            return org_level >= repo_level
+            return org_level > repo_level
         return False
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -71,7 +77,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
             if self.allowed_actions not in {"all", "local_only", "selected"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'allowed_actions' of value "
+                    f"{parent_object.get_model_header()} has 'workflows.allowed_actions' of value "
                     f"'{self.allowed_actions}', "
                     f"while only values ('all' | 'local_only' | 'selected') are allowed.",
                 )
@@ -79,7 +85,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
             if self.allowed_actions != "selected" and len(self.allow_action_patterns) > 0:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has 'allowed_actions' set to "
+                    f"{parent_object.get_model_header()} has 'workflows.allowed_actions' set to "
                     f"'{self.allowed_actions}', "
                     f"but 'allow_action_patterns' is set to '{self.allow_action_patterns}', "
                     f"setting will be ignored.",
@@ -89,8 +95,8 @@ class WorkflowSettings(ModelObject, abc.ABC):
             if self.default_workflow_permissions not in {"read", "write"}:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'default_workflow_permissions' of value "
-                    f"'{self.default_workflow_permissions}', "
+                    f"{parent_object.get_model_header()} has 'workflows.default_workflow_permissions' "
+                    f"of value '{self.default_workflow_permissions}', "
                     f"while only values ('read' | 'write') are allowed.",
                 )
 
@@ -156,7 +162,7 @@ class WorkflowSettings(ModelObject, abc.ABC):
         jsonnet_config: JsonnetConfig,
         context: PatchContext,
         extend: bool,
-        default_object: ModelObject,
+        default_object: EmbeddedModelObject,
     ) -> None:
         patch = self.get_patch_to(default_object)
         write_patch_object_as_json(patch, printer, False)

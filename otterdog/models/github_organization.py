@@ -506,11 +506,16 @@ class GitHubOrganization:
             included_keys = set(default_settings.keys())
             github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
+            if "workflows" in included_keys:
+                github_settings["workflows"] = await provider.get_org_workflow_settings(github_id)
+
             settings = OrganizationSettings.from_provider_data(github_id, github_settings)
 
             if "workflows" in included_keys:
-                workflow_settings = await provider.get_org_workflow_settings(github_id)
-                settings.workflows = OrganizationWorkflowSettings.from_provider_data(github_id, workflow_settings)
+                github_org_workflow_data = await provider.get_org_workflow_settings(github_id)
+                settings.workflows = OrganizationWorkflowSettings.from_provider_data(
+                    github_id, github_org_workflow_data
+                )
 
             if "custom_properties" in included_keys:
                 github_custom_properties = await provider.get_org_custom_properties(github_id)

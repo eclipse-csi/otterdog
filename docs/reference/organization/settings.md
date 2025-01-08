@@ -34,13 +34,30 @@ The following table captures all supported settings on organization level:
 | _two_factor_requirement_                        | boolean                                      | If two factor is required for all members                                                                                                                                      | read-only property, can only be changed via the Web UI |
 | _web_commit_signoff_required_                   | boolean                                      | If repositories require contributors to sign-off on commits they make through GitHub's web interface. If enabled on organization level, it overrides the setting on repo level |                                                        |
 | _custom_properties_                             | list\[[CustomProperty](custom-property.md)\] | Definition of custom properties                                                                                                                                                |                                                        |
-| _workflows_                                     | [Workflow Settings](workflow-settings.md)    | Workflow settings on organizational level                                                                                                                                      |                                                        |
+| _workflows_                                     | [Workflow Settings](#workflow-settings)      | Workflow settings on organizational level                                                                                                                                      |                                                        |
+
+## Embedded Models
+
+### Workflow Settings
+
+| Key                                        | Value        | Description                                                       | Notes                                                                    |
+|--------------------------------------------|--------------|-------------------------------------------------------------------|--------------------------------------------------------------------------|
+| _enabled_repositories_                     | string       | Defines which repositories are permitted to use GitHub Actions    | `all`, `none` or `selected`                                              |
+| _selected_repositories_                    | list[string] | The list of repositories that are permitted to use GitHub Actions | Only taken into account when `enabled_repositories` is set to `selected` |
+| _allowed_actions_                          | string       | Defines which type of GitHub Actions are permitted to run         | `all`, `local_only` or `selected`                                        |
+| _allow_github_owned_actions_               | boolean      | If GitHub owned actions are permitted to run                      | Only taken into account when `allowed_actions` is set to `selected`      |
+| _allow_verified_creator_actions_           | boolean      | If GitHub Actions from verified creators are permitted to run     | Only taken into account when `allowed_actions` is set to `selected`      |
+| _allow_action_patterns_                    | list[string] | A list of action patterns permitted to run                        | Only taken into account when `allowed_actions` is set to `selected`      |
+| _default_workflow_permissions_             | string       | The default workflow permissions granted to the GITHUB_TOKEN      | `read` or `write`                                                        |
+| _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                    |                                                                          |
 
 ## Validation rules
 
 - enabling either `dependabot_alerts_enabled_for_new_repositories` or `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependency_graph_enabled_for_new_repositories`
 - enabling `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependabot_alerts_enabled_for_new_repositories`
 - enabling `has_discussions` also requires setting `discussion_source_repository` to a valid repository to host the discussions
+- specifying a non-empty list of `selected_repositories` while `enabled_repositories` is not set to `selected`, triggers a warning
+- specifying a non-empty list of `allow_action_patterns` while `allowed_actions` is not set to `selected`, triggers a warning
 
 ## Example usage
 
@@ -58,6 +75,13 @@ The following table captures all supported settings on organization level:
             ],
             twitter_username: "adoptium",
             web_commit_signoff_required: false,
+            workflows+: {
+              allowed_actions: "selected",
+              allow_action_patterns: [
+                "marocchino/sticky-pull-request-comment@*",
+                "release-drafter/release-drafter@*"
+              ]
+            }
         },
         ...
     }

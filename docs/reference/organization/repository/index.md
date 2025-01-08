@@ -46,12 +46,26 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _forked_repository_                       | string or null                                            | The repository to fork when creating the repo                                           | only considered during creation                                                                                                                                                 |
 | _fork_default_branch_only_                | boolean                                                   | When creating a fork, whether only the default branch will be included in the fork      | only considered during creation                                                                                                                                                 |
 | _web_commit_signoff_required_             | boolean                                                   | If the repo requires web commit signoff                                                 |                                                                                                                                                                                 |
-| _workflows_                               | [WorkflowSettings](workflow-settings.md)                  | Workflow settings on organizational level                                               |                                                                                                                                                                                 |
+| _workflows_                               | [Workflow Settings](#workflow-settings)                   | Workflow settings on organizational level                                               |                                                                                                                                                                                 |
 | _webhooks_                                | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                                                                                                                 |
 | _secrets_                                 | list\[[RepositorySecret](secret.md)\]                     | secrets defined for this repo, see section below for details                            |                                                                                                                                                                                 |
 | _variables_                               | list\[[RepositoryVariable](variable.md)\]                 | variables defined for this repo, see section below for details                          |                                                                                                                                                                                 |
 | _environments_                            | list\[[Environment](environment.md)\]                     | environments defined for this repo, see section below for details                       |                                                                                                                                                                                 |
 | _branch_protection_rules_                 | list\[[BranchProtectionRule](branch-protection-rule.md)\] | branch protection rules of the repo, see section below for details                      |                                                                                                                                                                                 |
+
+## Embedded Models
+
+### Workflow Settings
+
+| Key                                        | Value        | Description                                                    | Notes                                                               |
+|--------------------------------------------|--------------|----------------------------------------------------------------|---------------------------------------------------------------------|
+| _enabled_                                  | boolean      | If GitHub actions are enabled for this repository              |                                                                     |
+| _allowed_actions_                          | string       | Defines which type of GitHub Actions are permitted to run      | `all`, `local_only` or `selected`                                   |
+| _allow_github_owned_actions_               | boolean      | If GitHub owned actions are permitted to run                   | Only taken into account when `allowed_actions` is set to `selected` |
+| _allow_verified_creator_actions_           | boolean      | If GitHub Actions from verified creators are permitted to run  | Only taken into account when `allowed_actions` is set to `selected` |
+| _allow_action_patterns_                    | list[string] | A list of action patterns permitted to run                     | Only taken into account when `allowed_actions` is set to `selected` |
+| _default_workflow_permissions_             | string       | The default workflow permissions granted to the GITHUB_TOKEN   | `read` or `write`                                                   |
+| _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                 |                                                                     |
 
 ## Jsonnet Function
 
@@ -83,6 +97,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 - specifying more than 20 topics triggers an error (maximum number of supported topics by GitHub)
 - disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
 - specifying a `template_repository` and `forked_repository` at the same time triggers an error
+- specifying a non-empty list of `allow_action_patterns` while `allowed_actions` is not set to `selected`, triggers a warning
 
 !!! tip
 
@@ -115,6 +130,9 @@ Definition of a Repository for a GitHub organization, the following properties a
           allow_update_branch: false,
           dependabot_alerts_enabled: false,
           web_commit_signoff_required: false,
+          workflows+: {
+            enabled: false,
+          },
           branch_protection_rules: [
             orgs.newBranchProtectionRule('main'),
           ],
