@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -114,12 +114,6 @@ class ShowOperation(Operation):
         self._print_model_object(organization.settings)
         self.printer.level_down()
 
-        if is_set_and_valid(organization.settings.workflows):
-            self.printer.println('=== "Workflow Settings"')
-            self.printer.level_up()
-            self._print_model_object(organization.settings.workflows)
-            self.printer.level_down()
-
         self.printer.println('=== "Organization Webhooks"')
         self.printer.level_up()
         if len(organization.webhooks) > 0:
@@ -215,12 +209,6 @@ class ShowOperation(Operation):
         self.printer.level_up()
         self._print_model_object(repo)
         self.printer.level_down()
-
-        if is_set_and_valid(repo.workflows):
-            self.printer.println('=== "Workflows"')
-            self.printer.level_up()
-            self._print_model_object(repo.workflows)
-            self.printer.level_down()
 
         self.printer.println('=== "Webhooks"')
         self.printer.level_up()
