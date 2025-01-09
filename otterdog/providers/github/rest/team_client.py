@@ -35,7 +35,7 @@ class TeamClient(RestClient):
         _logger.debug("retrieving teams for org '%s'", org_id)
 
         try:
-            return await self.requester.request_json("GET", f"/orgs/{org_id}/teams")
+            return await self.requester.request_paged_json("GET", f"/orgs/{org_id}/teams")
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}") from ex
 
