@@ -69,9 +69,6 @@
                     <a class="nav-link" id="settings-tab" data-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="workflow-settings-tab" data-toggle="pill" href="#workflow-settings" role="tab" aria-controls="workflow-settings" aria-selected="false">Workflow Settings</a>
-                  </li>
-                  <li class="nav-item">
                     <a class="nav-link" id="roles-tab" data-toggle="pill" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
                   </li>
                   <li class="nav-item">
@@ -381,9 +378,7 @@
                     </div>
                   </div>
                   <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab">
-                    <pre><code class="language-json">{{ config.settings|pretty_format_model }}</code></pre></div>
-                  <div class="tab-pane" id="workflow-settings" role="tabpanel" aria-labelledby="workflow-settings-tab">
-                    <pre><code class="language-json">{{ config.settings.workflows|pretty_format_model }}</code></pre>
+                    <pre><code class="language-json">{{ config.settings|pretty_format_model }}</code></pre>
                   </div>
                   <div class="tab-pane" id="roles" role="tabpanel" aria-labelledby="roles-tab">
                     <div class="table-responsive p-0">
