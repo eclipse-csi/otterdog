@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -279,6 +279,7 @@ class Operation(ABC):
                 expected_value,
                 prefix,
                 color,
+                forced_update,
             )
 
         self.printer.level_down()
@@ -292,17 +293,25 @@ class Operation(ABC):
         expected_value,
         prefix: str,
         color: str,
+        forced_update: bool,
     ):
         if isinstance(expected_value, dict):
             self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = {{")
             self.printer.level_up()
-            self._print_modified_dict_internal(max_key_length, current_value, expected_value, prefix, color)
+            self._print_modified_dict_internal(
+                max_key_length,
+                current_value,
+                expected_value,
+                prefix,
+                color,
+                forced_update,
+            )
             self.printer.level_down()
             self.printer.println(f"{prefix}}}")
         elif isinstance(expected_value, list):
             self.printer.println(f"{prefix}{key.ljust(max_key_length, ' ')} = [")
             self.printer.level_up()
-            self._print_modified_list_internal(current_value, expected_value, prefix, color)
+            self._print_modified_list_internal(current_value, expected_value, prefix, color, forced_update)
             self.printer.level_down()
             self.printer.println(f"{prefix}]")
         else:
@@ -312,7 +321,13 @@ class Operation(ABC):
             )
 
     def _print_modified_dict_internal(
-        self, max_key_length: int, current_value, expected_value, prefix: str, color: str
+        self,
+        max_key_length: int,
+        current_value,
+        expected_value,
+        prefix: str,
+        color: str,
+        forced_update: bool,
     ) -> None:
         processed_keys = set()
         for k, v in sorted(expected_value.items()):
@@ -324,7 +339,9 @@ class Operation(ABC):
                 elif v is None:
                     self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}")
                 else:
-                    self._print_modified_internal(k, max_key_length, c_v, v, prefix, color)
+                    self._print_modified_internal(k, max_key_length, c_v, v, prefix, color, forced_update)
+            elif forced_update is True:
+                self._print_modified_internal(k, max_key_length, c_v, v, prefix, color, forced_update)
 
             processed_keys.add(k)
 
@@ -333,7 +350,14 @@ class Operation(ABC):
                 if k not in processed_keys:
                     self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
 
-    def _print_modified_list_internal(self, current_value, expected_value, prefix: str, color: str) -> None:
+    def _print_modified_list_internal(
+        self,
+        current_value,
+        expected_value,
+        prefix: str,
+        color: str,
+        forced_update: bool,
+    ) -> None:
         from difflib import SequenceMatcher
 
         a = sorted(current_value)
@@ -346,6 +370,10 @@ class Operation(ABC):
 
         for tag, i1, i2, j1, j2 in SequenceMatcher(None, a, b).get_opcodes():
             match tag:
+                case "equal":
+                    if forced_update is True:
+                        for i in range(i1, i2):
+                            self.printer.println(f"{prefix}{self._get_value(a[i])}")
                 case "replace":
                     diff_i = i2 - i1
                     diff_j = j2 - j1

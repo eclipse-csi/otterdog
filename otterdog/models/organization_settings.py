@@ -83,7 +83,7 @@ class OrganizationSettings(ModelObject):
     security_managers: list[str]
 
     # nested model fields
-    workflows: OrganizationWorkflowSettings = dataclasses.field(metadata={"nested_model": True})
+    workflows: OrganizationWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
     custom_properties: list[CustomProperty] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
 
     @property
@@ -142,10 +142,6 @@ class OrganizationSettings(ModelObject):
                 yield custom_property, self
                 yield from custom_property.get_model_objects()
 
-        if is_set_and_present(self.workflows):
-            yield self.workflows, self
-            yield from self.workflows.get_model_objects()
-
     @classmethod
     def get_mapping_from_model(cls) -> dict[str, Any]:
         mapping = super().get_mapping_from_model()
@@ -167,7 +163,15 @@ class OrganizationSettings(ModelObject):
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
+
         mapping["plan"] = OptionalS("plan", "name", default=UNSET)
+
+        if "workflows" in data:
+            workflow_data = data["workflows"]
+            mapping["workflows"] = K(OrganizationWorkflowSettings.from_provider_data(org_id, workflow_data))
+        else:
+            mapping["workflows"] = K(UNSET)
+
         return mapping
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
@@ -194,6 +198,10 @@ class OrganizationSettings(ModelObject):
         default_org_settings = cast(OrganizationSettings, default_object)
 
         patch = self.get_patch_to(default_object)
+
+        if "workflows" in patch:
+            patch.pop("workflows")
+
         write_patch_object_as_json(patch, printer, False)
 
         # print custom properties
@@ -268,11 +276,6 @@ class OrganizationSettings(ModelObject):
                 handler,
             )
 
-        if is_set_and_valid(expected_object.workflows):
-            OrganizationWorkflowSettings.generate_live_patch(
-                expected_object.workflows, current_object.workflows, expected_object, context, handler
-            )
-
     @classmethod
     async def apply_live_patch(
         cls,
@@ -285,7 +288,19 @@ class OrganizationSettings(ModelObject):
 
         github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
 
+        if "workflows" in github_settings:
+            github_settings.pop("workflows")
+            update_workflows = True
+        else:
+            update_workflows = False
+
         await provider.update_org_settings(
             org_id,
             github_settings,
         )
+
+        if update_workflows is True:
+            data = unwrap(patch.expected_object).workflows.to_model_dict(for_diff=True)
+            github_data = await OrganizationWorkflowSettings.dict_to_provider_data(org_id, data, provider)
+
+            await provider.update_org_workflow_settings(org_id, github_data)

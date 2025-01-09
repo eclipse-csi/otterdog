@@ -183,12 +183,38 @@ class EmbeddedModelObject(ABC):
     @abstractmethod
     def validate(self, context: ValidationContext, parent_object: Any) -> None: ...
 
+    def get_difference_from(self, other: Self) -> Change | None:
+        if not isinstance(other, self.__class__):
+            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+
+        from_dict: dict[str, Any] = {}
+        to_dict: dict[str, Any] = {}
+
+        for key in self.keys(
+            for_diff=True,
+            for_patch=False,
+            exclude_unset_keys=True,
+        ):
+            to_value = self.__getattribute__(key)
+            from_value = other.__getattribute__(key)
+
+            if is_unset(from_value):
+                continue
+
+            from_dict[key] = from_value
+            to_dict[key] = to_value
+
+        if is_different_ignoring_order(from_dict, to_dict):
+            return Change(from_dict, to_dict)
+        else:
+            return None
+
     def get_patch_to(self, other: EmbeddedModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
             raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
-        for key in self.keys(exclude_unset_keys=True):
+        for key in self.keys(for_diff=False, for_patch=True, exclude_unset_keys=True):
             value = self.__getattribute__(key)
             other_value = other.__getattribute__(key)
 
@@ -225,10 +251,27 @@ class EmbeddedModelObject(ABC):
     def all_fields(cls) -> list[dataclasses.Field]:
         return list(dataclasses.fields(cls))
 
-    def keys(self, exclude_unset_keys: bool = True) -> list[str]:
+    def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        return True
+
+    def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
+        return self.include_field_for_diff_computation(field)
+
+    def keys(
+        self,
+        for_diff: bool = False,
+        for_patch: bool = False,
+        exclude_unset_keys: bool = True,
+    ) -> list[str]:
         result = []
 
         for field in self.all_fields():
+            if for_diff is True and not self.include_field_for_diff_computation(field):
+                continue
+
+            if for_patch is True and not self.include_field_for_patch_computation(field):
+                continue
+
             if exclude_unset_keys:
                 value = self.__getattribute__(field.name)
                 if not is_unset(value):
@@ -238,10 +281,10 @@ class EmbeddedModelObject(ABC):
 
         return result
 
-    def to_model_dict(self) -> dict[str, Any]:
+    def to_model_dict(self, for_diff: bool = False) -> dict[str, Any]:
         result = {}
 
-        for key in self.keys(exclude_unset_keys=True):
+        for key in self.keys(for_diff=for_diff, for_patch=False, exclude_unset_keys=True):
             value = self.__getattribute__(key)
             result[key] = value
 
@@ -351,6 +394,12 @@ class ModelObject(ABC):
                 continue
 
             if is_unset(from_value):
+                continue
+
+            if isinstance(to_value, EmbeddedModelObject) and isinstance(from_value, EmbeddedModelObject):
+                embedded_diff = to_value.get_difference_from(from_value)
+                if embedded_diff is not None:
+                    diff_result[key] = embedded_diff
                 continue
 
             if isinstance(to_value, EmbeddedModelObject):

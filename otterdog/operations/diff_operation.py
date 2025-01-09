@@ -206,7 +206,7 @@ class DiffOperation(Operation):
                     diff_status.differences += self.handle_modified_object(
                         github_id,
                         unwrap(patch.changes),
-                        False,
+                        patch.forced_update,
                         unwrap(patch.current_object),
                         unwrap(patch.expected_object),
                         patch.parent_object,

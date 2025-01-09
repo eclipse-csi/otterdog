@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -234,7 +234,7 @@ class Requester:
 
     @staticmethod
     def _check_permissions(url_path: str, status_code: int, body: str, headers: Mapping[str, str]):
-        if status_code >= 400:
+        if status_code == 403:
             existing_scopes = {x.strip() for x in headers.get("X-OAuth-Scopes", "").split(",") if len(x) > 0}
             required_scopes = {x.strip() for x in headers.get("X-Accepted-OAuth-Scopes", "").split(",") if len(x) > 0}
 
