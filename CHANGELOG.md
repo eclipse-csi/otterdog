@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Changes the `exclude_team` filter to not consider teams defined in the default config.
 - Converted workflow related settings into an embedded model object.
 - Included option `repo-filter` of diff related operations already when getting live data from GitHub to speed up execution.
 

@@ -63,7 +63,11 @@ class Team(ModelObject, abc.ABC):
         # execute custom validation rules if present
         self.execute_custom_validation_if_present(context, "validate-team.py")
 
-        if context.exclude_teams_pattern is not None and context.exclude_teams_pattern.match(self.name):
+        if (
+            context.exclude_teams_pattern is not None
+            and context.exclude_teams_pattern.match(self.name)
+            and self.name not in context.default_team_names
+        ):
             context.add_failure(
                 FailureType.ERROR,
                 f"{self.get_model_header(parent_object)} has 'name' of value '{self.name}', "

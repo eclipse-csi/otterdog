@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -19,6 +19,7 @@ from . import Operation
 
 if TYPE_CHECKING:
     from otterdog.config import OrganizationConfig
+    from otterdog.jsonnet import JsonnetConfig
 
 
 class ValidateOperation(Operation):
@@ -64,7 +65,7 @@ class ValidateOperation(Operation):
 
             async with GitHubProvider(credentials) as provider:
                 validation_infos, validation_warnings, validation_errors = await self.validate(
-                    organization, jsonnet_config.template_dir, provider
+                    organization, jsonnet_config, provider
                 )
                 validation_count = validation_infos + validation_warnings + validation_errors
 
@@ -98,13 +99,13 @@ class ValidateOperation(Operation):
     async def validate(
         self,
         organization: GitHubOrganization,
-        template_dir: str,
+        jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
     ) -> tuple[int, int, int]:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
-        context = await organization.validate(self.config, self.credential_resolver, template_dir, provider)
+        context = await organization.validate(self.config, jsonnet_config, self.credential_resolver, provider)
 
         validation_infos = 0
         validation_warnings = 0

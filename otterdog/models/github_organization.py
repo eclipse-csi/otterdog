@@ -148,8 +148,8 @@ class GitHubOrganization:
     async def validate(
         self,
         config: OtterdogConfig,
+        jsonnet_config: JsonnetConfig,
         secret_resolver: SecretResolver,
-        template_dir: str,
         provider: GitHubProvider,
     ) -> ValidationContext:
         # only retrieve the list of current organization members if there are teams defined
@@ -158,11 +158,16 @@ class GitHubOrganization:
         else:
             org_members = set()
 
+        default_org = GitHubOrganization.from_model_data(
+            jsonnet_config.default_org_config_for_org_id(self.project_name, self.github_id)
+        )
+
         context = ValidationContext(
             self,
             secret_resolver,
-            template_dir,
+            jsonnet_config.template_dir,
             org_members,
+            {t.name for t in default_org.teams},
             config.exclude_teams_pattern,
         )
         self.settings.validate(context, self)
@@ -540,11 +545,23 @@ class GitHubOrganization:
         @debug_times("teams")
         async def _load_teams() -> None:
             if jsonnet_config.default_team_config is not None:
+                default_org = GitHubOrganization.from_model_data(
+                    jsonnet_config.default_org_config_for_org_id(project_name, github_id)
+                )
+
                 github_teams = await provider.get_org_teams(github_id)
                 for team in github_teams:
-                    if exclude_teams is not None and exclude_teams.match(team["slug"]):
+                    team_name = team["name"]
+                    team_slug = team["slug"]
+
+                    default_org.get_team(team_name)
+                    if (
+                        exclude_teams is not None
+                        and exclude_teams.match(team_slug)
+                        and default_org.get_team(team_name) is None
+                    ):
                         continue
-                    team_members = await provider.get_org_team_members(github_id, team["slug"])
+                    team_members = await provider.get_org_team_members(github_id, team_slug)
                     team["members"] = team_members
                     org.add_team(Team.from_provider_data(github_id, team))
             else:

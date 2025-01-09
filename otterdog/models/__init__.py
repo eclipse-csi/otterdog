@@ -55,6 +55,7 @@ class ValidationContext:
     secret_resolver: SecretResolver
     template_dir: str
     org_members: set[str]
+    default_team_names: set[str]
     exclude_teams_pattern: Pattern | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
 
