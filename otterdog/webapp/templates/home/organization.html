@@ -430,11 +430,15 @@
                             <td class="col-1">{{ team.privacy }}</td>
                             <td class="col-1">{{ team.notifications }}</td>
                             <td class="col-2">
+                              {% if team.skip_members == true %}
+                              skipped
+                              {% else %}
                               <ul>
                               {% for member in team.members %}
                                 <li>{{ member }}</li>
                               {% endfor %}
                               </ul>
+                              {% endif %}
                             </td>
                           </tr>
                           {% endfor %}
