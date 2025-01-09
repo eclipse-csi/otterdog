@@ -52,9 +52,8 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         ):
             copy.enabled = UNSET  # type: ignore
 
-        if org_workflow_settings.are_actions_restricted():
-            if org_workflow_settings.are_actions_more_restricted(copy.allowed_actions):
-                copy.allowed_actions = UNSET  # type: ignore
+        if org_workflow_settings.are_actions_more_or_equally_restricted(copy.allowed_actions):
+            copy.allowed_actions = UNSET  # type: ignore
             for prop in self._selected_action_properties:
                 copy.__setattr__(prop, UNSET)
 
@@ -67,48 +66,42 @@ class RepositoryWorkflowSettings(WorkflowSettings):
         return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        from .repository import Repository
+
         super().validate(context, parent_object)
 
+        repo = cast(Repository, parent_object)
+
+        actions_enabled = None
         if is_set_and_valid(self.enabled) and self.enabled is True:
             from .github_organization import GitHubOrganization
 
+            actions_enabled = True
             org_workflow_settings = cast(GitHubOrganization, context.root_object).settings.workflows
 
-            if org_workflow_settings.enabled_repositories == "none" and self.enabled is True:
+            if org_workflow_settings.enabled_repositories == "none":
+                actions_enabled = False
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{parent_object.get_model_header()} has enabled workflows, "
                     f"while on organization level it is disabled for all repositories, setting will be ignored.",
                 )
 
-            from otterdog.models.repository import Repository
-
-            repository_name = cast(Repository, parent_object).name
-
             if (
                 org_workflow_settings.enabled_repositories == "selected"
-                and repository_name not in org_workflow_settings.selected_repositories
-                and self.enabled is True
+                and repo.name not in org_workflow_settings.selected_repositories
             ):
-                repo = cast(Repository, parent_object)
-                if repo.code_scanning_default_setup_enabled is True:
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{parent_object.get_model_header()} has 'code_scanning_default_setup_enabled' of "
-                        f"value '{repo.code_scanning_default_setup_enabled}' while GitHub Actions are disabled.",
-                    )
-
-                if self.enabled is True:
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{parent_object.get_model_header()} has enabled workflows, "
-                        f"while on organization level it is only enabled for selected repositories, "
-                        f"setting will be ignored.",
-                    )
-
-            if org_workflow_settings.are_actions_more_restricted(self.allowed_actions) and self.enabled is True:
+                actions_enabled = False
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
+                    f"{parent_object.get_model_header()} has enabled workflows, "
+                    f"while on organization level it is only enabled for selected repositories, "
+                    f"setting will be ignored.",
+                )
+
+            if org_workflow_settings.are_actions_more_restricted(self.allowed_actions):
+                context.add_failure(
+                    FailureType.INFO,
                     f"{parent_object.get_model_header()} has set 'allowed_actions' to '{self.allowed_actions}', "
                     f"while on organization level it is more restricted to '{org_workflow_settings.allowed_actions}', "
                     f"setting will be ignored.",
@@ -119,7 +112,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                 and self.default_workflow_permissions == "write"
             ):
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{parent_object.get_model_header()} has 'default_workflow_permissions' of value "
                     f"'{self.default_workflow_permissions}', "
                     f"while on organization level it is restricted to "
@@ -135,6 +128,15 @@ class RepositoryWorkflowSettings(WorkflowSettings):
                     f"{parent_object.get_model_header()} has 'actions_can_approve_pull_request_reviews' enabled, "
                     f"while on organization level it is disabled, setting will be ignored.",
                 )
+        elif self.enabled is False:
+            actions_enabled = False
+
+        if repo.code_scanning_default_setup_enabled is True and actions_enabled is False:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has 'code_scanning_default_setup_enabled' of "
+                f"value '{repo.code_scanning_default_setup_enabled}' while GitHub Actions are disabled.",
+            )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if is_unset(self.enabled):

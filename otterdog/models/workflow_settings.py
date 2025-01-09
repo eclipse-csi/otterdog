@@ -59,17 +59,18 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
         else:
             return 0
 
-    def are_actions_restricted(self) -> bool:
-        if is_set_and_valid(self.allowed_actions):
-            org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
-            return org_level >= 2
-        return False
-
     def are_actions_more_restricted(self, repo_allowed_actions: str) -> bool:
         if is_set_and_valid(self.allowed_actions):
             org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
             repo_level = WorkflowSettings.get_allowed_actions_level(repo_allowed_actions)
             return org_level > repo_level
+        return False
+
+    def are_actions_more_or_equally_restricted(self, repo_allowed_actions: str) -> bool:
+        if is_set_and_valid(self.allowed_actions):
+            org_level = WorkflowSettings.get_allowed_actions_level(self.allowed_actions)
+            repo_level = WorkflowSettings.get_allowed_actions_level(repo_allowed_actions)
+            return org_level >= repo_level
         return False
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
