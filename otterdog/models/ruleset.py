@@ -500,12 +500,14 @@ class Ruleset(ModelObject, abc.ABC):
             for actor in bypass_actors:
                 actor_type = actor["actor_type"]
 
-                if actor_type == "RepositoryRole" or actor_type == "OrganizationAdmin":
+                if actor_type == "RepositoryRole":
                     role = cls._roles.get(str(actor["actor_id"]), None)
                     if role is None:
                         _logger.warning("fail to map repository role '%s', skipping", actor["actor_id"])
                         continue
                     transformed_actor = f"#{role}"
+                elif actor_type == "OrganizationAdmin":
+                    transformed_actor = "#OrganizationAdmin"
                 elif actor_type == "Team":
                     transformed_actor = f"@{actor['team_slug']}"
                 elif actor_type == "Integration":
