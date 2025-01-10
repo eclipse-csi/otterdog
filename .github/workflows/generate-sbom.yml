@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           poetry install
-          poetry export --with main,app -o requirements.txt
+          poetry export --only=main,app -o requirements.txt
           VERSION=$(poetry version -s | sed 's/.dev[0-9]*/.dev/')
           echo "PROJECT_VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Generate sbom
