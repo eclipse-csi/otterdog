@@ -3,10 +3,9 @@ __pycache__/
 *.py[cod]
 
 .pytest_cache/
-
+.poetry
 .idea
 .vscode
-
 
 # Ignoring generated static website content
 */**/node_modules/
@@ -18,6 +17,7 @@ dist
 site
 .venv/
 .cache/
+.tox
 
 ### Ignoring otterdog out directory orgs
 orgs/
