@@ -10,7 +10,7 @@ build:
     post_create_environment:
       # Install poetry
       # https://python-poetry.org/docs/#installing-manually
-      - pip install "poetry==1.8.4"
+      - pip install "poetry==2.0.0"
     post_install:
       # Install only dependencies of 'docs' dependency group
       - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH python -m poetry install --only=docs
