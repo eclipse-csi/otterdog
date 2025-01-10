@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Updated development environment to use `poetry` version `2.0.0` and changed license classifier to `EPL-2.0`. ([#328](https://github.com/eclipse-csi/otterdog/issues/328))
 - Changes the `exclude_team` filter to not consider teams defined in the default config.
 - Converted workflow related settings into an embedded model object.
 - Included option `repo-filter` of diff related operations already when getting live data from GitHub to speed up execution.

@@ -12,7 +12,7 @@ env:
   REGISTRY: 'ghcr.io'
   IMAGE_NAME: ${{ github.repository }}
   PYTHON_VERSION: '3.12'
-  POETRY_VERSION: '1.8.5'
+  POETRY_VERSION: '2.0.0'
 
 permissions:
   contents: read
@@ -41,7 +41,6 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
-          plugins: poetry-dynamic-versioning
       - name: "Setup context"
         id: context
         shell: bash
@@ -122,7 +121,6 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
-          plugins: poetry-dynamic-versioning
 
       - name: "Install dependencies"
         run: poetry install --only=main

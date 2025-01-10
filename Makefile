@@ -11,8 +11,7 @@ ifndef PIPX
 endif
 
 ifndef POETRY
-	pipx install "poetry==1.8.5"
-	pipx inject poetry "poetry-dynamic-versioning[plugin]"
+	pipx install "poetry>=2.0.0"
 endif
 
 	poetry config virtualenvs.in-project true
