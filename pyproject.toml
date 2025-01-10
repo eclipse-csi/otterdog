@@ -102,35 +102,44 @@ pyyaml               = "^6.0"
 semver               = "^3.0"
 python-slugify       = "^8.0"
 
+[tool.poetry.group.dev]
+optional = true
+
 [tool.poetry.group.dev.dependencies]
-ruff       = "^0.8"
-mypy       = "^1.8"
-pre-commit = "^4.0"
+ruff = ">=0.8"
+pre-commit = ">=4.0"
+
+[tool.poetry.group.test]
+optional = true
 
 [tool.poetry.group.test.dependencies]
-tox            = ">4.22"
-pytest         = "^8.0"
-pytest-asyncio = "^0.24"
-parameterized  = "^0.9"
+tox = ">4.22"
+pytest = ">=8.0"
+pytest-asyncio = ">=0.24"
+parameterized  = ">=0.9"
+
+[tool.poetry.group.typing]
+optional = true
 
 [tool.poetry.group.typing.dependencies]
-types-colorama       = "^0.4"
-types-requests       = "^2.31"
-types-jsonschema     = "^4.17"
-types-chevron        = "^0.14"
-types-aiofiles       = "^24.0"
-types-redis          = "^4.6"
-types-PyYAML         = "^6.0"
-motor-types          = ">=1.0.0b4"
-types-python-slugify = "^8.0"
+mypy = ">=1.8.0"
+types-colorama = ">=0.4"
+types-requests = ">=2.31"
+types-jsonschema = ">=4.17"
+types-chevron = ">=0.14"
+types-aiofiles = ">=24.0"
+types-redis = ">=4.6"
+types-PyYAML = ">=6.0"
+motor-types = ">=1.0.0b4"
+types-python-slugify = ">=8.0"
 
 [tool.poetry.group.docs]
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-mkdocs             = "^1.5"
-mkdocs-material    = "^9.5"
-mkdocs-exclude     = "^1.0"
+mkdocs = "^1.5"
+mkdocs-material = "^9.5"
+mkdocs-exclude = "^1.0"
 pymdown-extensions = "^10.7"
 
 [tool.poetry-dynamic-versioning]
