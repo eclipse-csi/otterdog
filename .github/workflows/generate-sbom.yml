@@ -20,6 +20,8 @@ permissions:
 jobs:
   generate-sbom:
     runs-on: ubuntu-latest
+    outputs:
+      project-version: ${{ steps.context.outputs.PROJECT_VERSION }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -34,13 +36,16 @@ jobs:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
       - name: Install cyclonedx-py
-        run: pipx install cyclonedx-bom
-      - name: "Set static version for cyclonedx tool"
+        run: pipx install cyclonedx-bom==5.1.1
+      - name: "Get project version and export requirements"
         shell: bash
         run: |
-          poetry version $(poetry version -s | sed 's/.dev[0-9]*/.dev/')
+          poetry install
+          poetry export --with main,app -o requirements.txt
+          VERSION=$(poetry version -s | sed 's/.dev[0-9]*/.dev/')
+          echo "PROJECT_VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Generate sbom
-        run: cyclonedx-py poetry --with main,app -o otterdog-bom.json
+        run: cyclonedx-py requirements -o otterdog-bom.json
       - name: Upload sbom
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
@@ -56,18 +61,12 @@ jobs:
         with:
           name: otterdog-bom.json
 
-      - name: Extract version
-        id: version
-        run: |
-          VERSION="$(jq -r '.metadata.component.version' < otterdog-bom.json)"
-          echo "version=$(echo ${VERSION})" >> $GITHUB_OUTPUT
-
       - uses: DependencyTrack/gh-upload-sbom@48feab3080ff9e8f51f4d21861d9fc914eb744f5 # v3.1.0
         with:
           serverHostname: 'sbom.eclipse.org'
           apiKey: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           projectName: 'otterdog'
-          projectVersion: ${{ steps.version.outputs.version }}
+          projectVersion: ${{ needs.generate-sbom.outputs.project-version }}
           bomFilename: "otterdog-bom.json"
           parentName: 'otterdog'
           parentVersion: 'parent'
