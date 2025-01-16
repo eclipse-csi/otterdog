@@ -41,6 +41,8 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
+      - name: "Install poetry plugins"
+        run: poetry install --only-root
       - name: "Setup context"
         id: context
         shell: bash
