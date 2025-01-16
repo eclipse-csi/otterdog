@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -320,6 +320,7 @@ async def defaults(project_name: str):
                 "Organization Custom Property",
                 f"{jsonnet_config.create_org_custom_property}('<name>')",
             ),
+            ("repo", "Repository", f"{jsonnet_config.create_repo}('<name>')"),
             ("repo-secret", "Repository Secret", f"{jsonnet_config.create_repo_secret}('<name>')"),
             ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
             ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
