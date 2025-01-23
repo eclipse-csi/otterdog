@@ -6,9 +6,9 @@ Questions, feature requests and bug reports are all welcome as
 [discussions](https://github.com/eclipse-csi/otterdog/discussions) or
 [issues](https://github.com/eclipse-csi/otterdog/issues).
 
-## Merge Requests
+## Pull Requests
 
-It should be extremely simple to get started and create a Merge Request.
+It should be extremely simple to get started and create a Pull Request.
 
 Unless your change is trivial (typo, docs tweak etc.), please create an issue to discuss the change before
 creating a pull request.
@@ -25,7 +25,7 @@ Because of this, setting up and running the tests should be very simple.
 
 You'll need the following prerequisites:
 
-- Any Python version **>= 3.10**
+- Any Python version **>= 3.11**
 - **git**
 - **make**
 - [**poetry**](https://python-poetry.org/docs/#installation)
@@ -41,6 +41,8 @@ cd otterdog
 
 # Install poetry
 curl -sSL https://install.python-poetry.org | python3 -
+# or alternatively
+pipx install poetry
 
 # Install dependencies
 make init
@@ -83,7 +85,7 @@ Documentation is written in Markdown and built using [Material for MkDocs](https
 
 ### Code documentation
 
-When contributing to Pydantic, please make sure that all code is well documented. The following should be documented using properly formatted docstrings:
+When contributing to otterdog, please make sure that all code is well documented. The following should be documented using properly formatted docstrings:
 
 - Modules
 - Class definitions
