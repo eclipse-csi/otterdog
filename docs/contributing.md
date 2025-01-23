@@ -2,7 +2,9 @@ We'd love you to contribute to Otterdog!
 
 ## Issues
 
-Questions, feature requests and bug reports are all welcome as [discussions or issues](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/new).
+Questions, feature requests and bug reports are all welcome as
+[discussions](https://github.com/eclipse-csi/otterdog/discussions) or
+[issues](https://github.com/eclipse-csi/otterdog/issues).
 
 ## Merge Requests
 
@@ -12,8 +14,8 @@ Unless your change is trivial (typo, docs tweak etc.), please create an issue to
 creating a pull request.
 
 If you're looking for something to get your teeth into, check out the
-["help wanted"](https://gitlab.eclipse.org/eclipsefdn/security/otterdog/-/issues/?label_name%5B%5D=Help%20Wanted)
-label on gitlab.
+["help wanted"](https://github.com/eclipse-csi/otterdog/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help%20wanted%22)
+label on GitHub.
 
 To make contributing as easy and fast as possible, you'll want to run tests and linting locally. Luckily,
 Otterdog has few dependencies, doesn't require compiling and tests don't need access to databases, etc.
@@ -30,11 +32,11 @@ You'll need the following prerequisites:
 
 ### Installation and setup
 
-Fork the repository on Gitlab and clone your fork locally.
+Fork the repository on GitHub and clone your fork locally.
 
 ```bash
 # Clone your fork and cd into the repo directory
-git clone https://gitlab.eclipse.org/<your username>/otterdog.git
+git clone https://github.com/<your username>/otterdog.git
 cd otterdog
 
 # Install poetry
@@ -65,7 +67,7 @@ make test
 
 ### Commit and push your changes
 
-Commit your changes, push your branch to Gitlab, and create a pull request.
+Commit your changes, push your branch to GitHub, and create a pull request.
 
 Please follow the pull request template and fill in as much information as possible. Link to any relevant issues and include a description of your changes.
 
