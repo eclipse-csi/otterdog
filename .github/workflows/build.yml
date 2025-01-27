@@ -13,7 +13,7 @@ permissions:
 
 env:
   LATEST_PY_VERSION: '3.12'
-  POETRY_VERSION: '2.0.0'
+  POETRY_VERSION: '2.0.1'
 
 jobs:
   test:

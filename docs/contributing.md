@@ -28,7 +28,7 @@ You'll need the following prerequisites:
 - Any Python version **>= 3.11**
 - **git**
 - **make**
-- [**poetry**](https://python-poetry.org/docs/#installation)
+- [**poetry >= 2**](https://python-poetry.org/docs/#installation)
 
 ### Installation and setup
 

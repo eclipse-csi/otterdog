@@ -11,7 +11,7 @@ ifndef PIPX
 endif
 
 ifndef POETRY
-	pipx install "poetry>=2.0.0"
+	pipx install "poetry>=2.0.1"
 endif
 
 	poetry config virtualenvs.in-project true

@@ -15,7 +15,7 @@ apt install python3 python3-pip
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
-pipx install poetry
+pipx install poetry>=2.0.1
 ```
 
 * [`git`](https://git-scm.com/): popular distributed version control system

@@ -47,8 +47,7 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 
 * python3.11+ (mandatory): e.g. install using `apt install python3` or use `pyenv install 3.12`
 * git (mandatory): install using `apt install git`
-* poetry (mandatory): install using `pipx install poetry`
-* dynamic versioning plugin (mandatory): install using `pipx inject poetry "poetry-dynamic-versioning[plugin]"`
+* poetry >=2 (mandatory): install using `pipx install poetry>=2.0.1`
 * bitwarden cli tool (optional): install using `snap install bw`
 * pass cli tool (optional): install using `apt install pass`
 
@@ -60,7 +59,7 @@ The documentation is available at [otterdog.readthedocs.io](https://otterdog.rea
 $ make init
 ```
 
-Running `make init` will also install `poetry` and the `dynamic versioning plugin` if it is not installed yet.
+Running `make init` will also install `poetry` if it is not installed yet.
 
 * Testing build
 
