@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -176,6 +176,26 @@ class WorkflowJob(BaseModel):
     labels: list[str]
 
 
+class WorkflowRef(BaseModel):
+    path: str
+    ref: str | None
+    sha: str
+
+
+class WorkflowRun(BaseModel):
+    name: str
+    id: int
+    run_number: int
+    run_attempt: int
+    status: str
+    head_sha: str
+    head_branch: str | None = None
+    created_at: str
+    run_started_at: str
+    conclusion: str | None = None
+    referenced_workflows: list[WorkflowRef] | None
+
+
 class Commit(BaseModel):
     added: list[str]
     modified: list[str]
@@ -244,6 +264,14 @@ class WorkflowJobEvent(Event):
 
     action: str
     workflow_job: WorkflowJob
+    repository: Repository
+
+
+class WorkflowRunEvent(Event):
+    """A payload sent for workflow run events."""
+
+    action: str
+    workflow_run: WorkflowRun
     repository: Repository
 
 

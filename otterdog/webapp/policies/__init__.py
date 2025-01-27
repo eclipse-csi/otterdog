@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -22,6 +22,7 @@ POLICY_PATH = "otterdog/policies"
 
 
 class PolicyType(str, Enum):
+    DEPENDENCY_TRACK_UPLOAD = "dependency_track_upload"
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
 
 
@@ -91,6 +92,11 @@ def create_policy(
             from otterdog.webapp.policies.macos_large_runners import MacOSLargeRunnersUsagePolicy
 
             return MacOSLargeRunnersUsagePolicy.model_validate(data)
+
+        case PolicyType.DEPENDENCY_TRACK_UPLOAD:
+            from otterdog.webapp.policies.dependency_track_upload import DependencyTrackUploadPolicy
+
+            return DependencyTrackUploadPolicy.model_validate(data)
 
         case _:
             raise RuntimeError(f"unknown policy type '{policy_type}'")
