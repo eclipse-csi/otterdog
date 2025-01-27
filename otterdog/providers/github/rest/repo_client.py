@@ -5,7 +5,7 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
-
+import asyncio
 import json
 import os
 import pathlib
@@ -283,6 +283,10 @@ class RepoClient(RestClient):
             result = await self.requester.request_json("POST", f"/orgs/{org_id}/repos", data)
             _logger.debug("created repo with name '%s'", repo_name)
             self._remove_already_active_settings(update_data, result)
+            # let's wait a bit for the repo to be created.
+            # in some cases, the repo can not be access yet via the REST API, resulting in 404 errors
+            # we prevent that by adding an arbitrary sleep
+            await asyncio.sleep(2)
             await self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}") from ex
