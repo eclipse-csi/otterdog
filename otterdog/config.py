@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -190,6 +190,7 @@ class OtterdogConfig:
     local_mode: bool
     working_dir: str
 
+    _base_url: str = dataclasses.field(init=False)
     _jsonnet_config: Mapping[str, Any] = dataclasses.field(init=False)
     _github_config: Mapping[str, Any] = dataclasses.field(init=False)
     _default_credential_provider: str = dataclasses.field(init=False)
@@ -199,6 +200,7 @@ class OtterdogConfig:
     _organizations: list[OrganizationConfig] = dataclasses.field(init=False, default_factory=list)
 
     def __post_init__(self):
+        object.__setattr__(self, "_base_url", query_json("defaults.base_url", self.configuration) or None)
         object.__setattr__(self, "_jsonnet_config", query_json("defaults.jsonnet", self.configuration) or {})
         object.__setattr__(self, "_github_config", query_json("defaults.github", self.configuration) or {})
         object.__setattr__(
@@ -219,6 +221,10 @@ class OtterdogConfig:
             self._organizations.append(org_config)
             self._organizations_map[org_config.name.lower()] = org_config
             self._organizations_map[org_config.github_id.lower()] = org_config
+
+    @property
+    def base_url(self) -> str:
+        return self._base_url
 
     @property
     def jsonnet_base_dir(self) -> str:

@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -76,6 +76,23 @@ class PullRequestClient(RestClient):
             return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/pulls", params=params)
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull requests:\n{ex}") from ex
+
+    async def merge_pull_request(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: str,
+        method: str,
+    ) -> dict[str, Any]:
+        _logger.debug("merging pull request #%s for repo '%s/%s'", pull_request_number, org_id, repo_name)
+
+        try:
+            data = {"merge_method": method}
+            return await self.requester.request_json(
+                "PUT", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/merge", data=data
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed merging pull request:\n{ex}") from ex
 
     async def get_commits(
         self,

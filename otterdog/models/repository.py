@@ -1089,12 +1089,10 @@ class Repository(ModelObject):
                     )
                 )
 
-        parent_repo = coerced_object if current_object is None else current_object
-
         RepositoryWebhook.generate_live_patch_of_list(
             coerced_object.webhooks,
             current_object.webhooks if current_object is not None else [],
-            parent_repo,
+            coerced_object,
             context,
             handler,
         )
@@ -1102,7 +1100,7 @@ class Repository(ModelObject):
         RepositorySecret.generate_live_patch_of_list(
             coerced_object.secrets,
             current_object.secrets if current_object is not None else [],
-            parent_repo,
+            coerced_object,
             context,
             handler,
         )
@@ -1110,7 +1108,7 @@ class Repository(ModelObject):
         RepositoryVariable.generate_live_patch_of_list(
             coerced_object.variables,
             current_object.variables if current_object is not None else [],
-            parent_repo,
+            coerced_object,
             context,
             handler,
         )
@@ -1118,7 +1116,7 @@ class Repository(ModelObject):
         Environment.generate_live_patch_of_list(
             coerced_object.environments,
             current_object.environments if current_object is not None else [],
-            parent_repo,
+            coerced_object,
             context,
             handler,
         )
@@ -1130,7 +1128,7 @@ class Repository(ModelObject):
             BranchProtectionRule.generate_live_patch_of_list(
                 coerced_object.branch_protection_rules,
                 current_object.branch_protection_rules if current_object is not None else [],
-                parent_repo,
+                coerced_object,
                 context,
                 handler,
             )
@@ -1138,7 +1136,7 @@ class Repository(ModelObject):
             RepositoryRuleset.generate_live_patch_of_list(
                 coerced_object.rulesets,
                 current_object.rulesets if current_object is not None else [],
-                parent_repo,
+                coerced_object,
                 context,
                 handler,
             )

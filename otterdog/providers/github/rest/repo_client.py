@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -17,6 +17,7 @@ from typing import Any
 import aiofiles
 import chevron
 
+from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
 from otterdog.utils import (
@@ -46,6 +47,27 @@ class RepoClient(RestClient):
 
         repo_data = await self.get_simple_repo_data(org_id, repo_name)
         return repo_data["default_branch"]
+
+    async def get_branch(self, org_id: str, repo_name: str, branch_name: str) -> dict[str, Any]:
+        _logger.debug("retrieving data for branch '%s' in repo '%s/%s'", branch_name, org_id, repo_name)
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/branches/{branch_name}")
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving data for branch '{branch_name}' in repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def rename_branch(self, org_id: str, repo_name: str, branch: str, new_name: str) -> dict[str, Any]:
+        _logger.debug("renaming branch '%s' to '%s' in repo '%s/%s'", branch, new_name, org_id, repo_name)
+
+        try:
+            data = {"new_name": new_name}
+            return await self.requester.request_json(
+                "POST", f"/repos/{org_id}/{repo_name}/branches/{branch}/rename", data
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed renaming branch '{branch}' in repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
         _logger.debug("retrieving repo data for '%s/%s'", org_id, repo_name)
@@ -200,9 +222,7 @@ class RepoClient(RestClient):
                             initialized = True
                             break
                         except RuntimeError:
-                            _logger.trace(
-                                f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 10"
-                            )
+                            _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 10")
                             import time
 
                             time.sleep(1)
@@ -428,6 +448,13 @@ class RepoClient(RestClient):
 
         status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
         if status == 200:
+            if is_trace_enabled():
+                _logger.trace(
+                    "'%s' url = %s, json = %s",
+                    "GET",
+                    f"/repos/{org_id}/{repo_name}/pages",
+                    json.dumps(json.loads(body), indent=2),
+                )
             repo_data["gh_pages"] = json.loads(body)
 
     async def _update_github_pages_config(self, org_id: str, repo_name: str, gh_pages: dict[str, Any]) -> None:
@@ -441,7 +468,7 @@ class RepoClient(RestClient):
                 if "gh_pages" in current_repo_data:
                     break
 
-                _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, " f"try {i} of 3")
+                _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 3")
                 import time
 
                 time.sleep(1)
@@ -532,14 +559,11 @@ class RepoClient(RestClient):
             if new_default_branch in existing_branch_names:
                 data = {"default_branch": new_default_branch}
                 await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
-                _logger.debug("updated default branch for '%s/%s'", org_id, repo_name)
+                _logger.debug("updated default branch in repo '%s/%s'", org_id, repo_name)
             else:
                 default_branch = await self.get_default_branch(org_id, repo_name)
-                data = {"new_name": new_default_branch}
-                await self.requester.request_json(
-                    "POST", f"/repos/{org_id}/{repo_name}/branches/{default_branch}/rename", data
-                )
-                _logger.debug("renamed default branch for '%s/%s'", org_id, repo_name)
+                await self.rename_branch(org_id, repo_name, default_branch, new_default_branch)
+                _logger.debug("renamed default branch in repo '%s/%s'", org_id, repo_name)
         except GitHubException as ex:
             raise RuntimeError(f"failed to update default branch for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
@@ -715,7 +739,7 @@ class RepoClient(RestClient):
         try:
             current_branch_policies_by_name = associate_by_key(
                 await self._get_deployment_branch_policies(org_id, repo_name, env_name),
-                lambda x: f'{x.get("type", "branch")}:{x["name"]}',
+                lambda x: f"{x.get('type', 'branch')}:{x['name']}",
             )
         except RuntimeError:
             current_branch_policies_by_name = {}
@@ -765,7 +789,7 @@ class RepoClient(RestClient):
         status, body = await self.requester.request_raw("DELETE", url)
 
         if status != 204:
-            raise RuntimeError(f"failed deleting deployment branch policy" f"\n{status}: {body}")
+            raise RuntimeError(f"failed deleting deployment branch policy\n{status}: {body}")
 
         _logger.debug("deleted deployment branch policy for env '%s'", env_name)
 
@@ -921,7 +945,7 @@ class RepoClient(RestClient):
 
             if status != 204:
                 raise RuntimeError(
-                    f"failed to update workflow settings for repo '{org_id}/{repo_name}'" f"\n{status}: {body}"
+                    f"failed to update workflow settings for repo '{org_id}/{repo_name}'\n{status}: {body}"
                 )
 
             _logger.debug("updated workflow settings for repo '%s/%s'", org_id, repo_name)
@@ -962,7 +986,7 @@ class RepoClient(RestClient):
         )
 
         if status != 204:
-            raise RuntimeError(f"failed updating allowed actions for repo '{org_id}/{repo_name}'" f"\n{status}: {body}")
+            raise RuntimeError(f"failed updating allowed actions for repo '{org_id}/{repo_name}'\n{status}: {body}")
 
         _logger.debug("updated allowed actions for repo '%s/%s'", org_id, repo_name)
 
@@ -985,7 +1009,7 @@ class RepoClient(RestClient):
 
         if status != 204:
             raise RuntimeError(
-                f"failed updating default workflow permissions for repo '{org_id}/{repo_name}'" f"\n{status}: {body}"
+                f"failed updating default workflow permissions for repo '{org_id}/{repo_name}'\n{status}: {body}"
             )
 
         _logger.debug("updated default workflow permissions for repo '%s/%s'", org_id, repo_name)
@@ -1083,6 +1107,4 @@ class RepoClient(RestClient):
                 await file.write(data)
 
         except GitHubException as ex:
-            raise RuntimeError(
-                f"failed retrieving repository archive from " f"repo '{org_id}/{repo_name}':\n{ex}"
-            ) from ex
+            raise RuntimeError(f"failed retrieving repository archive from repo '{org_id}/{repo_name}':\n{ex}") from ex

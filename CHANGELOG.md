@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added operations `list-blueprints` and `approve-blueprints` to list and approve remediation PRs created for specific organizations.
 - Added support for teams.
 - Use asyncer to speed up retrieval of live settings. ([#209](https://github.com/eclipse-csi/otterdog/issues/209))
 

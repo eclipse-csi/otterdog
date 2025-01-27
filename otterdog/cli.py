@@ -100,6 +100,59 @@ class StdCommand(click.Command):
         return super().invoke(ctx)
 
 
+class SingletonCommand(click.Command):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.context_settings = _CONTEXT_SETTINGS
+        self.params.insert(
+            0,
+            click.Option(
+                ["-v", "--verbose"],
+                count=True,
+                help="enable verbose output (-vvv for more verbose output)",
+            ),
+        )
+
+        self.params.insert(
+            0,
+            click.Option(
+                ["-c", "--config"],
+                default=_CONFIG_FILE,
+                show_default=True,
+                type=click.Path(True, True, False),
+                help="configuration file to use",
+            ),
+        )
+
+        self.params.insert(
+            0,
+            click.Option(
+                ["--local"],
+                is_flag=True,
+                default=False,
+                show_default=True,
+                help="work in local mode, not updating the referenced default config",
+            ),
+        )
+
+    def invoke(self, ctx: click.Context) -> Any:
+        global _CONFIG
+
+        verbose = ctx.params.pop("verbose")
+        init_logging(verbose)
+
+        config_file = ctx.params.pop("config")
+        local_mode = ctx.params.pop("local")
+
+        try:
+            _CONFIG = OtterdogConfig.from_file(config_file, local_mode)
+        except Exception as exc:
+            print_exception(exc)
+            sys.exit(2)
+
+        return super().invoke(ctx)
+
+
 @click.group(context_settings=_CONTEXT_SETTINGS)
 @click.version_option(version=__version__, prog_name="otterdog.sh")
 def cli():
@@ -297,14 +350,36 @@ def list_members(organizations: list[str], two_factor_disabled: bool):
     _execute_operation(organizations, ListMembersOperation(two_factor_disabled))
 
 
-@cli.command(cls=StdCommand)
-def list_projects(organizations: list[str]):
+@cli.command(cls=SingletonCommand)
+def list_projects():
     """
     Lists all configured projects and their corresponding GitHub id.
     """
     from otterdog.operations.list_projects import ListProjectsOperation
 
-    _execute_operation(organizations, ListProjectsOperation())
+    _execute_operation([], ListProjectsOperation())
+
+
+@cli.command(cls=StdCommand)
+@click.option("-b", "--blueprint-id", required=False, help="blueprint id")
+def list_blueprints(organizations: list[str], blueprint_id):
+    """
+    List blueprints.
+    """
+    from otterdog.operations.list_blueprints import ListBlueprintsOperation
+
+    _execute_operation(organizations, ListBlueprintsOperation(blueprint_id))
+
+
+@cli.command(cls=StdCommand)
+@click.option("-b", "--blueprint-id", required=False, help="blueprint id")
+def approve_blueprints(organizations: list[str], blueprint_id):
+    """
+    Approved remediation PRs for blueprints.
+    """
+    from otterdog.operations.approve_blueprints import ApproveBlueprintsOperation
+
+    _execute_operation(organizations, ApproveBlueprintsOperation(blueprint_id))
 
 
 @cli.command(cls=StdCommand, name="import")
