@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -51,6 +51,7 @@ from .github_models import (
     PullRequestReviewEvent,
     PushEvent,
     WorkflowJobEvent,
+    WorkflowRunEvent,
     touched_by_commits,
 )
 from .github_webhook import GitHubWebhook
@@ -382,6 +383,41 @@ async def on_workflow_job_received(data):
             )
 
     return success()
+
+
+@webhook.hook("workflow_run")
+async def on_workflow_run_received(data):
+    try:
+        event = WorkflowRunEvent.model_validate(data)
+    except ValidationError:
+        logger.error("failed to load workflow run event data", exc_info=True)
+        return success()
+
+    if event.installation is None or event.organization is None:
+        return success()
+
+    installation_id = event.installation.id
+    owner = event.organization.login
+
+    if event.action in ["completed"]:
+        logger.debug(f"workflow run completed in repo: {event.repository.full_name}")
+
+        from otterdog.webapp.db.service import find_policy
+        from otterdog.webapp.policies import PolicyType
+        from otterdog.webapp.policies.dependency_track_upload import (
+            DependencyTrackUploadPolicy,
+        )
+
+        policy_model = await find_policy(owner, PolicyType.DEPENDENCY_TRACK_UPLOAD.value)
+        if policy_model is not None:
+            policy = create_policy_from_model(policy_model)
+            expect_type(policy, DependencyTrackUploadPolicy)
+            await policy.evaluate(
+                installation_id,
+                owner,
+                event.repository.name,
+                event.workflow_run,
+            )
 
 
 async def targets_config_repo(repo_name: str, installation_id: int) -> bool:
