@@ -26,7 +26,6 @@ class DependencyTrackUploadPolicy(Policy):
     """
 
     artifact_name: str
-    base_url: str
     workflow_filter: str
 
     @property

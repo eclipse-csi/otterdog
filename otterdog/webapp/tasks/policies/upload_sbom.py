@@ -38,6 +38,10 @@ class UploadSBOMTask(PolicyTask):
     workflow_run_id: int
 
     @property
+    def _dependency_track_url(self) -> str:
+        return current_app.config["DEPENDENCY_TRACK_URL"]
+
+    @property
     def _dependency_track_token(self) -> str:
         return current_app.config["DEPENDENCY_TRACK_TOKEN"]
 
@@ -95,10 +99,11 @@ class UploadSBOMTask(PolicyTask):
             }
 
             self.logger.info(
-                f"uploading sbom for '{meta_data.projectName}@{meta_data.projectVersion}' to '{self.policy.base_url}'"
+                f"uploading sbom for '{meta_data.projectName}@{meta_data.projectVersion}' "
+                f"to '{self._dependency_track_url}'"
             )
 
-            upload_url = f"{self.policy.base_url}/api/v1/bom"
+            upload_url = f"{self._dependency_track_url}/api/v1/bom"
             async with session.put(upload_url, headers=headers, json=data) as response:
                 if response.status != 200:
                     error = await response.text()
