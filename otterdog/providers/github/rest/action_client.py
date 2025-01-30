@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -24,8 +24,9 @@ class ActionClient(RestClient):
         _logger.debug("retrieving workflows for repo '%s/%s'", org_id, repo)
 
         try:
-            result = await self.requester.request_json("GET", f"/repos/{org_id}/{repo}/actions/workflows")
-            return result["workflows"]
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo}/actions/workflows", entries_key="workflows"
+            )
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving workflows for '{org_id}/{repo}':\n{ex}") from ex
 
@@ -44,3 +45,25 @@ class ActionClient(RestClient):
             raise RuntimeError(
                 f"failed cancelling workflow run #{run_id} in repo '{org_id}/{repo_name}'\n{status}: {body}"
             )
+
+    async def get_artifacts(self, org_id: str, repo: str, run_id: int) -> list[dict[str, Any]]:
+        _logger.debug("list artifacts for workflow run #%d in repo '%s/%s'", run_id, org_id, repo)
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo}/actions/runs/{run_id}/artifacts", entries_key="artifacts"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving artifacts for '{org_id}/{repo}':\n{ex}") from ex
+
+    async def download_artifact(self, file, org_id: str, repo_name: str, artifact_id: int) -> None:
+        _logger.debug("downloading workflow artifact in repo '%s/%s'", org_id, repo_name)
+
+        try:
+            async for data in self.requester.request_stream(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/artifacts/{artifact_id}/zip"
+            ):
+                await file.write(data)
+
+        except GitHubException as ex:
+            raise RuntimeError(f"failed downloading workflow artifact from repo '{org_id}/{repo_name}':\n{ex}") from ex

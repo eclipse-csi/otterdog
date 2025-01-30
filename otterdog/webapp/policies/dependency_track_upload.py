@@ -10,6 +10,8 @@ import re
 from logging import getLogger
 from typing import Any, Self
 
+from quart import current_app
+
 from otterdog.utils import expect_type, unwrap
 from otterdog.webapp.webhook.github_models import WorkflowRun
 
@@ -23,6 +25,8 @@ class DependencyTrackUploadPolicy(Policy):
     A policy to upload sbom data from workflow runs to dependency track.
     """
 
+    artifact_name: str
+    base_url: str
     workflow_filter: str
 
     @property
@@ -47,7 +51,23 @@ class DependencyTrackUploadPolicy(Policy):
         repo_name = unwrap(repo_name)
         payload = expect_type(payload, WorkflowRun)
 
-        if payload.referenced_workflows is not None and any(
-            self.matches_workflow(x.path) for x in payload.referenced_workflows
+        if (
+            payload.conclusion == "success"
+            and payload.referenced_workflows is not None
+            and any(self.matches_workflow(x.path) for x in payload.referenced_workflows)
         ):
-            logger.info(f"workflow run #{payload.id} in repo '{github_id}/{repo_name}' contains sbom data")
+            from otterdog.webapp.tasks.policies.upload_sbom import UploadSBOMTask
+
+            logger.info(
+                f"workflow run {payload.name}/#{payload.id} in repo '{github_id}/{repo_name}' contains sbom data"
+            )
+
+            current_app.add_background_task(
+                UploadSBOMTask(
+                    installation_id,
+                    github_id,
+                    repo_name,
+                    self,
+                    payload.id,
+                )
+            )

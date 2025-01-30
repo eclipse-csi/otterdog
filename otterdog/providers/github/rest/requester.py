@@ -81,6 +81,7 @@ class Requester:
         url_path: str,
         data: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
+        entries_key: str | None = None,
     ) -> list[dict[str, Any]]:
         from urllib import parse
 
@@ -101,12 +102,14 @@ class Requester:
             self._check_response(url_path, status, body)
             response = json.loads(body)
 
+            entries = response[entries_key] if entries_key is not None else response
+
             if next_url is None:
                 query_params = None
             else:
                 query_params = {k: v[0] for k, v in parse.parse_qs(parse.urlparse(next_url).query).items()}
 
-            for item in response:
+            for item in entries:
                 result.append(item)
 
         return result

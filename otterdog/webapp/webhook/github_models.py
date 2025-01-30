@@ -163,6 +163,7 @@ class Issue(BaseModel):
 class WorkflowJob(BaseModel):
     name: str
     id: int
+    workflow_name: str | None
     run_id: int
     runner_id: int | None = None
     runner_name: str | None = None
