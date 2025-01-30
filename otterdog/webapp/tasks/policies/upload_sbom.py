@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import aiofiles
 import aiohttp
 from pydantic import BaseModel
+from quart import current_app
 
 from otterdog.webapp import get_temporary_base_directory
 from otterdog.webapp.tasks.policies import PolicyTask
@@ -35,6 +36,10 @@ class UploadSBOMTask(PolicyTask):
     repo_name: str
     policy: DependencyTrackUploadPolicy
     workflow_run_id: int
+
+    @property
+    def _dependency_track_token(self) -> str:
+        return current_app.config["DEPENDENCY_TRACK_TOKEN"]
 
     async def _execute(self) -> bool:
         self.logger.info(
@@ -78,7 +83,7 @@ class UploadSBOMTask(PolicyTask):
         async with aiohttp.ClientSession() as session:
             headers = {
                 "Content-Type": "application/json",
-                "X-Api-Key": "odt_rKEj8Mq0vFwEE2LmFLgIe766BWRo892k",
+                "X-Api-Key": self._dependency_track_token,
             }
 
             data = {
