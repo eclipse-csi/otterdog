@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -23,7 +23,7 @@ class Mongo:
     def init_app(self, app: Quart) -> None:
         connection_uri = app.config["MONGO_URI"]
 
-        m = re.match(r"^((mongodb:(?:/{2})?)((\w+?):(\w+?)@|:?@?)(\w+?):(\d+)/)(\w+?)$", connection_uri)
+        m = re.match(r"^((mongodb:(?:/{2})?)((\w+?):(\w+?)@|:?@?)([\w-]+?):(\d+)/)(\w+?)$", connection_uri)
 
         if m is not None:
             server_uri = m.group(1)
