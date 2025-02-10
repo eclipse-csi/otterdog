@@ -70,7 +70,11 @@ async def index():
         stats.projects_with_two_factor_auth_enforced,
     ]
 
-    two_factor_percentage = float(stats.projects_with_two_factor_auth_enforced) / float(stats.total_projects) * 100.0
+    two_factor_percentage = (
+        float(stats.projects_with_two_factor_auth_enforced) / float(stats.total_projects) * 100.0
+        if stats.total_projects > 0
+        else 0
+    )
 
     secret_scanning_data = [
         stats.active_repos - stats.repos_with_secret_scanning - stats.repos_with_secret_scanning_and_protection,
@@ -79,9 +83,13 @@ async def index():
     ]
 
     secret_scanning_percentage = (
-        float(stats.repos_with_secret_scanning + stats.repos_with_secret_scanning_and_protection)
-        / float(stats.active_repos)
-        * 100.0
+        (
+            float(stats.repos_with_secret_scanning + stats.repos_with_secret_scanning_and_protection)
+            / float(stats.active_repos)
+            * 100.0
+        )
+        if stats.active_repos > 0
+        else 0
     )
 
     dependabot_data = [
@@ -91,9 +99,13 @@ async def index():
     ]
 
     dependabot_percentage = (
-        float(stats.repos_with_dependabot_alerts + stats.repos_with_dependabot_security_updates)
-        / float(stats.active_repos)
-        * 100.0
+        (
+            float(stats.repos_with_dependabot_alerts + stats.repos_with_dependabot_security_updates)
+            / float(stats.active_repos)
+            * 100.0
+        )
+        if stats.active_repos > 0
+        else 0
     )
 
     branch_protection_data = [
@@ -101,7 +113,9 @@ async def index():
         stats.repos_with_branch_protection,
     ]
 
-    branch_protection_percentage = float(stats.repos_with_branch_protection) / float(stats.active_repos) * 100.0
+    branch_protection_percentage = (
+        float(stats.repos_with_branch_protection) / float(stats.active_repos) * 100.0 if stats.active_repos > 0 else 0
+    )
 
     private_vulnerability_reporting_data = [
         stats.active_repos - stats.repos_with_private_vulnerability_reporting,
@@ -109,7 +123,9 @@ async def index():
     ]
 
     private_vulnerability_reporting_percentage = (
-        float(stats.repos_with_private_vulnerability_reporting) / float(stats.active_repos) * 100.0
+        (float(stats.repos_with_private_vulnerability_reporting) / float(stats.active_repos) * 100.0)
+        if stats.active_repos > 0
+        else 0
     )
 
     return await render_home_template(
