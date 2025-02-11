@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import render_chevron
 from otterdog.webapp.blueprints.required_file import RequiredFile, RequiredFileBlueprint
 from otterdog.webapp.db.models import ConfigurationModel
 from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
@@ -68,8 +69,6 @@ class CheckFilesTask(BlueprintTask):
         return result
 
     def _render_content(self, file: RequiredFile) -> str:
-        import chevron
-
         context = {
             "project_name": self.config_model.project_name,
             "github_id": self.config_model.github_id,
@@ -81,7 +80,7 @@ class CheckFilesTask(BlueprintTask):
             "blueprint_url": self.blueprint.path,
         }
 
-        return chevron.render(file.content, context)
+        return render_chevron(file.content, context)
 
     async def _process_files(
         self,

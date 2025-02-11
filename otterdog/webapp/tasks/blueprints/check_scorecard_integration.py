@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -13,6 +13,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import render_chevron
 from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
 from otterdog.webapp.tasks.blueprints.pinning.actions import ActionRef, GitHubAction
 from otterdog.webapp.tasks.blueprints.pinning.workflow_file import WorkflowFile
@@ -78,8 +79,6 @@ class CheckScorecardIntegrationTask(BlueprintTask):
         return False
 
     def _render_content(self, content: str) -> str:
-        import chevron
-
         context = {
             "project_name": self.config_model.project_name,
             "github_id": self.config_model.github_id,
@@ -91,7 +90,7 @@ class CheckScorecardIntegrationTask(BlueprintTask):
             "blueprint_url": self.blueprint.path,
         }
 
-        return chevron.render(content, context)
+        return render_chevron(content, context)
 
     async def _add_scorecard_workflow(
         self,

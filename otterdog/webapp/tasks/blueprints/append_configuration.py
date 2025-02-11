@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -13,7 +13,7 @@ import aiofiles
 from slugify import slugify
 
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import jsonnet_evaluate_file, query_json
+from otterdog.utils import jsonnet_evaluate_file, query_json, render_chevron
 from otterdog.webapp.blueprints.append_configuration import AppendConfigurationBlueprint
 from otterdog.webapp.db.models import ConfigurationModel
 from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
@@ -79,8 +79,6 @@ class AppendConfigurationTask(BlueprintTask):
         return result
 
     def _render_configuration_snippet(self, snippet: str) -> str:
-        import chevron
-
         context = {
             "project_name": self.config_model.project_name,
             "github_id": self.config_model.github_id,
@@ -92,7 +90,7 @@ class AppendConfigurationTask(BlueprintTask):
             "blueprint_url": self.blueprint.path,
         }
 
-        return chevron.render(snippet, context)
+        return render_chevron(snippet, context)
 
     async def _process_blueprint(self, result: CheckResult) -> None:
         result.remediation_needed = True

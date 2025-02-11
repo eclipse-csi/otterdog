@@ -628,3 +628,12 @@ def debug_times(category: str):
             return wrapper_timed
 
     return decorator_timed
+
+
+def render_chevron(content: str, context: dict[str, Any]) -> str:
+    import chevron
+
+    # need to escape ${{ sequences as used at GitHub
+    escaped_content = content.replace("${{", "$\\{\\{")
+    output = chevron.render(escaped_content, context)
+    return output.replace("$\\{\\{", "${{")
