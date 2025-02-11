@@ -113,14 +113,15 @@ class TeamClient(RestClient):
     async def add_member_to_team(self, org_id: str, team_slug: str, user: str) -> None:
         _logger.debug("adding user with id '%s' to team '%s' in org '%s'", user, team_slug, org_id)
 
-        status, body = await self.requester.request_raw("PUT", f"/orgs/{org_id}/teams/{team_slug}/memberships/{user}")
+        data = {"role": "member"}
+        status, body = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/teams/{team_slug}/memberships/{user}", data=json.dumps(data)
+        )
 
         if status == 200:
             _logger.debug("added user '%s' to team '%s' for org '%s'", user, team_slug, org_id)
         else:
-            raise RuntimeError(
-                f"failed adding user '{user}' to team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
-            )
+            raise RuntimeError(f"failed adding user '{user}' to team '{team_slug}' in org '{org_id}'\n{status}: {body}")
 
     async def remove_member_from_team(self, org_id: str, team_slug: str, user: str) -> None:
         _logger.debug("removing user '%s' from team '%s' in org '%s'", user, team_slug, org_id)
@@ -130,7 +131,7 @@ class TeamClient(RestClient):
         )
         if status != 204:
             raise RuntimeError(
-                f"failed removing user '{user}' from team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
+                f"failed removing user '{user}' from team '{team_slug}' in org '{org_id}'\n{status}: {body}"
             )
 
         _logger.debug("removed user '%s' from team '%s' in org '%s'", user, team_slug, org_id)
@@ -156,7 +157,7 @@ class TeamClient(RestClient):
             return False
         else:
             raise RuntimeError(
-                f"failed retrieving team membership for user '{user}' in org '{org_id}'" f"\n{status}: {body}"
+                f"failed retrieving team membership for user '{user}' in org '{org_id}'\n{status}: {body}"
             )
 
     async def get_membership(self, org_id: str, user_name: str) -> dict[str, Any]:
