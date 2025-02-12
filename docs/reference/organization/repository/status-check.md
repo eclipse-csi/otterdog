@@ -60,7 +60,7 @@ Based on these workflow files, the following status checks would be available:
 Rules for translating jobs to stats-checks:
 
 - if a job has no name specified, use its id
-- if reusable workflows are called, join the jobs in their call hierarchy with ` / `.
+- if reusable workflows are called, join the jobs in their call hierarchy with ` / ` (**Note**: be aware of the whitespaces around the `/`)
 
 Now, as an example to protect the `main` branch by enforcing specific status checks to pass before a pull request can be merged into it,
 you can add the status checks as below:
