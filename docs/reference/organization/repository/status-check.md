@@ -60,7 +60,12 @@ Based on these workflow files, the following status checks would be available:
 Rules for translating jobs to stats-checks:
 
 - if a job has no name specified, use its id
-- if reusable workflows are called, join the jobs in their call hierarchy with ` / ` (**Note**: be aware of the whitespaces around the `/`)
+- if reusable workflows are called, join the jobs in their call hierarchy with ` / `
+
+!!! note
+
+    Be aware of the mandatory whitespaces surrounding the `/`. In case they are omitted, the status check will not
+    be correctly recognized by GitHub. Please refer also the example outlined above.
 
 Now, as an example to protect the `main` branch by enforcing specific status checks to pass before a pull request can be merged into it,
 you can add the status checks as below:
