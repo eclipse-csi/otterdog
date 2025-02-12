@@ -179,7 +179,7 @@ class WorkflowJob(BaseModel):
 
 class WorkflowRef(BaseModel):
     path: str
-    ref: str | None
+    ref: str | None = None
     sha: str
 
 
