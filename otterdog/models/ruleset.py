@@ -376,25 +376,40 @@ class Ruleset(ModelObject, abc.ABC):
                     f"'{self.enforcement}' which is only available for an 'enterprise' plan.",
                 )
 
-        def valid_condition_pattern(pattern: str) -> bool:
+        def valid_branch_condition_pattern(pattern: str) -> bool:
             return pattern.startswith("refs/heads/") or pattern == "~DEFAULT_BRANCH" or pattern == "~ALL"
+
+        def valid_tag_condition_pattern(pattern: str) -> bool:
+            return pattern.startswith("refs/tags/") or pattern == "~ALL"
 
         if is_set_and_valid(self.include_refs):
             for ref in self.include_refs:
-                if not valid_condition_pattern(ref):
+                if (self.target == "branch" or self.target == "push") and not valid_branch_condition_pattern(ref):
                     context.add_failure(
                         FailureType.ERROR,
                         f"{self.get_model_header(parent_object)} has an invalid 'include_refs' pattern "
                         f"'{ref}', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
                     )
+                elif self.target == "tag" and not valid_tag_condition_pattern(ref):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has an invalid 'include_refs' pattern "
+                        f"'{ref}', while only values ('refs/tags/*', '~ALL') are allowed",
+                    )
 
         if is_set_and_valid(self.exclude_refs):
             for ref in self.exclude_refs:
-                if not valid_condition_pattern(ref):
+                if (self.target == "branch" or self.target == "push") and not valid_branch_condition_pattern(ref):
                     context.add_failure(
                         FailureType.ERROR,
                         f"{self.get_model_header(parent_object)} has an invalid 'exclude_refs' pattern "
                         f"'{ref}', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed",
+                    )
+                elif self.target == "tag" and not valid_tag_condition_pattern(ref):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has an invalid 'exclude_refs' pattern "
+                        f"'{ref}', while only values ('refs/tags/*', '~ALL') are allowed",
                     )
 
         # if 'requires_deployments' is disabled, issue a warning if required_deployment_environments is non-empty.
