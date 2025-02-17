@@ -89,7 +89,9 @@ nav:
         - Validate: reference/operations/validate.md
         - List Advisories: reference/operations/list-advisories.md
 - User Guide:
+    - Adding new Resources: userguide/adding.md
     - Renaming of Resources: userguide/renaming.md
+    - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
 
 - Contribute: contributing.md
