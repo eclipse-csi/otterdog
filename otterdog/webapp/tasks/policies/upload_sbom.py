@@ -103,7 +103,7 @@ class UploadSBOMTask(PolicyTask):
                 f"to '{self._dependency_track_url}'"
             )
 
-            upload_url = f"{self._dependency_track_url}/v1/bom"
+            upload_url = f"{self._dependency_track_url}/api/v1/bom"
             async with session.put(upload_url, headers=headers, json=data) as response:
                 if response.status != 200:
                     error = await response.text()
