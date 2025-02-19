@@ -107,7 +107,7 @@ class UploadSBOMTask(PolicyTask):
             async with session.put(upload_url, headers=headers, json=data) as response:
                 if response.status != 200:
                     error = await response.text()
-                    raise RuntimeError(f"failed to upload SBOM: {error}")
+                    raise RuntimeError(f"failed to upload SBOM via '{upload_url}': ({response.status}, {error})")
 
     def __repr__(self) -> str:
         return f"UploadSBOMTask(repo={self.org_id}/{self.repo_name}, run_id={self.workflow_run_id})"
