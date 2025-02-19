@@ -69,19 +69,19 @@ class UploadSBOMTask(PolicyTask):
             async with aiofiles.open(artifact_file_name, "wb") as artifact_file:
                 await rest_api.action.download_artifact(artifact_file, self.org_id, self.repo_name, artifact_id)
 
-                with zipfile.ZipFile(artifact_file_name, "r") as zip_file:
-                    zip_file.extractall(tmp_dir)
+            with zipfile.ZipFile(artifact_file_name, "r") as zip_file:
+                zip_file.extractall(tmp_dir)
 
-                bom_file_name = os.path.join(tmp_dir, "bom.json")
-                metadata_file_name = os.path.join(tmp_dir, "metadata.json")
+            bom_file_name = os.path.join(tmp_dir, "bom.json")
+            metadata_file_name = os.path.join(tmp_dir, "metadata.json")
 
-                with open(bom_file_name) as bom_file:
-                    bom = json.load(bom_file)
+            with open(bom_file_name) as bom_file:
+                bom = json.load(bom_file)
 
-                with open(metadata_file_name) as metadata_file:
-                    metadata = Metadata.model_validate(json.load(metadata_file))
+            with open(metadata_file_name) as metadata_file:
+                metadata = Metadata.model_validate(json.load(metadata_file))
 
-                await self._upload_bom(bom, metadata)
+            await self._upload_bom(bom, metadata)
 
     async def _upload_bom(self, bom: dict[str, Any], meta_data: Metadata) -> None:
         async with aiohttp.ClientSession() as session:
