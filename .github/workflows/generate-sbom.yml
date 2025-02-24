@@ -3,6 +3,8 @@ name: Generate and ingest SBOM into sbom.eclipse.org
 on:
   push:
     branches: [main]
+  tags:
+    - "v*"
   workflow_dispatch:
     inputs:
       version:
