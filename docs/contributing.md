@@ -39,13 +39,22 @@ Fork the repository on GitHub and clone your fork locally.
 git clone https://github.com/<your username>/otterdog.git
 cd otterdog
 
-# Install poetry
-curl -sSL https://install.python-poetry.org | python3 -
-# or alternatively
+# Install poetry (preferred using pipx)
 pipx install poetry
+# or alternatively
+curl -sSL https://install.python-poetry.org | python3 -
 
 # Install dependencies
 make init
+```
+
+### Pre-commit hooks
+
+The project extensively uses `pre-commit` hooks to ensure consistent source code formatting and type checking.
+To enable `pre-commit` run the following:
+
+```bash
+poetry run pre-commit install
 ```
 
 ### Check out a new branch and make your changes

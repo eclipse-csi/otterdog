@@ -15,7 +15,7 @@ ifndef POETRY
 endif
 
 	poetry config virtualenvs.in-project true
-	poetry install --only=main
+	poetry sync
 	poetry run playwright install firefox
 
 	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
