@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2023-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -13,7 +13,7 @@ import os
 from datetime import datetime
 from importlib import import_module
 from importlib.util import find_spec
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import quart_flask_patch  # type: ignore # noqa: F401
 from flask_github import GitHub  # type: ignore
@@ -35,20 +35,34 @@ _BLUEPRINT_MODULES: list[str] = ["home", "api", "internal", "auth"]
 
 mongo = Mongo()
 redis_handler = RedisHandler()
-auth_manager = QuartAuth(cookie_secure=False)  # type: ignore
-oauth_github = GitHub()
+auth_manager: QuartAuth | None = None
+oauth_github: GitHub | None = None
 
 
 def register_extensions(app):
     mongo.init_app(app)
     redis_handler.init_app(app)
 
-    from otterdog.webapp.auth import User
+    if app.config["GITHUB_CLIENT_ID"] is not None:
+        from otterdog.webapp.auth import User
 
-    auth_manager.user_class = User
-    auth_manager.init_app(app)
+        global auth_manager
+        global oauth_github
 
-    oauth_github.init_app(app)
+        auth_manager = QuartAuth(cookie_secure=False)  # type: ignore
+        oauth_github = GitHub()
+
+        auth_manager.user_class = User
+        auth_manager.init_app(app)
+
+        oauth_github.init_app(app)
+    else:
+
+        @app.context_processor
+        async def dummy_user() -> dict[str, Any]:
+            return {
+                "current_user": None,
+            }
 
 
 def register_github_webhook(app) -> None:
@@ -60,7 +74,12 @@ def register_github_webhook(app) -> None:
 
 
 def register_blueprints(app):
+    global auth_manager
+
     for module_name in _BLUEPRINT_MODULES:
+        if module_name == "auth" and auth_manager is None:
+            continue
+
         routes_fqn = f"otterdog.webapp.{module_name}.routes"
         spec = find_spec(routes_fqn)
         if spec is not None:

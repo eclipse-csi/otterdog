@@ -30,7 +30,7 @@
                 {{ current_user.username }} - Logout
               </a>
             </div>
-            {% else %}
+            {% elif current_user %}
             <a href="{{ url_for('auth_blueprint.login_view') }}" class="dropdown-item">
               <i class="fas fa-user mr-2"></i> Login
             </a>

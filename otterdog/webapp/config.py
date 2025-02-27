@@ -46,8 +46,8 @@ class AppConfig:
     GITHUB_WEBHOOK_SYNC_CONTEXT = config("GITHUB_WEBHOOK_SYNC_CONTEXT", default="otterdog-sync")
 
     # GitHub OAuth config
-    GITHUB_CLIENT_ID = config("GITHUB_OAUTH_CLIENT_ID")
-    GITHUB_CLIENT_SECRET = config("GITHUB_OAUTH_CLIENT_SECRET")
+    GITHUB_CLIENT_ID = config("GITHUB_OAUTH_CLIENT_ID", default=None)
+    GITHUB_CLIENT_SECRET = config("GITHUB_OAUTH_CLIENT_SECRET", default=None)
 
     # GitHub App config
     GITHUB_APP_ID = config("GITHUB_APP_ID")
