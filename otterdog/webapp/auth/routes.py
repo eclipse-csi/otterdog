@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2024 Eclipse Foundation and others.
+#  Copyright (c) 2024-2025 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -38,7 +38,7 @@ async def logout():
 
 
 @blueprint.route("/github/authorized")
-@oauth_github.authorized_handler
+@oauth_github.authorized_handler  # type: ignore
 async def authorized(oauth_token):
     next_url = url_for("home_blueprint.index")
     if oauth_token is None:
