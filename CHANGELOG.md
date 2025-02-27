@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.0] - unreleased
+
+### Changed
+
+- Changed severity of validation messages wrt to missing 'github-pages' environments from WARNING to INFO.
+
+
 ## [0.11.0] - 20/02/2025
 
 ### Added

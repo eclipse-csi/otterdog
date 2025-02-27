@@ -398,14 +398,14 @@ class Repository(ModelObject):
 
             if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.INFO,
                     f"{self.get_model_header(parent_object)} hosts the organization site"
                     f" but no corresponding 'github-pages' environment, please add such an environment.\n"
                     f" Add the following snippet to the repo configuration:\n\n"
                     f"   environments: [\n"
                     f"     orgs.newEnvironment('github-pages') {{\n"
                     f"       branch_policies+: [\n"
-                    f'         "main"\n'
+                    f'         "{self.default_branch}"\n'
                     f"       ],\n"
                     f'       deployment_branch_policy: "selected",\n'
                     f"     }},\n"
@@ -434,10 +434,19 @@ class Repository(ModelObject):
             if self.gh_pages_build_type in {"legacy", "workflow"}:
                 if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
                     context.add_failure(
-                        FailureType.WARNING,
+                        FailureType.INFO,
                         f"{self.get_model_header(parent_object)} has"
-                        f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}', "
-                        f"but no corresponding 'github-pages' environment, please add such an environment.",
+                        f" 'gh_pages_build_type' with value '{self.gh_pages_build_type}',"
+                        f" but no corresponding 'github-pages' environment, please add such an environment.\n"
+                        f" Add the following snippet to the repo configuration:\n\n"
+                        f"   environments: [\n"
+                        f"     orgs.newEnvironment('github-pages') {{\n"
+                        f"       branch_policies+: [\n"
+                        f'         "{self.default_branch}"\n'
+                        f"       ],\n"
+                        f'       deployment_branch_policy: "selected",\n'
+                        f"     }},\n"
+                        f"   ],",
                     )
 
             if self.gh_pages_build_type == "legacy" and self.gh_pages_source_path not in ["/", "/docs"]:
