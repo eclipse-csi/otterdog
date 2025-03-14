@@ -19,8 +19,9 @@ site
 .cache/
 .tox
 
-### Ignoring otterdog out directory orgs
+### Ignoring otterdog out directory orgs and conf
 orgs/
+otterdog.json
 
 ### Ignoring data to test
 data
