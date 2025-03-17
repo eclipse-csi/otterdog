@@ -15,6 +15,7 @@ apt install python3 python3-pip
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
+apt install pipx
 pipx install poetry>=2.0.1
 ```
 
