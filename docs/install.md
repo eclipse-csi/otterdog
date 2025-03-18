@@ -62,6 +62,8 @@ Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`,
 $ otterdog --version
 ```
 
+Note that if you are building manually on the `main` branch, and not a tag, the version number will be `0.0.0`.
+
 ## Shell integration
 
 To enable shell completion, add the following snippet to your shell configuration file (`~/.bashrc` or `~/.zshrc`):
