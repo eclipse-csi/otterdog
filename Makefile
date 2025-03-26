@@ -18,7 +18,7 @@ ifndef POETRY
 endif
 
 	poetry config virtualenvs.in-project true
-	poetry sync --only-root
+	poetry dynamic-versioning show || poetry sync --only-root
 	poetry sync
 	poetry run playwright install firefox
 
