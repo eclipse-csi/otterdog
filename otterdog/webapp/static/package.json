@@ -10,8 +10,8 @@
   },
   "devDependencies": {
     "husky": "^9.0.11",
-    "vite": "^5.4.14",
-    "vite-plugin-static-copy": "^1.0.1"
+    "vite": "^6.2.3",
+    "vite-plugin-static-copy": "^2.3.0"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.5.1",
