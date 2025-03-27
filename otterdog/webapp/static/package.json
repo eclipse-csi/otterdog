@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "husky": "^9.0.11",
-    "vite": "^5.4.14",
+    "vite": "^5.4.15",
     "vite-plugin-static-copy": "^1.0.1"
   },
   "dependencies": {
