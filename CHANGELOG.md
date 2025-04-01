@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.1.0] - unreleased
+
+### Fixed
+
+- Fixed updating organization teams with `local-apply` operation.
+
+
 ## [1.0.0] - 28/02/2025
 
 ### Changed
