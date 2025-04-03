@@ -39,12 +39,25 @@ class TeamClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving teams for org '{org_id}':\n{ex}") from ex
 
-    async def get_team_slugs(self, org_id: str) -> list[dict[str, Any]]:
+    async def get_team_slugs(self, org_id: str) -> list[str]:
         _logger.debug("retrieving team slugs for org '%s'", org_id)
 
         try:
             teams = await self.get_teams(org_id)
             return [team["slug"] for team in teams]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving teams:\n{ex}") from ex
+
+    async def get_team_slug(self, org_id: str, team_name: str) -> str | None:
+        _logger.debug("retrieving team slug for team %s in org '%s'", team_name, org_id)
+
+        try:
+            teams = await self.get_teams(org_id)
+            for team in teams:
+                if team["name"] == team_name:
+                    return team["slug"]
+
+            return None
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving teams:\n{ex}") from ex
 
