@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Fixed coercion of `has_discussion` property in case the repository is the source of organization discussions.
+- Fixed importing an organization that has multiple custom properties defined.
 - Fixed updating organization teams with `local-apply` operation.
 
 

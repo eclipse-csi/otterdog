@@ -219,7 +219,7 @@ class OrganizationSettings(ModelObject):
                 printer.println("custom_properties+: [")
                 printer.level_up()
 
-                for custom_property in self.custom_properties:
+                for _, custom_property in properties_by_name.items():
                     custom_property.to_jsonnet(printer, config, context, False, default_org_custom_property)
 
                 printer.level_down()

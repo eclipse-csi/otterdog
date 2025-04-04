@@ -258,6 +258,13 @@ class Repository(ModelObject):
                         if current_property_value == custom_property.default_value:
                             self.custom_properties.pop(custom_property.name)
 
+        if (
+            org_settings.has_discussions
+            and org_settings.discussion_source_repository is not None
+            and org_settings.discussion_source_repository.endswith(f"/{self.name}")
+        ):
+            copy.has_discussions = True
+
         return copy
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
