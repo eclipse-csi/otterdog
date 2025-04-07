@@ -20,12 +20,12 @@ endif
 	poetry config virtualenvs.in-project true
 	poetry dynamic-versioning show || poetry sync --only-root
 	poetry sync
-	poetry run playwright install firefox
+	poetry run python -m playwright install firefox
 
 	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
 
 test:  ## Run tests
-	poetry run py.test
+	poetry run pytest
 
 clean:  ## Clean the development environment
 	rm -rf .venv
