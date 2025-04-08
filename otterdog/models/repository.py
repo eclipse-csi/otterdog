@@ -169,6 +169,7 @@ class Repository(ModelObject):
     ]
 
     _valid_code_scanning_languages: ClassVar[set[str]] = {
+        "actions",
         "c-cpp",
         "csharp",
         "go",
