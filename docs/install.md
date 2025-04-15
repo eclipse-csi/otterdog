@@ -15,6 +15,7 @@ apt install python3 python3-pip
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
+apt install pipx
 pipx install poetry>=2.0.1
 ```
 
@@ -60,6 +61,8 @@ Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`,
 ```console
 $ otterdog --version
 ```
+
+Note that if you are building manually on the `main` branch, and not a tag, the version number will be `0.0.0`.
 
 ## Shell integration
 
