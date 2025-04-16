@@ -23,9 +23,11 @@ site
 orgs/
 otterdog.json
 
-### Ignoring data to test
+### Ignoring data to test and generated files by tests
 data
 approot
+.coverage
+./htmlcov
 
 #### Ignoring swp files
 *.swp
