@@ -76,6 +76,8 @@ Run tests locally to make sure everything is working as expected.
 make test
 ```
 
+Note: Code coverage HTML is also available in `htmlcov/`
+
 ### Commit and push your changes
 
 Commit your changes, push your branch to GitHub, and create a pull request.

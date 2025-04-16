@@ -111,6 +111,7 @@ tox = ">4.22"
 pytest = ">=8.0"
 pytest-asyncio = ">=0.24"
 parameterized  = ">=0.9"
+pytest-cov = ">=6.1.1"
 
 [tool.poetry.group.typing.dependencies]
 mypy = ">=1.8.0"
@@ -150,6 +151,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 minversion = "7.2"
 testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
+addopts = ["--cov=otterdog", "--cov-report", "term", "--cov-report", "html"]
 
 log_cli             = true
 log_cli_level       = "INFO"
