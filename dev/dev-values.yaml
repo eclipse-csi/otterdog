@@ -1,0 +1,25 @@
+valkey:
+  auth:
+    enabled: false
+
+mongodb:
+  auth:
+    enabled: true
+    rootPassword: secret
+
+ghproxy:
+  redisAddress: otterdog-valkey-primary.default.svc.cluster.local:6379
+
+config:
+  debug: true
+  configRepo: "otterdog-configs"
+  configPath: "otterdog.json"
+  mongoUri: "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog"
+  redisUri: "redis://otterdog-valkey-primary.default.svc.cluster.local:6379"
+  ghProxyUri: "http://otterdog-ghproxy.default.svc.cluster.local:8888"
+  dependecyTrackUrl: "https://dependency-track.local"
+  dependecyTrackToken: "faktoken"
+
+github:
+  webhookValidationContext: "otterdog/otterdog-validation"
+  webhookSyncContext: "otterdog/otterdog-sync"

@@ -19,6 +19,9 @@ site
 .cache/
 .tox
 
+### Ignoring development values for helm charts
+values.yaml
+
 ### Ignoring otterdog out directory orgs and conf
 orgs/
 otterdog.json
