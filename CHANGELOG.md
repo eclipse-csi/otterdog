@@ -1,10 +1,10 @@
 # Change Log
 
-## [1.1.0] - unreleased
+## [1.0.2] - 23/04/2025
 
 ### Fixed
 
-- ...
+ - Fixed support for using common DNS in MongoDB URL configuration ([#417](https://github.com/eclipse-csi/otterdog/pull/417))
 
 ## [1.0.1] - 08/04/2025
 
