@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.3] - 23/04/2025
+
+### Fixed
+
+ - Dependencies updates for otterdog
+ - Minor development docs and build updates
+
 ## [1.0.2] - 23/04/2025
 
 ### Fixed
