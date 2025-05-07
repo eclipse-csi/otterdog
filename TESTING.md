@@ -41,7 +41,7 @@ Events:
 - Workflow job
 - Workflow run
 
-Configure a webhook using a [smee.io](httsp://smee.io) channel and set up a secret.
+Configure a webhook using a [smee.io](https://smee.io) channel and set up a secret.
 
 Generate and download the private key for the generated GitHub app.
 
