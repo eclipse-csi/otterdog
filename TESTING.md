@@ -14,6 +14,7 @@ Repository Permissions:
 - Commit statuses: read and write
 - Contents: read and write
 - Environments: read and write
+- Issues: read only
 - Metadata: read only
 - Pages: read and write
 - Pull requests: read and write
