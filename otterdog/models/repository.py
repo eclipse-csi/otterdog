@@ -175,8 +175,6 @@ class Repository(ModelObject):
         "go",
         "java-kotlin",
         "javascript-typescript",
-        "javascript",
-        "typescript",
         "python",
         "ruby",
         "swift",
