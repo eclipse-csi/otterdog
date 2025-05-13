@@ -6,16 +6,15 @@ A few system dependencies are required to be installed:
 
 ### Mandatory system dependencies
 
-* [`python 3.11+`](https://www.python.org/): Python 3 + pip
+* [`python 3.11+`](https://www.python.org/): Python 3 + pip + pipx
 
 ```bash
-apt install python3 python3-pip
+apt install python3 python3-pip pipx
 ```
 
 * [`poetry`](https://python-poetry.org/): Python package manager
 
 ```bash
-apt install pipx
 pipx install poetry>=2.0.1
 ```
 
@@ -61,8 +60,6 @@ Additionally, `make init` creates a symlink called `otterdog` in `~/.local/bin`,
 ```console
 $ otterdog --version
 ```
-
-Note that if you are building manually on the `main` branch, and not a tag, the version number will be `0.0.0`.
 
 ## Shell integration
 
