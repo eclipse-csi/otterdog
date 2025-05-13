@@ -1,5 +1,28 @@
 # Change Log
 
+## [1.0.3] - 23/04/2025
+
+### Fixed
+
+ - Dependencies updates for otterdog
+ - Minor development docs and build updates
+
+## [1.0.2] - 23/04/2025
+
+### Fixed
+
+ - Fixed support for using common DNS in MongoDB URL configuration ([#417](https://github.com/eclipse-csi/otterdog/pull/417))
+
+## [1.0.1] - 08/04/2025
+
+### Fixed
+
+- Fixed support for `actions` as code scanning language ([#411](https://github.com/eclipse-csi/otterdog/pull/411))
+- Fixed coercion of `has_discussion` property in case the repository is the source of organization discussions.
+- Fixed importing an organization that has multiple custom properties defined.
+- Fixed updating organization teams with `local-apply` operation.
+
+
 ## [1.0.0] - 28/02/2025
 
 ### Changed

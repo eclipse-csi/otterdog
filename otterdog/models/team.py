@@ -162,5 +162,6 @@ class Team(ModelObject, abc.ABC):
                 await provider.update_org_team(
                     org_id,
                     unwrap(patch.current_object).slug,
+                    unwrap(patch.expected_object).name,
                     await cls.changes_to_provider(org_id, unwrap(patch.changes), provider),
                 )

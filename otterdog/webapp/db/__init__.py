@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import re
+from urllib.parse import urlparse
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from odmantic import AIOEngine
@@ -15,21 +15,28 @@ from quart import Quart
 from otterdog.utils import unwrap
 
 
+def _parse(mongo_uri: str) -> tuple[str, str]:
+    urlparsed = urlparse(mongo_uri)
+    if urlparsed.scheme != "mongodb":
+        raise RuntimeError(f"invalid mongo connection uri, no scheme: '{mongo_uri}'")
+
+    elif urlparsed.netloc == "" or (urlparsed.path == "" or len(urlparsed.path) < 2):
+        raise RuntimeError(f"invalid mongo connection uri, no database: '{mongo_uri}'")
+
+    else:
+        server_uri = f"{urlparsed.scheme}://{urlparsed.netloc}"
+        database = urlparsed.path[1:]
+
+    return server_uri, database
+
+
 class Mongo:
     def __init__(self) -> None:
         self._client: AsyncIOMotorClient | None = None
         self._engine: AIOEngine | None = None
 
     def init_app(self, app: Quart) -> None:
-        connection_uri = app.config["MONGO_URI"]
-
-        m = re.match(r"^((mongodb:(?:/{2})?)((\w+?):(\w+?)@|:?@?)([\w-]+?):(\d+)/)(\w+?)$", connection_uri)
-
-        if m is not None:
-            server_uri = m.group(1)
-            database = m.group(8)
-        else:
-            raise RuntimeError(f"failed to parse mongo connection uri: '{connection_uri}'")
+        server_uri, database = _parse(app.config["MONGO_URI"])
 
         self._client = AsyncIOMotorClient(server_uri)
         self._engine = AIOEngine(client=self._client, database=database)

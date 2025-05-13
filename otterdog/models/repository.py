@@ -169,13 +169,12 @@ class Repository(ModelObject):
     ]
 
     _valid_code_scanning_languages: ClassVar[set[str]] = {
+        "actions",
         "c-cpp",
         "csharp",
         "go",
         "java-kotlin",
         "javascript-typescript",
-        "javascript",
-        "typescript",
         "python",
         "ruby",
         "swift",
@@ -257,6 +256,13 @@ class Repository(ModelObject):
                     if custom_property.required is True:
                         if current_property_value == custom_property.default_value:
                             self.custom_properties.pop(custom_property.name)
+
+        if (
+            org_settings.has_discussions
+            and org_settings.discussion_source_repository is not None
+            and org_settings.discussion_source_repository.endswith(f"/{self.name}")
+        ):
+            copy.has_discussions = True
 
         return copy
 

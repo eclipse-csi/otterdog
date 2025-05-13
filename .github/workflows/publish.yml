@@ -34,7 +34,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
@@ -76,7 +76,7 @@ jobs:
           ref: ${{ needs.release.outputs.release-tag }}
 
       - name: "Log in to the Container registry"
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: "Extract metadata (tags, labels) for Docker"
         id: meta
-        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           tags: |
             ${{ needs.prepare.outputs.release-version }}
@@ -93,7 +93,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: "Build and push Docker image"
-        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         with:
           context: .
           file: docker/Dockerfile
@@ -115,7 +115,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ needs.prepare.outputs.release-tag }}
 
-      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -136,7 +136,7 @@ jobs:
           cd dist && echo "hashes=$(sha256sum * | base64 -w0)" >> $GITHUB_OUTPUT
 
       - name: "Upload dist"
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: "dist"
           path: "dist/"
@@ -149,7 +149,7 @@ jobs:
       actions: read
       contents: write
       id-token: write # Needed to access the workflow's OIDC identity.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0 # ignore: pin
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0 # ignore: pin
     with:
       base64-subjects: "${{ needs.build-dist.outputs.hashes }}"
       upload-assets: true
@@ -166,20 +166,20 @@ jobs:
           persist-credentials: false
 
       - name: "Download dists"
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: "dist"
           path: "dist/"
 
       - name: "Extract release notes"
         id: extract-release-notes
-        uses: ffurrer2/extract-release-notes@9989ccec43d726ef05aa1cd7b2854fb96b6df6ab # v2.2.0
+        uses: ffurrer2/extract-release-notes@cae32133495112d23e3569ad04fef240ba4e7bc8 # v2.3.0
         with:
           release_notes_file: RELEASE_NOTES.md
 
       - name: "Create GitHub release"
         # keep at 2.1.0 due to https://github.com/softprops/action-gh-release/issues/556
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           name: "Otterdog ${{ needs.prepare.outputs.release-tag }}"
           tag_name: "${{ needs.prepare.outputs.release-tag }}"
@@ -202,7 +202,7 @@ jobs:
       id-token: write
     steps:
       - name: "Download dists"
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: "dist"
           path: "dist/"
@@ -223,7 +223,7 @@ jobs:
       id-token: write
     steps:
       - name: "Download dists"
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: "dist"
           path: "dist/"
@@ -233,4 +233,5 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: true
+          skip-existing: true
           verbose: true
