@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.4] - 22/05/2025
+
+ - Fixed filter invalid codeql lang values returned by gh api ([#435](https://github.com/eclipse-csi/otterdog/pull/435))
+ - Documentation improvement
+ - Dependencies updates for otterdog
+
 ## [1.0.3] - 23/04/2025
 
 ### Fixed
