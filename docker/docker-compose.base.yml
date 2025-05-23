@@ -43,6 +43,7 @@ services:
 
   ghproxy:
     image: us-docker.pkg.dev/k8s-infra-prow/images/ghproxy:v20240923-efb534162
+    platform: linux/amd64
     restart: always
     command:
       - --redis-address=redis:6379
