@@ -112,6 +112,13 @@ DEPENDENCY_TRACK_URL=<base url to your dependency track installation, e.g. https
 DEPENDENCY_TRACK_TOKEN=<api key with at least BOM_UPLOAD permissions>
 ```
 
+`GITHUB_WEBHOOK_VALIDATION_CONTEXT` is used as the name for the validation
+check reported to GitHub PRs that's run by the webapp. You can put any string
+here and match the same string in GitHub Branch Protection to require the check.
+`GITHUB_WEBHOOK_SYNC_CONTEXT` is used as the name for the sync check reported
+to GitHub PRs that's run by the webapp. You can put any string here and match
+the same string in GitHub Branch Protection to require the check.
+
 ### Webhook forwarding
 
 You can use `https://smee.io` to forward webhook events sent by GitHub to your local machine.
