@@ -1,0 +1,8 @@
+ingress:
+  enabled: true
+  className: tailscale
+  annotations:
+    tailscale.com/funnel: "true"
+  defaultBackend:
+    enabled: true
+  ingressClassName: tailscale

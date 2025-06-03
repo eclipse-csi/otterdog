@@ -1,0 +1,114 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: otterdog
+
+build:
+  artifacts:
+    - image: ghcr.io/eclipse-csi/otterdog
+      context: .
+      docker:
+        buildArgs:
+          version: '{{cmd "poetry" "version" "-s" }}'
+        dockerfile: docker/Dockerfile
+
+
+profiles:
+  # This profile is used for local development without exposing the otterdog service using tailscale
+  - name: dev
+    deploy:
+      helm:
+        hooks:
+          before:
+            - host:
+                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./dev-values.yaml`'; exit 1; fi"]
+        releases:
+          - name: otterdog
+            remoteChart: eclipse-csi/otterdog
+            valuesFiles:
+              - ./dev/dev-values.yaml
+              - ./values.yaml
+
+  # This profile is used for ARM64 users local development without exposing the otterdog service using tailscale
+  - name: dev-arm64
+    deploy:
+      helm:
+        hooks:
+          before:
+            - host:
+                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
+        releases:
+          - name: otterdog
+            remoteChart: eclipse-csi/otterdog
+            valuesFiles:
+              - ./dev/dev-values.yaml
+              - ./values.yaml
+            setValues:
+              # for arm64 users (i.e. macbook pro mX) it is required to use the arm64 image
+              mongodb.global.security.allowInsecureImages: true
+              mongodb.image.repository: "dlavrenuek/bitnami-mongodb-arm"
+              mongodb.image.tag: 8.0.4
+
+  # This profile is used for local development with tailscale
+  - name: dev-tunnel
+    deploy:
+      helm:
+        hooks:
+          before:
+            - host:
+                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_ID\" ]; then echo 'Error: TS_CLIENT_ID is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_SECRET\" ]; then echo 'Error: TS_CLIENT_SECRET is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
+        releases:
+          - name: tailscale-operator
+            remoteChart: tailscale/tailscale-operator
+            namespace: tailscale
+            createNamespace: true
+            setValueTemplates:
+              oauth.clientId: "{{.TS_CLIENT_ID}}"
+              oauth.clientSecret: "{{.TS_CLIENT_SECRET}}"
+          - name: otterdog
+            remoteChart: eclipse-csi/otterdog
+            valuesFiles:
+              - ./dev/dev-values.yaml
+              - ./dev/dev-values-ts.yaml
+              - ./values.yaml
+
+  # This profile is used by (ARM64) for local development with tailscale
+  - name: dev-tunnel-arm64
+    deploy:
+      helm:
+        hooks:
+          before:
+            - host:
+                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_ID\" ]; then echo 'Error: TS_CLIENT_ID is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_SECRET\" ]; then echo 'Error: TS_CLIENT_SECRET is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
+        releases:
+          - name: tailscale-operator
+            remoteChart: tailscale/tailscale-operator
+            namespace: tailscale
+            createNamespace: true
+            setValueTemplates:
+              oauth.clientId: "{{.TS_CLIENT_ID}}"
+              oauth.clientSecret: "{{.TS_CLIENT_SECRET}}"
+          - name: otterdog
+            remoteChart: eclipse-csi/otterdog
+            valuesFiles:
+              - ./dev/dev-values.yaml
+              - ./dev/dev-values-ts.yaml
+              - ./values.yaml
+            setValueTemplates:
+              # for arm64 users (i.e. macbook pro mX) it is required to use the arm64 image
+              mongodb.global.security.allowInsecureImages: true
+              mongodb.image.repository: "dlavrenuek/bitnami-mongodb-arm"
+              mongodb.image.tag: 8.0.4
+              ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}
