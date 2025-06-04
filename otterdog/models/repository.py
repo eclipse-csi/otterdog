@@ -1188,6 +1188,18 @@ class Repository(ModelObject):
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
+                # if the source path is changed, also ensure that the branch is set when
+                # the branch is not changed. The branch is required by GitHub.
+                if (
+                    patch.changes
+                    and "gh_pages_source_path" in patch.changes
+                    and "gh_pages_source_branch" not in patch.changes
+                ):
+                    patch.changes["gh_pages_source_branch"] = Change(
+                        unwrap(patch.current_object).gh_pages_source_branch,
+                        unwrap(patch.current_object).gh_pages_source_branch,
+                    )
+
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
 
