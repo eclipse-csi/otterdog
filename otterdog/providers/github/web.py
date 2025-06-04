@@ -548,16 +548,21 @@ class WebClient:
         await page.type("#password", self.credentials.password)
         await page.click('input[name="commit"]')
 
-        await page.goto("https://github.com/sessions/two-factor")
-        await page.type("#app_totp", self.credentials.totp)
+        title = await page.title()
+        if "Two-factor authentication" in title:
+            await page.type("#app_totp", self.credentials.totp)
+            verify_button = page.get_by_role("button", name="Verify")
+            if verify_button is not None:                
+                await verify_button.click()
 
         try:
             meta_element = page.locator('meta[name="octolytics-actor-login"]')
             actor = await meta_element.evaluate("element => element.content")
             _logger.trace("logged in as '%s'", actor)
 
-            if await page.title() == "Verify two-factor authentication":
-                verify_button = page.get_by_role("button", name="Verify 2FA now")
+            title = await page.title()
+            if "Two-factor authentication" in title:
+                verify_button = page.get_by_role("button", name="Verify")
                 if verify_button is not None:
                     await verify_button.click()
 
