@@ -1050,13 +1050,6 @@ class Repository(ModelObject):
                         web_commit_signoff_required, web_commit_signoff_required
                     )
 
-            # FIXME: needed to add this hack to ensure that gh_pages_source_path is also present in
-            #        the modified data as GitHub needs the path as well when the branch is changed.
-            #        this needs to make clean to support making the diff operation generic as possible.
-            if "gh_pages_source_branch" in modified_repo:
-                gh_pages_source_path = cast(Repository, coerced_object).gh_pages_source_path
-                modified_repo["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
-
             # similar fix as above for squash_merge_commit_title and squash_merge_commit_message as well
             squash_merge_commit_title_present = "squash_merge_commit_title" in modified_repo
             squash_merge_commit_message_present = "squash_merge_commit_message" in modified_repo
@@ -1156,6 +1149,26 @@ class Repository(ModelObject):
                 handler,
             )
 
+    @staticmethod
+    def _include_gh_pages_patch_required_properties(patch: LivePatch[Repository]) -> LivePatch[Repository]:
+        """
+        Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
+        the patch contains gh_pages change.
+        """
+        if patch.changes:
+            gh_pages_source_branch_present = "gh_pages_source_branch" in patch.changes
+            gh_pages_source_path_present = "gh_pages_source_path" in patch.changes
+
+            if gh_pages_source_path_present and not gh_pages_source_branch_present:
+                gh_pages_source_branch = cast(Repository, patch.current_object).gh_pages_source_branch
+                patch.changes["gh_pages_source_branch"] = Change(gh_pages_source_branch, gh_pages_source_branch)
+
+            if gh_pages_source_branch_present and not gh_pages_source_path_present:
+                gh_pages_source_path = cast(Repository, patch.current_object).gh_pages_source_path
+                patch.changes["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
+
+        return patch
+
     @classmethod
     async def apply_live_patch(
         cls,
@@ -1188,18 +1201,7 @@ class Repository(ModelObject):
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
-                # if the source path is changed, also ensure that the branch is set when
-                # the branch is not changed. The branch is required by GitHub.
-                if (
-                    patch.changes
-                    and "gh_pages_source_path" in patch.changes
-                    and "gh_pages_source_branch" not in patch.changes
-                ):
-                    patch.changes["gh_pages_source_branch"] = Change(
-                        unwrap(patch.current_object).gh_pages_source_branch,
-                        unwrap(patch.current_object).gh_pages_source_branch,
-                    )
-
+                cls._include_gh_pages_patch_required_properties(patch)
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
 
