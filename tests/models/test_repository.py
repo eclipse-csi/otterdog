@@ -6,35 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from collections.abc import Mapping
-from typing import Any
+import pretend
+import pytest
 
-from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject
-from otterdog.models.repository import Repository
+from otterdog.models.repository import LivePatch, Repository
 from otterdog.utils import UNSET, Change, query_json
 
-from . import ModelTest
 
-
-class RepositoryTest(ModelTest):
-    def create_model(self, data: Mapping[str, Any]) -> ModelObject:
-        return Repository.from_model_data(data)
-
-    @property
-    def template_function(self) -> str:
-        return JsonnetConfig.create_repo
-
-    @property
-    def model_data(self):
-        return self.load_json_resource("otterdog-repo.json")
-
-    @property
-    def provider_data(self):
-        return self.load_json_resource("github-repo.json")
-
-    def test_load_from_model(self):
-        repo = Repository.from_model_data(self.model_data)
+class TestRepository:
+    def test_load_from_model(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
 
         assert repo.name == "otterdog-defaults"
         assert repo.description is None
@@ -65,8 +46,8 @@ class RepositoryTest(ModelTest):
         assert repo.post_process_template_content == []
         assert repo.auto_init is False
 
-    def test_load_from_provider(self):
-        repo = Repository.from_provider_data(self.org_id, self.provider_data)
+    def test_load_from_provider(self, repository_test):
+        repo = Repository.from_provider_data(repository_test.org_id, repository_test.provider_data)
 
         assert repo.id == 605555050
         assert repo.node_id == "R_kgDOJBgJag"
@@ -95,12 +76,12 @@ class RepositoryTest(ModelTest):
         assert repo.secret_scanning_push_protection == "disabled"
         assert repo.dependabot_alerts_enabled is True
 
-    async def test_to_provider(self):
-        repo = Repository.from_model_data(self.model_data)
+    async def test_to_provider(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
 
         repo.description = UNSET
 
-        provider_data = await repo.to_provider_data(self.org_id, self.provider)
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
 
         assert len(provider_data) == 22
         assert provider_data["name"] == "otterdog-defaults"
@@ -108,9 +89,9 @@ class RepositoryTest(ModelTest):
 
         assert query_json("security_and_analysis.secret_scanning.status", provider_data) or "" == "enabled"
 
-    async def test_changes_to_provider(self):
-        current = Repository.from_model_data(self.model_data)
-        other = Repository.from_model_data(self.model_data)
+    async def test_changes_to_provider(self, repository_test):
+        current = Repository.from_model_data(repository_test.model_data)
+        other = Repository.from_model_data(repository_test.model_data)
 
         other.name = "other"
         other.has_wiki = False
@@ -124,10 +105,10 @@ class RepositoryTest(ModelTest):
         assert provider_data["has_wiki"] is True
         assert query_json("security_and_analysis.secret_scanning.status", provider_data) or "" == "enabled"
 
-    def test_patch(self):
-        current = Repository.from_model_data(self.model_data)
+    def test_patch(self, repository_test):
+        current = Repository.from_model_data(repository_test.model_data)
 
-        default = Repository.from_model_data(self.model_data)
+        default = Repository.from_model_data(repository_test.model_data)
 
         default.name = None
         default.web_commit_signoff_required = True
@@ -138,9 +119,9 @@ class RepositoryTest(ModelTest):
         assert patch["name"] == current.name
         assert patch["web_commit_signoff_required"] is current.web_commit_signoff_required
 
-    def test_difference(self):
-        current = Repository.from_model_data(self.model_data)
-        other = Repository.from_model_data(self.model_data)
+    def test_difference(self, repository_test):
+        current = Repository.from_model_data(repository_test.model_data)
+        other = Repository.from_model_data(repository_test.model_data)
 
         other.name = "other"
         other.has_wiki = False
@@ -150,3 +131,57 @@ class RepositoryTest(ModelTest):
         assert len(diff) == 2
         assert diff["name"] == Change(other.name, current.name)
         assert diff["has_wiki"] == Change(other.has_wiki, current.has_wiki)
+
+    @pytest.mark.parametrize(
+        "gh_pages_source_path, gh_pages_source_branch, expected_changes",
+        [
+            (
+                "/docs",
+                None,
+                {
+                    "gh_pages_source_path": Change("/", "/docs"),
+                    "gh_pages_source_branch": Change("gh-pages", "gh-pages"),
+                },
+            ),
+            (
+                None,
+                "main",
+                {"gh_pages_source_branch": Change("gh-pages", "main"), "gh_pages_source_path": Change("/", "/")},
+            ),
+            (None, None, {}),
+            (
+                "/docs",
+                "main",
+                {"gh_pages_source_path": Change("/", "/docs"), "gh_pages_source_branch": Change("gh-pages", "main")},
+            ),
+        ],
+    )
+    def test__include_gh_pages_patch_required_properties(
+        self, repository_test, gh_pages_source_path, gh_pages_source_branch, expected_changes
+    ):
+        current = Repository.from_model_data(repository_test.model_data)
+        default = Repository.from_model_data(repository_test.model_data)
+
+        # build changes using parametrization if not none
+        changes = {}
+        if gh_pages_source_path is not None:
+            current.gh_pages_source_path = gh_pages_source_path
+            changes["gh_pages_source_path"] = Change(default.gh_pages_source_path, gh_pages_source_path)
+        if gh_pages_source_branch is not None:
+            current.gh_pages_source_branch = gh_pages_source_branch
+            changes["gh_pages_source_branch"] = Change(default.gh_pages_source_branch, gh_pages_source_branch)
+
+        test_livepatch = LivePatch(
+            patch_type=3,
+            expected_object=current,
+            current_object=default,
+            changes=changes,
+            parent_object=None,
+            forced_update=False,
+            fn=pretend.stub(),
+            changes_object_to_readonly=False,
+        )
+        # Call the function under test
+        current._include_gh_pages_patch_required_properties(test_livepatch)
+
+        assert test_livepatch.changes == expected_changes
