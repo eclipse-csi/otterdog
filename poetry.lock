@@ -1993,6 +1993,18 @@ pyyaml = ">=5.1"
 virtualenv = ">=20.10.0"
 
 [[package]]
+name = "pretend"
+version = "1.0.9"
+description = "A library for stubbing in Python"
+optional = false
+python-versions = "*"
+groups = ["test"]
+files = [
+    {file = "pretend-1.0.9-py2.py3-none-any.whl", hash = "sha256:e389b12b7073604be67845dbe32bf8297360ad9a609b24846fe15d86e0b7dc01"},
+    {file = "pretend-1.0.9.tar.gz", hash = "sha256:c90eb810cde8ebb06dafcb8796f9a95228ce796531bc806e794c2f4649aa1b10"},
+]
+
+[[package]]
 name = "priority"
 version = "2.0.0"
 description = "A pure-Python implementation of the HTTP/2 priority tree"
@@ -3503,4 +3515,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "f7d5ec4370ce29dc5e0a1ab642a91a0274035b80eb6a23ccb0ee49637ab0592f"
+content-hash = "4dcf8f29294fd83903cb622755db57f6c64445f1a27a6f85922cd314e6bcef7b"
