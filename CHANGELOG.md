@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0.5] - unreleased
+
+### Fixed
+
+ - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
+
 ## [1.0.4] - 22/05/2025
 
  - Fixed filter invalid codeql lang values returned by gh api ([#435](https://github.com/eclipse-csi/otterdog/pull/435))

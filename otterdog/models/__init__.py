@@ -15,6 +15,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Generic, Protocol, Self, TypeVar, cast, final
 
 from jsonbender import OptionalS, S, bend  # type: ignore
+from rich.markup import escape
 
 from otterdog.utils import (
     UNSET,
@@ -511,15 +512,21 @@ class ModelObject(ABC):
 
         if self.is_keyed():
             key = self.get_key()
-            header = header + f'\\[{key}="[bold]{self.get_key_value()}[/]"'
+            header = header + f'\\[{key}="[bold]{escape(self.get_key_value())}[/]"'
 
             if isinstance(parent_object, ModelObject) and parent_object.is_keyed():
-                header = header + f", {parent_object.model_object_name}=" + f"[bold]{parent_object.get_key_value()}[/]"
+                header = (
+                    header
+                    + f", {parent_object.model_object_name}="
+                    + f"[bold]{escape(parent_object.get_key_value())}[/]"
+                )
 
             header = header + "]"
         elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
             header = header + "\\["
-            header = header + f"{parent_object.model_object_name}=" + f"[bold]{parent_object.get_key_value()}[/]"
+            header = (
+                header + f"{parent_object.model_object_name}=" + f"[bold]{escape(parent_object.get_key_value())}[/]"
+            )
             header = header + "]"
 
         return header

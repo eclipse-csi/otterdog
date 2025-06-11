@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from otterdog.config import CredentialResolver
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
@@ -228,7 +230,7 @@ class Operation(ABC):
         elif isinstance(value, int):
             return str(value)
         else:
-            return f'"{value}"'
+            return f'"{escape(value)}"'
 
     def _get_max_key_length(self, data: dict[str, Change[Any]]) -> int:
         length = 0
