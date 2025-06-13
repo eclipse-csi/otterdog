@@ -108,7 +108,6 @@ class ValidateOperation(Operation):
         organization: GitHubOrganization,
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
-        print_status: bool = True,
     ) -> ValidationStatus:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
@@ -120,18 +119,15 @@ class ValidateOperation(Operation):
         for failure_type, message in context.validation_failures:
             match failure_type:
                 case FailureType.INFO:
-                    if print_status:
-                        self.printer.print_info(message)
+                    self.printer.print_info(message)
                     validation_status.infos += 1
 
                 case FailureType.WARNING:
-                    if print_status:
-                        self.printer.print_warn(message)
+                    self.printer.print_warn(message)
                     validation_status.warnings += 1
 
                 case FailureType.ERROR:
-                    if print_status:
-                        self.printer.print_error(message)
+                    self.printer.print_error(message)
                     validation_status.errors += 1
 
         return validation_status
