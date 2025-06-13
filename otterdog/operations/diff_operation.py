@@ -19,7 +19,7 @@ from otterdog.providers.github import GitHubProvider
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
 from . import Operation
-from .validate import ValidateOperation
+from .validate import ValidateOperation, ValidationStatus
 
 if TYPE_CHECKING:
     from typing import Any
@@ -43,7 +43,9 @@ class DiffStatus:
 
 
 class CallbackFn(Protocol):
-    def __call__(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> None: ...
+    def __call__(
+        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
+    ) -> None: ...
 
 
 class DiffOperation(Operation):
@@ -160,79 +162,65 @@ class DiffOperation(Operation):
             self.printer.print_error(f"failed to load configuration\n{e!s}")
             return 1
 
-        # We validate the configuration first and only calculate a plan if
-        # there are no validation errors.
-        (
-            validation_infos,
-            validation_warnings,
-            validation_errors,
-        ) = await self._validator.validate(expected_org, jsonnet_config, self.gh_client)
-        if validation_errors > 0:
-            self.printer.println("Planning aborted due to validation errors.")
-            return validation_errors
-
-        if validation_infos > 0 and not self.printer.is_info_enabled():
-            self.printer.println(
-                f"there have been {validation_infos} validation infos, enable verbose output to display them."
-            )
-
-        try:
-            current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config)
-        except RuntimeError as e:
-            self.printer.print_error(f"failed to load current configuration\n{e!s}")
-            return 1
-
-        expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
-
         diff_status = DiffStatus()
         live_patches = []
 
-        def handle(patch: LivePatch) -> None:
-            if not self.include_resources_with_secrets() and patch.requires_secrets():
-                return
+        validation_status = await self.validate(expected_org, jsonnet_config)
+        if self.handle_validation_status(validation_status):
+            try:
+                current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config)
+            except RuntimeError as e:
+                self.printer.print_error(f"failed to load current configuration\n{e!s}")
+                return 1
 
-            live_patches.append(patch)
+            expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
 
-            match patch.patch_type:
-                case LivePatchType.ADD:
-                    self.handle_add_object(github_id, unwrap(patch.expected_object), patch.parent_object)
-                    diff_status.additions += 1
+            def handle(patch: LivePatch) -> None:
+                if not self.include_resources_with_secrets() and patch.requires_secrets():
+                    return
 
-                case LivePatchType.REMOVE:
-                    self.handle_delete_object(github_id, unwrap(patch.current_object), patch.parent_object)
-                    diff_status.deletions += 1
+                live_patches.append(patch)
 
-                case LivePatchType.CHANGE:
-                    diff_status.differences += self.handle_modified_object(
-                        github_id,
-                        unwrap(patch.changes),
-                        patch.forced_update,
-                        unwrap(patch.current_object),
-                        unwrap(patch.expected_object),
-                        patch.parent_object,
-                    )
+                match patch.patch_type:
+                    case LivePatchType.ADD:
+                        self.handle_add_object(github_id, unwrap(patch.expected_object), patch.parent_object)
+                        diff_status.additions += 1
 
-        context = LivePatchContext(
-            github_id,
-            self.repo_filter,
-            self.update_webhooks,
-            self.update_secrets,
-            self.update_filter,
-            current_org.settings if self.coerce_current_org() else None,
-            expected_org.settings,
-        )
-        expected_org.generate_live_patch(current_org, context, handle)
+                    case LivePatchType.REMOVE:
+                        self.handle_delete_object(github_id, unwrap(patch.current_object), patch.parent_object)
+                        diff_status.deletions += 1
 
-        # resolve secrets for collected patches
-        if self.resolve_secrets():
-            for live_patch in live_patches:
-                if live_patch.expected_object is not None:
-                    live_patch.expected_object.resolve_secrets(self.credential_resolver.get_secret)
+                    case LivePatchType.CHANGE:
+                        diff_status.differences += self.handle_modified_object(
+                            github_id,
+                            unwrap(patch.changes),
+                            patch.forced_update,
+                            unwrap(patch.current_object),
+                            unwrap(patch.expected_object),
+                            patch.parent_object,
+                        )
 
-        status = await self.handle_finish(github_id, diff_status, live_patches)
+            context = LivePatchContext(
+                github_id,
+                self.repo_filter,
+                self.update_webhooks,
+                self.update_secrets,
+                self.update_filter,
+                current_org.settings if self.coerce_current_org() else None,
+                expected_org.settings,
+            )
+            expected_org.generate_live_patch(current_org, context, handle)
+
+            # resolve secrets for collected patches
+            if self.resolve_secrets():
+                for live_patch in live_patches:
+                    if live_patch.expected_object is not None:
+                        live_patch.expected_object.resolve_secrets(self.credential_resolver.get_secret)
+
+        status = await self.handle_finish(github_id, diff_status, validation_status, live_patches)
 
         if self._callback is not None:
-            self._callback(github_id, diff_status, live_patches)
+            self._callback(github_id, diff_status, validation_status, live_patches)
 
         return status
 
@@ -241,6 +229,16 @@ class DiffOperation(Operation):
 
     def coerce_current_org(self) -> bool:
         return False
+
+    async def validate(self, expected_org: GitHubOrganization, jsonnet_config: JsonnetConfig) -> ValidationStatus:
+        return await self._validator.validate(expected_org, jsonnet_config, self.gh_client)
+
+    def handle_validation_status(self, validation_status: ValidationStatus) -> bool:
+        if validation_status.infos > 0 and not self.printer.is_info_enabled():
+            self.printer.println(
+                f"there have been {validation_status.infos} validation infos, enable verbose output to display them."
+            )
+        return True
 
     async def load_current_org(
         self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
@@ -289,4 +287,6 @@ class DiffOperation(Operation):
     ) -> int: ...
 
     @abstractmethod
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int: ...
+    async def handle_finish(
+        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
+    ) -> int: ...
