@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from otterdog.models import LivePatch, ModelObject
     from otterdog.utils import Change, IndentingPrinter
 
+    from .validate import ValidationStatus
+
 
 class PlanOperation(DiffOperation):
     """
@@ -115,12 +117,22 @@ class PlanOperation(DiffOperation):
 
         return settings_to_change
 
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int:
-        self.printer.println(
-            f"\n[bold]Plan[/]: {diff_status.additions} to add, "
-            f"{diff_status.differences} to change, "
-            f"{diff_status.deletions} to delete.",
-            highlight=True,
-        )
+    def handle_validation_status(self, validation_status: ValidationStatus) -> bool:
+        if validation_status.errors > 0:
+            self.printer.println("Planning aborted due to validation errors.")
+            return False
 
-        return 0
+        return super().handle_validation_status(validation_status)
+
+    async def handle_finish(
+        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
+    ) -> int:
+        if validation_status.errors == 0:
+            self.printer.println(
+                f"\n[bold]Plan[/]: {diff_status.additions} to add, "
+                f"{diff_status.differences} to change, "
+                f"{diff_status.deletions} to delete.",
+                highlight=True,
+            )
+
+        return validation_status.errors

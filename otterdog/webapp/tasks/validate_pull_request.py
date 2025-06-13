@@ -31,6 +31,7 @@ from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 if TYPE_CHECKING:
     from otterdog.operations.diff_operation import DiffStatus
+    from otterdog.operations.validate import ValidationStatus
     from otterdog.providers.github.rest import RestApi
 
 
@@ -150,7 +151,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 printer = IndentingPrinter(output, log_level=self.log_level, output_for_github=True)
                 operation = LocalPlanOperation("-BASE", "*", False, False, "")
 
-                def callback(org_id: str, diff_status: DiffStatus, patches: list[LivePatch]):
+                def callback(
+                    org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
+                ):
                     validation_result.requires_secrets = any(x.requires_secrets() for x in patches)
                     validation_result.requires_web_ui = any(x.requires_web_ui() for x in patches)
 
