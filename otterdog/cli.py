@@ -463,6 +463,38 @@ def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, upda
     )
 
 
+@cli.command(cls=StdCommand, short_help="Check for sync with live configuration on GitHub.")
+@click.option(
+    "-n",
+    "--no-web-ui",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="skip settings retrieved via web ui",
+)
+@click.option(
+    "-r",
+    "--repo-filter",
+    show_default=True,
+    default="*",
+    help="a valid shell pattern to match repository names to be included",
+)
+def check_status(organizations: list[str], no_web_ui, repo_filter):
+    """
+    Check the status of current configuration (validity and wether it is in sync with the GitHub live configuration).
+    Output JSON with the status of each organization.
+    """
+    from otterdog.operations.check_status import CheckStatusOperation
+
+    _execute_operation(
+        organizations,
+        CheckStatusOperation(
+            no_web_ui=no_web_ui,
+            repo_filter=repo_filter,
+        ),
+    )
+
+
 @cli.command(cls=StdCommand, short_help="Show changes to another local configuration.")
 @click.option(
     "-s",
