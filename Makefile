@@ -35,7 +35,7 @@ clean:  ## Clean the development environment
 	git clean -X -d -f
 
 build-image:  ## Build container image
-	docker build -f docker/Dockerfile --build-arg version=$(VERSION) -t ghcr.io/eclipse-csi/otterdog:1.0.1 .
+	docker build -f docker/Dockerfile --build-arg version=$(VERSION) -t ghcr.io/eclipse-csi/otterdog:$(VERSION) .
 
 init-minikube:
 	@if ! minikube status >/dev/null 2>&1; then \
