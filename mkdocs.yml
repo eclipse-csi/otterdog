@@ -124,6 +124,7 @@ markdown_extensions:
 watch: []
 
 plugins:
+- include-markdown
 - search
 - exclude:
     glob:

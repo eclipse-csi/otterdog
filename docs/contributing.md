@@ -285,67 +285,17 @@ We use [tailscale on Kubernetes](https://tailscale.com/learn/managing-access-to-
 
 #### Create a GitHub App
 
-Note: It is required if you are developing the integration with GitHub
+**NOTES**:
 
-[Create a GitHub app](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/adding-and-removing-github-app-managers-in-your-organization#giving-someone-the-ability-to-manage-all-github-apps-owned-by-the-organization)
+ - Replace `<OTTERDOG-WEBAPP>` by your `tail<some hash>.ts.net`
+ - You can always double check the URL at https://login.tailscale.com/admin/machines as multiple instances
+ of your development environment can generate `otterdog-1`, `otterdog-2` ...
 
-1. Go to your organization `https://github.com/organizations/otterdog-<github username>`
-2. Click Settings.
-3. In the left sidebar, select <> Developer settings
-4. Click GitHub Apps
-5. New GitHub App
-
-**Basic Information**
-
-- Add GitHub App name: <choose a name>
-- Homepage URL: otterdog.<tailscale DNS> (example: `otterdog.tail<hash>.ts.net`)
-
-Note:
-You can always double check the URL at https://login.tailscale.com/admin/machines as multiple instances
-of your development environment can generate `otterdog-1`, `otterdog-2` ...
-
-**Webhook**
-
-- [X] Active
-- Webhook url: otterdog.<tailscale DNS> (example: `otterdog.tail<hash>.ts.net/github-webhook/receive`)
-- Secret: Choose the secret
-
-Add the following permissions and events:
-
-Repository Permissions:
-
-- Actions: read and write
-- Administration: read and write
-- Commit statuses: read and write
-- Contents: read and write
-- Environments: read and write
-- Issues: read only
-- Metadata: read only
-- Pages: read and write
-- Pull requests: read and write
-- Secrets: read and write
-- Variables: read and write
-- Webhooks: read and write
-- Workflows: read and write
-
-Organization Permissions:
-
-- Administration: read and write
-- Custom Organization Roles: read and write
-- Members: read only
-- Plan: read only
-- Secrets: read and write
-- Variables: read and write
-- Webhooks: read and write
-
-Events:
-
-- Issue comment
-- Pull request
-- Pull request review
-- Push
-- Workflow job
-- Workflow run
+{%
+    include-markdown "./install.md"
+    start="<!--github-app-start-->"
+    end="<!--github-app-end-->"
+%}
 
 
 #### Configure the `values.yaml` to setup your otterdog webapp
