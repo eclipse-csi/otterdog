@@ -131,6 +131,7 @@ mkdocs = "^1.5"
 mkdocs-material = "^9.5"
 mkdocs-exclude = "^1.0"
 pymdown-extensions = "^10.7"
+mkdocs-include-markdown-plugin = "^7.1.6"
 
 [tool.poetry-dynamic-versioning]
 enable     = true
