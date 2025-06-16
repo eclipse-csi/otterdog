@@ -481,7 +481,7 @@ def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, upda
 )
 def check_status(organizations: list[str], no_web_ui, repo_filter):
     """
-    Check the status of current configuration (validity and wether it is in sync with the GitHub live configuration).
+    Check the status of current configuration (validity and whether it is in sync with the GitHub live configuration).
     Output JSON with the status of each organization.
     """
     from otterdog.operations.check_status import CheckStatusOperation
