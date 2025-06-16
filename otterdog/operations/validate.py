@@ -22,6 +22,16 @@ if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
 
 
+class ValidationStatus:
+    def __init__(self):
+        self.infos = 0
+        self.warnings = 0
+        self.errors = 0
+
+    def total_notices(self, include_infos: bool = False) -> int:
+        return self.warnings + self.errors + (self.infos if include_infos else 0)
+
+
 class ValidateOperation(Operation):
     """
     Validates local organization configurations.
@@ -64,35 +74,32 @@ class ValidateOperation(Operation):
                 return 1
 
             async with GitHubProvider(credentials) as provider:
-                validation_infos, validation_warnings, validation_errors = await self.validate(
-                    organization, jsonnet_config, provider
-                )
-                validation_count = validation_infos + validation_warnings + validation_errors
+                validation_status = await self.validate(organization, jsonnet_config, provider)
 
-            if validation_count == 0:
+            if validation_status.total_notices() == 0:
                 self.printer.println("[green]Validation succeeded[/]")
             else:
-                if validation_errors == 0:
+                if validation_status.errors == 0:
                     self.printer.println(
                         f"[green]Validation succeeded[/]': "
-                        f"{validation_infos} info(s), {validation_warnings} warning(s), "
-                        f"{validation_errors} error(s)"
+                        f"{validation_status.infos} info(s), {validation_status.warnings} warning(s), "
+                        f"{validation_status.errors} error(s)"
                     )
                 else:
                     self.printer.println(
                         f"[red]Validation failed[/]: "
-                        f"{validation_infos} info(s), {validation_warnings} warning(s), "
-                        f"{validation_errors} error(s)"
+                        f"{validation_status.infos} info(s), {validation_status.warnings} warning(s), "
+                        f"{validation_status.errors} error(s)"
                     )
 
-            if validation_infos > 0 and not is_info_enabled():
+            if validation_status.infos > 0 and not is_info_enabled():
                 self.printer.level_up()
                 self.printer.println(
                     "in order to print validation infos, enable printing info messages by adding '-v' flag."
                 )
                 self.printer.level_down()
 
-            return validation_errors
+            return validation_status.errors
         finally:
             self.printer.level_down()
 
@@ -101,28 +108,30 @@ class ValidateOperation(Operation):
         organization: GitHubOrganization,
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
-    ) -> tuple[int, int, int]:
+        print_status: bool = True,
+    ) -> ValidationStatus:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
         context = await organization.validate(self.config, jsonnet_config, self.credential_resolver, provider)
 
-        validation_infos = 0
-        validation_warnings = 0
-        validation_errors = 0
+        validation_status = ValidationStatus()
 
         for failure_type, message in context.validation_failures:
             match failure_type:
                 case FailureType.INFO:
-                    self.printer.print_info(message)
-                    validation_infos += 1
+                    if print_status:
+                        self.printer.print_info(message)
+                    validation_status.infos += 1
 
                 case FailureType.WARNING:
-                    self.printer.print_warn(message)
-                    validation_warnings += 1
+                    if print_status:
+                        self.printer.print_warn(message)
+                    validation_status.warnings += 1
 
                 case FailureType.ERROR:
-                    self.printer.print_error(message)
-                    validation_errors += 1
+                    if print_status:
+                        self.printer.print_error(message)
+                    validation_status.errors += 1
 
-        return validation_infos, validation_warnings, validation_errors
+        return validation_status
