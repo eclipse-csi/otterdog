@@ -216,7 +216,7 @@ class OtterdogConfig:
             os.makedirs(self._jsonnet_base_dir)
 
         organizations = self.configuration.get("organizations", [])
-        for org in organizations:
+        for org in (org for org in organizations if not org.get("archived", False)):
             org_config = OrganizationConfig.from_dict(org, self)
             self._organizations.append(org_config)
             self._organizations_map[org_config.name.lower()] = org_config
