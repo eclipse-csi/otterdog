@@ -5,6 +5,7 @@
 ### Fixed
 
  - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
+ - Add support for marking organizations as archived and to ignore them. ([#463](https://github.com/eclipse-csi/otterdog/issues/463))
 
 ## [1.0.4] - 22/05/2025
 
