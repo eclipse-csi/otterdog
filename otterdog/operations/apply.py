@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from otterdog.models import ModelObject
 
     from .diff_operation import DiffStatus
+    from .validate import ValidationStatus
 
 
 class ApplyOperation(PlanOperation):
@@ -92,7 +93,9 @@ class ApplyOperation(PlanOperation):
         )
         return modified
 
-    async def handle_finish(self, org_id: str, diff_status: DiffStatus, patches: list[LivePatch]) -> int:
+    async def handle_finish(
+        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
+    ) -> int:
         self.printer.println()
 
         if diff_status.total_changes(self._delete_resources) == 0:

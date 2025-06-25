@@ -30,6 +30,15 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving id for org '{org_id}':\n{ex}") from ex
 
+    async def is_archived(self, org_id: str) -> bool:
+        _logger.debug("checking if org '%s' is archived", org_id)
+
+        try:
+            settings = await self.requester.request_json("GET", f"/orgs/{org_id}")
+            return settings["archived_at"] is not None
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving archived_at for org '{org_id}':\n{ex}") from ex
+
     async def get_settings(self, org_id: str, included_keys: set[str]) -> dict[str, Any]:
         _logger.debug("retrieving settings for org '%s'", org_id)
 
