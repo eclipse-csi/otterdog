@@ -4,7 +4,16 @@
 
 ### Fixed
 
+ - Fixed GitHub Page updates due missing required fields ([#450](https://github.com/eclipse-csi/otterdog/pull/455))
  - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
+
+### Changed
+
+ - Contributing documentation to include instructions for Otterdog Web App
+
+### Added
+
+ - Add Documentation for Otterdog Web App deployment
  - Add support for marking organizations as archived and to ignore them. ([#463](https://github.com/eclipse-csi/otterdog/issues/463))
 
 ## [1.0.4] - 22/05/2025
