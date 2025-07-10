@@ -10,7 +10,7 @@
 
  - Fixed GitHub Page updates due missing required fields ([#450](https://github.com/eclipse-csi/otterdog/pull/455))
  - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
-
+ - Fixed regression of live settings and expected code scanning default setup ([#458](https://github.com/eclipse-csi/otterdog/issues/458))
 ### Changed
 
  - Contributing documentation to include instructions for Otterdog Web App
@@ -20,7 +20,7 @@
  - Add Documentation for Otterdog Web App deployment
  - Add support for marking organizations as archived and to ignore them. ([#463](https://github.com/eclipse-csi/otterdog/issues/463))
  - Add new check-status CLI command. This outputs a json file of with sync, validation, and archival status of organizations. ([#457](https://github.com/eclipse-csi/otterdog/issues/457))
- - Fix regression of live settings and expected code scanning default setup ([#458](https://github.com/eclipse-csi/otterdog/issues/458))
+
 
 ## [1.0.4] - 22/05/2025
 
