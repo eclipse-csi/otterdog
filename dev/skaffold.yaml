@@ -64,6 +64,13 @@ profiles:
             - host:
                 command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
         releases:
+          - name: depedency-track
+            remoteChart: dependency-track/dependency-track
+            valuesFiles:
+              - ./dev/dev-values-dt.yaml
+            setValueTemplates:
+              ingress.hostname: sbom.{{.TS_DNS}}
+              ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
           - name: tailscale-operator
             remoteChart: tailscale/tailscale-operator
             namespace: tailscale
@@ -77,7 +84,8 @@ profiles:
               - ./dev/dev-values.yaml
               - ./dev/dev-values-ts.yaml
               - ./values.yaml
-
+            setValueTemplates:
+              ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}
   # This profile is used by (ARM64) for local development with tailscale
   - name: dev-tunnel-arm64
     deploy:
@@ -93,6 +101,13 @@ profiles:
             - host:
                 command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
         releases:
+          - name: depedency-track
+            remoteChart: dependency-track/dependency-track
+            valuesFiles:
+              - ./dev/dev-values-dt.yaml
+            setValueTemplates:
+              ingress.hostname: sbom.{{.TS_DNS}}
+              ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
           - name: tailscale-operator
             remoteChart: tailscale/tailscale-operator
             namespace: tailscale

@@ -185,3 +185,68 @@ class TestRepository:
         current._include_gh_pages_patch_required_properties(test_livepatch)
 
         assert test_livepatch.changes == expected_changes
+
+    @pytest.mark.parametrize(
+        "squash_merge_commit_title, squash_merge_commit_message, expected_changes",
+        [
+            (
+                "COMMIT_OR_PR_TITLE",
+                "COMMIT_MESSAGES",
+                {},
+            ),
+            (
+                "NEW_COMMIT_OR_PR_TITLE",
+                "COMMIT_MESSAGES",
+                {
+                    "squash_merge_commit_title": Change("COMMIT_OR_PR_TITLE", "NEW_COMMIT_OR_PR_TITLE"),
+                    "squash_merge_commit_message": Change("COMMIT_MESSAGES", "COMMIT_MESSAGES"),
+                },
+            ),
+            (
+                "COMMIT_OR_PR_TITLE",
+                "NEW_COMMIT_MESSAGES",
+                {
+                    "squash_merge_commit_title": Change("COMMIT_OR_PR_TITLE", "COMMIT_OR_PR_TITLE"),
+                    "squash_merge_commit_message": Change("COMMIT_MESSAGES", "NEW_COMMIT_MESSAGES"),
+                },
+            ),
+            (
+                "NEW_COMMIT_OR_PR_TITLE",
+                "NEW_COMMIT_MESSAGES",
+                {
+                    "squash_merge_commit_title": Change("COMMIT_OR_PR_TITLE", "NEW_COMMIT_OR_PR_TITLE"),
+                    "squash_merge_commit_message": Change("COMMIT_MESSAGES", "NEW_COMMIT_MESSAGES"),
+                },
+            ),
+        ],
+    )
+    def test__include_squash_merge_patch_required_properties(
+        self, repository_test, squash_merge_commit_title, squash_merge_commit_message, expected_changes
+    ):
+        current = Repository.from_model_data(repository_test.model_data)
+        default = Repository.from_model_data(repository_test.model_data)
+
+        # build changes using parametrization if not none
+        changes = {}
+        if squash_merge_commit_title != "COMMIT_OR_PR_TITLE":
+            current.squash_merge_commit_title = squash_merge_commit_title
+            changes["squash_merge_commit_title"] = Change(default.squash_merge_commit_title, squash_merge_commit_title)
+        if squash_merge_commit_message != "COMMIT_MESSAGES":
+            current.squash_merge_commit_message = squash_merge_commit_message
+            changes["squash_merge_commit_message"] = Change(
+                default.squash_merge_commit_message, squash_merge_commit_message
+            )
+
+        test_livepatch = LivePatch(
+            patch_type=3,
+            expected_object=current,
+            current_object=default,
+            changes=changes,
+            parent_object=None,
+            forced_update=False,
+            fn=pretend.stub(),
+            changes_object_to_readonly=False,
+        )
+        # Call the function under test
+        current._include_squash_merge_patch_required_properties(test_livepatch)
+        assert test_livepatch.changes == expected_changes

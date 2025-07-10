@@ -304,6 +304,8 @@ We use [tailscale on Kubernetes](https://tailscale.com/learn/managing-access-to-
 config:
   configOwner: "otterdog-<github username>"  # GitHub organization hosting the otterdog.json
   configToken: ""  #  A base64 valid GitHub token, no need for any permissions, just for rate limit purposes
+  dependecyTrackToken: ""  # A base64 depednecy track generated
+
 github:
   webhookSecret: ""  # The Base64 webhook secret as configured for the GitHub App
   appId: ""  # The APP id created in GitHub
@@ -356,13 +358,27 @@ make dev-webapp-tunnel
 
 You can see at https://login.tailscale.com/admin/machines the otterdog machine.
 
-It is reacheable by https://otterdog.tail<some hash>.ts.net (check using the above link)
+Otterdog WebApp is reacheable at https://otterdog.tail<some hash>.ts.net
 
 Init the otterdog and watch the logs
 
 ```bash
 curl  https://otterdog.tail<hash>.ts.net/internal/init
 ```
+Dependency Track is reacheable at https://sbom.tail<some hash>.ts.net (it still need to be re-configured, see it below)
+
+#### [Optional] Configure dependency track
+
+1. Access the https://sbom.tail<some hash>.ts.net ([default DependencyTrack credentials](https://docs.dependencytrack.org/getting-started/initial-startup/))
+   (First time will ask to change password and re-login)
+
+2. To generate the `dependencyTrackToken` go to `Administration` > `Access Management`> `Teams`
+
+3. Create a Team or choose one (i.e. `Automation`) create and API Key.
+
+4. Use this API Key in `depdencyTrackToken` on `values.yaml`
+
+It will reloadd automatically.
 
 ## Code style and requirements
 
