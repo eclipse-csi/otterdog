@@ -1050,22 +1050,6 @@ class Repository(ModelObject):
                         web_commit_signoff_required, web_commit_signoff_required
                     )
 
-            # similar fix as above for squash_merge_commit_title and squash_merge_commit_message as well
-            squash_merge_commit_title_present = "squash_merge_commit_title" in modified_repo
-            squash_merge_commit_message_present = "squash_merge_commit_message" in modified_repo
-
-            if squash_merge_commit_title_present and not squash_merge_commit_message_present:
-                squash_merge_commit_message = cast(Repository, coerced_object).squash_merge_commit_message
-                modified_repo["squash_merge_commit_message"] = Change(
-                    squash_merge_commit_message, squash_merge_commit_message
-                )
-
-            if squash_merge_commit_message_present and not squash_merge_commit_title_present:
-                squash_merge_commit_title = cast(Repository, coerced_object).squash_merge_commit_title
-                modified_repo["squash_merge_commit_title"] = Change(
-                    squash_merge_commit_title, squash_merge_commit_title
-                )
-
             if "custom_properties" in modified_repo:
                 change = modified_repo["custom_properties"]
                 from_value = change.from_value
@@ -1150,6 +1134,32 @@ class Repository(ModelObject):
             )
 
     @staticmethod
+    def _include_squash_merge_patch_required_properties(
+        patch: LivePatch[Repository],
+    ) -> LivePatch[Repository]:
+        """
+        Ensure that the squash_merge_commit_title and squash_merge_commit_message are set when
+        the patch contains squash merge change.
+        """
+        if patch.changes:
+            squash_merge_commit_title_present = "squash_merge_commit_title" in patch.changes
+            squash_merge_commit_message_present = "squash_merge_commit_message" in patch.changes
+
+            if squash_merge_commit_title_present and not squash_merge_commit_message_present:
+                squash_merge_commit_message = cast(Repository, patch.current_object).squash_merge_commit_message
+                patch.changes["squash_merge_commit_message"] = Change(
+                    squash_merge_commit_message, squash_merge_commit_message
+                )
+
+            if squash_merge_commit_message_present and not squash_merge_commit_title_present:
+                squash_merge_commit_title = cast(Repository, patch.current_object).squash_merge_commit_title
+                patch.changes["squash_merge_commit_title"] = Change(
+                    squash_merge_commit_title, squash_merge_commit_title
+                )
+
+        return patch
+
+    @staticmethod
     def _include_gh_pages_patch_required_properties(patch: LivePatch[Repository]) -> LivePatch[Repository]:
         """
         Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
@@ -1201,6 +1211,8 @@ class Repository(ModelObject):
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
+                # TODO: move the cls._ to a LivePatch get_changes method
+                cls._include_squash_merge_patch_required_properties(patch)
                 cls._include_gh_pages_patch_required_properties(patch)
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
