@@ -541,7 +541,7 @@ class RepoClient(RestClient):
             config = json.loads(body)
             # filter invalid values returned by api
             if "languages" in config:
-                config["languages"] = [lang for lang in config["languages"] if lang not in {"javascript", "typescript"}]
+                config["languages"] = [lang for lang in config["languages"] if lang != "javascript-typescript"]
             repo_data["code_scanning_default_config"] = config
 
     async def _update_code_scanning_config(self, org_id: str, repo_name: str, code_scanning: dict[str, Any]) -> None:
