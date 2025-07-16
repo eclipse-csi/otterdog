@@ -431,7 +431,7 @@ class Repository(ModelObject):
             if self.gh_pages_build_type == "disabled":
                 for key in self._gh_pages_properties:
                     value = self.__getattribute__(key)
-                    if value is not None:
+                    if is_set_and_valid(value):
                         context.add_failure(
                             FailureType.WARNING,
                             f"{self.get_model_header(parent_object)} has"
