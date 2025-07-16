@@ -339,7 +339,7 @@ class TestRepository:
         repo.validate(context, mock_org_free)
 
         failures = [
-            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+            f for f in context.validation_failures if f[0] == FailureType.WARNING and "gh_pages_visibility" in f[1]
         ]
         assert len(failures) == 1
         assert "only available for enterprise organizations" in failures[0][1]
