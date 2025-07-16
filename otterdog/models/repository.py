@@ -97,6 +97,7 @@ class Repository(ModelObject):
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
+    gh_pages_visibility: str | None
 
     custom_properties: dict[str, str | list[str]] | None
 
@@ -161,6 +162,7 @@ class Repository(ModelObject):
     _gh_pages_properties: ClassVar[list[str]] = [
         "gh_pages_source_branch",
         "gh_pages_source_path",
+        "gh_pages_visibility",
     ]
 
     _code_scanning_properties: ClassVar[list[str]] = [
@@ -463,6 +465,15 @@ class Repository(ModelObject):
                     f"while only values ['/' | '/docs'] are allowed.",
                 )
 
+        if is_set_and_valid(self.gh_pages_visibility):
+            if self.gh_pages_visibility not in {"public", "private"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to "
+                    f"value '{self.gh_pages_visibility}', "
+                    f"while only values ['public' | 'private'] are allowed.",
+                )
+
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
                 context.add_failure(
@@ -712,6 +723,15 @@ class Repository(ModelObject):
                 "gh_pages_build_type": OptionalS("gh_pages", "build_type", default="disabled"),
                 "gh_pages_source_branch": OptionalS("gh_pages", "source", "branch", default=None),
                 "gh_pages_source_path": OptionalS("gh_pages", "source", "path", default=None),
+                "gh_pages_visibility": If(
+                    OptionalS("gh_pages", "public", default=None) == K(True),
+                    K("public"),
+                    If(
+                        OptionalS("gh_pages", "public", default=None) == K(False),
+                        K("private"),
+                        K(None)
+                    )
+                ),
             }
         )
 
@@ -800,6 +820,18 @@ class Repository(ModelObject):
             mapping.pop("gh_pages_build_type")
             gh_pages_mapping["build_type"] = S("gh_pages_build_type")
 
+        if "gh_pages_visibility" in data:
+            mapping.pop("gh_pages_visibility")
+            gh_pages_mapping["public"] = If(
+                S("gh_pages_visibility") == K("public"),
+                K(True),
+                If(
+                    S("gh_pages_visibility") == K("private"),
+                    K(False),
+                    K(None)
+                )
+            )
+
         gh_pages_build_type = data.get("gh_pages_build_type")
 
         if gh_pages_build_type is None or gh_pages_build_type == "legacy":
@@ -816,7 +848,7 @@ class Repository(ModelObject):
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
-        for prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+        for prop in ["gh_pages_source_branch", "gh_pages_source_path", "gh_pages_visibility"]:
             if prop in mapping:
                 mapping.pop(prop)
 

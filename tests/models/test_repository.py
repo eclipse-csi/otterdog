@@ -250,3 +250,33 @@ class TestRepository:
         # Call the function under test
         current._include_squash_merge_patch_required_properties(test_livepatch)
         assert test_livepatch.changes == expected_changes
+
+    def test_gh_pages_visibility_validation(self, repository_test):
+        """Test that gh_pages_visibility validation works correctly."""
+        from otterdog.models import ValidationContext, FailureType
+
+        repo = Repository.from_model_data(repository_test.model_data)
+        context = ValidationContext(github_id="test", org_settings=None)
+
+        # Test valid values
+        repo.gh_pages_visibility = "public"
+        repo.validate(context, None)
+
+        repo.gh_pages_visibility = "private"
+        repo.validate(context, None)
+
+        repo.gh_pages_visibility = None
+        repo.validate(context, None)
+
+        # Test invalid value
+        repo.gh_pages_visibility = "invalid"
+        repo.validate(context, None)
+
+        # Check that validation failed for invalid value
+        failures = [
+            f
+            for f in context.get_failures()
+            if f.failure_type == FailureType.ERROR and "gh_pages_visibility" in f.message
+        ]
+        assert len(failures) == 1
+        assert "while only values ['public' | 'private'] are allowed" in failures[0].message
