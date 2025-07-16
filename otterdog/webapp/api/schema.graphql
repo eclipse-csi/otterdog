@@ -48,6 +48,7 @@ type Repository {
     gh_pages_build_type: String
     gh_pages_source_branch: String
     gh_pages_source_path: String
+    gh_pages_visibility: String
 }
 
 type OrganizationSettings {
