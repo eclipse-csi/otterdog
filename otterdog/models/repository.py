@@ -473,6 +473,13 @@ class Repository(ModelObject):
                     f"value '{self.gh_pages_visibility}', "
                     f"while only values ['public' | 'private'] are allowed.",
                 )
+            elif org_settings.plan != "enterprise":
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                    f"but this feature is only available for enterprise organizations, "
+                    f"currently using '{org_settings.plan}' plan.",
+                )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:

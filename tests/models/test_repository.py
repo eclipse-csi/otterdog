@@ -281,8 +281,20 @@ class TestRepository:
             exclude_teams_pattern=None,
         )
 
-        # Create a mock parent organization object
-        mock_org = pretend.stub(
+        # Create a mock parent organization object with enterprise plan
+        mock_org_enterprise = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="enterprise",
+                members_can_fork_private_repositories=False,
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        # Create a mock parent organization object with free plan
+        mock_org_free = pretend.stub(
             github_id="test-org",
             settings=pretend.stub(
                 plan="free",
@@ -293,24 +305,24 @@ class TestRepository:
             ),
         )
 
-        # Test valid values first - should not add any failures
+        # Test valid values with enterprise plan - should not add any failures
         initial_failures = len(context.validation_failures)
 
         repo.gh_pages_visibility = "public"
-        repo.validate(context, mock_org)
+        repo.validate(context, mock_org_enterprise)
         assert len(context.validation_failures) == initial_failures
 
         repo.gh_pages_visibility = "private"
-        repo.validate(context, mock_org)
+        repo.validate(context, mock_org_enterprise)
         assert len(context.validation_failures) == initial_failures
 
         repo.gh_pages_visibility = None
-        repo.validate(context, mock_org)
+        repo.validate(context, mock_org_enterprise)
         assert len(context.validation_failures) == initial_failures
 
         # Test invalid value - should add a failure
         repo.gh_pages_visibility = "invalid"
-        repo.validate(context, mock_org)
+        repo.validate(context, mock_org_enterprise)
 
         # Check that validation failed for invalid value
         failures = [
@@ -318,3 +330,17 @@ class TestRepository:
         ]
         assert len(failures) == 1
         assert "while only values ['public' | 'private'] are allowed" in failures[0][1]
+
+        # Reset for next test
+        context.validation_failures.clear()
+        repo.gh_pages_visibility = "public"
+
+        # Test with non-enterprise plan - should add a failure
+        repo.validate(context, mock_org_free)
+
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "only available for enterprise organizations" in failures[0][1]
+        assert "currently using 'free' plan" in failures[0][1]
