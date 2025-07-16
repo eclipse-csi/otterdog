@@ -475,10 +475,16 @@ class Repository(ModelObject):
                 )
             elif org_settings.plan != "enterprise":
                 context.add_failure(
-                    FailureType.WARNING,
+                    FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
                     f"but this feature is only available for enterprise organizations, "
-                    f"currently using '{org_settings.plan}' plan, setting will be ignored.",
+                    f"currently using '{org_settings.plan}' plan.",
+                )
+            elif self.private is False:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                    f"but this feature is only available for private repositories.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):

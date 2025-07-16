@@ -286,7 +286,7 @@ class TestRepository:
             github_id="test-org",
             settings=pretend.stub(
                 plan="enterprise",
-                members_can_fork_private_repositories=False,
+                members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
                 web_commit_signoff_required=False,
                 has_discussions=False,
                 has_organization_projects=True,
@@ -298,15 +298,18 @@ class TestRepository:
             github_id="test-org",
             settings=pretend.stub(
                 plan="free",
-                members_can_fork_private_repositories=False,
+                members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
                 web_commit_signoff_required=False,
                 has_discussions=False,
                 has_organization_projects=True,
             ),
         )
 
-        # Test valid values with enterprise plan - should not add any failures
+        # Test valid values with enterprise plan and private repo - should not add any failures
         initial_failures = len(context.validation_failures)
+
+        # Set repository to private for valid tests
+        repo.private = True
 
         repo.gh_pages_visibility = "public"
         repo.validate(context, mock_org_enterprise)
@@ -339,8 +342,22 @@ class TestRepository:
         repo.validate(context, mock_org_free)
 
         failures = [
-            f for f in context.validation_failures if f[0] == FailureType.WARNING and "gh_pages_visibility" in f[1]
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
         ]
         assert len(failures) == 1
         assert "only available for enterprise organizations" in failures[0][1]
         assert "currently using 'free' plan" in failures[0][1]
+
+        # Reset for next test
+        context.validation_failures.clear()
+        repo.gh_pages_visibility = "public"
+
+        # Test with public repository (should fail even with enterprise plan)
+        repo.private = False
+        repo.validate(context, mock_org_enterprise)
+
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "only available for private repositories" in failures[0][1]
