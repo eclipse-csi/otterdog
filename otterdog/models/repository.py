@@ -513,7 +513,11 @@ class Repository(ModelObject):
                 )
 
         if is_set_and_valid(self.squash_merge_commit_message):
-            if self.squash_merge_commit_message not in {"PR_BODY", "COMMIT_MESSAGES", "BLANK"}:
+            if self.squash_merge_commit_message not in {
+                "PR_BODY",
+                "COMMIT_MESSAGES",
+                "BLANK",
+            }:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'squash_merge_commit_message' of value "
@@ -522,7 +526,10 @@ class Repository(ModelObject):
                 )
 
         if is_set_and_valid(self.squash_merge_commit_title) and is_set_and_valid(self.squash_merge_commit_message):
-            if (self.squash_merge_commit_title, self.squash_merge_commit_message) not in [
+            if (
+                self.squash_merge_commit_title,
+                self.squash_merge_commit_message,
+            ) not in [
                 ("PR_TITLE", "PR_BODY"),
                 ("PR_TITLE", "BLANK"),
                 ("PR_TITLE", "COMMIT_MESSAGES"),
@@ -729,8 +736,8 @@ class Repository(ModelObject):
                     If(
                         OptionalS("gh_pages", "public", default=None) == K(False),
                         K("private"),
-                        K(None)
-                    )
+                        K(None),
+                    ),
                 ),
             }
         )
@@ -775,7 +782,10 @@ class Repository(ModelObject):
                     default=UNSET,
                 ),
                 "dependabot_security_updates_enabled": OptionalS(
-                    "security_and_analysis", "dependabot_security_updates", "status", default=UNSET
+                    "security_and_analysis",
+                    "dependabot_security_updates",
+                    "status",
+                    default=UNSET,
                 )
                 >> F(status_to_bool),
                 "template_repository": OptionalS("template_repository", "full_name", default=None),
@@ -825,11 +835,7 @@ class Repository(ModelObject):
             gh_pages_mapping["public"] = If(
                 S("gh_pages_visibility") == K("public"),
                 K(True),
-                If(
-                    S("gh_pages_visibility") == K("private"),
-                    K(False),
-                    K(None)
-                )
+                If(S("gh_pages_visibility") == K("private"), K(False), K(None)),
             )
 
         gh_pages_build_type = data.get("gh_pages_build_type")
@@ -848,7 +854,11 @@ class Repository(ModelObject):
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
-        for prop in ["gh_pages_source_branch", "gh_pages_source_path", "gh_pages_visibility"]:
+        for prop in [
+            "gh_pages_source_branch",
+            "gh_pages_source_path",
+            "gh_pages_visibility",
+        ]:
             if prop in mapping:
                 mapping.pop(prop)
 
@@ -952,7 +962,13 @@ class Repository(ModelObject):
                 patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
                     printer.print("workflows+:")
-                    coerced_settings.to_jsonnet(printer, jsonnet_config, context, True, default_workflow_settings)
+                    coerced_settings.to_jsonnet(
+                        printer,
+                        jsonnet_config,
+                        context,
+                        True,
+                        default_workflow_settings,
+                    )
 
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
@@ -1151,7 +1167,7 @@ class Repository(ModelObject):
         if coerced_object.archived is False or changes_object_to_readonly is True:
             BranchProtectionRule.generate_live_patch_of_list(
                 coerced_object.branch_protection_rules,
-                current_object.branch_protection_rules if current_object is not None else [],
+                (current_object.branch_protection_rules if current_object is not None else []),
                 coerced_object,
                 context,
                 handler,
@@ -1192,7 +1208,9 @@ class Repository(ModelObject):
         return patch
 
     @staticmethod
-    def _include_gh_pages_patch_required_properties(patch: LivePatch[Repository]) -> LivePatch[Repository]:
+    def _include_gh_pages_patch_required_properties(
+        patch: LivePatch[Repository],
+    ) -> LivePatch[Repository]:
         """
         Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
         the patch contains gh_pages change.

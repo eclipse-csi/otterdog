@@ -146,18 +146,28 @@ class TestRepository:
             (
                 None,
                 "main",
-                {"gh_pages_source_branch": Change("gh-pages", "main"), "gh_pages_source_path": Change("/", "/")},
+                {
+                    "gh_pages_source_branch": Change("gh-pages", "main"),
+                    "gh_pages_source_path": Change("/", "/"),
+                },
             ),
             (None, None, {}),
             (
                 "/docs",
                 "main",
-                {"gh_pages_source_path": Change("/", "/docs"), "gh_pages_source_branch": Change("gh-pages", "main")},
+                {
+                    "gh_pages_source_path": Change("/", "/docs"),
+                    "gh_pages_source_branch": Change("gh-pages", "main"),
+                },
             ),
         ],
     )
     def test__include_gh_pages_patch_required_properties(
-        self, repository_test, gh_pages_source_path, gh_pages_source_branch, expected_changes
+        self,
+        repository_test,
+        gh_pages_source_path,
+        gh_pages_source_branch,
+        expected_changes,
     ):
         current = Repository.from_model_data(repository_test.model_data)
         default = Repository.from_model_data(repository_test.model_data)
@@ -221,7 +231,11 @@ class TestRepository:
         ],
     )
     def test__include_squash_merge_patch_required_properties(
-        self, repository_test, squash_merge_commit_title, squash_merge_commit_message, expected_changes
+        self,
+        repository_test,
+        squash_merge_commit_title,
+        squash_merge_commit_message,
+        expected_changes,
     ):
         current = Repository.from_model_data(repository_test.model_data)
         default = Repository.from_model_data(repository_test.model_data)
@@ -253,30 +267,54 @@ class TestRepository:
 
     def test_gh_pages_visibility_validation(self, repository_test):
         """Test that gh_pages_visibility validation works correctly."""
-        from otterdog.models import ValidationContext, FailureType
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+        from otterdog.models import FailureType, ValidationContext
 
         repo = Repository.from_model_data(repository_test.model_data)
-        context = ValidationContext(github_id="test", org_settings=None)
+        # Create a minimal context for validation
+        context = ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
 
-        # Test valid values
+        # Create a mock parent organization object
+        mock_org = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="free",
+                members_can_fork_private_repositories=False,
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        # Test valid values first - should not add any failures
+        initial_failures = len(context.validation_failures)
+
         repo.gh_pages_visibility = "public"
-        repo.validate(context, None)
+        repo.validate(context, mock_org)
+        assert len(context.validation_failures) == initial_failures
 
         repo.gh_pages_visibility = "private"
-        repo.validate(context, None)
+        repo.validate(context, mock_org)
+        assert len(context.validation_failures) == initial_failures
 
         repo.gh_pages_visibility = None
-        repo.validate(context, None)
+        repo.validate(context, mock_org)
+        assert len(context.validation_failures) == initial_failures
 
-        # Test invalid value
+        # Test invalid value - should add a failure
         repo.gh_pages_visibility = "invalid"
-        repo.validate(context, None)
+        repo.validate(context, mock_org)
 
         # Check that validation failed for invalid value
         failures = [
-            f
-            for f in context.get_failures()
-            if f.failure_type == FailureType.ERROR and "gh_pages_visibility" in f.message
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
         ]
         assert len(failures) == 1
-        assert "while only values ['public' | 'private'] are allowed" in failures[0].message
+        assert "while only values ['public' | 'private'] are allowed" in failures[0][1]
