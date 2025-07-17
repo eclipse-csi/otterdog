@@ -320,6 +320,11 @@ local newOrg(name, id=name) = {
     # GitHub Pages
     members_can_create_public_pages: true,
 
+    # If enabled, members can create private GitHub Pages sites in this organization.
+    # Required for configuring GitHub Pages visibility on private repositories.
+    # Only available for enterprise organizations.
+    members_can_create_private_pages: false,
+
     # Disable default code security configurations
     default_code_security_configurations_disabled: true,
 

@@ -72,6 +72,7 @@ class OrganizationSettings(ModelObject):
     members_can_create_public_repositories: bool
     members_can_fork_private_repositories: bool
     members_can_create_public_pages: bool
+    members_can_create_private_pages: bool
     members_can_change_repo_visibility: bool
     members_can_delete_repositories: bool
     members_can_delete_issues: bool
@@ -122,7 +123,12 @@ class OrganizationSettings(ModelObject):
             )
 
         if is_set_and_valid(self.default_repository_permission):
-            if self.default_repository_permission not in {"none", "read", "write", "admin"}:
+            if self.default_repository_permission not in {
+                "none",
+                "read",
+                "write",
+                "admin",
+            }:
                 context.add_failure(
                     FailureType.ERROR,
                     f"'default_repository_permission' has value '{self.default_repository_permission}', "
@@ -253,7 +259,8 @@ class OrganizationSettings(ModelObject):
         # this setting is only intended to disable any existing default configuration, it can not be enabled per se
         if "default_code_security_configurations_disabled" in modified_settings:
             change: Change[bool] = cast(
-                Change[bool], modified_settings.get("default_code_security_configurations_disabled")
+                Change[bool],
+                modified_settings.get("default_code_security_configurations_disabled"),
             )
             if change.from_value is True and change.to_value is False:
                 modified_settings.pop("default_code_security_configurations_disabled")
@@ -261,7 +268,12 @@ class OrganizationSettings(ModelObject):
         if len(modified_settings) > 0:
             handler(
                 LivePatch.of_changes(
-                    expected_object, current_object, modified_settings, parent_object, False, cls.apply_live_patch
+                    expected_object,
+                    current_object,
+                    modified_settings,
+                    parent_object,
+                    False,
+                    cls.apply_live_patch,
                 )
             )
 

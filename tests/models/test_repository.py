@@ -287,6 +287,7 @@ class TestRepository:
             settings=pretend.stub(
                 plan="enterprise",
                 members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
+                members_can_create_private_pages=True,  # Enable private pages
                 web_commit_signoff_required=False,
                 has_discussions=False,
                 has_organization_projects=True,
@@ -299,6 +300,20 @@ class TestRepository:
             settings=pretend.stub(
                 plan="free",
                 members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
+                members_can_create_private_pages=False,  # Disable private pages
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        # Create a mock parent organization object with enterprise plan but private pages disabled
+        mock_org_enterprise_no_private_pages = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="enterprise",
+                members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
+                members_can_create_private_pages=False,  # Disable private pages
                 web_commit_signoff_required=False,
                 has_discussions=False,
                 has_organization_projects=True,
@@ -361,3 +376,17 @@ class TestRepository:
         ]
         assert len(failures) == 1
         assert "only available for private repositories" in failures[0][1]
+
+        # Reset for next test
+        context.validation_failures.clear()
+        repo.private = True  # Set back to private
+        repo.gh_pages_visibility = "public"
+
+        # Test with enterprise plan but members_can_create_private_pages disabled - should fail
+        repo.validate(context, mock_org_enterprise_no_private_pages)
+
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "members_can_create_private_pages' is disabled" in failures[0][1]

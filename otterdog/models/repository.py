@@ -480,11 +480,17 @@ class Repository(ModelObject):
                     f"but this feature is only available for enterprise organizations, "
                     f"currently using '{org_settings.plan}' plan.",
                 )
-            elif self.private is False:
+            elif is_public:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
                     f"but this feature is only available for private repositories.",
+                )
+            elif org_settings.members_can_create_private_pages is False:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                    f"but the organization setting 'members_can_create_private_pages' is disabled.",
                 )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
