@@ -2,6 +2,10 @@
 
 ## [1.0.5] - unreleased
 
+### Changed
+
+ - Make the `sync-check` always succeed to not prevent PRs from being merged due to unrelated changes in the live settings.
+
 ### Fixed
 
  - Fixed GitHub Page updates due missing required fields ([#450](https://github.com/eclipse-csi/otterdog/pull/455))

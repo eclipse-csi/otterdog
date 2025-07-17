@@ -238,7 +238,12 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             status = "success"
         else:
             desc = "otterdog sync check failed, check comment history"
-            status = "error"
+            # even if the sync check failed, mark the status check with success
+            # to not prevent the PR from being merged
+            # the sync check is mainly for informational purposes since the apply task
+            # will run a local-apply operation only update the changed settings and thus
+            # not touching live settings that are different to the configuration.
+            status = "success"
 
         rest_api = await self.rest_api
         await rest_api.commit.create_commit_status(
