@@ -2,6 +2,10 @@
 
 ## [1.0.5] - unreleased
 
+### Changed
+
+ - Make the `sync-check` always succeed to not prevent PRs from being merged due to unrelated changes in the live settings.
+
 ### Fixed
 
  - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
