@@ -83,7 +83,7 @@ class TestRepository:
 
         provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
 
-        assert len(provider_data) == 22
+        assert len(provider_data) == 23
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data.get("description") is None
 
@@ -98,7 +98,7 @@ class TestRepository:
         other.secret_scanning = "disabled"
 
         changes = current.get_difference_from(other)
-        provider_data = await Repository.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await Repository.changes_to_provider(repository_test.org_id, changes, repository_test.provider)
 
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"
@@ -328,15 +328,17 @@ class TestRepository:
 
         repo.gh_pages_visibility = "public"
         repo.validate(context, mock_org_enterprise)
-        assert len(context.validation_failures) == initial_failures
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == initial_failures
 
         repo.gh_pages_visibility = "private"
         repo.validate(context, mock_org_enterprise)
-        assert len(context.validation_failures) == initial_failures
-
-        repo.gh_pages_visibility = None
-        repo.validate(context, mock_org_enterprise)
-        assert len(context.validation_failures) == initial_failures
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == initial_failures
 
         # Test invalid value - should add a failure
         repo.gh_pages_visibility = "invalid"
@@ -357,7 +359,7 @@ class TestRepository:
         repo.validate(context, mock_org_free)
 
         failures = [
-            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+            f for f in context.validation_failures if f[0] == FailureType.WARNING and "gh_pages_visibility" in f[1]
         ]
         assert len(failures) == 1
         assert "only available for enterprise organizations" in failures[0][1]
@@ -365,7 +367,7 @@ class TestRepository:
 
         # Reset for next test
         context.validation_failures.clear()
-        repo.gh_pages_visibility = "public"
+        repo.gh_pages_visibility = "private"
 
         # Test with public repository (should fail even with enterprise plan)
         repo.private = False
@@ -380,7 +382,7 @@ class TestRepository:
         # Reset for next test
         context.validation_failures.clear()
         repo.private = True  # Set back to private
-        repo.gh_pages_visibility = "public"
+        repo.gh_pages_visibility = "private"
 
         # Test with enterprise plan but members_can_create_private_pages disabled - should fail
         repo.validate(context, mock_org_enterprise_no_private_pages)

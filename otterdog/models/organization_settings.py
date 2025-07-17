@@ -122,6 +122,12 @@ class OrganizationSettings(ModelObject):
                 "setting 'discussion_source_repository' requires a repository in '<owner>/<repo-name>' format.",
             )
 
+        if self.members_can_create_private_pages is True and self.plan != "enterprise":
+            context.add_failure(
+                FailureType.ERROR,
+                "enabling 'members_can_create_private_pages' requires an 'enterprise' plan.",
+            )
+
         if is_set_and_valid(self.default_repository_permission):
             if self.default_repository_permission not in {
                 "none",

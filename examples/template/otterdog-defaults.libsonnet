@@ -67,7 +67,7 @@ local newRepo(name) = {
   gh_pages_build_type: "disabled",
   gh_pages_source_branch: null,
   gh_pages_source_path: null,
-  gh_pages_visibility: null,
+  gh_pages_visibility: "public",
 
   # Custom Properties
   custom_properties: {},

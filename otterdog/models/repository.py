@@ -97,7 +97,7 @@ class Repository(ModelObject):
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
-    gh_pages_visibility: str | None
+    gh_pages_visibility: str
 
     custom_properties: dict[str, str | list[str]] | None
 
@@ -163,6 +163,11 @@ class Repository(ModelObject):
         "gh_pages_source_branch",
         "gh_pages_source_path",
         "gh_pages_visibility",
+    ]
+
+    _gh_pages_legacy_properties: ClassVar[list[str]] = [
+        "gh_pages_source_branch",
+        "gh_pages_source_path",
     ]
 
     _code_scanning_properties: ClassVar[list[str]] = [
@@ -428,17 +433,6 @@ class Repository(ModelObject):
                     f"while only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
                 )
 
-            if self.gh_pages_build_type == "disabled":
-                for key in self._gh_pages_properties:
-                    value = self.__getattribute__(key)
-                    if is_set_and_valid(value):
-                        context.add_failure(
-                            FailureType.WARNING,
-                            f"{self.get_model_header(parent_object)} has"
-                            f" 'gh_pages_build_type' disabled, but '{key}' "
-                            f"is set to a value '{value}', setting will be ignored.",
-                        )
-
             if self.gh_pages_build_type in {"legacy", "workflow"}:
                 if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
                     context.add_failure(
@@ -465,33 +459,41 @@ class Repository(ModelObject):
                     f"while only values ['/' | '/docs'] are allowed.",
                 )
 
-        if is_set_and_valid(self.gh_pages_visibility):
-            if self.gh_pages_visibility not in {"public", "private"}:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to "
-                    f"value '{self.gh_pages_visibility}', "
-                    f"while only values ['public' | 'private'] are allowed.",
-                )
-            elif org_settings.plan != "enterprise":
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
-                    f"but this feature is only available for enterprise organizations, "
-                    f"currently using '{org_settings.plan}' plan.",
-                )
-            elif is_public:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
-                    f"but this feature is only available for private repositories.",
-                )
-            elif org_settings.members_can_create_private_pages is False:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
-                    f"but the organization setting 'members_can_create_private_pages' is disabled.",
-                )
+            if is_set_and_valid(self.gh_pages_visibility):
+                if self.gh_pages_visibility not in {"public", "private"}:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to "
+                        f"value '{self.gh_pages_visibility}', "
+                        f"while only values ['public' | 'private'] are allowed.",
+                    )
+
+            if self.gh_pages_build_type != "disabled" and is_set_and_valid(self.gh_pages_visibility):
+                if org_settings.plan != "enterprise":
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                        f"but this feature is only available for enterprise organizations, "
+                        f"currently using '{org_settings.plan}' plan, setting will be ignored.",
+                    )
+
+                if self.gh_pages_visibility == "private" and not is_private:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to value "
+                        f"'{self.gh_pages_visibility}', but this setting is only available for private repositories.",
+                    )
+
+                if (
+                    self.gh_pages_visibility == "private"
+                    and is_private
+                    and org_settings.members_can_create_private_pages is not True
+                ):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                        f"but the organization setting 'members_can_create_private_pages' is disabled.",
+                    )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
@@ -631,8 +633,12 @@ class Repository(ModelObject):
             if field.name in self._security_properties or field.name in self._additional_security_properties:
                 return False
 
-        if self.gh_pages_build_type in ["disabled", "workflow"]:
+        if self.gh_pages_build_type == "disabled":
             if field.name in self._gh_pages_properties:
+                return False
+
+        if self.gh_pages_build_type == "workflow":
+            if field.name in self._gh_pages_legacy_properties:
                 return False
 
         if self.code_scanning_default_setup_enabled is False:
@@ -654,8 +660,12 @@ class Repository(ModelObject):
             if field.name in self._security_properties:
                 return False
 
-        if self.gh_pages_build_type in ["disabled", "workflow"]:
+        if self.gh_pages_build_type == "disabled":
             if field.name in self._gh_pages_properties:
+                return False
+
+        if self.gh_pages_build_type == "workflow":
+            if field.name in self._gh_pages_legacy_properties:
                 return False
 
         if self.code_scanning_default_setup_enabled is False:
@@ -755,7 +765,7 @@ class Repository(ModelObject):
                     If(
                         OptionalS("gh_pages", "public", default=None) == K(False),
                         K("private"),
-                        K(None),
+                        K(UNSET),
                     ),
                 ),
             }
@@ -854,7 +864,7 @@ class Repository(ModelObject):
             gh_pages_mapping["public"] = If(
                 S("gh_pages_visibility") == K("public"),
                 K(True),
-                If(S("gh_pages_visibility") == K("private"), K(False), K(None)),
+                K(False),
             )
 
         gh_pages_build_type = data.get("gh_pages_build_type")

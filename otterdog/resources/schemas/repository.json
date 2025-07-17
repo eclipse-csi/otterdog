@@ -60,7 +60,7 @@
     "gh_pages_build_type": { "type": "string" },
     "gh_pages_source_branch": { "$ref": "types.json#/$defs/string-or-null"},
     "gh_pages_source_path": { "$ref": "types.json#/$defs/string-or-null"},
-    "gh_pages_visibility": { "$ref": "types.json#/$defs/string-or-null"},
+    "gh_pages_visibility": { "type": "string"},
     "workflows": { "$ref": "repo-workflow-settings.json" },
     "branch_protection_rules": {
       "type": "array",

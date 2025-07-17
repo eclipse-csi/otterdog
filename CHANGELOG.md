@@ -2,6 +2,11 @@
 
 ## [1.0.5] - unreleased
 
+### Added
+
+ - Added support for setting `gh_pages_visibility` in repositories. ([#474](https://github.com/eclipse-csi/otterdog/pull/474))
+ - Added support for setting `members_can_create_private_pages` in organization settings. ([#474](https://github.com/eclipse-csi/otterdog/pull/474))
+
 ### Fixed
 
  - Properly escape string values when passing them to a rich Console. ([#440](https://github.com/eclipse-csi/otterdog/issues/440))
