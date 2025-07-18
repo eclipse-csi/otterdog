@@ -67,6 +67,10 @@
       "provider": "restapi",
       "type": "boolean"
     },
+    "members_can_create_private_pages": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
     "default_code_security_configurations_disabled": {
       "provider": "restapi",
       "type": "boolean"

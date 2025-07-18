@@ -48,6 +48,7 @@ type Repository {
     gh_pages_build_type: String
     gh_pages_source_branch: String
     gh_pages_source_path: String
+    gh_pages_visibility: String
 }
 
 type OrganizationSettings {
@@ -74,6 +75,7 @@ type OrganizationSettings {
     members_can_create_public_repositories: Boolean
     members_can_fork_private_repositories: Boolean
     members_can_create_public_pages: Boolean
+    members_can_create_private_pages: Boolean
     members_can_change_repo_visibility: Boolean
     members_can_delete_repositories: Boolean
     members_can_delete_issues: Boolean

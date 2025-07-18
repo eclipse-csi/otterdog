@@ -23,6 +23,7 @@
   "merge_commit_message": "PR_TITLE",
   "secret_scanning": "enabled",
   "dependabot_alerts_enabled": true,
+  "gh_pages_build_type": "legacy",
   "gh_pages_source_path": "/",
   "gh_pages_source_branch": "gh-pages"
 }
