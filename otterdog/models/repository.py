@@ -251,6 +251,9 @@ class Repository(ModelObject):
         if org_settings.web_commit_signoff_required is True:
             copy.web_commit_signoff_required = UNSET  # type: ignore
 
+        if org_settings.plan != "enterprise":
+            copy.gh_pages_visibility = UNSET  # type: ignore
+
         if is_set_and_present(self.custom_properties):
             for custom_property in org_settings.custom_properties:
                 current_property_value = self.custom_properties.get(custom_property.name, None)
@@ -469,14 +472,6 @@ class Repository(ModelObject):
                     )
 
             if self.gh_pages_build_type != "disabled" and is_set_and_valid(self.gh_pages_visibility):
-                if org_settings.plan != "enterprise":
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
-                        f"but this feature is only available for enterprise organizations, "
-                        f"currently using '{org_settings.plan}' plan, setting will be ignored.",
-                    )
-
                 if self.gh_pages_visibility == "private" and not is_private:
                     context.add_failure(
                         FailureType.ERROR,
