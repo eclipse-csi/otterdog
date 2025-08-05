@@ -6,5 +6,5 @@ The following format is used to distinguish between tags and branches:
 | Branch | `<pattern>`     | `main`        |
 | Tag    | `tag:<pattern>` | `tag:v[0-9]*` |
 
-For more information about the pattern matching syntax, see the 
+For more information about the pattern matching syntax, see the
 [Ruby File.fnmatch documentation](https://ruby-doc.org/current/File.html#method-c-fnmatch).
