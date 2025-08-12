@@ -70,3 +70,12 @@ class DependencyTrackUploadPolicy(Policy):
                     payload.id,
                 )
             )
+        else:
+            logger.debug(
+                f"conditions not met to upload sbom to dependency track: \n"
+                f"    workflow_filter={self.workflow_filter}, \n"
+                f"    artifact_name={self.artifact_name}, \n"
+                f"    payload.conclusion={payload.conclusion}, \n"
+                f"    payload.referenced_workflows={payload.referenced_workflows}, \n"
+                f"    matches_workflow={any(self.matches_workflow(x.path) for x in payload.referenced_workflows}"
+            )
