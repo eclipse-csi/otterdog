@@ -7,6 +7,8 @@
  - Add Documentation for Otterdog Web App deployment
  - Add support for marking organizations as archived and to ignore them. ([#463](https://github.com/eclipse-csi/otterdog/issues/463))
  - Add new check-status CLI command. This outputs a json file of with sync, validation, and archival status of organizations. ([#457](https://github.com/eclipse-csi/otterdog/issues/457))
+ - Added support for setting `gh_pages_visibility` in repositories. ([#474](https://github.com/eclipse-csi/otterdog/pull/474))
+ - Added support for setting `members_can_create_private_pages` in organization settings. ([#474](https://github.com/eclipse-csi/otterdog/pull/474))
 
 ### Changed
 
