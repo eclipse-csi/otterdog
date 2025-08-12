@@ -77,5 +77,5 @@ class DependencyTrackUploadPolicy(Policy):
                 f"    artifact_name={self.artifact_name}, \n"
                 f"    payload.conclusion={payload.conclusion}, \n"
                 f"    payload.referenced_workflows={payload.referenced_workflows}, \n"
-                f"    matches_workflow={any(self.matches_workflow(x.path) for x in payload.referenced_workflows}"
+                f"    matches_workflow={any(self.matches_workflow(x.path) for x in payload.referenced_workflows)}"
             )
