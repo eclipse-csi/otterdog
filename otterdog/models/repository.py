@@ -97,6 +97,7 @@ class Repository(ModelObject):
     gh_pages_build_type: str
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
+    gh_pages_visibility: str
 
     custom_properties: dict[str, str | list[str]] | None
 
@@ -159,6 +160,12 @@ class Repository(ModelObject):
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
+        "gh_pages_source_branch",
+        "gh_pages_source_path",
+        "gh_pages_visibility",
+    ]
+
+    _gh_pages_legacy_properties: ClassVar[list[str]] = [
         "gh_pages_source_branch",
         "gh_pages_source_path",
     ]
@@ -243,6 +250,9 @@ class Repository(ModelObject):
 
         if org_settings.web_commit_signoff_required is True:
             copy.web_commit_signoff_required = UNSET  # type: ignore
+
+        if org_settings.plan != "enterprise":
+            copy.gh_pages_visibility = UNSET  # type: ignore
 
         if is_set_and_present(self.custom_properties):
             for custom_property in org_settings.custom_properties:
@@ -426,17 +436,6 @@ class Repository(ModelObject):
                     f"while only values ['disabled' | 'legacy' | 'workflow'] are allowed.",
                 )
 
-            if self.gh_pages_build_type == "disabled":
-                for key in self._gh_pages_properties:
-                    value = self.__getattribute__(key)
-                    if value is not None:
-                        context.add_failure(
-                            FailureType.WARNING,
-                            f"{self.get_model_header(parent_object)} has"
-                            f" 'gh_pages_build_type' disabled, but '{key}' "
-                            f"is set to a value '{value}', setting will be ignored.",
-                        )
-
             if self.gh_pages_build_type in {"legacy", "workflow"}:
                 if len(list(filter(lambda x: x.name == "github-pages", self.environments))) == 0:
                     context.add_failure(
@@ -462,6 +461,34 @@ class Repository(ModelObject):
                     f" 'gh_pages_source_path' with value '{self.gh_pages_source_path}', "
                     f"while only values ['/' | '/docs'] are allowed.",
                 )
+
+            if is_set_and_valid(self.gh_pages_visibility):
+                if self.gh_pages_visibility not in {"public", "private"}:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to "
+                        f"value '{self.gh_pages_visibility}', "
+                        f"while only values ['public' | 'private'] are allowed.",
+                    )
+
+            if self.gh_pages_build_type != "disabled" and is_set_and_valid(self.gh_pages_visibility):
+                if self.gh_pages_visibility == "private" and not is_private:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set to value "
+                        f"'{self.gh_pages_visibility}', but this setting is only available for private repositories.",
+                    )
+
+                if (
+                    self.gh_pages_visibility == "private"
+                    and is_private
+                    and org_settings.members_can_create_private_pages is not True
+                ):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
+                        f"but the organization setting 'members_can_create_private_pages' is disabled.",
+                    )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
@@ -502,7 +529,11 @@ class Repository(ModelObject):
                 )
 
         if is_set_and_valid(self.squash_merge_commit_message):
-            if self.squash_merge_commit_message not in {"PR_BODY", "COMMIT_MESSAGES", "BLANK"}:
+            if self.squash_merge_commit_message not in {
+                "PR_BODY",
+                "COMMIT_MESSAGES",
+                "BLANK",
+            }:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'squash_merge_commit_message' of value "
@@ -511,7 +542,10 @@ class Repository(ModelObject):
                 )
 
         if is_set_and_valid(self.squash_merge_commit_title) and is_set_and_valid(self.squash_merge_commit_message):
-            if (self.squash_merge_commit_title, self.squash_merge_commit_message) not in [
+            if (
+                self.squash_merge_commit_title,
+                self.squash_merge_commit_message,
+            ) not in [
                 ("PR_TITLE", "PR_BODY"),
                 ("PR_TITLE", "BLANK"),
                 ("PR_TITLE", "COMMIT_MESSAGES"),
@@ -594,8 +628,12 @@ class Repository(ModelObject):
             if field.name in self._security_properties or field.name in self._additional_security_properties:
                 return False
 
-        if self.gh_pages_build_type in ["disabled", "workflow"]:
+        if self.gh_pages_build_type == "disabled":
             if field.name in self._gh_pages_properties:
+                return False
+
+        if self.gh_pages_build_type == "workflow":
+            if field.name in self._gh_pages_legacy_properties:
                 return False
 
         if self.code_scanning_default_setup_enabled is False:
@@ -617,8 +655,12 @@ class Repository(ModelObject):
             if field.name in self._security_properties:
                 return False
 
-        if self.gh_pages_build_type in ["disabled", "workflow"]:
+        if self.gh_pages_build_type == "disabled":
             if field.name in self._gh_pages_properties:
+                return False
+
+        if self.gh_pages_build_type == "workflow":
+            if field.name in self._gh_pages_legacy_properties:
                 return False
 
         if self.code_scanning_default_setup_enabled is False:
@@ -712,6 +754,15 @@ class Repository(ModelObject):
                 "gh_pages_build_type": OptionalS("gh_pages", "build_type", default="disabled"),
                 "gh_pages_source_branch": OptionalS("gh_pages", "source", "branch", default=None),
                 "gh_pages_source_path": OptionalS("gh_pages", "source", "path", default=None),
+                "gh_pages_visibility": If(
+                    OptionalS("gh_pages", "public", default=None) == K(True),
+                    K("public"),
+                    If(
+                        OptionalS("gh_pages", "public", default=None) == K(False),
+                        K("private"),
+                        K(UNSET),
+                    ),
+                ),
             }
         )
 
@@ -755,7 +806,10 @@ class Repository(ModelObject):
                     default=UNSET,
                 ),
                 "dependabot_security_updates_enabled": OptionalS(
-                    "security_and_analysis", "dependabot_security_updates", "status", default=UNSET
+                    "security_and_analysis",
+                    "dependabot_security_updates",
+                    "status",
+                    default=UNSET,
                 )
                 >> F(status_to_bool),
                 "template_repository": OptionalS("template_repository", "full_name", default=None),
@@ -800,6 +854,14 @@ class Repository(ModelObject):
             mapping.pop("gh_pages_build_type")
             gh_pages_mapping["build_type"] = S("gh_pages_build_type")
 
+        if "gh_pages_visibility" in data:
+            mapping.pop("gh_pages_visibility")
+            gh_pages_mapping["public"] = If(
+                S("gh_pages_visibility") == K("public"),
+                K(True),
+                K(False),
+            )
+
         gh_pages_build_type = data.get("gh_pages_build_type")
 
         if gh_pages_build_type is None or gh_pages_build_type == "legacy":
@@ -816,7 +878,11 @@ class Repository(ModelObject):
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
-        for prop in ["gh_pages_source_branch", "gh_pages_source_path"]:
+        for prop in [
+            "gh_pages_source_branch",
+            "gh_pages_source_path",
+            "gh_pages_visibility",
+        ]:
             if prop in mapping:
                 mapping.pop(prop)
 
@@ -920,7 +986,13 @@ class Repository(ModelObject):
                 patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
                     printer.print("workflows+:")
-                    coerced_settings.to_jsonnet(printer, jsonnet_config, context, True, default_workflow_settings)
+                    coerced_settings.to_jsonnet(
+                        printer,
+                        jsonnet_config,
+                        context,
+                        True,
+                        default_workflow_settings,
+                    )
 
         # FIXME: support overriding webhooks for repos coming from the default configuration.
         if has_webhooks and not extend:
@@ -1119,7 +1191,7 @@ class Repository(ModelObject):
         if coerced_object.archived is False or changes_object_to_readonly is True:
             BranchProtectionRule.generate_live_patch_of_list(
                 coerced_object.branch_protection_rules,
-                current_object.branch_protection_rules if current_object is not None else [],
+                (current_object.branch_protection_rules if current_object is not None else []),
                 coerced_object,
                 context,
                 handler,
@@ -1160,7 +1232,9 @@ class Repository(ModelObject):
         return patch
 
     @staticmethod
-    def _include_gh_pages_patch_required_properties(patch: LivePatch[Repository]) -> LivePatch[Repository]:
+    def _include_gh_pages_patch_required_properties(
+        patch: LivePatch[Repository],
+    ) -> LivePatch[Repository]:
         """
         Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
         the patch contains gh_pages change.

@@ -132,6 +132,11 @@ local newOrg(name, id) = {
     # GitHub Pages
     members_can_create_public_pages: true,
 
+    # If enabled, members can create private GitHub Pages sites in this organization.
+    # Required for configuring GitHub Pages visibility on private repositories.
+    # Only available for enterprise organizations.
+    members_can_create_private_pages: false,
+
     ## Admin repository permissions
 
     # If enabled, members with admin permissions for the repository will be able to change its visibility.

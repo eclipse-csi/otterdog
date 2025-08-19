@@ -11,6 +11,7 @@
   "members_can_change_repo_visibility": false,
   "members_can_create_private_repositories": false,
   "members_can_create_public_pages": true,
+  "members_can_create_private_pages": false,
   "members_can_create_public_repositories": true,
   "members_can_create_teams": true,
   "members_can_delete_issues": false,

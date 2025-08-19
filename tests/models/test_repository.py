@@ -83,7 +83,7 @@ class TestRepository:
 
         provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
 
-        assert len(provider_data) == 22
+        assert len(provider_data) == 23
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data.get("description") is None
 
@@ -98,7 +98,7 @@ class TestRepository:
         other.secret_scanning = "disabled"
 
         changes = current.get_difference_from(other)
-        provider_data = await Repository.changes_to_provider(self.org_id, changes, self.provider)
+        provider_data = await Repository.changes_to_provider(repository_test.org_id, changes, repository_test.provider)
 
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"
@@ -146,18 +146,28 @@ class TestRepository:
             (
                 None,
                 "main",
-                {"gh_pages_source_branch": Change("gh-pages", "main"), "gh_pages_source_path": Change("/", "/")},
+                {
+                    "gh_pages_source_branch": Change("gh-pages", "main"),
+                    "gh_pages_source_path": Change("/", "/"),
+                },
             ),
             (None, None, {}),
             (
                 "/docs",
                 "main",
-                {"gh_pages_source_path": Change("/", "/docs"), "gh_pages_source_branch": Change("gh-pages", "main")},
+                {
+                    "gh_pages_source_path": Change("/", "/docs"),
+                    "gh_pages_source_branch": Change("gh-pages", "main"),
+                },
             ),
         ],
     )
     def test__include_gh_pages_patch_required_properties(
-        self, repository_test, gh_pages_source_path, gh_pages_source_branch, expected_changes
+        self,
+        repository_test,
+        gh_pages_source_path,
+        gh_pages_source_branch,
+        expected_changes,
     ):
         current = Repository.from_model_data(repository_test.model_data)
         default = Repository.from_model_data(repository_test.model_data)
@@ -221,7 +231,11 @@ class TestRepository:
         ],
     )
     def test__include_squash_merge_patch_required_properties(
-        self, repository_test, squash_merge_commit_title, squash_merge_commit_message, expected_changes
+        self,
+        repository_test,
+        squash_merge_commit_title,
+        squash_merge_commit_message,
+        expected_changes,
     ):
         current = Repository.from_model_data(repository_test.model_data)
         default = Repository.from_model_data(repository_test.model_data)
@@ -250,3 +264,104 @@ class TestRepository:
         # Call the function under test
         current._include_squash_merge_patch_required_properties(test_livepatch)
         assert test_livepatch.changes == expected_changes
+
+    def test_gh_pages_visibility_validation(self, repository_test):
+        """Test that gh_pages_visibility validation works correctly."""
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+        from otterdog.models import FailureType, ValidationContext
+
+        repo = Repository.from_model_data(repository_test.model_data)
+        # Create a minimal context for validation
+        context = ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+
+        # Create a mock parent organization object with enterprise plan
+        mock_org_enterprise = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="enterprise",
+                members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
+                members_can_create_private_pages=True,  # Enable private pages
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        # Create a mock parent organization object with enterprise plan but private pages disabled
+        mock_org_enterprise_no_private_pages = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="enterprise",
+                members_can_fork_private_repositories=True,  # Allow forking to avoid conflicts
+                members_can_create_private_pages=False,  # Disable private pages
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        # Test valid values with enterprise plan and private repo - should not add any failures
+        initial_failures = len(context.validation_failures)
+
+        # Set repository to private for valid tests
+        repo.private = True
+
+        repo.gh_pages_visibility = "public"
+        repo.validate(context, mock_org_enterprise)
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == initial_failures
+
+        repo.gh_pages_visibility = "private"
+        repo.validate(context, mock_org_enterprise)
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == initial_failures
+
+        # Test invalid value - should add a failure
+        repo.gh_pages_visibility = "invalid"
+        repo.validate(context, mock_org_enterprise)
+
+        # Check that validation failed for invalid value
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "while only values ['public' | 'private'] are allowed" in failures[0][1]
+
+        # Reset for next test
+        context.validation_failures.clear()
+        repo.gh_pages_visibility = "private"
+
+        # Test with public repository (should fail even with enterprise plan)
+        repo.private = False
+        repo.validate(context, mock_org_enterprise)
+
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "only available for private repositories" in failures[0][1]
+
+        # Reset for next test
+        context.validation_failures.clear()
+        repo.private = True  # Set back to private
+        repo.gh_pages_visibility = "private"
+
+        # Test with enterprise plan but members_can_create_private_pages disabled - should fail
+        repo.validate(context, mock_org_enterprise_no_private_pages)
+
+        failures = [
+            f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_visibility" in f[1]
+        ]
+        assert len(failures) == 1
+        assert "members_can_create_private_pages' is disabled" in failures[0][1]
