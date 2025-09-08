@@ -609,9 +609,9 @@ class GitHubOrganization:
 
                     # FIXME: this is a hack to resolve integration_id to an app_slug for OrgRulesets.
                     #        Unfortunately, the GH Api decides to not include an app_slug for status_checks of
-                    #        OrgRulesets (is is present for RepoRulesets), so we fix that after retrieving
-                    #        the ruleset data instead of fixing the dict data, we should pass some additional
-                    #        data to the `from_provider_data` function to make that generic
+                    #        OrgRulesets (it is present for RepoRulesets), so we fix that after retrieving
+                    #        the ruleset data. Instead of fixing the dict data, we should pass some additional
+                    #        data to the `from_provider_data` function to make that generic.
                     if r.required_status_checks is not None:
                         for i, check in enumerate(r.required_status_checks.status_checks):
                             if ":" in check:
