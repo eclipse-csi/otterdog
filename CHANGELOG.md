@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.1.1] - unreleased
+
+### Fixed
+
+- Resolve status checks to their fully-qualified name for `OrgRulesets` as the GH API only returns the `integration_id`. ([#491](https://github.com/eclipse-csi/otterdog/issues/491))
+
+
 ## [1.1.0] - 04/09/2025
 
 ### Added
