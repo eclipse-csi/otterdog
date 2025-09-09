@@ -185,6 +185,7 @@ class Repository(ModelObject):
         "python",
         "ruby",
         "swift",
+        "rust",
     }
 
     @property
