@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.1.1] - unreleased
+
+### Added
+
+- Added support for rust code scanning
+
 ## [1.1.0] - 04/09/2025
 
 ### Added
