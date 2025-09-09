@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.1.1] - 04/09/2025
+
+### Added
+
+- Adding "Rust" support for Code Scanning
+
 ## [1.1.0] - 04/09/2025
 
 ### Added
