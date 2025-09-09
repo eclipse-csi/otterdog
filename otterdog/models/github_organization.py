@@ -12,6 +12,7 @@ import asyncio
 import dataclasses
 import json
 import os
+import re
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
@@ -503,6 +504,11 @@ class GitHubOrganization:
     ) -> GitHubOrganization:
         import asyncer
 
+        app_installations = {
+            str(installation["app_id"]): installation["app_slug"]
+            for installation in await provider.rest_api.org.get_app_installations(github_id)
+        }
+
         @debug_times("settings")
         async def _load_settings() -> OrganizationSettings:
             # FIXME: this uses the keys from the model schema which might be different to the provider schema
@@ -599,7 +605,21 @@ class GitHubOrganization:
             if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
                 github_rulesets = await provider.get_org_rulesets(github_id)
                 for ruleset in github_rulesets:
-                    org.add_ruleset(OrganizationRuleset.from_provider_data(github_id, ruleset))
+                    r = OrganizationRuleset.from_provider_data(github_id, ruleset)
+
+                    # FIXME: this is a hack to resolve integration_id to an app_slug for OrgRulesets.
+                    #        Unfortunately, the GH Api decides to not include an app_slug for status_checks of
+                    #        OrgRulesets (it is present for RepoRulesets), so we fix that after retrieving
+                    #        the ruleset data. Instead of fixing the dict data, we should pass some additional
+                    #        data to the `from_provider_data` function to make that generic.
+                    if r.required_status_checks is not None:
+                        for i, check in enumerate(r.required_status_checks.status_checks):
+                            if ":" in check:
+                                app, check_name = re.split(":", check, maxsplit=1)
+                                if app in app_installations:
+                                    r.required_status_checks.status_checks[i] = f"{app_installations[app]}:{check_name}"
+
+                    org.add_ruleset(r)
             else:
                 _logger.debug("not reading org secrets, no default config available")
 
@@ -611,6 +631,7 @@ class GitHubOrganization:
                     org.settings,
                     provider,
                     jsonnet_config,
+                    app_installations,
                     concurrency,
                     repo_filter,
                 ):
@@ -729,6 +750,7 @@ async def _load_repos_from_provider(
     org_settings: OrganizationSettings,
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
+    app_installations: dict[str, str],
     concurrency: int | None = None,
     repo_filter: str | None = None,
 ) -> AsyncIterator[Repository]:
@@ -740,11 +762,6 @@ async def _load_repos_from_provider(
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
     teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
-
-    app_installations = {
-        str(installation["app_id"]): installation["app_slug"]
-        for installation in await provider.rest_api.org.get_app_installations(github_id)
-    }
 
     # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
     sem = asyncio.Semaphore(50 if concurrency is None else concurrency)

@@ -142,6 +142,8 @@ class StatusCheckSettings(EmbeddedModelObject):
         def transform_status_check(status_check):
             if "app_slug" in status_check:
                 return status_check["app_slug"] + ":" + status_check["context"]
+            elif "integration_id" in status_check:
+                return str(status_check["integration_id"]) + ":" + status_check["context"]
             else:
                 return status_check["context"]
 
