@@ -81,3 +81,66 @@ class TestRepoClientCodeScanningConfig:
 
         assert len(repo_client.requester.request_raw.calls) == 1
         assert "code_scanning_default_config" not in repo_data
+
+
+class TestRepoClientUpdateRepo:
+    @pytest.mark.asyncio
+    async def test_update_repo_with_rename_and_topics_correct_order(self):
+        request_calls = []
+
+        async def mock_request_json(method, url, data=None):
+            request_calls.append((method, url, data))
+            return data or {}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        update_data = {"name": "new-repo-name", "topics": ["python", "cli"], "description": "A test repository"}
+
+        await repo_client.update_repo("test-org", "old-repo-name", update_data)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call(
+                "PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name", "description": "A test repository"}
+            ),
+            pretend.call("PUT", "/repos/test-org/new-repo-name/topics", data={"names": ["python", "cli"]}),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_update_repo_topics_only_no_rename(self):
+        request_calls = []
+
+        async def mock_request_json(method, url, data=None):
+            request_calls.append((method, url, data))
+            return {}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        update_data = {"topics": ["python", "cli"], "description": "A test repository"}
+
+        await repo_client.update_repo("test-org", "repo-name", update_data)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("PATCH", "/repos/test-org/repo-name", {"description": "A test repository"}),
+            pretend.call("PUT", "/repos/test-org/repo-name/topics", data={"names": ["python", "cli"]}),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_update_repo_rename_only(self):
+        request_calls = []
+
+        async def mock_request_json(method, url, data=None):
+            request_calls.append((method, url, data))
+            return data or {}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        update_data = {"name": "new-repo-name"}
+
+        await repo_client.update_repo("test-org", "old-repo-name", update_data)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
+        ]
