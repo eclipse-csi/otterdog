@@ -122,13 +122,13 @@ class RepoClient(RestClient):
         code_scanning = data.pop("code_scanning_default_config") if "code_scanning_default_config" in data else None
         default_branch = data.pop("default_branch") if "default_branch" in data else None
 
-        # pop new name, so that it is applied last
-        new_name = data.pop("name") if "name" in data else None
-
         if changes > 0:
             try:
                 if len(data) > 0:
-                    await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+                    response = await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+                    # Update repo_name if the repository was renamed
+                    if "name" in response:
+                        repo_name = response["name"]
 
                 if vulnerability_alerts is not None:
                     await self._update_vulnerability_alerts(org_id, repo_name, vulnerability_alerts)
@@ -146,11 +146,6 @@ class RepoClient(RestClient):
                     await self._update_code_scanning_config(org_id, repo_name, code_scanning)
                 if default_branch is not None:
                     await self._update_default_branch(org_id, repo_name, default_branch)
-
-                if new_name is not None and new_name != repo_name:
-                    rename_data = {"name": new_name}
-                    await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", rename_data)
-                    repo_name = new_name
 
                 _logger.debug("updated %d repo setting(s) for repo '%s/%s'", changes, org_id, repo_name)
             except GitHubException as ex:

@@ -90,7 +90,7 @@ class TestRepoClientUpdateRepo:
 
         async def mock_request_json(method, url, data=None):
             request_calls.append((method, url, data))
-            return {}
+            return data or {}
 
         mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
         repo_client = RepoClient(mocked_restapi)
@@ -100,9 +100,10 @@ class TestRepoClientUpdateRepo:
         await repo_client.update_repo("test-org", "old-repo-name", update_data)
 
         assert repo_client.requester.request_json.calls == [
-            pretend.call("PATCH", "/repos/test-org/old-repo-name", {"description": "A test repository"}),
-            pretend.call("PUT", "/repos/test-org/old-repo-name/topics", data={"names": ["python", "cli"]}),
-            pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
+            pretend.call(
+                "PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name", "description": "A test repository"}
+            ),
+            pretend.call("PUT", "/repos/test-org/new-repo-name/topics", data={"names": ["python", "cli"]}),
         ]
 
     @pytest.mark.asyncio
@@ -131,7 +132,7 @@ class TestRepoClientUpdateRepo:
 
         async def mock_request_json(method, url, data=None):
             request_calls.append((method, url, data))
-            return {}
+            return data or {}
 
         mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
         repo_client = RepoClient(mocked_restapi)
