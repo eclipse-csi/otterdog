@@ -9,7 +9,7 @@
 ### Fixed
 
 - Resolve status checks to their fully-qualified name for `OrgRulesets` as the GH API only returns the `integration_id`. ([#491](https://github.com/eclipse-csi/otterdog/issues/491))
-- Fixed ordering when renaming and modifying repos ([#472](https://github.com/eclipse-csi/otterdog/issues/472))
+- Fix renaming a repository and modifying settings in a single operation. ([#472](https://github.com/eclipse-csi/otterdog/issues/472))
 
 ## [1.1.0] - 04/09/2025
 
