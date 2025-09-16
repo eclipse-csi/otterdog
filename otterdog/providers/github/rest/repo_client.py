@@ -125,7 +125,10 @@ class RepoClient(RestClient):
         if changes > 0:
             try:
                 if len(data) > 0:
-                    await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+                    response = await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}", data)
+                    # Update repo_name if the repository was renamed
+                    if "name" in response:
+                        repo_name = response["name"]
 
                 if vulnerability_alerts is not None:
                     await self._update_vulnerability_alerts(org_id, repo_name, vulnerability_alerts)
