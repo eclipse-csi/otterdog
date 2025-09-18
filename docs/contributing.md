@@ -66,6 +66,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 
 - Docker Engine (including Docker Compose)
 - Minikube
+- Helm
 - Skaffold
 
 Why Docker?
@@ -79,6 +80,12 @@ Why Minikube?
 Minikube will provide a local kubernetes cluster and using Otterdog from helm charts
 
 Install [Minikkube](https://minikube.sigs.k8s.io/docs/start/)
+
+Why helm?
+
+Helm will deploy otterdog, dependency-track and ghproxy in the minikube cluster.
+
+Install [Helm](https://helm.sh/docs/intro/install/)
 
 Why Skaffold?
 
@@ -184,11 +191,9 @@ https://otterdog.readthedocs.io/en/latest/setup/#otterdog-configuration
         "name": "otterdog-<Github Username>",
         "github_id": "otterdog-<Github Username>",
         "credentials": {
-            "provider": "plain",
-            "api_token": "ghp_<TOKEN>",
-            "username": "<Github Username>",
-            "password": "<Password>",
-            "twofa_seed": "<2FA TOTP seed>"
+            "provider": "bitwarden",
+            "item_id" : "<item ide>"
+
         }
         }
     ]
@@ -217,6 +222,12 @@ Edit your current and include:
 ### [Optional] Otterdog WebApp development environment
 
 To run the otterdog webapp (without integration with GitHub)
+
+Make sure you have the eclipse-csi helm chart repository
+
+```bash
+helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
+```
 
 ```bash
 make dev-webapp
@@ -349,6 +360,14 @@ Example of `otterdog.json`
 ```
 
 #### Run otterdog with tailscale
+
+Make sure you have the eclipse-csi, tailscale and dependency-tracl helm chart repositories added
+
+```bash
+helm repo add dependency-track https://dependencytrack.github.io/helm-charts
+helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
+helm repo add tailscale https://pkgs.tailscale.com/helmcharts
+```
 
 Initiate otterdog webapp with tailscale
 
