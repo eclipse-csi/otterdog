@@ -315,7 +315,7 @@ We use [tailscale on Kubernetes](https://tailscale.com/learn/managing-access-to-
 config:
   configOwner: "otterdog-<github username>"  # GitHub organization hosting the otterdog.json
   configToken: ""  #  A base64 valid GitHub token, no need for any permissions, just for rate limit purposes
-  dependecyTrackToken: ""  # A base64 depednecy track generated
+  dependencyTrackToken: ""  # A base64 depednecy track generated
 
 github:
   webhookSecret: ""  # The Base64 webhook secret as configured for the GitHub App
@@ -361,7 +361,7 @@ Example of `otterdog.json`
 
 #### Run otterdog with tailscale
 
-Make sure you have the eclipse-csi, tailscale and dependency-tracl helm chart repositories added
+Make sure you have the eclipse-csi, tailscale and dependency-track helm chart repositories added
 
 ```bash
 helm repo add dependency-track https://dependencytrack.github.io/helm-charts
