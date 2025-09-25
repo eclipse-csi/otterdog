@@ -57,7 +57,7 @@ profiles:
             setValueTemplates:
               ingress.hostname: sbom.{{.TS_DNS}}
               ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
-          - name: tailscale-operator
+          - name: otterdog-tailscale-operator
             remoteChart: tailscale/tailscale-operator
             namespace: tailscale
             createNamespace: true
