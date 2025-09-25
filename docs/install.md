@@ -203,8 +203,8 @@ config:
   mongoUri: "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog"
   redisUri: "redis://otterdog-valkey-primary.default.svc.cluster.local:6379"
   ghProxyUri: "http://otterdog-ghproxy.default.svc.cluster.local:8888"
-  dependecyTrackUrl: "https://otterdog-dt.default.svc.cluster"
-  dependecyTrackToken: "faketoken"
+  dependencyTrackUrl: "https://otterdog-dt.default.svc.cluster"
+  dependencyTrackToken: "faketoken"
 
 github:
   webhookSecret: "<WEBHOOK SECRET (BASE64)>"

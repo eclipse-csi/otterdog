@@ -1,0 +1,12 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: otterdog-dependencies
+manifests:
+  rawYaml:
+  - ./k8s/namespace.yaml
+  - ./k8s/mongodb/*
+  - ./k8s/valkey/*
+
+deploy:
+  kubectl: {}

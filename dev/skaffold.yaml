@@ -2,6 +2,9 @@ apiVersion: skaffold/v4beta13
 kind: Config
 metadata:
   name: otterdog
+requires:
+- path: ./dependencies
+
 
 build:
   artifacts:
@@ -29,25 +32,6 @@ profiles:
               - ./dev/dev-values.yaml
               - ./values.yaml
 
-  # This profile is used for ARM64 users local development without exposing the otterdog service using tailscale
-  - name: dev-arm64
-    deploy:
-      helm:
-        hooks:
-          before:
-            - host:
-                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
-        releases:
-          - name: otterdog
-            remoteChart: eclipse-csi/otterdog
-            valuesFiles:
-              - ./dev/dev-values.yaml
-              - ./values.yaml
-            setValues:
-              # for arm64 users (i.e. macbook pro mX) it is required to use the arm64 image
-              mongodb.global.security.allowInsecureImages: true
-              mongodb.image.repository: "dlavrenuek/bitnami-mongodb-arm"
-              mongodb.image.tag: 8.0.4
 
   # This profile is used for local development with tailscale
   - name: dev-tunnel
@@ -64,14 +48,16 @@ profiles:
             - host:
                 command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
         releases:
-          - name: depedency-track
+          - name: dependency-track
             remoteChart: dependency-track/dependency-track
+            namespace: otterdog
+            createNamespace: true
             valuesFiles:
-              - ./dev/dev-values-dt.yaml
+              - ./dev/dev-values-tunnel.yaml
             setValueTemplates:
               ingress.hostname: sbom.{{.TS_DNS}}
               ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
-          - name: tailscale-operator
+          - name: otterdog-tailscale-operator
             remoteChart: tailscale/tailscale-operator
             namespace: tailscale
             createNamespace: true
@@ -80,50 +66,11 @@ profiles:
               oauth.clientSecret: "{{.TS_CLIENT_SECRET}}"
           - name: otterdog
             remoteChart: eclipse-csi/otterdog
-            valuesFiles:
-              - ./dev/dev-values.yaml
-              - ./dev/dev-values-ts.yaml
-              - ./values.yaml
-            setValueTemplates:
-              ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}
-  # This profile is used by (ARM64) for local development with tailscale
-  - name: dev-tunnel-arm64
-    deploy:
-      helm:
-        hooks:
-          before:
-            - host:
-                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
-            - host:
-                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_ID\" ]; then echo 'Error: TS_CLIENT_ID is not set'; exit 1; fi"]
-            - host:
-                command: ["sh", "-c", "if [ -z \"$TS_CLIENT_SECRET\" ]; then echo 'Error: TS_CLIENT_SECRET is not set'; exit 1; fi"]
-            - host:
-                command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
-        releases:
-          - name: depedency-track
-            remoteChart: dependency-track/dependency-track
-            valuesFiles:
-              - ./dev/dev-values-dt.yaml
-            setValueTemplates:
-              ingress.hostname: sbom.{{.TS_DNS}}
-              ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
-          - name: tailscale-operator
-            remoteChart: tailscale/tailscale-operator
-            namespace: tailscale
+            namespace: otterdog
             createNamespace: true
-            setValueTemplates:
-              oauth.clientId: "{{.TS_CLIENT_ID}}"
-              oauth.clientSecret: "{{.TS_CLIENT_SECRET}}"
-          - name: otterdog
-            remoteChart: eclipse-csi/otterdog
             valuesFiles:
               - ./dev/dev-values.yaml
-              - ./dev/dev-values-ts.yaml
+              - ./dev/dev-values-tunnel.yaml
               - ./values.yaml
             setValueTemplates:
-              # for arm64 users (i.e. macbook pro mX) it is required to use the arm64 image
-              mongodb.global.security.allowInsecureImages: true
-              mongodb.image.repository: "dlavrenuek/bitnami-mongodb-arm"
-              mongodb.image.tag: 8.0.4
               ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}

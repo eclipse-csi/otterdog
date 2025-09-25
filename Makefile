@@ -3,9 +3,9 @@
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
 OTTERDOG_SCRIPT := $(realpath ./otterdog.sh)
+OTTERDOG_TS_CLEAN_SCRIPT := $(realpath ./dev/scripts/remove-ts-machines.sh)
 OTTERDOG_LINK := ~/.local/bin/otterdog
 VERSION := $(shell poetry version -s)
-HOST_HW_PLATFORM := $(shell uname -m)
 
 all: help
 
@@ -38,6 +38,7 @@ build-image:  ## Build container image
 	docker build -f docker/Dockerfile --build-arg version=$(VERSION) -t ghcr.io/eclipse-csi/otterdog:$(VERSION) .
 
 init-minikube:
+	helm repo update || true
 	@if ! minikube status >/dev/null 2>&1; then \
 		echo "Starting minikube..."; \
 		minikube start --driver=docker; \
@@ -62,23 +63,17 @@ init-minikube:
 dev-webapp:  ## Run full stack development (includes webapp)
 	$(MAKE) init-minikube
 	eval $$(minikube -p minikube docker-env)
-	@if [ "$(HOST_HW_PLATFORM)" = "arm64" ]; then \
-		skaffold dev --filename=dev/skaffold.yaml --profile dev-arm64; \
-	else \
-		skaffold dev --filename=dev/skaffold.yaml --profile dev; \
-	fi
+	skaffold dev --filename=dev/skaffold.yaml --profile dev
 
 dev-webapp-tunnel:  ## Run full stack development (includes webapp)
 	$(MAKE) init-minikube
 	eval $$(minikube -p minikube docker-env)
-	@if [ "$(HOST_HW_PLATFORM)" = "arm64" ]; then \
-		skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-arm64; \
-	else \
-		skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel; \
-	fi
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel
+
 
 clean-webapp:  ## Clean Web App the development environment
 	@minikube delete
+	bash $(OTTERDOG_TS_CLEAN_SCRIPT)
 
 help:  ## Show this help
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

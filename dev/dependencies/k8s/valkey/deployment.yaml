@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+  namespace: otterdog
+  labels:
+    app: valkey
+    environment: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: valkey
+        environment: dev
+    spec:
+      containers:
+      - image: valkey/valkey:8.0-alpine  # Fixed: was vvalkey/valkey
+        name: valkey
+        args: ["--save", "20 1", "--loglevel", "warning", "--protected-mode", "no"]
+        ports:
+          - containerPort: 6379
+        volumeMounts:
+          - name: "pvol"
+            mountPath: "/data"
+      volumes:
+        - name: "pvol"
+          persistentVolumeClaim:
+            claimName: "valkey-pvc"

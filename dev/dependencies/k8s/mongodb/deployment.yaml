@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: otterdog
+  labels:
+    app: mongodb
+    environment: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+      environment: dev
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        environment: dev
+    spec:
+      containers:
+      - image: mongo:7.0.5
+        name: mongodb
+        args: ["--dbpath", "/data/db"]
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            value: "root"
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            value: "secret"
+          - name: MONGO_INITDB_DATABASE
+            value: "otterdog"
+        ports:
+          - containerPort: 27017
+        volumeMounts:
+          - name: "pvol"
+            mountPath: "/data/db"
+          - name: mongodb-configuration-file
+            mountPath: "/etc/mongod.conf"
+            subPath: "mongod.conf"
+            readOnly: true
+      volumes:
+        - name: "pvol"
+          persistentVolumeClaim:
+            claimName: "mongodb-pvc"
+        - name: mongodb-configuration-file
+          configMap:
+            name: otterdog-mongodb
+            items:
+              - key: "conf"
+                path: "mongod.conf"
