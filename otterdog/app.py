@@ -38,15 +38,11 @@ logging.basicConfig(
 
 # logging.getLogger("hypercorn.access").disabled = True
 
-if not os.path.exists(app_config.APP_ROOT):
-    os.makedirs(app_config.APP_ROOT)
-
-if not os.path.exists(app_config.DB_ROOT):
-    os.makedirs(app_config.DB_ROOT)
+os.makedirs(app_config.APP_ROOT, exist_ok=True)
+os.makedirs(app_config.DB_ROOT, exist_ok=True)
 
 tmp_dir = get_temporary_base_directory(app)
-if not os.path.exists(tmp_dir):
-    os.makedirs(tmp_dir)
+os.makedirs(tmp_dir, exist_ok=True)
 
 if os.path.exists(app_config.APP_ROOT):
     os.chdir(app_config.APP_ROOT)
