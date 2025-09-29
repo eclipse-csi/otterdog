@@ -1,0 +1,14 @@
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: otterdog-mongodb
+  namespace: otterdog
+  labels:
+    app: mongodb
+    environment: dev
+data:
+  conf: |
+    systemLog:
+      quiet: true
+    setParameter:
+      diagnosticDataCollectionEnabled: false
