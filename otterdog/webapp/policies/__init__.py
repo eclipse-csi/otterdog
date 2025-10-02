@@ -24,6 +24,7 @@ POLICY_PATH = "otterdog/policies"
 class PolicyType(str, Enum):
     DEPENDENCY_TRACK_UPLOAD = "dependency_track_upload"
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
+    PROJECT_PERMISSIONS_REVIEW = "project_permissions_review"
 
 
 class Policy(ABC, BaseModel):
@@ -97,6 +98,11 @@ def create_policy(
             from otterdog.webapp.policies.dependency_track_upload import DependencyTrackUploadPolicy
 
             return DependencyTrackUploadPolicy.model_validate(data)
+
+        case PolicyType.PROJECT_PERMISSIONS_REVIEW:
+            from otterdog.webapp.policies.project_permissions_review import ProjectPermissionsReviewPolicy
+
+            return ProjectPermissionsReviewPolicy.model_validate(data)
 
         case _:
             raise RuntimeError(f"unknown policy type '{policy_type}'")
