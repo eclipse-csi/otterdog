@@ -76,7 +76,7 @@ jobs:
           ref: ${{ needs.release.outputs.release-tag }}
 
       - name: "Log in to the Container registry"
-        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -179,7 +179,7 @@ jobs:
 
       - name: "Create GitHub release"
         # keep at 2.1.0 due to https://github.com/softprops/action-gh-release/issues/556
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v2.3.4
         with:
           name: "Otterdog ${{ needs.prepare.outputs.release-tag }}"
           tag_name: "${{ needs.prepare.outputs.release-tag }}"
