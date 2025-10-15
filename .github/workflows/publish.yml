@@ -178,7 +178,6 @@ jobs:
           release_notes_file: RELEASE_NOTES.md
 
       - name: "Create GitHub release"
-        # keep at 2.1.0 due to https://github.com/softprops/action-gh-release/issues/556
         uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
         with:
           name: "Otterdog ${{ needs.prepare.outputs.release-tag }}"
