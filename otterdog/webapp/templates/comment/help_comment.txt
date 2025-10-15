@@ -2,7 +2,7 @@
 Thank you for raising a pull request to update the configuration of your GitHub organization.
 You can manually add reviewers to this PR to eventually enable auto-merging.
 
-The following conditions need to fulfilled for auto-merging to be available:
+The following conditions need to be fulfilled for auto-merging to be available:
 
 - valid configuration
 - approved by a project lead
