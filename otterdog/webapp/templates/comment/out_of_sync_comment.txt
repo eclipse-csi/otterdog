@@ -1,5 +1,5 @@
 <!-- Otterdog Comment: check-sync -->
-> [!WARNING]
+> [!NOTE]
 > The current configuration is out-of-sync with the live settings:
 
 <details>
