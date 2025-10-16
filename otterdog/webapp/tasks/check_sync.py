@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from io import StringIO
 from typing import TYPE_CHECKING
 
-from quart import current_app
+from quart import current_app, render_template
 
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel
@@ -26,7 +26,9 @@ from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     backoff_if_needed,
     current_utc_time,
+    escape_for_github,
     fetch_config_from_github,
+    get_full_admin_team_slugs,
     get_otterdog_config,
     make_aware_utc,
 )
@@ -178,12 +180,32 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             sync_output = output.getvalue()
             self.logger.info("sync plan:\n" + sync_output)
 
+            if config_in_sync is False:
+                comment = await render_template(
+                    "comment/out_of_sync_comment.txt",
+                    result=escape_for_github(sync_output),
+                    admin_teams=get_full_admin_team_slugs(self.org_id),
+                )
+            else:
+                # in case the config is in sync, do not add a redundant comment
+                # there is already the commit status that is visible in the PR itself
+                comment = None
+
             await self.minimize_outdated_comments(
                 self.org_id,
                 self.repo_name,
                 self.pull_request_number,
                 "<!-- Otterdog Comment: check-sync -->",
             )
+
+            if comment is not None:
+                rest_api = await self.rest_api
+                await rest_api.issue.create_comment(
+                    self.org_id,
+                    org_config.config_repo,
+                    self.pull_request_number,
+                    comment,
+                )
 
             return config_in_sync
 
@@ -206,7 +228,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             self._pull_request.head.sha,
             "failure",
             _get_webhook_sync_context(),
-            "otterdog sync check failed, please contact an admin",
+            "otterdog detected out of sync changes, but they will not prevent a successful merge",
         )
 
     async def _update_final_status(self, config_in_sync: bool) -> None:

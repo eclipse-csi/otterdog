@@ -1,0 +1,15 @@
+<!-- Otterdog Comment: check-sync -->
+> [!WARNING]
+> The current configuration is out-of-sync with the live settings:
+
+<details>
+<summary>Diff to live settings</summary>
+
+```diff
+{{ result }}
+```
+
+</details>
+
+{% for admin_team in admin_teams %}
+{% endfor %}
