@@ -5,6 +5,7 @@
 ### Added
 
 - Adding "Rust" support for Code Scanning
+- Remove the out of sync PR comment
 
 ### Fixed
 
