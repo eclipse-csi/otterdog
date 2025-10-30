@@ -10,6 +10,3 @@
 ```
 
 </details>
-
-{% for admin_team in admin_teams %}
-{% endfor %}
