@@ -45,7 +45,7 @@ class ListAdvisoriesOperation(Operation):
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
             self.printer.println(
-                "organization,created_at,updated_at,published_at,state,severity,ghsa_id,cve_id,html_url,summary"
+                "organization,created_at,updated_at,published_at,last_commented_at,state,severity,ghsa_id,cve_id,html_url,summary"
             )
 
     def post_execute(self) -> None:
@@ -65,7 +65,7 @@ class ListAdvisoriesOperation(Operation):
 
         try:
             try:
-                credentials = self.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -75,6 +75,14 @@ class ListAdvisoriesOperation(Operation):
                 for state in self.states:
                     advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
                     advisories += advisories_for_state
+
+                if advisories:
+                    async with provider.web_client.get_logged_in_page() as page:
+                        for advisory in advisories:
+                            url = advisory["html_url"]
+                            advisory[
+                                "last_commented_at"
+                            ] = await provider.web_client.get_security_advisory_newest_comment_date(url, page)
 
             if not self.details:
                 if is_info_enabled():
@@ -91,6 +99,7 @@ class ListAdvisoriesOperation(Operation):
                         "created_at": format_date_for_csv(advisory["created_at"]),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
                         "published_at": format_date_for_csv(advisory["published_at"]),
+                        "last_commented_at": format_date_for_csv(advisory["last_commented_at"]),
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
@@ -104,6 +113,7 @@ class ListAdvisoriesOperation(Operation):
                         f"\"{formatted_values['created_at']}\","
                         f"\"{formatted_values['updated_at']}\","
                         f"\"{formatted_values['published_at']}\","
+                        f"\"{formatted_values['last_commented_at']}\","
                         f"\"{formatted_values['state']}\","
                         f"\"{formatted_values['severity']}\","
                         f"\"{formatted_values['ghsa_id']}\","
