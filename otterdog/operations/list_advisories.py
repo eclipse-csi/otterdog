@@ -83,8 +83,8 @@ class ListAdvisoriesOperation(Operation):
                 return 1
 
             advisories = []
-            for state in self.states:
-                async with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
+                for state in self.states:
                     advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
                     advisories += advisories_for_state
 
