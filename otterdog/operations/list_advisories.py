@@ -8,10 +8,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import format_date_for_csv, is_info_enabled
+from otterdog.utils import days_since, format_date_for_csv, is_info_enabled
 
 from . import Operation
 
@@ -45,7 +46,7 @@ class ListAdvisoriesOperation(Operation):
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
             self.printer.println(
-                "organization,created_at,updated_at,published_at,last_commented_at,state,severity,ghsa_id,cve_id,html_url,summary"
+                "organization,created_at,days_since_created,updated_at,days_since_updated,published_at,last_commented_at,days_since_last_commented,state,severity,ghsa_id,cve_id,html_url,summary"
             )
 
     def post_execute(self) -> None:
@@ -89,6 +90,8 @@ class ListAdvisoriesOperation(Operation):
                     self.printer.println(f"Found {len(advisories)} advisories with state '{self.states}'.")
                     self.printer.println()
 
+            now = datetime.now(UTC)
+
             for advisory in advisories:
                 if not self.details:
                     cve_id = advisory["cve_id"] if advisory["cve_id"] is not None else "NO_CVE"
@@ -97,9 +100,12 @@ class ListAdvisoriesOperation(Operation):
                     formatted_values = {
                         "org_name": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
+                        "days_since_created": days_since(advisory["created_at"], now),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
+                        "days_since_updated": days_since(advisory["updated_at"], now),
                         "published_at": format_date_for_csv(advisory["published_at"]),
                         "last_commented_at": format_date_for_csv(advisory["last_commented_at"]),
+                        "days_since_last_commented": days_since(advisory["last_commented_at"], now),
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
@@ -111,9 +117,12 @@ class ListAdvisoriesOperation(Operation):
                     self.printer.println(
                         f"\"{formatted_values['org_name']}\","
                         f"\"{formatted_values['created_at']}\","
+                        f"\"{formatted_values['days_since_created']}\","
                         f"\"{formatted_values['updated_at']}\","
+                        f"\"{formatted_values['days_since_updated']}\","
                         f"\"{formatted_values['published_at']}\","
                         f"\"{formatted_values['last_commented_at']}\","
+                        f"\"{formatted_values['days_since_last_commented']}\","
                         f"\"{formatted_values['state']}\","
                         f"\"{formatted_values['severity']}\","
                         f"\"{formatted_values['ghsa_id']}\","
