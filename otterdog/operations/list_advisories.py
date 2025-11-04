@@ -8,10 +8,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Final
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import format_date_for_csv, is_info_enabled
+from otterdog.utils import days_since, format_date_for_csv, is_info_enabled
 
 from . import Operation
 
@@ -28,9 +29,12 @@ class ListAdvisoriesOperation(Operation):
     CSV_FIELDS: Final[tuple[str, ...]] = (
         "organization",
         "created_at",
+        "days_since_created",
         "updated_at",
+        "days_since_updated",
         "published_at",
         "last_commented_at",
+        "days_since_last_commented",
         "state",
         "severity",
         "ghsa_id",
@@ -102,6 +106,8 @@ class ListAdvisoriesOperation(Operation):
                     self.printer.println(f"Found {len(advisories)} advisories with state '{self.states}'.")
                     self.printer.println()
 
+            now = datetime.now(UTC)
+
             for advisory in advisories:
                 if not self.details:
                     cve_id = advisory["cve_id"] if advisory["cve_id"] is not None else "NO_CVE"
@@ -110,9 +116,12 @@ class ListAdvisoriesOperation(Operation):
                     formatted_values = {
                         "organization": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
+                        "days_since_created": days_since(advisory["created_at"], now),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
+                        "days_since_updated": days_since(advisory["updated_at"], now),
                         "published_at": format_date_for_csv(advisory["published_at"]),
                         "last_commented_at": format_date_for_csv(advisory["last_commented_at"]),
+                        "days_since_last_commented": days_since(advisory["last_commented_at"], now),
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],

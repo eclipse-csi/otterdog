@@ -597,6 +597,14 @@ def format_date_for_csv(iso_date_str: str) -> str:
     return date_obj.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def days_since(iso_date_str: str, now: datetime) -> str:
+    if iso_date_str is None:
+        return ""
+    then = datetime.fromisoformat(iso_date_str)
+    days = (now - then).days
+    return str(days)
+
+
 def debug_times(category: str):
     import asyncio
     import functools
