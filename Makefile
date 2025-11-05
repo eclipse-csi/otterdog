@@ -1,4 +1,4 @@
-.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp help
+.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -74,6 +74,9 @@ dev-webapp-tunnel:  ## Run full stack development (includes webapp)
 clean-webapp:  ## Clean Web App the development environment
 	@minikube delete
 	bash $(OTTERDOG_TS_CLEAN_SCRIPT)
+
+docs:  ## Generate documentation
+	mkdocs build
 
 help:  ## Show this help
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
