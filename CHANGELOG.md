@@ -1,6 +1,8 @@
 # Change Log
 
-## [1.1.1] - unreleased
+## [1.1.2] - unreleased
+
+## [1.1.1] - 06/11/2025
 
 ### Added
 
