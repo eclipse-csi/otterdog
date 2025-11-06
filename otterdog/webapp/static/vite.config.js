@@ -45,7 +45,7 @@ export default defineConfig({
                     dest: outVendorDir + "/moment"
                 },
                 {
-                    src: "../node_modules/datatables.net/js/dataTables.min.js",
+                    src: "../node_modules/datatables.net/js/jquery.dataTables.min.js",
                     dest: outVendorDir + "/datatables"
                 },
                 {

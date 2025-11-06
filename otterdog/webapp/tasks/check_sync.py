@@ -187,7 +187,6 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                     admin_teams=get_full_admin_team_slugs(self.org_id),
                 )
             else:
-                # comment = await render_template("comment/in_sync_comment.txt")
                 # in case the config is in sync, do not add a redundant comment
                 # there is already the commit status that is visible in the PR itself
                 comment = None
@@ -229,7 +228,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             self._pull_request.head.sha,
             "failure",
             _get_webhook_sync_context(),
-            "otterdog sync check failed, please contact an admin",
+            "otterdog detected out of sync changes, but they will not prevent a successful merge",
         )
 
     async def _update_final_status(self, config_in_sync: bool) -> None:
