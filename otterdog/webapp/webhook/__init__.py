@@ -407,11 +407,25 @@ async def on_workflow_run_received(data):
         from otterdog.webapp.policies.dependency_track_upload import (
             DependencyTrackUploadPolicy,
         )
+        from otterdog.webapp.policies.project_permissions_review import (
+            ProjectPermissionsReviewPolicy,
+        )
 
         policy_model = await find_policy(owner, PolicyType.DEPENDENCY_TRACK_UPLOAD.value)
         if policy_model is not None:
             policy = create_policy_from_model(policy_model)
             expect_type(policy, DependencyTrackUploadPolicy)
+            await policy.evaluate(
+                installation_id,
+                owner,
+                event.repository.name,
+                event.workflow_run,
+            )
+
+        policy_model = await find_policy(owner, PolicyType.PROJECT_PERMISSIONS_REVIEW.value)
+        if policy_model is not None:
+            policy = create_policy_from_model(policy_model)
+            expect_type(policy, ProjectPermissionsReviewPolicy)
             await policy.evaluate(
                 installation_id,
                 owner,
