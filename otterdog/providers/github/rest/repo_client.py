@@ -682,6 +682,14 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed getting tags for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+    async def get_languages(self, org_id: str, repo_name: str) -> dict[str, int]:
+        _logger.debug("retrieving languages for repo '%s/%s'", org_id, repo_name)
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/languages")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting languages for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
     async def get_environments(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving environments for repo '%s/%s'", org_id, repo_name)
 
