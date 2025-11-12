@@ -295,6 +295,9 @@ class Repository(ModelObject):
             try:
                 languages = await provider.rest_api.repo.get_languages(github_id, self.name)
                 detected_languages = {lang.lower() for lang in languages}
+                # add actions as always detected language
+                detected_languages.add("actions")
+
                 # Map of GitHub language names to code scanning language names
                 language_mapping = {
                     "c": "c-cpp",
@@ -331,7 +334,7 @@ class Repository(ModelObject):
                             f"Detected languages: {', '.join(sorted(languages.keys()))}",
                         )
             except Exception as e:
-                # gf we can't fetch languages, add a warning but don't fail the validation
+                # If we can't fetch languages, add a warning but don't fail the validation
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} could not validate 'code_scanning_default_languages': {e}",
