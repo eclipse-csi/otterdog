@@ -6,6 +6,7 @@
 
 - Adding "Rust" support for Code Scanning
 - Remove the out of sync PR comment
+- Code scanning language check for repositories ([#507](https://github.com/eclipse-csi/otterdog/issues/507))
 
 ### Fixed
 
