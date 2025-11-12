@@ -526,9 +526,19 @@ class Ruleset(ModelObject, abc.ABC):
                 elif actor_type == "OrganizationAdmin":
                     transformed_actor = "#OrganizationAdmin"
                 elif actor_type == "Team":
-                    transformed_actor = f"@{actor['team_slug']}"
+                    team_slug = actor.get("team_slug")
+                    if team_slug is None:
+                        _logger.warning("fail to map team actor '%s', skipping", actor.get("actor_id", "unknown"))
+                        continue
+                    transformed_actor = f"@{team_slug}"
                 elif actor_type == "Integration":
-                    transformed_actor = actor["app_slug"]
+                    app_slug = actor.get("app_slug")
+                    if app_slug is None:
+                        _logger.warning(
+                            "fail to map integration actor '%s', skipping", actor.get("actor_id", "unknown")
+                        )
+                        continue
+                    transformed_actor = app_slug
                 else:
                     continue
 

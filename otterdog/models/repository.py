@@ -277,6 +277,69 @@ class Repository(ModelObject):
 
         return copy
 
+    def requires_language_validation(self) -> bool:
+        return (
+            self.code_scanning_default_setup_enabled is True
+            and is_set_and_valid(self.code_scanning_default_languages)
+            and len(self.code_scanning_default_languages) > 0
+        )
+
+    async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
+        from .github_organization import GitHubOrganization
+
+        # Only validate if provider is available and validation is required
+        if self.requires_language_validation() and context.provider is not None:
+            provider = context.provider
+            github_id = cast(GitHubOrganization, parent_object).github_id
+
+            try:
+                languages = await provider.rest_api.repo.get_languages(github_id, self.name)
+                detected_languages = {lang.lower() for lang in languages}
+                # add actions as always detected language
+                detected_languages.add("actions")
+
+                # Map of GitHub language names to code scanning language names
+                language_mapping = {
+                    "c": "c-cpp",
+                    "c++": "c-cpp",
+                    "cpp": "c-cpp",
+                    "c#": "csharp",
+                    "go": "go",
+                    "java": "java-kotlin",
+                    "kotlin": "java-kotlin",
+                    "javascript": "javascript-typescript",
+                    "typescript": "javascript-typescript",
+                    "python": "python",
+                    "ruby": "ruby",
+                    "swift": "swift",
+                }
+
+                for configured_language in self.code_scanning_default_languages:
+                    configured_language_lower = configured_language.lower()
+
+                    is_valid = False
+                    for detected_lang in detected_languages:
+                        if (
+                            detected_lang == configured_language_lower
+                            or language_mapping.get(detected_lang) == configured_language_lower
+                        ):
+                            is_valid = True
+                            break
+
+                    if not is_valid:
+                        context.add_failure(
+                            FailureType.ERROR,
+                            f"{self.get_model_header(parent_object)} has 'code_scanning_default_languages' "
+                            f"configured with '{configured_language}' but this language is not detected in the repository. "
+                            f"Detected languages: {', '.join(sorted(languages.keys()))}",
+                        )
+            except Exception as e:
+                # If we can't fetch languages, add a warning but don't fail the validation
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} could not validate 'code_scanning_default_languages': {e}",
+                )
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         from .github_organization import GitHubOrganization
 
