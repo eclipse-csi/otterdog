@@ -169,29 +169,50 @@ Events
 
 ### Deployment Steps
 
-#### Step 1: Add the Helm Repository
+#### Step 1: Planning the deployment
+
+Before deploying Otterdog, ensure you have the following dependencies ready:
+
+**MongoDB**: Otterdog requires MongoDB for data persistence. You'll need to deploy MongoDB and have its connection string ready.
+
+**Redis or Valkey**: Required for caching and message queuing.
+
+   - **Important**: Valkey/Redis must be configured **without authentication** as this is not currently supported by GHProxy (included in the Otterdog Helm Charts).
+
+Access controls:
+
+**Internal Endpoints Access Control**: Otterdog exposes internal management endpoints at `https://<address>/internal/`.
+
+   - These endpoints should be restricted to Otterdog management only.
+   - This can be achieved through ingress configuration using annotations.
+
+     Example:
+
+     ```yaml
+     ingress:
+      annotations:
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          location ~* ^/internal/ {
+            # Allow only specific IP ranges for management access
+            allow 192.168.0.0/16;      # Private network example
+            deny all;
+          }
+     ```
+
+#### Step 2: Add the Helm Repository
 
 ```bash
 helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 helm repo update
 ```
 
-#### Step 2: Prepare Configuration
+#### Step 3: Prepare Configuration
 
 Create a `values.yaml` file to define your deployment configuration:
 
 This is an example
 
 ```yaml
-valkey:
-  auth:
-    enabled: false
-
-mongodb:
-  auth:
-    enabled: true
-    rootPassword: <DEFINE MONGODB PASSWORD>
-
 ghproxy:
   redisAddress: otterdog-valkey-primary.default.svc.cluster.local:6379
 
@@ -215,13 +236,14 @@ github:
 
 ```
 
-#### Step 3: Install Otterdog WebApp
+
+#### Step 4: Install Otterdog WebApp
 
 ```bash
 helm install eclipse-csi otterdog -f values.yaml
 ```
 
-### Step 4: Verify the Deployment
+#### Step 5: Verify the Deployment
 
 Use the following commands to verify that the WebApp is running:
 
@@ -232,6 +254,22 @@ kubectl get ingress
 ```
 
 
+### Init Otterdog
+
+After deploying Otterdog, you must initialize the webapp by calling the initialization endpoint:
+
+```bash
+curl https://<your-otterdog-address>/internal/init
+```
+
+This initialization step is **required** and will:
+- Fetch the Otterdog configuration from the GitHub repository
+- Sync the current state from GitHub
+- Set up the initial data structures in MongoDB
+
+**Note**: Make sure this endpoint is called after the deployment is complete and all services (MongoDB, Redis/Valkey, and GHProxy) are running.
+
+
 ### Updating the Deployment
 
 To upgrade to the latest chart or image version:
@@ -240,6 +278,15 @@ To upgrade to the latest chart or image version:
 helm repo update
 helm upgrade eclipse-csi otterdog -f values.yaml
 ```
+
+!!! note
+
+    It requires to init Otterdog to sync the PRs
+
+    ```bash
+    curl https://<your-otterdog-address>/internal/init
+    ```
+
 
 ### Uninstalling Otterdog
 

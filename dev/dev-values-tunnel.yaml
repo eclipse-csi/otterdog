@@ -3,6 +3,12 @@ ingress:
   className: tailscale
   annotations:
     tailscale.com/funnel: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      location ~* ^/internal/ {
+        # Allow only specific IP ranges for management access
+        allow 77.160.121.68;      # Private network example
+        deny all;
+      }
   defaultBackend:
     enabled: true
   ingressClassName: tailscale
