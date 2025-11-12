@@ -170,6 +170,7 @@ class GitHubOrganization:
             org_members,
             {t.name for t in default_org.teams},
             config.exclude_teams_pattern,
+            provider=provider,
         )
         self.settings.validate(context, self)
 
@@ -204,8 +205,21 @@ class GitHubOrganization:
             for ruleset in self.rulesets:
                 ruleset.validate(context, self)
 
+        # Run synchronous validations and collect repos needing API codescaning validation
+        repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
             repo.validate(context, self)
+            if repo.requires_language_validation():
+                repos_needing_codescaning_language_validation.append(repo)
+
+        if repos_needing_codescaning_language_validation and context.provider is not None:
+            import asyncio
+
+            tasks = [
+                repo.validate_code_scanning_languages(context, self)
+                for repo in repos_needing_codescaning_language_validation
+            ]
+            await asyncio.gather(*tasks)
 
         return context
 

@@ -59,6 +59,7 @@ class ValidationContext:
     default_team_names: set[str]
     exclude_teams_pattern: Pattern | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
+    provider: GitHubProvider | None = None
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
