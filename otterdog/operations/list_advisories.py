@@ -111,11 +111,9 @@ class ListAdvisoriesOperation(Operation):
                         "summary": summary,
                     }
 
-                    # Verify field synchronization
-                    if list(formatted_values.keys()) != self.csv_fields:
-                        raise ValueError(
-                            f"CSV fields mismatch! Expected {self.csv_fields}, got {list(formatted_values.keys())}"
-                        )
+                    assert (  # noqa: S101
+                        list(formatted_values.keys()) == self.csv_fields
+                    ), f"CSV fields mismatch! Expected {self.csv_fields}, got {list(formatted_values.keys())}"
 
                     csv_values = [f'"{formatted_values[field]}"' for field in self.csv_fields]
                     self.printer.println(",".join(csv_values))
