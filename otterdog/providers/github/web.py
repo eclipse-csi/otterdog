@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from asyncio import gather
 from contextlib import asynccontextmanager
+from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -404,6 +405,29 @@ class WebClient:
                 await browser.close()
 
             await context_manager.__aexit__()
+
+    async def get_security_advisory_newest_comment_date(self, ghsa_link: str, page: Page) -> list[str] | None:
+        """Follow passed GHSA link, scrape for comments, and return the date of
+        the most recent comment, or None if no comment with valid date is found.
+        Expected date format is ISO 8601."""
+
+        await page.goto(ghsa_link)
+        query = 'a[href^="#advisory-comment-"] relative-time'
+        elements = await page.locator(query).all()
+        dates = sorted([await e.get_attribute("datetime") for e in elements])
+
+        if not dates:
+            _logger.debug("no comments found for '%s'", ghsa_link)
+            return None
+
+        date = dates[-1]
+        try:
+            datetime.fromisoformat(date)
+        except ValueError as e:
+            _logger.debug("invalid date format '%s'", e)
+            return None
+
+        return date
 
     async def get_requested_permission_updates(self, org_id: str, page: Page) -> dict[str, dict[str, str]]:
         _logger.debug("getting GitHub app permission updates for '%s'", org_id)

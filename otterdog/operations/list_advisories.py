@@ -8,10 +8,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import format_date_for_csv, is_info_enabled
+from otterdog.utils import days_since, format_date_for_csv, is_info_enabled
 
 from . import Operation
 
@@ -45,7 +46,7 @@ class ListAdvisoriesOperation(Operation):
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
             self.printer.println(
-                "organization,created_at,updated_at,published_at,state,severity,ghsa_id,cve_id,html_url,summary"
+                "organization,created_at,days_since_created,updated_at,days_since_updated,published_at,last_commented_at,days_since_last_commented,state,severity,ghsa_id,cve_id,html_url,summary"
             )
 
     def post_execute(self) -> None:
@@ -65,21 +66,31 @@ class ListAdvisoriesOperation(Operation):
 
         try:
             try:
-                credentials = self.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             advisories = []
-            for state in self.states:
-                async with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
+                for state in self.states:
                     advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
                     advisories += advisories_for_state
+
+                if advisories:
+                    async with provider.web_client.get_logged_in_page() as page:
+                        for advisory in advisories:
+                            url = advisory["html_url"]
+                            advisory[
+                                "last_commented_at"
+                            ] = await provider.web_client.get_security_advisory_newest_comment_date(url, page)
 
             if not self.details:
                 if is_info_enabled():
                     self.printer.println(f"Found {len(advisories)} advisories with state '{self.states}'.")
                     self.printer.println()
+
+            now = datetime.now(UTC)
 
             for advisory in advisories:
                 if not self.details:
@@ -89,8 +100,12 @@ class ListAdvisoriesOperation(Operation):
                     formatted_values = {
                         "org_name": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
+                        "days_since_created": days_since(advisory["created_at"], now),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
+                        "days_since_updated": days_since(advisory["updated_at"], now),
                         "published_at": format_date_for_csv(advisory["published_at"]),
+                        "last_commented_at": format_date_for_csv(advisory["last_commented_at"]),
+                        "days_since_last_commented": days_since(advisory["last_commented_at"], now),
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
@@ -102,8 +117,12 @@ class ListAdvisoriesOperation(Operation):
                     self.printer.println(
                         f"\"{formatted_values['org_name']}\","
                         f"\"{formatted_values['created_at']}\","
+                        f"\"{formatted_values['days_since_created']}\","
                         f"\"{formatted_values['updated_at']}\","
+                        f"\"{formatted_values['days_since_updated']}\","
                         f"\"{formatted_values['published_at']}\","
+                        f"\"{formatted_values['last_commented_at']}\","
+                        f"\"{formatted_values['days_since_last_commented']}\","
                         f"\"{formatted_values['state']}\","
                         f"\"{formatted_values['severity']}\","
                         f"\"{formatted_values['ghsa_id']}\","
