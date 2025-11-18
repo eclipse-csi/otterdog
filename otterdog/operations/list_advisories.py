@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Final
 
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import format_date_for_csv, is_info_enabled
@@ -25,7 +25,7 @@ class ListAdvisoriesOperation(Operation):
     """
 
     # CSV fields
-    csv_fields: ClassVar[list[str]] = [
+    CSV_FIELDS: Final[tuple[str, ...]] = (
         "organization",
         "created_at",
         "updated_at",
@@ -36,7 +36,7 @@ class ListAdvisoriesOperation(Operation):
         "cve_id",
         "html_url",
         "summary",
-    ]
+    )
 
     def __init__(self, states: list[str], details: bool):
         super().__init__()
@@ -58,7 +58,7 @@ class ListAdvisoriesOperation(Operation):
         if is_info_enabled():
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
-            self.printer.println(",".join(self.csv_fields))
+            self.printer.println(",".join(self.CSV_FIELDS))
 
     def post_execute(self) -> None:
         pass
@@ -112,10 +112,10 @@ class ListAdvisoriesOperation(Operation):
                     }
 
                     assert (  # noqa: S101
-                        list(formatted_values.keys()) == self.csv_fields
-                    ), f"CSV fields mismatch! Expected {self.csv_fields}, got {list(formatted_values.keys())}"
+                        list(formatted_values.keys()) == list(self.CSV_FIELDS)
+                    ), f"CSV fields mismatch! Expected {list(self.CSV_FIELDS)}, got {list(formatted_values.keys())}"
 
-                    csv_values = [f'"{formatted_values[field]}"' for field in self.csv_fields]
+                    csv_values = [f'"{formatted_values[field]}"' for field in self.CSV_FIELDS]
                     self.printer.println(",".join(csv_values))
                 else:
                     self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
