@@ -96,50 +96,43 @@ class TestListAdvisoriesOperation:
         assert len(operation.printer.println.calls) == 1
 
         csv_output = operation.printer.println.calls[0].args[0]
-        assert f'"{expected_values["cve"]}"' in csv_output
-        assert expected_values["summary_check"] in csv_output
-        assert '"GHSA-1234"' in csv_output
-        assert '"test-org"' in csv_output
+
+        expected_csv = (
+            f'"test-org","2024-01-01","2024-01-02","2024-01-03","published","high",'
+            f'"GHSA-1234","{expected_values["cve"]}","https://github.com/advisories/GHSA-1234",'
+            f'{expected_values["summary_check"]}'
+        )
+        assert csv_output == expected_csv
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "states,advisories_config",
+        "advisories_config",
         [
             # Single state, multiple advisories
-            (
-                ["published"],
-                {
-                    "published": [
-                        {"ghsa_id": "GHSA-1111", "cve_id": "CVE-1111"},
-                        {"ghsa_id": "GHSA-2222", "cve_id": "CVE-2222"},
-                    ]
-                },
-            ),
+            {
+                "published": [
+                    {"ghsa_id": "GHSA-1111", "cve_id": "CVE-1111"},
+                    {"ghsa_id": "GHSA-2222", "cve_id": "CVE-2222"},
+                ]
+            },
             # Multiple states, one advisory each
-            (
-                ["published", "closed"],
-                {
-                    "published": [{"ghsa_id": "GHSA-3333", "cve_id": "CVE-3333"}],
-                    "closed": [{"ghsa_id": "GHSA-4444", "cve_id": "CVE-4444"}],
-                },
-            ),
+            {
+                "published": [{"ghsa_id": "GHSA-3333", "cve_id": "CVE-3333"}],
+                "closed": [{"ghsa_id": "GHSA-4444", "cve_id": "CVE-4444"}],
+            },
             # Multiple states, mixed counts
-            (
-                ["triage", "draft", "published"],
-                {
-                    "triage": [],
-                    "draft": [{"ghsa_id": "GHSA-5555", "cve_id": None}],
-                    "published": [
-                        {"ghsa_id": "GHSA-6666", "cve_id": "CVE-6666"},
-                        {"ghsa_id": "GHSA-7777", "cve_id": "CVE-7777"},
-                    ],
-                },
-            ),
+            {
+                "triage": [],
+                "draft": [{"ghsa_id": "GHSA-5555", "cve_id": None}],
+                "published": [
+                    {"ghsa_id": "GHSA-6666", "cve_id": "CVE-6666"},
+                    {"ghsa_id": "GHSA-7777", "cve_id": "CVE-7777"},
+                ],
+            },
         ],
     )
-    async def test_execute_multiple_states_and_advisories(
-        self, states, advisories_config, monkeypatch, mock_github_provider
-    ):
+    async def test_execute_multiple_states_and_advisories(self, advisories_config, monkeypatch, mock_github_provider):
+        states = list(advisories_config.keys())
         operation = ListAdvisoriesOperation(states=states, details=False)
 
         operation.printer = pretend.stub(
