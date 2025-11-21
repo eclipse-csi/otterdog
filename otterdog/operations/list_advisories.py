@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import format_date_for_csv, is_info_enabled
@@ -23,6 +23,20 @@ class ListAdvisoriesOperation(Operation):
     """
     Lists repository security advisories for an organization.
     """
+
+    # CSV fields
+    CSV_FIELDS: Final[tuple[str, ...]] = (
+        "organization",
+        "created_at",
+        "updated_at",
+        "published_at",
+        "state",
+        "severity",
+        "ghsa_id",
+        "cve_id",
+        "html_url",
+        "summary",
+    )
 
     def __init__(self, states: list[str], details: bool):
         super().__init__()
@@ -44,9 +58,7 @@ class ListAdvisoriesOperation(Operation):
         if is_info_enabled():
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
-            self.printer.println(
-                "organization,created_at,updated_at,published_at,state,severity,ghsa_id,cve_id,html_url,summary"
-            )
+            self.printer.println(",".join(self.CSV_FIELDS))
 
     def post_execute(self) -> None:
         pass
@@ -87,7 +99,7 @@ class ListAdvisoriesOperation(Operation):
                     summary = advisory["summary"].replace('"', '""')
 
                     formatted_values = {
-                        "org_name": org_config.name,
+                        "organization": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
                         "published_at": format_date_for_csv(advisory["published_at"]),
@@ -99,18 +111,12 @@ class ListAdvisoriesOperation(Operation):
                         "summary": summary,
                     }
 
-                    self.printer.println(
-                        f"\"{formatted_values['org_name']}\","
-                        f"\"{formatted_values['created_at']}\","
-                        f"\"{formatted_values['updated_at']}\","
-                        f"\"{formatted_values['published_at']}\","
-                        f"\"{formatted_values['state']}\","
-                        f"\"{formatted_values['severity']}\","
-                        f"\"{formatted_values['ghsa_id']}\","
-                        f"\"{formatted_values['cve_id']}\","
-                        f"\"{formatted_values['html_url']}\","
-                        f"\"{formatted_values['summary']}\""
-                    )
+                    assert (  # noqa: S101
+                        list(formatted_values.keys()) == list(self.CSV_FIELDS)
+                    ), f"CSV fields mismatch! Expected {list(self.CSV_FIELDS)}, got {list(formatted_values.keys())}"
+
+                    csv_values = [f'"{formatted_values[field]}"' for field in self.CSV_FIELDS]
+                    self.printer.println(",".join(csv_values))
                 else:
                     self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
 
