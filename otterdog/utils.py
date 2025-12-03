@@ -594,7 +594,7 @@ def format_date_for_csv(iso_date_str: str) -> str:
     if iso_date_str is None:
         return ""
     date_obj = datetime.fromisoformat(iso_date_str)
-    return date_obj.strftime("%d/%m/%Y %H:%M:%S")
+    return date_obj.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def debug_times(category: str):

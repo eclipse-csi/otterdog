@@ -86,7 +86,6 @@ class TestListAdvisoriesOperation:
 
         monkeypatch.setattr("otterdog.operations.list_advisories.GitHubProvider", lambda *args: mock_provider)
         monkeypatch.setattr("otterdog.operations.list_advisories.is_info_enabled", lambda: False)
-        monkeypatch.setattr("otterdog.operations.list_advisories.format_date_for_csv", lambda x: x[:10])
 
         org_config = pretend.stub(name="test-org", github_id="test-github-id")
 
@@ -98,7 +97,7 @@ class TestListAdvisoriesOperation:
         csv_output = operation.printer.println.calls[0].args[0]
 
         expected_csv = (
-            f'"test-org","2024-01-01","2024-01-02","2024-01-03","published","high",'
+            f'"test-org","2024-01-01 00:00:00","2024-01-02 00:00:00","2024-01-03 00:00:00","published","high",'
             f'"GHSA-1234","{expected_values["cve"]}","https://github.com/advisories/GHSA-1234",'
             f'{expected_values["summary_check"]}'
         )
