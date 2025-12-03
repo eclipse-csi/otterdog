@@ -12,6 +12,7 @@ from otterdog.utils import (
     UNSET,
     camel_to_snake_case,
     deep_merge_dict,
+    format_date_for_csv,
     is_different_ignoring_order,
     is_ghsa_repo,
     parse_template_url,
@@ -107,3 +108,12 @@ def test_deep_merge_dict():
         "second": {"Peter": 2},
         "third": {"Maria": 3},
     }
+
+
+def test_format_date_for_csv():
+    # Expected inputs are None or valid ISO 8601 Zulu timestamps
+    assert format_date_for_csv(None) == ""
+
+    assert format_date_for_csv("2024-03-15T14:30:45Z") == "2024-03-15 14:30:45"
+    assert format_date_for_csv("2023-01-01T00:00:00Z") == "2023-01-01 00:00:00"
+    assert format_date_for_csv("2023-12-31T23:59:59Z") == "2023-12-31 23:59:59"
