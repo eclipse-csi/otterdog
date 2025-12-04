@@ -13,6 +13,17 @@ from otterdog.operations.list_advisories import ListAdvisoriesOperation
 
 
 class TestListAdvisoriesOperation:
+    def test_pre_execute(self):
+        operation = ListAdvisoriesOperation(states=["published"], details=False)
+        operation.printer = pretend.stub(println=pretend.call_recorder(lambda msg, **kwargs: None))
+
+        operation.pre_execute()
+
+        assert len(operation.printer.println.calls) == 1
+        call = operation.printer.println.calls[0]
+        assert "soft_wrap" in call.kwargs
+        assert call.kwargs["soft_wrap"] is True
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "advisory_data,expected_values",
@@ -74,7 +85,7 @@ class TestListAdvisoriesOperation:
         test_advisory = {**base_advisory, **advisory_data}
 
         operation.printer = pretend.stub(
-            println=pretend.call_recorder(lambda msg: None),
+            println=pretend.call_recorder(lambda msg, **kwargs: None),
             level_up=lambda: None,
             level_down=lambda: None,
         )
@@ -93,6 +104,10 @@ class TestListAdvisoriesOperation:
 
         assert result == 0
         assert len(operation.printer.println.calls) == 1
+
+        call = operation.printer.println.calls[0]
+        assert "soft_wrap" in call.kwargs
+        assert call.kwargs["soft_wrap"] is True
 
         csv_output = operation.printer.println.calls[0].args[0]
 
@@ -135,7 +150,7 @@ class TestListAdvisoriesOperation:
         operation = ListAdvisoriesOperation(states=states, details=False)
 
         operation.printer = pretend.stub(
-            println=pretend.call_recorder(lambda msg: None),
+            println=pretend.call_recorder(lambda msg, **kwargs: None),
             level_up=lambda: None,
             level_down=lambda: None,
         )

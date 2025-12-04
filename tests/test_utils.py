@@ -6,10 +6,13 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from io import StringIO
+
 import pytest
 
 from otterdog.utils import (
     UNSET,
+    IndentingPrinter,
     camel_to_snake_case,
     deep_merge_dict,
     format_date_for_csv,
@@ -117,3 +120,36 @@ def test_format_date_for_csv():
     assert format_date_for_csv("2024-03-15T14:30:45Z") == "2024-03-15 14:30:45"
     assert format_date_for_csv("2023-01-01T00:00:00Z") == "2023-01-01 00:00:00"
     assert format_date_for_csv("2023-12-31T23:59:59Z") == "2023-12-31 23:59:59"
+
+
+_long_string = "Too long to fit console width"
+
+
+@pytest.mark.parametrize(
+    "method,long_string,soft_wrap,expected_newlines",
+    [
+        ("print", _long_string, False, 1),
+        ("print", _long_string, True, 0),
+        ("print", _long_string + "\n", False, 2),
+        ("print", _long_string + "\n", True, 1),
+        ("println", _long_string, False, 2),
+        ("println", _long_string, True, 1),
+        ("print", _long_string, None, 1),
+        ("println", _long_string, None, 2),
+    ],
+)
+def test_print_with_soft_wrap(method, long_string, soft_wrap, expected_newlines):
+    # Create printer with console width that is narrower than the input string
+    captured_output = StringIO()
+    printer = IndentingPrinter(captured_output)
+    printer._console.width = 20
+
+    # Call `print` or `println` with default or passed soft_wrap
+    print_method = getattr(printer, method)
+    if soft_wrap is None:
+        print_method(long_string)
+    else:
+        print_method(long_string, soft_wrap=soft_wrap)
+
+    # Assert newline count in captured output
+    assert captured_output.getvalue().count("\n") == expected_newlines
