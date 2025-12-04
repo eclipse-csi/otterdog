@@ -43,13 +43,14 @@ class ListAdvisoriesOperation(Operation):
         "summary",
     )
 
-    def __init__(self, states: list[str], details: bool):
+    def __init__(self, states: list[str], details: bool, use_web: bool):
         super().__init__()
         # if states contains "all", then we will get all advisories
         if "all" in states:
             states = ["triage", "draft", "published", "closed"]
         self._states = states
         self._details = details
+        self._use_web = use_web
 
     @property
     def states(self) -> list[str]:
@@ -82,7 +83,7 @@ class ListAdvisoriesOperation(Operation):
 
         try:
             try:
-                credentials = self.get_credentials(org_config)
+                credentials = self.get_credentials(org_config, only_token=(not self._use_web))
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
@@ -93,7 +94,7 @@ class ListAdvisoriesOperation(Operation):
                     advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
                     advisories += advisories_for_state
 
-                if advisories:
+                if advisories and self._use_web:
                     async with provider.web_client.get_logged_in_page() as page:
                         for advisory in advisories:
                             url = advisory["html_url"]
@@ -113,6 +114,13 @@ class ListAdvisoriesOperation(Operation):
                     cve_id = advisory["cve_id"] if advisory["cve_id"] is not None else "NO_CVE"
                     summary = advisory["summary"].replace('"', '""')
 
+                    if self._use_web:
+                        date_str = advisory["last_commented_at"]
+                        last_commented_at = format_date_for_csv(date_str)
+                        days_since_last_commented = days_since(date_str, now)
+                    else:
+                        last_commented_at = days_since_last_commented = ""
+
                     formatted_values = {
                         "organization": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
@@ -120,8 +128,8 @@ class ListAdvisoriesOperation(Operation):
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
                         "days_since_updated": days_since(advisory["updated_at"], now),
                         "published_at": format_date_for_csv(advisory["published_at"]),
-                        "last_commented_at": format_date_for_csv(advisory["last_commented_at"]),
-                        "days_since_last_commented": days_since(advisory["last_commented_at"], now),
+                        "last_commented_at": last_commented_at,
+                        "days_since_last_commented": days_since_last_commented,
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
