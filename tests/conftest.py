@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -43,6 +44,21 @@ def deterministic_days_since():
     return days_since_wrapper
 
 
+class MockWebClient:
+    @asynccontextmanager
+    async def get_logged_in_page(self):
+        """Noop context manager."""
+        yield
+
+    def setup_newest_comment_date(self, iso_date_str):
+        """Enable WebClient get_security_advisory_newest_comment_date"""
+
+        async def mock(ghsa_link, page):
+            return iso_date_str
+
+        self.get_security_advisory_newest_comment_date = mock
+
+
 class MockGitHubProvider:
     def __init__(self):
         self.rest_api = pretend.stub(
@@ -53,7 +69,7 @@ class MockGitHubProvider:
             app=pretend.stub(),
         )
         self.graphql = pretend.stub()
-        self.web = pretend.stub()
+        self.web_client = MockWebClient()
 
     async def __aenter__(self):
         return self

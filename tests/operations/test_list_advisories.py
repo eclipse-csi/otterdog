@@ -198,3 +198,50 @@ class TestListAdvisoriesOperation:
         for advisories in advisories_config.values():
             for adv in advisories:
                 assert any(f'"{adv["ghsa_id"]}"' in output for output in csv_outputs)
+
+    @pytest.mark.asyncio
+    async def test_execute_with_web_client(self, monkeypatch, mock_github_provider, deterministic_days_since):
+        operation = ListAdvisoriesOperation(states=["published"], details=False, use_web=True)
+
+        test_advisory = {
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+            "published_at": "2024-01-03T00:00:00Z",
+            "state": "published",
+            "severity": "high",
+            "ghsa_id": "GHSA-1234",
+            "cve_id": "CVE-2024-1234",
+            "html_url": "https://github.com/advisories/GHSA-1234",
+            "summary": "Test advisory with comments",
+        }
+
+        operation.printer = pretend.stub(
+            println=pretend.call_recorder(lambda msg, **kw: None),
+        )
+        operation.get_credentials = lambda *a, **kw: pretend.stub()
+
+        mock_provider = mock_github_provider()
+        mock_provider.setup_org_advisories({"published": [test_advisory]})
+        mock_provider.web_client.setup_newest_comment_date("2024-12-20T10:00:00Z")
+
+        monkeypatch.setattr("otterdog.operations.list_advisories.GitHubProvider", lambda *args: mock_provider)
+        monkeypatch.setattr("otterdog.operations.list_advisories.is_info_enabled", lambda: False)
+        monkeypatch.setattr("otterdog.operations.list_advisories.days_since", deterministic_days_since)
+
+        org_config = pretend.stub(name="test-org", github_id="test-github-id")
+
+        result = await operation.execute(org_config)
+
+        assert result == 0
+        assert len(operation.printer.println.calls) == 1
+
+        csv_output = operation.printer.println.calls[0].args[0]
+
+        # Verify the CSV output includes the last_commented_at date
+        expected_csv = (
+            '"test-org","2024-01-01 00:00:00","366","2024-01-02 00:00:00","365","2024-01-03 00:00:00",'
+            '"2024-12-20 10:00:00","11","published","high",'
+            '"GHSA-1234","CVE-2024-1234","https://github.com/advisories/GHSA-1234",'
+            '"Test advisory with comments"'
+        )
+        assert csv_output == expected_csv
