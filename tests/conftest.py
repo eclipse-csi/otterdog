@@ -1,9 +1,12 @@
 from collections.abc import Mapping
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 import pretend
 import pytest
 
+from otterdog import utils
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject
 from otterdog.models.repository import Repository
@@ -31,6 +34,31 @@ def repository_test():
     return RepositoryTest()
 
 
+@pytest.fixture()
+def deterministic_days_since():
+    fixed_now = datetime(2025, 1, 1, tzinfo=UTC)
+
+    def days_since_wrapper(iso_date_str: str, _now: datetime) -> str:
+        return utils.days_since(iso_date_str, fixed_now)
+
+    return days_since_wrapper
+
+
+class MockWebClient:
+    @asynccontextmanager
+    async def get_logged_in_page(self):
+        """Noop context manager."""
+        yield
+
+    def setup_newest_comment_date(self, iso_date_str):
+        """Enable WebClient get_security_advisory_newest_comment_date"""
+
+        async def mock(ghsa_link, page):
+            return iso_date_str
+
+        self.get_security_advisory_newest_comment_date = mock
+
+
 class MockGitHubProvider:
     def __init__(self):
         self.rest_api = pretend.stub(
@@ -41,7 +69,7 @@ class MockGitHubProvider:
             app=pretend.stub(),
         )
         self.graphql = pretend.stub()
-        self.web = pretend.stub()
+        self.web_client = MockWebClient()
 
     async def __aenter__(self):
         return self

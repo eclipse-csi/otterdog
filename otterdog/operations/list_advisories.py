@@ -8,10 +8,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Final
 
 from otterdog.providers.github import GitHubProvider
-from otterdog.utils import format_date_for_csv, is_info_enabled
+from otterdog.utils import days_since, format_date_for_csv, is_info_enabled
 
 from . import Operation
 
@@ -28,8 +29,12 @@ class ListAdvisoriesOperation(Operation):
     CSV_FIELDS: Final[tuple[str, ...]] = (
         "organization",
         "created_at",
+        "days_since_created",
         "updated_at",
+        "days_since_updated",
         "published_at",
+        "last_commented_at",
+        "days_since_last_commented",
         "state",
         "severity",
         "ghsa_id",
@@ -38,13 +43,14 @@ class ListAdvisoriesOperation(Operation):
         "summary",
     )
 
-    def __init__(self, states: list[str], details: bool):
+    def __init__(self, states: list[str], details: bool, use_web: bool):
         super().__init__()
         # if states contains "all", then we will get all advisories
         if "all" in states:
             states = ["triage", "draft", "published", "closed"]
         self._states = states
         self._details = details
+        self._use_web = use_web
 
     @property
     def states(self) -> list[str]:
@@ -77,32 +83,53 @@ class ListAdvisoriesOperation(Operation):
 
         try:
             try:
-                credentials = self.get_credentials(org_config, only_token=True)
+                credentials = self.get_credentials(org_config, only_token=(not self._use_web))
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1
 
             advisories = []
-            for state in self.states:
-                async with GitHubProvider(credentials) as provider:
+            async with GitHubProvider(credentials) as provider:
+                for state in self.states:
                     advisories_for_state = await provider.rest_api.org.get_security_advisories(github_id, state)
                     advisories += advisories_for_state
+
+                if advisories and self._use_web:
+                    async with provider.web_client.get_logged_in_page() as page:
+                        for advisory in advisories:
+                            url = advisory["html_url"]
+                            advisory[
+                                "last_commented_at"
+                            ] = await provider.web_client.get_security_advisory_newest_comment_date(url, page)
 
             if not self.details:
                 if is_info_enabled():
                     self.printer.println(f"Found {len(advisories)} advisories with state '{self.states}'.")
                     self.printer.println()
 
+            now = datetime.now(UTC)
+
             for advisory in advisories:
                 if not self.details:
                     cve_id = advisory["cve_id"] if advisory["cve_id"] is not None else "NO_CVE"
                     summary = advisory["summary"].replace('"', '""')
 
+                    if self._use_web:
+                        date_str = advisory["last_commented_at"]
+                        last_commented_at = format_date_for_csv(date_str)
+                        days_since_last_commented = days_since(date_str, now)
+                    else:
+                        last_commented_at = days_since_last_commented = ""
+
                     formatted_values = {
                         "organization": org_config.name,
                         "created_at": format_date_for_csv(advisory["created_at"]),
+                        "days_since_created": days_since(advisory["created_at"], now),
                         "updated_at": format_date_for_csv(advisory["updated_at"]),
+                        "days_since_updated": days_since(advisory["updated_at"], now),
                         "published_at": format_date_for_csv(advisory["published_at"]),
+                        "last_commented_at": last_commented_at,
+                        "days_since_last_commented": days_since_last_commented,
                         "state": advisory["state"],
                         "severity": advisory["severity"],
                         "ghsa_id": advisory["ghsa_id"],
