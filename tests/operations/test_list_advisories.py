@@ -14,7 +14,7 @@ from otterdog.operations.list_advisories import ListAdvisoriesOperation
 
 class TestListAdvisoriesOperation:
     def test_pre_execute(self):
-        operation = ListAdvisoriesOperation(states=["published"], details=False)
+        operation = ListAdvisoriesOperation(states=["published"], details=False, use_web=False)
         operation.printer = pretend.stub(println=pretend.call_recorder(lambda msg, **kwargs: None))
 
         operation.pre_execute()
@@ -70,13 +70,16 @@ class TestListAdvisoriesOperation:
             ),
         ],
     )
-    async def test_execute_advisory_processing(self, advisory_data, expected_values, monkeypatch, mock_github_provider):
-        operation = ListAdvisoriesOperation(states=["published"], details=False)
+    async def test_execute_advisory_processing(
+        self, advisory_data, expected_values, monkeypatch, mock_github_provider, deterministic_days_since
+    ):
+        operation = ListAdvisoriesOperation(states=["published"], details=False, use_web=False)
 
         base_advisory = {
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-02T00:00:00Z",
             "published_at": "2024-01-03T00:00:00Z",
+            "last_commented_at": "",
             "state": "published",
             "severity": "high",
             "ghsa_id": "GHSA-1234",
@@ -98,6 +101,8 @@ class TestListAdvisoriesOperation:
         monkeypatch.setattr("otterdog.operations.list_advisories.GitHubProvider", lambda *args: mock_provider)
         monkeypatch.setattr("otterdog.operations.list_advisories.is_info_enabled", lambda: False)
 
+        monkeypatch.setattr("otterdog.operations.list_advisories.days_since", deterministic_days_since)
+
         org_config = pretend.stub(name="test-org", github_id="test-github-id")
 
         result = await operation.execute(org_config)
@@ -112,7 +117,7 @@ class TestListAdvisoriesOperation:
         csv_output = operation.printer.println.calls[0].args[0]
 
         expected_csv = (
-            f'"test-org","2024-01-01 00:00:00","2024-01-02 00:00:00","2024-01-03 00:00:00","published","high",'
+            f'"test-org","2024-01-01 00:00:00","366","2024-01-02 00:00:00","365","2024-01-03 00:00:00","","","published","high",'
             f'"GHSA-1234","{expected_values["cve"]}","https://github.com/advisories/GHSA-1234",'
             f'{expected_values["summary_check"]}'
         )
@@ -147,7 +152,7 @@ class TestListAdvisoriesOperation:
     )
     async def test_execute_multiple_states_and_advisories(self, advisories_config, monkeypatch, mock_github_provider):
         states = list(advisories_config.keys())
-        operation = ListAdvisoriesOperation(states=states, details=False)
+        operation = ListAdvisoriesOperation(states=states, details=False, use_web=False)
 
         operation.printer = pretend.stub(
             println=pretend.call_recorder(lambda msg, **kwargs: None),
@@ -178,6 +183,7 @@ class TestListAdvisoriesOperation:
         monkeypatch.setattr("otterdog.operations.list_advisories.GitHubProvider", lambda *args: mock_provider)
         monkeypatch.setattr("otterdog.operations.list_advisories.is_info_enabled", lambda: False)
         monkeypatch.setattr("otterdog.operations.list_advisories.format_date_for_csv", lambda x: x[:10])
+        monkeypatch.setattr("otterdog.operations.list_advisories.days_since", lambda *args: None)
 
         org_config = pretend.stub(name="test-org", github_id="test-github-id")
 
