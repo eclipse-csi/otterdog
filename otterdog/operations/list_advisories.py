@@ -58,7 +58,7 @@ class ListAdvisoriesOperation(Operation):
         if is_info_enabled():
             self.printer.println(f"Listing {self.states} repository security advisories:")
         if not self.details:
-            self.printer.println(",".join(self.CSV_FIELDS))
+            self.printer.println(",".join(self.CSV_FIELDS), soft_wrap=True)
 
     def post_execute(self) -> None:
         pass
@@ -116,7 +116,7 @@ class ListAdvisoriesOperation(Operation):
                     ), f"CSV fields mismatch! Expected {list(self.CSV_FIELDS)}, got {list(formatted_values.keys())}"
 
                     csv_values = [f'"{formatted_values[field]}"' for field in self.CSV_FIELDS]
-                    self.printer.println(",".join(csv_values))
+                    self.printer.println(",".join(csv_values), soft_wrap=True)
                 else:
                     self.print_dict(advisory, f"advisory['{advisory['ghsa_id']}']", "", "black")
 

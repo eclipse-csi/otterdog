@@ -290,20 +290,20 @@ class IndentingPrinter:
     def current_indentation(self) -> str:
         return self._initial_offset + " " * (self._level * self._spaces_per_level)
 
-    def print(self, text: str = "", highlight: bool = False) -> None:
+    def print(self, text: str = "", highlight: bool = False, soft_wrap: bool = False) -> None:
         lines = text.splitlines(keepends=True)
         if len(lines) > 0:
             for line in lines:
                 self._print_indentation()
 
                 if line.endswith("\n"):
-                    self._console.print(line[:-1], end="", highlight=highlight)
+                    self._console.print(line[:-1], end="", highlight=highlight, soft_wrap=soft_wrap)
                     self.print_line_break()
                 else:
-                    self._console.print(line, end="", highlight=highlight)
+                    self._console.print(line, end="", highlight=highlight, soft_wrap=soft_wrap)
 
-    def println(self, text: str = "", highlight: bool = False) -> None:
-        self.print(text, highlight=highlight)
+    def println(self, text: str = "", highlight: bool = False, soft_wrap: bool = False) -> None:
+        self.print(text, highlight=highlight, soft_wrap=soft_wrap)
         self.print_line_break()
 
     def print_line_break(self) -> None:
