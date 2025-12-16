@@ -14,6 +14,10 @@
 
  - Correctly handle rulesets with empty `status_checks`. ([#562](https://github.com/eclipse-csi/otterdog/issues/562))
 
+### Added
+
+- Added HashiCorp Vault credential provider support with hvac library integration
+
 ## [1.1.1] - 21/11/2025
 
 ### Added

@@ -106,6 +106,12 @@ class CredentialProvider(Protocol):
                 valid_keys = _check_valid_keys(provider_type, defaults, PassVault.__init__)
                 return PassVault(**valid_keys)
 
+            case "vault":
+                from .vault_provider import VaultProvider
+
+                valid_keys = _check_valid_keys(provider_type, defaults, VaultProvider.__init__)
+                return VaultProvider(**valid_keys)
+
             case "inmemory":
                 from .inmemory_provider import InMemoryVault
 
