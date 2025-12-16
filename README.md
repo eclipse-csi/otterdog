@@ -170,7 +170,7 @@ The item stored in bitwarden needs to contain the following information (a sampl
   "login": {
     "username": "<github username>",
     "password": "<github password>",
-    "totp": "<github TOTP text code>"
+    "totp": "<2FA TOTP seed>"
   }
 }
 ```
@@ -180,7 +180,7 @@ Mandatory items:
 * Field with name "api_token_admin" and as value the GitHub token to access the organization
 * __login.username__ of a user that can access the organization with enabled 2FA
 * __login.password__ the password of that user
-* __login.totp__ the TOTP text code
+* __login.totp__ the 2FA TOTP seed
 
 #### Pass
 
