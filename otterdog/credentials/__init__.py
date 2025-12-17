@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import binascii
 import dataclasses
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Protocol
@@ -58,7 +59,11 @@ class Credentials:
             raise RuntimeError("totp_secret not available")
 
         while True:
-            totp = mintotp.totp(self._totp_secret)
+            try:
+                totp = mintotp.totp(self._totp_secret)
+            except binascii.Error as e:
+                raise RuntimeError(f"the 2FA TOTP seed is not valid: {e}") from e
+
             _logger.trace("generated totp '%s'", totp)
 
             if self._last_totp is None or totp != self._last_totp:
