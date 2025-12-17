@@ -2,6 +2,10 @@
 
 ## [1.1.2] - unreleased
 
+### Added
+
+- Added HashiCorp Vault credential provider support with hvac library integration
+
 ## [1.1.1] - 21/11/2025
 
 ### Added

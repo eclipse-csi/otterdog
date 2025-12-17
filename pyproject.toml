@@ -15,6 +15,7 @@ dependencies = [
     "asyncer (>=0.0.8,<1.0)",
     "chevron (>=0.14,<1.0)",
     "click (>=8.1,<9.0)",
+    "hvac (>=2.0,<3.0)",
     "importlib_resources (>=6.4,<7.0)",
     "jsonata-python (>=0.5,<1.0)",
     "jsonschema (>=4.23,<5.0)",
