@@ -14,13 +14,14 @@ import os
 import re
 from abc import abstractmethod
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from otterdog.credentials import CredentialProvider
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
-from .utils import deep_merge_dict, query_json
+from .utils import deep_merge_dict, jsonnet_evaluate_file, query_json
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -28,6 +29,21 @@ if TYPE_CHECKING:
     from otterdog.credentials import Credentials
 
 _logger = get_logger(__name__)
+
+
+def load_json_or_jsonnet(file: Path) -> dict[str, Any]:
+    """Load JSON (.json) or JSONNET (.jsonnet) and return its content as a dictionary."""
+
+    if file.suffix == ".jsonnet":
+        data = jsonnet_evaluate_file(str(file))
+    else:
+        try:
+            data = json.loads(file.read_text())
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"failed to parse json file '{file}': {e}") from e
+    if not isinstance(data, dict):
+        raise RuntimeError(f"expected JSON object in file '{file}', got: {type(data)}")
+    return data
 
 
 class OrganizationConfig:
@@ -285,24 +301,22 @@ class OtterdogConfig:
 
     @classmethod
     def from_file(cls, config_file: str, local_mode: bool, working_dir: str | None = None) -> OtterdogConfig:
-        if not os.path.exists(config_file):
+        config_file_file = Path(config_file)
+        if not config_file_file.exists():
             raise RuntimeError(f"configuration file '{config_file}' not found")
 
-        config_file_file = os.path.realpath(config_file)
-        config_file_dir = os.path.dirname(config_file)
+        config_file_dir = config_file_file.parent
 
-        with open(config_file_file) as f:
-            configuration = json.load(f)
+        configuration = load_json_or_jsonnet(config_file_file)
 
         if working_dir is None:
-            override_defaults_file = os.path.join(config_file_dir, ".otterdog-defaults.json")
-            if os.path.exists(override_defaults_file):
-                with open(override_defaults_file) as defaults_file:
-                    defaults = json.load(defaults_file)
-                    _logger.trace("loading default overrides from '%s'", override_defaults_file)
-                    configuration["defaults"] = deep_merge_dict(defaults, configuration.setdefault("defaults", {}))
+            override_defaults_file = config_file_dir / ".otterdog-defaults.json"
+            if override_defaults_file.exists():
+                defaults = load_json_or_jsonnet(override_defaults_file)
+                _logger.trace("loading default overrides from '%s'", override_defaults_file)
+                configuration["defaults"] = deep_merge_dict(defaults, configuration.setdefault("defaults", {}))
 
-        return cls(configuration, local_mode, working_dir if working_dir is not None else config_file_dir)
+        return cls(configuration, local_mode, working_dir if working_dir is not None else str(config_file_dir))
 
     @classmethod
     def from_dict(cls, configuration: Mapping[str, Any], local_mode: bool, working_dir: str) -> OtterdogConfig:

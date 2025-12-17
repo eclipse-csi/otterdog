@@ -8,6 +8,7 @@
 
 import asyncio
 import sys
+from pathlib import Path
 from typing import Any
 
 import click
@@ -22,19 +23,30 @@ from .config import OtterdogConfig
 from .operations import Operation
 from .utils import IndentingPrinter, unwrap
 
-_CONFIG_FILE = "otterdog.json"
+_CONFIG_FILES = ["otterdog.jsonnet", "otterdog.json"]
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
 
 _CONFIG: OtterdogConfig | None = None
 
 
+def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> OtterdogConfig:
+    if config_file_param:
+        config_file = config_file_param
+    else:
+        for file in _CONFIG_FILES:
+            if Path(file).exists():
+                config_file = file
+                break
+        else:
+            raise RuntimeError(f"No configuration file specified, and default files {_CONFIG_FILES} not found.")
+
+    return OtterdogConfig.from_file(config_file, local_mode)
+
+
 def complete_organizations(ctx, param, incomplete):
     config_file = ctx.params.get("config")
-    if config_file is None:
-        config_file = _CONFIG_FILE
-
     try:
-        config = OtterdogConfig.from_file(config_file, False)
+        config = load_otterdog_config(config_file, local_mode=False)
         out = []
         for org in config.organization_names + config.project_names:
             if incomplete in org:
@@ -62,10 +74,8 @@ class StdCommand(click.Command):
             0,
             click.Option(
                 ["-c", "--config"],
-                default=_CONFIG_FILE,
-                show_default=True,
                 type=click.Path(True, True, False),
-                help="configuration file to use",
+                help=f"configuration file to use. Default: {', '.join(_CONFIG_FILES)}",
             ),
         )
 
@@ -92,7 +102,7 @@ class StdCommand(click.Command):
         local_mode = ctx.params.pop("local")
 
         try:
-            _CONFIG = OtterdogConfig.from_file(config_file, local_mode)
+            _CONFIG = load_otterdog_config(config_file, local_mode)
         except Exception as exc:
             print_exception(exc)
             sys.exit(2)
@@ -117,10 +127,8 @@ class SingletonCommand(click.Command):
             0,
             click.Option(
                 ["-c", "--config"],
-                default=_CONFIG_FILE,
-                show_default=True,
                 type=click.Path(True, True, False),
-                help="configuration file to use",
+                help=f"configuration file to use. Default: {', '.join(_CONFIG_FILES)}",
             ),
         )
 
@@ -145,7 +153,7 @@ class SingletonCommand(click.Command):
         local_mode = ctx.params.pop("local")
 
         try:
-            _CONFIG = OtterdogConfig.from_file(config_file, local_mode)
+            _CONFIG = load_otterdog_config(config_file, local_mode)
         except Exception as exc:
             print_exception(exc)
             sys.exit(2)
