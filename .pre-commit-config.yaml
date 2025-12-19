@@ -1,6 +1,6 @@
 exclude: '^(mkdocs.yml|scripts|otterdog-complete.bash)'
 default_language_version:
-    python: python3.12
+    python: default
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
