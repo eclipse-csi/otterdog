@@ -82,7 +82,7 @@ However, it is advised to use a released tag instead of `main` to avoid incompat
 
 ### Otterdog configuration
 
-Create a `otterdog.json` file with the following content (replace bracketed values according to your setup):
+Create a `otterdog.jsonnet` or `otterdog.json` file with the following content (replace bracketed values according to your setup):
 
 ```json
 {
@@ -109,7 +109,7 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
 ```
 
 The name of the configuration file can be freely chosen (can be overridden with the __-c__ flag).
-However, when named `otterdog.json`, the cli tool will automatically detect and use that file if it is in the current working directory.
+However, when named `otterdog.jsonnet` or `otterdog.json`, the cli tool will automatically detect and use that file if it is in the current working directory.
 
 > [!IMPORTANT]
 > In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
