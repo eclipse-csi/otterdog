@@ -444,9 +444,7 @@ class GitHubProvider:
         await self.rest_api.repo.delete_variable(org_id, repo_name, env_name, variable_name)
 
     # CRUD for Environment Secrets
-    async def create_environment_secret(
-        self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]
-    ) -> None:
+    async def create_environment_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
         await self.rest_api.repo.add_secret(org_id, repo_name, env_name, data)
 
     async def get_environment_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:

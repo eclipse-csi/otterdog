@@ -37,7 +37,7 @@ class EnvironmentVariable(Variable):
         return f"orgs.{jsonnet_config.create_repo_variable}"
 
     @classmethod
-    async def apply_live_patch( # type: ignore[override]
+    async def apply_live_patch(  # type: ignore[override]
         cls,
         patch: LivePatch[EnvironmentVariable],
         org_id: str,

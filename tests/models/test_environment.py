@@ -45,7 +45,7 @@ class EnvironmentTest(ModelTest):
         assert env.reviewers == ["@netomi", "@OtterdogTest/eclipsefdn-security"]
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
-        
+
         # Variables and secrets are properly loaded with expected values
         assert any(v.name == "TEST_VAR" and v.value == "test_value" for v in env.variables)
         assert any(s.name == "TEST_SECRET" and s.value == "pass:path/to/secret" for s in env.secrets)
@@ -59,10 +59,10 @@ class EnvironmentTest(ModelTest):
         env_data = self.model_data.copy()
         env_data["secrets"] = [{"name": "REDACTED_SECRET", "value": "********"}]
         env = Environment.from_model_data(env_data)
-        
+
         assert len(env.secrets) == 1
         assert env.secrets[0].has_dummy_secret()
-        
+
     def test_add_retrieve_environment_variables(self):
         """Test that variables and secrets can be added/retrieved from environment"""
         # Start from JSON, then extend JSON to add a variable and reload
@@ -76,7 +76,7 @@ class EnvironmentTest(ModelTest):
 
         # Add a variable via JSON to keep tests black-box
         extended = self.model_data.copy()
-        extended_vars = list(extended.get("variables", [])) + [{"name": "NEW_VAR", "value": "new"}]
+        extended_vars = [*list(extended.get("variables", [])), {"name": "NEW_VAR", "value": "new"}]
         extended["variables"] = extended_vars
         env2 = Environment.from_model_data(extended)
         assert env2.get_variable("NEW_VAR") is not None
@@ -176,7 +176,7 @@ class EnvironmentTest(ModelTest):
     def test_github_environment_with_no_variables_or_secrets(self):
         """Test loading environment from GitHub that has no variables or secrets"""
         provider_data = self.load_json_resource("github-environment.json")
-        
+
         env = Environment.from_provider_data(self.org_id, provider_data)
 
         assert env.name == "linux"
@@ -260,5 +260,3 @@ class EnvironmentTest(ModelTest):
 
         # But the environment itself should be convertible
         assert provider_data["wait_timer"] == 15
-
-    
