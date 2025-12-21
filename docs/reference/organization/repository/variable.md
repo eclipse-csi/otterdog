@@ -1,4 +1,4 @@
-Definition of a `Variable` on repository level, the following properties are supported:
+Definition of a `Variable` on repository and environment level, the following properties are supported:
 
 | Key                     | Value          | Description              | Note |
 |-------------------------|----------------|--------------------------|------|
@@ -28,10 +28,20 @@ orgs.newRepoVariable('<name>') {
         orgs.newRepo('test-repo') {
           ...
           variables+: [
-            orgs.newRepoVariable('TEST_VARIABLE') {
+            orgs.newRepoVariable('REPO_VARIABLE') {
               value: "TESTVALUE",
             },
           ],
+
+          environments: [
+            orgs.newEnvironment('linux') {
+              variables+: [
+                orgs.newRepoVariable('ENV_VARIABLE') {
+                  value: "TESTVALUE",
+                },
+              ]
+            },
+          ]
         }
       ]
     }

@@ -1,4 +1,4 @@
-Definition of a `Secret` on repository level, the following properties are supported:
+Definition of a `Secret` on repository and environment level, the following properties are supported:
 
 | Key                     | Value          | Description                                    | Note |
 |-------------------------|----------------|------------------------------------------------|------|
@@ -50,10 +50,21 @@ orgs.newRepoSecret('<name>') {
         orgs.newRepo('test-repo') {
           ...
           secrets+: [
-            orgs.newRepoSecret('TEST_SECRET') {
+            orgs.newRepoSecret('REPO_SECRET') {
               value: "pass:path/to/secret",
             },
           ],
+
+          environments: [
+            orgs.newEnvironment('linux') {
+              secrets+: [
+                orgs.newRepoSecret('ENV_SECRET') {
+                  value: "pass:path/to/secret",
+                },
+              ]
+            },
+          ]
+
         }
       ]
     }
