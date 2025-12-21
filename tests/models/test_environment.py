@@ -12,9 +12,9 @@ from typing import Any
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import ModelObject
 from otterdog.models.environment import Environment
-from otterdog.models.environment_variable import EnvironmentVariable
 from otterdog.models.environment_secret import EnvironmentSecret
-from otterdog.utils import UNSET, query_json, Change
+from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.utils import UNSET, Change, query_json
 
 from . import ModelTest
 
