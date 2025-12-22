@@ -6,6 +6,10 @@
 
 - Support for config files written in jsonnet ([#542](https://github.com/eclipse-csi/otterdog/pull/542))
 
+### Changed
+
+ - Do not take `in-sync` into account anymore when deciding if a PR can be automerged.
+
 ## [1.1.1] - 21/11/2025
 
 ### Added
