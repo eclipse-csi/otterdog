@@ -112,7 +112,10 @@ class PullRequestModel(Model):
     def can_be_automerged(self) -> bool:
         return (
             self.valid is True
-            and self.in_sync is True
+            # do not explicitly require that the config is in sync
+            # only changes to the latest checked in config are applied
+            # this allows projects to update the config even if its out-of-sync.
+            # and self.in_sync is True
             and self.supports_auto_merge is True
             and (self.author_can_auto_merge is True or self.has_required_approvals is True)
         )
