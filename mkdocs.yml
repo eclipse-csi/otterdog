@@ -94,7 +94,9 @@ nav:
     - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
 
-- Contribute: contributing.md
+- Contribute:
+    - contributing/index.md
+    - "Details on: Plan & Apply": contributing/plan-apply.md
 
 markdown_extensions:
 - admonition
