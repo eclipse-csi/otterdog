@@ -1,6 +1,6 @@
 # Otterdog Architecture
 
-> ⚠️ Fair warning  
+> ⚠️ Fair warning
 > This *looks* complex. It **is** complex. But reading this page a few times is better than randomly poking at the code for weeks.
 
 ---
@@ -20,7 +20,7 @@ At a high level it:
 
 ```mermaid
 flowchart TB
-subgraph common
+subgraph shared
     cli_apply([otterdog plan / apply])
 
     cli_apply --> load_config(Load org config)
@@ -44,7 +44,7 @@ subgraph apply
 end
 ```
 
-**Important note:**  
+**Important note:**
 Unlike most other infrastructure-as-code tools, `apply` does **not** apply a previously generated plan. There is **no persistent plan or state file** — `apply` recomputes the diff from the *current* GitHub state and the config at runtime. This stateless design is intentional. While it might seem vulnerable to race conditions, applying an outdated plan would be even more problematic.
 
 ---
@@ -102,10 +102,10 @@ Entry point:
 Patch generation:
   - Each model inherits `generate_live_patch` from `ModelObject` (`otterdog/models/__init__.py`)
   - Models can override this method for custom behavior; otherwise the inherited implementation applies
-  - The inherited `generate_live_patch` calls `get_difference_from` on the model to compare fields and produce `Change` objects:
+  - The inherited `generate_live_patch` method calls `get_difference_from` on the model to compare fields and produce `Change` objects:
     - Fields marked with `model_only` are excluded from diff computation
     - Custom filtering logic can be implemented by overriding `include_field_for_diff_computation` and `is_key_valid_for_diff_computation` methods
-  - Differences are collected and stored in a `changes` dictionary within the `LivePatch` object
+  - Differences are collected and stored in the `changes` field within the `LivePatch` object
   - Model classes serialize themselves to provider format via `to_provider_data()` (inherited from `ModelObject`)
   - By default, `to_provider_data()` recurses into all class members as optional nested objects; override `get_mapping_to_provider` in individual model classes to customize this behavior (typically required)
 
