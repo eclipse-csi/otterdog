@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import _jsonnet  # type: ignore[import-untyped]
 import pytest
 from click.testing import CliRunner
 
@@ -22,7 +21,7 @@ from otterdog import utils
 from otterdog.config import OtterdogConfig
 from otterdog.providers.github import graphql
 from otterdog.providers.github.rest import requester
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import IndentingPrinter, LogLevel, jsonnet_evaluate_file
 
 
 class FakeHttpResponse:
@@ -65,8 +64,7 @@ class E2EContext:
     def github_response_map(self, overrides: dict[str, dict] | None = None) -> dict[str, dict]:
         # Load responses from external jsonnet file
         responses_file = Path(__file__).parent / "github_responses.jsonnet"
-        responses_json = _jsonnet.evaluate_file(str(responses_file))
-        response_map = json.loads(responses_json)
+        response_map = jsonnet_evaluate_file(str(responses_file))
 
         if overrides:
             response_map.update(overrides)
@@ -182,8 +180,7 @@ def e2e(monkeypatch: pytest.MonkeyPatch, tmp_path) -> E2EContext:
 
     # Load GraphQL responses from the responses file
     responses_file = Path(__file__).parent / "github_responses.jsonnet"
-    responses_json = _jsonnet.evaluate_file(str(responses_file))
-    all_responses = json.loads(responses_json)
+    all_responses = jsonnet_evaluate_file(str(responses_file))
     graphql_responses = all_responses.get("graphql", {})
 
     class MockClient:
