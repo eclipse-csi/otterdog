@@ -4,9 +4,6 @@ local VAR = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@m
 
 {
   defaults: {
-    bitwarden: {
-      api_token_key: "api_token_admin",
-    },
     jsonnet: {
       # Random Jsonnet feature: using a local variable
       base_template: VAR,
@@ -20,6 +17,13 @@ local VAR = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@m
     {
       name: "test-org",
       github_id: "test-org",
+      credentials: {
+        provider: "plain",
+        api_token: "test-token",
+        username: "test-user",
+        password: "test-pass",
+        twofa_seed: ""
+      }
     }, // trailing comma allowed in Jsonnet
   ],
 }

@@ -26,7 +26,7 @@ endif
 	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
 
 test:  ## Run tests
-	poetry run pytest
+	poetry run pytest --cov=otterdog --cov-report=term --cov-report=html
 
 clean:  ## Clean the development environment
 	rm -rf .venv
