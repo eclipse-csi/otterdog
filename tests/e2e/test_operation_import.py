@@ -23,7 +23,7 @@ def test_import_creates_jsonnet_file(e2e):
     assert output, "Expected import operation to produce output"
     assert "Importing resources" in output, "Expected 'Importing resources' message"
     assert "test-org" in output, "Expected organization name in output"
-    
+
     # Verify that GitHub API was called to fetch organization data
     calls = e2e.get_github_calls()
     org_calls = [call for call in calls if "/orgs/test-org" in call[1]]
@@ -50,7 +50,7 @@ def test_import_with_drifted_settings(e2e):
     assert exit_code == 0, f"Expected success, got exit code {exit_code}\n{output}"
     assert output, "Expected import operation to produce output"
     assert "Importing resources" in output, "Expected 'Importing resources' message"
-    
+
     # Verify the drifted description was fetched
     calls = e2e.get_github_calls()
     org_settings_call = any("/orgs/test-org" in call[1] and call[0] == "GET" for call in calls)
