@@ -312,6 +312,7 @@ class Repository(ModelObject):
                     "python": "python",
                     "ruby": "ruby",
                     "swift": "swift",
+                    "rust": "rust",
                 }
 
                 for configured_language in self.code_scanning_default_languages:
