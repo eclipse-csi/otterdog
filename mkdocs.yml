@@ -94,9 +94,14 @@ nav:
     - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
 
-- Contribute:
-    - contributing/index.md
-    - "Details on: Plan & Apply": contributing/plan-apply.md
+- Developing Otterdog:
+    - Overview: developing_otterdog/index.md
+    - Development Setup: developing_otterdog/development_setup.md
+    - Architecture: developing_otterdog/architecture.md
+    - Contribution Workflow: developing_otterdog/contribution_workflow.md
+    - Coding & Style Guidelines: developing_otterdog/coding_style.md
+    - Testing: developing_otterdog/testing.md
+    - Release Process: developing_otterdog/release_process.md
 
 markdown_extensions:
 - admonition
