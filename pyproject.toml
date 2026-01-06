@@ -132,6 +132,7 @@ mkdocs-material = "^9.5"
 mkdocs-exclude = "^1.0"
 pymdown-extensions = "^10.7"
 mkdocs-include-markdown-plugin = "^7.1.6"
+mkdocs-mermaid2-plugin = "^1.2.3"
 
 [tool.poetry-dynamic-versioning]
 enable     = true
