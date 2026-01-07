@@ -36,11 +36,11 @@ subgraph shared
 end
 
 subgraph plan
-  live_patch --> print
+  live_patch --> print(Print Diff)
 end
 
 subgraph apply
-  live_patch --> apply_
+  live_patch --> apply_changes(Apply Changes)
 end
 ```
 
@@ -49,7 +49,7 @@ Unlike most other infrastructure-as-code tools, `apply` does **not** apply a pre
 
 ---
 
-## Load Org Config & Desired State
+### Load Org Config & Desired State
 
 This phase loads the **desired state** purely from configuration files.
 
@@ -67,7 +67,7 @@ At this point:
 
 ---
 
-## Fetch from GitHub & Current State
+### Fetch from GitHub & Current State
 
 This phase loads the **actual (live) state** purely from GitHub.
 
@@ -92,7 +92,7 @@ Result:
 
 ---
 
-## Diff & LivePatch Generation
+### Diff & LivePatch Generation
 
 This is the core of Otterdog — where desired and live models are compared and converted into actionable patches.
 
@@ -110,7 +110,7 @@ Patch generation:
   - By default, `to_provider_data()` recurses into all class members as optional nested objects; override `get_mapping_to_provider` in individual model classes to customize this behavior (typically required)
 
 
-## Plan: Display Diff
+### Plan: Display Diff
 
 The `LivePatch` operations are formatted and shown to the user.
 
@@ -125,7 +125,7 @@ This is a **rendering step only** — no GitHub changes happen here. The user re
 
 ---
 
-## Apply: Execute Changes
+### Apply: Execute Changes
 
 The user approved the changes. Time to execute them against GitHub.
 

@@ -3,15 +3,11 @@
 This document describes the coding and documentation style guidelines for contributing to Otterdog. Please follow these guidelines to ensure consistency across the codebase.
 
 
-## Code style and requirements
-
-TODO
-
-## Documentation style
+## Documentation
 
 Documentation is written in Markdown and built using [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/).
 
-### Code documentation
+## Code documentation
 
 When contributing to otterdog, please make sure that all code is well documented. The following should be documented using properly formatted docstrings:
 

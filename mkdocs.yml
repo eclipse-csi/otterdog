@@ -115,13 +115,14 @@ markdown_extensions:
     pygments_lang_class: true
 - pymdownx.inlinehilite
 - pymdownx.snippets
+# extra must be loaded before superfences
+- pymdownx.extra
 - pymdownx.superfences:
     custom_fences:
       - name: mermaid
         class: mermaid
-        format: !!python/name:mermaid2.fence_mermaid
+        format: !!python/name:pymdownx.superfences.fence_code_format
 - pymdownx.details
-- pymdownx.extra
 - pymdownx.caret
 - pymdownx.keys
 - pymdownx.mark
@@ -140,4 +141,3 @@ plugins:
 - exclude:
     glob:
     - __pycache__/*
-- mermaid2

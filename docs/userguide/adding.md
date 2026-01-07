@@ -1,5 +1,5 @@
 In order to add new resources to a given GitHub organization, the resources have to be declared at the correct
-location in the jsonnet configuration file (see supported [Resources](../../reference/organization)).
+location in the jsonnet configuration file (see supported [Resources](../reference/organization/index.md)).
 
 The resource has to be created with its corresponding jsonnet function as described in the respective section
 in the reference guide. By default, all parameter values as defined in the default configuration are inherited,
