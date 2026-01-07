@@ -2,7 +2,7 @@
 
 This document describes how to set up a development environment for Otterdog.
 
-## Basic pre-requesite tools
+## Basic prerequisite tools
 
 - Any Python version **>= 3.11**
 - **git**
@@ -29,7 +29,7 @@ or alternatively
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-## [Optional] Otterdog WebApp development prerequisities
+## [Optional] Otterdog WebApp development prerequisites
 
 - Docker Engine (including Docker Compose)
 - Minikube
