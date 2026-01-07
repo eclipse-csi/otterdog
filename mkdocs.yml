@@ -94,7 +94,14 @@ nav:
     - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
 
-- Contribute: contributing.md
+- Developing Otterdog:
+    - Overview: developing_otterdog/index.md
+    - Development Setup: developing_otterdog/development_setup.md
+    - Architecture: developing_otterdog/architecture.md
+    - Contribution Workflow: developing_otterdog/contribution_workflow.md
+    - Coding & Style Guidelines: developing_otterdog/coding_style.md
+    - Testing: developing_otterdog/testing.md
+    - Release Process: developing_otterdog/release_process.md
 
 markdown_extensions:
 - admonition
@@ -108,7 +115,11 @@ markdown_extensions:
     pygments_lang_class: true
 - pymdownx.inlinehilite
 - pymdownx.snippets
-- pymdownx.superfences
+- pymdownx.superfences:
+    custom_fences:
+      - name: mermaid
+        class: mermaid
+        format: !!python/name:mermaid2.fence_mermaid
 - pymdownx.details
 - pymdownx.extra
 - pymdownx.caret
@@ -129,3 +140,4 @@ plugins:
 - exclude:
     glob:
     - __pycache__/*
+- mermaid2
