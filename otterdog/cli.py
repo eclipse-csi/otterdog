@@ -875,13 +875,16 @@ def review_permissions(app_slug, grant, force, organizations: list[str]):
     default=False,
     help="display advisory details",
 )
-def list_advisories(state: list[str], details: bool, organizations: list[str]):
+@click.option(
+    "-w", "--use-web", is_flag=True, show_default=True, default=False, help="scrape web to get date of latest comment"
+)
+def list_advisories(state: list[str], details: bool, use_web: bool, organizations: list[str]):
     """
     Lists repository security advisories for an organization.
     """
     from otterdog.operations.list_advisories import ListAdvisoriesOperation
 
-    _execute_operation(organizations, ListAdvisoriesOperation(state, details))
+    _execute_operation(organizations, ListAdvisoriesOperation(state, details, use_web))
 
 
 @cli.command(cls=StdCommand, short_help="Checks granted scopes for the otterdog token.")
