@@ -42,6 +42,8 @@ class JsonnetConfig:
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
+    create_environment_secret = "newEnvironmentSecret"
+    create_environment_variable = "newEnvironmentVariable"
     create_pull_request = "newPullRequest"
     create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"

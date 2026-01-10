@@ -34,7 +34,7 @@ class EnvironmentVariable(Variable):
         return "environment_variable"
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
-        return f"orgs.{jsonnet_config.create_repo_variable}"
+        return f"orgs.{jsonnet_config.create_environment_variable}"
 
     @classmethod
     async def apply_live_patch(  # type: ignore[override]

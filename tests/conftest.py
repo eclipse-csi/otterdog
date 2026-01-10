@@ -72,3 +72,7 @@ def mock_github_provider():
         mock_provider.setup_org_advisories({"published": [advisory1, advisory2]})
     """
     return MockGitHubProvider
+
+
+# Load `github` fixture
+pytest_plugins = ["tests.providers.github.github_provider_mock"]

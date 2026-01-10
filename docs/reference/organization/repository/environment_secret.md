@@ -1,4 +1,4 @@
-Definition of a `Secret` on repository level, the following properties are supported:
+Definition of a `Secret` on environment level, the following properties are supported:
 
 | Key                     | Value          | Description                                    | Note |
 |-------------------------|----------------|------------------------------------------------|------|
@@ -30,7 +30,7 @@ The secret value can be resolved via a credential provider. The supported format
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newRepoSecret('<name>') {
+orgs.newEnvironmentSecret('<name>') {
   <key>: <value>
 }
 ```
@@ -49,11 +49,17 @@ orgs.newRepoSecret('<name>') {
         ...
         orgs.newRepo('test-repo') {
           ...
-          secrets+: [
-            orgs.newRepoSecret('REPO_SECRET') {
-              value: "pass:path/to/secret",
+
+          environments: [
+            orgs.newEnvironment('linux') {
+              secrets+: [
+                orgs.newEnvironmentSecret('LICENSE_KEY') {
+                  value: "pass:path/to/secret",
+                },w
+              ]
             },
-          ],
+          ]
+
         }
       ]
     }

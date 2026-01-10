@@ -18,9 +18,10 @@ from typing import Any
 import aiofiles
 import chevron
 
+import otterdog.providers.github.rest as github_rest  # for monkeypatching encrypt_value
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException
-from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
+from otterdog.providers.github.rest import RestApi, RestClient
 from otterdog.utils import (
     associate_by_key,
     get_logger,
@@ -886,7 +887,7 @@ class RepoClient(RestClient):
     ) -> None:
         value = data.pop("value")
         key_id, public_key = await self._get_public_key(org_id, repo_name, env_name)
-        data["encrypted_value"] = encrypt_value(public_key, value)
+        data["encrypted_value"] = github_rest.encrypt_value(public_key, value)
         data["key_id"] = key_id
 
     async def delete_secret(self, org_id: str, repo_name: str, env_name: str | None, secret_name: str) -> None:

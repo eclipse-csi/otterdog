@@ -17,6 +17,8 @@ from otterdog.providers.github.cache.file import file_cache
 from .requester import Requester
 
 if TYPE_CHECKING:
+    from aiohttp_retry import RetryClient
+
     from otterdog.providers.github.auth import AuthStrategy
     from otterdog.providers.github.cache import CacheStrategy
     from otterdog.providers.github.stats import RequestStatistics
@@ -33,10 +35,13 @@ class RestApi:
         self,
         auth_strategy: AuthStrategy | None = None,
         cache_strategy: CacheStrategy = _DEFAULT_CACHE_STRATEGY,
+        http_client: RetryClient | None = None,
     ):
         self._auth_strategy = auth_strategy
         self._cache_strategy = cache_strategy
-        self._requester = Requester(auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION)
+        self._requester = Requester(
+            auth_strategy, cache_strategy, self._GH_API_URL_ROOT, self._GH_API_VERSION, http_client=http_client
+        )
 
     async def __aenter__(self):
         return self
@@ -161,7 +166,18 @@ def encrypt_value(public_key: str, secret_value: str) -> str:
     public_key_obj = public.PublicKey(public_key.encode("utf-8"), encoding.Base64Encoder)
     sealed_box = public.SealedBox(public_key_obj)
     encrypted = sealed_box.encrypt(secret_value.encode("utf-8"))
-    return b64encode(encrypted).decode("utf-8")
+    encrypted_str = b64encode(encrypted).decode("utf-8")
+
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print(f"Encrypted value for secret '{secret_value}' with public key '{public_key}': {encrypted_str}")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    return encrypted_str
 
 
 def parse_iso_date_string(date: str) -> datetime:

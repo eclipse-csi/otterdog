@@ -21,6 +21,8 @@ from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 if TYPE_CHECKING:
     from typing import Any
 
+    from aiohttp_retry import RetryClient
+
     from otterdog.credentials import Credentials
 
 
@@ -41,11 +43,11 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
 
 
 class GitHubProvider:
-    def __init__(self, credentials: Credentials | None):
+    def __init__(self, credentials: Credentials | None, http_client: RetryClient | None = None):
         self._credentials = credentials
 
         if credentials is not None:
-            self._init_clients()
+            self._init_clients(http_client)
 
     async def __aenter__(self):
         return self
@@ -61,7 +63,7 @@ class GitHubProvider:
             with contextlib.suppress(CancelledError):
                 await self.graphql_client.close()
 
-    def _init_clients(self):
+    def _init_clients(self, http_client: RetryClient | None) -> None:
         from otterdog.cache import get_github_cache
         from otterdog.providers.github.auth import token_auth
 
@@ -69,9 +71,15 @@ class GitHubProvider:
         from .rest import RestApi
         from .web import WebClient
 
-        self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
+        if not self._credentials:
+            raise RuntimeError("cannot initialize GitHubProvider without credentials")
+
+        cache = get_github_cache()
+        auth = token_auth(self._credentials.github_token)
+
+        self.rest_api = RestApi(auth, cache, http_client)
         self.web_client = WebClient(self._credentials)
-        self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token), get_github_cache())
+        self.graphql_client = GraphQLClient(auth, cache, http_client)
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         return await self.rest_api.content.get_content(org_id, repo_name, path, ref)

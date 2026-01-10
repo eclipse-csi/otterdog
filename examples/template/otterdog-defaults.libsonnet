@@ -230,6 +230,12 @@ local newOrgSecret(name) = newRepoSecret(name) {
   selected_repositories: [],
 };
 
+# Function to create a new environment secret with default settings.
+local newEnvironmentSecret(name) = {
+  name: name,
+  value: null,
+};
+
 # Function to create a new repository variable with default settings.
 local newRepoVariable(name) = {
   name: name,
@@ -240,6 +246,12 @@ local newRepoVariable(name) = {
 local newOrgVariable(name) = newRepoVariable(name) {
   visibility: "public",
   selected_repositories: [],
+};
+
+# Function to create a new environment variable with default settings.
+local newEnvironmentVariable(name) = {
+  name: name,
+  value: null,
 };
 
 # Function to create a new organization role with default settings.

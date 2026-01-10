@@ -1,4 +1,4 @@
-Definition of a `Variable` on repository level, the following properties are supported:
+Definition of a `Variable` on environment level, the following properties are supported:
 
 | Key                     | Value          | Description              | Note |
 |-------------------------|----------------|--------------------------|------|
@@ -8,7 +8,7 @@ Definition of a `Variable` on repository level, the following properties are sup
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newRepoVariable('<name>') {
+orgs.newEnvironmentVariable('<name>') {
   <key>: <value>
 }
 ```
@@ -27,11 +27,17 @@ orgs.newRepoVariable('<name>') {
         ...
         orgs.newRepo('test-repo') {
           ...
-          variables+: [
-            orgs.newRepoVariable('REPO_VARIABLE') {
-              value: "TESTVALUE",
+
+          environments: [
+            orgs.newEnvironment('linux') {
+              secrets+: [
+                orgs.newEnvironmentVariable('LICENSE_SEREVER') {
+                  value: "127.0.0.1",
+                },w
+              ]
             },
-          ],
+          ]
+
         }
       ]
     }

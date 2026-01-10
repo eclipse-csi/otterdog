@@ -34,7 +34,7 @@ class EnvironmentSecret(Secret):
         return "environment_secret"
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
-        return f"orgs.{jsonnet_config.create_repo_secret}"
+        return f"orgs.{jsonnet_config.create_environment_secret}"
 
     @classmethod
     async def apply_live_patch(  # type: ignore[override]
@@ -48,33 +48,32 @@ class EnvironmentSecret(Secret):
 
         match patch.patch_type:
             case LivePatchType.ADD:
-                expected = unwrap(patch.expected_object)
-                data = await expected.to_provider_data(org_id, provider)
-                await provider.upsert_environment_secret(
+                new_object = unwrap(patch.expected_object)
+                data = await new_object.to_provider_data(org_id, provider)
+                await provider.create_environment_secret(
                     org_id,
                     repository.name,
                     environment.name,
-                    expected.name,
                     data,
                 )
 
             case LivePatchType.REMOVE:
-                current = unwrap(patch.current_object)
+                remove_object = unwrap(patch.current_object)
                 await provider.delete_environment_secret(
                     org_id,
                     repository.name,
                     environment.name,
-                    current.name,
+                    remove_object.name,
                 )
 
             case LivePatchType.CHANGE:
-                current: EnvironmentSecret = unwrap(patch.current_object)
-                expected: EnvironmentSecret = unwrap(patch.expected_object)
-                data = await expected.to_provider_data(org_id, provider)
-                await provider.upsert_environment_secret(
+                current_obj: EnvironmentSecret = unwrap(patch.current_object)
+                expected_obj: EnvironmentSecret = unwrap(patch.expected_object)
+                data = await expected_obj.to_provider_data(org_id, provider)
+                await provider.update_environment_secret(
                     org_id,
                     repository.name,
                     environment.name,
-                    current.name,
+                    current_obj.name,
                     data,
                 )
