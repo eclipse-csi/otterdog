@@ -163,12 +163,18 @@ class StatusCheckSettings(EmbeddedModelObject):
     ) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
 
-        if "status_checks" in data:
+        status_checks = data.get("status_checks")
 
-            async def get_app_ids(status_checks) -> dict[str, str]:
+        # if an empty list of status checks is defined, do not set any checks at all.
+        if status_checks is not None and len(status_checks) == 0:
+            return {}
+
+        if status_checks is not None:
+
+            async def get_app_ids(checks) -> dict[str, str]:
                 app_slugs = set()
 
-                for check in status_checks:
+                for check in checks:
                     if ":" in check:
                         app_slug, context = re.split(":", check, maxsplit=1)
 
@@ -177,7 +183,7 @@ class StatusCheckSettings(EmbeddedModelObject):
 
                 return await provider.get_app_ids(app_slugs)
 
-            app_ids = await get_app_ids(data["status_checks"])
+            app_ids = await get_app_ids(status_checks)
         else:
             app_ids = {}
 

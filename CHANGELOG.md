@@ -4,25 +4,29 @@
 
 ### Added
 
-- Support for config files written in jsonnet ([#542](https://github.com/eclipse-csi/otterdog/pull/542))
+ - Support for config files written in jsonnet ([#542](https://github.com/eclipse-csi/otterdog/pull/542))
 
 ### Changed
 
  - Do not take `in-sync` into account anymore when deciding if a PR can be automerged.
 
+### Fixed
+
+ - Correctly handle rulesets with empty `status_checks`. ([#562](https://github.com/eclipse-csi/otterdog/issues/562))
+
 ## [1.1.1] - 21/11/2025
 
 ### Added
 
-- Adding "Rust" support for Code Scanning
-- Remove the out of sync PR comment
-- Code scanning language check for repositories ([#507](https://github.com/eclipse-csi/otterdog/issues/507))
+ - Adding "Rust" support for Code Scanning
+ - Remove the out of sync PR comment
+ - Code scanning language check for repositories ([#507](https://github.com/eclipse-csi/otterdog/issues/507))
 
 ### Fixed
 
-- Resolve status checks to their fully-qualified name for `OrgRulesets` as the GH API only returns the `integration_id`. ([#491](https://github.com/eclipse-csi/otterdog/issues/491))
-- Fix renaming a repository and modifying settings in a single operation. ([#472](https://github.com/eclipse-csi/otterdog/issues/472))
-- Fix crashes during webapp startup in multi-worker environments.
+ - Resolve status checks to their fully-qualified name for `OrgRulesets` as the GH API only returns the `integration_id`. ([#491](https://github.com/eclipse-csi/otterdog/issues/491))
+ - Fix renaming a repository and modifying settings in a single operation. ([#472](https://github.com/eclipse-csi/otterdog/issues/472))
+ - Fix crashes during webapp startup in multi-worker environments.
 
 ## [1.1.0] - 04/09/2025
 
