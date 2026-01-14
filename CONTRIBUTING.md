@@ -1,1 +1,1 @@
-Please read the [Contributing](https://otterdog.readthedocs.io/en/latest/contributing/) guidelines in the documentation site.
+Please read the [Contributing](https://otterdog.readthedocs.io/en/latest/developing_otterdog/) guidelines on the documentation site.
