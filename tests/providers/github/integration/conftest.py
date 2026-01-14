@@ -9,7 +9,6 @@
 import pytest
 import pytest_asyncio
 
-import otterdog.providers.github.rest as github_rest
 from otterdog.credentials import Credentials
 from otterdog.providers.github import GitHubProvider
 
@@ -29,6 +28,8 @@ class GitHubProviderTestKit:
         self.provider = self._create_provider_with_mock_client()
 
     def _create_provider_with_mock_client(self) -> GitHubProvider:
+        import otterdog.providers.github.rest.requester as requester
+
         credentials = Credentials(
             "fake-user",
             "fake-password",
@@ -37,7 +38,7 @@ class GitHubProviderTestKit:
             "fake-last-totp",
         )
 
-        self._monkeypatch.setattr(github_rest.requester, "RetryClient", lambda *args, **kwargs: self.http)
+        self._monkeypatch.setattr(requester, "RetryClient", lambda *args, **kwargs: self.http)
         return GitHubProvider(credentials)
 
     def fake_encryption(self, params: tuple[str, str], ciphertext: str) -> None:
@@ -52,12 +53,18 @@ class GitHubProviderTestKit:
             github_mock.fake_encryption((public_key, plaintext), ciphertext)
         """
 
+        # we need to patch the encrypt_value function where it is being used
+        # see: https://docs.python.org/3/library/unittest.mock.html#where-to-patch
+        import otterdog.providers.github.rest.org_client as org_client
+        import otterdog.providers.github.rest.repo_client as repo_client
+
         def encrypt_value(pk: str, value: str) -> str:
             assert pk == params[0], f"unexpected public key: {pk!r}"
             assert value == params[1], f"unexpected secret value: {value!r}"
             return ciphertext
 
-        self._monkeypatch.setattr(github_rest, "encrypt_value", encrypt_value)
+        self._monkeypatch.setattr(org_client, "encrypt_value", encrypt_value)
+        self._monkeypatch.setattr(repo_client, "encrypt_value", encrypt_value)
 
 
 # Last, but not least, this is the fixture that tests will use.
