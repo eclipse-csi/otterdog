@@ -43,6 +43,7 @@ nav:
     - setup.md
     - usage.md
 - Reference:
+    - reference/index.md
     - Resources:
       - Format: reference/resource-format.md
       - GitHub Organization:
@@ -89,6 +90,8 @@ nav:
         - Validate: reference/operations/validate.md
         - List Advisories: reference/operations/list-advisories.md
 - User Guide:
+    - userguide/index.md
+    - Workflow: userguide/workflow.md
     - Adding new Resources: userguide/adding.md
     - Renaming of Resources: userguide/renaming.md
     - Removal of Resources: userguide/removal.md
