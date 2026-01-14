@@ -40,7 +40,7 @@ async def generate_patch_and_run_it(
 async def test_create(github: GitHubProviderTestKit):
     github.fake_encryption((GITHUB_SERVER_PUBLIC_KEY, PLAINTEXT_SECRET), CIPHERTEXT)
 
-    # First of all the pubic key is fetched.
+    # First of all the public key is fetched.
     github.http.expect(
         "GET",
         f"/repos/{ORG_ID}/{REPO_NAME}/actions/secrets/public-key",
@@ -93,7 +93,7 @@ async def test_read(github: GitHubProviderTestKit):
 async def test_update(github: GitHubProviderTestKit):
     github.fake_encryption((GITHUB_SERVER_PUBLIC_KEY, PLAINTEXT_SECRET), CIPHERTEXT)
 
-    # First of all the pubic key is fetched.
+    # First of all the public key is fetched.
     github.http.expect(
         "GET",
         f"/repos/{ORG_ID}/{REPO_NAME}/actions/secrets/public-key",

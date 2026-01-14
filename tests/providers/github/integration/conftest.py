@@ -4,7 +4,6 @@ import pytest_asyncio
 import otterdog.providers.github.rest as github_rest
 from otterdog.credentials import Credentials
 from otterdog.providers.github import GitHubProvider
-from otterdog.providers.github.rest import requester
 
 from .helpers.http_mock import HttpClientMock
 
@@ -30,7 +29,7 @@ class GitHubProviderTestKit:
             "fake-last-totp",
         )
 
-        self._monkeypatch.setattr(requester, "RetryClient", lambda *args, **kwargs: self.http)
+        self._monkeypatch.setattr(github_rest.requester, "RetryClient", lambda *args, **kwargs: self.http)
         return GitHubProvider(credentials)
 
     def fake_encryption(self, params: tuple[str, str], ciphertext: str) -> None:
