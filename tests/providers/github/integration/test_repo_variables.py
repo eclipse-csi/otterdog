@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import pytest
 
 from otterdog.models.repo_variable import RepositoryVariable
 
@@ -39,7 +38,6 @@ async def generate_patch_and_run_it(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_create(github: GitHubProviderTestKit):
     github.http.expect(
         "POST",
@@ -55,7 +53,6 @@ async def test_create(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_read(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
@@ -90,7 +87,6 @@ async def test_read(github: GitHubProviderTestKit):
     ]
 
 
-@pytest.mark.asyncio
 async def test_update(github: GitHubProviderTestKit):
     github.http.expect(
         "PATCH",
@@ -106,7 +102,6 @@ async def test_update(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_delete(github: GitHubProviderTestKit):
     github.http.expect(
         "DELETE",

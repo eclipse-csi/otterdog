@@ -25,7 +25,6 @@ class TestRepoClientCodeScanningConfig:
             (["javascript", "typescript"], ["javascript", "typescript"], "keeps valid languages unchanged"),
         ],
     )
-    @pytest.mark.asyncio
     async def test_fill_code_scanning_config_language_filtering(self, input_languages, expected_languages, description):
         async def mock_request_raw(method, url):
             return (200, json.dumps({"languages": input_languages, "state": "configured"}))
@@ -45,7 +44,6 @@ class TestRepoClientCodeScanningConfig:
         expected_config = {"languages": expected_languages, "state": "configured"}
         assert repo_data["code_scanning_default_config"] == expected_config
 
-    @pytest.mark.asyncio
     async def test_fill_code_scanning_config_no_languages_key(self):
         async def mock_request_raw(method, url):
             return (200, json.dumps({"state": "configured"}))
@@ -67,7 +65,6 @@ class TestRepoClientCodeScanningConfig:
             (500, "Internal Server Error"),
         ],
     )
-    @pytest.mark.asyncio
     async def test_fill_code_scanning_config_non_200_status(self, status_code, response_body):
         async def mock_request_raw(method, url):
             return (status_code, response_body)
@@ -84,7 +81,6 @@ class TestRepoClientCodeScanningConfig:
 
 
 class TestRepoClientUpdateRepo:
-    @pytest.mark.asyncio
     async def test_update_repo_with_rename_and_topics_correct_order(self):
         request_calls = []
 
@@ -106,7 +102,6 @@ class TestRepoClientUpdateRepo:
             pretend.call("PUT", "/repos/test-org/new-repo-name/topics", data={"names": ["python", "cli"]}),
         ]
 
-    @pytest.mark.asyncio
     async def test_update_repo_topics_only_no_rename(self):
         request_calls = []
 
@@ -126,7 +121,6 @@ class TestRepoClientUpdateRepo:
             pretend.call("PUT", "/repos/test-org/repo-name/topics", data={"names": ["python", "cli"]}),
         ]
 
-    @pytest.mark.asyncio
     async def test_update_repo_rename_only(self):
         request_calls = []
 

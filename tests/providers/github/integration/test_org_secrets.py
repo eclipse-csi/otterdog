@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import pytest
 
 from otterdog.models.organization_secret import OrganizationSecret
 
@@ -46,7 +45,6 @@ async def generate_patch_and_run_it(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_create(github: GitHubProviderTestKit):
     github.fake_encryption((GITHUB_SERVER_PUBLIC_KEY, PLAINTEXT_SECRET), CIPHERTEXT)
 
@@ -80,7 +78,6 @@ async def test_create(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_read(github: GitHubProviderTestKit):
     # API: https://docs.github.com/en/rest/actions/secrets#get-an-organization-secret
     github.http.expect(
@@ -151,7 +148,6 @@ async def test_read(github: GitHubProviderTestKit):
     ]
 
 
-@pytest.mark.asyncio
 async def test_update(github: GitHubProviderTestKit):
     github.fake_encryption((GITHUB_SERVER_PUBLIC_KEY, PLAINTEXT_SECRET), CIPHERTEXT)
 
@@ -184,7 +180,6 @@ async def test_update(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_delete(github: GitHubProviderTestKit):
     # API: https://docs.github.com/en/rest/actions/secrets#delete-an-organization-secret
     github.http.expect(

@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import pytest
 
 from otterdog.models.organization_variable import OrganizationVariable
 
@@ -39,7 +38,6 @@ async def generate_patch_and_run_it(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 async def test_create(github: GitHubProviderTestKit):
     # API: https://docs.github.com/en/rest/actions/variables#create-an-organization-variable
     github.http.expect(
@@ -66,7 +64,6 @@ async def test_create(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_read(github: GitHubProviderTestKit):
     # The get_variables method also fetches selected repositories for variables with selected visibility
     github.http.expect(
@@ -137,7 +134,6 @@ async def test_read(github: GitHubProviderTestKit):
     ]
 
 
-@pytest.mark.asyncio
 async def test_update(github: GitHubProviderTestKit):
     # API: https://docs.github.com/en/rest/actions/variables#update-an-organization-variable
     github.http.expect(
@@ -164,7 +160,6 @@ async def test_update(github: GitHubProviderTestKit):
     )
 
 
-@pytest.mark.asyncio
 async def test_delete(github: GitHubProviderTestKit):
     github.http.expect(
         "DELETE",
