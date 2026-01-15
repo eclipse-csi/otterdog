@@ -1,4 +1,4 @@
-.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs help
+.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -77,6 +77,9 @@ clean-webapp:  ## Clean Web App the development environment
 
 docs:  ## Generate documentation
 	poetry run mkdocs build
+
+docs-serve:
+	poetry run mkdocs serve --livereload
 
 help:  ## Show this help
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
