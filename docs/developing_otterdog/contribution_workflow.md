@@ -65,6 +65,26 @@ make test
 
 Note: Code coverage HTML is also available in `htmlcov/`
 
+## Write docs
+
+Otterdog docs are built with [`mkdocs`](https://www.mkdocs.org/) and
+[`material`](https://squidfunk.github.io/mkdocs-material/). Check out their docs
+for specific Markdown flavors.
+
+Relevant sources are:
+
+* `docs/`: Site contents
+* `mkdocs.yml`: Site config
+* `.readthedocs.yaml`: Deployment config
+
+Please always review your changes locally (some things render
+differently, than you might be used from GitHub):
+
+```bash
+make docs-serve
+```
+
+
 ## Commit and push your changes
 
 Commit your changes, push your branch to GitHub, and create a pull request.
