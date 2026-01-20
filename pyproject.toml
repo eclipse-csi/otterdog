@@ -154,7 +154,6 @@ build-backend = "poetry_dynamic_versioning.backend"
 minversion = "7.2"
 testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
-addopts    = ["--cov=otterdog", "--cov-report", "term", "--cov-report", "html"]
 
 log_cli             = true
 log_cli_level       = "INFO"

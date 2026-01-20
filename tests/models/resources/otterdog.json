@@ -1,8 +1,5 @@
 {
   "defaults": {
-    "bitwarden": {
-      "api_token_key": "api_token_admin"
-    },
     "jsonnet": {
       "base_template": "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main",
       "config_dir": "."
@@ -14,7 +11,14 @@
   "organizations": [
     {
       "name": "test-org",
-      "github_id": "test-org"
+      "github_id": "test-org",
+      "credentials": {
+        "provider": "plain",
+        "api_token": "test-token",
+        "username": "test-user",
+        "password": "test-pass",
+        "twofa_seed": ""
+      }
     }
   ]
 }
