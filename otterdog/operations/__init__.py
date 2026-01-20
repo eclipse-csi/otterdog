@@ -337,9 +337,14 @@ class Operation(ABC):
 
             if v != c_v:
                 if c_v is None:
-                    self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
+                    if isinstance(v, list):
+                        self._print_modified_internal(k, max_key_length, c_v, v, "[green]+ [/]", "green", forced_update)
+                    else:
+                        self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
                 elif v is None:
                     self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}")
+                    self._print_modified_internal(k, max_key_length, c_v, v, "[green]+ [/]", "green", forced_update)
+
                 else:
                     self._print_modified_internal(k, max_key_length, c_v, v, prefix, color, forced_update)
             elif forced_update is True:
@@ -361,6 +366,12 @@ class Operation(ABC):
         forced_update: bool,
     ) -> None:
         from difflib import SequenceMatcher
+
+        if current_value is None:
+            current_value = []
+
+        if expected_value is None:
+            expected_value = []
 
         a = sorted(current_value)
         b = sorted(expected_value)
