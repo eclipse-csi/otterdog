@@ -28,6 +28,13 @@ from otterdog.utils import get_logger
 _logger = get_logger(__name__)
 
 
+def create_http_client(session: ClientSession) -> RetryClient:
+    return RetryClient(
+        retry_options=ExponentialRetry(3, exceptions={Exception}),
+        client_session=session,
+    )
+
+
 class Requester:
     def __init__(
         self,
@@ -35,6 +42,7 @@ class Requester:
         cache_strategy: CacheStrategy,
         base_url: str,
         api_version: str,
+        http_client: RetryClient | None = None,
     ):
         self._auth = auth_strategy.get_auth() if auth_strategy is not None else None
 
@@ -60,10 +68,7 @@ class Requester:
                 ),
             )
 
-        self._client = RetryClient(
-            retry_options=ExponentialRetry(3, exceptions={Exception}),
-            client_session=self._session,
-        )
+        self._client = http_client or create_http_client(self._session)
 
     @property
     def statistics(self) -> RequestStatistics:

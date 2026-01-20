@@ -9,5 +9,25 @@
   "branch_policies": [
     "main",
     "develop/*"
+  ],
+  "variables": [
+    {
+      "name": "TEST_VAR",
+      "value": "test_value"
+    },
+    {
+      "name": "EXTRA_VAR",
+      "value": "extra_value"
+    }
+  ],
+  "secrets": [
+    {
+      "name": "TEST_SECRET",
+      "value": "pass:path/to/secret"
+    },
+    {
+      "name": "EXTRA_SECRET",
+      "value": "bitwarden:118276ad-158c-4720-b68d-af8c00fe3481@secret"
+    }
   ]
 }

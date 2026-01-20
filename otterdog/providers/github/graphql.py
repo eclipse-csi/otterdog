@@ -28,10 +28,22 @@ if TYPE_CHECKING:
 _logger = get_logger(__name__)
 
 
+def create_http_client(session: ClientSession) -> RetryClient:
+    return RetryClient(
+        retry_options=ExponentialRetry(3, exceptions={Exception}),
+        client_session=session,
+    )
+
+
 class GraphQLClient:
     _GH_GRAPHQL_URL_ROOT = "api.github.com/graphql"
 
-    def __init__(self, auth_strategy: AuthStrategy, cache_strategy: CacheStrategy | None = None):
+    def __init__(
+        self,
+        auth_strategy: AuthStrategy,
+        cache_strategy: CacheStrategy | None = None,
+        http_client: RetryClient | None = None,
+    ):
         self._auth = auth_strategy.get_auth()
 
         self._headers = {
@@ -54,10 +66,7 @@ class GraphQLClient:
             connector=TCPConnector(limit=10),
         )
 
-        self._client = RetryClient(
-            retry_options=ExponentialRetry(3, exceptions={Exception}),
-            client_session=self._session,
-        )
+        self._client = http_client or create_http_client(self._session)
 
     async def __aenter__(self):
         return self

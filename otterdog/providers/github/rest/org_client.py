@@ -9,10 +9,11 @@
 import json
 from typing import Any
 
+import otterdog.providers.github.rest as github_rest  # for monkeypatching encrypt_value
 from otterdog.providers.github.exception import GitHubException
 from otterdog.utils import get_logger
 
-from . import RestApi, RestClient, encrypt_value
+from . import RestApi, RestClient
 
 _logger = get_logger(__name__)
 
@@ -371,7 +372,7 @@ class OrgClient(RestClient):
         if "value" in data:
             value = data.pop("value")
             key_id, public_key = await self.get_public_key(org_id)
-            data["encrypted_value"] = encrypt_value(public_key, value)
+            data["encrypted_value"] = github_rest.encrypt_value(public_key, value)
             data["key_id"] = key_id
 
     async def delete_secret(self, org_id: str, secret_name: str) -> None:

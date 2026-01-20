@@ -23,7 +23,12 @@ from otterdog.models import (
 from otterdog.utils import expect_type, is_set_and_valid, is_unset, unwrap
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models.environment_secret import EnvironmentSecret
+    from otterdog.models.environment_variable import EnvironmentVariable
+    from otterdog.models.repository import Repository
     from otterdog.providers.github import GitHubProvider
 
 
@@ -41,9 +46,34 @@ class Environment(ModelObject):
     deployment_branch_policy: str
     branch_policies: list[str]
 
+    # internal parent tracking (model-only, not serialized)
+    parent_repository: Repository | None = dataclasses.field(default=None, metadata={"model_only": True})
+
+    # nested model fields
+    variables: list[EnvironmentVariable] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    secrets: list[EnvironmentSecret] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+
     @property
     def model_object_name(self) -> str:
         return "environment"
+
+    def add_variable(self, variable: EnvironmentVariable) -> None:
+        self.variables.append(variable)
+
+    def get_variable(self, name: str) -> EnvironmentVariable | None:
+        return next(filter(lambda x: x.name == name, self.variables), None)
+
+    def set_variables(self, variables: list[EnvironmentVariable]) -> None:
+        self.variables = variables
+
+    def add_secret(self, secret: EnvironmentSecret) -> None:
+        self.secrets.append(secret)
+
+    def get_secret(self, name: str) -> EnvironmentSecret | None:
+        return next(filter(lambda x: x.name == name, self.secrets), None)
+
+    def set_secrets(self, secrets: list[EnvironmentSecret]) -> None:
+        self.secrets = secrets
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if not is_unset(self.wait_timer) and not (0 <= self.wait_timer <= 43200):
@@ -96,15 +126,17 @@ class Environment(ModelObject):
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Construct Environment object from json data returned by GitHub API."""
+
         mapping = super().get_mapping_from_provider(org_id, data)
 
         def transform_reviewers(x):
             match x["type"]:
                 case "User":
-                    return f'@{x["reviewer"]["login"]}'
+                    return f"@{x['reviewer']['login']}"
 
                 case "Team":
-                    return f'@{org_id}/{x["reviewer"]["slug"]}'
+                    return f"@{org_id}/{x['reviewer']['slug']}"
 
                 case _:
                     raise RuntimeError("unexpected review type '{x[\"type\"]}'")
@@ -145,6 +177,23 @@ class Environment(ModelObject):
                 "branch_policies": OptionalS("branch_policies", default=[]) >> Forall(transform_branch_policy),
             }
         )
+        return mapping
+
+    @classmethod
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        # Overriding get_mapping_from_model is required to handle nested models
+        from otterdog.models.environment_secret import EnvironmentSecret
+        from otterdog.models.environment_variable import EnvironmentVariable
+
+        mapping = super().get_mapping_from_model()
+        mapping.update(
+            {
+                "variables": OptionalS("variables", default=[])
+                >> Forall(lambda x: EnvironmentVariable.from_model_data(x)),
+                "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: EnvironmentSecret.from_model_data(x)),
+            }
+        )
+
         return mapping
 
     @classmethod
@@ -191,6 +240,22 @@ class Environment(ModelObject):
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_environment}"
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        """
+        Report any nested model objects for nested processing.
+
+        Especially get_mapping_to_provider iterates over self, and not over the nested
+        model objects, so we need to report them here for processing.
+        """
+
+        for secret in self.secrets:
+            yield secret, self
+            yield from secret.get_model_objects()
+
+        for variable in self.variables:
+            yield variable, self
+            yield from variable.get_model_objects()
 
     @classmethod
     async def apply_live_patch(cls, patch: LivePatch[Environment], org_id: str, provider: GitHubProvider) -> None:

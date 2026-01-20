@@ -21,6 +21,8 @@ from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 if TYPE_CHECKING:
     from typing import Any
 
+    from aiohttp_retry import RetryClient
+
     from otterdog.credentials import Credentials
 
 
@@ -41,11 +43,11 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
 
 
 class GitHubProvider:
-    def __init__(self, credentials: Credentials | None):
+    def __init__(self, credentials: Credentials | None, http_client: RetryClient | None = None):
         self._credentials = credentials
 
         if credentials is not None:
-            self._init_clients()
+            self._init_clients(http_client)
 
     async def __aenter__(self):
         return self
@@ -61,7 +63,7 @@ class GitHubProvider:
             with contextlib.suppress(CancelledError):
                 await self.graphql_client.close()
 
-    def _init_clients(self):
+    def _init_clients(self, http_client: RetryClient | None) -> None:
         from otterdog.cache import get_github_cache
         from otterdog.providers.github.auth import token_auth
 
@@ -69,9 +71,15 @@ class GitHubProvider:
         from .rest import RestApi
         from .web import WebClient
 
-        self.rest_api = RestApi(token_auth(self._credentials.github_token), get_github_cache())
+        if not self._credentials:
+            raise RuntimeError("cannot initialize GitHubProvider without credentials")
+
+        cache = get_github_cache()
+        auth = token_auth(self._credentials.github_token)
+
+        self.rest_api = RestApi(auth, cache, http_client)
         self.web_client = WebClient(self._credentials)
-        self.graphql_client = GraphQLClient(token_auth(self._credentials.github_token), get_github_cache())
+        self.graphql_client = GraphQLClient(auth, cache, http_client)
 
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         return await self.rest_api.content.get_content(org_id, repo_name, path, ref)
@@ -368,6 +376,7 @@ class GitHubProvider:
     ) -> None:
         await self.rest_api.repo.update_workflow_settings(org_id, repo_name, workflow_settings)
 
+    # CRUD for Org Secrets
     async def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_secrets(org_id)
 
@@ -381,6 +390,7 @@ class GitHubProvider:
     async def delete_org_secret(self, org_id: str, secret_name: str) -> None:
         await self.rest_api.org.delete_secret(org_id, secret_name)
 
+    # CRUD for Org Variables
     async def get_org_variables(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_variables(org_id)
 
@@ -394,33 +404,70 @@ class GitHubProvider:
     async def delete_org_variable(self, org_id: str, variable_name: str) -> None:
         await self.rest_api.org.delete_variable(org_id, variable_name)
 
+    # CRUD for Repo Secrets
     async def get_repo_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return await self.rest_api.repo.get_secrets(org_id, repo_name)
+        return await self.rest_api.repo.get_secrets(org_id, repo_name, None)
 
     async def update_repo_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
         if len(secret) > 0:
-            await self.rest_api.repo.update_secret(org_id, repo_name, secret_name, secret)
+            await self.rest_api.repo.update_secret(org_id, repo_name, None, secret_name, secret)
 
     async def add_repo_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.repo.add_secret(org_id, repo_name, data)
+        await self.rest_api.repo.add_secret(org_id, repo_name, None, data)
 
     async def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        await self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
+        await self.rest_api.repo.delete_secret(org_id, repo_name, None, secret_name)
 
     async def get_repo_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return await self.rest_api.repo.get_variables(org_id, repo_name)
+        return await self.rest_api.repo.get_variables(org_id, repo_name, None)
 
     async def update_repo_variable(
         self, org_id: str, repo_name: str, variable_name: str, variable: dict[str, Any]
     ) -> None:
         if len(variable) > 0:
-            await self.rest_api.repo.update_variable(org_id, repo_name, variable_name, variable)
+            await self.rest_api.repo.update_variable(org_id, repo_name, None, variable_name, variable)
 
     async def add_repo_variable(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.repo.add_variable(org_id, repo_name, data)
+        await self.rest_api.repo.add_variable(org_id, repo_name, None, data)
 
     async def delete_repo_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
-        await self.rest_api.repo.delete_variable(org_id, repo_name, variable_name)
+        await self.rest_api.repo.delete_variable(org_id, repo_name, None, variable_name)
+
+    # CRUD for Environment Variables
+    async def create_environment_variable(
+        self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]
+    ) -> None:
+        await self.rest_api.repo.add_variable(org_id, repo_name, env_name, data)
+
+    async def get_environment_variables(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_variables(org_id, repo_name, env_name)
+
+    async def update_environment_variable(
+        self, org_id: str, repo_name: str, env_name: str, variable_name: str, variable: dict[str, Any]
+    ) -> None:
+        if len(variable) > 0:
+            await self.rest_api.repo.update_variable(org_id, repo_name, env_name, variable_name, variable)
+
+    async def delete_environment_variable(self, org_id: str, repo_name: str, env_name: str, variable_name: str) -> None:
+        await self.rest_api.repo.delete_variable(org_id, repo_name, env_name, variable_name)
+
+    # CRUD for Environment Secrets
+    async def create_environment_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_secret(org_id, repo_name, env_name, data)
+
+    async def get_environment_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_secrets(org_id, repo_name, env_name)
+
+    async def update_environment_secret(
+        self, org_id: str, repo_name: str, env_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_secret(org_id, repo_name, env_name, secret_name, secret)
+
+    async def delete_environment_secret(self, org_id: str, repo_name: str, env_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_secret(org_id, repo_name, env_name, secret_name)
+
+    # ...
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)

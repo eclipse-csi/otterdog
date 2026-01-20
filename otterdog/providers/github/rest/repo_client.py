@@ -18,9 +18,10 @@ from typing import Any
 import aiofiles
 import chevron
 
+import otterdog.providers.github.rest as github_rest  # for monkeypatching encrypt_value
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException
-from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
+from otterdog.providers.github.rest import RestApi, RestClient
 from otterdog.utils import (
     associate_by_key,
     get_logger,
@@ -29,6 +30,22 @@ from otterdog.utils import (
 )
 
 _logger = get_logger(__name__)
+
+
+def _scope_str(org_id: str, repo_name: str, env_name: str | None) -> str:
+    scope = f"{org_id}/{repo_name}"
+    if env_name:
+        scope += f" (environment: {env_name})"
+    return scope
+
+
+def _repo_actions_or_environment_endpoint(org_id: str, repo_name: str, env_name: str | None) -> str:
+    """Compute the base endpoint for repo or environment scoped operations."""
+
+    if env_name:
+        return f"/repos/{org_id}/{repo_name}/environments/{env_name}"
+    else:
+        return f"/repos/{org_id}/{repo_name}/actions"
 
 
 class RepoClient(RestClient):
@@ -813,126 +830,154 @@ class RepoClient(RestClient):
 
         _logger.debug("deleted deployment branch policy for env '%s'", env_name)
 
-    async def get_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving secrets for repo '%s/%s'", org_id, repo_name)
+    async def get_secrets(self, org_id: str, repo_name: str, env_name: str | None) -> list[dict[str, Any]]:
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("retrieving secrets for %s", scope)
+
+        # This maps to githubs "list secrets" endpoint and not the "get a secret" endpoint,
+        # therefore no secret name is provided.
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + "/secrets"
 
         try:
-            status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
+            status, body = await self.requester.request_raw("GET", endpoint)
             if status == 200:
                 return json.loads(body)["secrets"]
             else:
                 return []
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving secrets for '{scope}':\n{ex}") from ex
 
-    async def update_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
-        _logger.debug("updating repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
+    async def update_secret(
+        self, org_id: str, repo_name: str, env_name: str | None, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("updating secret '%s' in %s", secret_name, scope)
 
         if "name" in secret:
             secret.pop("name")
 
-        await self._encrypt_secret_inplace(org_id, repo_name, secret)
+        await self._encrypt_secret_inplace(org_id, repo_name, secret, env_name)
 
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-            json.dumps(secret),
-        )
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + f"/secrets/{secret_name}"
+        status, _ = await self.requester.request_raw("PUT", endpoint, json.dumps(secret))
 
         if status != 204:
             raise RuntimeError(f"failed to update repo secret '{secret_name}'")
 
         _logger.debug("updated repo secret '%s'", secret_name)
 
-    async def add_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+    async def add_secret(self, org_id: str, repo_name: str, env_name: str | None, data: dict[str, str]) -> None:
         secret_name = data.pop("name")
-        _logger.debug("adding repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("adding secret '%s' for %s", secret_name, scope)
 
-        await self._encrypt_secret_inplace(org_id, repo_name, data)
+        await self._encrypt_secret_inplace(org_id, repo_name, data, env_name)
 
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-            json.dumps(data),
-        )
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + f"/secrets/{secret_name}"
+
+        status, _ = await self.requester.request_raw("PUT", endpoint, json.dumps(data))
 
         if status != 201:
-            raise RuntimeError(f"failed to add repo secret '{secret_name}'")
+            raise RuntimeError(f"failed to add repo secret '{secret_name}' to {scope}")
 
-        _logger.debug("added repo secret '%s'", secret_name)
+        _logger.debug("added secret '%s' to %s", secret_name, scope)
 
-    async def _encrypt_secret_inplace(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+    async def _encrypt_secret_inplace(
+        self, org_id: str, repo_name: str, data: dict[str, Any], env_name: str | None
+    ) -> None:
         value = data.pop("value")
-        key_id, public_key = await self.get_public_key(org_id, repo_name)
-        data["encrypted_value"] = encrypt_value(public_key, value)
+        key_id, public_key = await self._get_public_key(org_id, repo_name, env_name)
+        data["encrypted_value"] = github_rest.encrypt_value(public_key, value)
         data["key_id"] = key_id
 
-    async def delete_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        _logger.debug("deleting repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
+    async def delete_secret(self, org_id: str, repo_name: str, env_name: str | None, secret_name: str) -> None:
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("deleting secret '%s' from %s", secret_name, scope)
 
-        status, _ = await self.requester.request_raw(
-            "DELETE", f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}"
-        )
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + f"/secrets/{secret_name}"
+        status, _ = await self.requester.request_raw("DELETE", endpoint)
 
         if status != 204:
             raise RuntimeError(f"failed to delete repo secret '{secret_name}'")
 
-        _logger.debug("removed repo secret '%s'", secret_name)
+        _logger.debug("removed secret '%s' from %s", secret_name, scope)
 
-    async def get_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving variables for repo '%s/%s'", org_id, repo_name)
+    async def get_variables(self, org_id: str, repo_name: str, env_name: str | None) -> list[dict[str, Any]]:
+        """
+        Retrieve variables for a repository or an environment within a repository.
+
+        When `env_name` is provided, the variables for that specific environment are retrieved.
+        If `env_name` is None, the repository-level variables are retrieved.
+        """
+        scope = _scope_str(org_id, repo_name, env_name)
+
+        _logger.debug("retrieving variables for %s", scope)
+
+        # This maps to githubs "list variables" endpoint and not the "get a variable" endpoint,
+        # therefore no variable name is provided.
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + "/variables"
 
         try:
-            status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/variables")
+            status, body = await self.requester.request_raw("GET", endpoint)
             if status == 200:
                 return json.loads(body)["variables"]
             else:
                 return []
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving variables for repo '{org_id}/{repo_name}':\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving variables for {scope}:\n{ex}") from ex
 
-    async def update_variable(self, org_id: str, repo_name: str, variable_name: str, variable: dict[str, Any]) -> None:
-        _logger.debug("updating repo variable '%s' for repo '%s/%s'", variable_name, org_id, repo_name)
+    async def update_variable(
+        self, org_id: str, repo_name: str, env_name: str | None, variable_name: str, variable: dict[str, Any]
+    ) -> None:
+        scope = _scope_str(org_id, repo_name, env_name)
+
+        _logger.debug("updating variable '%s' in %s", variable_name, scope)
 
         if "name" in variable:
             variable.pop("name")
 
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + f"/variables/{variable_name}"
+
         status, body = await self.requester.request_raw(
             "PATCH",
-            f"/repos/{org_id}/{repo_name}/actions/variables/{variable_name}",
+            endpoint,
             json.dumps(variable),
         )
         if status != 204:
-            raise RuntimeError(f"failed to update repo variable '{variable_name}': {body}")
+            raise RuntimeError(f"failed to update {scope} variable '{variable_name}': {body}")
 
-        _logger.debug("updated repo variable '%s'", variable_name)
+        _logger.debug("updated variable '%s' in %s", variable_name, scope)
 
-    async def add_variable(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+    async def add_variable(self, org_id: str, repo_name: str, env_name: str | None, data: dict[str, str]) -> None:
         variable_name = data.get("name")
-        _logger.debug("adding repo variable '%s' for repo '%s/%s'", variable_name, org_id, repo_name)
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("adding variable '%s' in %s", variable_name, scope)
+
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + "/variables"
 
         status, body = await self.requester.request_raw(
             "POST",
-            f"/repos/{org_id}/{repo_name}/actions/variables",
+            endpoint,
             json.dumps(data),
         )
 
         if status != 201:
-            raise RuntimeError(f"failed to add repo variable '{variable_name}': {body}")
+            raise RuntimeError(f"failed to add {scope} variable '{variable_name}': {body}")
 
-        _logger.debug("added repo variable '%s'", variable_name)
+        _logger.debug("added variable '%s' in %s", variable_name, scope)
 
-    async def delete_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
-        _logger.debug("deleting repo variable '%s' for repo '%s/%s'", variable_name, org_id, repo_name)
+    async def delete_variable(self, org_id: str, repo_name: str, env_name: str | None, variable_name: str) -> None:
+        scope = _scope_str(org_id, repo_name, env_name)
+        _logger.debug("deleting variable '%s' in %s", variable_name, scope)
 
-        status, _ = await self.requester.request_raw(
-            "DELETE", f"/repos/{org_id}/{repo_name}/actions/variables/{variable_name}"
-        )
+        endpoint = _repo_actions_or_environment_endpoint(org_id, repo_name, env_name) + f"/variables/{variable_name}"
+
+        status, _ = await self.requester.request_raw("DELETE", endpoint)
 
         if status != 204:
-            raise RuntimeError(f"failed to delete repo variable '{variable_name}'")
+            raise RuntimeError(f"failed to delete {scope} variable '{variable_name}'")
 
-        _logger.debug("removed repo variable '%s'", variable_name)
+        _logger.debug("removed variable '%s' in %s", variable_name, scope)
 
     async def get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
@@ -1034,16 +1079,21 @@ class RepoClient(RestClient):
 
         _logger.debug("updated default workflow permissions for repo '%s/%s'", org_id, repo_name)
 
-    async def get_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
-        _logger.debug("retrieving repo public key for repo '%s/%s'", org_id, repo_name)
+    async def _get_public_key(self, org_id: str, repo_name: str, env_name: str | None) -> tuple[str, str]:
+        scope = _scope_str(org_id, repo_name, env_name)
+
+        _logger.debug("retrieving public key for %s", scope)
+
+        if env_name:
+            endpoint = f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/public-key"
+        else:
+            endpoint = f"/repos/{org_id}/{repo_name}/actions/secrets/public-key"
 
         try:
-            response = await self.requester.request_json(
-                "GET", f"/repos/{org_id}/{repo_name}/actions/secrets/public-key"
-            )
+            response = await self.requester.request_json("GET", endpoint)
             return response["key_id"], response["key"]
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving repo public key:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving public key for {scope}:\n{ex}") from ex
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         _logger.debug("dispatching workflow for repo '%s/%s'", org_id, repo_name)

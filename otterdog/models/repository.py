@@ -238,10 +238,8 @@ class Repository(ModelObject):
         self.variables = variables
 
     def add_environment(self, environment: Environment) -> None:
+        environment.parent_repository = self
         self.environments.append(environment)
-
-    def set_environments(self, environments: list[Environment]) -> None:
-        self.environments = environments
 
     def coerce_from_org_settings(self, org_settings: OrganizationSettings, for_patch: bool = False) -> Repository:
         copy = dataclasses.replace(self)
