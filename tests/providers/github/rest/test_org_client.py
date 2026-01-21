@@ -15,7 +15,6 @@ from otterdog.providers.github.rest.org_client import GitHubException, OrgClient
 
 
 class TestOrgClientForkPrApprovalPolicy:
-    @pytest.mark.asyncio
     async def test_get_fork_pr_approval_policy_success(self):
         expected_policy = {"approval_policy": "first_time_contributors"}
         expected_method = "GET"
@@ -34,7 +33,6 @@ class TestOrgClientForkPrApprovalPolicy:
 
         assert result == expected_policy
 
-    @pytest.mark.asyncio
     async def test_get_fork_pr_approval_policy_raises_on_error(self):
         async def mock_request(method, url):
             raise GitHubException(None, 500, "")
@@ -48,7 +46,6 @@ class TestOrgClientForkPrApprovalPolicy:
 
         assert "fork PR approval policy" in str(e.value)
 
-    @pytest.mark.asyncio
     async def test_update_fork_pr_approval_policy_success(self):
         expected_policy = {"approval_policy": "first_time_contributors"}
         expected_method = "PUT"
@@ -66,7 +63,6 @@ class TestOrgClientForkPrApprovalPolicy:
 
         await org_client._update_fork_pr_approval_policy("org", expected_policy)
 
-    @pytest.mark.asyncio
     async def test_update_fork_pr_approval_policy_raises_on_non_204(self):
         async def mock_request(method, url, data):
             return (500, "")
@@ -79,7 +75,6 @@ class TestOrgClientForkPrApprovalPolicy:
             await org_client._update_fork_pr_approval_policy("org", {"approval_policy": "first_time_contributors"})
         assert "fork PR approval policy" in str(e)
 
-    @pytest.mark.asyncio
     async def test_update_workflow_settings_with_approval_policy(self):
         policy = {"approval_policy": "all_external_contributors"}
 
@@ -92,7 +87,6 @@ class TestOrgClientForkPrApprovalPolicy:
 
         await org_client.update_workflow_settings("org", policy)
 
-    @pytest.mark.asyncio
     async def test_update_workflow_settings_without_approval_policy(self):
         policy = {}
 
@@ -105,7 +99,6 @@ class TestOrgClientForkPrApprovalPolicy:
 
         assert not org_client._update_fork_pr_approval_policy.calls
 
-    @pytest.mark.asyncio
     async def test_get_workflow_settings_includes_fork_pr_approval_policy(self):
         policy = {"approval_policy": "all_external_contributors"}
 

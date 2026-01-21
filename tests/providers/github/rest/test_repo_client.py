@@ -147,7 +147,6 @@ class TestRepoClientUpdateRepo:
 
 
 class TestRepoClientForkPrApprovalPolicy:
-    @pytest.mark.asyncio
     async def test_get_fork_pr_approval_policy_success(self):
         expected_policy = {"approval_policy": "first_time_contributors"}
         expected_method = "GET"
@@ -166,7 +165,6 @@ class TestRepoClientForkPrApprovalPolicy:
 
         assert result == expected_policy
 
-    @pytest.mark.asyncio
     async def test_get_fork_pr_approval_policy_raises_on_error(self):
         async def mock_request(method, url):
             raise GitHubException(None, 500, "")
@@ -180,7 +178,6 @@ class TestRepoClientForkPrApprovalPolicy:
 
         assert "fork PR approval policy" in str(e.value)
 
-    @pytest.mark.asyncio
     async def test_update_fork_pr_approval_policy_success(self):
         expected_policy = {"approval_policy": "first_time_contributors"}
         expected_method = "PUT"
@@ -198,7 +195,6 @@ class TestRepoClientForkPrApprovalPolicy:
 
         await repo_client._update_fork_pr_approval_policy("org", "repo", expected_policy)
 
-    @pytest.mark.asyncio
     async def test_update_fork_pr_approval_policy_raises_on_non_204(self):
         async def mock_request(method, url, data):
             return (500, "")
@@ -213,7 +209,6 @@ class TestRepoClientForkPrApprovalPolicy:
             )
         assert "fork PR approval policy" in str(e)
 
-    @pytest.mark.asyncio
     async def test_update_workflow_settings_with_approval_policy(self):
         policy = {"approval_policy": "all_external_contributors"}
 
@@ -227,7 +222,6 @@ class TestRepoClientForkPrApprovalPolicy:
 
         await repo_client.update_workflow_settings("org", "repo", policy)
 
-    @pytest.mark.asyncio
     async def test_update_workflow_settings_without_approval_policy(self):
         policy = {}
 
@@ -240,7 +234,6 @@ class TestRepoClientForkPrApprovalPolicy:
 
         assert not repo_client._update_fork_pr_approval_policy.calls
 
-    @pytest.mark.asyncio
     async def test_get_workflow_settings_includes_fork_pr_approval_policy(self):
         policy = {"approval_policy": "all_external_contributors"}
 

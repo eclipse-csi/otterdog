@@ -73,7 +73,6 @@ class TestWorkflowSettingsMapping:
         mapping = TestWorkflowSettings.get_mapping_from_provider("test-id", data)
         assert "fork_pr_approval_policy" in mapping
 
-    @pytest.mark.asyncio
     async def test_mapping_to_provider_fork_pr_approval_policy(self):
         data = {
             "fork_pr_approval_policy": "first_time_contributors",
