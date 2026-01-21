@@ -1,6 +1,6 @@
 pypi/pypi/-/aiofiles/24.1.0
 pypi/pypi/-/aiohappyeyeballs/2.6.1
-pypi/pypi/-/aiohttp/3.13.2
+pypi/pypi/-/aiohttp/3.13.3
 pypi/pypi/-/aiohttp-client-cache/0.14.2
 pypi/pypi/-/aiohttp-retry/2.9.1
 pypi/pypi/-/aioshutil/1.6
@@ -58,7 +58,7 @@ pypi/pypi/-/pydantic-core/2.41.5
 pypi/pypi/-/pyee/13.0.0
 pypi/pypi/-/pygments/2.19.2
 pypi/pypi/-/pymongo/4.9.1
-pypi/pypi/-/pynacl/1.6.1
+pypi/pypi/-/pynacl/1.6.2
 pypi/pypi/-/python-decouple/3.8
 pypi/pypi/-/python-dotenv/1.2.1
 pypi/pypi/-/python-slugify/8.0.4
@@ -81,7 +81,7 @@ pypi/pypi/-/text-unidecode/1.3
 pypi/pypi/-/typing-extensions/4.15.0
 pypi/pypi/-/typing-inspection/0.4.2
 pypi/pypi/-/url-normalize/2.2.1
-pypi/pypi/-/urllib3/2.6.2
-pypi/pypi/-/werkzeug/3.1.3
+pypi/pypi/-/urllib3/2.6.3
+pypi/pypi/-/werkzeug/3.1.4
 pypi/pypi/-/wsproto/1.3.1
 pypi/pypi/-/yarl/1.22.0
