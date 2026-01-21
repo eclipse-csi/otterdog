@@ -8,12 +8,9 @@
 
 from datetime import timedelta
 
-import pytest
-
 from otterdog.webapp.utils import backoff_if_needed, current_utc_time
 
 
-@pytest.mark.asyncio
 async def test_backoff_if_needed():
     # check that we wait the required timeout period
     start = current_utc_time()
