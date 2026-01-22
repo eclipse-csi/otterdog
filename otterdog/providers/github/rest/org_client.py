@@ -515,6 +515,8 @@ class OrgClient(RestClient):
         if allowed_actions != "none":
             workflow_settings.update(await self._get_default_workflow_permissions(org_id))
 
+        workflow_settings.update(await self._get_fork_pr_approval_policy(org_id))
+
         return workflow_settings
 
     async def update_workflow_settings(self, org_id: str, data: dict[str, Any]) -> None:
@@ -545,6 +547,9 @@ class OrgClient(RestClient):
         }
         if len(default_permission_data) > 0:
             await self._update_default_workflow_permissions(org_id, default_permission_data)
+
+        if "approval_policy" in data:
+            await self._update_fork_pr_approval_policy(org_id, {"approval_policy": data["approval_policy"]})
 
         _logger.debug("updated %d workflow setting(s)", len(data))
 
@@ -613,6 +618,28 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed updating default workflow permissions for org '{org_id}'" f"\n{status}: {body}")
 
         _logger.debug("updated default workflow permissions for org '%s'", org_id)
+
+    async def _get_fork_pr_approval_policy(self, org_id: str) -> dict[str, Any]:
+        _logger.debug("retrieving fork PR approval policy for org '%s'", org_id)
+
+        try:
+            return await self.requester.request_json(
+                "GET", f"/orgs/{org_id}/actions/permissions/fork-pr-contributor-approval"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving fork PR approval policy for org '{org_id}':\n{ex}") from ex
+
+    async def _update_fork_pr_approval_policy(self, org_id: str, data: dict[str, Any]) -> None:
+        _logger.debug("updating fork PR approval policy for org '%s'", org_id)
+
+        status, body = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/actions/permissions/fork-pr-contributor-approval", json.dumps(data)
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed updating fork PR approval policy for org '{org_id}'\n{status}: {body}")
+
+        _logger.debug("updated fork PR approval policy for org '%s'", org_id)
 
     async def _get_default_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug(f"retrieving default code security configurations for org '{org_id}'")
