@@ -33,7 +33,7 @@ Install otterdog development Python dependencies
 make init
 ```
 
-See [Development Setup](../developing_otterdog/development_setup.md) for more details.
+See [Development Setup](development_setup.md) for more details.
 
 ### Pre-commit hooks
 
