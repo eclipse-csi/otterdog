@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from importlib_resources import files
 
 from otterdog import resources
+from otterdog.providers.github.rest import TeamSyncMapping
 from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 
 if TYPE_CHECKING:
@@ -162,6 +163,9 @@ class GitHubProvider:
 
     async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_teams(org_id)
+
+    async def get_org_team_sync_mapping(self, org_id: str, team_slug: str) -> list[TeamSyncMapping]:
+        return await self.rest_api.team.get_team_sync_mapping(org_id, team_slug)
 
     async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_team_members(org_id, team_slug)
