@@ -115,7 +115,7 @@ pytest-cov = ">=6.1.1"
 pretend = "^1.0.9"
 
 [tool.poetry.group.typing.dependencies]
-mypy = ">=1.8.0"
+mypy = ">=1.19.1"
 types-colorama = ">=0.4"
 types-requests = ">=2.31"
 types-jsonschema = ">=4.17"
