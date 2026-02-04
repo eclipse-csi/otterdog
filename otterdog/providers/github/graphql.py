@@ -281,7 +281,7 @@ class GraphQLClient:
             if is_trace_enabled():
                 _logger.trace("graphql result = %s", json.dumps(json_data, indent=2))
 
-            if "data" in json_data:
+            if status < 400 and "data" in json_data:
                 rules_result = query_json(prefix_selector + ".nodes", json_data)
 
                 for rule in rules_result:

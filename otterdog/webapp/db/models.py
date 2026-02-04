@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from odmantic import EmbeddedModel, Field, Model
@@ -17,7 +17,7 @@ from odmantic import EmbeddedModel, Field, Model
 from otterdog.webapp.utils import current_utc_time
 
 
-class InstallationStatus(str, Enum):
+class InstallationStatus(StrEnum):
     INSTALLED = "installed"
     NOT_INSTALLED = "not_installed"
     SUSPENDED = "suspended"
@@ -35,7 +35,7 @@ class InstallationModel(Model):
     base_template: str | None = None
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     CREATED = "created"
     SCHEDULED = "scheduled"
     FINISHED = "finished"
@@ -65,7 +65,7 @@ class ConfigurationModel(Model):
     sha: str
 
 
-class PullRequestStatus(str, Enum):
+class PullRequestStatus(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
     MERGED = "merged"
@@ -74,7 +74,7 @@ class PullRequestStatus(str, Enum):
         return self.name
 
 
-class ApplyStatus(str, Enum):
+class ApplyStatus(StrEnum):
     NOT_APPLIED = "not_applied"
     FAILED = "failed"
     PARTIALLY_APPLIED = "partially_applied"
@@ -183,7 +183,7 @@ class BlueprintStatusId(EmbeddedModel):
     blueprint_id: str
 
 
-class BlueprintStatus(str, Enum):
+class BlueprintStatus(StrEnum):
     NOT_CHECKED = "not_checked"
     SUCCESS = "success"
     FAILURE = "failure"

@@ -51,9 +51,9 @@ class OperationTest(unittest.TestCase):
             ),
         ]
     )
-    # fmt: on
     @patch.multiple(Operation, __abstractmethods__=set())
     def test_print_modified_dict(self, test_input, expected: str):
+    # fmt: on
         operation = Operation()  # type: ignore
 
         output = StringIO()

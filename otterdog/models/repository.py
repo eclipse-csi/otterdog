@@ -37,7 +37,6 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
-from .organization_settings import OrganizationSettings
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
@@ -49,6 +48,9 @@ if TYPE_CHECKING:
 
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
+
+    from .github_organization import GitHubOrganization
+    from .organization_settings import OrganizationSettings
 
 
 @dataclasses.dataclass
@@ -285,7 +287,6 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-        from .github_organization import GitHubOrganization
 
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
@@ -342,7 +343,6 @@ class Repository(ModelObject):
                 )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        from .github_organization import GitHubOrganization
 
         github_id = cast("GitHubOrganization", parent_object).github_id
         org_settings = cast("GitHubOrganization", parent_object).settings

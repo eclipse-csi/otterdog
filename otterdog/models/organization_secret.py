@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
+    from .github_organization import GitHubOrganization
+
 
 @dataclasses.dataclass
 class OrganizationSecret(Secret):
@@ -39,8 +41,6 @@ class OrganizationSecret(Secret):
         super().validate(context, parent_object)
 
         if is_set_and_valid(self.visibility):
-            from .github_organization import GitHubOrganization
-
             org = cast("GitHubOrganization", parent_object)
             if self.visibility == "private" and org.settings.plan == "free":
                 context.add_failure(
