@@ -45,7 +45,7 @@ class OrganizationRuleset(Ruleset):
 
         super().validate(context, parent_object)
 
-        repositories = cast(GitHubOrganization, context.root_object).repositories
+        repositories = cast("GitHubOrganization", context.root_object).repositories
         all_repo_names = (x.name for x in repositories)
 
         if is_set_and_valid(self.include_repo_names):

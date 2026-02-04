@@ -187,7 +187,7 @@ class BranchProtectionRule(ModelObject):
         if self.requires_deployments is True and len(self.required_deployment_environments) > 0:
             from .repository import Repository
 
-            environments = cast(Repository, parent_object).environments
+            environments = cast("Repository", parent_object).environments
 
             environments_by_name = associate_by_key(environments, lambda x: x.name)
             for env_name in self.required_deployment_environments:

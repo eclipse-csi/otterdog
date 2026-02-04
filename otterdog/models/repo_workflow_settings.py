@@ -44,7 +44,7 @@ class RepositoryWorkflowSettings(WorkflowSettings):
 
         from otterdog.models.repository import Repository
 
-        repository_name = cast(Repository, parent_object).name
+        repository_name = cast("Repository", parent_object).name
 
         if (
             org_workflow_settings.enabled_repositories == "selected"
@@ -70,14 +70,14 @@ class RepositoryWorkflowSettings(WorkflowSettings):
 
         super().validate(context, parent_object)
 
-        repo = cast(Repository, parent_object)
+        repo = cast("Repository", parent_object)
 
         actions_enabled = None
         if is_set_and_valid(self.enabled) and self.enabled is True:
             from .github_organization import GitHubOrganization
 
             actions_enabled = True
-            org_workflow_settings = cast(GitHubOrganization, context.root_object).settings.workflows
+            org_workflow_settings = cast("GitHubOrganization", context.root_object).settings.workflows
 
             if org_workflow_settings.enabled_repositories == "none":
                 actions_enabled = False

@@ -41,7 +41,7 @@ class OrganizationSecret(Secret):
         if is_set_and_valid(self.visibility):
             from .github_organization import GitHubOrganization
 
-            org = cast(GitHubOrganization, parent_object)
+            org = cast("GitHubOrganization", parent_object)
             if self.visibility == "private" and org.settings.plan == "free":
                 context.add_failure(
                     FailureType.ERROR,
