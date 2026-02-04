@@ -2265,14 +2265,14 @@ files = [
 
 [[package]]
 name = "odmantic"
-version = "1.0.2"
-description = "ODMantic, an AsyncIO MongoDB Object Document Mapper for Python using type hints"
+version = "1.1.0"
+description = "ODMantic, an AsyncIO MongoDB Object Document Mapper for Python using type hints "
 optional = false
 python-versions = ">=3.8"
 groups = ["app"]
 files = [
-    {file = "odmantic-1.0.2-py3-none-any.whl", hash = "sha256:0475c763687624b70ba4d52266a7d0bdfb74dda7ec40162669334e9d41c06049"},
-    {file = "odmantic-1.0.2.tar.gz", hash = "sha256:bbd0d46bc920e0e6d966d9f3add7396bc92377d2c73860d071d5ca8102f57235"},
+    {file = "odmantic-1.1.0-py3-none-any.whl", hash = "sha256:01a851c2558e7cde69e292a54fd7b2d5cbc03b7af88b4f3a841d51c79274d159"},
+    {file = "odmantic-1.1.0.tar.gz", hash = "sha256:70a1cfa7211870cd3d7eacf5a3fd99db29d6b333a33c77dcaa13330d003e2982"},
 ]
 
 [package.dependencies]
@@ -2281,11 +2281,11 @@ pydantic = ">=2.5.2"
 pymongo = ">=4.1.0"
 
 [package.extras]
-dev = ["ipython (>=7.16.1,<7.17.0)", "semver (>=2.13.0,<2.14.0)", "typer (>=0.4.1,<0.5.0)"]
-doc = ["mkdocs-macros-plugin (>=1.0.4,<1.1.0)", "mkdocs-material (>=9.5.2,<9.6.0)", "mkdocstrings[python] (>=0.24.0,<0.25.0)", "pydocstyle[toml] (>=6.3.0,<6.4.0)"]
+dev = ["ipython (>=7.16.1)"]
+doc = ["griffe (<1.0)", "mkdocs-macros-plugin (>=1.0.4)", "mkdocs-material (>=9.5.2)", "mkdocstrings[python] (>=0.18)", "pydocstyle[toml] (>=6.3.0)"]
 fastapi = ["fastapi (>=0.100.0)"]
-lint = ["mypy (>=1.4.1,<1.5.0)", "ruff (>=0.3.3,<0.4.0)"]
-test = ["async-asgi-testclient (>=1.4.11,<1.5.0)", "asyncmock (>=0.4.2,<0.5.0)", "coverage[toml] (>=6.2,<7.0)", "darglint (>=1.8.1,<1.9.0)", "fastapi (>=0.104.0)", "httpx (>=0.24.1,<0.25.0)", "inline-snapshot (>=0.6.0,<0.7.0)", "pytest (>=7.0,<8.0)", "pytest-asyncio (>=0.16.0,<0.17.0)", "pytest-benchmark (>=4.0.0,<4.1.0)", "pytest-codspeed (>=2.1.0,<2.2.0)", "pytest-sugar (>=0.9.5,<0.10.0)", "pytest-xdist (>=2.1.0,<2.2.0)", "pytz (>=2023.3,<2024.0)", "requests (>=2.24,<3.0)", "types-pytz (>=2023.3.0.0,<2023.4.0.0)", "uvicorn (>=0.17.0,<0.18.0)"]
+lint = ["mypy (>=1.4.1)", "ruff (>=0.3.3)"]
+test = ["async-asgi-testclient (>=1.4.11)", "asyncmock (>=0.4.2)", "coverage[toml] (>=6.2)", "darglint (>=1.8.1)", "fastapi (>=0.104.0,<0.109)", "httpx (>=0.24.1,<0.28)", "inline-snapshot (>=0.6.0)", "pytest (>=7.0)", "pytest-asyncio (>=0.16.0)", "pytest-benchmark (>=4.0.0)", "pytest-codspeed (>=2.1.0)", "pytest-sugar (>=0.9.5)", "pytest-xdist (>=2.1.0)", "pytz (>=2023.3)", "requests (>=2.24)", "types-pytz (>=2023.3.0.0)", "uvicorn (>=0.17.0)"]
 
 [[package]]
 name = "packaging"
@@ -4094,4 +4094,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "c3119e46b3cbea8eab4aff41b841213056ead0e92010ff396a90d9e65d117214"
+content-hash = "51048d0a99b363f8e9ce115d8a09e6b3fd350252f1ac796ad5106609e72215f0"
