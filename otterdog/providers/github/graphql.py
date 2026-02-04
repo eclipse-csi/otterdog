@@ -178,9 +178,7 @@ class GraphQLClient:
         self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]
     ) -> None:
         rule_pattern = data["pattern"]
-        _logger.debug(
-            f"creating branch_protection_rule with pattern '{rule_pattern}' " f"for repo '{org_id}/{repo_name}'"
-        )
+        _logger.debug(f"creating branch_protection_rule with pattern '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["repositoryId"] = repo_node_id
         variables = {"ruleInput": data}

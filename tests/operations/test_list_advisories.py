@@ -118,7 +118,7 @@ class TestListAdvisoriesOperation:
         expected_csv = (
             f'"test-org","2024-01-01 00:00:00","366","2024-01-02 00:00:00","365","2024-01-03 00:00:00","","","published","high",'
             f'"GHSA-1234","{expected_values["cve"]}","https://github.com/advisories/GHSA-1234",'
-            f'{expected_values["summary_check"]}'
+            f"{expected_values['summary_check']}"
         )
         assert csv_output == expected_csv
 

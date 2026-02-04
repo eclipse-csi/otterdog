@@ -101,10 +101,10 @@ class Environment(ModelObject):
         def transform_reviewers(x):
             match x["type"]:
                 case "User":
-                    return f'@{x["reviewer"]["login"]}'
+                    return f"@{x['reviewer']['login']}"
 
                 case "Team":
-                    return f'@{org_id}/{x["reviewer"]["slug"]}'
+                    return f"@{org_id}/{x['reviewer']['slug']}"
 
                 case _:
                     raise RuntimeError("unexpected review type '{x[\"type\"]}'")

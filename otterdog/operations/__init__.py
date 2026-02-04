@@ -319,7 +319,7 @@ class Operation(ABC):
         else:
             self.printer.println(
                 f"{prefix}{key.ljust(max_key_length, ' ')} ="
-                f' {self._get_value(current_value)} [{color}]->[/] {self._get_value(expected_value)}'
+                f" {self._get_value(current_value)} [{color}]->[/] {self._get_value(expected_value)}"
             )
 
     def _print_modified_dict_internal(
@@ -340,9 +340,9 @@ class Operation(ABC):
                     if isinstance(v, list):
                         self._print_modified_internal(k, max_key_length, c_v, v, "[green]+ [/]", "green", forced_update)
                     else:
-                        self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
+                        self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} = {self._get_value(v)}")
                 elif v is None:
-                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(c_v)}")
+                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} = {self._get_value(c_v)}")
                     self._print_modified_internal(k, max_key_length, c_v, v, "[green]+ [/]", "green", forced_update)
 
                 else:
@@ -355,7 +355,7 @@ class Operation(ABC):
         if current_value is not None:
             for k, v in sorted(current_value.items()):
                 if k not in processed_keys:
-                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} =" f" {self._get_value(v)}")
+                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} = {self._get_value(v)}")
 
     def _print_modified_list_internal(
         self,

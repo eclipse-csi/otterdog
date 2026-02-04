@@ -162,28 +162,28 @@ class TestRuleset:
             mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
 
         warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
-        assert len(warning_records) == len(
-            expected_warnings
-        ), f"Test case '{test_case}': Expected {len(expected_warnings)} warnings, got {len(warning_records)}"
+        assert len(warning_records) == len(expected_warnings), (
+            f"Test case '{test_case}': Expected {len(expected_warnings)} warnings, got {len(warning_records)}"
+        )
 
         for i, (expected_msg, expected_arg) in enumerate(expected_warnings):
             if i < len(warning_records):
                 record = warning_records[i]
-                assert (
-                    expected_msg % expected_arg in record.message
-                ), f"Test case '{test_case}': Warning message mismatch. Expected '{expected_msg % expected_arg}', got '{record.message}'"
+                assert expected_msg % expected_arg in record.message, (
+                    f"Test case '{test_case}': Warning message mismatch. Expected '{expected_msg % expected_arg}', got '{record.message}'"
+                )
 
         result = bend(mapping, data)
         bypass_actors_result = result["bypass_actors"]
 
-        assert len(bypass_actors_result) == len(
-            expected_actors
-        ), f"Test case '{test_case}': Expected {len(expected_actors)} actors, got {len(bypass_actors_result)}"
+        assert len(bypass_actors_result) == len(expected_actors), (
+            f"Test case '{test_case}': Expected {len(expected_actors)} actors, got {len(bypass_actors_result)}"
+        )
 
         for expected_actor in expected_actors:
-            assert (
-                expected_actor in bypass_actors_result
-            ), f"Test case '{test_case}': Expected actor '{expected_actor}' not found in result"
+            assert expected_actor in bypass_actors_result, (
+                f"Test case '{test_case}': Expected actor '{expected_actor}' not found in result"
+            )
 
     def test_get_mapping_from_provider_missing_bypass_actors_key(self):
         data = {
