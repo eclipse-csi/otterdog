@@ -406,7 +406,7 @@ class WebClient:
 
             await context_manager.__aexit__()
 
-    async def get_security_advisory_newest_comment_date(self, ghsa_link: str, page: Page) -> list[str] | None:
+    async def get_security_advisory_newest_comment_date(self, ghsa_link: str, page: Page) -> str | None:
         """Follow passed GHSA link, scrape for comments, and return the date of
         the most recent comment, or None if no comment with valid date is found.
         Expected date format is ISO 8601."""
@@ -414,7 +414,7 @@ class WebClient:
         await page.goto(ghsa_link)
         query = 'a[href^="#advisory-comment-"] relative-time'
         elements = await page.locator(query).all()
-        dates = sorted([await e.get_attribute("datetime") for e in elements])
+        dates = sorted([await e.get_attribute("datetime") or "" for e in elements])
 
         if not dates:
             _logger.debug("no comments found for '%s'", ghsa_link)

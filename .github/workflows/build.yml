@@ -64,7 +64,25 @@ jobs:
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ env.LATEST_PY_VERSION }}
-      - name: Run style checks and linting via pre-commit hooks
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        env:
-          SKIP: update-dependencies
+      - uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+        with:
+          virtualenvs-in-project: true
+          version: ${{ env.POETRY_VERSION }}
+      # Cache packages per python version, and reuse until lockfile changes
+      - name: Cache python packages
+        id: cache
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        with:
+          path: .venv
+          key: venv-${{ env.pythonLocation }}-${{ hashFiles('poetry.lock') }}
+      - name: Install dependencies
+        run: poetry install -v --without=docs
+      - name: Cache prek data
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        with:
+          path: ~/.cache/prek
+          key: prek-3|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Run prek
+        run: |
+          source $VENV
+          prek run --show-diff-on-failure --color=always --all-files
