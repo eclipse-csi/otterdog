@@ -84,9 +84,7 @@ class DeleteFileOperation(Operation):
                 if repo is not None and repo.archived is False:
                     collected_error = None
                     repo_name = f"{github_id}/{repo.name}"
-                    self.printer.print(
-                        f"Deleting file '[bold]{self.path}[/]' " f"in repository '[bold]{repo_name}[/]': "
-                    )
+                    self.printer.print(f"Deleting file '[bold]{self.path}[/]' in repository '[bold]{repo_name}[/]': ")
 
                     try:
                         deleted_file = await rest_api.content.delete_content(

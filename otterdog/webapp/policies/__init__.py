@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 POLICY_PATH = "otterdog/policies"
 
 
-class PolicyType(str, Enum):
+class PolicyType(StrEnum):
     DEPENDENCY_TRACK_UPLOAD = "dependency_track_upload"
     MACOS_LARGE_RUNNERS_USAGE = "macos_large_runners"
 

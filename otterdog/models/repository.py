@@ -37,7 +37,6 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
-from .organization_settings import OrganizationSettings
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
@@ -49,6 +48,9 @@ if TYPE_CHECKING:
 
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
+
+    from .github_organization import GitHubOrganization
+    from .organization_settings import OrganizationSettings
 
 
 @dataclasses.dataclass
@@ -285,12 +287,11 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-        from .github_organization import GitHubOrganization
 
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
             provider = context.provider
-            github_id = cast(GitHubOrganization, parent_object).github_id
+            github_id = cast("GitHubOrganization", parent_object).github_id
 
             try:
                 languages = await provider.rest_api.repo.get_languages(github_id, self.name)
@@ -342,10 +343,9 @@ class Repository(ModelObject):
                 )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        from .github_organization import GitHubOrganization
 
-        github_id = cast(GitHubOrganization, parent_object).github_id
-        org_settings = cast(GitHubOrganization, parent_object).settings
+        github_id = cast("GitHubOrganization", parent_object).github_id
+        org_settings = cast("GitHubOrganization", parent_object).settings
 
         free_plan = org_settings.plan == "free"
 
@@ -992,13 +992,13 @@ class Repository(ModelObject):
 
     def copy_secrets(self, other_object: ModelObject) -> None:
         for webhook in self.webhooks:
-            other_repo = cast(Repository, other_object)
+            other_repo = cast("Repository", other_object)
             other_webhook = other_repo.get_webhook(webhook.url)
             if other_webhook is not None:
                 webhook.copy_secrets(other_webhook)
 
         for secret in self.secrets:
-            other_repo = cast(Repository, other_object)
+            other_repo = cast("Repository", other_object)
             other_secret = other_repo.get_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
@@ -1014,7 +1014,7 @@ class Repository(ModelObject):
         extend: bool,
         default_object: ModelObject,
     ) -> None:
-        coerced_repo = self.coerce_from_org_settings(cast(OrganizationSettings, context.org_settings), for_patch=True)
+        coerced_repo = self.coerce_from_org_settings(cast("OrganizationSettings", context.org_settings), for_patch=True)
         patch = coerced_repo.get_patch_to(default_object)
 
         has_webhooks = len(self.webhooks) > 0
@@ -1042,11 +1042,11 @@ class Repository(ModelObject):
         write_patch_object_as_json(patch, printer, close_object=False)
 
         if is_set_and_present(self.workflows):
-            default_workflow_settings = cast(Repository, default_object).workflows
+            default_workflow_settings = cast("Repository", default_object).workflows
 
             if is_set_and_present(default_workflow_settings):
                 coerced_settings = self.workflows.coerce_from_org_settings(
-                    self, cast(OrganizationSettings, context.org_settings).workflows
+                    self, cast("OrganizationSettings", context.org_settings).workflows
                 )
                 patch = coerced_settings.get_patch_to(default_workflow_settings)
                 if len(patch) > 0:
@@ -1159,7 +1159,7 @@ class Repository(ModelObject):
 
         expected_object = unwrap(expected_object)
 
-        expected_org_settings = cast(OrganizationSettings, context.expected_org_settings)
+        expected_org_settings = cast("OrganizationSettings", context.expected_org_settings)
         coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
         # also coerce the workflow settings if present
         if is_set_and_present(coerced_object.workflows) and is_set_and_present(expected_org_settings.workflows):
@@ -1173,16 +1173,16 @@ class Repository(ModelObject):
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
         else:
             if context.current_org_settings is not None:
-                current_org_settings = cast(OrganizationSettings, context.current_org_settings)
+                current_org_settings = cast("OrganizationSettings", context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
 
             modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
 
-            is_archived = cast(Repository, coerced_object).archived
+            is_archived = cast("Repository", coerced_object).archived
             if is_archived is False and "web_commit_signoff_required" in context.modified_org_settings:
                 change = context.modified_org_settings["web_commit_signoff_required"]
                 if change.to_value is False:
-                    web_commit_signoff_required = cast(Repository, coerced_object).web_commit_signoff_required
+                    web_commit_signoff_required = cast("Repository", coerced_object).web_commit_signoff_required
                     modified_repo["web_commit_signoff_required"] = Change(
                         web_commit_signoff_required, web_commit_signoff_required
                     )
@@ -1283,13 +1283,13 @@ class Repository(ModelObject):
             squash_merge_commit_message_present = "squash_merge_commit_message" in patch.changes
 
             if squash_merge_commit_title_present and not squash_merge_commit_message_present:
-                squash_merge_commit_message = cast(Repository, patch.current_object).squash_merge_commit_message
+                squash_merge_commit_message = cast("Repository", patch.current_object).squash_merge_commit_message
                 patch.changes["squash_merge_commit_message"] = Change(
                     squash_merge_commit_message, squash_merge_commit_message
                 )
 
             if squash_merge_commit_message_present and not squash_merge_commit_title_present:
-                squash_merge_commit_title = cast(Repository, patch.current_object).squash_merge_commit_title
+                squash_merge_commit_title = cast("Repository", patch.current_object).squash_merge_commit_title
                 patch.changes["squash_merge_commit_title"] = Change(
                     squash_merge_commit_title, squash_merge_commit_title
                 )
@@ -1309,11 +1309,11 @@ class Repository(ModelObject):
             gh_pages_source_path_present = "gh_pages_source_path" in patch.changes
 
             if gh_pages_source_path_present and not gh_pages_source_branch_present:
-                gh_pages_source_branch = cast(Repository, patch.current_object).gh_pages_source_branch
+                gh_pages_source_branch = cast("Repository", patch.current_object).gh_pages_source_branch
                 patch.changes["gh_pages_source_branch"] = Change(gh_pages_source_branch, gh_pages_source_branch)
 
             if gh_pages_source_branch_present and not gh_pages_source_path_present:
-                gh_pages_source_path = cast(Repository, patch.current_object).gh_pages_source_path
+                gh_pages_source_path = cast("Repository", patch.current_object).gh_pages_source_path
                 patch.changes["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
 
         return patch

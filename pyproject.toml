@@ -92,7 +92,7 @@ python-decouple      = "^3.8"
 python-dotenv        = "^1.0"
 pymongo              = "==4.9.1"
 pydantic             = "^2.7"
-odmantic             = "^1.0"
+odmantic             = "^1.1.0"
 quart-auth           = "^0.10"
 quart-redis          = "^2.0"
 github-flask         = "^3.2"
@@ -103,7 +103,7 @@ semver               = "^3.0"
 python-slugify       = "^8.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = ">=0.8"
+ruff = ">=0.15"
 pre-commit = ">=4.0"
 
 [tool.poetry.group.test.dependencies]
@@ -115,7 +115,7 @@ pytest-cov = ">=6.1.1"
 pretend = "^1.0.9"
 
 [tool.poetry.group.typing.dependencies]
-mypy = ">=1.8.0"
+mypy = ">=1.19.1"
 types-colorama = ">=0.4"
 types-requests = ">=2.31"
 types-jsonschema = ">=4.17"

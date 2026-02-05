@@ -214,7 +214,7 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
         import aiofiles
 
         async with aiofiles.tempfile.NamedTemporaryFile("wt") as file:
-            name = cast(str, file.name)
+            name = cast("str", file.name)
             await file.write(content)
             await file.flush()
             return OtterdogConfig.from_file(name, False, app_root)
