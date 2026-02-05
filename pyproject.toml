@@ -202,7 +202,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/db/models.py" = ["TCH003"] # new optional spec is not yet supported by odmantic
+"**/db/models.py" = ["TCH003"]
 "**/webhook/github_models.py" = ["TCH003"]
 "tests/**/*.py" = ["S101"]
 
