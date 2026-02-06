@@ -63,6 +63,4 @@ class ReferenceClient(RestClient):
         elif status in (409, 422):
             return False
         else:
-            raise RuntimeError(
-                f"failed deleting reference '{ref}' in repo '{org_id}/{repo_name}'" f"\n{status}: {body}"
-            )
+            raise RuntimeError(f"failed deleting reference '{ref}' in repo '{org_id}/{repo_name}'\n{status}: {body}")

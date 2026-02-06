@@ -35,13 +35,14 @@ class OrganizationSecret(Secret):
     def model_object_name(self) -> str:
         return "org_secret"
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        super().validate(context, parent_object)
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
+        super().validate(context, parent_object, grandparent_object)
 
         if is_set_and_valid(self.visibility):
-            from .github_organization import GitHubOrganization
+            if TYPE_CHECKING:
+                from .github_organization import GitHubOrganization
 
-            org = cast(GitHubOrganization, parent_object)
+            org = cast("GitHubOrganization", parent_object)
             if self.visibility == "private" and org.settings.plan == "free":
                 context.add_failure(
                     FailureType.ERROR,

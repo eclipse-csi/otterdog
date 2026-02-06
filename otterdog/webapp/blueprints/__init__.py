@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from functools import cached_property
 from logging import Logger, getLogger
 from typing import TYPE_CHECKING, Any
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 BLUEPRINT_PATH = "otterdog/blueprints"
 
 
-class BlueprintType(str, Enum):
+class BlueprintType(StrEnum):
     REQUIRED_FILE = "required_file"
     PIN_WORKFLOW = "pin_workflow"
     APPEND_CONFIGURATION = "append_configuration"

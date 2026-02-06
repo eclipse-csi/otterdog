@@ -73,7 +73,7 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
             return org_level >= repo_level
         return False
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if is_set_and_valid(self.allowed_actions):
             if self.allowed_actions not in {"all", "local_only", "selected"}:
                 context.add_failure(

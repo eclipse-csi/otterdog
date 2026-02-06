@@ -42,7 +42,7 @@ class Secret(ModelObject, abc.ABC):
     name: str = dataclasses.field(metadata={"key": True})
     value: str
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(
                 FailureType.INFO, f"{self.get_model_header()} only has a dummy value, resource will be skipped."
@@ -104,7 +104,7 @@ class Secret(ModelObject, abc.ABC):
 
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
-            self.value = cast(Secret, other_object).value
+            self.value = cast("Secret", other_object).value
 
     def update_dummy_secrets(self, new_value: str) -> None:
         if self.has_dummy_secret():
@@ -116,17 +116,26 @@ class Secret(ModelObject, abc.ABC):
         expected_object: ST | None,
         current_object: ST | None,
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            handler(
+                LivePatch.of_addition(
+                    expected_object, parent_object, grandparent_object, expected_object.apply_live_patch
+                )
+            )
             return
 
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            handler(
+                LivePatch.of_deletion(
+                    current_object, parent_object, grandparent_object, current_object.apply_live_patch
+                )
+            )
             return
 
         # if secrets shall be updated and the secret contains a valid secret perform a forced update.
@@ -140,6 +149,7 @@ class Secret(ModelObject, abc.ABC):
                     current_object,
                     modified_secret,
                     parent_object,
+                    grandparent_object,
                     True,
                     expected_object.apply_live_patch,
                 )
@@ -170,6 +180,7 @@ class Secret(ModelObject, abc.ABC):
                     current_object,
                     modified_secret,
                     parent_object,
+                    grandparent_object,
                     False,
                     expected_object.apply_live_patch,
                 )

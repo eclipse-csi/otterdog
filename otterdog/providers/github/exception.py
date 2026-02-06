@@ -70,4 +70,4 @@ class InsufficientPermissionsException(Exception):
         return self.__missing_scopes
 
     def __str__(self):
-        return f"Insufficient permissions while accessing '{self.url}': " f"(missing scopes={self.missing_scopes})"
+        return f"Insufficient permissions while accessing '{self.url}': (missing scopes={self.missing_scopes})"

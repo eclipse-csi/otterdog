@@ -83,7 +83,7 @@ class BranchProtectionRule(ModelObject):
     def model_object_name(self) -> str:
         return "branch_protection_rule"
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         # when requires_approving_reviews is false, issue a warning if dependent settings
         # are still set to non default values.
 
@@ -185,9 +185,10 @@ class BranchProtectionRule(ModelObject):
             )
 
         if self.requires_deployments is True and len(self.required_deployment_environments) > 0:
-            from .repository import Repository
+            if TYPE_CHECKING:
+                from .repository import Repository
 
-            environments = cast(Repository, parent_object).environments
+            environments = cast("Repository", parent_object).environments
 
             environments_by_name = associate_by_key(environments, lambda x: x.name)
             for env_name in self.required_deployment_environments:

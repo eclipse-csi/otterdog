@@ -7,6 +7,8 @@
 #  *******************************************************************************
 
 from otterdog.models import LivePatch, LivePatchContext, ModelObject
+from otterdog.models.env_secret import EnvironmentSecret
+from otterdog.models.env_variable import EnvironmentVariable
 from otterdog.models.environment import Environment
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
@@ -84,6 +86,7 @@ class ModelForContext:
             expected_object=new,
             current_object=old,
             parent_object=self.get_parent_object(old, new),
+            grandparent_object=self.get_grandparent_object(old, new),
             context=self.live_patch_context,
             handler=lambda p: patches.append(p),  # pyright: ignore[reportArgumentType]
         )
@@ -97,8 +100,19 @@ class ModelForContext:
         """
 
         model_cls = determine_model_object(old, new)
-        if model_cls in {RepositorySecret, RepositoryVariable}:
+        if model_cls in {RepositorySecret, RepositoryVariable, Environment}:
             return self.repository
         if model_cls in {OrganizationSecret, OrganizationVariable}:
             return None  # Organization-level, no parent object
         raise ValueError(f"Unknown model class for parent: {model_cls}")
+
+    def get_grandparent_object(self, old: ModelObject | None, new: ModelObject | None) -> ModelObject | None:
+        """
+        Based on provided old/new objects and test context, return the correct parent object.
+        Objects do not store their parents directly, so we need to reconstruct them here.
+        """
+
+        model_cls = determine_model_object(old, new)
+        if model_cls in {EnvironmentVariable, EnvironmentSecret}:
+            return self.repository
+        return None

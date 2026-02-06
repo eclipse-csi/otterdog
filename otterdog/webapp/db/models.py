@@ -9,15 +9,15 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 from odmantic import EmbeddedModel, Field, Model
 
 from otterdog.webapp.utils import current_utc_time
 
 
-class InstallationStatus(str, Enum):
+class InstallationStatus(StrEnum):
     INSTALLED = "installed"
     NOT_INSTALLED = "not_installed"
     SUSPENDED = "suspended"
@@ -28,14 +28,14 @@ class InstallationStatus(str, Enum):
 
 class InstallationModel(Model):
     github_id: str = Field(primary_field=True)
-    project_name: Optional[str] = Field(unique=True, index=True)
+    project_name: str | None = Field(unique=True, index=True)
     installation_id: int = Field(index=True, default=0)
     installation_status: InstallationStatus
-    config_repo: Optional[str] = None
-    base_template: Optional[str] = None
+    config_repo: str | None = None
+    base_template: str | None = None
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     CREATED = "created"
     SCHEDULED = "scheduled"
     FINISHED = "finished"
@@ -51,7 +51,7 @@ class TaskModel(Model):
     repo_name: str = Field(index=True)
     pull_request: int = 0
     status: TaskStatus = TaskStatus.CREATED
-    log: Optional[str] = None
+    log: str | None = None
     cache_stats: str = ""
     rate_limit_remaining: str = ""
     created_at: datetime = Field(index=True, default_factory=current_utc_time)
@@ -60,12 +60,12 @@ class TaskModel(Model):
 
 class ConfigurationModel(Model):
     github_id: str = Field(primary_field=True)
-    project_name: Optional[str] = Field(unique=True, index=True)
+    project_name: str | None = Field(unique=True, index=True)
     config: dict
     sha: str
 
 
-class PullRequestStatus(str, Enum):
+class PullRequestStatus(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
     MERGED = "merged"
@@ -74,7 +74,7 @@ class PullRequestStatus(str, Enum):
         return self.name
 
 
-class ApplyStatus(str, Enum):
+class ApplyStatus(StrEnum):
     NOT_APPLIED = "not_applied"
     FAILED = "failed"
     PARTIALLY_APPLIED = "partially_applied"
@@ -96,18 +96,18 @@ class PullRequestModel(Model):
     status: PullRequestStatus = Field(index=True)
     apply_status: ApplyStatus = Field(index=True, default=ApplyStatus.NOT_APPLIED)
 
-    valid: Optional[bool] = None
-    in_sync: Optional[bool] = None
-    requires_manual_apply: Optional[bool] = None
-    supports_auto_merge: Optional[bool] = None
-    author_can_auto_merge: Optional[bool] = None
-    has_required_approvals: Optional[bool] = None
+    valid: bool | None = None
+    in_sync: bool | None = None
+    requires_manual_apply: bool | None = None
+    supports_auto_merge: bool | None = None
+    author_can_auto_merge: bool | None = None
+    has_required_approvals: bool | None = None
 
     created_at: datetime = Field(index=True)
     updated_at: datetime = Field(index=True)
 
-    closed_at: Optional[datetime] = None
-    merged_at: Optional[datetime] = Field(index=True, default=None)
+    closed_at: datetime | None = None
+    merged_at: datetime | None = Field(index=True, default=None)
 
     def can_be_automerged(self) -> bool:
         return (
@@ -138,8 +138,8 @@ class StatisticsModel(Model):
 class UserModel(Model):
     node_id: str = Field(primary_field=True)
     username: str
-    email: Optional[str] = None
-    full_name: Optional[str] = None
+    email: str | None = None
+    full_name: str | None = None
     projects: list[str] = Field(default_factory=list)
 
 
@@ -151,8 +151,8 @@ class PolicyId(EmbeddedModel):
 class PolicyModel(Model):
     id: PolicyId = Field(primary_field=True)
     path: str
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
     config: dict
 
 
@@ -170,10 +170,10 @@ class BlueprintId(EmbeddedModel):
 class BlueprintModel(Model):
     id: BlueprintId = Field(primary_field=True)
     path: str
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
     recheck_needed: bool = True
-    last_checked: Optional[datetime] = Field(index=True, default=None)
+    last_checked: datetime | None = Field(index=True, default=None)
     config: dict
 
 
@@ -183,7 +183,7 @@ class BlueprintStatusId(EmbeddedModel):
     blueprint_id: str
 
 
-class BlueprintStatus(str, Enum):
+class BlueprintStatus(StrEnum):
     NOT_CHECKED = "not_checked"
     SUCCESS = "success"
     FAILURE = "failure"
@@ -200,7 +200,7 @@ class BlueprintStatusModel(Model):
 
     updated_at: datetime = Field(index=True, default_factory=current_utc_time)
     status: BlueprintStatus = Field(default=BlueprintStatus.NOT_CHECKED)
-    remediation_pr: Optional[int] = Field(index=True, default=None)
+    remediation_pr: int | None = Field(index=True, default=None)
 
 
 class ScorecardId(EmbeddedModel):
@@ -212,6 +212,6 @@ class ScorecardResultModel(Model):
     id: ScorecardId = Field(primary_field=True)
 
     updated_at: datetime = Field(index=True, default_factory=current_utc_time)
-    score: Optional[float] = None
-    scorecard_version: Optional[str] = None
+    score: float | None = None
+    scorecard_version: str | None = None
     checks: list[dict[str, Any]] = Field(default_factory=list)

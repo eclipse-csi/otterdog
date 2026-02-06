@@ -85,6 +85,10 @@
     "environments": {
       "type": "array",
       "items": { "$ref": "environment.json" }
+    },
+    "team_permissions": {
+      "type": "array",
+      "items": { "$ref": "team-permission.json" }
     }
   },
 

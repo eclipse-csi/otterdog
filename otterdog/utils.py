@@ -111,7 +111,7 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
     elif isinstance(value, dict) and isinstance(other_value, dict):
         for key, item_value in value.items():
             other_item_value = other_value.get(key, None)
-            if isinstance(item_value, list):
+            if isinstance(item_value, list) and isinstance(other_item_value, list):
                 if sorted(item_value) != sorted(other_item_value):
                     return True
             else:
@@ -476,7 +476,7 @@ def sort_jsonnet(lines: list[str]) -> list[str]:
 
 
 def _sort_node(node):
-    line, context = node
+    _, context = node
 
     if context is not None:
         last = context.pop()

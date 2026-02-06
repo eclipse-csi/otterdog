@@ -31,6 +31,8 @@ from otterdog.models import (
 )
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
+from otterdog.models.env_secret import EnvironmentSecret
+from otterdog.models.env_variable import EnvironmentVariable
 from otterdog.models.environment import Environment
 from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
@@ -46,6 +48,7 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
+from otterdog.models.team_permission import TeamPermission
 from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
@@ -172,7 +175,7 @@ class GitHubOrganization:
             config.exclude_teams_pattern,
             provider=provider,
         )
-        self.settings.validate(context, self)
+        self.settings.validate(context, self, None)
 
         enterprise_plan = self.settings.plan == "enterprise"
 
@@ -184,16 +187,16 @@ class GitHubOrganization:
             )
         else:
             for role in self.roles:
-                role.validate(context, self)
+                role.validate(context, self, None)
 
         for team in self.teams:
-            team.validate(context, self)
+            team.validate(context, self, None)
 
         for webhook in self.webhooks:
-            webhook.validate(context, self)
+            webhook.validate(context, self, None)
 
         for secret in self.secrets:
-            secret.validate(context, self)
+            secret.validate(context, self, None)
 
         if len(self.rulesets) > 0 and not enterprise_plan:
             context.add_failure(
@@ -203,12 +206,12 @@ class GitHubOrganization:
             )
         else:
             for ruleset in self.rulesets:
-                ruleset.validate(context, self)
+                ruleset.validate(context, self, None)
 
         # Run synchronous validations and collect repos needing API codescaning validation
         repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
-            repo.validate(context, self)
+            repo.validate(context, self, None)
             if repo.requires_language_validation():
                 repos_needing_codescaning_language_validation.append(repo)
 
@@ -474,23 +477,27 @@ class GitHubOrganization:
     def generate_live_patch(
         self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
     ) -> None:
-        OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
-        Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, context, handler)
-        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
+        OrganizationRole.generate_live_patch_of_list(
+            self.roles, current_organization.roles, None, None, context, handler
+        )
+        Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, None, context, handler)
+        OrganizationSettings.generate_live_patch(
+            self.settings, current_organization.settings, None, None, context, handler
+        )
         OrganizationWebhook.generate_live_patch_of_list(
-            self.webhooks, current_organization.webhooks, None, context, handler
+            self.webhooks, current_organization.webhooks, None, None, context, handler
         )
         OrganizationSecret.generate_live_patch_of_list(
-            self.secrets, current_organization.secrets, None, context, handler
+            self.secrets, current_organization.secrets, None, None, context, handler
         )
         OrganizationVariable.generate_live_patch_of_list(
-            self.variables, current_organization.variables, None, context, handler
+            self.variables, current_organization.variables, None, None, context, handler
         )
         OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handler
+            self.rulesets, current_organization.rulesets, None, None, context, handler
         )
         Repository.generate_live_patch_of_list(
-            self.repositories, current_organization.repositories, None, context, handler
+            self.repositories, current_organization.repositories, None, None, context, handler
         )
 
     @classmethod
@@ -583,6 +590,19 @@ class GitHubOrganization:
                         continue
                     team_members = await provider.get_org_team_members(github_id, team_slug)
                     team["members"] = team_members
+                    # Do the team-sync
+                    sync_groups = await provider.get_org_team_sync_groups(github_id, team_slug)
+                    if sync_groups:
+                        team["team_sync_id"] = sync_groups[0].get("group_id", None)
+                        team["team_sync_name"] = sync_groups[0].get("group_name", None)
+                        team["team_sync_description"] = sync_groups[0].get("group_description", None)
+                    else:
+                        team["team_sync_id"] = None
+                        team["team_sync_name"] = None
+                        team["team_sync_description"] = None
+                    # External Groups
+                    external_groups = await provider.get_org_team_external_groups(github_id, team_slug)
+                    team["external_groups"] = external_groups
                     org.add_team(Team.from_provider_data(github_id, team))
             else:
                 _logger.debug("not reading teams, no default config available")
@@ -672,6 +692,7 @@ async def _process_single_repo(
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
+    repo_permissions: dict[str, list[dict[str, Any]]],
     app_installations: dict[str, str],
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
@@ -750,13 +771,58 @@ async def _process_single_repo(
         # get environments of the repo
         environments = await rest_api.repo.get_environments(github_id, repo_name)
         for github_environment in environments:
-            repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+            environment = Environment.from_provider_data(github_id, github_environment)
+            repo.add_environment(environment)
+            if jsonnet_config.default_env_variable_config is not None:
+                # get variables of the repo environment
+                variables = await rest_api.env.get_variables(github_id, repo.name, environment.name)
+                for github_variable in variables:
+                    environment.add_variable(EnvironmentVariable.from_provider_data(github_id, github_variable))
+            else:
+                _logger.debug("not reading repo env variables, no default config available")
+            if jsonnet_config.default_env_secret_config is not None:
+                # get secrets of the repo environment
+                secrets = await rest_api.env.get_secrets(github_id, repo.name, environment.name)
+                for github_secret in secrets:
+                    environment.add_secret(EnvironmentSecret.from_provider_data(github_id, github_secret))
+            else:
+                _logger.debug("not reading repo env secrets, no default config available")
     else:
         _logger.debug("not reading environments, no default config available")
+    if jsonnet_config.default_team_permission_config is not None:
+        team_permissions = repo_permissions.get(repo_name, [])
+        for github_team_permission in team_permissions:
+            repo.add_team_permission(TeamPermission.from_provider_data(github_id, github_team_permission))
+    else:
+        _logger.debug("not reading team permissions, no default config available")
 
     _logger.debug("done retrieving data for repo '%s'", repo_name)
 
     return repo_name, repo
+
+
+def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """
+    Convert the output from the graphql call, which is team-centric, to a repository
+    centric structure.
+    """
+
+    repo_permissions: dict[str, list[dict[str, Any]]] = {}
+    for team in teams:
+        team_slug = team["slug"]
+
+        # List of repo edges of this team
+        edges = team.get("repositories", {}).get("edges", [])
+
+        for edge in edges:
+            repo_name = edge["node"]["name"]
+            permission = edge["permission"]
+
+            if repo_name not in repo_permissions:
+                repo_permissions[repo_name] = []
+
+            repo_permissions[repo_name].append({"name": team_slug, "permission": permission})
+    return repo_permissions
 
 
 async def _load_repos_from_provider(
@@ -776,6 +842,7 @@ async def _load_repos_from_provider(
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
     teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    repo_permissions = build_repo_permissions(await provider.get_team_permissions(github_id))
 
     # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
     sem = asyncio.Semaphore(50 if concurrency is None else concurrency)
@@ -789,6 +856,7 @@ async def _load_repos_from_provider(
                 repo_name,
                 jsonnet_config,
                 teams,
+                repo_permissions,
                 app_installations,
             )
 

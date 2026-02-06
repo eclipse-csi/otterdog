@@ -95,7 +95,7 @@ class OrgClient(RestClient):
             result = await self.requester.request_json("GET", f"/orgs/{org_id}/organization-roles/{role_id}/teams")
             return [x["slug"] for x in result]
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving security managers for org " f"'{org_id}':\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving security managers for org '{org_id}':\n{ex}") from ex
 
     async def update_security_managers(self, org_id: str, security_managers: list[str]) -> None:
         _logger.debug("updating security managers for org '%s'", org_id)
@@ -142,7 +142,7 @@ class OrgClient(RestClient):
             )
         else:
             raise RuntimeError(
-                f"failed assigning role '{role_id}' to team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
+                f"failed assigning role '{role_id}' to team '{team_slug}' in org '{org_id}'\n{status}: {body}"
             )
 
     async def remove_role_from_team(self, org_id: str, role_id: str, team_slug: str) -> None:
@@ -153,7 +153,7 @@ class OrgClient(RestClient):
         )
         if status != 204:
             raise RuntimeError(
-                f"failed removing role '{role_id}' from team '{team_slug}' in org '{org_id}'" f"\n{status}: {body}"
+                f"failed removing role '{role_id}' from team '{team_slug}' in org '{org_id}'\n{status}: {body}"
             )
 
         _logger.debug("removed role '%s' from team '%s' in org '%s'", role_id, team_slug, org_id)
@@ -527,7 +527,7 @@ class OrgClient(RestClient):
             )
 
             if status != 204:
-                raise RuntimeError(f"failed to update workflow settings for org '{org_id}'" f"\n{status}: {body}")
+                raise RuntimeError(f"failed to update workflow settings for org '{org_id}'\n{status}: {body}")
 
             _logger.debug("updated workflow settings for org '%s'", org_id)
 
@@ -569,7 +569,7 @@ class OrgClient(RestClient):
 
         if status != 204:
             raise RuntimeError(
-                f"failed updating selected repositories for workflow settings of org '{org_id}'" f"\n{status}: {body}"
+                f"failed updating selected repositories for workflow settings of org '{org_id}'\n{status}: {body}"
             )
 
         _logger.debug("updated selected repositories for workflow settings of org '%s'", org_id)
@@ -590,7 +590,7 @@ class OrgClient(RestClient):
         )
 
         if status != 204:
-            raise RuntimeError(f"failed updating allowed actions for org '{org_id}'" f"\n{status}: {body}")
+            raise RuntimeError(f"failed updating allowed actions for org '{org_id}'\n{status}: {body}")
 
         _logger.debug("updated allowed actions for org '%s'", org_id)
 
@@ -610,7 +610,7 @@ class OrgClient(RestClient):
         )
 
         if status != 204:
-            raise RuntimeError(f"failed updating default workflow permissions for org '{org_id}'" f"\n{status}: {body}")
+            raise RuntimeError(f"failed updating default workflow permissions for org '{org_id}'\n{status}: {body}")
 
         _logger.debug("updated default workflow permissions for org '%s'", org_id)
 

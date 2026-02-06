@@ -96,7 +96,7 @@ def init_logging(verbose: int, setup_python_logger: bool = True) -> None:
 
 
 def get_logger(name: str) -> CustomLogger:
-    return cast(CustomLogger, logging.getLogger(name))
+    return cast("CustomLogger", logging.getLogger(name))
 
 
 def is_info_enabled() -> bool:
