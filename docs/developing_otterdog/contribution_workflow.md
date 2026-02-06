@@ -41,7 +41,7 @@ The project extensively uses `pre-commit` hooks to ensure consistent source code
 To enable `pre-commit` run the following:
 
 ```bash
-poetry run pre-commit install
+poetry run prek install
 ```
 
 ## Check out a new branch and make your changes
