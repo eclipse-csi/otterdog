@@ -295,7 +295,6 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-        from .github_organization import GitHubOrganization
 
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
