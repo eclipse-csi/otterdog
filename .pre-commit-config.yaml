@@ -3,35 +3,41 @@ default_language_version:
     python: default
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: trailing-whitespace
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
-    hooks:
-      - id: ruff
-        args: [ --fix ]
-      - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-requests, types-aiofiles, types-redis, types-PyYAML, types-python-slugify]
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+    rev: v0.11.0.1
     hooks:
     -   id: shellcheck
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v0.8.0
+    rev: v1.22.0
     hooks:
       - id: zizmor
         args: [ --min-severity, low ]
-  - repo: https://github.com/netomi/dash-hooks
-    rev: v0.3.0
+  - repo: local
     hooks:
-    -   id: update-dependencies
-        args: ["-m", "app"]
+      - id: ruff
+        name: Ruff Linter
+        entry: poetry run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: Ruff Formatter
+        entry: poetry run ruff format --force-exclude
+        language: system
+        types: [python]
+      - id: mypy
+        name: Mypy Type Check
+        entry: poetry run mypy
+        language: system
+        require_serial: true
+        types: [python]
+        exclude: "tests" # see https://github.com/pre-commit/pre-commit/issues/2967
+        args:
+          - --config-file=pyproject.toml
+          - --scripts-are-modules

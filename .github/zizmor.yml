@@ -2,3 +2,11 @@ rules:
   excessive-permissions:
     ignore:
       - scorecard-analysis.yml
+  unpinned-uses:
+    config:
+      policies:
+        slsa-framework/*: any
+        eclipse-csi/*: any
+  cache-poisoning:
+    ignore:
+      - build.yml

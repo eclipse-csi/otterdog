@@ -1,4 +1,4 @@
-.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -70,6 +70,8 @@ dev-webapp-tunnel:  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
 	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel
 
+check:  ## Run all pre-commit checks
+	poetry run prek -a
 
 clean-webapp:  ## Clean Web App the development environment
 	@minikube delete
