@@ -447,7 +447,6 @@ local newOrg(name, id=name) = {
 {
   newOrg:: newOrg,
   newOrgRole:: newOrgRole,
-  newTeam:: newTeam,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,
