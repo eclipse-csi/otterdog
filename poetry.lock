@@ -3659,6 +3659,21 @@ files = [
 ]
 
 [[package]]
+name = "types-hvac"
+version = "2.4.0.20251115"
+description = "Typing stubs for hvac"
+optional = false
+python-versions = ">=3.9"
+groups = ["typing"]
+files = [
+    {file = "types_hvac-2.4.0.20251115-py3-none-any.whl", hash = "sha256:f92bcbb2eced81ce77cdbc865bff911e20341afaa6f2126e925cb8c062003f82"},
+    {file = "types_hvac-2.4.0.20251115.tar.gz", hash = "sha256:a7b5d0e86961e4d7f07e51b60b2eedcac5f8db8b98b031d4a4b716215c21df3a"},
+]
+
+[package.dependencies]
+types-requests = "*"
+
+[[package]]
 name = "types-jsonschema"
 version = "4.26.0.20260202"
 description = "Typing stubs for jsonschema"
@@ -4080,4 +4095,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "def4fb26868e6d6716abdbd86480c0257372fe4333e61b288abe118851403adf"
+content-hash = "1c419f8c8e9cbb69c76384b2382c31e3598f4ea89f095b202c497590f1aa065e"
