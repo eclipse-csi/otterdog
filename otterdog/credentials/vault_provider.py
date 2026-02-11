@@ -13,6 +13,7 @@ import os
 from typing import TYPE_CHECKING
 
 import hvac
+import hvac.exceptions
 
 from otterdog.credentials import CredentialProvider, Credentials
 from otterdog.logging import get_logger
@@ -49,7 +50,7 @@ class VaultProvider(CredentialProvider):
         api_token_pattern: str | None = None,
         verify_ssl: bool = False,
         ca_cert: str | None = None,
-        client_cert: str | tuple[str, str] | None = None,
+        client_cert: tuple[str, str] | None = None,
         batch_mode: bool = False,
     ):
         """
