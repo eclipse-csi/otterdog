@@ -639,7 +639,7 @@ def debug_times(category: str):
 
 
 def render_chevron(content: str, context: dict[str, Any]) -> str:
-    import chevron
+    import chevron  # type: ignore
 
     # need to escape ${{ sequences as used at GitHub
     escaped_content = content.replace("${{", "$\\{\\{")

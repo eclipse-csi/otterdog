@@ -228,7 +228,7 @@ class GitHubOrganization:
 
     @staticmethod
     def _validate_org_config(data: dict[str, Any]) -> None:
-        from jsonschema import Draft202012Validator
+        from jsonschema import Draft202012Validator  # type: ignore
         from referencing import Registry, Resource
         from referencing.exceptions import NoSuchResource
 

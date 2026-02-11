@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Any
 
-from jsonbender import F, OptionalS
+from jsonbender import F, OptionalS  # type: ignore
 
 from otterdog.models import (
     FailureType,

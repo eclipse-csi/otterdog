@@ -15,8 +15,8 @@ import tempfile
 import zipfile
 from typing import Any
 
-import aiofiles
-import chevron
+import aiofiles  # type: ignore
+import chevron  # type: ignore
 
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException

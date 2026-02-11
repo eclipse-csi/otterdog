@@ -12,8 +12,8 @@ from functools import cached_property
 from shutil import ignore_patterns
 from typing import Any
 
-import aiofiles.os
-import aiofiles.ospath
+import aiofiles.os  # type: ignore
+import aiofiles.ospath  # type: ignore
 
 from .logging import get_logger
 from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_url
