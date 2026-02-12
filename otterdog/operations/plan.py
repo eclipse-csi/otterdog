@@ -61,9 +61,10 @@ class PlanOperation(DiffOperation):
         org_id: str,
         model_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> None:
         self.printer.println()
-        model_header = model_object.get_model_header(parent_object)
+        model_header = model_object.get_model_header(parent_object, grandparent_object)
         self.print_dict(
             model_object.to_model_dict(for_diff=True, include_model_only_fields=True, exclude_none_values=True),
             f"add {model_header}",
@@ -76,9 +77,10 @@ class PlanOperation(DiffOperation):
         org_id: str,
         model_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> None:
         self.printer.println()
-        model_header = model_object.get_model_header(parent_object)
+        model_header = model_object.get_model_header(parent_object, grandparent_object)
         self.print_dict(
             model_object.to_model_dict(for_diff=True),
             f"remove {model_header}",
@@ -94,9 +96,10 @@ class PlanOperation(DiffOperation):
         current_object: ModelObject,
         expected_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> int:
         self.printer.println()
-        model_header = expected_object.get_model_header(parent_object)
+        model_header = expected_object.get_model_header(parent_object, grandparent_object)
         self.print_modified_dict(modified_object, model_header, forced_update)
 
         # FIXME: this code should be moved to the Webhook model class.

@@ -100,7 +100,7 @@ class OrganizationSettings(ModelObject):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return True
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         # execute custom validation rules if present
         self.execute_custom_validation_if_present(context, "validate-org-settings.py")
 
@@ -143,10 +143,10 @@ class OrganizationSettings(ModelObject):
 
         if is_set_and_present(self.custom_properties):
             for custom_property in self.custom_properties:
-                custom_property.validate(context, self)
+                custom_property.validate(context, self, None)
 
         if is_set_and_present(self.workflows):
-            self.workflows.validate(context, self)
+            self.workflows.validate(context, self, None)
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         if is_set_and_present(self.custom_properties):
@@ -254,6 +254,7 @@ class OrganizationSettings(ModelObject):
         expected_object: OrganizationSettings | None,
         current_object: OrganizationSettings | None,
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
@@ -278,6 +279,7 @@ class OrganizationSettings(ModelObject):
                     current_object,
                     modified_settings,
                     parent_object,
+                    grandparent_object,
                     False,
                     cls.apply_live_patch,
                 )
@@ -290,6 +292,7 @@ class OrganizationSettings(ModelObject):
                 expected_object.custom_properties,
                 current_object.custom_properties,
                 expected_object,
+                None,
                 context,
                 handler,
             )

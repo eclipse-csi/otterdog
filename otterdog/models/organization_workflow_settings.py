@@ -48,8 +48,8 @@ class OrganizationWorkflowSettings(WorkflowSettings):
 
         return super().include_field_for_diff_computation(field)
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        super().validate(context, parent_object)
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
+        super().validate(context, parent_object, grandparent_object)
 
         if is_set_and_valid(self.enabled_repositories):
             if self.enabled_repositories not in {"all", "none", "selected"}:

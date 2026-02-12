@@ -58,9 +58,12 @@ nav:
           - Repository Webhook: reference/organization/repository/webhook.md
           - Repository Secret: reference/organization/repository/secret.md
           - Repository Variable: reference/organization/repository/variable.md
-          - Environment: reference/organization/repository/environment.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
           - Repository Ruleset: reference/organization/repository/ruleset.md
+          - Environment:
+            - reference/organization/repository/environment/index.md
+            - Environment Secret: reference/organization/repository/environment/secret.md
+            - Environment Variable: reference/organization/repository/environment/variable.md
         - Referenced Types:
            - Actor: reference/organization/repository/actor.md
            - Branch or Tag: reference/organization/repository/branch-or-tag.md
@@ -68,6 +71,7 @@ nav:
            - Repo Name Matcher: reference/organization/repo-name-matcher.md
            - Ref Matcher: reference/organization/repository/ref-matcher.md
            - Status Check: reference/organization/repository/status-check.md
+           - Team Permission: reference/organization/repository/team-permission.md
     - Policies:
         - reference/policies/index.md
         - Upload SBOM data to dependency track: reference/policies/dependency-track-upload.md
