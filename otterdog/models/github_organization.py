@@ -581,8 +581,18 @@ class GitHubOrganization:
                         and default_org.get_team(team_name) is None
                     ):
                         continue
-                    team_members = await provider.get_org_team_members(github_id, team_slug)
-                    team["members"] = team_members
+
+                    # Team-Sync is only available for Enterprise organizations
+                    if org.settings.plan == "enterprise":
+                        team_sync = await provider.get_org_team_sync_mapping(github_id, team_slug)
+                    else:
+                        team_sync = None
+
+                    if team_sync:
+                        team["team_sync"] = team_sync
+                    else:
+                        team_members = await provider.get_org_team_members(github_id, team_slug)
+                        team["members"] = team_members
                     org.add_team(Team.from_provider_data(github_id, team))
             else:
                 _logger.debug("not reading teams, no default config available")
