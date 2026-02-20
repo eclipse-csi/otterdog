@@ -118,6 +118,12 @@ class CredentialProvider(Protocol):
                 _check_valid_keys(provider_type, defaults, PlainVault.__init__)
                 return PlainVault()
 
+            case "env":
+                from .env_provider import EnvVault
+
+                _check_valid_keys(provider_type, defaults, EnvVault.__init__)
+                return EnvVault()
+
             case _:
                 return None
 

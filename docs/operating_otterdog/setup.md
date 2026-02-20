@@ -1,4 +1,6 @@
-# Quick Setup
+# Setup Otterdog
+
+*After completing the [installation of Otterdog](install.md), you need to perform some additional steps to configure otterdog.*
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
@@ -65,7 +67,7 @@ The GitHub api token needs to have the following scopes enabled:
 * admin:org_hook
 * delete_repo
 
-The credentials can be stored in different providers (bitwarden, pass).
+The credentials can be stored in different providers (bitwarden, pass, env).
 
 #### Bitwarden
 
@@ -158,4 +160,39 @@ As the `password_store_dir` might be different on different machines, you can al
     "password_store_dir": "path/to/storage/dir"
   }
 }
+```
+
+#### Environment based credentials
+
+When using environment variables to store the credentials, you need to set the following environment variables:
+
+```json
+{
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
+        "provider": "env",
+        "api_token": "<env_var_which_contains_api_token>",
+        "username": "<env_var_which_contains_username>",
+        "password": "<env_var_which_contains_password>",
+        "twofa_seed": "<env_var_which_contains_2fa_seed>"
+      }
+    }
+  ]
+}
+```
+
+The environment variables need to be set in the system where otterdog is executed.
+They can also be set in a `.env` file in the current working directory, which will be automatically loaded by otterdog.
+
+Hint: You can combine this provider with GitHub Actions secrets to securely store the credentials in a GitHub repository and use them in a GitHub action that runs otterdog:
+
+```yaml
+  env:
+    OTTER_USERNAME: ${{ vars.OTTER_USERNAME }}
+    OTTER_PASSWORD: ${{ secrets.OTTER_PASSWORD }}
+    OTTER_TOTP_SEED: ${{ secrets.OTTER_TOTP_SEED }}
+    OTTER_API_TOKEN: ${{ secrets.OTTER_API_TOKEN }}
 ```
