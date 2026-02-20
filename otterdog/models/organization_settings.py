@@ -17,7 +17,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     LivePatchType,
     ModelObject,
     PatchContext,
@@ -255,8 +254,7 @@ class OrganizationSettings(ModelObject):
         current_object: OrganizationSettings | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> LivePatch[OrganizationSettings] | None:
         expected_object = unwrap(expected_object)
         current_object = unwrap(current_object)
 
@@ -272,27 +270,19 @@ class OrganizationSettings(ModelObject):
                 modified_settings.pop("default_code_security_configurations_disabled")
 
         if len(modified_settings) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_settings,
-                    parent_object,
-                    False,
-                    cls.apply_live_patch,
-                )
+            patch = LivePatch.of_changes(
+                expected_object,
+                current_object,
+                modified_settings,
+                parent_object,
+                False,
+                cls.apply_live_patch,
             )
+        else:
+            patch = None
 
         context.modified_org_settings = modified_settings
-
-        if is_set_and_valid(expected_object.custom_properties):
-            CustomProperty.generate_live_patch_of_list(
-                expected_object.custom_properties,
-                current_object.custom_properties,
-                expected_object,
-                context,
-                handler,
-            )
+        return patch
 
     @classmethod
     async def apply_live_patch(
