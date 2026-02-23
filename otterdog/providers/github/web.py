@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
-from otterdog.logging import get_logger, is_debug_enabled
+from otterdog import logging
 from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from otterdog.credentials import Credentials
 
-_logger = get_logger(__name__)
+_logger = logging.get_logger(__name__)
 
 
 class WebClient:
@@ -95,17 +95,12 @@ class WebClient:
             else:
                 yield page_url, page_def
 
-    @staticmethod
     async def _retrieve_settings(
-        org_id: str, page_url: str, page_def: Any, included_keys: set[str], page: Page
+        self, org_id: str, page_url: str, page_def: Any, included_keys: set[str], page: Page
     ) -> dict[str, Any]:
         settings: dict[str, Any] = {}
 
-        _logger.trace("loading page '%s'", page_url)
-        response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
-        response = unwrap(response)
-        if not response.ok:
-            raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
+        await self._goto(page, f"https://github.com/organizations/{org_id}/{page_url}")
 
         for setting_def in page_def:
             setting = setting_def["name"]
@@ -161,12 +156,7 @@ class WebClient:
                 if optional:
                     continue
 
-                if is_debug_enabled():
-                    page_name = page_url.split("/")[-1]
-                    screenshot_file = f"screenshot_{page_name}.png"
-                    await page.screenshot(path=screenshot_file)
-                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+                await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                 _logger.warning(f"failed to retrieve setting '{setting}' via web ui:\n{e!s}")
 
         return settings
@@ -210,11 +200,7 @@ class WebClient:
 
         # second, load the required pages and modify the settings
         for page_url, page_dict in pages_to_load.items():
-            _logger.trace("loading page '%s'", page_url)
-            response = await page.goto(f"https://github.com/organizations/{org_id}/{page_url}")
-            response = unwrap(response)
-            if not response.ok:
-                raise RuntimeError(f"unable to access github page '{page_url}': {response.status}")
+            await self._goto(page, f"https://github.com/organizations/{org_id}/{page_url}")
 
             for setting, setting_def in page_dict.items():
                 _logger.trace("updating setting '%s'", setting)
@@ -258,12 +244,7 @@ class WebClient:
 
                     _logger.trace("updated setting for '%s' = '%s'", setting, new_value)
                 except Exception as e:
-                    if is_debug_enabled():
-                        page_name = page_url.split("/")[-1]
-                        screenshot_file = f"screenshot_{page_name}.png"
-                        await page.screenshot(path=screenshot_file)
-                        _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+                    await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                     _logger.warning(f"failed to update setting '{setting}' via web ui:\n{e!s}")
                     raise e
 
@@ -447,7 +428,7 @@ class WebClient:
                 urls.append(url)
 
         for url in urls:
-            await page.goto(f"https://github.com{url}")
+            await self._goto(page, f"https://github.com{url}")
 
             if await page.title() == "Confirm access":
                 await page.type("#app_totp", self.credentials.totp)
@@ -468,11 +449,7 @@ class WebClient:
             )
 
             if len(permissions) == 0:
-                if is_debug_enabled():
-                    screenshot_file = f"screenshot_get_permissions_{org_id}.png"
-                    await page.screenshot(path=screenshot_file)
-                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+                await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                 _logger.warning(f"no permissions found when reviewing requested permission updates at url '{url}'")
 
             permissions_by_app: dict[str, str] = {}
@@ -511,8 +488,7 @@ class WebClient:
 
         return requested_app_permissions
 
-    @staticmethod
-    async def approve_requested_permission_updates(org_id: str, installation_id: str, page: Page) -> None:
+    async def approve_requested_permission_updates(self, org_id: str, installation_id: str, page: Page) -> None:
         _logger.debug("approving requested permission updates for '%s'", installation_id)
 
         async def accept_dialog(dialog):
@@ -521,8 +497,9 @@ class WebClient:
         try:
             page.on("dialog", accept_dialog)
 
-            await page.goto(
-                f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update"
+            await self._goto(
+                page,
+                f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}/permissions/update",
             )
 
             button = page.locator('button:text("Accept new permissions")')
@@ -532,11 +509,7 @@ class WebClient:
                 f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}"
             )
         except PlaywrightError as e:
-            if is_debug_enabled():
-                screenshot_file = f"screenshot_approve_{org_id}.png"
-                await page.screenshot(path=screenshot_file)
-                _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+            await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
             raise e
 
     async def _login_if_required(self, page: Page) -> None:
@@ -547,12 +520,40 @@ class WebClient:
         elif actor != self.credentials.username:
             raise RuntimeError(f"logged in with unexpected user {actor}")
 
-    @staticmethod
-    async def _logged_in_as(page: Page) -> str:
-        response = await page.goto("https://github.com/settings/profile")
+    async def _store_html_and_screenshot(self, page: Page, log_level: int) -> None:
+        """Store the current page html and a screenshot if logging is enabled."""
+
+        if _logger.isEnabledFor(log_level):
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+            url = page.url.replace("/", "_").replace(":", "_")
+            html_file = f"web_{timestamp}_{url}.html"
+            screenshot_file = f"web_{timestamp}_{url}.png"
+
+            content = await page.content()
+            with open(html_file, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            await page.screenshot(path=screenshot_file)
+
+            _logger.log(log_level, f"saved page html to file '{html_file}' and screenshot to file '{screenshot_file}'")
+
+    async def _goto(self, page: Page, url: str) -> None:
+        """
+        Load the given page url and check if it is loaded correctly.
+
+        Also, save a screenshot if trace logging is enabled.
+        """
+        _logger.trace("loading page '%s'", url)
+        response = await page.goto(url)
         response = unwrap(response)
         if not response.ok:
-            raise RuntimeError(f"unable to load github profile page: {response.status}")
+            raise RuntimeError(f"unable to load github page '{url}': {response.status}")
+
+        _logger.trace("loaded page '%s' with title '%s'", url, await page.title())
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
+
+    async def _logged_in_as(self, page: Page) -> str:
+        await self._goto(page, "https://github.com/settings/profile")
 
         try:
             meta_element = page.locator('meta[name="octolytics-actor-login"]')
@@ -563,10 +564,7 @@ class WebClient:
         return actor
 
     async def _login(self, page: Page) -> None:
-        response = await page.goto("https://github.com/login")
-        response = unwrap(response)
-        if not response.ok:
-            raise RuntimeError(f"unable to load github login page: {response.status}")
+        await self._goto(page, "https://github.com/login")
 
         await page.type("#login_field", self.credentials.username)
         await page.type("#password", self.credentials.password)
@@ -605,10 +603,7 @@ class WebClient:
         response = await page.goto("https://github.com/logout")
         response = unwrap(response)
         if not response.ok:
-            response = await page.goto("https://github.com/settings/profile")
-            response = unwrap(response)
-            if not response.ok:
-                raise RuntimeError("unable to load github logout page")
+            await self._goto(page, "https://github.com/settings/profile")
 
             try:
                 selector = f'summary.Header-link > img[alt = "@{actor}"]'
@@ -616,20 +611,12 @@ class WebClient:
                 await page.wait_for_selector('button[type="submit"].dropdown-signout')
                 await page.eval_on_selector('button[type="submit"].dropdown-signout', "el => el.click()")
             except Exception as e:
-                if is_debug_enabled():
-                    screenshot_file = "screenshot_profile.png"
-                    await page.screenshot(path=screenshot_file)
-                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+                await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                 _logger.warning(f"failed to logout via web ui: {e!s}")
         else:
             try:
                 selector = 'input[value = "Sign out"]'
                 await page.eval_on_selector(selector, "el => el.click()")
             except Exception as e:
-                if is_debug_enabled():
-                    screenshot_file = "screenshot_profile.png"
-                    await page.screenshot(path=screenshot_file)
-                    _logger.warning(f"saved page screenshot to file '{screenshot_file}'")
-
+                await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                 _logger.warning(f"failed to logout via web ui: {e!s}")

@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import logging
+from logging import DEBUG, ERROR, INFO, WARNING  # noqa: F401 - passthrough for users of this module
 from typing import cast
 
 from rich.box import Box
@@ -46,7 +47,8 @@ class CustomLogger(logging.Logger):
 
     def trace(self, msg, *args, **kwargs):
         if self.isEnabledFor(TRACE):
-            self._log(TRACE, msg, args, **kwargs)
+            # stacklevel=2 to point to the caller of trace() instead of the logger.trace() method itself
+            self._log(TRACE, msg, args, **kwargs, stacklevel=2)
 
 
 logging.setLoggerClass(CustomLogger)
