@@ -18,7 +18,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     LivePatchType,
     ModelObject,
     PatchContext,
@@ -31,6 +30,7 @@ from otterdog.utils import (
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
+    multi_associate_by_key,
     unwrap,
     write_patch_object_as_json,
 )
@@ -44,7 +44,7 @@ from .repo_webhook import RepositoryWebhook
 from .repo_workflow_settings import RepositoryWorkflowSettings
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Sequence
 
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
@@ -287,7 +287,6 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
             provider = context.provider
@@ -343,7 +342,6 @@ class Repository(ModelObject):
                 )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         github_id = cast("GitHubOrganization", parent_object).github_id
         org_settings = cast("GitHubOrganization", parent_object).settings
 
@@ -1150,12 +1148,10 @@ class Repository(ModelObject):
         current_object: Repository | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> LivePatch[Repository] | None:
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
+            return LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch)
 
         expected_object = unwrap(expected_object)
 
@@ -1170,7 +1166,7 @@ class Repository(ModelObject):
         changes_object_to_readonly = False
 
         if current_object is None:
-            handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
+            return LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch)
         else:
             if context.current_org_settings is not None:
                 current_org_settings = cast("OrganizationSettings", context.current_org_settings)
@@ -1206,69 +1202,201 @@ class Repository(ModelObject):
                     to_value = change.to_value
                     changes_object_to_readonly = from_value is False and to_value is True
 
-                handler(
-                    LivePatch.of_changes(
+                return LivePatch.of_changes(
+                    coerced_object,
+                    current_object,
+                    modified_repo,
+                    parent_object,
+                    False,
+                    coerced_object.apply_live_patch,
+                    changes_object_to_readonly,
+                )
+
+        return None
+
+    @classmethod
+    def generate_live_patch_of_list(
+        cls,
+        expected_objects: Sequence[Repository],
+        current_objects: Sequence[Repository],
+        parent_object: ModelObject | None,
+        context: LivePatchContext,
+    ) -> list[LivePatch]:
+        patches: list[LivePatch] = []
+        expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
+        expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
+
+        has_wildcard_keys = any(x.get_key_value().endswith("*") for x in expected_objects)
+
+        for current_object in current_objects:
+            key = current_object.get_key_value()
+
+            expected_object = expected_objects_by_all_keys.get(key)
+            if expected_object is None and has_wildcard_keys:
+                for obj in expected_objects:
+                    stripped_key = obj.get_key_value().rstrip("*")
+                    if stripped_key and key.startswith(stripped_key):
+                        expected_object = obj
+                        break
+
+            if expected_object is None:
+                if current_object.include_existing_object_for_live_patch(context.org_id, parent_object):
+                    if patch := cls.generate_live_patch(None, current_object, parent_object, context):
+                        patches.append(patch)
+                continue
+
+            if expected_object.include_for_live_patch(context):
+                if patch := cls.generate_live_patch(expected_object, current_object, parent_object, context):
+                    patches.append(patch)
+
+                expected_org_settings = cast("OrganizationSettings", context.expected_org_settings)
+                coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
+
+                if is_set_and_present(coerced_object.workflows) and is_set_and_present(expected_org_settings.workflows):
+                    coerced_object.workflows = coerced_object.workflows.coerce_from_org_settings(
                         coerced_object,
-                        current_object,
-                        modified_repo,
-                        parent_object,
-                        False,
-                        coerced_object.apply_live_patch,
-                        changes_object_to_readonly,
+                        expected_org_settings.workflows,
+                    )
+
+                if current_object is not None and context.current_org_settings is not None:
+                    current_org_settings = cast("OrganizationSettings", context.current_org_settings)
+                    current_repo_object = current_object.coerce_from_org_settings(current_org_settings)
+                else:
+                    current_repo_object = current_object
+
+                patches.extend(
+                    RepositoryWebhook.generate_live_patch_of_list(
+                        coerced_object.webhooks,
+                        current_repo_object.webhooks if current_repo_object is not None else [],
+                        coerced_object,
+                        context,
                     )
                 )
 
-        RepositoryWebhook.generate_live_patch_of_list(
-            coerced_object.webhooks,
-            current_object.webhooks if current_object is not None else [],
-            coerced_object,
-            context,
-            handler,
-        )
+                patches.extend(
+                    RepositorySecret.generate_live_patch_of_list(
+                        coerced_object.secrets,
+                        current_repo_object.secrets if current_repo_object is not None else [],
+                        coerced_object,
+                        context,
+                    )
+                )
 
-        RepositorySecret.generate_live_patch_of_list(
-            coerced_object.secrets,
-            current_object.secrets if current_object is not None else [],
-            coerced_object,
-            context,
-            handler,
-        )
+                patches.extend(
+                    RepositoryVariable.generate_live_patch_of_list(
+                        coerced_object.variables,
+                        current_repo_object.variables if current_repo_object is not None else [],
+                        coerced_object,
+                        context,
+                    )
+                )
 
-        RepositoryVariable.generate_live_patch_of_list(
-            coerced_object.variables,
-            current_object.variables if current_object is not None else [],
-            coerced_object,
-            context,
-            handler,
-        )
+                patches.extend(
+                    Environment.generate_live_patch_of_list(
+                        coerced_object.environments,
+                        current_repo_object.environments if current_repo_object is not None else [],
+                        coerced_object,
+                        context,
+                    )
+                )
 
-        Environment.generate_live_patch_of_list(
-            coerced_object.environments,
-            current_object.environments if current_object is not None else [],
-            coerced_object,
-            context,
-            handler,
-        )
+                changes_object_to_readonly = False
+                if patch is not None and patch.patch_type == LivePatchType.CHANGE:
+                    changes_object_to_readonly = patch.changes_object_to_readonly
 
-        # only take branch protection rules of non-archive projects into account
-        # if the change to archived happens in this operation, still perform any
-        # other changes, the archiving will be done last.
-        if coerced_object.archived is False or changes_object_to_readonly is True:
-            BranchProtectionRule.generate_live_patch_of_list(
-                coerced_object.branch_protection_rules,
-                (current_object.branch_protection_rules if current_object is not None else []),
-                coerced_object,
-                context,
-                handler,
-            )
+                if coerced_object.archived is False or changes_object_to_readonly is True:
+                    patches.extend(
+                        BranchProtectionRule.generate_live_patch_of_list(
+                            coerced_object.branch_protection_rules,
+                            (current_repo_object.branch_protection_rules if current_repo_object is not None else []),
+                            coerced_object,
+                            context,
+                        )
+                    )
 
-            RepositoryRuleset.generate_live_patch_of_list(
-                coerced_object.rulesets,
-                current_object.rulesets if current_object is not None else [],
-                coerced_object,
-                context,
-                handler,
-            )
+                    patches.extend(
+                        RepositoryRuleset.generate_live_patch_of_list(
+                            coerced_object.rulesets,
+                            current_repo_object.rulesets if current_repo_object is not None else [],
+                            coerced_object,
+                            context,
+                        )
+                    )
+
+            for k in expected_object.get_all_key_values():
+                expected_objects_by_all_keys.pop(k)
+            expected_objects_by_key.pop(expected_object.get_key_value())
+
+        for _, expected_object in expected_objects_by_key.items():
+            if expected_object.include_for_live_patch(context):
+                if patch := cls.generate_live_patch(expected_object, None, parent_object, context):
+                    patches.append(patch)
+
+                expected_org_settings = cast("OrganizationSettings", context.expected_org_settings)
+                coerced_object = expected_object.coerce_from_org_settings(expected_org_settings)
+
+                if is_set_and_present(coerced_object.workflows) and is_set_and_present(expected_org_settings.workflows):
+                    coerced_object.workflows = coerced_object.workflows.coerce_from_org_settings(
+                        coerced_object,
+                        expected_org_settings.workflows,
+                    )
+
+                patches.extend(
+                    RepositoryWebhook.generate_live_patch_of_list(
+                        coerced_object.webhooks,
+                        [],
+                        coerced_object,
+                        context,
+                    )
+                )
+
+                patches.extend(
+                    RepositorySecret.generate_live_patch_of_list(
+                        coerced_object.secrets,
+                        [],
+                        coerced_object,
+                        context,
+                    )
+                )
+
+                patches.extend(
+                    RepositoryVariable.generate_live_patch_of_list(
+                        coerced_object.variables,
+                        [],
+                        coerced_object,
+                        context,
+                    )
+                )
+
+                patches.extend(
+                    Environment.generate_live_patch_of_list(
+                        coerced_object.environments,
+                        [],
+                        coerced_object,
+                        context,
+                    )
+                )
+
+                if coerced_object.archived is False:
+                    patches.extend(
+                        BranchProtectionRule.generate_live_patch_of_list(
+                            coerced_object.branch_protection_rules,
+                            [],
+                            coerced_object,
+                            context,
+                        )
+                    )
+
+                    patches.extend(
+                        RepositoryRuleset.generate_live_patch_of_list(
+                            coerced_object.rulesets,
+                            [],
+                            coerced_object,
+                            context,
+                        )
+                    )
+
+        return patches
 
     @staticmethod
     def _include_squash_merge_patch_required_properties(

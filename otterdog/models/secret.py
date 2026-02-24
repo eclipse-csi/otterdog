@@ -20,7 +20,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     ModelObject,
     ValidationContext,
 )
@@ -117,34 +116,28 @@ class Secret(ModelObject, abc.ABC):
         current_object: ST | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> LivePatch[ST] | None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
+            return LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch)
 
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
+            return LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch)
 
         # if secrets shall be updated and the secret contains a valid secret perform a forced update.
         if context.update_secrets and fnmatch.fnmatch(expected_object.name, context.update_filter):
             model_dict = expected_object.to_model_dict()
             modified_secret: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_secret,
-                    parent_object,
-                    True,
-                    expected_object.apply_live_patch,
-                )
+            return LivePatch.of_changes(
+                expected_object,
+                current_object,
+                modified_secret,
+                parent_object,
+                True,
+                expected_object.apply_live_patch,
             )
-            return
 
         modified_secret = expected_object.get_difference_from(current_object)
 
@@ -164,13 +157,13 @@ class Secret(ModelObject, abc.ABC):
                 modified_secret["value"] = Change(current_secret_value, expected_secret_value)
 
         if len(modified_secret) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_secret,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
+            return LivePatch.of_changes(
+                expected_object,
+                current_object,
+                modified_secret,
+                parent_object,
+                False,
+                expected_object.apply_live_patch,
             )
+
+        return None

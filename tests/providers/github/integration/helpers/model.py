@@ -80,16 +80,14 @@ class ModelForContext:
         """
         model_cls = determine_model_object(old, new)
 
-        patches: list[LivePatch] = []
-        model_cls.generate_live_patch(
+        patch = model_cls.generate_live_patch(
             expected_object=new,
             current_object=old,
             parent_object=self.get_parent_object(old, new),
             context=self.live_patch_context,
-            handler=lambda p: patches.append(p),  # pyright: ignore[reportArgumentType]
         )
-        assert len(patches) == 1, f"Expected exactly one patch, got {len(patches)}"
-        return patches[0]
+        assert patch is not None, "Expected exactly one patch, got none"
+        return patch
 
     def get_parent_object(self, old: ModelObject | None, new: ModelObject | None) -> ModelObject | None:
         """

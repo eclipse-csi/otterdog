@@ -173,10 +173,6 @@ class LivePatchContext:
     modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
 
 
-class LivePatchHandler(Protocol):
-    def __call__(self, patch: LivePatch) -> None: ...
-
-
 @dataclasses.dataclass
 class EmbeddedModelObject(ABC):
     """
@@ -710,41 +706,42 @@ class ModelObject(ABC):
         current_object: MT | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
-        if current_object is None:
-            expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
+    ) -> LivePatch[MT] | None:
+        modified_model_entries: dict[str, Change[Any]] = (
+            expected_object.get_difference_from(current_object) if expected_object and current_object else {}
+        )
+        patch_type = (
+            LivePatchType.ADD
+            if current_object is None
+            else LivePatchType.REMOVE
+            if expected_object is None
+            else LivePatchType.CHANGE
+            if len(modified_model_entries) > 0
+            else None
+        )
 
-        if expected_object is None:
-            current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
-
-        modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
-
-        if len(modified_rule) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_rule,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
+        if patch_type:
+            return LivePatch(
+                patch_type=patch_type,
+                expected_object=expected_object,
+                current_object=current_object,
+                changes=modified_model_entries if patch_type == LivePatchType.CHANGE else None,
+                parent_object=parent_object,
+                forced_update=False,
+                fn=expected_object.apply_live_patch if expected_object else current_object.apply_live_patch,  # type: ignore
             )
+
+        return None
 
     @classmethod
     def generate_live_patch_of_list(
-        cls,
+        cls: type[MT],
         expected_objects: Sequence[MT],
         current_objects: Sequence[MT],
         parent_object: MT | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> list[LivePatch[MT]]:
+        patches: list[LivePatch[MT]] = []
         expected_objects_by_key = associate_by_key(expected_objects, lambda x: x.get_key_value())
         expected_objects_by_all_keys = multi_associate_by_key(expected_objects, lambda x: x.get_all_key_values())
 
@@ -763,11 +760,13 @@ class ModelObject(ABC):
 
             if expected_object is None:
                 if current_object.include_existing_object_for_live_patch(context.org_id, parent_object):
-                    cls.generate_live_patch(None, current_object, parent_object, context, handler)
+                    if patch := cls.generate_live_patch(None, current_object, parent_object, context):
+                        patches.append(patch)
                 continue
 
             if expected_object.include_for_live_patch(context):
-                cls.generate_live_patch(expected_object, current_object, parent_object, context, handler)
+                if patch := cls.generate_live_patch(expected_object, current_object, parent_object, context):
+                    patches.append(patch)
 
             for k in expected_object.get_all_key_values():
                 expected_objects_by_all_keys.pop(k)
@@ -775,7 +774,10 @@ class ModelObject(ABC):
 
         for _, expected_object in expected_objects_by_key.items():
             if expected_object.include_for_live_patch(context):
-                cls.generate_live_patch(expected_object, None, parent_object, context, handler)
+                if patch := cls.generate_live_patch(expected_object, None, parent_object, context):
+                    patches.append(patch)
+
+        return patches
 
     @classmethod
     @abstractmethod
