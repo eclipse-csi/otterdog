@@ -2,6 +2,10 @@
 
 ## [1.2.1] - unreleased
 
+### Changed
+
+ - Fix web-login ([#597](https://github.com/eclipse-csi/otterdog/pull/597))
+
 ## [1.2.0] - 12/02/2026
 
 ### Added
