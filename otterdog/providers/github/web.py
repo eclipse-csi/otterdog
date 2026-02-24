@@ -550,6 +550,12 @@ class WebClient:
             raise RuntimeError(f"unable to load github page '{url}': {response.status}")
 
         _logger.trace("loaded page '%s' with title '%s'", url, await page.title())
+
+        if "single sign-on" in await page.content():
+            raise RuntimeError(
+                "your organization requires single sign-on login which is currently not supported by the web client. Use --no-web-ui"
+            )
+
         await self._store_html_and_screenshot(page, log_level=logging.TRACE)
 
     async def _logged_in_as(self, page: Page) -> str:
@@ -563,37 +569,80 @@ class WebClient:
 
         return actor
 
-    async def _login(self, page: Page) -> None:
+    async def _enter_username_and_password(self, page: Page) -> None:
         await self._goto(page, "https://github.com/login")
 
         await page.type("#login_field", self.credentials.username)
         await page.type("#password", self.credentials.password)
-        await page.click('input[name="commit"]')
+        # submit the form and wait for navigation
+        async with page.expect_navigation(wait_until="load"):
+            await page.click('input[name="commit"]')
 
-        await page.goto("https://github.com/sessions/two-factor")
-        await page.type("#app_totp", self.credentials.totp)
+        # Store the page content and a screenshot after submitting the login form.
+        # This will help to debug login issues, especially if there are additional verification steps that we did not handle.
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
 
+        # Verify login status after submitting credentials
+        content = await page.content()
+        if "Incorrect username or password." in content:
+            # url is at https://github.com/session
+            raise RuntimeError("incorrect username or password")
+
+        if (
+            "There have been several failed attempts to sign in from this account or IP address." in content
+            and "Please wait a while and try again later." in content
+        ):
+            raise RuntimeError("too many failed login attempts, please try again later")
+
+    async def _handle_verify_2fa_extra_page(self, page: Page) -> None:
+        if await page.title() == "Verify two-factor authentication":
+            await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
+
+            verify_button = page.get_by_role("button", name="Verify 2FA now")
+            if await verify_button.count() > 0:
+                await verify_button.click()
+
+                if await page.is_visible('button[text="Confirm"]'):
+                    confirm_button = page.get_by_role("button", name="Confirm")
+                    if await confirm_button.count() > 0:
+                        await confirm_button.click()
+
+                if await page.title() == "Confirm your account recovery settings":
+                    confirm_button = page.get_by_role("button", name="Confirm")
+                    if await confirm_button.count() > 0:
+                        await confirm_button.click()
+
+    async def _perform_2fa_verification(self, page: Page) -> None:
+        # GitHub will redirect to the user default 2FA method after login, but we want to force authenticator app method.
+        if page.url != "https://github.com/sessions/two-factor/app":
+            _logger.trace("redirected to unexpected page '%s' after login, expected 2FA app page", page.url)
+            await self._goto(page, "https://github.com/sessions/two-factor/app")
+
+        # If GitHub is not asking for 2FA verification, this means something went wrong.
+        if "Two-factor authentication" not in await page.title():
+            await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
+            raise RuntimeError("unexpected page after login, expected 'Two-factor authentication' in title")
+
+        # after typing the TOTP, the page will redirect to the verification page.
+        # wait for page navigation after submitting the form, this will also ensure that the TOTP code is accepted and we are logged in successfully
+        async with page.expect_navigation(wait_until="load"):
+            await page.type("#app_totp", self.credentials.totp)
+
+        _logger.trace("page title after submitting 2FA form: '%s'", await page.title())
+
+        if "Two-factor authentication failed" in await page.content():
+            await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
+            raise RuntimeError("incorrect 2FA TOTP")
+
+        # Store the page content and a screenshot after submitting 2FA.
+        # This should show the GitHub start page - or any issues.
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
+
+    async def _login(self, page: Page) -> None:
         try:
-            meta_element = page.locator('meta[name="octolytics-actor-login"]')
-            actor = await meta_element.evaluate("element => element.content")
-            _logger.trace("logged in as '%s'", actor)
-
-            if await page.title() == "Verify two-factor authentication":
-                verify_button = page.get_by_role("button", name="Verify 2FA now")
-                if verify_button is not None:
-                    await verify_button.click()
-
-                    if await page.is_visible('button[text="Confirm"]'):
-                        confirm_button = page.get_by_role("button", name="Confirm")
-                        if confirm_button is not None:
-                            await confirm_button.click()
-
-                    if await page.title() == "Confirm your account recovery settings":
-                        confirm_button = page.get_by_role("button", name="Confirm")
-                        if confirm_button is not None:
-                            await confirm_button.click()
-
-                    await page.type("#app_totp", self.credentials.totp)
+            await self._enter_username_and_password(page)
+            await self._handle_verify_2fa_extra_page(page)
+            await self._perform_2fa_verification(page)
         except PlaywrightError as e:
             raise RuntimeError(f"could not log in to web UI: {e!s}") from e
 
