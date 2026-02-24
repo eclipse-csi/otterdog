@@ -553,7 +553,8 @@ class WebClient:
 
         if "single sign-on" in await page.content():
             raise RuntimeError(
-                "your organization requires single sign-on login which is currently not supported by the web client. Use --no-web-ui"
+                "Your organization requires single sign-on login which is currently not supported by the web client."
+                " Use --no-web-ui"
             )
 
         await self._store_html_and_screenshot(page, log_level=logging.TRACE)
@@ -579,7 +580,8 @@ class WebClient:
             await page.click('input[name="commit"]')
 
         # Store the page content and a screenshot after submitting the login form.
-        # This will help to debug login issues, especially if there are additional verification steps that we did not handle.
+        # This will help to debug login issues, especially if there are additional
+        # verification steps that we did not handle.
         await self._store_html_and_screenshot(page, log_level=logging.TRACE)
 
         # Verify login status after submitting credentials
@@ -613,7 +615,8 @@ class WebClient:
                         await confirm_button.click()
 
     async def _perform_2fa_verification(self, page: Page) -> None:
-        # GitHub will redirect to the user default 2FA method after login, but we want to force authenticator app method.
+        # GitHub will redirect to the user default 2FA method after login,
+        # but we want to force authenticator app method.
         if page.url != "https://github.com/sessions/two-factor/app":
             _logger.trace("redirected to unexpected page '%s' after login, expected 2FA app page", page.url)
             await self._goto(page, "https://github.com/sessions/two-factor/app")
@@ -624,7 +627,8 @@ class WebClient:
             raise RuntimeError("unexpected page after login, expected 'Two-factor authentication' in title")
 
         # after typing the TOTP, the page will redirect to the verification page.
-        # wait for page navigation after submitting the form, this will also ensure that the TOTP code is accepted and we are logged in successfully
+        # wait for page navigation after submitting the form, this will also ensure
+        # that the TOTP code is accepted and we are logged in successfully
         async with page.expect_navigation(wait_until="load"):
             await page.type("#app_totp", self.credentials.totp)
 
