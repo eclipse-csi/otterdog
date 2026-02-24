@@ -558,7 +558,7 @@ class WebClient:
 
         await self._store_html_and_screenshot(page, log_level=logging.TRACE)
 
-    async def _logged_in_as(self, page: Page) -> str:
+    async def _logged_in_as(self, page: Page) -> str | None:
         await self._goto(page, "https://github.com/settings/profile")
 
         try:
@@ -648,8 +648,13 @@ class WebClient:
 
     async def _logout(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
+        if not actor:
+            _logger.debug("not logged in, skipping logout")
+            return
 
         response = await page.goto("https://github.com/logout")
+        await self._store_html_and_screenshot(page, log_level=logging.TRACE)
+
         response = unwrap(response)
         if not response.ok:
             await self._goto(page, "https://github.com/settings/profile")
