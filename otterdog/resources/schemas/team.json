@@ -9,6 +9,19 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "team_sync": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "group_id": { "type": "string" },
+          "group_name": { "type": "string" },
+          "group_description": { "type": "string" }
+        },
+        "required": [ "group_id", "group_name", "group_description" ],
+        "additionalProperties": false
+      }
+    },
     "privacy": { "type": "string" },
     "notifications": { "type": "boolean" },
     "skip_members": { "type": "boolean" },

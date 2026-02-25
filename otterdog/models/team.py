@@ -21,6 +21,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
+from otterdog.providers.github.rest import TeamSyncMapping
 from otterdog.utils import UNSET, is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
@@ -42,7 +43,8 @@ class Team(ModelObject, abc.ABC):
     description: str | None
     privacy: str
     notifications: bool
-    members: list[str]
+    team_sync: list[TeamSyncMapping] | None
+    members: list[str] | None # members remain unset if team-sync is enabled
     skip_members: bool = dataclasses.field(metadata={"model_only": True}, default=False)
     skip_non_organization_members: bool = dataclasses.field(metadata={"model_only": True}, default=False)
 
@@ -55,7 +57,8 @@ class Team(ModelObject, abc.ABC):
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if field.name == "members":
-            return not self.skip_members
+            # if team-sync is enabled, members are managed externally and should not be part of diff computation
+            return not (self.team_sync or self.skip_members)
 
         return True
 
@@ -97,6 +100,13 @@ class Team(ModelObject, abc.ABC):
                         f"{self.get_model_header(parent_object)} has 'skip_non_organization_members' enabled, "
                         f"but 'members' contains user '{member}' who is not an organization member.",
                     )
+
+        if self.team_sync and self.members:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'team_sync' enabled, "
+                f"but 'members' is also set to {self.members}.",
+            )
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:

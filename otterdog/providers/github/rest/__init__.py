@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -166,3 +167,11 @@ def encrypt_value(public_key: str, secret_value: str) -> str:
 
 def parse_iso_date_string(date: str) -> datetime:
     return datetime.fromisoformat(date)
+
+@dataclass
+class TeamSyncMapping:
+    group_id: str
+    group_name: str
+    group_description: str
+    status: str | None
+    synced_at: str | None

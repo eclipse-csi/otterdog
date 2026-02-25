@@ -12,7 +12,7 @@ from typing import Any
 
 from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-from otterdog.providers.github.rest import RestApi, RestClient
+from otterdog.providers.github.rest import RestApi, RestClient, TeamSyncMapping
 
 _logger = get_logger(__name__)
 
@@ -98,6 +98,17 @@ class TeamClient(RestClient):
             _logger.debug("updated team '%s'", team_slug)
         except GitHubException as ex:
             raise RuntimeError(f"failed to update team '{team_slug}':\n{ex}") from ex
+
+    async def get_team_sync_mapping(self, org_id: str, team_slug: str) -> list[TeamSyncMapping]:
+        _logger.debug("retrieving team-sync for team '%s/%s'", org_id, team_slug)
+
+        try:
+            # https://docs.github.com/en/enterprise-cloud@latest/rest/teams/team-sync?apiVersion=2022-11-28#list-idp-groups-for-a-team
+            data: dict[str, list[dict[str, str]]] = await self.requester.request_json("GET", f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving team-sync for team '{org_id}/{team_slug}':\n{ex}") from ex
+
+        return [TeamSyncMapping(**group) for group in data.get("groups", [])]
 
     async def get_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving team members for team '%s/%s'", org_id, team_slug)
