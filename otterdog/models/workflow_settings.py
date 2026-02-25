@@ -26,6 +26,12 @@ if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
+_FORK_PR_APPROVAL_POLICIES = {
+    "first_time_contributors_new_to_github",
+    "first_time_contributors",
+    "all_external_contributors",
+}
+
 
 @dataclasses.dataclass
 class WorkflowSettings(EmbeddedModelObject, abc.ABC):
@@ -39,6 +45,16 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
     allow_action_patterns: list[str]
     default_workflow_permissions: str
     actions_can_approve_pull_request_reviews: bool
+    fork_pr_approval_policy: str
+    """
+    The policy that controls when fork PR workflows require approval from a maintainer.
+
+    Can be one of: first_time_contributors_new_to_github, first_time_contributors,
+    all_external_contributors
+
+    See "approval_policy" parameter in "fork-pr-contributor-approval" endpoint
+    in https://docs.github.com/en/rest/actions/permissions?apiVersion=2022-11-28
+    """
 
     _selected_action_properties: ClassVar[list[str]] = [
         "allow_github_owned_actions",
@@ -101,6 +117,15 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
                     f"while only values ('read' | 'write') are allowed.",
                 )
 
+        if is_set_and_valid(self.fork_pr_approval_policy):
+            if self.fork_pr_approval_policy not in _FORK_PR_APPROVAL_POLICIES:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header()} has 'workflows.fork_pr_approval_policy' "
+                    f"of value '{self.fork_pr_approval_policy}', "
+                    f"while only values {_FORK_PR_APPROVAL_POLICIES} are allowed.",
+                )
+
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if is_set_and_valid(self.allowed_actions) and self.allowed_actions in ["all", "local_only"]:
             if field.name in self._selected_action_properties:
@@ -126,6 +151,7 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
                 "actions_can_approve_pull_request_reviews": OptionalS(
                     "can_approve_pull_request_reviews", default=UNSET
                 ),
+                "fork_pr_approval_policy": OptionalS("approval_policy", default=UNSET),
             }
         )
         return mapping
@@ -151,6 +177,10 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
         if "actions_can_approve_pull_request_reviews" in data:
             mapping.pop("actions_can_approve_pull_request_reviews")
             mapping["can_approve_pull_request_reviews"] = S("actions_can_approve_pull_request_reviews")
+
+        if "fork_pr_approval_policy" in data:
+            mapping.pop("fork_pr_approval_policy")
+            mapping["approval_policy"] = S("fork_pr_approval_policy")
 
         return mapping
 

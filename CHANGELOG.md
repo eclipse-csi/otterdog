@@ -11,6 +11,7 @@
 ### Added
 
  - Support for config files written in jsonnet ([#542](https://github.com/eclipse-csi/otterdog/pull/542))
+ - Support for workflow setting `fork_pr_approval_policy` ([#576](https://github.com/eclipse-csi/otterdog/pull/576))
 
 ### Changed
 

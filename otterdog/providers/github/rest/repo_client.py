@@ -952,6 +952,8 @@ class RepoClient(RestClient):
         if permissions.get("enabled", False) is not False:
             workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
 
+        workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+
         return workflow_settings
 
     async def update_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
@@ -983,6 +985,9 @@ class RepoClient(RestClient):
         }
         if len(default_permission_data) > 0:
             await self._update_default_workflow_permissions(org_id, repo_name, default_permission_data)
+
+        if "approval_policy" in data:
+            await self._update_fork_pr_approval_policy(org_id, repo_name, {"approval_policy": data["approval_policy"]})
 
         _logger.debug("updated %d workflow setting(s)", len(data))
 
@@ -1033,6 +1038,32 @@ class RepoClient(RestClient):
             )
 
         _logger.debug("updated default workflow permissions for repo '%s/%s'", org_id, repo_name)
+
+    async def _get_fork_pr_approval_policy(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        _logger.debug("retrieving fork PR approval policy for repo '%s/%s'", org_id, repo_name)
+
+        try:
+            return await self.requester.request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/actions/permissions/fork-pr-contributor-approval"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving fork PR approval policy for repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def _update_fork_pr_approval_policy(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+        _logger.debug("updating fork PR approval policy for repo '%s/%s'", org_id, repo_name)
+
+        status, body = await self.requester.request_raw(
+            "PUT", f"/repos/{org_id}/{repo_name}/actions/permissions/fork-pr-contributor-approval", json.dumps(data)
+        )
+
+        if status != 204:
+            raise RuntimeError(
+                f"failed updating fork PR approval policy for repo '{org_id}/{repo_name}'\n{status}: {body}"
+            )
+
+        _logger.debug("updated fork PR approval policy for repo '%s/%s'", org_id, repo_name)
 
     async def get_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
         _logger.debug("retrieving repo public key for repo '%s/%s'", org_id, repo_name)

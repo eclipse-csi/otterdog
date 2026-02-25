@@ -3,7 +3,7 @@ import json
 import pretend
 import pytest
 
-from otterdog.providers.github.rest.repo_client import RepoClient
+from otterdog.providers.github.rest.repo_client import GitHubException, RepoClient
 
 
 class TestRepoClientCodeScanningConfig:
@@ -138,3 +138,113 @@ class TestRepoClientUpdateRepo:
         assert repo_client.requester.request_json.calls == [
             pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
         ]
+
+
+class TestRepoClientForkPrApprovalPolicy:
+    async def test_get_fork_pr_approval_policy_success(self):
+        expected_policy = {"approval_policy": "first_time_contributors"}
+        expected_method = "GET"
+        expected_url = "/repos/org/repo/actions/permissions/fork-pr-contributor-approval"
+
+        async def mock_request(method, url):
+            assert method == expected_method
+            assert url == expected_url
+            return expected_policy
+
+        mock_requester = pretend.stub(request_json=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+
+        result = await repo_client._get_fork_pr_approval_policy("org", "repo")
+
+        assert result == expected_policy
+
+    async def test_get_fork_pr_approval_policy_raises_on_error(self):
+        async def mock_request(method, url):
+            raise GitHubException(None, 500, "")
+
+        mock_requester = pretend.stub(request_json=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+
+        with pytest.raises(RuntimeError) as e:
+            await repo_client._get_fork_pr_approval_policy("org", "repo")
+
+        assert "fork PR approval policy" in str(e.value)
+
+    async def test_update_fork_pr_approval_policy_success(self):
+        expected_policy = {"approval_policy": "first_time_contributors"}
+        expected_method = "PUT"
+        expected_url = "/repos/org/repo/actions/permissions/fork-pr-contributor-approval"
+
+        async def mock_request(method, url, data):
+            assert method == expected_method
+            assert url == expected_url
+            assert json.loads(data) == expected_policy
+            return (204, "")
+
+        mock_requester = pretend.stub(request_raw=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+
+        await repo_client._update_fork_pr_approval_policy("org", "repo", expected_policy)
+
+    async def test_update_fork_pr_approval_policy_raises_on_non_204(self):
+        async def mock_request(method, url, data):
+            return (500, "")
+
+        mock_requester = pretend.stub(request_raw=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+
+        with pytest.raises(RuntimeError) as e:
+            await repo_client._update_fork_pr_approval_policy(
+                "org", "repo", {"approval_policy": "first_time_contributors"}
+            )
+        assert "fork PR approval policy" in str(e)
+
+    async def test_update_workflow_settings_with_approval_policy(self):
+        policy = {"approval_policy": "all_external_contributors"}
+
+        async def mock_update(org, repo, data):
+            assert org == "org"
+            assert repo == "repo"
+            assert data == policy
+
+        repo_client = RepoClient(None)
+        repo_client._update_fork_pr_approval_policy = mock_update
+
+        await repo_client.update_workflow_settings("org", "repo", policy)
+
+    async def test_update_workflow_settings_without_approval_policy(self):
+        policy = {}
+
+        async def mock_update(org, repo, data): ...
+
+        repo_client = RepoClient(None)
+        repo_client._update_fork_pr_approval_policy = pretend.call_recorder(mock_update)
+
+        await repo_client.update_workflow_settings("org", "repo", policy)
+
+        assert not repo_client._update_fork_pr_approval_policy.calls
+
+    async def test_get_workflow_settings_includes_fork_pr_approval_policy(self):
+        policy = {"approval_policy": "all_external_contributors"}
+
+        async def mock_request(method, url):
+            return {}
+
+        async def mock_get(org, repo):
+            assert org == "org"
+            assert repo == "repo"
+            return policy
+
+        mock_requester = pretend.stub(request_json=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+        repo_client._get_fork_pr_approval_policy = mock_get
+
+        result = await repo_client.get_workflow_settings("org", "repo")
+
+        # Assert result includes the approval policy
+        assert set(policy.items()).issubset(result.items())
