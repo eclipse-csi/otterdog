@@ -63,14 +63,18 @@ class EnvVault(CredentialProvider):
         if env_variable := data.get(key):
             # Org-specific setting has priority - use as-is, no placeholder replacement
             if "{" in env_variable or "}" in env_variable:
-                raise RuntimeError(f"placeholders '{{' or '}}' in org-specific setting for key '{key}' are not allowed: {env_variable}")
+                raise RuntimeError(
+                    f"placeholders '{{' or '}}' in org-specific setting for key '{key}' are not allowed: {env_variable}"
+                )
 
         elif env_variable := self._default_keys.get(key):
             # Use default setting + optionally replace {...} placeholders
-            env_variable = env_variable.format_map({
-                placeholder_key: placeholder_value.upper().replace(" ", "_").replace("-", "_")
-                for placeholder_key, placeholder_value in placeholders.items()
-            })
+            env_variable = env_variable.format_map(
+                {
+                    placeholder_key: placeholder_value.upper().replace(" ", "_").replace("-", "_")
+                    for placeholder_key, placeholder_value in placeholders.items()
+                }
+            )
         else:
             raise RuntimeError(f"required key '{key}' not found in credential data")
 
@@ -88,7 +92,9 @@ class EnvVault(CredentialProvider):
 
         return env_value
 
-    def get_credentials(self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         """
         Retrieves credentials from environment variables based on the provided data mapping.
 

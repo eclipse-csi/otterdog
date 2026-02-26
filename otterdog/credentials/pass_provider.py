@@ -74,7 +74,9 @@ class PassVault(CredentialProvider):
     def api_token_pattern(self) -> str | None:
         return self._api_token_pattern
 
-    def get_credentials(self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, placeholders, data)
 
         if only_token is False:

@@ -18,7 +18,9 @@ class InMemoryVault(CredentialProvider):
 
     KEY_API_TOKEN = "api_token"
 
-    def get_credentials(self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         if only_token is not True:
             raise RuntimeError("in-memory vault can only contain GitHub tokens")
 

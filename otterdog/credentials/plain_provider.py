@@ -26,7 +26,9 @@ class PlainVault(CredentialProvider):
     KEY_PASSWORD = "password"
     KEY_TWOFA_SEED = "twofa_seed"
 
-    def get_credentials(self, _placeholders: dict[str, str], data: dict[str, str], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, _placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, data)
 
         if only_token is False:
