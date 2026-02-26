@@ -37,7 +37,7 @@ class Role(ModelObject, abc.ABC):
     permissions: list[str]
     base_role: str
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if is_set_and_valid(self.base_role):
             if self.base_role not in {"none", "read", "triage", "write", "maintain", "admin"}:
                 context.add_failure(

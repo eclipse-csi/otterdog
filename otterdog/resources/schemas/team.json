@@ -1,20 +1,25 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-
   "type": "object",
+
   "properties": {
     "name": { "type": "string" },
-    "description": { "$ref": "types.json#/$defs/string-or-null"},
+    "description": { "$ref": "types.json#/$defs/string-or-null" },
+    "privacy": { "type": "string" },
+    "notifications": { "type": "boolean" },
+    "skip_members": { "type": "boolean" },
+    "skip_non_organization_members": { "type": "boolean" },
+
     "members": {
       "type": "array",
       "items": { "type": "string" }
     },
-    "privacy": { "type": "string" },
-    "notifications": { "type": "boolean" },
-    "skip_members": { "type": "boolean" },
-    "skip_non_organization_members": { "type": "boolean" }
-  },
 
-  "required": [ "name", "privacy" ],
+    "team_sync_id": { "$ref": "types.json#/$defs/string-or-null" },
+    "team_sync_name": { "$ref": "types.json#/$defs/string-or-null" },
+    "team_sync_description": { "$ref": "types.json#/$defs/string-or-null" },
+    "external_groups": { "$ref": "types.json#/$defs/string-or-null" }
+  },
+  "required": ["name", "privacy"],
   "additionalProperties": false
 }

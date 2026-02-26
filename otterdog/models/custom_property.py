@@ -46,7 +46,7 @@ class CustomProperty(ModelObject):
     def model_object_name(self) -> str:
         return "custom_property"
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if is_set_and_valid(self.value_type):
             if self.value_type not in {"string", "single_select", "multi_select", "true_false"}:
                 context.add_failure(
@@ -171,16 +171,25 @@ class CustomProperty(ModelObject):
         expected_object: CustomProperty | None,
         current_object: CustomProperty | None,
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            handler(
+                LivePatch.of_addition(
+                    expected_object, parent_object, grandparent_object, expected_object.apply_live_patch
+                )
+            )
             return
 
         if expected_object is None:
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            handler(
+                LivePatch.of_deletion(
+                    current_object, parent_object, grandparent_object, current_object.apply_live_patch
+                )
+            )
             return
 
         modified_property: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
@@ -198,6 +207,7 @@ class CustomProperty(ModelObject):
                     current_object,
                     modified_property,
                     parent_object,
+                    grandparent_object,
                     False,
                     expected_object.apply_live_patch,
                 )

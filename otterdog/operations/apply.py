@@ -62,8 +62,9 @@ class ApplyOperation(PlanOperation):
         org_id: str,
         model_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> None:
-        super().handle_add_object(org_id, model_object, parent_object)
+        super().handle_add_object(org_id, model_object, parent_object, grandparent_object)
         self.execute_custom_hook_if_present_with_model_object(self.org_config, model_object, "pre-add-object-hook.py")
 
     def handle_delete_object(
@@ -71,8 +72,9 @@ class ApplyOperation(PlanOperation):
         org_id: str,
         model_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> None:
-        super().handle_delete_object(org_id, model_object, parent_object)
+        super().handle_delete_object(org_id, model_object, parent_object, grandparent_object)
 
     def handle_modified_object(
         self,
@@ -82,6 +84,7 @@ class ApplyOperation(PlanOperation):
         current_object: ModelObject,
         expected_object: ModelObject,
         parent_object: ModelObject | None = None,
+        grandparent_object: ModelObject | None = None,
     ) -> int:
         modified = super().handle_modified_object(
             org_id,
@@ -90,6 +93,7 @@ class ApplyOperation(PlanOperation):
             current_object,
             expected_object,
             parent_object,
+            grandparent_object,
         )
         return modified
 

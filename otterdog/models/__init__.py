@@ -90,17 +90,30 @@ class LivePatch(Generic[MT]):
     current_object: MT | None
     changes: dict[str, Change] | None
     parent_object: ModelObject | None
+    grandparent_object: ModelObject | None
     forced_update: bool
     fn: LivePatchApplyFn
     changes_object_to_readonly: bool = False
 
     @classmethod
-    def of_addition(cls, expected_object: MT, parent_object: ModelObject | None, fn: LivePatchApplyFn[MT]) -> LivePatch:
-        return LivePatch(LivePatchType.ADD, expected_object, None, None, parent_object, False, fn)
+    def of_addition(
+        cls,
+        expected_object: MT,
+        parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
+        fn: LivePatchApplyFn[MT],
+    ) -> LivePatch:
+        return LivePatch(LivePatchType.ADD, expected_object, None, None, parent_object, grandparent_object, False, fn)
 
     @classmethod
-    def of_deletion(cls, current_object: MT, parent_object: ModelObject | None, fn: LivePatchApplyFn[MT]) -> LivePatch:
-        return LivePatch(LivePatchType.REMOVE, None, current_object, None, parent_object, False, fn)
+    def of_deletion(
+        cls,
+        current_object: MT,
+        parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
+        fn: LivePatchApplyFn[MT],
+    ) -> LivePatch:
+        return LivePatch(LivePatchType.REMOVE, None, current_object, None, parent_object, grandparent_object, False, fn)
 
     @classmethod
     def of_changes(
@@ -109,6 +122,7 @@ class LivePatch(Generic[MT]):
         current_object: MT,
         changes: dict[str, Change],
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         forced_update: bool,
         fn: LivePatchApplyFn[MT],
         changes_object_to_readonly: bool = False,
@@ -119,6 +133,7 @@ class LivePatch(Generic[MT]):
             current_object,
             changes,
             parent_object,
+            grandparent_object,
             forced_update,
             fn,
             changes_object_to_readonly,
@@ -184,7 +199,7 @@ class EmbeddedModelObject(ABC):
     """
 
     @abstractmethod
-    def validate(self, context: ValidationContext, parent_object: Any) -> None: ...
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None: ...
 
     def get_difference_from(self, other: Self) -> Change | None:
         if not isinstance(other, self.__class__):
@@ -370,7 +385,7 @@ class ModelObject(ABC):
         return [self.get_key_value()]
 
     @abstractmethod
-    def validate(self, context: ValidationContext, parent_object: Any) -> None: ...
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None: ...
 
     # noinspection PyMethodMayBeStatic
     def execute_custom_validation_if_present(self, context: ValidationContext, filename: str) -> None:
@@ -508,7 +523,9 @@ class ModelObject(ABC):
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         yield from []
 
-    def get_model_header(self, parent_object: ModelObject | None = None) -> str:
+    def get_model_header(
+        self, parent_object: ModelObject | None = None, grandparent_object: ModelObject | None = None
+    ) -> str:
         header = f"[bold]{self.model_object_name}[/]"
 
         if self.is_keyed():
@@ -521,13 +538,27 @@ class ModelObject(ABC):
                     + f", {parent_object.model_object_name}="
                     + f"[bold]{escape(parent_object.get_key_value())}[/]"
                 )
+            if isinstance(grandparent_object, ModelObject) and grandparent_object.is_keyed():
+                header = (
+                    header
+                    + f", {grandparent_object.model_object_name}="
+                    + f"[bold]{escape(grandparent_object.get_key_value())}[/]"
+                )
 
             header = header + "]"
-        elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
-            header = header + "\\["
-            header = (
-                header + f"{parent_object.model_object_name}=" + f"[bold]{escape(parent_object.get_key_value())}[/]"
-            )
+        else:
+            if isinstance(parent_object, ModelObject) and parent_object.is_keyed():
+                header = header + "\\["
+                header = (
+                    header + f"{parent_object.model_object_name}=" + f"[bold]{escape(parent_object.get_key_value())}[/]"
+                )
+            if isinstance(grandparent_object, ModelObject) and grandparent_object.is_keyed():
+                header = header + "\\["
+                header = (
+                    header
+                    + f"{grandparent_object.model_object_name}="
+                    + f"[bold]{escape(grandparent_object.get_key_value())}[/]"
+                )
             header = header + "]"
 
         return header
@@ -592,7 +623,9 @@ class ModelObject(ABC):
         """
         return True
 
-    def include_existing_object_for_live_patch(self, org_id: str, parent_object: ModelObject | None) -> bool:
+    def include_existing_object_for_live_patch(
+        self, org_id: str, parent_object: ModelObject | None, grandparent_object: ModelObject | None
+    ) -> bool:
         """
         Indicates if this live ModelObject should be considered when generating a live patch.
 
@@ -709,17 +742,26 @@ class ModelObject(ABC):
         expected_object: MT | None,
         current_object: MT | None,
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            handler(
+                LivePatch.of_addition(
+                    expected_object, parent_object, grandparent_object, expected_object.apply_live_patch
+                )
+            )
             return
 
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            handler(
+                LivePatch.of_deletion(
+                    current_object, parent_object, grandparent_object, current_object.apply_live_patch
+                )
+            )
             return
 
         modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
@@ -731,6 +773,7 @@ class ModelObject(ABC):
                     current_object,
                     modified_rule,
                     parent_object,
+                    grandparent_object,
                     False,
                     expected_object.apply_live_patch,
                 )
@@ -742,6 +785,7 @@ class ModelObject(ABC):
         expected_objects: Sequence[MT],
         current_objects: Sequence[MT],
         parent_object: MT | None,
+        grandparent_object: MT | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
@@ -762,12 +806,16 @@ class ModelObject(ABC):
                         break
 
             if expected_object is None:
-                if current_object.include_existing_object_for_live_patch(context.org_id, parent_object):
-                    cls.generate_live_patch(None, current_object, parent_object, context, handler)
+                if current_object.include_existing_object_for_live_patch(
+                    context.org_id, parent_object, grandparent_object
+                ):
+                    cls.generate_live_patch(None, current_object, parent_object, grandparent_object, context, handler)
                 continue
 
             if expected_object.include_for_live_patch(context):
-                cls.generate_live_patch(expected_object, current_object, parent_object, context, handler)
+                cls.generate_live_patch(
+                    expected_object, current_object, parent_object, grandparent_object, context, handler
+                )
 
             for k in expected_object.get_all_key_values():
                 expected_objects_by_all_keys.pop(k)
@@ -775,7 +823,7 @@ class ModelObject(ABC):
 
         for _, expected_object in expected_objects_by_key.items():
             if expected_object.include_for_live_patch(context):
-                cls.generate_live_patch(expected_object, None, parent_object, context, handler)
+                cls.generate_live_patch(expected_object, None, parent_object, grandparent_object, context, handler)
 
     @classmethod
     @abstractmethod

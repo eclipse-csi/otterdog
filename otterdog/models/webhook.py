@@ -80,7 +80,7 @@ class Webhook(ModelObject, abc.ABC):
     def include_for_live_patch(self, context: LivePatchContext) -> bool:
         return not self.has_dummy_secret()
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if self.has_dummy_secret():
             context.add_failure(
                 FailureType.INFO,
@@ -162,17 +162,26 @@ class Webhook(ModelObject, abc.ABC):
         expected_object: WT | None,
         current_object: WT | None,
         parent_object: ModelObject | None,
+        grandparent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
     ) -> None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+            handler(
+                LivePatch.of_addition(
+                    expected_object, parent_object, grandparent_object, expected_object.apply_live_patch
+                )
+            )
             return
 
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            handler(
+                LivePatch.of_deletion(
+                    current_object, parent_object, grandparent_object, current_object.apply_live_patch
+                )
+            )
             return
 
         # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
@@ -190,6 +199,7 @@ class Webhook(ModelObject, abc.ABC):
                     current_object,
                     modified_webhook,
                     parent_object,
+                    grandparent_object,
                     True,
                     expected_object.apply_live_patch,
                 )
@@ -229,6 +239,7 @@ class Webhook(ModelObject, abc.ABC):
                     current_object,
                     modified_webhook,
                     parent_object,
+                    grandparent_object,
                     False,
                     expected_object.apply_live_patch,
                 )
