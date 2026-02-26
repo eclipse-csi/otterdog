@@ -121,8 +121,8 @@ class CredentialProvider(Protocol):
             case "env":
                 from .env_provider import EnvVault
 
-                _check_valid_keys(provider_type, defaults, EnvVault.__init__)
-                return EnvVault()
+                valid_keys = _check_valid_keys(provider_type, defaults, EnvVault.__init__)
+                return EnvVault(**valid_keys)
 
             case _:
                 return None
