@@ -190,7 +190,7 @@ class HttpClientMock:
         response_text: str = "",
         request_json: dict[str, object] | None = None,
         request_params: dict[str, str | int | bool] | None = None,
-        response_json: dict[str, object] | None = None,
+        response_json: dict[str, object] | list[dict[str, object]] | None = None,
     ) -> None:
         expected = HttpRequest(
             method=method.upper(),
