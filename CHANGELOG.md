@@ -1,6 +1,10 @@
 # Change Log
 
-## [1.2.1] - unreleased
+## [1.3.0] - unreleased
+
+### Added
+
+ - Environment-based credential provider ([#593](https://github.com/eclipse-csi/otterdog/pull/593))
 
 ### Changed
 

@@ -9,13 +9,9 @@
 from __future__ import annotations
 
 from subprocess import getstatusoutput
-from typing import TYPE_CHECKING
 
 from otterdog.credentials import CredentialProvider, Credentials
 from otterdog.logging import get_logger
-
-if TYPE_CHECKING:
-    from typing import Any
 
 _logger = get_logger(__name__)
 
@@ -78,13 +74,15 @@ class PassVault(CredentialProvider):
     def api_token_pattern(self) -> str | None:
         return self._api_token_pattern
 
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
-        github_token = self._retrieve_key(self.KEY_API_TOKEN, org_name, data)
+    def get_credentials(
+        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
+        github_token = self._retrieve_key(self.KEY_API_TOKEN, placeholders, data)
 
         if only_token is False:
-            username = self._retrieve_key(self.KEY_USERNAME, org_name, data)
-            password = self._retrieve_key(self.KEY_PASSWORD, org_name, data)
-            totp_secret = self._retrieve_key(self.KEY_TWOFA_SEED, org_name, data)
+            username = self._retrieve_key(self.KEY_USERNAME, placeholders, data)
+            password = self._retrieve_key(self.KEY_PASSWORD, placeholders, data)
+            totp_secret = self._retrieve_key(self.KEY_TWOFA_SEED, placeholders, data)
         else:
             username = None
             password = None
@@ -95,7 +93,7 @@ class PassVault(CredentialProvider):
     def get_secret(self, key_data: str) -> str:
         return self._retrieve_resolved_key(key_data)
 
-    def _retrieve_key(self, key: str, org_name: str, data: dict[str, str]) -> str:
+    def _retrieve_key(self, key: str, placeholders: dict[str, str], data: dict[str, str]) -> str:
         resolved_key = data.get(key)
         strict = True
 
@@ -114,7 +112,8 @@ class PassVault(CredentialProvider):
                     raise RuntimeError(f"unexpected key '{key}'")
 
             if pattern:
-                resolved_key = pattern.format(org_name)
+                # org_name is used to subsitute positional {0} for backward compatibility
+                resolved_key = pattern.format(placeholders["org_name"], **placeholders)
 
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in credential data")
