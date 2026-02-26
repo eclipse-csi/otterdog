@@ -9,15 +9,11 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
 from otterdog.credentials import CredentialProvider, Credentials
 from otterdog.logging import get_logger
-
-if TYPE_CHECKING:
-    from typing import Any
 
 _logger = get_logger(__name__)
 
@@ -55,33 +51,32 @@ class EnvVault(CredentialProvider):
         # load .env file if available.
         load_dotenv()
 
-    def _env_value(self, org_name: str, data: dict[str, str], key: str) -> str:
+    def _env_value(self, placeholders: dict[str, str], data: dict[str, str], key: str) -> str:
         """
         Resolves the environment variable name for the given key based on the provided data
         and retrieves its value from the environment.
 
-        For defaults, `{0}` in the value will be replaced with the org_name (transformed
-        to uppercase with spaces and hyphens replaced by underscores) to allow for org-specific
-        environment variable names. For org-specific settings, the value is used as-is.
+        For defaults, placeholders like `{0}` or `{org_name}` can be used based on the
+        centrally-provided substitution values. For org-specific settings, the value is used as-is.
         """
 
         if env_variable := data.get(key):
             # Org-specific setting has priority - use as-is, no placeholder replacement
-            if "{0}" in env_variable:
-                raise RuntimeError(f"unexpected placeholder '{{0}}' in org-specific setting for key '{key}'")
+            if "{" in env_variable or "}" in env_variable:
+                raise RuntimeError(f"placeholders '{{' or '}}' in org-specific setting for key '{key}' are not allowed: {env_variable}")
 
         elif env_variable := self._default_keys.get(key):
-            # Use default setting - optionally replace {0} placeholder
-            if "{0}" in env_variable:
-                normalized_org_name = org_name.upper().replace(" ", "_").replace("-", "_")
-                env_variable = env_variable.format(normalized_org_name)
+            # Use default setting + optionally replace {...} placeholders
+            env_variable = env_variable.format_map({
+                placeholder_key: placeholder_value.upper().replace(" ", "_").replace("-", "_")
+                for placeholder_key, placeholder_value in placeholders.items()
+            })
         else:
             raise RuntimeError(f"required key '{key}' not found in credential data")
 
         _logger.debug(
-            "%s for '%s': retrieving from environment variable %s (%s)",
+            "%s: retrieving from environment variable %s (%s)",
             key,
-            org_name,
             env_variable,
             "org setting" if key in data else "default setting",
         )
@@ -93,22 +88,20 @@ class EnvVault(CredentialProvider):
 
         return env_value
 
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
+    def get_credentials(self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False) -> Credentials:
         """
         Retrieves credentials from environment variables based on the provided data mapping.
 
-        :param org_name: the organization name, used to resolve {0} in env var names if provided in the defaults section of the config
+        :param placeholders: precomputed substitution values used to resolve env var names
         :param data: config data the user has provided via otterdog.jsonnet, used to resolve env var names
         :param only_token: Whether to only retrieve the API token
         """
-        _logger.debug("retrieving credentials from environment variables for org '%s'", org_name)
-
-        github_token = self._env_value(org_name, data, "api_token")
+        github_token = self._env_value(placeholders, data, "api_token")
 
         if only_token is False:
-            username = self._env_value(org_name, data, "username")
-            password = self._env_value(org_name, data, "password")
-            totp_secret = self._env_value(org_name, data, "twofa_seed")
+            username = self._env_value(placeholders, data, "username")
+            password = self._env_value(placeholders, data, "password")
+            totp_secret = self._env_value(placeholders, data, "twofa_seed")
         else:
             username = None
             password = None

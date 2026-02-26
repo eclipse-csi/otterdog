@@ -24,6 +24,13 @@ from otterdog.credentials import Credentials
 from otterdog.credentials.env_provider import EnvVault
 
 
+def _placeholders(org_name: str, org_id: str | None = None) -> dict[str, str]:
+    return {
+        "org_name": org_name,
+        "org_id": org_id or org_name,
+    }
+
+
 class TestBasicFunctionality:
     """Tests for core EnvVault functionality: loading .env files and retrieving credentials."""
 
@@ -52,7 +59,11 @@ class TestBasicFunctionality:
         )
 
         # When we access the vault, it should load the .env file and resolve the token from OTTER_TOKEN
-        c = EnvVault().get_credentials("test-org", data=config, only_token=True)
+        c = EnvVault().get_credentials(
+            _placeholders("test-org"),
+            data=config,
+            only_token=True,
+        )
 
         assert c.github_token == "42"
 
@@ -65,7 +76,10 @@ class TestBasicFunctionality:
 
         vault = EnvVault()
 
-        credentials = vault.get_credentials("test-org", self._credential_data())
+        credentials = vault.get_credentials(
+            _placeholders("test-org"),
+            self._credential_data(),
+        )
 
         assert isinstance(credentials, Credentials)
         assert credentials.github_token == "token"
@@ -79,7 +93,11 @@ class TestBasicFunctionality:
 
         vault = EnvVault()
 
-        credentials = vault.get_credentials("test-org", {"api_token": "OTTER_TOKEN_ONLY"}, only_token=True)
+        credentials = vault.get_credentials(
+            _placeholders("test-org"),
+            {"api_token": "OTTER_TOKEN_ONLY"},
+            only_token=True,
+        )
 
         assert credentials.github_token == "token-only"
         assert credentials._username is None
@@ -123,7 +141,7 @@ class TestErrorHandling:
         data.pop(missing_key)
 
         with pytest.raises(RuntimeError) as err:
-            vault.get_credentials("test-org", data)
+            vault.get_credentials(_placeholders("test-org"), data)
 
         assert str(err.value) == f"required key '{missing_key}' not found in credential data"
 
@@ -137,7 +155,7 @@ class TestErrorHandling:
         vault = EnvVault()
 
         with pytest.raises(RuntimeError) as err:
-            vault.get_credentials("test-org", self._credential_data())
+            vault.get_credentials(_placeholders("test-org"), self._credential_data())
 
         assert str(err.value) == "environment variable 'OTTER_API_TOKEN' for key 'api_token' not found"
 
@@ -282,13 +300,13 @@ class TestOrgNameSubstitution:
         monkeypatch.setenv("PERFORCE_ECLIPSE_CDT_TOKEN", "token789")
 
         vault = EnvVault(
-            username="PERFORCE_{0}_USERNAME",
-            password="PERFORCE_{0}_PASSWORD",
-            twofa_seed="PERFORCE_{0}_TOTP",
-            api_token="PERFORCE_{0}_TOKEN",
+            username="PERFORCE_{org_name}_USERNAME",
+            password="PERFORCE_{org_name}_PASSWORD",
+            twofa_seed="PERFORCE_{org_name}_TOTP",
+            api_token="PERFORCE_{org_name}_TOKEN",
         )
 
-        credentials = vault.get_credentials("Eclipse CDT", {})
+        credentials = vault.get_credentials(_placeholders("Eclipse CDT"), {})
 
         assert credentials.username == "alice"
         assert credentials.password == "secret123"
@@ -301,7 +319,7 @@ class TestOrgNameSubstitution:
 
         vault = EnvVault(api_token="STATIC_TOKEN")
 
-        credentials = vault.get_credentials("any-org-name", {}, only_token=True)
+        credentials = vault.get_credentials(_placeholders("any-org-name"), {}, only_token=True)
 
         assert credentials.github_token == "token-value"
 
@@ -309,10 +327,10 @@ class TestOrgNameSubstitution:
         """Reports the transformed environment variable name in error messages."""
         monkeypatch.delenv("OTTER_TEST_ORG_TOKEN", raising=False)
 
-        vault = EnvVault(api_token="OTTER_{0}_TOKEN")
+        vault = EnvVault(api_token="OTTER_{org_name}_TOKEN")
 
         with pytest.raises(RuntimeError) as exc_info:
-            vault.get_credentials("test org", {}, only_token=True)
+            vault.get_credentials(_placeholders("test org"), {}, only_token=True)
 
         # Error should reference the transformed name, not the original org name
         assert "OTTER_TEST_ORG_TOKEN" in str(exc_info.value)
