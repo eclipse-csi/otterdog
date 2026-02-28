@@ -199,8 +199,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             )
 
             if comment is not None:
-                rest_api = await self.rest_api
-                await rest_api.issue.create_comment(
+                github_provider = await self.github_provider
+                await github_provider.rest_api.issue.create_comment(
                     self.org_id,
                     org_config.config_repo,
                     self.pull_request_number,

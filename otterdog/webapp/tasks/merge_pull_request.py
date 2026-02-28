@@ -87,9 +87,9 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
                 f"pull request #{self.pull_request_number} merge in repo '{self.org_id}/{self.repo_name}' triggered by user '{self.author}' "
                 f"is not eligible for auto-merge, skipping. Problems: {', '.join(problems)}"
             )
-            rest_api = await self.rest_api
             comment = await render_template("comment/automerge_problems.txt", problems=problems)
-            await rest_api.issue.create_comment(
+            github_provider = await self.github_provider
+            await github_provider.rest_api.issue.create_comment(
                 self.org_id,
                 self.repo_name,
                 str(self.pull_request_number),
