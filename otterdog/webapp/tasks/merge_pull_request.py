@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from quart import render_template
 
-from otterdog.webapp.db.models import PullRequestStatus, TaskModel
+from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import find_pull_request
 from otterdog.webapp.tasks import (
     InstallationBasedTask,
@@ -36,14 +36,7 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             pull_request=self.pull_request_number,
         )
 
-    async def _pre_execute(self) -> bool:
-        self.logger.info(
-            "auto-merging pull request #%d on behalf of user '%s' for repo '%s/%s'",
-            self.pull_request_number,
-            self.author,
-            self.org_id,
-            self.repo_name,
-        )
+    async def _pre_execute_and_return_problems(self) -> list[str]:
 
         pr_model = await find_pull_request(self.org_id, self.repo_name, self.pull_request_number)
         if pr_model is None:
@@ -53,21 +46,11 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         else:
             self._pr_model = pr_model
 
-        if pr_model.status != PullRequestStatus.OPEN:
-            self.logger.info(
-                f"pull request #{self.pull_request_number} for repo '{self.org_id}/{self.repo_name}' "
-                "is not open, skipping"
-            )
-            return False
-
-        if pr_model.can_be_automerged() is False:
-            self.logger.info(
-                f"pull request #{self.pull_request_number} for repo '{self.org_id}/{self.repo_name}' "
-                "is not eligible for auto-merge, skipping"
-            )
-            return False
-
         rest_api = await self.rest_api
+
+        if problems := pr_model.automerge_problems():
+            return problems
+
         response = await rest_api.pull_request.get_pull_request(
             self.org_id, self.repo_name, str(self.pull_request_number)
         )
@@ -82,15 +65,37 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             team_membership = [team["name"] for team in team_data]
 
             if not contains_eligible_team_for_auto_merge(team_membership):
-                comment = await render_template("comment/wrong_user_merge_comment.txt")
-                await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+                return [
+                    "Only the author of the pull request, a project-lead or a member of the admin teams "
+                    "is allowed to auto-merge."
+                ]
 
-                self.logger.error(
-                    f"merge for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                    "who is not the creator of the PR and not eligible for auto-merge, skipping"
-                )
+        return []
 
-                return False
+    async def _pre_execute(self) -> bool:
+        self.logger.info(
+            "auto-merging pull request #%d on behalf of user '%s' for repo '%s/%s'",
+            self.pull_request_number,
+            self.author,
+            self.org_id,
+            self.repo_name,
+        )
+
+        problems = await self._pre_execute_and_return_problems()
+        if problems:
+            self.logger.info(
+                f"pull request #{self.pull_request_number} merge in repo '{self.org_id}/{self.repo_name}' triggered by user '{self.author}' "
+                f"is not eligible for auto-merge, skipping. Problems: {', '.join(problems)}"
+            )
+            rest_api = await self.rest_api
+            comment = await render_template("comment/automerge_problems.txt", problems=problems)
+            await rest_api.issue.create_comment(
+                self.org_id,
+                self.repo_name,
+                str(self.pull_request_number),
+                body=comment,
+            )
+            return False
 
         return True
 
