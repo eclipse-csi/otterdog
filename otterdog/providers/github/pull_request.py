@@ -127,6 +127,12 @@ class PullRequest:
         commit_message: str | None = None,
         merge_method: str = "squash",
     ) -> bool:
+        """
+        @param commit_message is only used for "squash" and "merge" merge methods, and ignored for "rebase" method
+        @param merge_method can be one of "merge", "squash", or "rebase"
+        """
+        # https://docs.github.com/en/enterprise-cloud@latest/rest/pulls/pulls?apiVersion=2022-11-28#merge-a-pull-request
+
         _logger.debug("merging %s", self)
 
         try:
