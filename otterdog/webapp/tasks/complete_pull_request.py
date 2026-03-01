@@ -77,7 +77,7 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
             )
             github_provider = await self.github_provider
             await github_provider.rest_api.issue.create_comment(
-                self.org_id, self.repo_name, self.pull_request_number, comment
+                self.org_id, self.repo_name, self.pull_request_number, body=comment
             )
 
             self.logger.error(
@@ -96,7 +96,7 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
         comment = await render_template("comment/done_comment.txt")
         github_provider = await self.github_provider
         await github_provider.rest_api.issue.create_comment(
-            self.org_id, self.repo_name, self.pull_request_number, comment
+            self.org_id, self.repo_name, self.pull_request_number, body=comment
         )
 
     def __repr__(self) -> str:
