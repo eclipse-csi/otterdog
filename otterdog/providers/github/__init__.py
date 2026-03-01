@@ -11,11 +11,13 @@ from __future__ import annotations
 import contextlib
 import json
 from asyncio import CancelledError
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from importlib_resources import files
 
 from otterdog import resources
+from otterdog.providers.github.rest.pull_request_client import PullRequestClient
 from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 
 if TYPE_CHECKING:
@@ -46,6 +48,10 @@ class GitHubProvider:
 
         if credentials is not None:
             self._init_clients()
+
+    @cached_property
+    def pull_request(self):
+        return PullRequestClient(self.rest_api)
 
     async def __aenter__(self):
         return self

@@ -34,9 +34,9 @@ class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-        rest_api = await self.rest_api
+        github = await self.github_provider
 
-        all_pull_requests = await rest_api.pull_request.get_pull_requests(
+        all_pull_requests = await github.pull_request.get_pull_requests(
             self.org_id, self.repo_name, state="all", base_ref="main"
         )
 

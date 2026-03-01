@@ -46,12 +46,11 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         else:
             self._pr_model = pr_model
 
-        rest_api = await self.rest_api
-
         if problems := pr_model.automerge_problems():
             return problems
 
-        response = await rest_api.pull_request.get_pull_request(
+        github = await self.github_provider
+        response = await github.pull_request.get_pull_request(
             self.org_id, self.repo_name, str(self.pull_request_number)
         )
         pull_request = PullRequest.model_validate(response)
@@ -100,8 +99,8 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         return True
 
     async def _execute(self) -> None:
-        rest_api = await self.rest_api
-        merged = await rest_api.pull_request.merge(self.org_id, self.repo_name, str(self.pull_request_number))
+        github = await self.github_provider
+        merged = await github.pull_request.merge(self.org_id, self.repo_name, str(self.pull_request_number))
 
         if merged is True:
             self.logger.info(f"Pull Request #{self.pull_request_number} auto-merged")

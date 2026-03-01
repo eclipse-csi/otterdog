@@ -79,10 +79,11 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             self.repo_name,
         )
 
-        rest_api = await self.rest_api
+        github = await self.github_provider
+        rest_api = github.rest_api
 
         if isinstance(self.pull_request_or_number, int):
-            response = await rest_api.pull_request.get_pull_request(
+            response = await github.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
             self._pull_request = PullRequest.model_validate(response)
@@ -92,7 +93,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
         # do not perform checks every time a pull request is synchronized
         # if the last check was done within an hour
         if self.is_triggered_from_comment is False:
-            commits = await rest_api.pull_request.get_commits(
+            commits = await github.pull_request.get_commits(
                 self.org_id,
                 self.repo_name,
                 str(self.pull_request_number),

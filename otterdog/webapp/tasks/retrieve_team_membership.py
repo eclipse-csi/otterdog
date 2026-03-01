@@ -45,8 +45,8 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
 
     async def _pre_execute(self) -> bool:
         if isinstance(self.pull_request_or_number, int):
-            rest_api = await self.rest_api
-            response = await rest_api.pull_request.get_pull_request(
+            github = await self.github_provider
+            response = await github.pull_request.get_pull_request(
                 self.org_id, self.repo_name, str(self.pull_request_number)
             )
             self._pull_request = PullRequest.model_validate(response)
