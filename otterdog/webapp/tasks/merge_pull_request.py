@@ -50,9 +50,8 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             return problems
 
         github = await self.github_provider
-        response = await github.pull_request.get_pull_request(
-            self.org_id, self.repo_name, str(self.pull_request_number)
-        )
+        pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_number)
+        response = await pr.get_data()
         pull_request = PullRequest.model_validate(response)
 
         if self.author != pull_request.user.login:
@@ -100,7 +99,8 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
 
     async def _execute(self) -> None:
         github = await self.github_provider
-        merged = await github.pull_request.merge(self.org_id, self.repo_name, str(self.pull_request_number))
+        pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_number)
+        merged = await pr.merge()
 
         if merged is True:
             self.logger.info(f"Pull Request #{self.pull_request_number} auto-merged")

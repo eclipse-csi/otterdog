@@ -153,7 +153,7 @@ class OpenPullRequestOperation(Operation):
         org_config: OrganizationConfig,
         default_branch: str,
         local_configuration: str,
-    ) -> str:
+    ) -> int:
         rest_api = github.rest_api
 
         default_branch_data = await rest_api.reference.get_branch_reference(
@@ -193,4 +193,4 @@ class OpenPullRequestOperation(Operation):
             body,
         )
 
-        return pull_request_data["number"]
+        return pull_request_data.pr_number

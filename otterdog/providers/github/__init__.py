@@ -11,7 +11,6 @@ from __future__ import annotations
 import contextlib
 import json
 from asyncio import CancelledError
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 from importlib_resources import files
@@ -50,9 +49,8 @@ class GitHubProvider:
         if credentials is not None:
             self._init_clients()
 
-    @cached_property
-    def pull_request(self):
-        return PullRequest(self.rest_api.requester)
+    def pull_request(self, org_id: str, repo_name: str, pr_number: int) -> PullRequest:
+        return PullRequest(self.rest_api.requester, org_id, repo_name, pr_number)
 
     async def create_pull_request(
         self,
@@ -62,7 +60,7 @@ class GitHubProvider:
         head: str,
         base: str,
         body: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> PullRequest:
         _logger.debug("creating pull request for repo '%s/%s'", org_id, repo_name)
 
         try:
@@ -75,10 +73,14 @@ class GitHubProvider:
             if body is not None:
                 data["body"] = body
 
-            return await self.rest_api.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/pulls", data=data)
+            pr_data = await self.rest_api.requester.request_json(
+                "POST", f"/repos/{org_id}/{repo_name}/pulls", data=data
+            )
+            return PullRequest(self.rest_api.requester, org_id, repo_name, pr_data["number"])
         except GitHubException as ex:
             raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
 
+    # TODO: this should return precached PullRequest objects instead of raw data dicts.
     async def get_pull_requests(
         self,
         org_id: str,

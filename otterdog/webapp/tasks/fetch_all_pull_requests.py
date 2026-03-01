@@ -36,9 +36,7 @@ class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
 
         github = await self.github_provider
 
-        all_pull_requests = await github.pull_request.get_pull_requests(
-            self.org_id, self.repo_name, state="all", base_ref="main"
-        )
+        all_pull_requests = await github.get_pull_requests(self.org_id, self.repo_name, state="all", base_ref="main")
 
         for pr in all_pull_requests:
             pr_from_github = PullRequest.model_validate(pr)

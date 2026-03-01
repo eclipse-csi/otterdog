@@ -78,9 +78,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
     async def _pre_execute(self) -> bool:
         if isinstance(self.pull_request_or_number, int):
             github = await self.github_provider
-            response = await github.pull_request.get_pull_request(
-                self.org_id, self.repo_name, str(self.pull_request_or_number)
-            )
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_or_number)
+            response = await pr.get_data()
             self._pull_request = PullRequest.model_validate(response)
         else:
             self._pull_request = self.pull_request_or_number
@@ -268,11 +267,11 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     async def _get_pull_request_files(self, github: GitHubProvider) -> list[str]:
-        pull_request_data = await github.pull_request.get_files(
+        pull_request_data = await github.pull_request(
             self.org_id,
             self.repo_name,
-            str(self.pull_request_number),
-        )
+            self.pull_request_number,
+        ).get_files()
         return [x["filename"] for x in pull_request_data]
 
     def __repr__(self) -> str:

@@ -16,93 +16,74 @@ _logger = get_logger(__name__)
 
 
 class PullRequest:
-    def __init__(self, rest_api_requester: Requester):
+    def __init__(self, rest_api_requester: Requester, org_id: str, repo_name: str, pr_number: int) -> None:
         self.requester = rest_api_requester
+        self.org_id = org_id
+        self.repo_name = repo_name
+        self.pr_number = pr_number
 
-    async def get_pull_request(
+    def __str__(self) -> str:
+        return f"PullRequest(org_id={self.org_id}, repo_name={self.repo_name}, pr_number={self.pr_number})"
+
+    def _base_path(self) -> str:
+        return f"/repos/{self.org_id}/{self.repo_name}/pulls/{self.pr_number}"
+
+    async def get_data(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
     ) -> dict[str, Any]:
-        _logger.debug("getting pull request with number '%s' from repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("getting live data for %s", self)
 
         try:
-            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
+            return await self.requester.request_json("GET", self._base_path())
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving pull request:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving {self}") from ex
 
     async def merge_pull_request(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
         method: str,
     ) -> dict[str, Any]:
-        _logger.debug("merging pull request #%s for repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("merging %s", self)
 
         try:
             data = {"merge_method": method}
-            return await self.requester.request_json(
-                "PUT", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/merge", data=data
-            )
+            return await self.requester.request_json("PUT", self._base_path() + "/merge", data=data)
         except GitHubException as ex:
-            raise RuntimeError(f"failed merging pull request:\n{ex}") from ex
+            raise RuntimeError(f"failed merging {self}") from ex
 
     async def get_commits(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
     ) -> list[dict[str, Any]]:
-        _logger.debug("getting commits for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("getting commits for %s", self)
 
         try:
-            return await self.requester.request_paged_json(
-                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/commits"
-            )
+            return await self.requester.request_paged_json("GET", self._base_path() + "/commits")
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving pull request commits:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving commits for {self}") from ex
 
     async def get_reviews(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
     ) -> list[dict[str, Any]]:
-        _logger.debug("getting reviews for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("getting reviews for %s", self)
 
         try:
-            return await self.requester.request_paged_json(
-                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/reviews"
-            )
+            return await self.requester.request_paged_json("GET", self._base_path() + "/reviews")
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving pull request reviews:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving reviews for {self}") from ex
 
     async def request_reviews(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
         reviewers: list[str] | None = None,
         team_reviewers: list[str] | None = None,
     ) -> bool:
         _logger.debug(
-            "requesting reviews for pull request #%s in repo '%s/%s': %s, %s",
-            pull_request_number,
-            org_id,
-            repo_name,
+            "requesting reviews for %s: %s, %s",
+            self,
             reviewers,
             team_reviewers,
         )
 
         if (reviewers is None or len(reviewers) == 0) and (team_reviewers is None or len(team_reviewers) == 0):
-            _logger.error(
-                "requesting reviews for pull request #%s in repo '%s/%s' without any reviewer specified",
-                pull_request_number,
-                org_id,
-                repo_name,
-            )
+            _logger.error("requesting reviews for %s without any reviewer specified", self)
             return False
 
         try:
@@ -116,48 +97,37 @@ class PullRequest:
 
             status, body = await self.requester.request_raw(
                 "POST",
-                f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/requested_reviewers",
+                self._base_path() + "/requested_reviewers",
                 data=json.dumps(data),
             )
 
             if status == 201:
                 return True
             elif status == 422:
-                _logger.warning("failed to request reviews for reviewers (%s, %s): %s", reviewers, team_reviewers, body)
+                _logger.warning("failed to request reviews for %s: %s", self, body)
                 return False
             else:
-                raise RuntimeError(
-                    f"failed requesting reviews for pull request #{pull_request_number} in repo "
-                    f"'{org_id}/{repo_name}'\n{status}: {body}"
-                )
+                raise RuntimeError(f"failed requesting reviews for {self}\n{status}: {body}")
 
         except GitHubException as ex:
-            raise RuntimeError(f"failed requesting pull request reviews:\n{ex}") from ex
+            raise RuntimeError(f"failed requesting reviews for {self}") from ex
 
     async def get_files(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
     ) -> list[dict[str, Any]]:
-        _logger.debug("getting files for pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("getting files for %s", self)
 
         try:
-            return await self.requester.request_paged_json(
-                "GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/files"
-            )
+            return await self.requester.request_paged_json("GET", self._base_path() + "/files")
         except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving pull request files:\n{ex}") from ex
+            raise RuntimeError(f"failed retrieving files for {self}") from ex
 
     async def merge(
         self,
-        org_id: str,
-        repo_name: str,
-        pull_request_number: str,
         commit_message: str | None = None,
         merge_method: str = "squash",
     ) -> bool:
-        _logger.debug("merging pull request #%s from repo '%s/%s'", pull_request_number, org_id, repo_name)
+        _logger.debug("merging %s", self)
 
         try:
             data = {
@@ -169,9 +139,9 @@ class PullRequest:
 
             response = await self.requester.request_json(
                 "PUT",
-                f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}/merge",
+                self._base_path() + "/merge",
                 data=data,
             )
             return response["merged"]
         except GitHubException as ex:
-            raise RuntimeError(f"failed merging pull request:\n{ex}") from ex
+            raise RuntimeError(f"failed merging {self}") from ex
