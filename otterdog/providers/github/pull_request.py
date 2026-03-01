@@ -10,15 +10,14 @@ from typing import Any
 
 from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
-
-from . import RestApi, RestClient
+from otterdog.providers.github.rest.requester import Requester
 
 _logger = get_logger(__name__)
 
 
-class PullRequestClient(RestClient):
-    def __init__(self, rest_api: RestApi):
-        super().__init__(rest_api)
+class PullRequest:
+    def __init__(self, rest_api_requester: Requester):
+        self.requester = rest_api_requester
 
     async def get_pull_request(
         self,
@@ -32,50 +31,6 @@ class PullRequestClient(RestClient):
             return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}")
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving pull request:\n{ex}") from ex
-
-    async def create_pull_request(
-        self,
-        org_id: str,
-        repo_name: str,
-        title: str,
-        head: str,
-        base: str,
-        body: str | None = None,
-    ) -> dict[str, Any]:
-        _logger.debug("creating pull request for repo '%s/%s'", org_id, repo_name)
-
-        try:
-            data = {
-                "title": title,
-                "head": head,
-                "base": base,
-            }
-
-            if body is not None:
-                data["body"] = body
-
-            return await self.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/pulls", data=data)
-        except GitHubException as ex:
-            raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
-
-    async def get_pull_requests(
-        self,
-        org_id: str,
-        repo_name: str,
-        state: str = "all",
-        base_ref: str | None = None,
-    ) -> list[dict[str, Any]]:
-        _logger.debug("getting pull requests from repo '%s/%s'", org_id, repo_name)
-
-        try:
-            params = {"state": state}
-
-            if base_ref is not None:
-                params.update({"base": base_ref})
-
-            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/pulls", params=params)
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving pull requests:\n{ex}") from ex
 
     async def merge_pull_request(
         self,

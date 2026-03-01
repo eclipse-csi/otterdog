@@ -160,7 +160,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         )
 
         github = await self.github_provider
-        created_pr = await github.pull_request.create_pull_request(
+        created_pr = await github.create_pull_request(
             self.org_id,
             self.repo_name,
             pr_title,

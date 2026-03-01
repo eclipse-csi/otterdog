@@ -184,7 +184,7 @@ class OpenPullRequestOperation(Operation):
         else:
             body = "This PR has been created automatically using the otterdog cli."
 
-        pull_request_data = await github.pull_request.create_pull_request(
+        pull_request_data = await github.create_pull_request(
             org_config.github_id,
             org_config.config_repo,
             self.title,

@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 from importlib_resources import files
 
 from otterdog import resources
-from otterdog.providers.github.rest.pull_request_client import PullRequestClient
+from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.pull_request import PullRequest
 from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 
 if TYPE_CHECKING:
@@ -51,7 +52,53 @@ class GitHubProvider:
 
     @cached_property
     def pull_request(self):
-        return PullRequestClient(self.rest_api)
+        return PullRequest(self.rest_api.requester)
+
+    async def create_pull_request(
+        self,
+        org_id: str,
+        repo_name: str,
+        title: str,
+        head: str,
+        base: str,
+        body: str | None = None,
+    ) -> dict[str, Any]:
+        _logger.debug("creating pull request for repo '%s/%s'", org_id, repo_name)
+
+        try:
+            data = {
+                "title": title,
+                "head": head,
+                "base": base,
+            }
+
+            if body is not None:
+                data["body"] = body
+
+            return await self.rest_api.requester.request_json("POST", f"/repos/{org_id}/{repo_name}/pulls", data=data)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
+
+    async def get_pull_requests(
+        self,
+        org_id: str,
+        repo_name: str,
+        state: str = "all",
+        base_ref: str | None = None,
+    ) -> list[dict[str, Any]]:
+        _logger.debug("getting pull requests from repo '%s/%s'", org_id, repo_name)
+
+        try:
+            params = {"state": state}
+
+            if base_ref is not None:
+                params.update({"base": base_ref})
+
+            return await self.rest_api.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/pulls", params=params
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving pull requests:\n{ex}") from ex
 
     async def __aenter__(self):
         return self
