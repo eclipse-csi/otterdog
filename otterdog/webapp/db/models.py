@@ -124,21 +124,30 @@ class PullRequestModel(Model):
                 "pull request cannot be automatically merged "
                 "(contains secrets, requires web UI changes, includes deletions or touches non-configuration files)"
             )
+
+        # If either is true, the pull request can be automerged
+        # (author can auto merge without approvals, or it has the required approvals)
         if self.author_can_auto_merge is not True and self.has_required_approvals is not True:
-            if self.author_can_auto_merge is None or self.has_required_approvals is None:
+            if self.author_can_auto_merge is None and self.has_required_approvals is None:
                 problems.append(
                     "it has not been checked whether the author can auto merge without approvals, "
                     "and whether the pull request has the required approvals"
+                )
+            elif self.author_can_auto_merge is None and self.has_required_approvals is False:
+                problems.append(
+                    "pull request does not have the required approvals, "
+                    "and it has not been checked whether the author can auto merge without approvals"
+                )
+            elif self.author_can_auto_merge is False and self.has_required_approvals is None:
+                problems.append(
+                    "author is not eligible for merge without approvals, "
+                    "and it has not been checked whether the pull request has the required approvals"
                 )
             elif self.author_can_auto_merge is False and self.has_required_approvals is False:
                 problems.append(
                     "pull request does not have the required approvals, "
                     "and the author is not eligible for merge without approvals"
                 )
-            elif self.author_can_auto_merge is False:
-                problems.append("author is not eligible for merge without approvals")
-            elif self.has_required_approvals is False:
-                problems.append("pull request does not have the required approvals")
         return problems
 
     def can_be_automerged(self) -> bool:
