@@ -26,10 +26,10 @@ class Variable(ModelObject, abc.ABC):
     name: str = dataclasses.field(metadata={"key": True})
     value: str
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         if self.name.startswith("GITHUB_"):
             context.add_failure(
                 FailureType.ERROR,
-                f"{self.get_model_header(parent_object)} starts with prefix 'GITHUB_', "
+                f"{self.get_model_header(parent_object, grandparent_object)} starts with prefix 'GITHUB_', "
                 f"which is not allowed for variables.",
             )

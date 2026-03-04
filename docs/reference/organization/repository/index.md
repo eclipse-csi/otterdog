@@ -51,8 +51,9 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _webhooks_                                | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                                                                                                                            |
 | _secrets_                                 | list\[[RepositorySecret](secret.md)\]                     | secrets defined for this repo, see section below for details                            |                                                                                                                                                                                            |
 | _variables_                               | list\[[RepositoryVariable](variable.md)\]                 | variables defined for this repo, see section below for details                          |                                                                                                                                                                                            |
-| _environments_                            | list\[[Environment](environment.md)\]                     | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
+| _environments_                            | list\[[Environment](environment/index.md)\]               | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
 | _branch_protection_rules_                 | list\[[BranchProtectionRule](branch-protection-rule.md)\] | branch protection rules of the repo, see section below for details                      |                                                                                                                                                                                            |
+| _team_permissions_                        | list\[[TeamPermission](team-permission.md)\]              | team permissions defined for this repo, see section below for details                   | allowed are the following: `pull`, `triage`, `push`, `maintain`, `admin` or `READ`, `WRITE`, `MAINTAIN`, `TRIAGE`, `ADMIN` (The latter values come from github graphql)                    |
 
 ## Embedded Models
 
@@ -137,6 +138,12 @@ Definition of a Repository for a GitHub organization, the following properties a
           branch_protection_rules: [
             orgs.newBranchProtectionRule('main'),
           ],
+          team_permissions: [
+            orgs.newTeamPermission('team') {
+              permission: "maintain",
+            },
+          ],
         },
+
     }
     ```

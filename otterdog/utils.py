@@ -476,7 +476,7 @@ def sort_jsonnet(lines: list[str]) -> list[str]:
 
 
 def _sort_node(node):
-    _line, context = node
+    _, context = node
 
     if context is not None:
         last = context.pop()
@@ -639,7 +639,7 @@ def debug_times(category: str):
 
 
 def render_chevron(content: str, context: dict[str, Any]) -> str:
-    import chevron
+    import chevron  # type: ignore
 
     # need to escape ${{ sequences as used at GitHub
     escaped_content = content.replace("${{", "$\\{\\{")
