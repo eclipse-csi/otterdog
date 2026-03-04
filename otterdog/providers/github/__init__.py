@@ -166,6 +166,12 @@ class GitHubProvider:
     async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_team_members(org_id, team_slug)
 
+    async def get_org_team_sync_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        return await self.rest_api.team.get_team_sync_groups(org_id, team_slug)
+
+    async def get_org_team_external_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        return await self.rest_api.team.get_team_external_groups(org_id, team_slug)
+
     async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
         await self.rest_api.team.add_team(org_id, team_name, data)
 
