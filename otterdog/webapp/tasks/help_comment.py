@@ -54,7 +54,6 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
             self.repo_name,
         )
 
-        rest_api = await self.rest_api
         comment = await render_template("comment/help_comment.txt")
 
         await self.minimize_outdated_comments(
@@ -64,7 +63,8 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
             "<!-- Otterdog Comment: help -->",
         )
 
-        await rest_api.issue.create_comment(
+        github_provider = await self.github_provider
+        await github_provider.rest_api.issue.create_comment(
             self.org_id,
             self.repo_name,
             str(self.pull_request_number),

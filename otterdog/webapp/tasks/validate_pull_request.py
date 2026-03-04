@@ -32,7 +32,7 @@ from otterdog.webapp.webhook.github_models import PullRequest, Repository
 if TYPE_CHECKING:
     from otterdog.operations.diff_operation import DiffStatus
     from otterdog.operations.validate import ValidationStatus
-    from otterdog.providers.github.rest import RestApi
+    from otterdog.providers.github import GitHubProvider
 
 
 @dataclass
@@ -77,10 +77,9 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
     async def _pre_execute(self) -> bool:
         if isinstance(self.pull_request_or_number, int):
-            rest_api = await self.rest_api
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repo_name, str(self.pull_request_or_number)
-            )
+            github = await self.github_provider
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_or_number)
+            response = await pr.get_data()
             self._pull_request = PullRequest.model_validate(response)
         else:
             self._pull_request = self.pull_request_or_number
@@ -105,14 +104,14 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
         )
 
         async with self.get_organization_config() as org_config:
-            rest_api = await self.rest_api
+            github = await self.github_provider
 
             org_config_file = org_config.jsonnet_config.org_config_file
 
             # get BASE config
             base_file = org_config_file + "-BASE"
             await fetch_config_from_github(
-                rest_api,
+                github.rest_api,
                 self.org_id,
                 self.org_id,
                 org_config.config_repo,
@@ -126,7 +125,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             # get HEAD config from PR
             head_file = org_config_file
             await fetch_config_from_github(
-                rest_api,
+                github.rest_api,
                 self.org_id,
                 head_repo.owner.login,
                 head_repo.name,
@@ -136,7 +135,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
             validation_result = ValidationResult()
 
-            for file in await self._get_pull_request_files(rest_api):
+            for file in await self._get_pull_request_files(github):
                 self.logger.debug(f"touched file: {file}")
                 if file != f"otterdog/{self.org_id}.jsonnet":
                     validation_result.touches_non_configuration = True
@@ -267,12 +266,12 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
         if pull_request_model.can_be_automerged():
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
-    async def _get_pull_request_files(self, rest_api: RestApi) -> list[str]:
-        pull_request_data = await rest_api.pull_request.get_files(
+    async def _get_pull_request_files(self, github: GitHubProvider) -> list[str]:
+        pull_request_data = await github.pull_request(
             self.org_id,
             self.repo_name,
-            str(self.pull_request_number),
-        )
+            self.pull_request_number,
+        ).get_files()
         return [x["filename"] for x in pull_request_data]
 
     def __repr__(self) -> str:
