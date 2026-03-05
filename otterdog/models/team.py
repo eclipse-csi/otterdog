@@ -21,7 +21,7 @@ from otterdog.models import (
     ModelObject,
     ValidationContext,
 )
-from otterdog.utils import UNSET, is_set_and_valid, unwrap
+from otterdog.utils import UNSET, is_set_and_valid, unwrap, is_unset
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
