@@ -28,7 +28,7 @@ orgs.newTeam('<name>') {
 - setting `privacy` must be one of `visible` or `secret`, any other value triggers an error
 - specifying a non-empty list of `members` while `skip_members` is enabled, triggers an error
 - specifying a user in `members` that is not yet an organization member while `skip_non_organization_members` is enabled, triggers an error
-- specifying a team-sync that is missing either `team_sync_id`, `team_sync_name` or `team_sync_description`, triggers an error 
+- specifying a team-sync that is missing either `team_sync_id`, `team_sync_name` or `team_sync_description`, triggers an error
 
 ## Example usage
 
