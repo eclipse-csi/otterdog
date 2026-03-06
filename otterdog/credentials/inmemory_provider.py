@@ -8,12 +8,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from otterdog.credentials import CredentialProvider, Credentials
-
-if TYPE_CHECKING:
-    from typing import Any
 
 
 class InMemoryVault(CredentialProvider):
@@ -23,7 +18,9 @@ class InMemoryVault(CredentialProvider):
 
     KEY_API_TOKEN = "api_token"
 
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         if only_token is not True:
             raise RuntimeError("in-memory vault can only contain GitHub tokens")
 

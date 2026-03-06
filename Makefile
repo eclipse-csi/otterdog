@@ -10,11 +10,21 @@ VERSION := $(shell poetry version -s)
 all: help
 
 init:  ## Initialize the development environment
-ifndef PIPX
-	$(error "Please install pipx first, e.g. using 'apt install pipx' or 'brew install pipx")
-endif
-
 ifndef POETRY
+	ifndef PIPX
+		$(error Poetry not found, and pipx is also not installed. \
+\
+To install Poetry, you can either: \
+\
+1. Install pipx first: \
+   - On Debian/Ubuntu: apt install pipx \
+   - On macOS: brew install pipx \
+   Then run 'make init' again, which will use pipx to install Poetry. \
+\
+2. Install Poetry directly: \
+   curl -sSL https://install.python-poetry.org | python3 -)
+	endif
+
 	pipx install "poetry>=2.0.1"
 endif
 
