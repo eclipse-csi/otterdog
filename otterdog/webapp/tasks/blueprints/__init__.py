@@ -122,10 +122,8 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             return False
 
     async def _find_existing_pull_request(self, default_branch: str) -> int | None:
-        rest_api = await self.rest_api
-        open_pull_requests = await rest_api.pull_request.get_pull_requests(
-            self.org_id, self.repo_name, "open", default_branch
-        )
+        github = await self.github_provider
+        open_pull_requests = await github.get_pull_requests(self.org_id, self.repo_name, "open", default_branch)
 
         for pr in open_pull_requests:
             if pr["head"]["ref"] == self.branch_name:
@@ -159,8 +157,8 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             dashboard_url=dashboard_url,
         )
 
-        rest_api = await self.rest_api
-        created_pr = await rest_api.pull_request.create_pull_request(
+        github = await self.github_provider
+        created_pr = await github.create_pull_request(
             self.org_id,
             self.repo_name,
             pr_title,
@@ -169,11 +167,10 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             pr_body,
         )
 
-        pull_request_number = created_pr["number"]
+        pull_request_number = created_pr.pr_number
 
         if team_reviewers is not None and len(team_reviewers) > 0:
-            await rest_api.pull_request.request_reviews(
-                self.org_id, self.repo_name, pull_request_number, team_reviewers=team_reviewers
-            )
+            pr = github.pull_request(self.org_id, self.repo_name, pull_request_number)
+            await pr.request_reviews(team_reviewers=team_reviewers)
 
         return pull_request_number

@@ -45,8 +45,8 @@ class AutoMergeCommentTask(InstallationBasedTask, Task[None]):
         ):
             comment = await render_template("comment/auto_merge_comment.txt")
 
-            rest_api = await self.rest_api
-            await rest_api.issue.create_comment(
+            github_provider = await self.github_provider
+            await github_provider.rest_api.issue.create_comment(
                 self.org_id,
                 self.repo_name,
                 str(self.pull_request_number),

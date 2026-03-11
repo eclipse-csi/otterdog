@@ -79,12 +79,12 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             self.repo_name,
         )
 
-        rest_api = await self.rest_api
+        github = await self.github_provider
+        rest_api = github.rest_api
 
         if isinstance(self.pull_request_or_number, int):
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repo_name, str(self.pull_request_number)
-            )
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_or_number)
+            response = await pr.get_data()
             self._pull_request = PullRequest.model_validate(response)
         else:
             self._pull_request = self.pull_request_or_number
@@ -92,11 +92,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
         # do not perform checks every time a pull request is synchronized
         # if the last check was done within an hour
         if self.is_triggered_from_comment is False:
-            commits = await rest_api.pull_request.get_commits(
-                self.org_id,
-                self.repo_name,
-                str(self.pull_request_number),
-            )
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_number)
+            commits = await pr.get_commits()
 
             if len(commits) > 1:
                 previous_commit = commits[-2]
@@ -199,8 +196,8 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             )
 
             if comment is not None:
-                rest_api = await self.rest_api
-                await rest_api.issue.create_comment(
+                github_provider = await self.github_provider
+                await github_provider.rest_api.issue.create_comment(
                     self.org_id,
                     org_config.config_repo,
                     self.pull_request_number,

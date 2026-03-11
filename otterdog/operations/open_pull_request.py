@@ -21,7 +21,6 @@ from .local_plan import LocalPlanOperation
 
 if TYPE_CHECKING:
     from otterdog.config import OrganizationConfig
-    from otterdog.providers.github.rest import RestApi
 
 
 class OpenPullRequestOperation(Operation):
@@ -128,7 +127,7 @@ class OpenPullRequestOperation(Operation):
                         return 1
 
                     pr_number = await self._create_pull_request(
-                        rest_api,
+                        provider,
                         org_config,
                         default_branch,
                         local_configuration,
@@ -150,11 +149,13 @@ class OpenPullRequestOperation(Operation):
 
     async def _create_pull_request(
         self,
-        rest_api: RestApi,
+        github: GitHubProvider,
         org_config: OrganizationConfig,
         default_branch: str,
         local_configuration: str,
-    ) -> str:
+    ) -> int:
+        rest_api = github.rest_api
+
         default_branch_data = await rest_api.reference.get_branch_reference(
             org_config.github_id,
             org_config.config_repo,
@@ -183,7 +184,7 @@ class OpenPullRequestOperation(Operation):
         else:
             body = "This PR has been created automatically using the otterdog cli."
 
-        pull_request_data = await rest_api.pull_request.create_pull_request(
+        pull_request_data = await github.create_pull_request(
             org_config.github_id,
             org_config.config_repo,
             self.title,
@@ -192,4 +193,4 @@ class OpenPullRequestOperation(Operation):
             body,
         )
 
-        return pull_request_data["number"]
+        return pull_request_data.pr_number

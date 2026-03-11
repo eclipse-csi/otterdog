@@ -29,6 +29,8 @@ _logger = get_logger(__name__)
 
 
 class Requester:
+    """Low-level access to the GitHub REST API, handling authentication, caching, retries, and statistics."""
+
     def __init__(
         self,
         auth_strategy: AuthStrategy | None,

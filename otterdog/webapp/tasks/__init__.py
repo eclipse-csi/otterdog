@@ -28,8 +28,7 @@ from otterdog.webapp.db.service import (
     schedule_task,
 )
 from otterdog.webapp.utils import (
-    get_graphql_api_for_installation,
-    get_rest_api_for_installation,
+    get_github_provider_for_installation,
     get_temporary_base_directory,
 )
 
@@ -112,17 +111,21 @@ class Task(ABC, Generic[T]):
 class InstallationBasedTask(Protocol):
     installation_id: int
 
-    __rest_api: RestApi | None = None
-    __graphql_api: GraphQLClient | None = None
+    __github_provider: GitHubProvider | None = None
 
     __rest_statistics: RequestStatistics | None = None
     __graphql_statistics: RequestStatistics | None = None
 
     @property
+    async def github_provider(self) -> GitHubProvider:
+        if self.__github_provider is None:
+            self.__github_provider = await get_github_provider_for_installation(self.installation_id)
+        return self.__github_provider
+
+    @property
     async def rest_api(self) -> RestApi:
-        if self.__rest_api is None:
-            self.__rest_api = await get_rest_api_for_installation(self.installation_id)
-        return self.__rest_api
+        github_provider = await self.github_provider
+        return github_provider.rest_api
 
     @property
     def rest_statistics(self) -> RequestStatistics:
@@ -138,9 +141,8 @@ class InstallationBasedTask(Protocol):
 
     @property
     async def graphql_api(self) -> GraphQLClient:
-        if self.__graphql_api is None:
-            self.__graphql_api = await get_graphql_api_for_installation(self.installation_id)
-        return self.__graphql_api
+        github_provider = await self.github_provider
+        return github_provider.graphql_client
 
     def _merge_rest_statistics(self, other: RequestStatistics) -> None:
         self.rest_statistics.merge(other)
@@ -153,11 +155,9 @@ class InstallationBasedTask(Protocol):
         self._merge_graphql_statistics(provider.graphql_client.statistics)
 
     def _update_task_model(self, task: TaskModel) -> None:
-        if self.__rest_api is not None:
-            self._merge_rest_statistics(self.__rest_api.statistics)
-
-        if self.__graphql_api is not None:
-            self._merge_graphql_statistics(self.__graphql_api.statistics)
+        if self.__github_provider is not None:
+            self._merge_rest_statistics(self.__github_provider.rest_api.statistics)
+            self._merge_graphql_statistics(self.__github_provider.graphql_client.statistics)
 
         if self.rest_statistics.total_requests == 0:
             cache_stats = "rest: no requests"
@@ -255,11 +255,8 @@ class InstallationBasedTask(Protocol):
         )
 
     async def _cleanup(self) -> None:
-        if self.__rest_api is not None:
-            await self.__rest_api.close()
-
-        if self.__graphql_api is not None:
-            await self.__graphql_api.close()
+        if self.__github_provider is not None:
+            await self.__github_provider.close()
 
 
 async def get_organization_config(

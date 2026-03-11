@@ -21,10 +21,11 @@ from quart_redis import get_redis  # type: ignore
 
 from otterdog.cache import get_github_cache
 from otterdog.config import OtterdogConfig
+from otterdog.credentials import Credentials
+from otterdog.providers.github import GitHubProvider
 from otterdog.providers.github.auth import app_auth, token_auth
 from otterdog.providers.github.cache.ghproxy import ghproxy_cache
 from otterdog.providers.github.cache.redis import redis_cache
-from otterdog.providers.github.graphql import GraphQLClient
 from otterdog.providers.github.rest import RestApi
 from otterdog.webapp.blueprints import Blueprint, read_blueprint
 from otterdog.webapp.policies import Policy, read_policy
@@ -106,14 +107,17 @@ def decode_bytes_dict(data: dict[bytes, bytes]) -> dict[str, str]:
     return {k.decode("utf-8"): v.decode("utf-8") for k, v in data.items()}
 
 
-async def get_rest_api_for_installation(installation_id: int) -> RestApi:
+async def get_github_provider_for_installation(installation_id: int) -> GitHubProvider:
     token, _ = await get_token_for_installation(installation_id)
-    return RestApi(token_auth(token), get_github_cache())
-
-
-async def get_graphql_api_for_installation(installation_id: int) -> GraphQLClient:
-    token, _ = await get_token_for_installation(installation_id)
-    return GraphQLClient(token_auth(token), get_github_cache())
+    return GitHubProvider(
+        Credentials(
+            _username=None,
+            _password=None,
+            _totp_secret=None,
+            _last_totp=None,
+            _github_token=token,
+        )
+    )
 
 
 def get_app_root_directory(app: Quart | None = None) -> str:
