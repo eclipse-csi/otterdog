@@ -17,7 +17,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     LivePatchType,
     ModelObject,
     ValidationContext,
@@ -172,16 +171,17 @@ class CustomProperty(ModelObject):
         current_object: CustomProperty | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> LivePatch[CustomProperty] | None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
+            return LivePatch(
+                LivePatchType.ADD, expected_object, None, None, parent_object, False, expected_object.apply_live_patch
+            )
 
         if expected_object is None:
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
+            return LivePatch(
+                LivePatchType.REMOVE, None, current_object, None, parent_object, False, current_object.apply_live_patch
+            )
 
         modified_property: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
 
@@ -192,16 +192,17 @@ class CustomProperty(ModelObject):
                     f"{expected_object.get_model_header(parent_object)} which is not supported."
                 )
 
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_property,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
+            return LivePatch(
+                LivePatchType.CHANGE,
+                expected_object,
+                current_object,
+                modified_property,
+                parent_object,
+                False,
+                expected_object.apply_live_patch,
             )
+
+        return None
 
     @classmethod
     async def apply_live_patch(cls, patch: LivePatch[CustomProperty], org_id: str, provider: GitHubProvider) -> None:

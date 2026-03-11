@@ -209,7 +209,8 @@ class DiffOperation(Operation):
                 current_org.settings if self.coerce_current_org() else None,
                 expected_org.settings,
             )
-            expected_org.generate_live_patch(current_org, context, handle)
+            for patch in expected_org.generate_live_patch(current_org, context):
+                handle(patch)
 
             # resolve secrets for collected patches
             if self.resolve_secrets():
