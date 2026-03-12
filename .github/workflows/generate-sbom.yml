@@ -15,6 +15,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   POETRY_VERSION: '2.0.1'
+  PIA_DOMAIN: pia-staging.eclipse.org
 
 permissions:
   contents: read
@@ -22,6 +23,8 @@ permissions:
 jobs:
   generate-sbom:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     outputs:
       project-version: ${{ steps.export.outputs.PROJECT_VERSION }}
     steps:
@@ -54,6 +57,28 @@ jobs:
         with:
           name: sbom
           path: otterdog-bom.json
+      # Upload SBOM to sbom-staging.eclipse.org using pia-staging.eclipse.org
+      - name: Upload SBOM via PIA (experimental)
+        run: |
+          # Get OIDC token from GitHub Identity Provider
+          ID_TOKEN=$(curl -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${{ env.PIA_DOMAIN }}" | jq -r '.value')
+
+          # Create PIA payload on disk
+          # The bom data is too long for passing it direclty as curl option
+          cat > otterdog-pia.json <<EOF
+          {
+            "product_name": "otterdog",
+            "product_version": "${{ steps.export.outputs.PROJECT_VERSION }}",
+            "bom": "$(base64 --wrap=0 otterdog-bom.json)"
+          }
+          EOF
+
+          # Upload to PIA
+          curl --fail-with-body https://${{ env.PIA_DOMAIN }}/v1/upload/sbom \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            --json "@otterdog-pia.json"
+
 
   store-sbom-data: # stores sbom and metadata in a predefined format for otterdog to pick up
     needs: ['generate-sbom']
