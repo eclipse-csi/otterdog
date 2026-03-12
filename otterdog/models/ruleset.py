@@ -38,9 +38,6 @@ if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
-    from .github_organization import GitHubOrganization
-    from .repository import Repository
-
 RS = TypeVar("RS", bound="Ruleset")
 
 _logger = get_logger(__name__)
@@ -54,7 +51,7 @@ class PullRequestSettings(EmbeddedModelObject):
     requires_last_push_approval: bool
     requires_review_thread_resolution: bool
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         for key in self.keys(False):
             value = self.__getattribute__(key)
             if is_unset(value):
@@ -125,7 +122,7 @@ class StatusCheckSettings(EmbeddedModelObject):
     strict: bool
     status_checks: list[str]
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         for key in ["strict", "status_checks"]:
             value = self.__getattribute__(key)
             if is_unset(value):
@@ -179,7 +176,7 @@ class StatusCheckSettings(EmbeddedModelObject):
 
                 for check in checks:
                     if ":" in check:
-                        app_slug, _context = re.split(":", check, maxsplit=1)
+                        app_slug, _ = re.split(":", check, maxsplit=1)
 
                         if app_slug != "any" and " " not in app_slug:
                             app_slugs.add(app_slug)
@@ -235,7 +232,7 @@ class MergeQueueSettings(EmbeddedModelObject):
     status_check_timeout: int
     requires_all_group_entries_to_pass_required_checks: bool
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
         for key in self.keys(False):
             value = self.__getattribute__(key)
             if is_unset(value):
@@ -358,7 +355,9 @@ class Ruleset(ModelObject, abc.ABC):
     _roles: ClassVar[dict[str, str]] = {"5": "RepositoryAdmin", "4": "Write", "2": "Maintain", "1": "OrganizationAdmin"}
     _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
+        if TYPE_CHECKING:
+            from .github_organization import GitHubOrganization
 
         org_settings = cast("GitHubOrganization", context.root_object).settings
 
@@ -436,6 +435,9 @@ class Ruleset(ModelObject, abc.ABC):
             )
 
         if self.requires_deployments is True and len(self.required_deployment_environments) > 0:
+            if TYPE_CHECKING:
+                from .repository import Repository
+
             environments = cast("Repository", parent_object).environments
 
             environments_by_name = associate_by_key(environments, lambda x: x.name)
@@ -448,10 +450,10 @@ class Ruleset(ModelObject, abc.ABC):
                     )
 
         if is_set_and_present(self.required_pull_request):
-            self.required_pull_request.validate(context, parent_object)
+            self.required_pull_request.validate(context, parent_object, None)
 
         if is_set_and_present(self.required_merge_queue):
-            self.required_merge_queue.validate(context, parent_object)
+            self.required_merge_queue.validate(context, parent_object, None)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.requires_deployments is False:
