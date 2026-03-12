@@ -6,6 +6,10 @@
 
  - Fix web-login ([#597](https://github.com/eclipse-csi/otterdog/pull/597))
 
+### Fixed
+
+ - Fix printing of changes for nested dicts
+
 ## [1.2.0] - 12/02/2026
 
 ### Added
