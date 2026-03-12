@@ -381,6 +381,32 @@ class GitHubProvider:
     async def delete_org_secret(self, org_id: str, secret_name: str) -> None:
         await self.rest_api.org.delete_secret(org_id, secret_name)
 
+    async def get_org_dependabot_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_dependabot_secrets(org_id)
+
+    async def update_org_dependabot_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        if len(secret) > 0:
+            await self.rest_api.org.update_dependabot_secret(org_id, secret_name, secret)
+
+    async def add_org_dependabot_secret(self, org_id: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_dependabot_secret(org_id, data)
+
+    async def delete_org_dependabot_secret(self, org_id: str, secret_name: str) -> None:
+        await self.rest_api.org.delete_dependabot_secret(org_id, secret_name)
+
+    async def get_org_codespaces_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_codespaces_secrets(org_id)
+
+    async def update_org_codespaces_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        if len(secret) > 0:
+            await self.rest_api.org.update_codespaces_secret(org_id, secret_name, secret)
+
+    async def add_org_codespaces_secret(self, org_id: str, data: dict[str, str]) -> None:
+        await self.rest_api.org.add_codespaces_secret(org_id, data)
+
+    async def delete_org_codespaces_secret(self, org_id: str, secret_name: str) -> None:
+        await self.rest_api.org.delete_codespaces_secret(org_id, secret_name)
+
     async def get_org_variables(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_variables(org_id)
 
@@ -407,6 +433,36 @@ class GitHubProvider:
     async def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         await self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
 
+    async def get_repo_dependabot_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_dependabot_secrets(org_id, repo_name)
+
+    async def update_repo_dependabot_secret(
+        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_dependabot_secret(org_id, repo_name, secret_name, secret)
+
+    async def add_repo_dependabot_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_dependabot_secret(org_id, repo_name, data)
+
+    async def delete_repo_dependabot_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_dependabot_secret(org_id, repo_name, secret_name)
+
+    async def get_repo_codespaces_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_codespaces_secrets(org_id, repo_name)
+
+    async def update_repo_codespaces_secret(
+        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_codespaces_secret(org_id, repo_name, secret_name, secret)
+
+    async def add_repo_codespaces_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_codespaces_secret(org_id, repo_name, data)
+
+    async def delete_repo_codespaces_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_codespaces_secret(org_id, repo_name, secret_name)
+
     async def get_repo_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_variables(org_id, repo_name)
 
@@ -421,6 +477,36 @@ class GitHubProvider:
 
     async def delete_repo_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
         await self.rest_api.repo.delete_variable(org_id, repo_name, variable_name)
+
+    async def get_env_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.env.get_secrets(org_id, repo_name, env_name)
+
+    async def update_env_secret(
+        self, org_id: str, repo_name: str, env_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.env.update_secret(org_id, repo_name, env_name, secret_name, secret)
+
+    async def add_env_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.env.add_secret(org_id, repo_name, env_name, data)
+
+    async def delete_env_secret(self, org_id: str, repo_name: str, env_name: str, secret_name: str) -> None:
+        await self.rest_api.env.delete_secret(org_id, repo_name, env_name, secret_name)
+
+    async def get_env_variables(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.env.get_variables(org_id, repo_name, env_name)
+
+    async def update_env_variable(
+        self, org_id: str, repo_name: str, env_name: str, variable_name: str, variable: dict[str, Any]
+    ) -> None:
+        if len(variable) > 0:
+            await self.rest_api.env.update_variable(org_id, repo_name, env_name, variable_name, variable)
+
+    async def add_env_variable(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.env.add_variable(org_id, repo_name, env_name, data)
+
+    async def delete_env_variable(self, org_id: str, repo_name: str, env_name: str, variable_name: str) -> None:
+        await self.rest_api.env.delete_variable(org_id, repo_name, env_name, variable_name)
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)

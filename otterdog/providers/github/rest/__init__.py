@@ -136,6 +136,12 @@ class RestApi:
 
         return MetaClient(self)
 
+    @cached_property
+    def env(self):
+        from .env_client import EnvClient
+
+        return EnvClient(self)
+
 
 class RestClient:
     def __init__(self, rest_api: RestApi):
