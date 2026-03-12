@@ -10,13 +10,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import TYPE_CHECKING
 
 from otterdog.credentials import CredentialProvider, Credentials
 from otterdog.logging import get_logger
-
-if TYPE_CHECKING:
-    from typing import Any
 
 _logger = get_logger(__name__)
 
@@ -46,7 +42,9 @@ class BitwardenVault(CredentialProvider):
     def is_unlocked(self) -> bool:
         return self._status == 0
 
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, _placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+    ) -> Credentials:
         item_id = data.get("item_id")
         if item_id is None:
             raise RuntimeError("required key 'item_id' not found in authorization data")
