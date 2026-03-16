@@ -19,7 +19,6 @@ from otterdog.models import (
     FailureType,
     LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     ModelObject,
     ValidationContext,
 )
@@ -163,17 +162,14 @@ class Webhook(ModelObject, abc.ABC):
         current_object: WT | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
-        handler: LivePatchHandler,
-    ) -> None:
+    ) -> LivePatch[WT] | None:
         if current_object is None:
             expected_object = unwrap(expected_object)
-            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-            return
+            return LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch)
 
         if expected_object is None:
             current_object = unwrap(current_object)
-            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
-            return
+            return LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch)
 
         # if webhooks shall be updated and the webhook contains a valid secret perform a forced update.
         if (
@@ -184,17 +180,14 @@ class Webhook(ModelObject, abc.ABC):
             model_dict = expected_object.to_model_dict()
             modified_webhook: dict[str, Change[Any]] = {k: Change(v, v) for k, v in model_dict.items()}
 
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_webhook,
-                    parent_object,
-                    True,
-                    expected_object.apply_live_patch,
-                )
+            return LivePatch.of_changes(
+                expected_object,
+                current_object,
+                modified_webhook,
+                parent_object,
+                True,
+                expected_object.apply_live_patch,
             )
-            return
 
         modified_webhook = expected_object.get_difference_from(current_object)
 
@@ -223,13 +216,13 @@ class Webhook(ModelObject, abc.ABC):
                 modified_webhook["secret"] = Change(current_secret, expected_secret)
 
         if len(modified_webhook) > 0:
-            handler(
-                LivePatch.of_changes(
-                    expected_object,
-                    current_object,
-                    modified_webhook,
-                    parent_object,
-                    False,
-                    expected_object.apply_live_patch,
-                )
+            return LivePatch.of_changes(
+                expected_object,
+                current_object,
+                modified_webhook,
+                parent_object,
+                False,
+                expected_object.apply_live_patch,
             )
+
+        return None
