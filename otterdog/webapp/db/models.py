@@ -109,16 +109,26 @@ class PullRequestModel(Model):
     closed_at: datetime | None = None
     merged_at: datetime | None = Field(index=True, default=None)
 
+    def automerge_problems(self) -> list[str]:
+        problems = []
+        if self.status != PullRequestStatus.OPEN:
+            problems.append("pull request is not open")
+        if self.valid is False:
+            problems.append("pull request is not valid")
+        if self.supports_auto_merge is False:
+            problems.append(
+                "pull request cannot be automatically merged "
+                "(contains secrets, requires web UI changes, includes deletions or touches non-configuration files)"
+            )
+        if self.author_can_auto_merge is False and self.has_required_approvals is False:
+            problems.append(
+                "pull request does not have the required approvals, "
+                "and the author is not eligible for merge without approvals"
+            )
+        return problems
+
     def can_be_automerged(self) -> bool:
-        return (
-            self.valid is True
-            # do not explicitly require that the config is in sync
-            # only changes to the latest checked in config are applied
-            # this allows projects to update the config even if its out-of-sync.
-            # and self.in_sync is True
-            and self.supports_auto_merge is True
-            and (self.author_can_auto_merge is True or self.has_required_approvals is True)
-        )
+        return not self.automerge_problems()
 
 
 class StatisticsModel(Model):

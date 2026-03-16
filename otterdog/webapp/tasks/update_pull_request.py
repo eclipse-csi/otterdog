@@ -47,12 +47,10 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
         )
 
         if self.review is not None:
-            rest_api = await self.rest_api
-
             # check if the PR was approved by a team eligible for auto-merge
-            reviews = await rest_api.pull_request.get_reviews(
-                self.org_id, self.repo_name, str(self.pull_request_number)
-            )
+            github = await self.github_provider
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_number)
+            reviews = await pr.get_reviews()
 
             approved_by_users = [x["user"]["login"] for x in filter(lambda x: x["state"] == "APPROVED", reviews)]
 

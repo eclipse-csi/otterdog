@@ -106,8 +106,6 @@ class ApproveBlueprintsOperation(Operation):
                     return 1
 
                 async with GitHubProvider(credentials) as provider:
-                    rest_api = provider.rest_api
-
                     for blueprint in blueprints:
                         self.printer.print(f"Merging PR #{blueprint.remediation_pr}: ")
 
@@ -123,9 +121,12 @@ class ApproveBlueprintsOperation(Operation):
                         if repo.allow_rebase_merge is True:
                             merge_method = "rebase"
 
-                        result = await rest_api.pull_request.merge_pull_request(
-                            blueprint.id.org_id, blueprint.id.repo_name, f"{blueprint.remediation_pr}", merge_method
+                        pr = provider.pull_request(
+                            blueprint.id.org_id,
+                            blueprint.id.repo_name,
+                            blueprint.remediation_pr,
                         )
+                        result = await pr.merge_pull_request(merge_method)
 
                         if result["merged"] is True:
                             self.printer.println("[green]merged[/].")

@@ -68,10 +68,9 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
         )
 
         if isinstance(self.pull_request_or_number, int):
-            rest_api = await self.rest_api
-            response = await rest_api.pull_request.get_pull_request(
-                self.org_id, self.repo_name, str(self.pull_request_or_number)
-            )
+            github = await self.github_provider
+            pr = github.pull_request(self.org_id, self.repo_name, self.pull_request_or_number)
+            response = await pr.get_data()
             self._pull_request = PullRequest.model_validate(response)
         else:
             self._pull_request = self.pull_request_or_number
@@ -118,7 +117,10 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 comment = await render_template(
                     "comment/wrong_team_apply_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
                 )
-                await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
+                provider = await self.github_provider
+                await provider.rest_api.issue.create_comment(
+                    self.org_id, self.repo_name, str(self.pull_request_number), comment
+                )
 
                 self.logger.error(
                     f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
@@ -222,7 +224,10 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 admin_teams=get_full_admin_team_slugs(self.org_id),
             )
 
-            await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)
+            github_provider = await self.github_provider
+            await github_provider.rest_api.issue.create_comment(
+                self.org_id, org_config.config_repo, pull_request_number, result
+            )
 
             return apply_result
 
