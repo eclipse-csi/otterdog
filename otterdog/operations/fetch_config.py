@@ -103,7 +103,7 @@ class FetchOperation(Operation):
 
             if self.pull_request is not None:
                 self.printer.println(
-                    f"organization definition fetched from pull request " f"#{self.pull_request} to '{org_file_name}'"
+                    f"organization definition fetched from pull request #{self.pull_request} to '{org_file_name}'"
                 )
             else:
                 self.printer.println(f"organization definition fetched from default branch to '{org_file_name}'")

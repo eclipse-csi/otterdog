@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Callable
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -131,7 +131,7 @@ class AssociatedPullRequest(BaseModel):
     html_url: str
 
 
-class AuthorAssociation(str, Enum):
+class AuthorAssociation(StrEnum):
     COLLABORATOR = "COLLABORATOR"
     CONTRIBUTOR = "CONTRIBUTOR"
     FIRST_TIMER = "FIRST_TIME"

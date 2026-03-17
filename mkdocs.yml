@@ -39,9 +39,6 @@ edit_uri: edit/main/docs/
 nav:
 - Get Started:
     - Overview: index.md
-    - install.md
-    - setup.md
-    - usage.md
 - Reference:
     - reference/index.md
     - Resources:
@@ -96,6 +93,12 @@ nav:
     - Renaming of Resources: userguide/renaming.md
     - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
+
+- Operating Otterdog:
+    - operating_otterdog/index.md
+    - operating_otterdog/install.md
+    - operating_otterdog/setup.md
+    - operating_otterdog/usage.md
 
 - Developing Otterdog:
     - Overview: developing_otterdog/index.md

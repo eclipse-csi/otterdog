@@ -30,7 +30,7 @@ otterdog.json
 data
 approot
 .coverage
-./htmlcov
+htmlcov
 
 #### Ignoring swp files
 *.swp

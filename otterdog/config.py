@@ -17,7 +17,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from otterdog.credentials import CredentialProvider
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
@@ -180,7 +180,10 @@ class CredentialResolver(SecretResolver):
 
         provider = self._get_credential_provider(provider_type)
         if provider is not None:
-            return provider.get_credentials(org_config.name, org_config.credential_data, only_token)
+            # Centrally managed placeholders for credential data provided within the default section.
+            # This way all providers can support the same set of placeholders.
+            placeholders = CredentialPlaceHolders(org_name=org_config.name, github_id=org_config.github_id)
+            return provider.get_credentials(placeholders, org_config.credential_data, only_token)
         else:
             raise RuntimeError(f"unsupported credential provider '{provider_type}'")
 

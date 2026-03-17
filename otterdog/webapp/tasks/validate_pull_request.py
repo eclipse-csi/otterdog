@@ -277,8 +277,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
     def __repr__(self) -> str:
         return (
-            f"ValidatePullRequestTask(repo='{self.org_id}/{self.repo_name}', "
-            f"pull_request=#{self.pull_request_number})"
+            f"ValidatePullRequestTask(repo='{self.org_id}/{self.repo_name}', pull_request=#{self.pull_request_number})"
         )
 
 

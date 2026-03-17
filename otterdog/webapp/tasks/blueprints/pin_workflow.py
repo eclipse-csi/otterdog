@@ -67,7 +67,7 @@ class PinWorkflowTask(BlueprintTask):
 
     async def _process_workflows(
         self,
-        pinned_workflows: dict[str, tuple[dict, list[str]]],
+        pinned_workflows: dict[str, tuple[WorkflowFile, list[str]]],
         result: CheckResult,
     ) -> None:
         result.remediation_needed = True

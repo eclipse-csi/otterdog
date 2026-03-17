@@ -163,8 +163,7 @@ class InstallationBasedTask(Protocol):
             cache_stats = "rest: no requests"
         else:
             cache_stats = (
-                f"rest: {self.rest_statistics.cached_responses}/{self.rest_statistics.total_requests} "
-                f"request(s) cached"
+                f"rest: {self.rest_statistics.cached_responses}/{self.rest_statistics.total_requests} request(s) cached"
             )
 
         if self.rest_statistics.remaining_rate_limit != -1:

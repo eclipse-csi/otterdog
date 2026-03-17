@@ -11,7 +11,7 @@ from __future__ import annotations
 import binascii
 import dataclasses
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TypedDict
 
 from otterdog.logging import get_logger, print_warn
 
@@ -84,9 +84,16 @@ class Credentials:
         return f"Credentials(username={self.username})"
 
 
+class CredentialPlaceHolders(TypedDict):
+    org_name: str
+    github_id: str
+
+
 class CredentialProvider(Protocol):
     @abstractmethod
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials: ...
+    def get_credentials(
+        self, placeholders: CredentialPlaceHolders, data: dict[str, Any], only_token: bool = False
+    ) -> Credentials: ...
 
     @abstractmethod
     def get_secret(self, data: str) -> str: ...
@@ -117,6 +124,12 @@ class CredentialProvider(Protocol):
 
                 _check_valid_keys(provider_type, defaults, PlainVault.__init__)
                 return PlainVault()
+
+            case "env":
+                from .env_provider import EnvVault
+
+                valid_keys = _check_valid_keys(provider_type, defaults, EnvVault.__init__)
+                return EnvVault(**valid_keys)
 
             case _:
                 return None

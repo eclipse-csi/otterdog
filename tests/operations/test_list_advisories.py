@@ -24,7 +24,6 @@ class TestListAdvisoriesOperation:
         assert "soft_wrap" in call.kwargs
         assert call.kwargs["soft_wrap"] is True
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "advisory_data,expected_values",
         [
@@ -119,11 +118,10 @@ class TestListAdvisoriesOperation:
         expected_csv = (
             f'"test-org","2024-01-01 00:00:00","366","2024-01-02 00:00:00","365","2024-01-03 00:00:00","","","published","high",'
             f'"GHSA-1234","{expected_values["cve"]}","https://github.com/advisories/GHSA-1234",'
-            f'{expected_values["summary_check"]}'
+            f"{expected_values['summary_check']}"
         )
         assert csv_output == expected_csv
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "advisories_config",
         [
@@ -199,7 +197,6 @@ class TestListAdvisoriesOperation:
             for adv in advisories:
                 assert any(f'"{adv["ghsa_id"]}"' in output for output in csv_outputs)
 
-    @pytest.mark.asyncio
     async def test_execute_with_web_client(self, monkeypatch, mock_github_provider, deterministic_days_since):
         operation = ListAdvisoriesOperation(states=["published"], details=False, use_web=True)
 

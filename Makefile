@@ -1,4 +1,4 @@
-.PHONY: init test clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -10,11 +10,21 @@ VERSION := $(shell poetry version -s)
 all: help
 
 init:  ## Initialize the development environment
-ifndef PIPX
-	$(error "Please install pipx first, e.g. using 'apt install pipx' or 'brew install pipx")
-endif
-
 ifndef POETRY
+	ifndef PIPX
+		$(error Poetry not found, and pipx is also not installed. \
+\
+To install Poetry, you can either: \
+\
+1. Install pipx first: \
+   - On Debian/Ubuntu: apt install pipx \
+   - On macOS: brew install pipx \
+   Then run 'make init' again, which will use pipx to install Poetry. \
+\
+2. Install Poetry directly: \
+   curl -sSL https://install.python-poetry.org | python3 -)
+	endif
+
 	pipx install "poetry>=2.0.1"
 endif
 
@@ -25,8 +35,8 @@ endif
 
 	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
 
-test:  ## Run tests
-	poetry run pytest
+test:  ## Run tests with coverage
+	poetry run pytest -rs tests --cov=otterdog --cov-report=term --cov-report=html
 
 clean:  ## Clean the development environment
 	rm -rf .venv
@@ -70,6 +80,8 @@ dev-webapp-tunnel:  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
 	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel
 
+check:  ## Run all pre-commit checks
+	poetry run prek -a
 
 clean-webapp:  ## Clean Web App the development environment
 	@minikube delete

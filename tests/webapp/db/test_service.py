@@ -13,7 +13,6 @@ from otterdog.webapp import mongo
 from otterdog.webapp.db.models import InstallationModel
 
 
-@pytest.mark.asyncio
 @pytest.mark.skip(reason="integration test")
 async def test_update_installations(app):
     from otterdog.webapp.db import init_mongo_database

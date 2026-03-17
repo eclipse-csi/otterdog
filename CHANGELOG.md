@@ -1,6 +1,21 @@
 # Change Log
 
-## [1.2.0] - unreleased
+## [1.3.0] - unreleased
+
+### Added
+
+ - Environment-based credential provider ([#593](https://github.com/eclipse-csi/otterdog/pull/593))
+ - Auto-Comment on auto-merge problems ([#603](https://github.com/eclipse-csi/otterdog/pull/603))
+
+### Changed
+
+ - Fix web-login ([#597](https://github.com/eclipse-csi/otterdog/pull/597))
+
+### Fixed
+
+ - Fix printing of changes for nested dicts
+
+## [1.2.0] - 12/02/2026
 
 ### Added
 

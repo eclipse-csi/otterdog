@@ -140,8 +140,7 @@ class OpenPullRequestOperation(Operation):
                     )
                 except RuntimeError as e:
                     self.printer.print_error(
-                        "failed to open pull request in repo "
-                        f"'{org_config.github_id}/{org_config.config_repo}': {e!s}"
+                        f"failed to open pull request in repo '{org_config.github_id}/{org_config.config_repo}': {e!s}"
                     )
                     return 1
 

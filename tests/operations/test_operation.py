@@ -17,7 +17,6 @@ from otterdog.utils import Change, IndentingPrinter, LogLevel
 
 
 class OperationTest(unittest.TestCase):
-    # fmt: off
     @parameterized.expand(
         [
             (
@@ -50,8 +49,7 @@ class OperationTest(unittest.TestCase):
                 '~ }',
             ),
         ]
-    )
-    # fmt: on
+    )  # fmt: skip
     @patch.multiple(Operation, __abstractmethods__=set())
     def test_print_modified_dict(self, test_input, expected: str):
         operation = Operation()  # type: ignore

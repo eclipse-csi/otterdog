@@ -55,7 +55,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         match blueprint_status.status:
             case BlueprintStatus.DISMISSED:
                 self.logger.debug(
-                    f"Blueprint '{self.blueprint.id}' dismissed for " f"repo '{self.org_id}/{self.repo_name}', skipping"
+                    f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}', skipping"
                 )
                 return False
 
@@ -141,7 +141,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         team_reviewers: list[str] | None = None,
     ) -> int:
         self.logger.debug(
-            f"creating pull request for blueprint '{self.blueprint.id}' " f"in repo '{self.org_id}/{self.repo_name}'"
+            f"creating pull request for blueprint '{self.blueprint.id}' in repo '{self.org_id}/{self.repo_name}'"
         )
 
         if self.blueprint.description is not None:

@@ -19,7 +19,6 @@ _APP_ID = ""
 _APP_PRIVATE_KEY = ""
 
 
-@pytest.mark.asyncio
 @pytest.mark.skipif(not _APP_ID, reason="need to fill in app values")
 async def test_list_installations():
     async with RestApi(app_auth(_APP_ID, _APP_PRIVATE_KEY)) as rest_api:

@@ -142,7 +142,7 @@ We use [tailscale on Kubernetes](https://tailscale.com/learn/managing-access-to-
  of your development environment can generate `otterdog-1`, `otterdog-2` ...
 
 {%
-    include-markdown "../install.md"
+    include-markdown "../operating_otterdog/install.md"
     start="<!--github-app-start-->"
     end="<!--github-app-end-->"
 %}

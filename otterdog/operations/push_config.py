@@ -160,7 +160,7 @@ class PushOperation(Operation):
                 self.printer.println()
                 self.printer.println("No configuration yet available.")
                 self.printer.println(
-                    "Do you want to push these changes? " "(Only 'yes' or 'y' will be accepted as approval)\n"
+                    "Do you want to push these changes? (Only 'yes' or 'y' will be accepted as approval)\n"
                 )
 
                 self.printer.print("[bold]Enter a value:[/] ")
@@ -194,7 +194,7 @@ class PushOperation(Operation):
         if not self.force_processing:
             self.printer.println()
             self.printer.println(
-                "Do you want to push these changes? " "(Only 'yes' or 'y' will be accepted as approval)\n"
+                "Do you want to push these changes? (Only 'yes' or 'y' will be accepted as approval)\n"
             )
 
             self.printer.print("[bold]Enter a value:[/] ")

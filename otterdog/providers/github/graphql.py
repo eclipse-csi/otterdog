@@ -178,9 +178,7 @@ class GraphQLClient:
         self, org_id: str, repo_name: str, repo_node_id: str, data: dict[str, Any]
     ) -> None:
         rule_pattern = data["pattern"]
-        _logger.debug(
-            f"creating branch_protection_rule with pattern '{rule_pattern}' " f"for repo '{org_id}/{repo_name}'"
-        )
+        _logger.debug(f"creating branch_protection_rule with pattern '{rule_pattern}' for repo '{org_id}/{repo_name}'")
 
         data["repositoryId"] = repo_node_id
         variables = {"ruleInput": data}
@@ -281,7 +279,7 @@ class GraphQLClient:
             if is_trace_enabled():
                 _logger.trace("graphql result = %s", json.dumps(json_data, indent=2))
 
-            if "data" in json_data:
+            if status < 400 and "data" in json_data:
                 rules_result = query_json(prefix_selector + ".nodes", json_data)
 
                 for rule in rules_result:

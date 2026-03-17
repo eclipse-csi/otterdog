@@ -651,9 +651,9 @@ class ModelObject(ABC):
             if exclude_none_values and not is_set_and_valid(value):
                 continue
             elif self.is_nested_model_key(key):
-                result[key] = cast(ModelObject, value).to_model_dict(for_diff, include_nested_models)
+                result[key] = cast("ModelObject", value).to_model_dict(for_diff, include_nested_models)
             elif self.is_embedded_model_key(key) and is_set_and_valid(value):
-                result[key] = cast(EmbeddedModelObject, value).to_model_dict()
+                result[key] = cast("EmbeddedModelObject", value).to_model_dict()
             else:
                 result[key] = value
 

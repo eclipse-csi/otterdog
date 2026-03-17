@@ -104,7 +104,7 @@ class Secret(ModelObject, abc.ABC):
 
     def copy_secrets(self, other_object: ModelObject) -> None:
         if self.has_dummy_secret():
-            self.value = cast(Secret, other_object).value
+            self.value = cast("Secret", other_object).value
 
     def update_dummy_secrets(self, new_value: str) -> None:
         if self.has_dummy_secret():
