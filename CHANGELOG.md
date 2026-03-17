@@ -4,6 +4,7 @@
 
 ### Added
 
+ - Environment-based credential provider ([#593](https://github.com/eclipse-csi/otterdog/pull/593))
  - Auto-Comment on auto-merge problems ([#603](https://github.com/eclipse-csi/otterdog/pull/603))
 
 ### Changed
