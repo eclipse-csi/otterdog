@@ -1,5 +1,5 @@
 #  *******************************************************************************
-#  Copyright (c) 2023-2024 Eclipse Foundation and others.
+#  Copyright (c) 2026 Eclipse Foundation and others.
 #  This program and the accompanying materials are made available
 #  under the terms of the Eclipse Public License 2.0
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import hvac
 import hvac.exceptions
 
-from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
 
 if TYPE_CHECKING:
@@ -304,24 +304,26 @@ class VaultProvider(CredentialProvider):
                 raise
             raise RuntimeError(f"Unexpected error during Vault authentication: {e}") from e
 
-    def get_credentials(self, org_name: str, data: dict[str, Any], only_token: bool = False) -> Credentials:
+    def get_credentials(
+        self, placeholders: CredentialPlaceHolders, data: dict[str, Any], only_token: bool = False
+    ) -> Credentials:
         """
         Retrieve credentials from Vault.
 
         Args:
-            org_name: Organization name
+            placeholders: placeholder dict
             data: Dictionary that may contain specific key mappings or secret_path
             only_token: If True, only retrieve the GitHub token
 
         Returns:
             Credentials object with the retrieved credentials
         """
-        github_token = self._retrieve_key(self.KEY_API_TOKEN, org_name, data)
+        github_token = self._retrieve_key(self.KEY_API_TOKEN, placeholders, data)
 
         if only_token is False:
-            username = self._retrieve_key(self.KEY_USERNAME, org_name, data)
-            password = self._retrieve_key(self.KEY_PASSWORD, org_name, data)
-            totp_secret = self._retrieve_key(self.KEY_TWOFA_SEED, org_name, data)
+            username = self._retrieve_key(self.KEY_USERNAME, placeholders, data)
+            password = self._retrieve_key(self.KEY_PASSWORD, placeholders, data)
+            totp_secret = self._retrieve_key(self.KEY_TWOFA_SEED, placeholders, data)
         else:
             username = None
             password = None
@@ -329,13 +331,13 @@ class VaultProvider(CredentialProvider):
 
         return Credentials(username, password, totp_secret, github_token)
 
-    def _retrieve_key(self, key: str, org_name: str, data: dict[str, Any]) -> str:
+    def _retrieve_key(self, key: str, placeholders: CredentialPlaceHolders, data: dict[str, Any]) -> str:
         """
         Retrieve a specific key from Vault.
 
         Args:
             key: The key to retrieve (e.g., KEY_API_TOKEN, KEY_USERNAME)
-            org_name: Organization name
+            placeholders: Placeholder dict
             data: Dictionary that may contain specific key overrides
 
         Returns:
@@ -360,7 +362,8 @@ class VaultProvider(CredentialProvider):
                     raise RuntimeError(f"unexpected key '{key}'")
 
             if pattern:
-                resolved_key = pattern.format(org_name)
+                # org_name is used to substitute positional {0} for backward compatibility
+                resolved_key = pattern.format(placeholders["org_name"], **placeholders)
 
         if resolved_key is None:
             raise RuntimeError(f"required key '{key}' not found in credential data")

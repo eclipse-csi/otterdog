@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from otterdog.credentials import Credentials
+from otterdog.credentials import CredentialPlaceHolders, Credentials
 
 
 class TestVaultProvider:
@@ -26,7 +26,7 @@ class TestVaultProvider:
 
         from otterdog.credentials.vault_provider import VaultProvider
 
-        provider = VaultProvider(vault_token="test-token")  # noqa: S106
+        provider = VaultProvider(vault_token="test-token")
         assert provider._vault_addr == "https://secretsmanager.eclipse.org"
 
     @patch.dict(os.environ, {"VAULT_ADDR": "https://vault.test.com"}, clear=True)
@@ -64,7 +64,8 @@ class TestVaultProvider:
         from otterdog.credentials.vault_provider import VaultProvider
 
         provider = VaultProvider()
-        credentials = provider.get_credentials("test-org", {})
+        placeholders = CredentialPlaceHolders(org_name="test-org", github_id="gh-org")
+        credentials = provider.get_credentials(placeholders, {})
 
         assert isinstance(credentials, Credentials)
         assert credentials.username == "testuser"
