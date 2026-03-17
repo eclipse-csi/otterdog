@@ -187,7 +187,7 @@ When using environment variables to store the credentials, you need to set the f
 The environment variables need to be set in the system where otterdog is executed.
 They can also be set in a `.env` file in the current working directory, which will be automatically loaded by otterdog.
 
-If you want to keep the same environment variable pattern across organizations, you can set defaults and use placeholders in the `defaults.env` section. The env provider normalizes placeholder values by converting them to uppercase and replacing spaces and hyphens with underscores. You can use `{org_name}` and `{org_id}`.
+If you want to keep the same environment variable pattern across organizations, you can set defaults and use placeholders in the `defaults.env` section. The env provider normalizes placeholder values by converting them to uppercase and replacing spaces and hyphens with underscores. You can use `{org_name}` and `{github_id}`.
 
 ```json
 {
@@ -198,8 +198,8 @@ If you want to keep the same environment variable pattern across organizations, 
     "env": {
       "api_token": "OTTER_{org_name}_API_TOKEN",
       "username": "OTTER_{org_name}_USERNAME",
-      "password": "OTTER_{org_id}_PASSWORD",
-      "twofa_seed": "OTTER_{org_id}_TOTP_SEED"
+      "password": "OTTER_{github_id}_PASSWORD",
+      "twofa_seed": "OTTER_{github_id}_TOTP_SEED"
     }
   }
 }
