@@ -11,7 +11,7 @@ from __future__ import annotations
 import binascii
 import dataclasses
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TypedDict
 
 from otterdog.logging import get_logger, print_warn
 
@@ -84,10 +84,15 @@ class Credentials:
         return f"Credentials(username={self.username})"
 
 
+class CredentialPlaceHolders(TypedDict):
+    org_name: str
+    github_id: str
+
+
 class CredentialProvider(Protocol):
     @abstractmethod
     def get_credentials(
-        self, placeholders: dict[str, str], data: dict[str, Any], only_token: bool = False
+        self, placeholders: CredentialPlaceHolders, data: dict[str, Any], only_token: bool = False
     ) -> Credentials: ...
 
     @abstractmethod

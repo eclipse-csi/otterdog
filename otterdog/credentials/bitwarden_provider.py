@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import subprocess
 
-from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
 
 _logger = get_logger(__name__)
@@ -43,7 +43,7 @@ class BitwardenVault(CredentialProvider):
         return self._status == 0
 
     def get_credentials(
-        self, _placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+        self, _placeholders: CredentialPlaceHolders, data: dict[str, str], only_token: bool = False
     ) -> Credentials:
         item_id = data.get("item_id")
         if item_id is None:

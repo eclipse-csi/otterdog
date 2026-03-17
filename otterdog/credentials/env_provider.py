@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 
 from dotenv import load_dotenv
 
-from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
 
 _logger = get_logger(__name__)
@@ -51,7 +52,7 @@ class EnvVault(CredentialProvider):
         # load .env file if available.
         load_dotenv()
 
-    def _env_value(self, placeholders: dict[str, str], data: dict[str, str], key: str) -> str:
+    def _env_value(self, placeholders: CredentialPlaceHolders, data: dict[str, str], key: str) -> str:
         """
         Resolves the environment variable name for the given key based on the provided data
         and retrieves its value from the environment.
@@ -69,9 +70,10 @@ class EnvVault(CredentialProvider):
 
         elif env_variable := self._default_keys.get(key):
             # Use default setting + optionally replace {...} placeholders
+
             env_variable = env_variable.format_map(
                 {
-                    placeholder_key: placeholder_value.upper().replace(" ", "_").replace("-", "_")
+                    placeholder_key: cast("str", placeholder_value).upper().replace(" ", "_").replace("-", "_")
                     for placeholder_key, placeholder_value in placeholders.items()
                 }
             )
@@ -93,7 +95,7 @@ class EnvVault(CredentialProvider):
         return env_value
 
     def get_credentials(
-        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+        self, placeholders: CredentialPlaceHolders, data: dict[str, str], only_token: bool = False
     ) -> Credentials:
         """
         Retrieves credentials from environment variables based on the provided data mapping.

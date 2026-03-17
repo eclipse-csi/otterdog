@@ -20,15 +20,12 @@ import pytest
 from dotenv import load_dotenv as dotenv_load_dotenv
 
 from otterdog.config import CredentialResolver, OtterdogConfig
-from otterdog.credentials import Credentials
+from otterdog.credentials import CredentialPlaceHolders, Credentials
 from otterdog.credentials.env_provider import EnvVault
 
 
-def _placeholders(org_name: str, org_id: str | None = None) -> dict[str, str]:
-    return {
-        "org_name": org_name,
-        "org_id": org_id or org_name,
-    }
+def _placeholders(org_name: str, github_id: str | None = None) -> CredentialPlaceHolders:
+    return CredentialPlaceHolders(org_name=org_name, github_id=github_id or org_name)
 
 
 class TestBasicFunctionality:

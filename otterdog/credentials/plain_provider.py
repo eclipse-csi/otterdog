@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
 
 _logger = get_logger(__name__)
@@ -27,7 +27,7 @@ class PlainVault(CredentialProvider):
     KEY_TWOFA_SEED = "twofa_seed"
 
     def get_credentials(
-        self, _placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+        self, _placeholders: CredentialPlaceHolders, data: dict[str, str], only_token: bool = False
     ) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, data)
 

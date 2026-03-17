@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from subprocess import getstatusoutput
 
-from otterdog.credentials import CredentialProvider, Credentials
+from otterdog.credentials import CredentialPlaceHolders, CredentialProvider, Credentials
 from otterdog.logging import get_logger
 
 _logger = get_logger(__name__)
@@ -75,7 +75,7 @@ class PassVault(CredentialProvider):
         return self._api_token_pattern
 
     def get_credentials(
-        self, placeholders: dict[str, str], data: dict[str, str], only_token: bool = False
+        self, placeholders: CredentialPlaceHolders, data: dict[str, str], only_token: bool = False
     ) -> Credentials:
         github_token = self._retrieve_key(self.KEY_API_TOKEN, placeholders, data)
 
@@ -93,7 +93,7 @@ class PassVault(CredentialProvider):
     def get_secret(self, key_data: str) -> str:
         return self._retrieve_resolved_key(key_data)
 
-    def _retrieve_key(self, key: str, placeholders: dict[str, str], data: dict[str, str]) -> str:
+    def _retrieve_key(self, key: str, placeholders: CredentialPlaceHolders, data: dict[str, str]) -> str:
         resolved_key = data.get(key)
         strict = True
 
@@ -112,7 +112,7 @@ class PassVault(CredentialProvider):
                     raise RuntimeError(f"unexpected key '{key}'")
 
             if pattern:
-                # org_name is used to subsitute positional {0} for backward compatibility
+                # org_name is used to substitute positional {0} for backward compatibility
                 resolved_key = pattern.format(placeholders["org_name"], **placeholders)
 
         if resolved_key is None:
