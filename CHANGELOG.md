@@ -7,6 +7,7 @@
  - Environment-based credential provider ([#593](https://github.com/eclipse-csi/otterdog/pull/593))
  - Auto-Comment on auto-merge problems ([#603](https://github.com/eclipse-csi/otterdog/pull/603))
  - Support for workflow setting `fork_pr_approval_policy` ([#576](https://github.com/eclipse-csi/otterdog/pull/576))
+ - Added HashiCorp Vault credential provider support with hvac library integration ([#540](https://github.com/eclipse-csi/otterdog/pull/540))
 
 ### Changed
 
@@ -29,10 +30,6 @@
 ### Fixed
 
  - Correctly handle rulesets with empty `status_checks`. ([#562](https://github.com/eclipse-csi/otterdog/issues/562))
-
-### Added
-
-- Added HashiCorp Vault credential provider support with hvac library integration
 
 ## [1.1.1] - 21/11/2025
 
