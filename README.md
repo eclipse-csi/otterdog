@@ -227,3 +227,13 @@ As the `password_store_dir` might be different on different machines, you can al
   }
 }
 ```
+
+In case you want to explicitly use a different GitHub token for some operations, you can add an override e.g. in `.otterdog-defaults.json`:
+
+```json
+{
+  "env_token_override": "GH_TOKEN"
+}
+```
+
+In such a case, if an operation only needs a token, it will use the one extracted from the env variable of the given name.

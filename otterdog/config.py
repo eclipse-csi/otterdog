@@ -170,6 +170,15 @@ class CredentialResolver(SecretResolver):
         return provider
 
     def get_credentials(self, org_config: OrganizationConfig, only_token: bool = False) -> Credentials:
+        from .credentials import Credentials
+
+        if only_token and self._config.env_token_override is not None:
+            github_token = os.getenv(self._config.env_token_override)
+            if github_token is None:
+                raise RuntimeError("defaults.env_token_override set to a non-existent env variable")
+            else:
+                return Credentials(None, None, None, github_token)
+
         provider_type = org_config.credential_data.get("provider")
 
         if provider_type is None:
@@ -214,6 +223,7 @@ class OtterdogConfig:
     _github_config: Mapping[str, Any] = dataclasses.field(init=False)
     _default_credential_provider: str = dataclasses.field(init=False)
     _jsonnet_base_dir: str = dataclasses.field(init=False)
+    _env_token_override: str | None = dataclasses.field(init=False)
 
     _organizations_map: dict[str, OrganizationConfig] = dataclasses.field(init=False, default_factory=dict)
     _organizations: list[OrganizationConfig] = dataclasses.field(init=False, default_factory=list)
@@ -234,6 +244,10 @@ class OtterdogConfig:
         if not os.path.exists(self._jsonnet_base_dir):
             os.makedirs(self._jsonnet_base_dir)
 
+        object.__setattr__(
+            self, "_env_token_override", query_json("defaults.env_token_override", self.configuration) or None
+        )
+
         organizations = self.configuration.get("organizations", [])
         for org in (o for o in organizations if not o.get("archived", False)):
             org_config = OrganizationConfig.from_dict(org, self)
@@ -248,6 +262,10 @@ class OtterdogConfig:
     @property
     def jsonnet_base_dir(self) -> str:
         return self._jsonnet_base_dir
+
+    @property
+    def env_token_override(self) -> str | None:
+        return self._env_token_override
 
     @property
     def default_config_repo(self) -> str:
