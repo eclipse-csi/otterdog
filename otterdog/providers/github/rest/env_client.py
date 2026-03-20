@@ -30,6 +30,13 @@ class EnvClient(RestClient):
             if status == 200:
                 return json.loads(body)["secrets"]
             else:
+                _logger.warning(
+                    "unexpected status %s while retrieving secrets for repo env '%s/%s:%s'",
+                    status,
+                    org_id,
+                    repo_name,
+                    env_name,
+                )
                 return []
         except GitHubException as ex:
             raise RuntimeError(
@@ -110,13 +117,22 @@ class EnvClient(RestClient):
             status, body = await self.requester.request_raw(
                 "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/variables"
             )
+
             if status == 200:
                 return json.loads(body)["variables"]
-            else:
-                return []
+
+            _logger.warning(
+                "unexpected status %s while retrieving variables for repo env '%s/%s:%s'",
+                status,
+                org_id,
+                repo_name,
+                env_name,
+            )
+            return []
+
         except GitHubException as ex:
             raise RuntimeError(
-                f"failed retrieving variables for repo env'{org_id}/{repo_name}:{env_name}':\n{ex}"
+                f"failed retrieving variables for repo env '{org_id}/{repo_name}:{env_name}':\n{ex}"
             ) from ex
 
     async def update_variable(
