@@ -30,7 +30,7 @@ The codespaces secret value can be resolved via a credential provider. The suppo
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newRepoDependabotSecret('<name>') {
+orgs.newRepoCodespacesSecret('<name>') {
   <key>: <value>
 }
 ```

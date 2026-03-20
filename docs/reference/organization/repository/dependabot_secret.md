@@ -30,7 +30,7 @@ The dependabot secret value can be resolved via a credential provider. The suppo
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newRepoCodespacesSecret('<name>') {
+orgs.newRepoDependabotSecret('<name>') {
   <key>: <value>
 }
 ```
