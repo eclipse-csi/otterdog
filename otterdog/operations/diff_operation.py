@@ -55,6 +55,7 @@ class DiffOperation(Operation):
         repo_filter: str,
         update_webhooks: bool,
         update_secrets: bool,
+        only_secrets: bool,
         update_filter: str,
     ):
         super().__init__()
@@ -63,6 +64,7 @@ class DiffOperation(Operation):
         self.repo_filter = repo_filter
         self.update_webhooks = update_webhooks
         self.update_secrets = update_secrets
+        self.only_secrets = only_secrets
         self.update_filter = update_filter
         self._gh_client: GitHubProvider | None = None
         self._validator = ValidateOperation()
@@ -177,6 +179,9 @@ class DiffOperation(Operation):
 
             def handle(patch: LivePatch) -> None:
                 if not self.include_resources_with_secrets() and patch.requires_secrets():
+                    return
+
+                if self.only_secrets and not patch.is_secret():
                     return
 
                 live_patches.append(patch)

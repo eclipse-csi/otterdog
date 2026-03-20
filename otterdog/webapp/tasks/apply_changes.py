@@ -189,6 +189,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 repo_filter="*",
                 update_webhooks=False,
                 update_secrets=False,
+                only_secrets=False,
                 update_filter="",
                 delete_resources=True,
                 resolve_secrets=False,
