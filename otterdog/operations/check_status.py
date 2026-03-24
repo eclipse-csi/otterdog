@@ -33,7 +33,7 @@ class CheckStatusOperation(DiffOperation):
         repo_filter: str,
         output_json: str | None = None,
     ):
-        super().__init__(no_web_ui, repo_filter, False, False, "*")
+        super().__init__(no_web_ui, repo_filter, False, False, False, "*")
         self.orgs_status: list[Any] = []
         self.output_json = output_json
 

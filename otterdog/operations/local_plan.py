@@ -30,6 +30,7 @@ class LocalPlanOperation(PlanOperation):
         repo_filter: str,
         update_webhooks: bool,
         update_secrets: bool,
+        only_secrets: bool,
         update_filter: str,
     ) -> None:
         super().__init__(
@@ -37,6 +38,7 @@ class LocalPlanOperation(PlanOperation):
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            only_secrets=only_secrets,
             update_filter=update_filter,
         )
 
