@@ -672,6 +672,7 @@ async def _process_single_repo(
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
+    repo_permissions: dict[str, list[dict[str, Any]]],
     app_installations: dict[str, str],
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
@@ -682,6 +683,8 @@ async def _process_single_repo(
 
     github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
+    repo_permission = repo_permissions.get(repo_name, [])
+    repo.set_team_permissions({entry["name"]: entry["permission"] for entry in repo_permission})
 
     if jsonnet_config.default_branch_protection_rule_config is not None:
         # get branch protection rules of the repo
@@ -759,6 +762,30 @@ async def _process_single_repo(
     return repo_name, repo
 
 
+def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """
+    Convert the output from the graphql call, which is team-centric, to a repository
+    centric structure.
+    """
+
+    repo_permissions: dict[str, list[dict[str, Any]]] = {}
+    for team in teams:
+        team_slug = team["slug"]
+
+        # List of repo edges of this team
+        edges = team.get("repositories", {}).get("edges", [])
+
+        for edge in edges:
+            repo_name = edge["node"]["name"]
+            permission = edge["permission"]
+
+            if repo_name not in repo_permissions:
+                repo_permissions[repo_name] = []
+
+            repo_permissions[repo_name].append({"name": team_slug, "permission": permission})
+    return repo_permissions
+
+
 async def _load_repos_from_provider(
     github_id: str,
     org_settings: OrganizationSettings,
@@ -776,6 +803,7 @@ async def _load_repos_from_provider(
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
     teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    repo_permissions = build_repo_permissions(await provider.get_team_permissions(github_id))
 
     # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
     sem = asyncio.Semaphore(50 if concurrency is None else concurrency)
@@ -789,6 +817,7 @@ async def _load_repos_from_provider(
                 repo_name,
                 jsonnet_config,
                 teams,
+                repo_permissions,
                 app_installations,
             )
 

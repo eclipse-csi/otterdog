@@ -171,6 +171,12 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
 def write_patch_object_as_json(
     diff_object: dict[str, Any], printer: IndentingPrinter, close_object: bool = True
 ) -> None:
+
+    # Local helper function to safely quote keys for jsonnet output.
+    # jsonnet allows unquoted keys only if they match ^[A-Za-z_][A-Za-z0-9_]*$.
+    def quote_key(key: str) -> str:
+        return key if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key) else json.dumps(key)
+
     if close_object is True and len(diff_object) == 0:
         printer.println(",")
         return
@@ -199,10 +205,11 @@ def write_patch_object_as_json(
             printer.level_up()
             num_items = len(value)
             for index, (k, v) in enumerate(value.items()):
+                qk = quote_key(k)
                 if index < num_items - 1:
-                    printer.println(f"{k}: {json.dumps(v, ensure_ascii=False)},")
+                    printer.println(f"{qk}: {json.dumps(v, ensure_ascii=False)},")
                 else:
-                    printer.println(f"{k}: {json.dumps(v, ensure_ascii=False)}")
+                    printer.println(f"{qk}: {json.dumps(v, ensure_ascii=False)}")
             printer.level_down()
             printer.println("},")
         else:
