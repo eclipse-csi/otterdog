@@ -23,8 +23,8 @@ from otterdog import resources
 from otterdog.logging import get_logger
 from otterdog.models import (
     FailureType,
+    LivePatch,
     LivePatchContext,
-    LivePatchHandler,
     ModelObject,
     PatchContext,
     ValidationContext,
@@ -46,7 +46,7 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
-from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
+from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, is_set_and_valid, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -472,26 +472,46 @@ class GitHubOrganization:
         return output.getvalue()
 
     def generate_live_patch(
-        self, current_organization: GitHubOrganization, context: LivePatchContext, handler: LivePatchHandler
-    ) -> None:
-        OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
-        Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, context, handler)
-        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
-        OrganizationWebhook.generate_live_patch_of_list(
-            self.webhooks, current_organization.webhooks, None, context, handler
+        self,
+        current_organization: GitHubOrganization,
+        context: LivePatchContext,
+    ) -> list[LivePatch]:
+        patches: list[LivePatch] = []
+        patches.extend(
+            OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context)
         )
-        OrganizationSecret.generate_live_patch_of_list(
-            self.secrets, current_organization.secrets, None, context, handler
+        patches.extend(Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, context))
+        if settings_patch := OrganizationSettings.generate_live_patch(
+            self.settings, current_organization.settings, None, context
+        ):
+            patches.append(settings_patch)
+        if is_set_and_valid(self.settings.custom_properties):
+            patches.extend(
+                CustomProperty.generate_live_patch_of_list(
+                    self.settings.custom_properties,
+                    current_organization.settings.custom_properties,
+                    self.settings,
+                    context,
+                )
+            )
+        patches.extend(
+            OrganizationWebhook.generate_live_patch_of_list(self.webhooks, current_organization.webhooks, None, context)
         )
-        OrganizationVariable.generate_live_patch_of_list(
-            self.variables, current_organization.variables, None, context, handler
+        patches.extend(
+            OrganizationSecret.generate_live_patch_of_list(self.secrets, current_organization.secrets, None, context)
         )
-        OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handler
+        patches.extend(
+            OrganizationVariable.generate_live_patch_of_list(
+                self.variables, current_organization.variables, None, context
+            )
         )
-        Repository.generate_live_patch_of_list(
-            self.repositories, current_organization.repositories, None, context, handler
+        patches.extend(
+            OrganizationRuleset.generate_live_patch_of_list(self.rulesets, current_organization.rulesets, None, context)
         )
+        patches.extend(
+            Repository.generate_live_patch_of_list(self.repositories, current_organization.repositories, None, context)
+        )
+        return patches
 
     @classmethod
     def load_from_file(cls, github_id: str, config_file: str) -> GitHubOrganization:
