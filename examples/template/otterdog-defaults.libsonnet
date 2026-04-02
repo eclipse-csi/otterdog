@@ -99,6 +99,12 @@ local newRepo(name) = {
   # repository secrets
   secrets: [],
 
+  # repository dependabot secrets
+  dependabot_secrets: [],
+
+  # repository codespaces secrets
+  codespaces_secrets: [],
+
   # repository variables
   variables: [],
 
@@ -223,6 +229,24 @@ local newOrgWebhook(url) = {
 # Function to create a new repository webhook with default settings.
 local newRepoWebhook(url) = newOrgWebhook(url);
 
+# Function to create a new environment secret with default settings.
+local newEnvSecret(name) = {
+  name: name,
+  value: null
+};
+
+# Function to create a new dependabot secret with default settings.
+local newRepoDependabotSecret(name) = {
+  name: name,
+  value: null,
+};
+
+# Function to create a new codespaces secret with default settings.
+local newRepoCodespacesSecret(name) = {
+  name: name,
+  value: null,
+};
+
 # Function to create a new repository secret with default settings.
 local newRepoSecret(name) = {
   name: name,
@@ -233,6 +257,24 @@ local newRepoSecret(name) = {
 local newOrgSecret(name) = newRepoSecret(name) {
   visibility: "public",
   selected_repositories: [],
+};
+
+# Function to create a new organization dependabot secret with default settings.
+local newOrgDependabotSecret(name) = newRepoSecret(name) {
+  visibility: "public",
+  selected_repositories: [],
+};
+
+# Function to create a new organization codespaces secret with default settings.
+local newOrgCodespacesSecret(name) = newRepoSecret(name) {
+  visibility: "public",
+  selected_repositories: [],
+};
+
+# Function to create a new environment variable with default settings.
+local newEnvVariable(name) = {
+  name: name,
+  value: null
 };
 
 # Function to create a new repository variable with default settings.
@@ -274,6 +316,10 @@ local newEnvironment(name) = {
   # Can be one of: all, protected_branches, branch_policies
   deployment_branch_policy: "all",
   branch_policies: [],
+  # environment secrets
+  secrets: [],
+  # environment variables
+  variables: [],
 };
 
 # Function to create a new custom property with default settings.
@@ -399,6 +445,12 @@ local newOrg(name, id=name) = {
   # organization secrets
   secrets: [],
 
+  # organization dependabot secrets
+  dependabot_secrets: [],
+
+  # organization codespaces secrets
+  codespaces_secrets: [],
+
   # organization variables
   variables: [],
 
@@ -426,6 +478,8 @@ local newOrg(name, id=name) = {
   newTeam:: newTeam,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
+  newOrgDependabotSecret:: newOrgDependabotSecret,
+  newOrgCodespacesSecret:: newOrgCodespacesSecret,
   newOrgVariable:: newOrgVariable,
   newOrgRuleset:: newOrgRuleset,
   newCustomProperty:: newCustomProperty,
@@ -433,10 +487,14 @@ local newOrg(name, id=name) = {
   extendRepo:: extendRepo,
   newRepoWebhook:: newRepoWebhook,
   newRepoSecret:: newRepoSecret,
+  newRepoDependabotSecret:: newRepoDependabotSecret,
+  newRepoCodespacesSecret:: newRepoCodespacesSecret,
   newRepoVariable:: newRepoVariable,
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
   newEnvironment:: newEnvironment,
+  newEnvSecret:: newEnvSecret,
+  newEnvVariable:: newEnvVariable,
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,
