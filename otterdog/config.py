@@ -226,10 +226,12 @@ class OtterdogConfig:
             self, "_default_credential_provider", query_json("defaults.credentials.provider", self.configuration) or ""
         )
 
+        config_root = os.environ.get("OTTERDOG_CONFIG_ROOT", self.working_dir)
+        config_dir = self._jsonnet_config.get("config_dir", "orgs")
         object.__setattr__(
             self,
             "_jsonnet_base_dir",
-            os.path.join(self.working_dir, self._jsonnet_config.get("config_dir", "orgs")),
+            os.path.join(config_root, config_dir),
         )
         if not os.path.exists(self._jsonnet_base_dir):
             os.makedirs(self._jsonnet_base_dir)
