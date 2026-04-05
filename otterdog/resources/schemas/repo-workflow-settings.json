@@ -1,7 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
 
-  "$ref": "workflow-settings.json",
+  "allOf": [
+    { "$ref": "workflow-settings.json" }
+  ],
   "type": "object",
   "properties": {
     "enabled": { "type": "boolean" }
