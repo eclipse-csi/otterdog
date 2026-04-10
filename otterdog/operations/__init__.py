@@ -316,6 +316,10 @@ class Operation(ABC):
             self._print_modified_list_internal(current_value, expected_value, prefix, color, forced_update)
             self.printer.level_down()
             self.printer.println(f"{prefix}]")
+        elif expected_value is None:
+            prefix = "[red]- [/]"
+            self.printer.print(f"{prefix}{key.ljust(max_key_length, ' ')} = ")
+            self._print_internal(current_value, max_key_length, prefix, prefix, False, "=", ",")
         else:
             self.printer.println(
                 f"{prefix}{key.ljust(max_key_length, ' ')} ="
