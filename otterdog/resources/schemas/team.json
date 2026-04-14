@@ -15,9 +15,12 @@
       "items": { "type": "string" }
     },
 
-    "team_sync_id": { "$ref": "types.json#/$defs/string-or-null" },
-    "team_sync_name": { "$ref": "types.json#/$defs/string-or-null" },
-    "team_sync_description": { "$ref": "types.json#/$defs/string-or-null" },
+    "team_sync": {
+      "type": "array",
+      "items": {
+        "$ref": "team_sync.json"
+      }
+    },
     "external_groups": { "$ref": "types.json#/$defs/string-or-null" }
   },
   "required": ["name", "privacy"],

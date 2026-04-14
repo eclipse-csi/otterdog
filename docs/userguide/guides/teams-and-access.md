@@ -32,7 +32,7 @@ Related settings restrict what members can do on organization level, e.g. `membe
 
 ## Teams
 
-Teams are defined with [`orgs.newTeam`](../../reference/organization/team.md). Their members can be managed in the
+Teams are defined with [`orgs.newTeam`](../../reference/organization/team/index.md). Their members can be managed in the
 configuration or elsewhere:
 
 | Members managed ...                                     | Configuration                                                                                 |
