@@ -17,13 +17,26 @@ from jsonbender import F, Forall, OptionalS, S  # type: ignore
 from otterdog.models import (
     FailureType,
     LivePatch,
+    LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
     ModelObject,
+    PatchContext,
     ValidationContext,
 )
-from otterdog.utils import UNSET, is_set_and_valid, is_unset, unwrap
+from otterdog.models.team_sync import TeamSync
+from otterdog.utils import (
+    UNSET,
+    Change,
+    IndentingPrinter,
+    is_set_and_valid,
+    unwrap,
+    write_patch_object_as_json,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
@@ -43,16 +56,17 @@ class Team(ModelObject, abc.ABC):
     privacy: str
     notifications: bool
     members: list[str]
-    team_sync_id: str | None
-    team_sync_name: str | None
-    team_sync_description: str | None
     external_groups: str | None
+    team_sync: list[TeamSync] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     skip_members: bool = dataclasses.field(metadata={"model_only": True}, default=False)
     skip_non_organization_members: bool = dataclasses.field(metadata={"model_only": True}, default=False)
 
     @property
     def model_object_name(self) -> str:
         return "team"
+
+    def add_team_sync(self, ts: TeamSync) -> None:
+        self.team_sync.append(ts)
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_team}"
@@ -102,22 +116,8 @@ class Team(ModelObject, abc.ABC):
                         f"but 'members' contains user '{member}' who is not an organization member.",
                     )
 
-        values = [
-            self.team_sync_id,
-            self.team_sync_name,
-            self.team_sync_description,
-        ]
-
-        all_strings = all(is_set_and_valid(v) for v in values)
-        all_unset_or_none = all(is_unset(v) or v is None for v in values)
-
-        if not all_strings and not all_unset_or_none:
-            context.add_failure(
-                FailureType.ERROR,
-                f"{self.get_model_header(parent_object)} has inconsistent team sync configuration: "
-                f"all of 'team_sync_id', 'team_sync_name', and 'team_sync_description' must either "
-                f"all be unset/None or all be valid strings.",
-            )
+        for ts in self.team_sync:
+            ts.validate(context, self)
 
     @classmethod
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -149,6 +149,11 @@ class Team(ModelObject, abc.ABC):
         )
         return mapping
 
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        for ts in self.team_sync:
+            yield ts, self
+            yield from ts.get_model_objects()
+
     @classmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
@@ -165,6 +170,90 @@ class Team(ModelObject, abc.ABC):
             mapping.pop("notifications")
 
         return mapping
+
+    @classmethod
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
+
+        mapping.update(
+            {
+                "team_sync": OptionalS("team_sync", default=[]) >> Forall(lambda x: TeamSync.from_model_data(x)),
+            }
+        )
+        return mapping
+
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        context: PatchContext,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
+
+        has_team_sync = len(self.team_sync) > 0
+
+        patch = self.get_patch_to(default_object)
+
+        template_function = self.get_jsonnet_template_function(jsonnet_config, False)
+
+        printer.print(f"{unwrap(template_function)}('{self.name}')")
+
+        write_patch_object_as_json(patch, printer, False)
+
+        if has_team_sync and not extend:
+            default_team_sync = TeamSync.from_model_data(jsonnet_config.default_team_sync_config)
+            printer.println("team_sync: [")
+            printer.level_up()
+
+            for ts in self.team_sync:
+                ts.to_jsonnet(printer, jsonnet_config, context, False, default_team_sync)
+
+            printer.level_down()
+            printer.println("],")
+
+        # close the team object
+        printer.level_down()
+        printer.println("},")
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Team | None,
+        current_object: Team | None,
+        parent_object: ModelObject | None,
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if expected_object is None:
+            current_object = unwrap(current_object)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            return
+
+        if current_object is None:
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+        else:
+            modified_rule: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+            if len(modified_rule) > 0:
+                handler(
+                    LivePatch.of_changes(
+                        expected_object,
+                        current_object,
+                        modified_rule,
+                        parent_object,
+                        False,
+                        expected_object.apply_live_patch,
+                    )
+                )
+
+        TeamSync.generate_live_patch_of_list(
+            expected_object.team_sync,
+            current_object.team_sync if current_object is not None else [],
+            expected_object,
+            context,
+            handler,
+        )
 
     @classmethod
     async def apply_live_patch(

@@ -52,7 +52,9 @@ nav:
         - Organization Variable: reference/organization/variable.md
         - Organization Ruleset: reference/organization/ruleset.md
         - Custom Property: reference/organization/custom-property.md
-        - Team: reference/organization/team.md
+        - Team:
+          - reference/organization/team/index.md
+          - TeamSync: reference/organization/team/team-sync.md
         - Repository:
           - reference/organization/repository/index.md
           - Repository Webhook: reference/organization/repository/webhook.md

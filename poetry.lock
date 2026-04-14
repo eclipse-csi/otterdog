@@ -2761,14 +2761,14 @@ dev = ["black", "build", "flake8", "flake8-black", "isort", "jupyter-console", "
 
 [[package]]
 name = "pygments"
-version = "2.20.0"
+version = "2.19.2"
 description = "Pygments is a syntax highlighting package written in Python."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.8"
 groups = ["main", "docs", "test"]
 files = [
-    {file = "pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"},
-    {file = "pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f"},
+    {file = "pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b"},
+    {file = "pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887"},
 ]
 
 [package.extras]
@@ -3710,14 +3710,14 @@ files = [
 
 [[package]]
 name = "types-hvac"
-version = "2.4.0.20251115"
+version = "2.4.0.20260408"
 description = "Typing stubs for hvac"
 optional = false
-python-versions = ">=3.9"
-groups = ["typing"]
+python-versions = ">=3.10"
+groups = ["dev", "typing"]
 files = [
-    {file = "types_hvac-2.4.0.20251115-py3-none-any.whl", hash = "sha256:f92bcbb2eced81ce77cdbc865bff911e20341afaa6f2126e925cb8c062003f82"},
-    {file = "types_hvac-2.4.0.20251115.tar.gz", hash = "sha256:a7b5d0e86961e4d7f07e51b60b2eedcac5f8db8b98b031d4a4b716215c21df3a"},
+    {file = "types_hvac-2.4.0.20260408-py3-none-any.whl", hash = "sha256:ee8d3528eaa6a2b480dbdde04fec06bcd26d13c9dfd97837b62cca98f175d70a"},
+    {file = "types_hvac-2.4.0.20260408.tar.gz", hash = "sha256:291eeeaa0af0bc5d02960fc8aaa6365ad53a05715d5b055b3c64023e74d738c1"},
 ]
 
 [package.dependencies]
@@ -3800,7 +3800,7 @@ version = "2.32.4.20260107"
 description = "Typing stubs for requests"
 optional = false
 python-versions = ">=3.9"
-groups = ["typing"]
+groups = ["dev", "typing"]
 files = [
     {file = "types_requests-2.32.4.20260107-py3-none-any.whl", hash = "sha256:b703fe72f8ce5b31ef031264fe9395cac8f46a04661a79f7ed31a80fb308730d"},
     {file = "types_requests-2.32.4.20260107.tar.gz", hash = "sha256:018a11ac158f801bfa84857ddec1650750e393df8a004a8a9ae2a9bec6fcb24f"},
@@ -3873,7 +3873,7 @@ version = "2.6.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "app", "docs", "typing"]
+groups = ["main", "app", "dev", "docs", "typing"]
 files = [
     {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
     {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
@@ -4140,4 +4140,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "1c419f8c8e9cbb69c76384b2382c31e3598f4ea89f095b202c497590f1aa065e"
+content-hash = "d1fd5671958f8c249b949de73182ae87da003462444fb9ba532464639273bce7"

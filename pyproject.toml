@@ -106,6 +106,7 @@ python-slugify       = "^8.0"
 [tool.poetry.group.dev.dependencies]
 ruff = ">=0.15"
 prek = ">=0.3.0"
+types-hvac = "^2.4.0.20260408"
 
 [tool.poetry.group.test.dependencies]
 tox = ">4.22"
@@ -135,6 +136,7 @@ mkdocs-exclude = "^1.0"
 pymdown-extensions = "^10.7"
 mkdocs-include-markdown-plugin = "^7.1.6"
 mkdocs-mermaid2-plugin = "^1.2.3"
+pygments = ">=2.16,<2.20"
 
 [tool.poetry-dynamic-versioning]
 enable     = true
