@@ -41,6 +41,7 @@ class EnvironmentTest(ModelTest):
         assert env.name == "linux"
         assert env.wait_timer == 15
         assert env.reviewers == ["@netomi", "@OtterdogTest/eclipsefdn-security"]
+        assert env.prevent_self_review is True
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
 
@@ -52,6 +53,7 @@ class EnvironmentTest(ModelTest):
         assert env.name == "linux"
         assert env.wait_timer == 15
         assert env.reviewers == ["@netomi", "@OtterdogTest/eclipsefdn-security"]
+        assert env.prevent_self_review is True
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
 
@@ -60,8 +62,9 @@ class EnvironmentTest(ModelTest):
 
         provider_data = await env.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 5
+        assert len(provider_data) == 6
         assert provider_data["wait_timer"] == 15
+        assert provider_data["prevent_self_review"] is True
 
         assert query_json("reviewers[0].id", provider_data) == "id_netomi"
         assert query_json("reviewers[1].id", provider_data) == "id_OtterdogTest/eclipsefdn-security"
