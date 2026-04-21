@@ -189,6 +189,25 @@ local newRepoRuleset(name) = {
   required_deployment_environments: [],
 
   required_merge_queue: null,
+
+  required_copilot_review: null,
+
+  # pattern rules
+  commit_message_pattern: null,
+  commit_author_email_pattern: null,
+  committer_email_pattern: null,
+  branch_name_pattern: null,
+  tag_name_pattern: null,
+
+  # push restriction rules
+  restricted_file_paths: [],
+  max_file_path_length: 0,
+  restricted_file_extensions: [],
+  max_file_size: 0,
+
+  # CI/security rules
+  required_code_scanning: null,
+  required_workflows: null,
 };
 
 # Function to create a merge queue with default settings.
@@ -200,6 +219,31 @@ local newMergeQueue() = {
   wait_time_for_minimum_group_size: 5,
   status_check_timeout: 60,
   requires_all_group_entries_to_pass_required_checks: true,
+};
+
+# Function to create copilot review settings with default settings.
+local newCopilotReview() = {
+  review_new_pushes: false,
+  review_draft_pull_requests: false,
+};
+
+# Function to create pattern settings with default settings.
+local newPattern() = {
+  name: "",
+  negate: false,
+  operator: "starts_with",
+  pattern: "",
+};
+
+# Function to create code scanning settings with default settings.
+local newCodeScanning() = {
+  code_scanning_tools: [],
+};
+
+# Function to create workflows settings with default settings.
+local newWorkflows() = {
+  do_not_enforce_on_create: false,
+  workflows: [],
 };
 
 # Function to create a new organization ruleset with default settings.
@@ -440,4 +484,8 @@ local newOrg(name, id=name) = {
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,
+  newCopilotReview:: newCopilotReview,
+  newPattern:: newPattern,
+  newCodeScanning:: newCodeScanning,
+  newWorkflows:: newWorkflows,
 }
