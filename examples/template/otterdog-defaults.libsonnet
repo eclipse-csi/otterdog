@@ -271,6 +271,7 @@ local newEnvironment(name) = {
   name: name,
   wait_timer: 0,
   reviewers: [],
+  prevent_self_review: false,
   # Can be one of: all, protected_branches, branch_policies
   deployment_branch_policy: "all",
   branch_policies: [],

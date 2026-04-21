@@ -38,6 +38,7 @@ class Environment(ModelObject):
     name: str = dataclasses.field(metadata={"key": True})
     wait_timer: int
     reviewers: list[str]
+    prevent_self_review: bool
     deployment_branch_policy: str
     branch_policies: list[str]
 
