@@ -892,48 +892,36 @@ class Ruleset(ModelObject, abc.ABC):
 
         # push restriction rules
         if any((found := rule) for rule in rules if rule["type"] == "file_path_restriction"):
-            mapping["restricted_file_paths"] = K(
-                found.get("parameters", {}).get("restricted_file_paths", [])
-            )
+            mapping["restricted_file_paths"] = K(found.get("parameters", {}).get("restricted_file_paths", []))
         else:
             mapping["restricted_file_paths"] = K([])
 
         if any((found := rule) for rule in rules if rule["type"] == "max_file_path_length"):
-            mapping["max_file_path_length"] = K(
-                found.get("parameters", {}).get("max_file_path_length", 0)
-            )
+            mapping["max_file_path_length"] = K(found.get("parameters", {}).get("max_file_path_length", 0))
         else:
             mapping["max_file_path_length"] = K(0)
 
         if any((found := rule) for rule in rules if rule["type"] == "file_extension_restriction"):
-            mapping["restricted_file_extensions"] = K(
-                found.get("parameters", {}).get("restricted_file_extensions", [])
-            )
+            mapping["restricted_file_extensions"] = K(found.get("parameters", {}).get("restricted_file_extensions", []))
         else:
             mapping["restricted_file_extensions"] = K([])
 
         if any((found := rule) for rule in rules if rule["type"] == "max_file_size"):
-            mapping["max_file_size"] = K(
-                found.get("parameters", {}).get("max_file_size", 0)
-            )
+            mapping["max_file_size"] = K(found.get("parameters", {}).get("max_file_size", 0))
         else:
             mapping["max_file_size"] = K(0)
 
         # code scanning
         if any((found := rule) for rule in rules if rule["type"] == "code_scanning"):
             parameters = found.get("parameters", {})
-            mapping["required_code_scanning"] = K(
-                CodeScanningSettings.from_provider_data(org_id, parameters)
-            )
+            mapping["required_code_scanning"] = K(CodeScanningSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_code_scanning"] = K(None)
 
         # workflows
         if any((found := rule) for rule in rules if rule["type"] == "workflows"):
             parameters = found.get("parameters", {})
-            mapping["required_workflows"] = K(
-                WorkflowsSettings.from_provider_data(org_id, parameters)
-            )
+            mapping["required_workflows"] = K(WorkflowsSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_workflows"] = K(None)
 
@@ -1124,47 +1112,57 @@ class Ruleset(ModelObject, abc.ABC):
                         provider,
                     )
                     if pattern_parameters and len(pattern_parameters) > 0:
-                        rules.append({
-                            "type": K(pattern_rule_type),
-                            "parameters": K(pattern_parameters),
-                        })
+                        rules.append(
+                            {
+                                "type": K(pattern_rule_type),
+                                "parameters": K(pattern_parameters),
+                            }
+                        )
 
         # push restriction rules
         if "restricted_file_paths" in data:
             mapping.pop("restricted_file_paths")
             file_paths = data["restricted_file_paths"]
             if file_paths and len(file_paths) > 0:
-                rules.append({
-                    "type": K("file_path_restriction"),
-                    "parameters": {"restricted_file_paths": K(file_paths)},
-                })
+                rules.append(
+                    {
+                        "type": K("file_path_restriction"),
+                        "parameters": {"restricted_file_paths": K(file_paths)},
+                    }
+                )
 
         if "max_file_path_length" in data:
             mapping.pop("max_file_path_length")
             max_path_length = data["max_file_path_length"]
             if max_path_length and max_path_length > 0:
-                rules.append({
-                    "type": K("max_file_path_length"),
-                    "parameters": {"max_file_path_length": K(max_path_length)},
-                })
+                rules.append(
+                    {
+                        "type": K("max_file_path_length"),
+                        "parameters": {"max_file_path_length": K(max_path_length)},
+                    }
+                )
 
         if "restricted_file_extensions" in data:
             mapping.pop("restricted_file_extensions")
             file_extensions = data["restricted_file_extensions"]
             if file_extensions and len(file_extensions) > 0:
-                rules.append({
-                    "type": K("file_extension_restriction"),
-                    "parameters": {"restricted_file_extensions": K(file_extensions)},
-                })
+                rules.append(
+                    {
+                        "type": K("file_extension_restriction"),
+                        "parameters": {"restricted_file_extensions": K(file_extensions)},
+                    }
+                )
 
         if "max_file_size" in data:
             mapping.pop("max_file_size")
             max_size = data["max_file_size"]
             if max_size and max_size > 0:
-                rules.append({
-                    "type": K("max_file_size"),
-                    "parameters": {"max_file_size": K(max_size)},
-                })
+                rules.append(
+                    {
+                        "type": K("max_file_size"),
+                        "parameters": {"max_file_size": K(max_size)},
+                    }
+                )
 
         # code scanning
         if "required_code_scanning" in data:
@@ -1177,10 +1175,12 @@ class Ruleset(ModelObject, abc.ABC):
                     provider,
                 )
                 if code_scanning_parameters and len(code_scanning_parameters) > 0:
-                    rules.append({
-                        "type": K("code_scanning"),
-                        "parameters": K(code_scanning_parameters),
-                    })
+                    rules.append(
+                        {
+                            "type": K("code_scanning"),
+                            "parameters": K(code_scanning_parameters),
+                        }
+                    )
 
         # workflows
         if "required_workflows" in data:
@@ -1193,10 +1193,12 @@ class Ruleset(ModelObject, abc.ABC):
                     provider,
                 )
                 if workflows_parameters and len(workflows_parameters) > 0:
-                    rules.append({
-                        "type": K("workflows"),
-                        "parameters": K(workflows_parameters),
-                    })
+                    rules.append(
+                        {
+                            "type": K("workflows"),
+                            "parameters": K(workflows_parameters),
+                        }
+                    )
 
         if len(rules) > 0:
             mapping["rules"] = rules
@@ -1350,9 +1352,7 @@ class Ruleset(ModelObject, abc.ABC):
             if is_set_and_present(pattern_value):
                 default_pattern_config = getattr(cast("Ruleset", default_object), pattern_field)
                 if default_pattern_config is None:
-                    default_pattern_config = PatternSettings.from_model_data(
-                        jsonnet_config.default_pattern_config
-                    )
+                    default_pattern_config = PatternSettings.from_model_data(jsonnet_config.default_pattern_config)
                     embedded_extend = False
                 else:
                     embedded_extend = True
@@ -1394,9 +1394,7 @@ class Ruleset(ModelObject, abc.ABC):
         if is_set_and_present(self.required_workflows):
             default_workflows_config = cast("Ruleset", default_object).required_workflows
             if default_workflows_config is None:
-                default_workflows_config = WorkflowsSettings.from_model_data(
-                    jsonnet_config.default_workflows_config
-                )
+                default_workflows_config = WorkflowsSettings.from_model_data(jsonnet_config.default_workflows_config)
                 embedded_extend = False
             else:
                 embedded_extend = True
