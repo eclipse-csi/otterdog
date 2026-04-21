@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "advanced_security": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "dependency_graph": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "dependency_graph_autosubmit_action": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "dependabot_alerts": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "dependabot_security_updates": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "code_scanning_default_setup": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "secret_scanning": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "secret_scanning_push_protection": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "secret_scanning_delegated_bypass": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "secret_scanning_validity_checks": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "secret_scanning_non_provider_patterns": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "private_vulnerability_reporting": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "enforcement": { "type": "string", "enum": ["enforced", "unenforced"] }
+  },
+
+  "required": [ "name" ],
+  "additionalProperties": false
+}

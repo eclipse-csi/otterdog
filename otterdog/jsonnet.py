@@ -38,6 +38,7 @@ class JsonnetConfig:
     create_org_codespaces_secret = "newOrgCodespacesSecret"
     create_org_variable = "newOrgVariable"
     create_org_ruleset = "newOrgRuleset"
+    create_org_code_security_configuration = "newOrgCodeSecurityConfiguration"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
@@ -84,6 +85,7 @@ class JsonnetConfig:
         self._default_org_codespaces_secret_config: dict[str, Any] | None = None
         self._default_org_variable_config: dict[str, Any] | None = None
         self._default_org_ruleset_config: dict[str, Any] | None = None
+        self._default_org_code_security_configuration_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_repo_secret_config: dict[str, Any] | None = None
@@ -219,6 +221,16 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(org_ruleset_snippet)
         except RuntimeError:
             _logger.debug("no default org ruleset config found, rulesets will be skipped")
+            return None
+
+    @cached_property
+    def default_org_code_security_configuration_config(self):
+        try:
+            # load the default org code security configuration config
+            snippet = f"(import '{self.template_file}').{self.create_org_code_security_configuration}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default org code security configuration config found, configurations will be skipped")
             return None
 
     @cached_property
