@@ -208,6 +208,61 @@ class OrgClient(RestClient):
 
         _logger.debug("removed org role with name '%s'", role_name)
 
+    async def get_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving code security configurations for org '%s'", org_id)
+
+        try:
+            result = await self.requester.request_json("GET", f"/orgs/{org_id}/code-security/configurations")
+            # filter out predefined configurations (e.g. GitHub recommended) which are managed by GitHub
+            return [c for c in result if c.get("target_type") != "global"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving code security configurations for org '{org_id}':\n{ex}") from ex
+
+    async def get_code_security_configuration_id(self, org_id: str, name: str) -> int | None:
+        _logger.debug("retrieving id for code security configuration with name '%s' in org '%s'", name, org_id)
+
+        configurations = await self.get_code_security_configurations(org_id)
+        for configuration in configurations:
+            if configuration["name"] == name:
+                return configuration["id"]
+
+        return None
+
+    async def add_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> None:
+        name = data.get("name", "<unknown>")
+        _logger.debug("adding code security configuration with name '%s' for org '%s'", name, org_id)
+
+        try:
+            await self.requester.request_json("POST", f"/orgs/{org_id}/code-security/configurations", data)
+            _logger.debug("added code security configuration with name '%s'", name)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to add code security configuration with name '{name}':\n{ex}") from ex
+
+    async def update_code_security_configuration(
+        self, org_id: str, configuration_id: int, name: str, data: dict[str, Any]
+    ) -> None:
+        _logger.debug("updating code security configuration with name '%s' for org '%s'", name, org_id)
+
+        try:
+            await self.requester.request_json(
+                "PATCH", f"/orgs/{org_id}/code-security/configurations/{configuration_id}", data
+            )
+            _logger.debug("updated code security configuration with name '%s'", name)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed to update code security configuration with name '{name}':\n{ex}") from ex
+
+    async def delete_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
+        _logger.debug("deleting code security configuration with name '%s' for org '%s'", name, org_id)
+
+        status, _ = await self.requester.request_raw(
+            "DELETE", f"/orgs/{org_id}/code-security/configurations/{configuration_id}"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete code security configuration with name '{name}'")
+
+        _logger.debug("removed code security configuration with name '%s'", name)
+
     async def get_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving custom properties for org '%s'", org_id)
 
