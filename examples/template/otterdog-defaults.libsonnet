@@ -319,6 +319,10 @@ local newOrg(name, id=name) = {
     # Repository forking
     members_can_fork_private_repositories: false,
 
+    # Controls whether members with admin permissions on repositories can add deploy keys.
+    # Disabling this prevents new deploy keys from being added across all repositories in the organization.
+    deploy_keys_enabled_for_repositories: true,
+
     # Repository defaults: Commit signoff
     web_commit_signoff_required: true,
 
