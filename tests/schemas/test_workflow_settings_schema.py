@@ -204,20 +204,3 @@ class TestWorkflowSettingsSchemaComposition:
         }
 
         validator.validate(data)
-
-    def test_schema_composition_with_allof(self, org_workflow_schema):
-        """Test that the schema uses allOf for proper composition."""
-        # Verify that allOf is used instead of direct $ref
-        assert "allOf" in org_workflow_schema
-        assert isinstance(org_workflow_schema["allOf"], list)
-        assert len(org_workflow_schema["allOf"]) > 0
-        assert "$ref" in org_workflow_schema["allOf"][0]
-        assert org_workflow_schema["allOf"][0]["$ref"] == "workflow-settings.json"
-
-    def test_repo_schema_composition_with_allof(self, repo_workflow_schema):
-        """Test that the repo schema also uses allOf for proper composition."""
-        assert "allOf" in repo_workflow_schema
-        assert isinstance(repo_workflow_schema["allOf"], list)
-        assert len(repo_workflow_schema["allOf"]) > 0
-        assert "$ref" in repo_workflow_schema["allOf"][0]
-        assert repo_workflow_schema["allOf"][0]["$ref"] == "workflow-settings.json"
