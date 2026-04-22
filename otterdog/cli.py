@@ -33,8 +33,9 @@ _CONFIG: OtterdogConfig | None = None
 def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> OtterdogConfig:
     if config_file_param:
         config_file = config_file_param
+        config_root = None
     else:
-        config_root = Path(os.environ.get("OTTERDOG_CONFIG_ROOT", "."))
+        config_root = Path(os.environ.get("OTTERDOG_CONFIG_ROOT", os.curdir))
 
         for file in _CONFIG_FILES:
             config_path = config_root / file
@@ -46,7 +47,7 @@ def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> Ott
                 f'No configuration file specified, and default files "{_CONFIG_FILES}" not found in "{config_root}".'
             )
 
-    return OtterdogConfig.from_file(config_file, local_mode)
+    return OtterdogConfig.from_file(config_file, local_mode, str(config_root) if config_root else None)
 
 
 def complete_organizations(ctx, param, incomplete):
