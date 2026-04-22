@@ -1,10 +1,29 @@
 # Change Log
 
-## [1.2.1] - unreleased
+## [1.3.1] - unreleased
+
+### Added
+
+ - Add tests for workflow validation settings ([#633](https://github.com/eclipse-csi/otterdog/pull/633))
+ - Add support for `OTTERDOG_CONFIG_ROOT` environment variable ([#632](https://github.com/eclipse-csi/otterdog/pull/632))
+
+## [1.3.0] - 30/03/2026
+
+### Added
+
+ - Environment-based credential provider ([#593](https://github.com/eclipse-csi/otterdog/pull/593))
+ - Auto-Comment on auto-merge problems ([#603](https://github.com/eclipse-csi/otterdog/pull/603))
+ - Support for workflow setting `fork_pr_approval_policy` ([#576](https://github.com/eclipse-csi/otterdog/pull/576))
+ - Added HashiCorp Vault credential provider support with hvac library integration ([#540](https://github.com/eclipse-csi/otterdog/pull/540))
+ - Added flag `--only-secrets` to only process secret changes
 
 ### Changed
 
  - Fix web-login ([#597](https://github.com/eclipse-csi/otterdog/pull/597))
+
+### Fixed
+
+ - Fix printing of changes for nested dicts
 
 ## [1.2.0] - 12/02/2026
 

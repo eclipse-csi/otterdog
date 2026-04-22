@@ -33,12 +33,13 @@ class ApplyOperation(PlanOperation):
         repo_filter: str,
         update_webhooks: bool,
         update_secrets: bool,
+        only_secrets: bool,
         update_filter: str,
         delete_resources: bool,
         resolve_secrets: bool = True,
         include_resources_with_secrets: bool = True,
     ):
-        super().__init__(no_web_ui, repo_filter, update_webhooks, update_secrets, update_filter)
+        super().__init__(no_web_ui, repo_filter, update_webhooks, update_secrets, only_secrets, update_filter)
         self._force_processing = force_processing
         self._delete_resources = delete_resources
         self._resolve_secrets = resolve_secrets

@@ -86,6 +86,11 @@ local newRepo(name) = {
 
     # allow actions to approve and merge pull requests
     actions_can_approve_pull_request_reviews: true,
+
+    # require maintainer approval for PRs from forks
+    # Can be one of: "all_external_contributors", "first_time_contributors",
+    # "first_time_contributors_new_to_github"
+    fork_pr_approval_policy: "first_time_contributors"
   },
 
   # repository webhooks

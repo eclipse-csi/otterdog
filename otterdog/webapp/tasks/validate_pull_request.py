@@ -149,7 +149,7 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             else:
                 output = StringIO()
                 printer = IndentingPrinter(output, log_level=self.log_level, output_for_github=True)
-                operation = LocalPlanOperation("-BASE", "*", False, False, "")
+                operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
 
                 def callback(
                     org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]

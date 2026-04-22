@@ -150,6 +150,19 @@ class LivePatch(Generic[MT]):
             case LivePatchType.CHANGE:
                 return unwrap(self.expected_object).changes_require_web_ui(unwrap(self.changes))
 
+    def is_secret(self) -> bool:
+        from otterdog.models.secret import Secret
+
+        match self.patch_type:
+            case LivePatchType.ADD:
+                return isinstance(unwrap(self.expected_object), Secret)
+
+            case LivePatchType.REMOVE:
+                return isinstance(unwrap(self.current_object), Secret)
+
+            case LivePatchType.CHANGE:
+                return isinstance(unwrap(self.expected_object), Secret)
+
     def requires_secrets(self) -> bool:
         match self.patch_type:
             case LivePatchType.ADD:
