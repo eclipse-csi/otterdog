@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.3.1] - unreleased
+
+### Added
+
+ - add tests for workflow validation settings ([#633](https://github.com/eclipse-csi/otterdog/pull/633))
+
 ## [1.3.0] - 30/03/2026
 
 ### Added
