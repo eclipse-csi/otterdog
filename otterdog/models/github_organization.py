@@ -46,6 +46,7 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
+from otterdog.models.team_sync import TeamSync
 from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
@@ -583,7 +584,15 @@ class GitHubOrganization:
                         continue
                     team_members = await provider.get_org_team_members(github_id, team_slug)
                     team["members"] = team_members
-                    org.add_team(Team.from_provider_data(github_id, team))
+                    # External Groups
+                    external_groups = await provider.get_org_team_external_groups(github_id, team_slug)
+                    team["external_groups"] = external_groups
+                    tm = Team.from_provider_data(github_id, team)
+                    # Do the team-sync
+                    sync_groups = await provider.get_org_team_sync_groups(github_id, team_slug)
+                    for sg in sync_groups:
+                        tm.add_team_sync(TeamSync.from_provider_data(github_id, sg))
+                    org.add_team(tm)
             else:
                 _logger.debug("not reading teams, no default config available")
 
