@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,15 +33,21 @@ _CONFIG: OtterdogConfig | None = None
 def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> OtterdogConfig:
     if config_file_param:
         config_file = config_file_param
+        config_root = None
     else:
+        config_root = Path(os.environ.get("OTTERDOG_CONFIG_ROOT", os.curdir))
+
         for file in _CONFIG_FILES:
-            if Path(file).exists():
-                config_file = file
+            config_path = config_root / file
+            if config_path.exists():
+                config_file = str(config_path)
                 break
         else:
-            raise RuntimeError(f"No configuration file specified, and default files {_CONFIG_FILES} not found.")
+            raise RuntimeError(
+                f'No configuration file specified, and default files "{_CONFIG_FILES}" not found in "{config_root}".'
+            )
 
-    return OtterdogConfig.from_file(config_file, local_mode)
+    return OtterdogConfig.from_file(config_file, local_mode, str(config_root) if config_root else None)
 
 
 def complete_organizations(ctx, param, incomplete):
@@ -447,12 +454,21 @@ def import_command(organizations: list[str], force, no_web_ui):
     help="updates secrets regardless of changes",
 )
 @click.option(
+    "--only-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="only updates secrets",
+)
+@click.option(
     "--update-filter",
     show_default=True,
     default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
-def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, update_secrets, update_filter):
+def plan(
+    organizations: list[str], no_web_ui, repo_filter, update_webhooks, update_secrets, only_secrets, update_filter
+):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to the current live configuration at GitHub.
@@ -466,6 +482,7 @@ def plan(organizations: list[str], no_web_ui, repo_filter, update_webhooks, upda
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            only_secrets=only_secrets,
             update_filter=update_filter,
         ),
     )
@@ -540,12 +557,21 @@ def check_status(organizations: list[str], no_web_ui, repo_filter, json):
     help="updates secrets regardless of changes",
 )
 @click.option(
+    "--only-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="only updates secrets",
+)
+@click.option(
     "--update-filter",
     show_default=True,
     default="*",
     help="a valid shell pattern to match webhook urls / secret names to be included for update",
 )
-def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, update_secrets, update_filter):
+def local_plan(
+    organizations: list[str], suffix, repo_filter, update_webhooks, update_secrets, only_secrets, update_filter
+):
     """
     Show changes that would be applied by otterdog based on the current configuration
     compared to another local configuration.
@@ -559,6 +585,7 @@ def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, u
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            only_secrets=only_secrets,
             update_filter=update_filter,
         ),
     )
@@ -603,6 +630,13 @@ def local_plan(organizations: list[str], suffix, repo_filter, update_webhooks, u
     help="updates secrets regardless of changes",
 )
 @click.option(
+    "--only-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="only updates secrets",
+)
+@click.option(
     "--update-filter",
     show_default=True,
     default="*",
@@ -623,6 +657,7 @@ def apply(
     repo_filter,
     update_webhooks,
     update_secrets,
+    only_secrets,
     update_filter,
     delete_resources,
 ):
@@ -639,6 +674,7 @@ def apply(
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            only_secrets=only_secrets,
             update_filter=update_filter,
             delete_resources=delete_resources,
         ),
@@ -691,6 +727,13 @@ def apply(
     help="updates secrets regardless of changes",
 )
 @click.option(
+    "--only-secrets",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="only updates secrets",
+)
+@click.option(
     "--update-filter",
     show_default=True,
     default="*",
@@ -711,6 +754,7 @@ def local_apply(
     repo_filter,
     update_webhooks,
     update_secrets,
+    only_secrets,
     update_filter,
     delete_resources,
     suffix,
@@ -729,6 +773,7 @@ def local_apply(
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
+            only_secrets=only_secrets,
             update_filter=update_filter,
             delete_resources=delete_resources,
         ),

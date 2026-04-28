@@ -1,2 +1,0 @@
-> [!WARNING]
-> Only the author of the pull request, a project-lead or a member of the admin teams is allowed to auto-merge it.
