@@ -3,7 +3,7 @@ name = "otterdog"
 description = "Tool to manage GitHub organizations and their repositories."
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "GitPython (>=3.1,<4.0)",
+    "GitPython (>=3.1.47,<4.0)",
     "JSONBender (>=0.9,<1.0)",
     "PyNaCl (>=1.5,<2.0)",
     "aiofiles (>=24.1,<25.0)",
