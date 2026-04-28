@@ -109,7 +109,10 @@ local newRepo(name) = {
   branch_protection_rules: [],
 
   # rulesets
-  rulesets: []
+  rulesets: [],
+
+  # team permissions
+  team_permissions: []
 };
 
 # Function to extend an existing repo with the same name.
@@ -223,6 +226,12 @@ local newOrgWebhook(url) = {
 # Function to create a new repository webhook with default settings.
 local newRepoWebhook(url) = newOrgWebhook(url);
 
+# Function to create a new environment secret with default settings.
+local newEnvSecret(name) = {
+  name: name,
+  value: null
+};
+
 # Function to create a new repository secret with default settings.
 local newRepoSecret(name) = {
   name: name,
@@ -233,6 +242,12 @@ local newRepoSecret(name) = {
 local newOrgSecret(name) = newRepoSecret(name) {
   visibility: "public",
   selected_repositories: [],
+};
+
+# Function to create a new environment variable with default settings.
+local newEnvVariable(name) = {
+  name: name,
+  value: null
 };
 
 # Function to create a new repository variable with default settings.
@@ -261,9 +276,19 @@ local newTeam(name) = {
   description: "",
   privacy: "visible",
   notifications: true,
-  members: [],
+  #members: [],
   skip_members: false,
   skip_non_organization_members: false,
+  team_sync_id: null,
+  team_sync_name: null,
+  team_sync_description: null,
+  external_groups: null,
+};
+
+# Function to create a new term permission with default settings.
+local newTeamPermission(name) = {
+  name: name,
+  permission: "pull",
 };
 
 # Function to create a new environment with default settings.
@@ -274,6 +299,10 @@ local newEnvironment(name) = {
   # Can be one of: all, protected_branches, branch_policies
   deployment_branch_policy: "all",
   branch_policies: [],
+  # environment secrets
+  secrets: [],
+  # environment variables
+  variables: [],
 };
 
 # Function to create a new custom property with default settings.
@@ -423,7 +452,6 @@ local newOrg(name, id=name) = {
 {
   newOrg:: newOrg,
   newOrgRole:: newOrgRole,
-  newTeam:: newTeam,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,
@@ -434,10 +462,14 @@ local newOrg(name, id=name) = {
   newRepoWebhook:: newRepoWebhook,
   newRepoSecret:: newRepoSecret,
   newRepoVariable:: newRepoVariable,
+  newEnvSecret:: newEnvSecret,
+  newEnvVariable:: newEnvVariable,
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
   newEnvironment:: newEnvironment,
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
+  newTeam:: newTeam,
+  newTeamPermission:: newTeamPermission,
   newMergeQueue:: newMergeQueue,
 }

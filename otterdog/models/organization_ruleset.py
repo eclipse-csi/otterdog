@@ -20,7 +20,6 @@ from otterdog.utils import is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
-    from otterdog.models.github_organization import GitHubOrganization
     from otterdog.providers.github import GitHubProvider
 
 
@@ -41,9 +40,11 @@ class OrganizationRuleset(Ruleset):
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_ruleset}"
 
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+    def validate(self, context: ValidationContext, parent_object: Any, grandparent_object: Any) -> None:
+        if TYPE_CHECKING:
+            from otterdog.models.github_organization import GitHubOrganization
 
-        super().validate(context, parent_object)
+        super().validate(context, parent_object, grandparent_object)
 
         repositories = cast("GitHubOrganization", context.root_object).repositories
         all_repo_names = (x.name for x in repositories)
