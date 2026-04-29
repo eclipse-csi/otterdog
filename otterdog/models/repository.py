@@ -28,7 +28,6 @@ from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
-    _Unset,
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
@@ -108,7 +107,7 @@ class Repository(ModelObject):
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
-    team_permissions: dict[str, str] | None | _Unset
+    team_permissions: dict[str, str] | None
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -266,7 +265,9 @@ class Repository(ModelObject):
         }
 
     def unset_team_permissions(self) -> None:
-        self.team_permissions = UNSET
+        # we explicitly set the team_permissions to UNSET to mark that this property shall not be used
+        # ignore type checking here as we do not explicitly add the UNSET type yet for all properties
+        self.team_permissions = UNSET  # type: ignore
 
     def coerce_from_org_settings(self, org_settings: OrganizationSettings, for_patch: bool = False) -> Repository:
         copy = dataclasses.replace(self)
