@@ -4,6 +4,7 @@
 
 ### Added
 
+ - Add team_permissions support to repository ([#623](https://github.com/eclipse-csi/otterdog/pull/612))
  - Add tests for workflow validation settings ([#633](https://github.com/eclipse-csi/otterdog/pull/633))
  - Add support for `OTTERDOG_CONFIG_ROOT` environment variable ([#632](https://github.com/eclipse-csi/otterdog/pull/632))
 

@@ -46,7 +46,7 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
-from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, jsonnet_evaluate_file
+from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, is_set_and_present, jsonnet_evaluate_file
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -672,6 +672,7 @@ async def _process_single_repo(
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
+    repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
@@ -682,6 +683,11 @@ async def _process_single_repo(
 
     github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
+    if repo_permissions is not None:
+        repo_permission = repo_permissions.get(repo_name, [])
+        repo.set_team_permissions({entry["name"]: entry["permission"] for entry in repo_permission})
+    else:
+        repo.unset_team_permissions()
 
     if jsonnet_config.default_branch_protection_rule_config is not None:
         # get branch protection rules of the repo
@@ -759,6 +765,30 @@ async def _process_single_repo(
     return repo_name, repo
 
 
+def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """
+    Convert the output from the graphql call, which is team-centric, to a repository
+    centric structure.
+    """
+
+    repo_permissions: dict[str, list[dict[str, Any]]] = {}
+    for team in teams:
+        team_slug = team["slug"]
+
+        # List of repo edges of this team
+        edges = team.get("repositories", {}).get("edges", [])
+
+        for edge in edges:
+            repo_name = edge["node"]["name"]
+            permission = edge["permission"]
+
+            if repo_name not in repo_permissions:
+                repo_permissions[repo_name] = []
+
+            repo_permissions[repo_name].append({"name": team_slug, "permission": permission})
+    return repo_permissions
+
+
 async def _load_repos_from_provider(
     github_id: str,
     org_settings: OrganizationSettings,
@@ -777,6 +807,12 @@ async def _load_repos_from_provider(
 
     teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
 
+    default_org_repo = Repository.from_model_data(jsonnet_config.default_repo_config)
+    if is_set_and_present(default_org_repo.team_permissions):
+        repo_permissions = build_repo_permissions(await provider.get_team_permissions(github_id))
+    else:
+        repo_permissions = None
+
     # limit the number of repos that are processed concurrently to avoid hitting secondary rate limits
     sem = asyncio.Semaphore(50 if concurrency is None else concurrency)
 
@@ -789,6 +825,7 @@ async def _load_repos_from_provider(
                 repo_name,
                 jsonnet_config,
                 teams,
+                repo_permissions,
                 app_installations,
             )
 
