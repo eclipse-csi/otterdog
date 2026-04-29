@@ -59,6 +59,10 @@
       "provider": "restapi",
       "type": "boolean"
     },
+    "deploy_keys_enabled_for_repositories": {
+      "provider": "restapi",
+      "type": "boolean"
+    },
     "web_commit_signoff_required": {
       "provider": "restapi",
       "type": "boolean"

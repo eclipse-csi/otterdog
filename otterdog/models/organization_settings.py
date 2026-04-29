@@ -71,6 +71,7 @@ class OrganizationSettings(ModelObject):
     members_can_create_private_repositories: bool
     members_can_create_public_repositories: bool
     members_can_fork_private_repositories: bool
+    deploy_keys_enabled_for_repositories: bool
     members_can_create_public_pages: bool
     members_can_create_private_pages: bool
     members_can_change_repo_visibility: bool
