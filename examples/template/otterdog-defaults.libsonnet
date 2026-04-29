@@ -212,6 +212,25 @@ local newOrgRuleset(name) = newRepoRuleset(name) {
   protect_repo_names: false,
 };
 
+# Function to create a new organization code security configuration with default settings.
+local newOrgCodeSecurityConfiguration(name) = {
+  name: name,
+  description: "",
+  advanced_security: "disabled",
+  dependency_graph: "enabled",
+  dependency_graph_autosubmit_action: "not_set",
+  dependabot_alerts: "disabled",
+  dependabot_security_updates: "disabled",
+  code_scanning_default_setup: "disabled",
+  secret_scanning: "disabled",
+  secret_scanning_push_protection: "disabled",
+  secret_scanning_delegated_bypass: "disabled",
+  secret_scanning_validity_checks: "disabled",
+  secret_scanning_non_provider_patterns: "disabled",
+  private_vulnerability_reporting: "disabled",
+  enforcement: "enforced",
+};
+
 # Function to create a new organization webhook with default settings.
 local newOrgWebhook(url) = {
   active: true,
@@ -411,6 +430,9 @@ local newOrg(name, id=name) = {
   # organization rulesets
   rulesets: [],
 
+  # organization code security configurations
+  code_security_configurations: [],
+
   # List of repositories of the organization.
   # Entries here can be extended during template manifestation:
   #  * new repos should be defined using the newRepo template
@@ -431,6 +453,7 @@ local newOrg(name, id=name) = {
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,
   newOrgRuleset:: newOrgRuleset,
+  newOrgCodeSecurityConfiguration:: newOrgCodeSecurityConfiguration,
   newCustomProperty:: newCustomProperty,
   newRepo:: newRepo,
   extendRepo:: extendRepo,

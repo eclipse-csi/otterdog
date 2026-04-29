@@ -1,0 +1,23 @@
+{
+  "id": 42,
+  "target_type": "organization",
+  "name": "my-config",
+  "description": "My code security configuration",
+  "advanced_security": "enabled",
+  "dependency_graph": "enabled",
+  "dependency_graph_autosubmit_action": "enabled",
+  "dependabot_alerts": "enabled",
+  "dependabot_security_updates": "enabled",
+  "code_scanning_default_setup": "enabled",
+  "secret_scanning": "enabled",
+  "secret_scanning_push_protection": "enabled",
+  "secret_scanning_delegated_bypass": "disabled",
+  "secret_scanning_validity_checks": "enabled",
+  "secret_scanning_non_provider_patterns": "enabled",
+  "private_vulnerability_reporting": "enabled",
+  "enforcement": "enforced",
+  "url": "https://api.github.com/orgs/octo-org/code-security/configurations/42",
+  "html_url": "https://github.com/organizations/octo-org/settings/security_products/configurations/42",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}

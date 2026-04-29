@@ -32,6 +32,7 @@ from otterdog.models import (
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
 from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
@@ -75,6 +76,7 @@ class GitHubOrganization:
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
     rulesets: list[OrganizationRuleset] = dataclasses.field(default_factory=list)
+    code_security_configurations: list[OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     _secrets_resolved: bool = False
@@ -136,6 +138,15 @@ class GitHubOrganization:
 
     def set_rulesets(self, rulesets: list[OrganizationRuleset]) -> None:
         self.rulesets = rulesets
+
+    def add_code_security_configuration(self, configuration: OrganizationCodeSecurityConfiguration) -> None:
+        self.code_security_configurations.append(configuration)
+
+    def get_code_security_configuration(self, name: str) -> OrganizationCodeSecurityConfiguration | None:
+        return next(filter(lambda x: x.name == name, self.code_security_configurations), None)  # type: ignore
+
+    def set_code_security_configurations(self, configurations: list[OrganizationCodeSecurityConfiguration]) -> None:
+        self.code_security_configurations = configurations
 
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
@@ -205,6 +216,9 @@ class GitHubOrganization:
             for ruleset in self.rulesets:
                 ruleset.validate(context, self)
 
+        for configuration in self.code_security_configurations:
+            configuration.validate(context, self)
+
         # Run synchronous validations and collect repos needing API codescaning validation
         repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
@@ -271,6 +285,10 @@ class GitHubOrganization:
             yield ruleset, None
             yield from ruleset.get_model_objects()
 
+        for configuration in self.code_security_configurations:
+            yield configuration, None
+            yield from configuration.get_model_objects()
+
         for repo in self.repositories:
             yield repo, None
             yield from repo.get_model_objects()
@@ -291,6 +309,8 @@ class GitHubOrganization:
             "variables": OptionalS("variables", default=[])
             >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
             "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: OrganizationRuleset.from_model_data(x)),
+            "code_security_configurations": OptionalS("code_security_configurations", default=[])
+            >> Forall(lambda x: OrganizationCodeSecurityConfiguration.from_model_data(x)),
             "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
@@ -438,6 +458,21 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        # print organization code security configurations
+        if len(self.code_security_configurations) > 0:
+            default_configuration = OrganizationCodeSecurityConfiguration.from_model_data(
+                config.default_org_code_security_configuration_config
+            )
+
+            printer.println("code_security_configurations+: [")
+            printer.level_up()
+
+            for configuration in self.code_security_configurations:
+                configuration.to_jsonnet(printer, config, context, False, default_configuration)
+
+            printer.level_down()
+            printer.println("],")
+
         # print repositories
         if len(self.repositories) > 0:
             repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
@@ -488,6 +523,13 @@ class GitHubOrganization:
         )
         OrganizationRuleset.generate_live_patch_of_list(
             self.rulesets, current_organization.rulesets, None, context, handler
+        )
+        OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(
+            self.code_security_configurations,
+            current_organization.code_security_configurations,
+            None,
+            context,
+            handler,
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
@@ -637,6 +679,17 @@ class GitHubOrganization:
             else:
                 _logger.debug("not reading org secrets, no default config available")
 
+        @debug_times("code_security_configurations")
+        async def _load_code_security_configurations() -> None:
+            if jsonnet_config.default_org_code_security_configuration_config is not None:
+                github_configurations = await provider.get_org_code_security_configurations(github_id)
+                for configuration in github_configurations:
+                    org.add_code_security_configuration(
+                        OrganizationCodeSecurityConfiguration.from_provider_data(github_id, configuration)
+                    )
+            else:
+                _logger.debug("not reading org code security configurations, no default config available")
+
         @debug_times("repos")
         async def _load_repos() -> None:
             if jsonnet_config.default_repo_config is not None:
@@ -660,6 +713,7 @@ class GitHubOrganization:
             task_group.soonify(_load_secrets)()
             task_group.soonify(_load_variables)()
             task_group.soonify(_load_rulesets)()
+            task_group.soonify(_load_code_security_configurations)()
             task_group.soonify(_load_repos)()
 
         return org
