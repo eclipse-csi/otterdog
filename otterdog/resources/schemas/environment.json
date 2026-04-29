@@ -9,6 +9,7 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "prevent_self_review": { "type": "boolean" },
     "deployment_branch_policy": { "type": "string" },
     "branch_policies": {
       "type": "array",

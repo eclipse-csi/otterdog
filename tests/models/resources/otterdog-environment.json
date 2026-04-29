@@ -5,6 +5,7 @@
     "@netomi",
     "@OtterdogTest/eclipsefdn-security"
   ],
+  "prevent_self_review": true,
   "deployment_branch_policy": "selected",
   "branch_policies": [
     "main",
