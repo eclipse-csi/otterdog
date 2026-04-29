@@ -28,6 +28,7 @@ from otterdog.utils import (
     UNSET,
     Change,
     IndentingPrinter,
+    _Unset,
     associate_by_key,
     is_set_and_present,
     is_set_and_valid,
@@ -107,7 +108,7 @@ class Repository(ModelObject):
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
-    team_permissions: dict[str, str] | None
+    team_permissions: dict[str, str] | None | _Unset
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -263,6 +264,9 @@ class Repository(ModelObject):
         self.team_permissions = {
             team: self._valid_team_permissions.get(perm, perm) for team, perm in permissions.items()
         }
+
+    def unset_team_permissions(self) -> None:
+        self.team_permissions = UNSET
 
     def coerce_from_org_settings(self, org_settings: OrganizationSettings, for_patch: bool = False) -> Repository:
         copy = dataclasses.replace(self)
@@ -473,7 +477,7 @@ class Repository(ModelObject):
                         f"{self.get_model_header()} defines an unknown custom property with key '{k}'.",
                     )
 
-        if is_set_and_present(self.team_permissions):
+        if is_set_and_present(self.team_permissions) and isinstance(self.team_permissions, dict):
             for k, v in self.team_permissions.items():
                 if v not in self._valid_team_permissions:
                     context.add_failure(
