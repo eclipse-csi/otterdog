@@ -45,6 +45,7 @@ async def test_create(github: GitHubProviderTestKit):
             "default_value": "Python",
             "description": "Primary language",
             "allowed_values": ["Python", "Java"],
+            "values_editable_by": None,
         },
         response_json={},
     )
@@ -59,6 +60,7 @@ async def test_create(github: GitHubProviderTestKit):
             default_value="Python",
             description="Primary language",
             allowed_values=["Python", "Java"],
+            values_editable_by=None,
         ),
     )
 
@@ -76,6 +78,7 @@ async def test_read(github: GitHubProviderTestKit):
                 "default_value": "Python",
                 "description": "Primary language",
                 "allowed_values": ["Python", "Java"],
+                "values_editable_by": None,
             },
             {
                 "property_name": "cost_center",
@@ -83,6 +86,7 @@ async def test_read(github: GitHubProviderTestKit):
                 "required": False,
                 "default_value": "",
                 "description": None,
+                "values_editable_by": None,
             },
         ],
     )
@@ -98,6 +102,7 @@ async def test_read(github: GitHubProviderTestKit):
             default_value="Python",
             description="Primary language",
             allowed_values=["Python", "Java"],
+            values_editable_by=None,
         ),
         CustomProperty(
             name="cost_center",
@@ -106,6 +111,7 @@ async def test_read(github: GitHubProviderTestKit):
             default_value="",
             description=None,
             allowed_values=[],
+            values_editable_by=None,
         ),
     ]
 
@@ -121,6 +127,7 @@ async def test_update(github: GitHubProviderTestKit):
             "default_value": "Java",
             "description": "Primary language",
             "allowed_values": ["Python", "Java"],
+            "values_editable_by": None,
         },
         response_json={},
     )
@@ -134,6 +141,7 @@ async def test_update(github: GitHubProviderTestKit):
             default_value="Python",
             description="Primary language",
             allowed_values=["Python", "Java"],
+            values_editable_by=None,
         ),
         new=CustomProperty(
             name="language",
@@ -142,6 +150,7 @@ async def test_update(github: GitHubProviderTestKit):
             default_value="Java",
             description="Primary language",
             allowed_values=["Python", "Java"],
+            values_editable_by=None,
         ),
     )
 
@@ -163,6 +172,7 @@ async def test_delete(github: GitHubProviderTestKit):
             default_value="Python",
             description="Primary language",
             allowed_values=["Python", "Java"],
+            values_editable_by=None,
         ),
         new=None,
     )

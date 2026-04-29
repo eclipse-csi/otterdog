@@ -41,6 +41,7 @@ class CustomProperty(ModelObject):
     default_value: str | list[str] | None
     description: str | None
     allowed_values: list[str] | None
+    values_editable_by: str | None
 
     @property
     def model_object_name(self) -> str:
@@ -127,6 +128,17 @@ class CustomProperty(ModelObject):
                             f"'{self.default_value}', "
                             f"but some of its elements are not in the list of allowed values '{self.allowed_values}'.",
                         )
+
+        if is_set_and_present(self.values_editable_by) and self.values_editable_by not in {
+            "org_actors",
+            "org_and_repo_actors",
+        }:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'values_editable_by' of value "
+                f"'{self.values_editable_by}', "
+                f"while only values ('org_actors' | 'org_and_repo_actors' | null) are allowed.",
+            )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.required is not True and field.name in ["default_value"]:

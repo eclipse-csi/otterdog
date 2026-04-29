@@ -11,6 +11,12 @@
     "allowed_values": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "values_editable_by": {
+      "anyOf": [
+        { "type": "string", "enum": ["org_actors", "org_and_repo_actors"] },
+        { "type": "null" }
+      ]
     }
   },
 
