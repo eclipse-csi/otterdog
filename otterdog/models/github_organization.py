@@ -681,7 +681,8 @@ async def _process_single_repo(
     github_repo_data = await rest_api.repo.get_repo_data(github_id, repo_name)
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
-    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name)
+    is_private = github_repo_data.get("private", False)
+    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name, is_private=is_private)
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
     if repo_permissions is not None:
         repo_permission = repo_permissions.get(repo_name, [])

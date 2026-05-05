@@ -971,7 +971,9 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+    async def get_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False
+    ) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}
@@ -989,11 +991,14 @@ class RepoClient(RestClient):
         if permissions.get("enabled", False) is not False:
             workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
 
-        workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+        if not is_private:
+            workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
 
         return workflow_settings
 
-    async def update_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+    async def update_workflow_settings(
+        self, org_id: str, repo_name: str, data: dict[str, Any], is_private: bool = False
+    ) -> None:
         _logger.debug("updating workflow settings for repo '%s/%s'", org_id, repo_name)
 
         permission_data = {k: data[k] for k in ["enabled", "allowed_actions"] if k in data}
@@ -1023,7 +1028,7 @@ class RepoClient(RestClient):
         if len(default_permission_data) > 0:
             await self._update_default_workflow_permissions(org_id, repo_name, default_permission_data)
 
-        if "approval_policy" in data:
+        if not is_private and "approval_policy" in data:
             await self._update_fork_pr_approval_policy(org_id, repo_name, {"approval_policy": data["approval_policy"]})
 
         _logger.debug("updated %d workflow setting(s)", len(data))
