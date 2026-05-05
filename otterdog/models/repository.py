@@ -1478,6 +1478,7 @@ class Repository(ModelObject):
                         org_id,
                         expected_object.name,
                         await expected_object.workflows.dict_to_provider_data(org_id, workflow_data, provider),
+                        is_private=expected_object.private is True,
                     )
 
                 # Team permissions are defined on the repository but originate from the team side.
@@ -1511,7 +1512,12 @@ class Repository(ModelObject):
                     data = unwrap(patch.expected_object).workflows.to_model_dict(for_diff=True)
                     github_data = await RepositoryWorkflowSettings.dict_to_provider_data(org_id, data, provider)
 
-                    await provider.update_repo_workflow_settings(org_id, expected_object.name, github_data)
+                    await provider.update_repo_workflow_settings(
+                        org_id,
+                        expected_object.name,
+                        github_data,
+                        is_private=expected_object.private is True,
+                    )
 
                 # Team permissions sit at the intersection of repositories and teams.
                 # A change in `team_permissions` can represent three different operations:
