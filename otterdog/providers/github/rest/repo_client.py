@@ -971,9 +971,7 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(
-        self, org_id: str, repo_name: str, is_private: bool = False
-    ) -> dict[str, Any]:
+    async def get_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}

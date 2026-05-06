@@ -360,9 +360,7 @@ class GitHubProvider:
     async def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         await self.rest_api.repo.delete_environment(org_id, repo_name, env_name)
 
-    async def get_repo_workflow_settings(
-        self, org_id: str, repo_name: str, is_private: bool = False
-    ) -> dict[str, Any]:
+    async def get_repo_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
         return await self.rest_api.repo.get_workflow_settings(org_id, repo_name, is_private=is_private)
 
     async def update_repo_workflow_settings(
