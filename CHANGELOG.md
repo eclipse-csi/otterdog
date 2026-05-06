@@ -6,6 +6,8 @@
 
 ### Fixed
 
+ - Confine jsonnet imports to the org configuration directory in the webapp, and replace raw evaluator exception text with a friendly message in pull request validation comments
+
 ### Changed
 
 ## [1.3.1] - 06/05/2026

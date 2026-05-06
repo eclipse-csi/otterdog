@@ -8,7 +8,9 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -366,24 +368,98 @@ async def run_command(cmd: str, *args: str, **kwargs) -> tuple[int, str, str]:
     return process.returncode, stdout.decode("utf-8"), stderr.decode("utf-8")  # type: ignore
 
 
-def jsonnet_evaluate_file(file: str) -> dict[str, Any]:
+_jsonnet_import_root: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "otterdog_jsonnet_import_root", default=None
+)
+
+
+class restrict_jsonnet_imports:  # noqa: N801
+    """Context manager confining jsonnet imports to a directory tree.
+
+    While active, jsonnet_evaluate_file / jsonnet_evaluate_snippet install an
+    import_callback that rejects any import (absolute or relative) whose
+    real path resolves outside ``base_dir``. The restriction propagates
+    transparently across ``await`` boundaries via a ``ContextVar``.
+
+    Legitimate org configurations only import from the vendored template
+    directory under ``org_dir`` (e.g. ``vendor/<template-repo>/...``), so
+    scoping imports to the org config directory matches the expected
+    operational layout. The canonical pattern when invoking an operation
+    that may evaluate jsonnet is::
+
+        try:
+            with restrict_jsonnet_imports(org_config.jsonnet_config.org_dir):
+                result = await operation.execute(org_config)
+            output_for_user = output.getvalue()
+        except Exception as ex:
+            self.logger.exception("...", exc_info=ex)
+            # prefer a friendly user-facing message over the raw evaluator
+            # output; full diagnostics stay in the server log.
+            output_for_user = "Generic failure message."
+
+    For direct ``jsonnet_evaluate_file`` / ``jsonnet_evaluate_snippet`` calls,
+    prefer passing ``import_base_dir=...`` explicitly instead of relying on
+    the surrounding context.
+    """
+
+    def __init__(self, base_dir: str) -> None:
+        self._base_dir = base_dir
+        self._token: contextvars.Token[str | None] | None = None
+
+    def __enter__(self) -> restrict_jsonnet_imports:
+        self._token = _jsonnet_import_root.set(self._base_dir)
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        if self._token is not None:
+            _jsonnet_import_root.reset(self._token)
+            self._token = None
+
+
+def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, bytes]]:
+    real_root = os.path.realpath(allowed_root)
+
+    def callback(base: str, rel: str) -> tuple[str, bytes]:
+        candidate = rel if os.path.isabs(rel) else os.path.join(base, rel)
+        # resolve symlinks and ".." traversal before the containment check
+        resolved = os.path.realpath(candidate)
+        try:
+            common = os.path.commonpath([resolved, real_root])
+        except ValueError:
+            raise RuntimeError(f"import of '{rel}' is not allowed") from None
+        if common != real_root:
+            raise RuntimeError(f"import of '{rel}' is not allowed")
+        with open(resolved, "rb") as f:
+            return resolved, f.read()
+
+    return callback
+
+
+def _jsonnet_kwargs(import_base_dir: str | None) -> dict[str, Any]:
+    base = import_base_dir if import_base_dir is not None else _jsonnet_import_root.get()
+    if base is None:
+        return {}
+    return {"import_callback": _make_jsonnet_import_callback(base)}
+
+
+def jsonnet_evaluate_file(file: str, import_base_dir: str | None = None) -> dict[str, Any]:
     import rjsonnet
 
     _logger.trace("evaluating jsonnet file '%s'", file)
 
     try:
-        return json.loads(rjsonnet.evaluate_file(file))
+        return json.loads(rjsonnet.evaluate_file(file, **_jsonnet_kwargs(import_base_dir)))
     except Exception as ex:
         raise RuntimeError(f"failed to evaluate jsonnet file: {ex!s}") from ex
 
 
-def jsonnet_evaluate_snippet(snippet: str) -> dict[str, Any]:
+def jsonnet_evaluate_snippet(snippet: str, import_base_dir: str | None = None) -> dict[str, Any]:
     import rjsonnet
 
     _logger.trace("evaluating jsonnet snippet '%s'", snippet)
 
     try:
-        return json.loads(rjsonnet.evaluate_snippet("", snippet))
+        return json.loads(rjsonnet.evaluate_snippet("", snippet, **_jsonnet_kwargs(import_base_dir)))
     except Exception as ex:
         raise RuntimeError(f"failed to evaluate snippet: {ex!s}") from ex
 
