@@ -50,9 +50,7 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
 
             # save configuration — confine imports to the org config directory,
             # matching the layout expected by org configs (vendored templates only).
-            config_data = jsonnet_evaluate_file(
-                config_file, import_base_dir=org_config.jsonnet_config.org_dir
-            )
+            config_data = jsonnet_evaluate_file(config_file, import_base_dir=org_config.jsonnet_config.org_dir)
             config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,
                 project_name=org_config.name,

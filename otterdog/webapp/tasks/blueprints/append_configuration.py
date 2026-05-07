@@ -115,9 +115,7 @@ class AppendConfigurationTask(BlueprintTask):
             try:
                 # confine imports to the org config directory, matching the layout
                 # expected by org configs (vendored templates only).
-                jsonnet_evaluate_file(
-                    patched_config_file, import_base_dir=org_config.jsonnet_config.org_dir
-                )
+                jsonnet_evaluate_file(patched_config_file, import_base_dir=org_config.jsonnet_config.org_dir)
             except RuntimeError as ex:
                 self.logger.error("failed to evaluate patched configuration", exc_info=ex)
                 result.check_failed = True

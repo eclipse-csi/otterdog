@@ -214,8 +214,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 # use a friendly user-facing message rather than the raw evaluator
                 # output; full diagnostics stay in the server log.
                 apply_result.apply_output = (
-                    "Applying the configuration failed. "
-                    "Please contact an admin if you believe this is incorrect."
+                    "Applying the configuration failed. Please contact an admin if you believe this is incorrect."
                 )
                 apply_result.apply_success = False
 

@@ -21,10 +21,12 @@ from otterdog.utils import (
     format_date_for_csv,
     is_different_ignoring_order,
     is_ghsa_repo,
+    jsonnet_evaluate_snippet,
     parse_template_url,
     patch_to_other,
+    restrict_jsonnet_imports,
     snake_to_camel_case,
-    snake_to_normal_case, restrict_jsonnet_imports, jsonnet_evaluate_snippet,
+    snake_to_normal_case,
 )
 
 
