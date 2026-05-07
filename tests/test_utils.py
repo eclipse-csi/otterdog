@@ -24,7 +24,7 @@ from otterdog.utils import (
     parse_template_url,
     patch_to_other,
     snake_to_camel_case,
-    snake_to_normal_case,
+    snake_to_normal_case, restrict_jsonnet_imports, jsonnet_evaluate_snippet,
 )
 
 
@@ -177,6 +177,29 @@ def test_jsonnet_import_callback_resolves_symlinks(tmp_path: Path):
     # outside the root is rejected
     with pytest.raises(RuntimeError, match="not allowed"):
         callback("", str(link))
+
+
+def test_evaluate_with_restrict_import(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("payload")
+
+    with restrict_jsonnet_imports(str(root)):
+        snippet = f'{{ outside: importstr "{outside}" }}'
+        with pytest.raises(RuntimeError, match="not allowed"):
+            jsonnet_evaluate_snippet(snippet)
+
+
+def test_evaluate_without_restricting_import(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("payload")
+
+    snippet = f'{{ outside: importstr "{outside}" }}'
+    result = jsonnet_evaluate_snippet(snippet)
+    assert result["outside"] == "payload"
 
 
 _long_string = "Too long to fit console width"
