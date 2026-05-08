@@ -1,12 +1,14 @@
 # Change Log
 
-## [1.3.3] - unreleased
+## [1.3.4] - Unreleased
+
+## [1.3.3] - 08/05/2026
 
 ### Fixed
 
  - Fix signature of import_callback when evaluating jsonnet files or snippets
 
-## [1.3.2] - 07/06/2026
+## [1.3.2] - 07/05/2026
 
 ### Fixed
 
