@@ -2,6 +2,10 @@
 
 ## [1.3.3] - unreleased
 
+### Fixed
+
+ - Fix signature of import_callback when evaluating jsonnet files or snippets
+
 ## [1.3.2] - 07/06/2026
 
 ### Fixed
