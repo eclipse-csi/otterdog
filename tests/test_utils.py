@@ -137,12 +137,12 @@ def test_jsonnet_import_callback_returns_files_inside_root(tmp_path: Path):
     # absolute path inside the root is returned
     resolved, content = callback("", str(inside))
     assert resolved == os.path.realpath(str(inside))
-    assert content == b"{ x: 1 }"
+    assert content == "{ x: 1 }"
 
     # relative path resolved against a base inside the root is returned
     resolved2, content2 = callback(str(tmp_path / "vendor"), "lib.libsonnet")
     assert resolved2 == os.path.realpath(str(inside))
-    assert content2 == b"{ x: 1 }"
+    assert content2 == "{ x: 1 }"
 
 
 def test_jsonnet_import_callback_rejects_absolute_outside_root(tmp_path: Path):
@@ -191,6 +191,18 @@ def test_evaluate_with_restrict_import(tmp_path: Path):
         snippet = f'{{ outside: importstr "{outside}" }}'
         with pytest.raises(RuntimeError, match="not allowed"):
             jsonnet_evaluate_snippet(snippet)
+
+
+def test_evaluate_with_restrict_import_allowed(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    inside = tmp_path / "root" / "inside.txt"
+    inside.write_text("payload")
+
+    with restrict_jsonnet_imports(str(root)):
+        snippet = f'{{ inside: importstr "{inside}" }}'
+        result = jsonnet_evaluate_snippet(snippet)
+        assert result["inside"] == "payload"
 
 
 def test_evaluate_without_restricting_import(tmp_path: Path):

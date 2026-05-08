@@ -416,10 +416,10 @@ class restrict_jsonnet_imports:  # noqa: N801
             self._token = None
 
 
-def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, bytes]]:
+def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, str | None]]:
     real_root = os.path.realpath(allowed_root)
 
-    def callback(base: str, rel: str) -> tuple[str, bytes]:
+    def callback(base: str, rel: str) -> tuple[str, str | None]:
         candidate = rel if os.path.isabs(rel) else os.path.join(base, rel)
         # resolve symlinks and ".." traversal before the containment check
         resolved = os.path.realpath(candidate)
@@ -430,7 +430,7 @@ def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tup
         if common != real_root:
             raise RuntimeError(f"import of '{rel}' is not allowed")
         with open(resolved, "rb") as f:
-            return resolved, f.read()
+            return resolved, f.read().decode("utf-8")
 
     return callback
 
