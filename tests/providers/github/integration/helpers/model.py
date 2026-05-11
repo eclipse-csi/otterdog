@@ -98,7 +98,7 @@ class ModelForContext:
         """
 
         model_cls = determine_model_object(old, new)
-        if model_cls in {RepositorySecret, RepositoryVariable}:
+        if model_cls in {RepositorySecret, RepositoryVariable, Environment}:
             return self.repository
         if model_cls in {OrganizationSecret, OrganizationVariable, CustomProperty}:
             return None  # Organization-level, no parent object
