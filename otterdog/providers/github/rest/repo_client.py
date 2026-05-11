@@ -741,6 +741,43 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo environment '%s'", env_name)
 
+    async def get_team_permissions(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving teams with permissions for repo '%s/%s'", org_id, repo_name)
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/teams")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting team permissions for repo '{org_id}/{repo_name}':\n{ex}") from ex
+
+    async def update_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
+
+        status, _ = await self.requester.request_raw(
+            "PUT",
+            f"/orgs/{org_id}/teams/{team_name}/repos/{org_id}/{repo_name}",
+            data=json.dumps({"permission": team_permission}),
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update team permission for team {team_name} on repo {repo_name}")
+
+        _logger.debug(f"updated team permission for team {team_name} on repo {repo_name}")
+
+    async def add_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
+        _logger.debug(f"adding team permission for team {team_name} on repo {repo_name}")
+        await self.update_team_permission(org_id, repo_name, team_name, team_permission)
+        _logger.debug("added team permisson for team {team_name} on repo {repo_name}")
+
+    async def delete_team_permission(self, org_id: str, repo_name: str, team_name: str) -> None:
+        _logger.debug(f"deleting team permission for team {team_name} on repo {repo_name}")
+        status, _ = await self.requester.request_raw(
+            "DELETE", f"/orgs/{org_id}/teams/{team_name}/repos/{org_id}/{repo_name}"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete team permission for team {team_name} on repo {repo_name}")
+
+        _logger.debug(f"removed team permission for team {team_name} on repo {repo_name}")
+
     async def _get_deployment_branch_policies(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving deployment branch policies for env '%s'", env_name)
 
@@ -1092,7 +1129,7 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
+    async def get_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}
@@ -1110,11 +1147,14 @@ class RepoClient(RestClient):
         if permissions.get("enabled", False) is not False:
             workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
 
-        workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+        if not is_private:
+            workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
 
         return workflow_settings
 
-    async def update_workflow_settings(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
+    async def update_workflow_settings(
+        self, org_id: str, repo_name: str, data: dict[str, Any], is_private: bool = False
+    ) -> None:
         _logger.debug("updating workflow settings for repo '%s/%s'", org_id, repo_name)
 
         permission_data = {k: data[k] for k in ["enabled", "allowed_actions"] if k in data}
@@ -1144,7 +1184,7 @@ class RepoClient(RestClient):
         if len(default_permission_data) > 0:
             await self._update_default_workflow_permissions(org_id, repo_name, default_permission_data)
 
-        if "approval_policy" in data:
+        if not is_private and "approval_policy" in data:
             await self._update_fork_pr_approval_policy(org_id, repo_name, {"approval_policy": data["approval_policy"]})
 
         _logger.debug("updated %d workflow setting(s)", len(data))

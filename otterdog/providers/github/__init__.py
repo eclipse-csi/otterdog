@@ -360,13 +360,13 @@ class GitHubProvider:
     async def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         await self.rest_api.repo.delete_environment(org_id, repo_name, env_name)
 
-    async def get_repo_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
-        return await self.rest_api.repo.get_workflow_settings(org_id, repo_name)
+    async def get_repo_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
+        return await self.rest_api.repo.get_workflow_settings(org_id, repo_name, is_private=is_private)
 
     async def update_repo_workflow_settings(
-        self, org_id: str, repo_name: str, workflow_settings: dict[str, Any]
+        self, org_id: str, repo_name: str, workflow_settings: dict[str, Any], is_private: bool = False
     ) -> None:
-        await self.rest_api.repo.update_workflow_settings(org_id, repo_name, workflow_settings)
+        await self.rest_api.repo.update_workflow_settings(org_id, repo_name, workflow_settings, is_private=is_private)
 
     async def get_org_secrets(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_secrets(org_id)
@@ -433,36 +433,6 @@ class GitHubProvider:
     async def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         await self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
 
-    async def get_repo_dependabot_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return await self.rest_api.repo.get_dependabot_secrets(org_id, repo_name)
-
-    async def update_repo_dependabot_secret(
-        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
-    ) -> None:
-        if len(secret) > 0:
-            await self.rest_api.repo.update_dependabot_secret(org_id, repo_name, secret_name, secret)
-
-    async def add_repo_dependabot_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.repo.add_dependabot_secret(org_id, repo_name, data)
-
-    async def delete_repo_dependabot_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        await self.rest_api.repo.delete_dependabot_secret(org_id, repo_name, secret_name)
-
-    async def get_repo_codespaces_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        return await self.rest_api.repo.get_codespaces_secrets(org_id, repo_name)
-
-    async def update_repo_codespaces_secret(
-        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
-    ) -> None:
-        if len(secret) > 0:
-            await self.rest_api.repo.update_codespaces_secret(org_id, repo_name, secret_name, secret)
-
-    async def add_repo_codespaces_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        await self.rest_api.repo.add_codespaces_secret(org_id, repo_name, data)
-
-    async def delete_repo_codespaces_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        await self.rest_api.repo.delete_codespaces_secret(org_id, repo_name, secret_name)
-
     async def get_repo_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_variables(org_id, repo_name)
 
@@ -507,6 +477,18 @@ class GitHubProvider:
 
     async def delete_env_variable(self, org_id: str, repo_name: str, env_name: str, variable_name: str) -> None:
         await self.rest_api.env.delete_variable(org_id, repo_name, env_name, variable_name)
+
+    async def get_team_permissions(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.graphql_client.get_team_permissions(org_id)
+
+    async def update_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
+        await self.rest_api.repo.update_team_permission(org_id, repo_name, team_name, team_permission)
+
+    async def add_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
+        await self.rest_api.repo.add_team_permission(org_id, repo_name, team_name, team_permission)
+
+    async def delete_team_permission(self, org_id: str, repo_name: str, team_name: str) -> None:
+        await self.rest_api.repo.delete_team_permission(org_id, repo_name, team_name)
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)

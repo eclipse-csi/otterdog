@@ -248,3 +248,24 @@ class TestRepoClientForkPrApprovalPolicy:
 
         # Assert result includes the approval policy
         assert set(policy.items()).issubset(result.items())
+
+    async def test_get_workflow_settings_skips_fork_pr_approval_policy_for_private_repo(self):
+        called = []
+
+        async def mock_request(method, url):
+            return {}
+
+        async def mock_get(org, repo):
+            called.append(True)
+            return {"approval_policy": "all_external_contributors"}
+
+        mock_requester = pretend.stub(request_json=mock_request)
+        mock_restapi = pretend.stub(requester=mock_requester)
+        repo_client = RepoClient(mock_restapi)
+        repo_client._get_fork_pr_approval_policy = mock_get
+
+        result = await repo_client.get_workflow_settings("org", "repo", is_private=True)
+
+        # Assert the fork PR approval policy was NOT fetched
+        assert not called
+        assert "approval_policy" not in result
