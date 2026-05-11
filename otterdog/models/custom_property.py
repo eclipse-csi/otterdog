@@ -160,6 +160,10 @@ class CustomProperty(ModelObject):
         if "name" in data:
             mapping.pop("name")
 
+        value_type = data.get("value_type")
+        if value_type not in {"single_select", "multi_select"} and "allowed_values" in mapping:
+            mapping.pop("allowed_values")
+
         return mapping
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:

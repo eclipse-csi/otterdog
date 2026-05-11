@@ -63,6 +63,34 @@ async def test_create(github: GitHubProviderTestKit):
     )
 
 
+async def test_create_string_type(github: GitHubProviderTestKit):
+    """Creates a string-type org custom property without allowed_values in the request."""
+    github.http.expect(
+        "PUT",
+        f"/orgs/{ORG_ID}/properties/schema/eclipse_project",
+        request_json={
+            "value_type": "string",
+            "required": False,
+            "default_value": "",
+            "description": None,
+        },
+        response_json={},
+    )
+
+    await generate_patch_and_run_it(
+        github,
+        old=None,
+        new=CustomProperty(
+            name="eclipse_project",
+            value_type="string",
+            required=False,
+            default_value="",
+            description=None,
+            allowed_values=[],
+        ),
+    )
+
+
 async def test_read(github: GitHubProviderTestKit):
     """Reads org custom properties from provider payloads."""
     github.http.expect(
