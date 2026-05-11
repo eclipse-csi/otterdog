@@ -433,6 +433,36 @@ class GitHubProvider:
     async def delete_repo_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
         await self.rest_api.repo.delete_secret(org_id, repo_name, secret_name)
 
+    async def get_repo_dependabot_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_dependabot_secrets(org_id, repo_name)
+
+    async def update_repo_dependabot_secret(
+        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_dependabot_secret(org_id, repo_name, secret_name, secret)
+
+    async def add_repo_dependabot_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_dependabot_secret(org_id, repo_name, data)
+
+    async def delete_repo_dependabot_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_dependabot_secret(org_id, repo_name, secret_name)
+
+    async def get_repo_codespaces_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_codespaces_secrets(org_id, repo_name)
+
+    async def update_repo_codespaces_secret(
+        self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_codespaces_secret(org_id, repo_name, secret_name, secret)
+
+    async def add_repo_codespaces_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_codespaces_secret(org_id, repo_name, data)
+
+    async def delete_repo_codespaces_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_codespaces_secret(org_id, repo_name, secret_name)
+
     async def get_repo_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         return await self.rest_api.repo.get_variables(org_id, repo_name)
 
