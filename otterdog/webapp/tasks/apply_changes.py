@@ -12,7 +12,7 @@ from io import StringIO
 from quart import render_template
 
 from otterdog.operations.local_apply import LocalApplyOperation
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -201,14 +201,21 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
             operation.init(otterdog_config, printer)
 
             try:
-                operation_result = await operation.execute(org_config)
+                # confine jsonnet imports to the org config directory, matching the
+                # restriction applied during validation.
+                with restrict_jsonnet_imports(org_config.jsonnet_config.org_dir):
+                    operation_result = await operation.execute(org_config)
                 apply_result.apply_output = output.getvalue()
                 apply_result.apply_success = operation_result == 0
                 apply_result.partial = self._pr_model.requires_manual_apply is True
             except Exception as ex:
                 self.logger.exception("exception during apply", exc_info=ex)
 
-                apply_result.apply_output = str(ex)
+                # use a friendly user-facing message rather than the raw evaluator
+                # output; full diagnostics stay in the server log.
+                apply_result.apply_output = (
+                    "Applying the configuration failed. Please contact an admin if you believe this is incorrect."
+                )
                 apply_result.apply_success = False
 
             self.merge_statistics_from_provider(operation.gh_client)

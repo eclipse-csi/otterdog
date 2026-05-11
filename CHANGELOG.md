@@ -1,11 +1,34 @@
 # Change Log
 
-## [1.3.1] - unreleased
+## [1.3.4] - Unreleased
+
+## [1.3.3] - 08/05/2026
+
+### Fixed
+
+ - Fix signature of import_callback when evaluating jsonnet files or snippets
+
+## [1.3.2] - 07/05/2026
+
+### Fixed
+
+ - Confine jsonnet imports to the org configuration directory in the webapp, and replace raw evaluator exception text with a friendly message in pull request validation comments
+
+### Changed
+
+ - Replace string-based webhook event filter expressions with direct callables, and require `GITHUB_WEBHOOK_SECRET` to be configured at startup so the `X-Hub-Signature` header is always validated
+
+## [1.3.1] - 06/05/2026
 
 ### Added
 
+ - Add team_permissions support to repository ([#623](https://github.com/eclipse-csi/otterdog/pull/612))
  - Add tests for workflow validation settings ([#633](https://github.com/eclipse-csi/otterdog/pull/633))
  - Add support for `OTTERDOG_CONFIG_ROOT` environment variable ([#632](https://github.com/eclipse-csi/otterdog/pull/632))
+
+### Fixed
+
+ - Skip fork PR approval API calls for private repositories to avoid 422 errors from GitHub ([#635](https://github.com/eclipse-csi/otterdog/issues/635))
 
 ## [1.3.0] - 30/03/2026
 

@@ -1197,14 +1197,14 @@ requests = "*"
 
 [[package]]
 name = "gitpython"
-version = "3.1.47"
+version = "3.1.49"
 description = "GitPython is a Python library used to interact with Git repositories"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "gitpython-3.1.47-py3-none-any.whl", hash = "sha256:489f590edfd6d20571b2c0e72c6a6ac6915ee8b8cd04572330e3842207a78905"},
-    {file = "gitpython-3.1.47.tar.gz", hash = "sha256:dba27f922bd2b42cb54c87a8ab3cb6beb6bf07f3d564e21ac848913a05a8a3cd"},
+    {file = "gitpython-3.1.49-py3-none-any.whl", hash = "sha256:024b0422d7f84d15cd794844e029ffebd4c5d42a7eb9b936b458697ef550a02c"},
+    {file = "gitpython-3.1.49.tar.gz", hash = "sha256:42f9399c9eb33fc581014bedd76049dfbaf6375aa2a5754575966387280315e1"},
 ]
 
 [package.dependencies]
@@ -4140,4 +4140,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "6e0b347f5939131fe82b8910ec040126afc89119b011508bdb3893a662b3915d"
+content-hash = "4e752649a20a45b7ea589aa6b3711337dbd55045e1ace2579d1e78676c11c2d6"

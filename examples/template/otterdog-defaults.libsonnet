@@ -109,7 +109,10 @@ local newRepo(name) = {
   branch_protection_rules: [],
 
   # rulesets
-  rulesets: []
+  rulesets: [],
+
+  # team permissions
+  team_permissions: {},
 };
 
 # Function to extend an existing repo with the same name.
