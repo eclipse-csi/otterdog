@@ -549,7 +549,6 @@ class WebClient:
         max_retries = self._REPO_DEFAULTS_404_RETRIES
         max_attempts = max_retries + 1
         for retry_idx in range(max_attempts):
-            attempt = retry_idx + 1
             _logger.trace("loading page '%s'", url)
             response = await page.goto(url)
             response = unwrap(response)
@@ -562,7 +561,7 @@ class WebClient:
                 _logger.debug(
                     "loading github page '%s' returned 404 (attempt %s/%s), retrying ...",
                     url,
-                    attempt,
+                    retry_idx + 1,
                     max_attempts,
                 )
                 await sleep(self._REPO_DEFAULTS_404_RETRY_DELAY)
