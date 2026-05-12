@@ -546,10 +546,9 @@ class WebClient:
 
         Also, save a screenshot if trace logging is enabled.
         """
-        status = None
         max_retries = self._REPO_DEFAULTS_404_RETRIES
         max_attempts = max_retries + 1
-        for retry_idx in range(max_retries + 1):
+        for retry_idx in range(max_attempts):
             attempt = retry_idx + 1
             _logger.trace("loading page '%s'", url)
             response = await page.goto(url)
