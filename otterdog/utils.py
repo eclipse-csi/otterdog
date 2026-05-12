@@ -416,10 +416,12 @@ class restrict_jsonnet_imports:  # noqa: N801
             self._token = None
 
 
-def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, str | None]]:
+def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str | bytes, str | bytes], tuple[str, str | None]]:
     real_root = os.path.realpath(allowed_root)
 
-    def callback(base: str, rel: str) -> tuple[str, str | None]:
+    def callback(base: str | bytes, rel: str | bytes) -> tuple[str, str | None]:
+        base = os.fsdecode(base)
+        rel = os.fsdecode(rel)
         candidate = rel if os.path.isabs(rel) else os.path.join(base, rel)
         # resolve symlinks and ".." traversal before the containment check
         resolved = os.path.realpath(candidate)
