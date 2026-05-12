@@ -547,7 +547,8 @@ class WebClient:
         Also, save a screenshot if trace logging is enabled.
         """
         status = None
-        for try_idx in range(1, self._REPO_DEFAULTS_404_RETRIES + 2):
+        max_attempts = self._REPO_DEFAULTS_404_RETRIES + 1
+        for attempt in range(1, max_attempts + 1):
             _logger.trace("loading page '%s'", url)
             response = await page.goto(url)
             response = unwrap(response)
@@ -556,11 +557,11 @@ class WebClient:
             if response.ok:
                 break
 
-            if status == 404 and url.endswith(self._REPO_DEFAULTS_PAGE_URL) and try_idx <= self._REPO_DEFAULTS_404_RETRIES:
+            if status == 404 and url.endswith(self._REPO_DEFAULTS_PAGE_URL) and attempt < max_attempts:
                 _logger.debug(
                     "loading github page '%s' returned 404 (attempt %s/%s), retrying ...",
                     url,
-                    try_idx,
+                    attempt,
                     self._REPO_DEFAULTS_404_RETRIES,
                 )
                 await sleep(self._REPO_DEFAULTS_404_RETRY_DELAY)
