@@ -112,6 +112,18 @@ class WebClient:
 
             parent = setting_def.get("parent", None)
             if parent is not None:
+                if parent not in settings:
+                    if parent not in included_keys:
+                        settings[setting] = None
+                        continue
+
+                    _logger.warning(
+                        "failed to retrieve parent setting '%s', skipping dependent setting '%s'",
+                        parent,
+                        setting,
+                    )
+                    continue
+
                 parent_value = settings[parent]
                 if isinstance(parent_value, bool) and parent_value is False:
                     settings[setting] = None
