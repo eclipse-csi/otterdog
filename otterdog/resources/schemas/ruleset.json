@@ -39,7 +39,28 @@
     },
 
     "required_status_checks": { "$ref": "#/$defs/status_check_or_null" },
-    "required_merge_queue": { "$ref": "#/$defs/merge_queue_or_null" }
+    "required_merge_queue": { "$ref": "#/$defs/merge_queue_or_null" },
+    "required_copilot_review": { "$ref": "#/$defs/copilot_review_or_null" },
+
+    "commit_message_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "commit_author_email_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "committer_email_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "branch_name_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "tag_name_pattern": { "$ref": "#/$defs/pattern_or_null" },
+
+    "restricted_file_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "max_file_path_length": { "type": "integer" },
+    "restricted_file_extensions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "max_file_size": { "type": "integer" },
+
+    "required_code_scanning": { "$ref": "#/$defs/code_scanning_or_null" },
+    "required_workflows": { "$ref": "#/$defs/workflows_or_null" }
   },
 
   "$defs": {
@@ -94,6 +115,69 @@
         "wait_time_for_minimum_group_size": { "type": "integer" },
         "status_check_timeout": { "type": "integer" },
         "requires_all_group_entries_to_pass_required_checks": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "copilot_review_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/copilot_review" },
+          { "type": "null" }
+        ]
+    },
+    "copilot_review": {
+      "type": "object",
+      "properties": {
+        "review_new_pushes": { "type": "boolean" },
+        "review_draft_pull_requests": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "pattern_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/pattern" },
+          { "type": "null" }
+        ]
+    },
+    "pattern": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "negate": { "type": "boolean" },
+        "operator": { "type": "string" },
+        "pattern": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "code_scanning_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/code_scanning" },
+          { "type": "null" }
+        ]
+    },
+    "code_scanning": {
+      "type": "object",
+      "properties": {
+        "code_scanning_tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflows_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/workflows" },
+          { "type": "null" }
+        ]
+    },
+    "workflows": {
+      "type": "object",
+      "properties": {
+        "do_not_enforce_on_create": { "type": "boolean" },
+        "workflows": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
       "additionalProperties": false
     }
