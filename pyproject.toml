@@ -3,7 +3,7 @@ name = "otterdog"
 description = "Tool to manage GitHub organizations and their repositories."
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "GitPython (>=3.1,<4.0)",
+    "GitPython (>=3.1.49,<4.0)",
     "JSONBender (>=0.9,<1.0)",
     "PyNaCl (>=1.5,<2.0)",
     "aiofiles (>=24.1,<25.0)",
@@ -109,11 +109,12 @@ prek = ">=0.3.0"
 
 [tool.poetry.group.test.dependencies]
 tox = ">4.22"
-pytest = ">=8.0"
+pytest = ">=9.0.3"
 pytest-asyncio = ">=0.24"
 parameterized  = ">=0.9"
 pytest-cov = ">=6.1.1"
 pretend = "^1.0.9"
+referencing = "^0.37.0"
 
 [tool.poetry.group.typing.dependencies]
 mypy = ">=1.19.1"

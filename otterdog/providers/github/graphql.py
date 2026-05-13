@@ -255,11 +255,46 @@ class GraphQLClient:
         variables = {"owner": org_id, "user": user_login}
         return await self._run_paged_query(variables, "get-team-membership.gql", "data.organization.teams")
 
+    async def get_team_permissions(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug(f"retrieving team permissions in org '{org_id}'")
+
+        variables = {"org": org_id}
+        # Run the graphql query with a limit of 100 for teams and repositories. If there are more than
+        # 100 teams available this gets handled in _run_paged_query. If there are more than 100
+        # permissions to repositories available then these are handled in the subsequent loop, where the
+        # pageInfo is used to get the missing repository entries.
+        teams = await self._run_paged_query(
+            input_variables=variables,
+            query_file="get-team-permissions-repositories.gql",
+            prefix_selector="data.organization.teams",
+        )
+        for team in teams:
+            repos = team["repositories"]["edges"]
+            page_info = team["repositories"]["pageInfo"]
+            if not page_info["hasNextPage"]:
+                continue
+            repo_cursor = page_info["endCursor"]
+            sub_vars = {
+                "org": org_id,
+                "teamSlug": team["slug"],
+                "endCursor": repo_cursor,
+            }
+            sub_result = await self._run_paged_query(
+                input_variables=sub_vars,
+                query_file="get-repository-permissions-of-team.gql",
+                prefix_selector="data.organization.team.repositories",
+                selector_type=".edges",
+            )
+            repos.extend(sub_result)
+
+        return teams
+
     async def _run_paged_query(
         self,
         input_variables: dict[str, Any],
         query_file: str,
         prefix_selector: str = "data.repository.branchProtectionRules",
+        selector_type: str = ".nodes",
     ) -> list[dict[str, Any]]:
         _logger.debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
@@ -280,7 +315,7 @@ class GraphQLClient:
                 _logger.trace("graphql result = %s", json.dumps(json_data, indent=2))
 
             if status < 400 and "data" in json_data:
-                rules_result = query_json(prefix_selector + ".nodes", json_data)
+                rules_result = query_json(prefix_selector + selector_type, json_data)
 
                 for rule in rules_result:
                     result.append(rule)
