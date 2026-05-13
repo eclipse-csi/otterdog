@@ -30,6 +30,10 @@
       "type": "array",
       "items": { "$ref": "org-ruleset.json" }
     },
+    "code_security_configurations": {
+      "type": "array",
+      "items": { "$ref": "org-code-security-configuration.json" }
+    },
     "repositories": {
       "type": "array",
       "items": { "$ref": "repository.json" }
