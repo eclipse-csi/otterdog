@@ -7,6 +7,8 @@
   "description": null,
   "email": null,
   "has_organization_projects": true,
+  "immutable_releases_enforced_repositories": "selected",
+  "immutable_releases_selected_repositories": ["otterdog-defaults"],
   "location": null,
   "members_can_change_repo_visibility": false,
   "members_can_create_pages": true,

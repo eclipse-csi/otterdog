@@ -139,6 +139,66 @@ class TestRepoClientUpdateRepo:
             pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
         ]
 
+    async def test_update_repo_with_immutable_releases_after_rename(self):
+        async def mock_request_json(method, url, data=None):
+            return data or {}
+
+        async def mock_request_raw(method, url):
+            return (204, "")
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=pretend.call_recorder(mock_request_raw),
+            )
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        update_data = {"name": "new-repo-name", "immutable_releases_enabled": True}
+
+        await repo_client.update_repo("test-org", "old-repo-name", update_data)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
+        ]
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("PUT", "/repos/test-org/new-repo-name/immutable-releases"),
+        ]
+
+
+class TestRepoClientImmutableReleases:
+    async def test_fill_immutable_releases_enabled(self):
+        async def mock_request_raw(method, url):
+            return (200, json.dumps({"enabled": True, "enforced_by_owner": False}))
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/immutable-releases")
+        ]
+        assert repo_data["immutable_releases_enabled"] is True
+
+    async def test_fill_immutable_releases_disabled(self):
+        async def mock_request_raw(method, url):
+            return (404, "Not Found")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/immutable-releases")
+        ]
+        assert repo_data["immutable_releases_enabled"] is False
+
 
 class TestRepoClientForkPrApprovalPolicy:
     async def test_get_fork_pr_approval_policy_success(self):

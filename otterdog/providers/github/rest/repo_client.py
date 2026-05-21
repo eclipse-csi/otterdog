@@ -84,6 +84,7 @@ class RepoClient(RestClient):
                 if not private:
                     await self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data)
 
+            await self._fill_immutable_releases(org_id, repo_name, repo_data)
             await self._fill_github_pages_config(org_id, repo_name, repo_data)
             await self._fill_topics(org_id, repo_name, repo_data)
             await self._fill_code_scanning_config(org_id, repo_name, repo_data)
@@ -116,6 +117,11 @@ class RepoClient(RestClient):
         else:
             private_vulnerability_reporting = None
 
+        if "immutable_releases_enabled" in data:
+            immutable_releases_enabled = bool(data.pop("immutable_releases_enabled"))
+        else:
+            immutable_releases_enabled = None
+
         topics = list(data.pop("topics")) if "topics" in data else None
         custom_properties = list(data.pop("custom_properties")) if "custom_properties" in data else None
         gh_pages = data.pop("gh_pages") if "gh_pages" in data else None
@@ -136,6 +142,8 @@ class RepoClient(RestClient):
                     await self._update_private_vulnerability_reporting(
                         org_id, repo_name, private_vulnerability_reporting
                     )
+                if immutable_releases_enabled is not None:
+                    await self._update_immutable_releases(org_id, repo_name, immutable_releases_enabled)
                 if topics is not None:
                     await self._update_topics(org_id, repo_name, topics)
                 if custom_properties is not None and len(custom_properties) > 0:
@@ -256,6 +264,7 @@ class RepoClient(RestClient):
         update_keys = [
             "dependabot_alerts_enabled",
             "web_commit_signoff_required",
+            "immutable_releases_enabled",
             "security_and_analysis",
             "topics",
             "gh_pages",
@@ -599,6 +608,23 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed to update vulnerability alerts for repo '{org_id}/{repo_name}': {body}")
 
         _logger.debug("updated vulnerability alerts for repo '%s/%s'", org_id, repo_name)
+
+    async def _fill_immutable_releases(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
+        _logger.debug("retrieving immutable release settings for '%s/%s'", org_id, repo_name)
+
+        status, _ = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
+        repo_data["immutable_releases_enabled"] = status == 200
+
+    async def _update_immutable_releases(self, org_id: str, repo_name: str, immutable_releases_enabled: bool) -> None:
+        _logger.debug("updating immutable release settings for '%s/%s'", org_id, repo_name)
+
+        method = "PUT" if immutable_releases_enabled is True else "DELETE"
+        status, body = await self.requester.request_raw(method, f"/repos/{org_id}/{repo_name}/immutable-releases")
+
+        if status != 204:
+            raise RuntimeError(f"failed to update immutable releases for repo '{org_id}/{repo_name}': {body}")
+
+        _logger.debug("updated immutable release settings for repo '%s/%s'", org_id, repo_name)
 
     async def _fill_private_vulnerability_reporting(
         self, org_id: str, repo_name: str, repo_data: dict[str, Any]

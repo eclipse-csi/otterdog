@@ -68,6 +68,8 @@ class OrganizationSettings(ModelObject):
     two_factor_requirement: bool = dataclasses.field(metadata={"read_only": True})
     web_commit_signoff_required: bool
     default_code_security_configurations_disabled: bool
+    immutable_releases_enforced_repositories: str
+    immutable_releases_selected_repositories: list[str]
     members_can_create_private_repositories: bool
     members_can_create_public_repositories: bool
     members_can_fork_private_repositories: bool
@@ -92,6 +94,9 @@ class OrganizationSettings(ModelObject):
         return "settings"
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
+        if field.name == "immutable_releases_selected_repositories":
+            return self.immutable_releases_enforced_repositories == "selected"
+
         if self.has_discussions is False and field.name == "discussion_source_repository":
             return False
 
@@ -127,6 +132,28 @@ class OrganizationSettings(ModelObject):
                 FailureType.ERROR,
                 "enabling 'members_can_create_private_pages' requires an 'enterprise' plan.",
             )
+
+        if is_set_and_valid(self.immutable_releases_enforced_repositories):
+            if self.immutable_releases_enforced_repositories not in {"all", "none", "selected"}:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"'immutable_releases_enforced_repositories' has value "
+                    f"'{self.immutable_releases_enforced_repositories}', "
+                    f"while only values ('all' | 'none' | 'selected') are allowed.",
+                )
+
+            if (
+                self.immutable_releases_enforced_repositories != "selected"
+                and is_set_and_valid(self.immutable_releases_selected_repositories)
+                and len(self.immutable_releases_selected_repositories) > 0
+            ):
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"'immutable_releases_enforced_repositories' is set to "
+                    f"'{self.immutable_releases_enforced_repositories}', "
+                    f"but 'immutable_releases_selected_repositories' is set to "
+                    f"'{self.immutable_releases_selected_repositories}', setting will be ignored.",
+                )
 
         if is_set_and_valid(self.default_repository_permission):
             if self.default_repository_permission not in {
