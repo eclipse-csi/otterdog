@@ -139,6 +139,9 @@ class OrgClient(RestClient):
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/settings/immutable-releases")
         except GitHubException as ex:
+            if ex.status == 404:
+                _logger.debug("immutable releases not available for org '%s', treating as disabled", org_id)
+                return {"enforced_repositories": "none"}
             raise RuntimeError(f"failed retrieving immutable release settings for org '{org_id}':\n{ex}") from ex
 
     async def _update_immutable_releases_settings(self, org_id: str, data: dict[str, Any]) -> None:

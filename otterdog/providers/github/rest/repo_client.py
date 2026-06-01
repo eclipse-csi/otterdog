@@ -612,8 +612,15 @@ class RepoClient(RestClient):
     async def _fill_immutable_releases(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         _logger.debug("retrieving immutable release settings for '%s/%s'", org_id, repo_name)
 
-        status, _ = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
-        repo_data["immutable_releases_enabled"] = status == 200
+        status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
+        if status == 200:
+            repo_data["immutable_releases_enabled"] = True
+        elif status == 404:
+            repo_data["immutable_releases_enabled"] = False
+        else:
+            raise RuntimeError(
+                f"failed retrieving immutable release settings for repo '{org_id}/{repo_name}': {status}: {body}"
+            )
 
     async def _update_immutable_releases(self, org_id: str, repo_name: str, immutable_releases_enabled: bool) -> None:
         _logger.debug("updating immutable release settings for '%s/%s'", org_id, repo_name)

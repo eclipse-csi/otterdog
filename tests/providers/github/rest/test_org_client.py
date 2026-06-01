@@ -99,6 +99,31 @@ class TestOrgClientImmutableReleases:
             },
         )
 
+    async def test_get_settings_falls_back_when_immutable_releases_not_available(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                raise GitHubException(url, 404, "Not Found")
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(mock_request_json))
+        mock_restapi = pretend.stub(requester=mock_requester)
+        org_client = OrgClient(mock_restapi)
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result["immutable_releases_enforced_repositories"] == "none"
+        assert result["immutable_releases_selected_repositories"] == []
+
 
 class TestOrgClientForkPrApprovalPolicy:
     async def test_get_fork_pr_approval_policy_success(self):

@@ -199,6 +199,18 @@ class TestRepoClientImmutableReleases:
         ]
         assert repo_data["immutable_releases_enabled"] is False
 
+    async def test_fill_immutable_releases_raises_on_unexpected_status(self):
+        async def mock_request_raw(method, url):
+            return (500, "Internal Server Error")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        with pytest.raises(RuntimeError, match="failed retrieving immutable release settings"):
+            await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
 
 class TestRepoClientForkPrApprovalPolicy:
     async def test_get_fork_pr_approval_policy_success(self):
