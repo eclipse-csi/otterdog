@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import re
-from asyncio import gather
+from asyncio import gather, sleep
 from contextlib import asynccontextmanager
 from datetime import datetime
 from functools import cached_property
@@ -33,6 +33,9 @@ _logger = logging.get_logger(__name__)
 class WebClient:
     # use 10s as default timeout
     _DEFAULT_TIMEOUT = 10000
+    _REPO_DEFAULTS_PAGE_URL = "/settings/repository-defaults"
+    _REPO_DEFAULTS_404_RETRIES = 5
+    _REPO_DEFAULTS_404_RETRY_DELAY = 1
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
@@ -543,11 +546,28 @@ class WebClient:
 
         Also, save a screenshot if trace logging is enabled.
         """
-        _logger.trace("loading page '%s'", url)
-        response = await page.goto(url)
-        response = unwrap(response)
-        if not response.ok:
-            raise RuntimeError(f"unable to load github page '{url}': {response.status}")
+        max_retries = self._REPO_DEFAULTS_404_RETRIES
+        max_attempts = max_retries + 1
+        for retry_idx in range(max_attempts):
+            _logger.trace("loading page '%s'", url)
+            response = await page.goto(url)
+            response = unwrap(response)
+            status = response.status
+
+            if response.ok:
+                break
+
+            if status == 404 and url.endswith(self._REPO_DEFAULTS_PAGE_URL) and retry_idx < max_retries:
+                _logger.debug(
+                    "loading github page '%s' returned 404 (attempt %s/%s), retrying ...",
+                    url,
+                    retry_idx + 1,
+                    max_attempts,
+                )
+                await sleep(self._REPO_DEFAULTS_404_RETRY_DELAY)
+                continue
+
+            raise RuntimeError(f"unable to load github page '{url}': {status}")
 
         _logger.trace("loaded page '%s' with title '%s'", url, await page.title())
 
