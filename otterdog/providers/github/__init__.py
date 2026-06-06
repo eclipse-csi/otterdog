@@ -160,6 +160,35 @@ class GitHubProvider:
     async def delete_org_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
         await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
 
+    async def get_org_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_code_security_configurations(org_id)
+
+    async def add_org_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> None:
+        await self.rest_api.org.add_code_security_configuration(org_id, data)
+
+    async def update_org_code_security_configuration(
+        self, org_id: str, configuration_id: int, name: str, data: dict[str, Any]
+    ) -> None:
+        if len(data) > 0:
+            if configuration_id <= 0:
+                resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
+                if resolved_id is None:
+                    raise RuntimeError(
+                        f"failed to find code security configuration with name '{name}' in org '{org_id}'"
+                    )
+                configuration_id = resolved_id
+
+            await self.rest_api.org.update_code_security_configuration(org_id, configuration_id, name, data)
+
+    async def delete_org_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
+        if configuration_id <= 0:
+            resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
+            if resolved_id is None:
+                raise RuntimeError(f"failed to find code security configuration with name '{name}' in org '{org_id}'")
+            configuration_id = resolved_id
+
+        await self.rest_api.org.delete_code_security_configuration(org_id, configuration_id, name)
+
     async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_teams(org_id)
 
