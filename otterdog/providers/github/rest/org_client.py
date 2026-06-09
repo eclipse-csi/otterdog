@@ -383,6 +383,166 @@ class OrgClient(RestClient):
 
         _logger.debug("removed org secret '%s'", secret_name)
 
+    async def get_dependabot_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving dependabot secrets for org '%s'", org_id)
+
+        try:
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/dependabot/secrets")
+
+            secrets = response["secrets"]
+            for secret in secrets:
+                if secret["visibility"] == "selected":
+                    secret["selected_repositories"] = await self._get_selected_repositories_for_dependabot_secret(
+                        org_id, secret["name"]
+                    )
+            return secrets
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting dependabot secrets for org '{org_id}':\n{ex}") from ex
+
+    async def _get_selected_repositories_for_dependabot_secret(
+        self, org_id: str, secret_name: str
+    ) -> list[dict[str, Any]]:
+        _logger.debug("retrieving selected repositories for dependabot secret '%s' in org '%s'", secret_name, org_id)
+
+        try:
+            url = f"/orgs/{org_id}/dependabot/secrets/{secret_name}/repositories"
+            response = await self.requester.request_json("GET", url)
+            return response["repositories"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
+
+    async def add_dependabot_secret(self, org_id: str, data: dict[str, str]) -> None:
+        secret_name = data.pop("name")
+        _logger.debug("adding dependabot secret '%s' in org '%s'", secret_name, org_id)
+
+        await self._encrypt_dependabot_secret_inplace(org_id, data)
+
+        status, _ = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/dependabot/secrets/{secret_name}", json.dumps(data)
+        )
+
+        if status != 201:
+            raise RuntimeError(f"failed to add dependabot secret '{secret_name}'")
+
+        _logger.debug("added dependabot secret '%s'", secret_name)
+
+    async def update_dependabot_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        _logger.debug("updating dependabot secret '%s' in org '%s'", secret_name, org_id)
+
+        if "name" in secret:
+            secret.pop("name")
+
+        await self._encrypt_dependabot_secret_inplace(org_id, secret)
+
+        status, _ = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/dependabot/secrets/{secret_name}", json.dumps(secret)
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update dependabot secret '{secret_name}'")
+
+        _logger.debug("updated dependabot secret '%s'", secret_name)
+
+    async def _encrypt_dependabot_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
+        if "value" in data:
+            value = data.pop("value")
+            key_id, public_key = await self.get_dependabot_public_key(org_id)
+            data["encrypted_value"] = encrypt_value(public_key, value)
+            data["key_id"] = key_id
+
+    async def get_dependabot_public_key(self, org_id: str) -> tuple[str, str]:
+        response = await self.requester.request_json("GET", f"/orgs/{org_id}/dependabot/secrets/public-key")
+        return response["key_id"], response["key"]
+
+    async def delete_dependabot_secret(self, org_id: str, secret_name: str) -> None:
+        _logger.debug("deleting dependabot secret '%s' in org '%s'", secret_name, org_id)
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/dependabot/secrets/{secret_name}")
+        if status != 204:
+            raise RuntimeError(f"failed to delete dependabot secret '{secret_name}'")
+
+        _logger.debug("removed dependabot secret '%s'", secret_name)
+
+    async def get_codespaces_secrets(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving codespaces secrets for org '%s'", org_id)
+
+        try:
+            response = await self.requester.request_json("GET", f"/orgs/{org_id}/codespaces/secrets")
+
+            secrets = response["secrets"]
+            for secret in secrets:
+                if secret["visibility"] == "selected":
+                    secret["selected_repositories"] = await self._get_selected_repositories_for_codespaces_secret(
+                        org_id, secret["name"]
+                    )
+            return secrets
+        except GitHubException as ex:
+            raise RuntimeError(f"failed getting codespaces secrets for org '{org_id}':\n{ex}") from ex
+
+    async def _get_selected_repositories_for_codespaces_secret(
+        self, org_id: str, secret_name: str
+    ) -> list[dict[str, Any]]:
+        _logger.debug("retrieving selected repositories for codespaces secret '%s' in org '%s'", secret_name, org_id)
+
+        try:
+            url = f"/orgs/{org_id}/codespaces/secrets/{secret_name}/repositories"
+            response = await self.requester.request_json("GET", url)
+            return response["repositories"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
+
+    async def add_codespaces_secret(self, org_id: str, data: dict[str, str]) -> None:
+        secret_name = data.pop("name")
+        _logger.debug("adding codespaces secret '%s' in org '%s'", secret_name, org_id)
+
+        await self._encrypt_codespaces_secret_inplace(org_id, data)
+
+        status, _ = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/codespaces/secrets/{secret_name}", json.dumps(data)
+        )
+
+        if status != 201:
+            raise RuntimeError(f"failed to add codespaces secret '{secret_name}'")
+
+        _logger.debug("added codespaces secret '%s'", secret_name)
+
+    async def update_codespaces_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
+        _logger.debug("updating codespaces secret '%s' in org '%s'", secret_name, org_id)
+
+        if "name" in secret:
+            secret.pop("name")
+
+        await self._encrypt_codespaces_secret_inplace(org_id, secret)
+
+        status, _ = await self.requester.request_raw(
+            "PUT", f"/orgs/{org_id}/codespaces/secrets/{secret_name}", json.dumps(secret)
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update codespaces secret '{secret_name}'")
+
+        _logger.debug("updated codespaces secret '%s'", secret_name)
+
+    async def _encrypt_codespaces_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
+        if "value" in data:
+            value = data.pop("value")
+            key_id, public_key = await self.get_codespaces_public_key(org_id)
+            data["encrypted_value"] = encrypt_value(public_key, value)
+            data["key_id"] = key_id
+
+    async def get_codespaces_public_key(self, org_id: str) -> tuple[str, str]:
+        response = await self.requester.request_json("GET", f"/orgs/{org_id}/codespaces/secrets/public-key")
+        return response["key_id"], response["key"]
+
+    async def delete_codespaces_secret(self, org_id: str, secret_name: str) -> None:
+        _logger.debug("deleting codespaces secret '%s' in org '%s'", secret_name, org_id)
+
+        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/codespaces/secrets/{secret_name}")
+        if status != 204:
+            raise RuntimeError(f"failed to delete codespaces secret '{secret_name}'")
+
+        _logger.debug("removed codespaces secret '%s'", secret_name)
+
     async def get_variables(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving variables for org '%s'", org_id)
 
