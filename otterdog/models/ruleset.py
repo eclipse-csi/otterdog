@@ -49,10 +49,10 @@ _logger = get_logger(__name__)
 @dataclasses.dataclass
 class PullRequestSettings(EmbeddedModelObject):
     required_approving_review_count: int
-    dismisses_stale_reviews: bool
-    requires_code_owner_review: bool
-    requires_last_push_approval: bool
-    requires_review_thread_resolution: bool
+    dismisses_stale_reviews: bool = dataclasses.field(default=False)
+    requires_code_owner_review: bool = dataclasses.field(default=False)
+    requires_last_push_approval: bool = dataclasses.field(default=False)
+    requires_review_thread_resolution: bool = dataclasses.field(default=False)
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         for key in self.keys(False):
