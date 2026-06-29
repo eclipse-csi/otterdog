@@ -1,6 +1,11 @@
 # Change Log
 
-## [1.3.4] - Unreleased
+## [1.3.4] - 29/06/2026
+
+### Fixed
+
+ - Fix ruleset default value when UNSET ([#675](https://github.com/eclipse-csi/otterdog/pull/675))
+ - Don't send `allowed_values` for `string`/`true_false` custom properties ([#653](https://github.com/eclipse-csi/otterdog/pull/653))
 
 ## [1.3.3] - 08/05/2026
 
