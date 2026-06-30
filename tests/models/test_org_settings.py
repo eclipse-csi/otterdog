@@ -50,6 +50,8 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.default_repository_permission == "read"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
+        assert settings.immutable_releases_enforced_repositories == "selected"
+        assert settings.immutable_releases_selected_repositories == ["otterdog-defaults"]
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -80,6 +82,8 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.default_branch_name == "main"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
+        assert settings.immutable_releases_enforced_repositories == "selected"
+        assert settings.immutable_releases_selected_repositories == ["otterdog-defaults"]
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -101,8 +105,10 @@ class OrganizationSettingsTest(ModelTest):
 
         provider_data = await settings.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 24
+        assert len(provider_data) == 26
         assert provider_data["billing_email"] == settings.billing_email
+        assert provider_data["immutable_releases_enforced_repositories"] == "selected"
+        assert provider_data["immutable_releases_selected_repositories"] == ["otterdog-defaults"]
 
     async def test_changes_to_provider(self):
         current = OrganizationSettings.from_model_data(self.model_data)

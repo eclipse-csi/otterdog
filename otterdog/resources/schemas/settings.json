@@ -75,6 +75,15 @@
       "provider": "restapi",
       "type": "boolean"
     },
+    "immutable_releases_enforced_repositories": {
+      "provider": "restapi",
+      "type": "string"
+    },
+    "immutable_releases_selected_repositories": {
+      "provider": "restapi",
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "members_can_change_repo_visibility": {
       "provider": "web",
       "type": "boolean"
