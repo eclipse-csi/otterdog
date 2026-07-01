@@ -125,7 +125,7 @@ If you want use the integration with GitHub, you can use the tailscale
 
 1. Sign up/Login to tail [tailscale](https://tailscale.com)
 
-2. Go to tailscale [admin console](https://login.tailscale.com/admin/machines) 
+2. Go to tailscale [admin console](https://login.tailscale.com/admin/machines)
 
 We use [tailscale on Kubernetes](https://tailscale.com/learn/managing-access-to-kubernetes-with-tailscale#preparing-the-operator) (minikube), configuring it:
 
@@ -222,7 +222,7 @@ HTTPS Certificates -> Click `Enable HTTPS...`
     end="<!--github-app-end-->"
 %}
 
-The otterdog app should appear in the organization settings > Third-party Access > GitHub Apps: 
+The otterdog app should appear in the organization settings > Third-party Access > GitHub Apps:
 https://github.com/organizations/otterdog-<GitHub Username>/settings/apps
 
 #### Install the GitHub App in the organization
@@ -325,7 +325,7 @@ https://github.com/organizations/otterdog-<GitHub Username>/settings/apps/otterd
 Click **Redeliver** on the most recent **ping** delivery to trigger a test event. Check the otterdog backend logs to confirm the ping was received:
 
 ```shell
-[2026-07-01 09:30:22.093  ] [9] [INFO] ping (3d5b7472-7522-11f1-9353-7f66c710a3db) 
+[2026-07-01 09:30:22.093  ] [9] [INFO] ping (3d5b7472-7522-11f1-9353-7f66c710a3db)
 ```
 
 #### [Optional] Configure dependency track
