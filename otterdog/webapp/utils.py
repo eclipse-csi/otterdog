@@ -195,7 +195,7 @@ def _get_otterdog_config_url() -> str:
     config_file_repo = current_app.config["OTTERDOG_CONFIG_REPO"]
     config_file_path = current_app.config["OTTERDOG_CONFIG_PATH"]
 
-    return f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+    return f"'https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{config_file_path}'"
 
 
 async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
@@ -206,10 +206,10 @@ async def _load_otterdog_config(ref: str | None = None) -> OtterdogConfig:
 
     logger.info(
         f"loading otterdog config from url "
-        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{config_file_path}'"
     )
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"].strip()), get_github_cache()) as rest_api:
         content = await rest_api.content.get_content(config_file_owner, config_file_repo, config_file_path, ref)
         import aiofiles
 
@@ -233,12 +233,12 @@ async def _load_global_policies(ref: str | None = None) -> list[Policy]:
 
     logger.info(
         f"loading global policies from url "
-        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{config_file_path}'"
     )
 
     policies = {}
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"].strip()), get_github_cache()) as rest_api:
         try:
             entries = await rest_api.content.get_content_object(
                 config_file_owner, config_file_repo, config_file_path, ref
@@ -278,12 +278,12 @@ async def _load_global_blueprints(ref: str | None = None) -> list[Blueprint]:
 
     logger.info(
         f"loading global blueprints from url "
-        f"'https://github.com/{config_file_owner}/{config_file_repo}/{config_file_path}'"
+        f"'https://github.com/{config_file_owner}/{config_file_repo}/blob/main/{config_file_path}'"
     )
 
     blueprints = {}
 
-    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"]), get_github_cache()) as rest_api:
+    async with RestApi(token_auth(current_app.config["OTTERDOG_CONFIG_TOKEN"].strip()), get_github_cache()) as rest_api:
         try:
             entries = await rest_api.content.get_content_object(
                 config_file_owner, config_file_repo, config_file_path, ref

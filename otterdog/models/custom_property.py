@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from jsonbender import OptionalS, S  # type: ignore
 
@@ -35,6 +35,8 @@ class CustomProperty(ModelObject):
     Represents a Custom Property defined in an Organization.
     """
 
+    VALUE_TYPES_WITH_ALLOWED_VALUES: ClassVar[frozenset[str]] = frozenset({"single_select", "multi_select"})
+
     name: str = dataclasses.field(metadata={"key": True})
     value_type: str
     required: bool
@@ -56,7 +58,7 @@ class CustomProperty(ModelObject):
                 )
 
             if (
-                self.value_type in {"single_select", "multi_select"}
+                self.value_type in self.VALUE_TYPES_WITH_ALLOWED_VALUES
                 and is_set_and_present(self.allowed_values)
                 and len(self.allowed_values) == 0
             ):
@@ -67,7 +69,7 @@ class CustomProperty(ModelObject):
                 )
 
             if (
-                self.value_type in {"single_select", "multi_select"}
+                self.value_type in self.VALUE_TYPES_WITH_ALLOWED_VALUES
                 and is_set_and_present(self.allowed_values)
                 and len(self.allowed_values) > 200
             ):
@@ -132,7 +134,7 @@ class CustomProperty(ModelObject):
         if self.required is not True and field.name in ["default_value"]:
             return False
 
-        if self.value_type not in {"single_select", "multi_select"} and field.name in ["allowed_values"]:
+        if self.value_type not in self.VALUE_TYPES_WITH_ALLOWED_VALUES and field.name in ["allowed_values"]:
             return False
 
         return True
@@ -159,6 +161,10 @@ class CustomProperty(ModelObject):
 
         if "name" in data:
             mapping.pop("name")
+
+        value_type = data.get("value_type")
+        if value_type not in cls.VALUE_TYPES_WITH_ALLOWED_VALUES and "allowed_values" in mapping:
+            mapping.pop("allowed_values")
 
         return mapping
 
