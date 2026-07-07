@@ -208,6 +208,15 @@ class Repository(ModelObject):
     def model_object_name(self) -> str:
         return "repository"
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        # stamp the repository name onto each environment so that nested environment
+        # secrets / variables can address the correct REST endpoints later on, see
+        # Environment.repo_name.
+        for env in self.environments:
+            env.repo_name = self.name
+
     def get_all_names(self) -> list[str]:
         return [self.name, *self.aliases]
 
@@ -255,6 +264,9 @@ class Repository(ModelObject):
 
     def add_environment(self, environment: Environment) -> None:
         self.environments.append(environment)
+
+    def get_environment(self, name: str) -> Environment | None:
+        return next(filter(lambda x: x.name == name, self.environments), None)
 
     def set_environments(self, environments: list[Environment]) -> None:
         self.environments = environments
@@ -1028,6 +1040,9 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.resolve_secrets(secret_resolver)
 
+        for env in self.environments:
+            env.resolve_secrets(secret_resolver)
+
     def copy_secrets(self, other_object: ModelObject) -> None:
         for webhook in self.webhooks:
             other_repo = cast("Repository", other_object)
@@ -1040,6 +1055,12 @@ class Repository(ModelObject):
             other_secret = other_repo.get_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
+
+        for env in self.environments:
+            other_repo = cast("Repository", other_object)
+            other_env = other_repo.get_environment(env.name)
+            if other_env is not None:
+                env.copy_secrets(other_env)
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"

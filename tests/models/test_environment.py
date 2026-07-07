@@ -41,8 +41,17 @@ class EnvironmentTest(ModelTest):
         assert env.name == "linux"
         assert env.wait_timer == 15
         assert env.reviewers == ["@netomi", "@OtterdogTest/eclipsefdn-security"]
+        assert env.prevent_self_review is True
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
+
+        assert len(env.secrets) == 1
+        assert env.secrets[0].name == "ENV-SECRET"
+        assert env.secrets[0].value == "1234"
+
+        assert len(env.variables) == 1
+        assert env.variables[0].name == "ENV-VARIABLE"
+        assert env.variables[0].value == "some-value"
 
     def test_load_from_provider(self):
         env = Environment.from_provider_data(self.org_id, self.provider_data)
@@ -52,16 +61,21 @@ class EnvironmentTest(ModelTest):
         assert env.name == "linux"
         assert env.wait_timer == 15
         assert env.reviewers == ["@netomi", "@OtterdogTest/eclipsefdn-security"]
+        assert env.prevent_self_review is True
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
+
+        assert env.secrets == []
+        assert env.variables == []
 
     async def test_to_provider(self):
         env = Environment.from_model_data(self.model_data)
 
         provider_data = await env.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 5
+        assert len(provider_data) == 6
         assert provider_data["wait_timer"] == 15
+        assert provider_data["prevent_self_review"] is True
 
         assert query_json("reviewers[0].id", provider_data) == "id_netomi"
         assert query_json("reviewers[1].id", provider_data) == "id_OtterdogTest/eclipsefdn-security"
