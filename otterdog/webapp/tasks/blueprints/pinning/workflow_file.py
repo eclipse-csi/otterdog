@@ -29,6 +29,8 @@ class WorkflowFile:
 
         # regular workflows
         for _k, v in self.content.get("jobs", {}).items():
+            if v is None:
+                continue
             # jobs.<job_id>.steps[*].uses
             for step in v.get("steps", []):
                 if "uses" in step:
