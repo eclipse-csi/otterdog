@@ -1,5 +1,11 @@
 # Change Log
 
+## [Unreleased]
+
+### Added
+
+ - Add support for `prevent_self_review` on environments ([#641](https://github.com/eclipse-csi/otterdog/issues/641))
+
 ## [1.3.4] - 29/06/2026
 
 ### Fixed
