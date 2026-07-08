@@ -12,6 +12,7 @@
     {
       "id": 9174563,
       "node_id": "GA_kwDOI9xAhM4Ai_4j",
+      "prevent_self_review": true,
       "type": "required_reviewers",
       "reviewers": [
         {
