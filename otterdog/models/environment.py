@@ -54,6 +54,15 @@ class Environment(ModelObject):
                 f"outside of supported range (0, 43200).",
             )
 
+        if is_set_and_valid(self.reviewers):
+            if len(self.reviewers) == 0 and self.prevent_self_review is True:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} has 'prevent_self_review' set to "
+                    f"'{self.prevent_self_review}', "
+                    f"but 'reviewers' is empty, setting will be ignored.",
+                )
+
         if is_set_and_valid(self.deployment_branch_policy):
             if self.deployment_branch_policy not in {"all", "protected", "selected"}:
                 context.add_failure(
@@ -142,6 +151,10 @@ class Environment(ModelObject):
                 >> OptionalS(0, default={})
                 >> OptionalS("reviewers", default=[])
                 >> Forall(lambda x: transform_reviewers(x)),
+                "prevent_self_review": OptionalS("protection_rules", default=[])
+                >> Filter(lambda obj: obj.get("type") == "required_reviewers")
+                >> OptionalS(0, default={})
+                >> OptionalS("prevent_self_review", default=False),
                 "deployment_branch_policy": OptionalS("deployment_branch_policy") >> F(transform_policy),
                 "branch_policies": OptionalS("branch_policies", default=[]) >> Forall(transform_branch_policy),
             }
