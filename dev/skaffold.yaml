@@ -25,6 +25,9 @@ profiles:
           before:
             - host:
                 command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./dev-values.yaml`'; exit 1; fi"]
+          after:
+            - host:
+                command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000"]
         releases:
           - name: otterdog
             remoteChart: eclipse-csi/otterdog
@@ -47,6 +50,9 @@ profiles:
                 command: ["sh", "-c", "if [ -z \"$TS_CLIENT_SECRET\" ]; then echo 'Error: TS_CLIENT_SECRET is not set'; exit 1; fi"]
             - host:
                 command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
+          after:
+            - host:
+                command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000"]
         releases:
           - name: dependency-track
             remoteChart: dependency-track/dependency-track
