@@ -118,7 +118,7 @@ It is required if you are the integration with GitHub ([Create a GitHub app](htt
 **Webhook**
 
 - [X] Active
-- Webhook url: `<OTTERDOG-WEBAPP>`
+- Webhook url: `<OTTERDOG-WEBAPP>/github-webhook/receive`
 - Secret: Choose the secret
 
 Add the following permissions and events:
