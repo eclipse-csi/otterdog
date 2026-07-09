@@ -1,7 +1,7 @@
 site_name: otterdog
 site_description: Manage GitHub organizations at scale
 strict: true
-site_url: https://otterdog.readthedocs.io/
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "http://localhost:8000/"]
 
 theme:
   name: 'material'
