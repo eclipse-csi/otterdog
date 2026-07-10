@@ -32,12 +32,16 @@ class JsonnetConfig:
     create_org_custom_property = "newCustomProperty"
     create_org_webhook = "newOrgWebhook"
     create_org_secret = "newOrgSecret"
+    create_org_dependabot_secret = "newOrgDependabotSecret"
+    create_org_codespaces_secret = "newOrgCodespacesSecret"
     create_org_variable = "newOrgVariable"
     create_org_ruleset = "newOrgRuleset"
     create_repo = "newRepo"
     extend_repo = "extendRepo"
     create_repo_webhook = "newRepoWebhook"
     create_repo_secret = "newRepoSecret"
+    create_repo_dependabot_secret = "newRepoDependabotSecret"
+    create_repo_codespaces_secret = "newRepoCodespacesSecret"
     create_repo_variable = "newRepoVariable"
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
@@ -45,6 +49,8 @@ class JsonnetConfig:
     create_pull_request = "newPullRequest"
     create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"
+    create_env_secret = "newEnvSecret"
+    create_env_variable = "newEnvVariable"
 
     def __init__(
         self,
@@ -72,11 +78,15 @@ class JsonnetConfig:
         self._default_org_custom_property_config: dict[str, Any] | None = None
         self._default_org_webhook_config: dict[str, Any] | None = None
         self._default_org_secret_config: dict[str, Any] | None = None
+        self._default_org_secret_dependabot_config: dict[str, Any] | None = None
+        self._default_org_secret_codespaces_config: dict[str, Any] | None = None
         self._default_org_variable_config: dict[str, Any] | None = None
         self._default_org_ruleset_config: dict[str, Any] | None = None
         self._default_repo_config: dict[str, Any] | None = None
         self._default_repo_webhook_config: dict[str, Any] | None = None
         self._default_repo_secret_config: dict[str, Any] | None = None
+        self._default_repo_dependabot_secret_config: dict[str, Any] | None = None
+        self._default_repo_codespaces_secret_config: dict[str, Any] | None = None
         self._default_repo_variable_config: dict[str, Any] | None = None
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
@@ -84,6 +94,8 @@ class JsonnetConfig:
         self._default_pull_request_config: dict[str, Any] | None = None
         self._default_status_checks_config: dict[str, Any] | None = None
         self._default_merge_queue_config: dict[str, Any] | None = None
+        self._default_env_secret_config: dict[str, Any] | None = None
+        self._default_env_variable_config: dict[str, Any] | None = None
 
         self._initialized = False
 
@@ -170,6 +182,26 @@ class JsonnetConfig:
             return None
 
     @cached_property
+    def default_org_dependabot_secret_config(self):
+        try:
+            # load the default org dependabot secret config
+            snippet = f"(import '{self.template_file}').{self.create_org_dependabot_secret}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default org dependabot secret config found, dependabot secrets will be skipped")
+            return None
+
+    @cached_property
+    def default_org_codespaces_secret_config(self):
+        try:
+            # load the default org codespaces secret config
+            snippet = f"(import '{self.template_file}').{self.create_org_codespaces_secret}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default org codespaces secret config found, codespaces secrets will be skipped")
+            return None
+
+    @cached_property
     def default_org_variable_config(self):
         try:
             # load the default org variable config
@@ -220,6 +252,24 @@ class JsonnetConfig:
             return None
 
     @cached_property
+    def default_repo_dependabot_secret_config(self):
+        try:
+            snippet = f"(import '{self.template_file}').{self.create_repo_dependabot_secret}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default repo dependabot secret config found, dependabot secrets will be skipped")
+            return None
+
+    @cached_property
+    def default_repo_codespaces_secret_config(self):
+        try:
+            snippet = f"(import '{self.template_file}').{self.create_repo_codespaces_secret}('default')"
+            return jsonnet_evaluate_snippet(snippet)
+        except RuntimeError:
+            _logger.debug("no default repo codespaces secret config found, codespaces secrets will be skipped")
+            return None
+
+    @cached_property
     def default_repo_variable_config(self):
         try:
             # load the default repo variable config
@@ -227,6 +277,26 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(repo_variable_snippet)
         except RuntimeError:
             _logger.debug("no default repo variable config found, variables will be skipped")
+            return None
+
+    @cached_property
+    def default_env_secret_config(self):
+        try:
+            # load the default repo env secret config
+            env_secret_snippet = f"(import '{self.template_file}').{self.create_env_secret}('default')"
+            return jsonnet_evaluate_snippet(env_secret_snippet)
+        except RuntimeError:
+            _logger.debug("no default repo env secret config found, secrets will be skipped")
+            return None
+
+    @cached_property
+    def default_env_variable_config(self):
+        try:
+            # load the default repo env variable config
+            env_variable_snippet = f"(import '{self.template_file}').{self.create_env_variable}('default')"
+            return jsonnet_evaluate_snippet(env_variable_snippet)
+        except RuntimeError:
+            _logger.debug("no default repo env variable config found, variables will be skipped")
             return None
 
     @cached_property

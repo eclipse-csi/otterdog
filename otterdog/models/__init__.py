@@ -360,6 +360,14 @@ class ModelObject(_DefaultValuesMixin, ABC):
     The abstract base class for any model object.
     """
 
+    parent_object: ModelObject | None = dataclasses.field(
+        default=None,
+        kw_only=True,
+        repr=False,
+        compare=False,
+        metadata={"model_only": True},
+    )
+
     @property
     @abstractmethod
     def model_object_name(self) -> str: ...
@@ -540,13 +548,28 @@ class ModelObject(_DefaultValuesMixin, ABC):
                     + f", {parent_object.model_object_name}="
                     + f"[bold]{escape(parent_object.get_key_value())}[/]"
                 )
-
+            if (
+                isinstance(parent_object, ModelObject)
+                and isinstance(parent_object.parent_object, ModelObject)
+                and parent_object.parent_object.is_keyed()
+            ):
+                header = (
+                    header
+                    + f", {parent_object.parent_object.model_object_name}="
+                    + f"[bold]{escape(parent_object.parent_object.get_key_value())}[/]"
+                )
             header = header + "]"
         elif isinstance(parent_object, ModelObject) and parent_object.is_keyed():
             header = header + "\\["
             header = (
                 header + f"{parent_object.model_object_name}=" + f"[bold]{escape(parent_object.get_key_value())}[/]"
             )
+            if isinstance(parent_object.parent_object, ModelObject) and parent_object.parent_object.is_keyed():
+                header = (
+                    header
+                    + f", {parent_object.parent_object.model_object_name}="
+                    + f"[bold]{escape(parent_object.parent_object.get_key_value())}[/]"
+                )
             header = header + "]"
 
         return header

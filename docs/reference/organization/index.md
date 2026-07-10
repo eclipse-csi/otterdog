@@ -8,18 +8,22 @@ This resource represents a GitHub organization with all supported settings and n
         settings+: { ... }, // (1)!
         webhooks+: [ ... ], // (2)!
         secrets+: [ ... ], // (3)!
-        variables+: [ ... ], // (4)!
-        rulesets+: [ ... ], // (5)!
-        _repositories+:: [ ... ], // (6)!
+        dependabot_secrets+: [ ... ], // (4)!
+        codespaces_secrets+: [ ... ], // (5)!
+        variables+: [ ... ], // (6)!
+        rulesets+: [ ... ], // (7)!
+        _repositories+:: [ ... ], // (8)!
     }
     ```
 
     1. see [Organization Settings](settings.md)
     2. see [Organization Webhook](webhook.md)
     3. see [Organization Secret](secret.md)
-    4. see [Organization Variable](variable.md)
-    5. see [Organization Ruleset](ruleset.md)
-    6. see [Repository](repository/index.md)
+    4. see [Organization Dependabot Secret](dependabot_secret.md)
+    5. see [Organization Codespaces Secret](codespaces_secret.md)
+    6. see [Organization Variable](variable.md)
+    7. see [Organization Ruleset](ruleset.md)
+    8. see [Repository](repository/index.md)
 
 !!! note
 
@@ -68,6 +72,16 @@ The configuration of a GitHub Organization is considered to be valid if all nest
       secrets+: [
         orgs.newOrgSecret('ADOPTIUM_AQAVIT_BOT_TOKEN') {
           value: "pass:bots/adoptium.aqavit/github.com/project-token",
+        },
+      ],
+      dependabot_secrets+: [
+        orgs.newOrgDependabotSecret('DEPENDABOT_ADOPTIUM_AQAVIT_BOT_TOKEN') {
+          value: "pass:bots/adoptium.aqavit/github.com/dependabot-token",
+        },
+      ],
+      codespaces_secrets+: [
+        orgs.newOrgCodespacesSecret('CODESPACES_ADOPTIUM_AQAVIT_BOT_TOKEN') {
+          value: "pass:bots/adoptium.aqavit/github.com/codespaces-token",
         },
       ],
       variables+: [
