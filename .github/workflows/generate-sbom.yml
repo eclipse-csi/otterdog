@@ -22,6 +22,7 @@ permissions:
 
 jobs:
   generate-sbom:
+    if: github.repository == 'eclipse-csi/otterdog'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
