@@ -20,9 +20,18 @@ from otterdog.models import (
     LivePatchHandler,
     LivePatchType,
     ModelObject,
+    PatchContext,
     ValidationContext,
 )
-from otterdog.utils import Change, expect_type, is_set_and_valid, is_unset, unwrap
+from otterdog.utils import (
+    Change,
+    IndentingPrinter,
+    expect_type,
+    is_set_and_valid,
+    is_unset,
+    unwrap,
+    write_patch_object_as_json,
+)
 
 from .environment_secret import EnvironmentSecret
 from .environment_variable import EnvironmentVariable
@@ -132,6 +141,12 @@ class Environment(ModelObject):
                     f"'{self.deployment_branch_policy}', "
                     f"but 'branch_policies' is set to '{self.branch_policies}', setting will be ignored.",
                 )
+
+        for secret in self.secrets:
+            secret.validate(context, self)
+
+        for variable in self.variables:
+            variable.validate(context, self)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.deployment_branch_policy != "selected":
@@ -272,6 +287,61 @@ class Environment(ModelObject):
         )
 
         return mapping
+
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        context: PatchContext,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
+        patch = self.get_patch_to(default_object)
+
+        if "name" in patch:
+            patch.pop("name")
+
+        has_changes = len(patch) > 0
+        if extend and has_changes is False:
+            return
+
+        function = self.get_jsonnet_template_function(jsonnet_config, extend)
+        printer.print(f"{function}('{self.name}')")
+
+        write_patch_object_as_json(patch, printer, close_object=False)
+
+        has_secrets = len(self.secrets) > 0
+        has_variables = len(self.variables) > 0
+
+        if has_secrets and not extend:
+            default_env_secret = EnvironmentSecret.from_model_data(jsonnet_config.default_environment_secret_config)
+
+            printer.println("secrets: [")
+            printer.level_up()
+
+            for secret in self.secrets:
+                secret.to_jsonnet(printer, jsonnet_config, context, False, default_env_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        if has_variables and not extend:
+            default_env_variable = EnvironmentVariable.from_model_data(
+                jsonnet_config.default_environment_variable_config
+            )
+
+            printer.println("variables: [")
+            printer.level_up()
+
+            for variable in self.variables:
+                variable.to_jsonnet(printer, jsonnet_config, context, False, default_env_variable)
+
+            printer.level_down()
+            printer.println("],")
+
+        # close the env object
+        printer.level_down()
+        printer.println("},")
 
     @classmethod
     def generate_live_patch(
