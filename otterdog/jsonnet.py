@@ -42,6 +42,8 @@ class JsonnetConfig:
     create_branch_protection_rule = "newBranchProtectionRule"
     create_repo_ruleset = "newRepoRuleset"
     create_environment = "newEnvironment"
+    create_environment_secret = "newEnvSecret"
+    create_environment_variable = "newEnvVariable"
     create_pull_request = "newPullRequest"
     create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"
@@ -81,6 +83,8 @@ class JsonnetConfig:
         self._default_branch_protection_rule_config: dict[str, Any] | None = None
         self._default_repo_ruleset_config: dict[str, Any] | None = None
         self._default_environment_config: dict[str, Any] | None = None
+        self._default_environment_secret_config: dict[str, Any] | None = None
+        self._default_environment_variable_config: dict[str, Any] | None = None
         self._default_pull_request_config: dict[str, Any] | None = None
         self._default_status_checks_config: dict[str, Any] | None = None
         self._default_merge_queue_config: dict[str, Any] | None = None
@@ -259,6 +263,28 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(environment_snippet)
         except RuntimeError:
             _logger.debug("no default environment config found, environments will be skipped")
+            return None
+
+    @cached_property
+    def default_environment_secret_config(self):
+        try:
+            # load the default environment secret config
+            environment_secret_snippet = f"(import '{self.template_file}').{self.create_environment_secret}('default')"
+            return jsonnet_evaluate_snippet(environment_secret_snippet)
+        except RuntimeError:
+            _logger.debug("no default environment secret config found, secrets will be skipped")
+            return None
+
+    @cached_property
+    def default_environment_variable_config(self):
+        try:
+            # load the default environment variable config
+            environment_variable_snippet = (
+                f"(import '{self.template_file}').{self.create_environment_variable}('default')"
+            )
+            return jsonnet_evaluate_snippet(environment_variable_snippet)
+        except RuntimeError:
+            _logger.debug("no default environment variable config found, variables will be skipped")
             return None
 
     @cached_property

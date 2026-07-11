@@ -14,6 +14,14 @@
     "branch_policies": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "secrets": {
+      "type": "array",
+      "items": { "$ref": "environment-secret.json" }
+    },
+    "variables": {
+      "type": "array",
+      "items": { "$ref": "environment-variable.json" }
     }
   },
 

@@ -16,13 +16,29 @@ from jsonbender import F, Filter, Forall, If, K, OptionalS, S  # type: ignore
 from otterdog.models import (
     FailureType,
     LivePatch,
+    LivePatchContext,
+    LivePatchHandler,
     LivePatchType,
     ModelObject,
+    PatchContext,
     ValidationContext,
 )
-from otterdog.utils import expect_type, is_set_and_valid, is_unset, unwrap
+from otterdog.utils import (
+    Change,
+    IndentingPrinter,
+    expect_type,
+    is_set_and_valid,
+    is_unset,
+    unwrap,
+    write_patch_object_as_json,
+)
+
+from .environment_secret import EnvironmentSecret
+from .environment_variable import EnvironmentVariable
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
@@ -35,6 +51,10 @@ class Environment(ModelObject):
 
     id: int = dataclasses.field(metadata={"external_only": True})
     node_id: str = dataclasses.field(metadata={"external_only": True})
+    # the name of the repository this environment belongs to, only used at runtime to
+    # be able to address the correct REST endpoints for nested secrets / variables,
+    # never part of the jsonnet configuration or diff computation.
+    repo_name: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
     wait_timer: int
     reviewers: list[str]
@@ -42,9 +62,51 @@ class Environment(ModelObject):
     deployment_branch_policy: str
     branch_policies: list[str]
 
+    # nested model fields
+    secrets: list[EnvironmentSecret] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    variables: list[EnvironmentVariable] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+
     @property
     def model_object_name(self) -> str:
         return "environment"
+
+    def add_secret(self, secret: EnvironmentSecret) -> None:
+        self.secrets.append(secret)
+
+    def get_secret(self, name: str) -> EnvironmentSecret | None:
+        return next(filter(lambda x: x.name == name, self.secrets), None)
+
+    def set_secrets(self, secrets: list[EnvironmentSecret]) -> None:
+        self.secrets = secrets
+
+    def add_variable(self, variable: EnvironmentVariable) -> None:
+        self.variables.append(variable)
+
+    def get_variable(self, name: str) -> EnvironmentVariable | None:
+        return next(filter(lambda x: x.name == name, self.variables), None)
+
+    def set_variables(self, variables: list[EnvironmentVariable]) -> None:
+        self.variables = variables
+
+    def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
+        for secret in self.secrets:
+            yield secret, self
+            yield from secret.get_model_objects()
+
+        for variable in self.variables:
+            yield variable, self
+            yield from variable.get_model_objects()
+
+    def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
+        for secret in self.secrets:
+            secret.resolve_secrets(secret_resolver)
+
+    def copy_secrets(self, other_object: ModelObject) -> None:
+        other_environment = expect_type(other_object, Environment)
+        for secret in self.secrets:
+            other_secret = other_environment.get_secret(secret.name)
+            if other_secret is not None:
+                secret.copy_secrets(other_secret)
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if not is_unset(self.wait_timer) and not (0 <= self.wait_timer <= 43200):
@@ -79,6 +141,12 @@ class Environment(ModelObject):
                     f"'{self.deployment_branch_policy}', "
                     f"but 'branch_policies' is set to '{self.branch_policies}', setting will be ignored.",
                 )
+
+        for secret in self.secrets:
+            secret.validate(context, self)
+
+        for variable in self.variables:
+            variable.validate(context, self)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.deployment_branch_policy != "selected":
@@ -205,6 +273,125 @@ class Environment(ModelObject):
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_environment}"
+
+    @classmethod
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
+
+        mapping.update(
+            {
+                "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: EnvironmentSecret.from_model_data(x)),
+                "variables": OptionalS("variables", default=[])
+                >> Forall(lambda x: EnvironmentVariable.from_model_data(x)),
+            }
+        )
+
+        return mapping
+
+    def to_jsonnet(
+        self,
+        printer: IndentingPrinter,
+        jsonnet_config: JsonnetConfig,
+        context: PatchContext,
+        extend: bool,
+        default_object: ModelObject,
+    ) -> None:
+        patch = self.get_patch_to(default_object)
+
+        if "name" in patch:
+            patch.pop("name")
+
+        has_changes = len(patch) > 0
+        if extend and has_changes is False:
+            return
+
+        function = self.get_jsonnet_template_function(jsonnet_config, extend)
+        printer.print(f"{function}('{self.name}')")
+
+        write_patch_object_as_json(patch, printer, close_object=False)
+
+        has_secrets = len(self.secrets) > 0
+        has_variables = len(self.variables) > 0
+
+        if has_secrets and not extend:
+            default_env_secret = EnvironmentSecret.from_model_data(jsonnet_config.default_environment_secret_config)
+
+            printer.println("secrets: [")
+            printer.level_up()
+
+            for secret in self.secrets:
+                secret.to_jsonnet(printer, jsonnet_config, context, False, default_env_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        if has_variables and not extend:
+            default_env_variable = EnvironmentVariable.from_model_data(
+                jsonnet_config.default_environment_variable_config
+            )
+
+            printer.println("variables: [")
+            printer.level_up()
+
+            for variable in self.variables:
+                variable.to_jsonnet(printer, jsonnet_config, context, False, default_env_variable)
+
+            printer.level_down()
+            printer.println("],")
+
+        # close the env object
+        printer.level_down()
+        printer.println("},")
+
+    @classmethod
+    def generate_live_patch(
+        cls,
+        expected_object: Environment | None,
+        current_object: Environment | None,
+        parent_object: ModelObject | None,
+        context: LivePatchContext,
+        handler: LivePatchHandler,
+    ) -> None:
+        if expected_object is None:
+            current_object = unwrap(current_object)
+            handler(LivePatch.of_deletion(current_object, parent_object, current_object.apply_live_patch))
+            # deleting the environment implicitly removes its secrets / variables as well,
+            # so there is no need to generate explicit live patches for them.
+            return
+
+        expected_object = unwrap(expected_object)
+
+        if current_object is None:
+            handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
+        else:
+            modified_env: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+            if len(modified_env) > 0:
+                handler(
+                    LivePatch.of_changes(
+                        expected_object,
+                        current_object,
+                        modified_env,
+                        parent_object,
+                        False,
+                        expected_object.apply_live_patch,
+                    )
+                )
+
+        EnvironmentSecret.generate_live_patch_of_list(
+            expected_object.secrets,
+            current_object.secrets if current_object is not None else [],
+            expected_object,
+            context,
+            handler,
+        )
+
+        EnvironmentVariable.generate_live_patch_of_list(
+            expected_object.variables,
+            current_object.variables if current_object is not None else [],
+            expected_object,
+            context,
+            handler,
+        )
 
     @classmethod
     async def apply_live_patch(cls, patch: LivePatch[Environment], org_id: str, provider: GitHubProvider) -> None:

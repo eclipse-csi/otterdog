@@ -9,6 +9,8 @@
 from otterdog.models import LivePatch, LivePatchContext, ModelObject
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.environment_secret import EnvironmentSecret
+from otterdog.models.environment_variable import EnvironmentVariable
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
@@ -54,6 +56,8 @@ class ModelForContext:
             self.repository = Repository.from_model_data({"name": repo_name})
         if env_name:
             self.environment = Environment.from_model_data({"name": env_name})
+            if repo_name:
+                self.environment.repo_name = repo_name
 
         self.live_patch_context = LivePatchContext(
             org_id=org_id,
@@ -98,8 +102,10 @@ class ModelForContext:
         """
 
         model_cls = determine_model_object(old, new)
-        if model_cls in {RepositorySecret, RepositoryVariable}:
+        if model_cls in {RepositorySecret, RepositoryVariable, Environment}:
             return self.repository
+        if model_cls in {EnvironmentSecret, EnvironmentVariable}:
+            return self.environment
         if model_cls in {OrganizationSecret, OrganizationVariable, CustomProperty}:
             return None  # Organization-level, no parent object
         raise ValueError(f"Unknown model class for parent: {model_cls}")
