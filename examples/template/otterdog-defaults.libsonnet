@@ -283,10 +283,10 @@ local newEnvironment(name) = {
 };
 
 # Function to create a new environment secret with default settings.
-local newEnvironmentSecret(name) = newRepoSecret(name);
+local newEnvSecret(name) = newRepoSecret(name);
 
 # Function to create a new environment variable with default settings.
-local newEnvironmentVariable(name) = newRepoVariable(name);
+local newEnvVariable(name) = newRepoVariable(name);
 
 # Function to create a new custom property with default settings.
 local newCustomProperty(name) = {
@@ -449,8 +449,8 @@ local newOrg(name, id=name) = {
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
   newEnvironment:: newEnvironment,
-  newEnvironmentSecret:: newEnvironmentSecret,
-  newEnvironmentVariable:: newEnvironmentVariable,
+  newEnvSecret:: newEnvSecret,
+  newEnvVariable:: newEnvVariable,
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,

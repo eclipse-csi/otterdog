@@ -4,12 +4,12 @@ Definition of an `Environment` on repository level, the following properties are
 |----------------------------|-----------------------------------------|---------------------------------------------------------------------------------------|--------------------------------------------------------------------|
 | _name_                     | string                                  | The name of the environment                                                           |                                                                    |
 | _wait_timer_               | int                                     | The amount of time to wait before allowing deployments to proceed                     |                                                                    |
-| _reviewers_                | list\[[Actor](actor.md)\]               | Users or Teams that may approve workflow runs that access this environment            |                                                                    |
+| _reviewers_                | list\[[Actor](../actor.md)\]               | Users or Teams that may approve workflow runs that access this environment            |                                                                    |
 | _prevent_self_review_      | bool                                    | Whether a user who triggered a workflow run is prevented from approving it            |                                                                    |
 | _deployment_branch_policy_ | string                                  | Limit which branches can deploy to this environment based on rules or naming patterns | `all`, `protected` or `selected`                                   |
-| _branch_policies_          | list\[[BranchOrTag](branch-or-tag.md)\] | List of branch or tag patterns which can deploy to this environment                   | only applicable if `deployment_branch_policy` is set to `selected` |
-| _secrets_                  | list\[[EnvironmentSecret](environment-secret.md)\]     | secrets defined for this environment, see section below for details   |                                                                    |
-| _variables_                | list\[[EnvironmentVariable](environment-variable.md)\] | variables defined for this environment, see section below for details |                                                                   |
+| _branch_policies_          | list\[[BranchOrTag](../branch-or-tag.md)\] | List of branch or tag patterns which can deploy to this environment                   | only applicable if `deployment_branch_policy` is set to `selected` |
+| _secrets_                  | list\[[EnvironmentSecret](secret.md)\]     | secrets defined for this environment, see section below for details   |                                                                    |
+| _variables_                | list\[[EnvironmentVariable](variable.md)\] | variables defined for this environment, see section below for details |                                                                   |
 
 ## Jsonnet Function
 

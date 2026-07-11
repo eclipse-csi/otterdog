@@ -8,7 +8,7 @@ Definition of a `Variable` on environment level, the following properties are su
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newEnvironmentVariable('<name>') {
+orgs.newEnvVariable('<name>') {
   <key>: <value>
 }
 ```
@@ -31,7 +31,7 @@ orgs.newEnvironmentVariable('<name>') {
             orgs.newEnvironment('linux') {
               ...
               variables+: [
-                orgs.newEnvironmentVariable('TEST_VARIABLE') {
+                orgs.newEnvVariable('TEST_VARIABLE') {
                   value: "TESTVALUE",
                 },
               ],

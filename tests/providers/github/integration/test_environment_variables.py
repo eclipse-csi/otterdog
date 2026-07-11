@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-
 from otterdog.models.environment_variable import EnvironmentVariable
 
 from .conftest import GitHubProviderTestKit
@@ -79,7 +78,7 @@ async def test_read(github: GitHubProviderTestKit):
     # Following two lines are taken from GitHubOrganization.load_from_provider().
     # Organization loading is a big black box, so we cannot run it directly here.
     data = await github.provider.get_environment_variables(ORG_ID, REPO_NAME, ENV_NAME)
-    variables = [EnvironmentVariable.from_provider_data(ORG_ID, data) for data in data]
+    variables = [EnvironmentVariable.from_provider_data(ORG_ID, d) for d in data]
 
     assert variables == [
         EnvironmentVariable(name="VAR_ONE", value="value_one"),

@@ -30,7 +30,7 @@ The secret value can be resolved via a credential provider. The supported format
 ## Jsonnet Function
 
 ``` jsonnet
-orgs.newEnvironmentSecret('<name>') {
+orgs.newEnvSecret('<name>') {
   <key>: <value>
 }
 ```
@@ -53,7 +53,7 @@ orgs.newEnvironmentSecret('<name>') {
             orgs.newEnvironment('linux') {
               ...
               secrets+: [
-                orgs.newEnvironmentSecret('TEST_SECRET') {
+                orgs.newEnvSecret('TEST_SECRET') {
                   value: "pass:path/to/secret",
                 },
               ],
