@@ -333,7 +333,7 @@ def push_config(organizations: list[str], no_diff, force, message):
 @cli.command(cls=StdCommand, short_help="Opens a pull request for local configuration changes.")
 @click.option("-b", "--branch", required=True, help="branch name")
 @click.option("-t", "--title", required=True, help="PR title")
-@click.option("-a", "--author", help="GitHub handle of author")
+@click.option("-a", "--author", required=True, help="GitHub handle of author")
 def open_pr(organizations: list[str], branch, title, author):
     """
     Opens a pull request for local configuration changes in the corresponding config repo of an organization.
