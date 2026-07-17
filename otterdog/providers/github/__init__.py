@@ -40,6 +40,10 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
     return key in _SETTINGS_WEB_KEYS
 
 
+def _same_group(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    return a.get("group_id") == b.get("group_id")
+
+
 class GitHubProvider:
     def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
@@ -165,6 +169,59 @@ class GitHubProvider:
 
     async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_team_members(org_id, team_slug)
+
+    async def get_org_team_sync_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        return await self.rest_api.team.get_team_sync_groups(org_id, team_slug)
+
+    async def add_org_team_sync_group(self, org_id: str, team_name: str, data: dict[str, Any]) -> None:
+        team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+        groups = await self.get_org_team_sync_groups(org_id, team_slug)
+
+        if any(_same_group(g, data) for g in groups):
+            _logger.debug(
+                "team-sync group '%s' already present for team '%s/%s'",
+                data.get("group_id"),
+                org_id,
+                team_slug,
+            )
+            return
+        groups.append(data)
+        await self.rest_api.team.update_team_sync_groups(org_id, team_slug, groups)
+
+    async def delete_org_team_sync_group(self, org_id: str, team_name: str, data: dict[str, Any]) -> None:
+        team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+        groups = await self.get_org_team_sync_groups(org_id, team_slug)
+
+        new_groups = [g for g in groups if not _same_group(g, data)]
+        if len(groups) == len(new_groups):
+            _logger.debug(
+                "team-sync group '%s' not present for team '%s/%s'",
+                data.get("group_id"),
+                org_id,
+                team_slug,
+            )
+            return
+        await self.rest_api.team.update_team_sync_groups(org_id, team_slug, new_groups)
+
+    async def update_org_team_sync_group(self, org_id: str, team_name: str, data: dict[str, Any]) -> None:
+        team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+        groups = await self.get_org_team_sync_groups(org_id, team_slug)
+
+        replaced = False
+        new_groups: list[dict[str, Any]] = []
+
+        for g in groups:
+            if _same_group(g, data):
+                new_groups.append(data)
+                replaced = True
+            else:
+                new_groups.append(g)
+        if not replaced:
+            new_groups.append(data)
+        await self.rest_api.team.update_team_sync_groups(org_id, team_slug, new_groups)
+
+    async def get_org_team_external_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        return await self.rest_api.team.get_team_external_groups(org_id, team_slug)
 
     async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
         await self.rest_api.team.add_team(org_id, team_name, data)

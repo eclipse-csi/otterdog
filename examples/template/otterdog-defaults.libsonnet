@@ -258,6 +258,13 @@ local newOrgRole(name) = {
   base_role: "none",
 };
 
+# Function to create a new team_sync with default settings.
+local newTeamSync(name) = {
+  name: name,
+  description: "",
+  id: "",
+};
+
 # Function to create a new team with default settings.
 local newTeam(name) = {
   name: name,
@@ -265,6 +272,8 @@ local newTeam(name) = {
   privacy: "visible",
   notifications: true,
   members: [],
+  team_sync: [],
+  external_groups: null,
   skip_members: false,
   skip_non_organization_members: false,
 };
@@ -436,6 +445,7 @@ local newOrg(name, id=name) = {
   newOrg:: newOrg,
   newOrgRole:: newOrgRole,
   newTeam:: newTeam,
+  newTeamSync:: newTeamSync,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
   newOrgVariable:: newOrgVariable,
