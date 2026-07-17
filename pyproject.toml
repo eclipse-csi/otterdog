@@ -98,7 +98,7 @@ quart-auth           = "^0.10"
 quart-redis          = "^2.0"
 github-flask         = "^3.2"
 aiohttp-client-cache = {version=">=0.12.3", extras=["redis"]}
-ariadne              = "^0.23"
+ariadne              = "^1.1"
 pyyaml               = "^6.0"
 semver               = "^3.0"
 python-slugify       = "^8.0"

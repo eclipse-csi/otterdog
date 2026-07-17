@@ -1,7 +1,7 @@
 site_name: otterdog
 site_description: Manage GitHub organizations at scale
 strict: true
-site_url: https://otterdog.readthedocs.io/
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "http://localhost:8000/"]
 
 theme:
   name: 'material'
@@ -60,7 +60,10 @@ nav:
           - Repository Webhook: reference/organization/repository/webhook.md
           - Repository Secret: reference/organization/repository/secret.md
           - Repository Variable: reference/organization/repository/variable.md
-          - Environment: reference/organization/repository/environment.md
+          - Environment:
+            - reference/organization/repository/index.md
+            - Environment Secret: reference/organization/repository/environment/secret.md
+            - Environment Variable: reference/organization/repository/environment/variable.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md
           - Repository Ruleset: reference/organization/repository/ruleset.md
         - Referenced Types:

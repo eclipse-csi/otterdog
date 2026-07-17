@@ -10,5 +10,17 @@
   "branch_policies": [
     "main",
     "develop/*"
+  ],
+  "secrets": [
+    {
+      "name": "ENV-SECRET",
+      "value": "1234"
+    }
+  ],
+  "variables": [
+    {
+      "name": "ENV-VARIABLE",
+      "value": "some-value"
+    }
   ]
 }

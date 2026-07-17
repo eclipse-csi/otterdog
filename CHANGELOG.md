@@ -4,6 +4,7 @@
 
 ### Added
 
+ - Add support for environment secrets and variables ([#537](https://github.com/eclipse-csi/otterdog/issues/537))
  - Add support for `prevent_self_review` on environments ([#641](https://github.com/eclipse-csi/otterdog/issues/641))
 
 ## [1.3.4] - 29/06/2026

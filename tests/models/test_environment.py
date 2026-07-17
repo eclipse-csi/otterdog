@@ -45,6 +45,14 @@ class EnvironmentTest(ModelTest):
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
 
+        assert len(env.secrets) == 1
+        assert env.secrets[0].name == "ENV-SECRET"
+        assert env.secrets[0].value == "1234"
+
+        assert len(env.variables) == 1
+        assert env.variables[0].name == "ENV-VARIABLE"
+        assert env.variables[0].value == "some-value"
+
     def test_load_from_provider(self):
         env = Environment.from_provider_data(self.org_id, self.provider_data)
 
@@ -56,6 +64,9 @@ class EnvironmentTest(ModelTest):
         assert env.prevent_self_review is True
         assert env.deployment_branch_policy == "selected"
         assert env.branch_policies == ["main", "develop/*"]
+
+        assert env.secrets == []
+        assert env.variables == []
 
     async def test_to_provider(self):
         env = Environment.from_model_data(self.model_data)

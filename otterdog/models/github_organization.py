@@ -32,6 +32,8 @@ from otterdog.models import (
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.environment_secret import EnvironmentSecret
+from otterdog.models.environment_variable import EnvironmentVariable
 from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
@@ -766,7 +768,26 @@ async def _process_single_repo(
         # get environments of the repo
         environments = await rest_api.repo.get_environments(github_id, repo_name)
         for github_environment in environments:
-            repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+            env = Environment.from_provider_data(github_id, github_environment)
+            env.repo_name = repo_name
+
+            if jsonnet_config.default_environment_secret_config is not None:
+                # get secrets of the environment
+                env_secrets = await rest_api.repo.get_environment_secrets(github_id, repo_name, env.name)
+                for github_secret in env_secrets:
+                    env.add_secret(EnvironmentSecret.from_provider_data(github_id, github_secret))
+            else:
+                _logger.debug("not reading environment secrets, no default config available")
+
+            if jsonnet_config.default_environment_variable_config is not None:
+                # get variables of the environment
+                env_variables = await rest_api.repo.get_environment_variables(github_id, repo_name, env.name)
+                for github_variable in env_variables:
+                    env.add_variable(EnvironmentVariable.from_provider_data(github_id, github_variable))
+            else:
+                _logger.debug("not reading environment variables, no default config available")
+
+            repo.add_environment(env)
     else:
         _logger.debug("not reading environments, no default config available")
 
