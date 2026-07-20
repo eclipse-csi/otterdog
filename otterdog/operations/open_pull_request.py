@@ -80,7 +80,10 @@ class OpenPullRequestOperation(Operation):
 
             async with GitHubProvider(credentials) as provider:
                 rest_api = provider.rest_api
-
+                try:
+                    await rest_api.user.get_user_ids(self.author)
+                except RuntimeError as ex:
+                    raise RuntimeError(f"author '{self.author}' is not a valid GitHub user: {ex!s}") from ex
                 try:
                     default_branch = await rest_api.repo.get_default_branch(
                         org_config.github_id, org_config.config_repo
@@ -178,10 +181,7 @@ class OpenPullRequestOperation(Operation):
             branch_name,
         )
 
-        if self.author is not None:
-            body = f"This PR has been created automatically on behalf of @{self.author} using the otterdog cli."
-        else:
-            body = "This PR has been created automatically using the otterdog cli."
+        body = f"This PR has been created automatically on behalf of @{self.author} using the otterdog cli."
 
         pull_request_data = await rest_api.pull_request.create_pull_request(
             org_config.github_id,
