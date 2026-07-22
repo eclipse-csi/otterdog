@@ -317,3 +317,250 @@ class TestRuleset:
         result = bend(mapping, data)
 
         assert result["required_merge_queue"] is not None
+
+    def test_get_mapping_from_provider_with_copilot_review(self):
+        """Test that copilot_review rule is processed correctly."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "copilot_review",
+                    "parameters": {
+                        "review_new_pushes": True,
+                        "review_draft_pull_requests": False,
+                    },
+                },
+            ],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["required_copilot_review"] is not None
+        assert result["required_copilot_review"].review_new_pushes is True
+        assert result["required_copilot_review"].review_draft_pull_requests is False
+
+    def test_get_mapping_from_provider_without_copilot_review(self):
+        """Test that missing copilot_review rule defaults to None."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["required_copilot_review"] is None
+
+    def test_get_mapping_from_provider_with_pattern_rules(self):
+        """Test that pattern rules are processed correctly."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "commit_message_pattern",
+                    "parameters": {
+                        "name": "must start with issue",
+                        "negate": False,
+                        "operator": "starts_with",
+                        "pattern": "issue",
+                    },
+                },
+                {
+                    "type": "commit_author_email_pattern",
+                    "parameters": {
+                        "name": "github email",
+                        "negate": False,
+                        "operator": "contains",
+                        "pattern": "github",
+                    },
+                },
+                {
+                    "type": "branch_name_pattern",
+                    "parameters": {
+                        "name": "feature prefix",
+                        "negate": True,
+                        "operator": "regex",
+                        "pattern": "^(feature|bugfix)/.*",
+                    },
+                },
+            ],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["commit_message_pattern"] is not None
+        assert result["commit_message_pattern"].operator == "starts_with"
+        assert result["commit_message_pattern"].pattern == "issue"
+        assert result["commit_message_pattern"].name == "must start with issue"
+        assert result["commit_message_pattern"].negate is False
+
+        assert result["commit_author_email_pattern"] is not None
+        assert result["commit_author_email_pattern"].operator == "contains"
+        assert result["commit_author_email_pattern"].pattern == "github"
+
+        assert result["branch_name_pattern"] is not None
+        assert result["branch_name_pattern"].negate is True
+        assert result["branch_name_pattern"].operator == "regex"
+
+        assert result["committer_email_pattern"] is None
+        assert result["tag_name_pattern"] is None
+
+    def test_get_mapping_from_provider_with_push_restriction_rules(self):
+        """Test that push restriction rules are processed correctly."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "push",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "file_path_restriction",
+                    "parameters": {"restricted_file_paths": ["/secrets/**", "/.env"]},
+                },
+                {
+                    "type": "max_file_path_length",
+                    "parameters": {"max_file_path_length": 255},
+                },
+                {
+                    "type": "file_extension_restriction",
+                    "parameters": {"restricted_file_extensions": [".exe", ".dll"]},
+                },
+                {
+                    "type": "max_file_size",
+                    "parameters": {"max_file_size": 10485760},
+                },
+            ],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["restricted_file_paths"] == ["/secrets/**", "/.env"]
+        assert result["max_file_path_length"] == 255
+        assert result["restricted_file_extensions"] == [".exe", ".dll"]
+        assert result["max_file_size"] == 10485760
+
+    def test_get_mapping_from_provider_without_push_restriction_rules(self):
+        """Test that missing push restriction rules default to empty/zero."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "push",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["restricted_file_paths"] == []
+        assert result["max_file_path_length"] == 0
+        assert result["restricted_file_extensions"] == []
+        assert result["max_file_size"] == 0
+
+    def test_get_mapping_from_provider_with_code_scanning(self):
+        """Test that code_scanning rule is processed correctly."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "code_scanning",
+                    "parameters": {
+                        "code_scanning_tools": [
+                            {
+                                "tool": "CodeQL",
+                                "security_alerts_threshold": "errors",
+                                "alerts_threshold": "errors_and_warnings",
+                            },
+                            {
+                                "tool": "Semgrep",
+                                "security_alerts_threshold": "all",
+                                "alerts_threshold": "none",
+                            },
+                        ]
+                    },
+                },
+            ],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["required_code_scanning"] is not None
+        assert len(result["required_code_scanning"].code_scanning_tools) == 2
+        assert result["required_code_scanning"].code_scanning_tools[0] == "CodeQL:errors:errors_and_warnings"
+        assert result["required_code_scanning"].code_scanning_tools[1] == "Semgrep:all:none"
+
+    def test_get_mapping_from_provider_with_workflows(self):
+        """Test that workflows rule is processed correctly."""
+        data = {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "workflows",
+                    "parameters": {
+                        "do_not_enforce_on_create": True,
+                        "workflows": [
+                            {
+                                "path": ".github/workflows/ci.yml",
+                                "ref": "refs/heads/main",
+                                "repository_id": 12345,
+                            },
+                        ],
+                    },
+                },
+            ],
+        }
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        result = bend(mapping, data)
+
+        assert result["required_workflows"] is not None
+        assert result["required_workflows"].do_not_enforce_on_create is True
+        assert len(result["required_workflows"].workflows) == 1
+        assert result["required_workflows"].workflows[0] == "12345:.github/workflows/ci.yml@refs/heads/main"
