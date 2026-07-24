@@ -38,6 +38,7 @@ class TestRepository:
         assert repo.archived is False
         assert repo.allow_forking is True
         assert repo.web_commit_signoff_required is False
+        assert repo.immutable_releases_enabled is True
         assert repo.secret_scanning == "enabled"
         assert repo.secret_scanning_push_protection is UNSET
         assert repo.dependabot_alerts_enabled is True
@@ -72,6 +73,7 @@ class TestRepository:
         assert repo.archived is False
         assert repo.allow_forking is True
         assert repo.web_commit_signoff_required is False
+        assert repo.immutable_releases_enabled is True
         assert repo.secret_scanning == "enabled"
         assert repo.secret_scanning_push_protection == "disabled"
         assert repo.dependabot_alerts_enabled is True
@@ -83,9 +85,10 @@ class TestRepository:
 
         provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
 
-        assert len(provider_data) == 23
+        assert len(provider_data) == 24
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data.get("description") is None
+        assert provider_data["immutable_releases_enabled"] is True
 
         assert query_json("security_and_analysis.secret_scanning.status", provider_data) or "" == "enabled"
 

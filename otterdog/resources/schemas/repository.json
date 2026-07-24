@@ -42,6 +42,7 @@
     "archived": { "type": "boolean" },
     "allow_forking": { "type": "boolean" },
     "web_commit_signoff_required": { "type": "boolean" },
+    "immutable_releases_enabled": { "type": "boolean" },
     "secret_scanning": { "type": "string" },
     "secret_scanning_push_protection": { "type": "string" },
     "dependabot_alerts_enabled": { "type": "boolean" },
