@@ -145,6 +145,19 @@ def test_jsonnet_import_callback_returns_files_inside_root(tmp_path: Path):
     assert content2 == "{ x: 1 }"
 
 
+def test_jsonnet_import_callback_accepts_byte_paths(tmp_path: Path):
+    (tmp_path / "vendor").mkdir()
+    inside = tmp_path / "vendor" / "lib.libsonnet"
+    inside.write_bytes(b"{ x: 1 }")
+
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+    resolved, content = callback(os.fsencode(tmp_path / "vendor"), b"lib.libsonnet")
+
+    assert isinstance(resolved, str)
+    assert resolved == os.path.realpath(str(inside))
+    assert content == "{ x: 1 }"
+
+
 def test_jsonnet_import_callback_rejects_absolute_outside_root(tmp_path: Path):
     callback = _make_jsonnet_import_callback(str(tmp_path))
 
