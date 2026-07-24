@@ -5,8 +5,12 @@
 #  which is available at http://www.eclipse.org/legal/epl-v20.html
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
+from unittest.mock import MagicMock
+
 import pytest
-from webapp.db import _parse
+import webapp.db as db_module
+from quart import Quart
+from webapp.db import Mongo, _parse
 
 
 @pytest.mark.parametrize(
@@ -43,3 +47,26 @@ def test__parse(mongodb_url, expected_result, expected_error):
     else:
         result = _parse(mongodb_url)
         assert result == expected_result
+
+
+def test_init_app_passes_full_uri(monkeypatch):
+    mongo_uri = "mongodb://mongodb:27017/otterdog"
+
+    captured_uris = []
+    mock_client = MagicMock()
+
+    def mock_motor_client(uri, *args, **kwargs):
+        captured_uris.append(uri)
+        return mock_client
+
+    monkeypatch.setattr(db_module, "AsyncIOMotorClient", mock_motor_client)
+    monkeypatch.setattr(db_module, "AIOEngine", MagicMock())
+
+    app = Quart(__name__)
+    app.config["MONGO_URI"] = mongo_uri
+
+    mongo = Mongo()
+    mongo.init_app(app)
+
+    assert len(captured_uris) == 1
+    assert captured_uris[0] == mongo_uri
