@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 import webapp.db as db_module
 from quart import Quart
-from webapp.db import Mongo, _parse
+from webapp.db import Mongo, _database_from_uri
 
 
 @pytest.mark.parametrize(
@@ -38,14 +38,14 @@ from webapp.db import Mongo, _parse
         ("mongodb:27017", None, "invalid mongo connection uri, no scheme"),
     ],
 )
-def test__parse(mongodb_url, expected_result, expected_error):
+def test__database_from_uri(mongodb_url, expected_result, expected_error):
     if expected_error:
         with pytest.raises(RuntimeError) as err:
-            _parse(mongodb_url)
+            _database_from_uri(mongodb_url)
             assert expected_error in str(err)
 
     else:
-        result = _parse(mongodb_url)
+        result = _database_from_uri(mongodb_url)
         assert result == expected_result
 
 

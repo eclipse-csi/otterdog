@@ -15,7 +15,7 @@ from quart import Quart
 from otterdog.utils import unwrap
 
 
-def _parse(mongo_uri: str) -> str:
+def _database_from_uri(mongo_uri: str) -> str:
     urlparsed = urlparse(mongo_uri)
     if urlparsed.scheme != "mongodb":
         raise RuntimeError(f"invalid mongo connection uri, no scheme: '{mongo_uri}'")
@@ -36,7 +36,7 @@ class Mongo:
 
     def init_app(self, app: Quart) -> None:
         mongo_uri = app.config["MONGO_URI"]
-        database = _parse(mongo_uri)
+        database = _database_from_uri(mongo_uri)
         self._client = AsyncIOMotorClient(mongo_uri)
         self._engine = AIOEngine(client=self._client, database=database)
 
