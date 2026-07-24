@@ -12,22 +12,22 @@ from webapp.db import _parse
 @pytest.mark.parametrize(
     "mongodb_url, expected_result, expected_error",
     [
-        ("mongodb://root:secret@mongodb:27017/otterdog", ("mongodb://root:secret@mongodb:27017", "otterdog"), None),
-        ("mongodb://mongodb:27017/otterdog", ("mongodb://mongodb:27017", "otterdog"), None),
+        ("mongodb://root:secret@mongodb:27017/otterdog", "otterdog", None),
+        ("mongodb://mongodb:27017/otterdog", "otterdog", None),
         (
             "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog",
-            ("mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017", "otterdog"),
+            "otterdog",
             None,
         ),
         (
             "mongodb://otterdog-mongodb.default.svc.cluster.local:27017/otterdog",
-            ("mongodb://otterdog-mongodb.default.svc.cluster.local:27017", "otterdog"),
+            "otterdog",
             None,
         ),
-        ("mongodb://mongodb.example.com:27017/otterdog", ("mongodb://mongodb.example.com:27017", "otterdog"), None),
+        ("mongodb://mongodb.example.com:27017/otterdog", "otterdog", None),
         (
             "mongodb://:secret@mongodb.example.com:27017/otterdog",
-            ("mongodb://:secret@mongodb.example.com:27017", "otterdog"),
+            "otterdog",
             None,
         ),
         ("mongodb://mongodb:27017", None, "invalid mongo connection uri, no database"),
