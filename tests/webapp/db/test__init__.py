@@ -6,40 +6,34 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 import pytest
-from webapp.db import _parse
+from webapp.db import _database_from_uri
 
 
 @pytest.mark.parametrize(
     "mongodb_url, expected_result, expected_error",
     [
-        ("mongodb://root:secret@mongodb:27017/otterdog", ("mongodb://root:secret@mongodb:27017", "otterdog"), None),
-        ("mongodb://mongodb:27017/otterdog", ("mongodb://mongodb:27017", "otterdog"), None),
-        (
-            "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog",
-            ("mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017", "otterdog"),
-            None,
-        ),
+        ("mongodb://mongodb:27017/otterdog", "otterdog", None),
         (
             "mongodb://otterdog-mongodb.default.svc.cluster.local:27017/otterdog",
-            ("mongodb://otterdog-mongodb.default.svc.cluster.local:27017", "otterdog"),
+            "otterdog",
             None,
         ),
-        ("mongodb://mongodb.example.com:27017/otterdog", ("mongodb://mongodb.example.com:27017", "otterdog"), None),
+        ("mongodb://mongodb.example.com:27017/otterdog", "otterdog", None),
         (
             "mongodb://:secret@mongodb.example.com:27017/otterdog",
-            ("mongodb://:secret@mongodb.example.com:27017", "otterdog"),
+            "otterdog",
             None,
         ),
         ("mongodb://mongodb:27017", None, "invalid mongo connection uri, no database"),
         ("mongodb:27017", None, "invalid mongo connection uri, no scheme"),
     ],
 )
-def test__parse(mongodb_url, expected_result, expected_error):
+def test__database_from_uri(mongodb_url, expected_result, expected_error):
     if expected_error:
         with pytest.raises(RuntimeError) as err:
-            _parse(mongodb_url)
+            _database_from_uri(mongodb_url)
             assert expected_error in str(err)
 
     else:
-        result = _parse(mongodb_url)
+        result = _database_from_uri(mongodb_url)
         assert result == expected_result
