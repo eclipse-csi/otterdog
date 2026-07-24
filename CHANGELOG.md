@@ -10,6 +10,7 @@
 ### Fixed
 
  - Add `python-dotenv` as a main depdendency as required by the `EnvVault` ([#692](https://github.com/eclipse-csi/otterdog/issues/692))
+ - Fix provider transformation for ruleset status checks ([#695](https://github.com/eclipse-csi/otterdog/issues/695))
 
 ## [1.3.4] - 29/06/2026
 
