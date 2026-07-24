@@ -1,18 +1,33 @@
 # Change Log
 
-## [Unreleased]
+## [1.4.0] - 24/07/2026
 
 ### Added
 
  - Add support for environment secrets and variables ([#537](https://github.com/eclipse-csi/otterdog/issues/537))
  - Add support for `prevent_self_review` on environments ([#641](https://github.com/eclipse-csi/otterdog/issues/641))
+ - Add environment variables and secrets [[#689]](https://github.com/eclipse-csi/otterdog/pull/689)
+
+### CHANGED
+
+- Make --author mandatory for open-pr [[#691]](https://github.com/eclipse-csi/otterdog/pull/691)
+- Enhance scaffold [[#683]](https://github.com/eclipse-csi/otterdog/pull/683)
+- docs: enhance testing documentation [[#679]](https://github.com/eclipse-csi/otterdog/pull/679)
 
 ### Fixed
 
- - Retry loading org settings pages via the web UI on a transient 404, which can occur right after an organization has been created ([#649](https://github.com/eclipse-csi/otterdog/issues/649))
- - Add `python-dotenv` as a main depdendency as required by the `EnvVault` ([#692](https://github.com/eclipse-csi/otterdog/issues/692))
+ - Retry loading org settings pages via the web UI on a transient 404, which can occur right after an organization has been created Handle transient 404 on organization repository-defaults during first import [[#659]](https://github.com/eclipse-csi/otterdog/pull/659), issue:([#649](https://github.com/eclipse-csi/otterdog/issues/649))
+
+ - Workflow file parsing error [[#684]](https://github.com/eclipse-csi/otterdog/pull/684)
+ - Handle invalid workflow YAML in PinWorkflowTask [[#685]](https://github.com/eclipse-csi/otterdog/pull/685)
+ - fix: stylesheet on 404 pages [[#687]](https://github.com/eclipse-csi/otterdog/pull/687)
  - Dont access web ui credentials for operations that do not need them ([#693](https://github.com/eclipse-csi/otterdog/issues/693))
  - Fix provider transformation for ruleset status checks ([#695](https://github.com/eclipse-csi/otterdog/issues/695))
+ - Add `python-dotenv` as a main depdendency as required by the `EnvVault` [[#698]](https://github.com/eclipse-csi/otterdog/pull/698) issue:([#692](https://github.com/eclipse-csi/otterdog/issues/692))
+ - fix: only access tokens in operations if web ui access is permitted [[#699]](https://github.com/eclipse-csi/otterdog/pull/699)
+ - fix: support integration_ids for status checks [[#700]](https://github.com/eclipse-csi/otterdog/pull/700)
+ - Handle mongodb uri with alternative authSource [[#702]](https://github.com/eclipse-csi/otterdog/pull/702)
+
 
 ## [1.3.4] - 29/06/2026
 
