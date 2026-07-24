@@ -9,6 +9,7 @@
 
 ### Fixed
 
+ - Dont access web ui credentials for operations that do not need them ([#693](https://github.com/eclipse-csi/otterdog/issues/693))
  - Fix provider transformation for ruleset status checks ([#695](https://github.com/eclipse-csi/otterdog/issues/695))
 
 ## [1.3.4] - 29/06/2026
