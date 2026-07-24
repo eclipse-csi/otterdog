@@ -181,7 +181,7 @@ class StatusCheckSettings(EmbeddedModelObject):
                     if ":" in check:
                         app_slug, _context = re.split(":", check, maxsplit=1)
 
-                        if app_slug != "any" and " " not in app_slug:
+                        if app_slug != "any" and " " not in app_slug and not app_slug.isdigit():
                             app_slugs.add(app_slug)
 
                 return await provider.get_app_ids(app_slugs)
@@ -205,6 +205,8 @@ class StatusCheckSettings(EmbeddedModelObject):
 
             if app_slug is None:
                 return {"context": context}
+            elif app_slug.isdigit():
+                return {"integration_id": int(app_slug), "context": context}
             else:
                 return {"integration_id": app_ids[app_slug], "context": context}
 

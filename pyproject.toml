@@ -3,7 +3,7 @@ name = "otterdog"
 description = "Tool to manage GitHub organizations and their repositories."
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "GitPython (>=3.1.50,<4.0)",
+    "GitPython (>=3.1.52,<4.0)",
     "JSONBender (>=0.9,<1.0)",
     "PyNaCl (>=1.5,<2.0)",
     "aiofiles (>=24.1,<25.0)",
@@ -24,7 +24,8 @@ dependencies = [
     "playwright (>=1.44,<2.0)",
     "requests (>=2.32,<3.0)",
     "rich (>=13.9,<14.0)",
-    "rjsonnet (>=0.5,<1.0)"
+    "rjsonnet (>=0.5,<1.0)",
+    "python-dotenv (>=1.0,<2.0)"
 ]
 authors = [
     { name = "Thomas Neidhart", email = "thomas.neidhart@eclipse-foundation.org" },
@@ -90,7 +91,6 @@ poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 quart                = "^0.20"
 quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
-python-dotenv        = "^1.0"
 pymongo              = "==4.9.1"
 pydantic             = "^2.7"
 odmantic             = "^1.1.0"

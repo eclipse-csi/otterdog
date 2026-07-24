@@ -10,6 +10,9 @@
 ### Fixed
 
  - Retry loading org settings pages via the web UI on a transient 404, which can occur right after an organization has been created ([#649](https://github.com/eclipse-csi/otterdog/issues/649))
+ - Add `python-dotenv` as a main depdendency as required by the `EnvVault` ([#692](https://github.com/eclipse-csi/otterdog/issues/692))
+ - Dont access web ui credentials for operations that do not need them ([#693](https://github.com/eclipse-csi/otterdog/issues/693))
+ - Fix provider transformation for ruleset status checks ([#695](https://github.com/eclipse-csi/otterdog/issues/695))
 
 ## [1.3.4] - 29/06/2026
 
