@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -72,7 +72,7 @@ init-minikube:
 
 dev-webapp: init-minikube clean-ingress-finalizers ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev
+	skaffold dev --filename=dev/skaffold.yaml --profile dev --cleanup=false
 
 clean-ingress-finalizers:  ## Remove finalizers from stuck ingress objects and wait for namespace deletion
 	@if kubectl get namespace otterdog -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Terminating; then \
@@ -88,7 +88,11 @@ clean-tailscale-proxies:  ## Delete stale tailscale proxy StatefulSets
 
 dev-webapp-tunnel: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel --cleanup=false
+
+dev-webapp-tunnel-local: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-local --cleanup=false
 
 check:  ## Run all pre-commit checks
 	poetry run prek -a

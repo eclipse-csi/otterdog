@@ -240,19 +240,14 @@ This file must be set at the root level of your otterdog fork project.
 ```yaml
 config:
   configOwner: "otterdog-<github username>"  # GitHub organization hosting the otterdog.json
-  configToken: ""  # A base64-encoded GitHub token — no specific permissions required, used only for rate-limiting
-  dependencyTrackToken: ""  # A base64-encoded Dependency Track API token
+  configToken: ""  # GitHub token — no specific permissions required, used only for rate-limiting
+  dependencyTrackToken: ""  # Dependency Track API token
 
 github:
-  webhookSecret: ""  # The base64-encoded webhook secret as configured for the GitHub App
+  webhookSecret: ""  # webhook secret as configured for the GitHub App
   appId: ""  # The App ID created in GitHub
-  appPrivateKey: ""  # The base64-encoded App private key (generate with: base64 -w 0 private.key)
+  appPrivateKey: ""  # TApp private key
 ```
-
-> **IMPORTANT:** Do not forget to convert secrets in base64 when mentioned. When generating a base64 token from a string (e.g. a token or secret), use `echo -n` to avoid including a trailing newline in the encoded value:
-> ```bash
-> echo -n "your-token-or-secret" | base64
-> ```
 
 > **NOTE:** In the dev configuration, the Otterdog webapp uses the following repositories by default:
 
