@@ -86,6 +86,7 @@ class Repository(ModelObject):
     archived: bool
     allow_forking: bool
     web_commit_signoff_required: bool
+    immutable_releases_enabled: bool
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
@@ -293,6 +294,9 @@ class Repository(ModelObject):
         if org_settings.plan != "enterprise":
             copy.gh_pages_visibility = UNSET  # type: ignore
 
+        if self._org_enforces_immutable_releases(org_settings):
+            copy.immutable_releases_enabled = UNSET  # type: ignore
+
         if is_set_and_present(self.custom_properties):
             for custom_property in org_settings.custom_properties:
                 current_property_value = self.custom_properties.get(custom_property.name, None)
@@ -314,6 +318,16 @@ class Repository(ModelObject):
             copy.has_discussions = True
 
         return copy
+
+    def _org_enforces_immutable_releases(self, org_settings: OrganizationSettings) -> bool:
+        if org_settings.immutable_releases_enforced_repositories == "all":
+            return True
+
+        return (
+            org_settings.immutable_releases_enforced_repositories == "selected"
+            and is_set_and_valid(org_settings.immutable_releases_selected_repositories)
+            and self.name in org_settings.immutable_releases_selected_repositories
+        )
 
     def requires_language_validation(self) -> bool:
         return (
@@ -368,7 +382,8 @@ class Repository(ModelObject):
                         context.add_failure(
                             FailureType.ERROR,
                             f"{self.get_model_header(parent_object)} has 'code_scanning_default_languages' "
-                            f"configured with '{configured_language}' but this language is not detected in the repository. "
+                            f"configured with '{configured_language}' but this language is not detected "
+                            f"in the repository. "
                             f"Detected languages: {', '.join(sorted(languages.keys()))}",
                         )
             except Exception as e:
@@ -464,6 +479,13 @@ class Repository(ModelObject):
                 FailureType.WARNING,
                 f"{self.get_model_header()} has 'web_commit_signoff_required' disabled, while "
                 f"the organization requires it, setting will be ignored.",
+            )
+
+        if self.immutable_releases_enabled is False and self._org_enforces_immutable_releases(org_settings):
+            context.add_failure(
+                FailureType.INFO,
+                f"{self.get_model_header()} has 'immutable_releases_enabled' disabled, while "
+                f"the organization enforces immutable releases for this repository, setting will be ignored.",
             )
 
         secret_scanning_disabled = self.secret_scanning == "disabled"
@@ -913,6 +935,7 @@ class Repository(ModelObject):
                 "branch_protection_rules": K([]),
                 "rulesets": K([]),
                 "environments": K([]),
+                "immutable_releases_enabled": OptionalS("immutable_releases_enabled", default=UNSET),
                 "secret_scanning": OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
                 "secret_scanning_push_protection": OptionalS(
                     "security_and_analysis",
@@ -1231,6 +1254,7 @@ class Repository(ModelObject):
         if current_object is None:
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
         else:
+            raw_current_object = current_object
             if context.current_org_settings is not None:
                 current_org_settings = cast("OrganizationSettings", context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
@@ -1257,6 +1281,19 @@ class Repository(ModelObject):
                 for k, _v in from_value.items():
                     if k not in to_value:
                         change.to_value[k] = None
+
+            if (
+                context.current_org_settings is not None
+                and raw_current_object._org_enforces_immutable_releases(
+                    cast("OrganizationSettings", context.current_org_settings)
+                )
+                and not expected_object._org_enforces_immutable_releases(expected_org_settings)
+                and is_set_and_valid(coerced_object.immutable_releases_enabled)
+            ):
+                modified_repo["immutable_releases_enabled"] = Change(
+                    raw_current_object.immutable_releases_enabled,
+                    coerced_object.immutable_releases_enabled,
+                )
 
             if len(modified_repo) > 0:
                 if "archived" in modified_repo:

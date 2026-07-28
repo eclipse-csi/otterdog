@@ -21,6 +21,7 @@
   "allow_merge_commit": true,
   "allow_auto_merge": false,
   "merge_commit_message": "PR_TITLE",
+  "immutable_releases_enabled": true,
   "secret_scanning": "enabled",
   "dependabot_alerts_enabled": true,
   "gh_pages_build_type": "legacy",

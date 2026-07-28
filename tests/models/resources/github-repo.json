@@ -91,6 +91,7 @@
   "allow_forking": true,
   "is_template": false,
   "web_commit_signoff_required": false,
+  "immutable_releases_enabled": true,
   "topics": [],
   "visibility": "public",
   "forks": 0,

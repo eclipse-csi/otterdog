@@ -2,7 +2,7 @@ Not all features or settings of a GitHub organization and its associated resourc
 by the means of `otterdog`. The following non-exhaustive list outlines settings that are currently not supported:
 
 - setting the profile picture of an organization or a social media preview for a repository [#119](https://github.com/eclipse-csi/otterdog/issues/119)
-- manage items that should be visible on the main page, i.e. releases, packages, deployments
+- manage release entries, packages, or deployments that should be visible on the main page
 - manage default repository labels on organization level
 - secrets and variables for codespaces and dependabot
 - managing GitHub apps or oauth policies
