@@ -11,6 +11,38 @@ import secrets
 
 from decouple import config  # type: ignore
 
+# Settings that must never resolve to an empty value: they are either used
+# to build outgoing requests/identifiers (URLs, hostnames, commit status
+# contexts) or are otherwise required for the application to function.
+REQUIRED_NON_EMPTY_SETTINGS = (
+    "BASE_URL",
+    "ASSETS_ROOT",
+    "APP_ROOT",
+    "MONGO_URI",
+    "REDIS_URI",
+    "GHPROXY_URI",
+    "GITHUB_ADMIN_TEAMS",
+    "GITHUB_WEBHOOK_ENDPOINT",
+    "GITHUB_WEBHOOK_VALIDATION_CONTEXT",
+    "GITHUB_WEBHOOK_SYNC_CONTEXT",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+    "PROJECTS_BASE_URL",
+    "DEPENDENCY_TRACK_URL",
+    "DEPENDENCY_TRACK_TOKEN",
+    "OTTERDOG_CONFIG_OWNER",
+    "OTTERDOG_CONFIG_REPO",
+    "OTTERDOG_CONFIG_PATH",
+    "OTTERDOG_CONFIG_TOKEN",
+)
+
+
+def validate_required_settings(config_cls: type) -> None:
+    """Raise a ValueError if any setting in REQUIRED_NON_EMPTY_SETTINGS is empty on config_cls."""
+    for name in REQUIRED_NON_EMPTY_SETTINGS:
+        if not getattr(config_cls, name, None):
+            raise ValueError(f"{name} must not be empty")
+
 
 class AppConfig:
     QUART_APP = "otterdog.webapp"
@@ -58,6 +90,9 @@ class AppConfig:
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")
 
 
+validate_required_settings(AppConfig)
+
+
 class ProductionConfig(AppConfig):
     DEBUG = False
 
@@ -80,6 +115,9 @@ class TestingConfig(AppConfig):
     DB_ROOT = os.path.join(APP_ROOT, "db")
 
     MONGO_URI = "mongodb://localhost:27017/otterdog"
+
+
+validate_required_settings(TestingConfig)
 
 
 # Load all possible configurations
