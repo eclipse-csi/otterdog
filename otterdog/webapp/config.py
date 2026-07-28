@@ -9,7 +9,14 @@
 import os
 import secrets
 
-from decouple import config  # type: ignore
+from decouple import config as _decouple_config  # type: ignore
+
+
+def config(*args, **kwargs):
+    """Wrapper around decouple's config() that strips leading/trailing whitespace from string values."""
+    value = _decouple_config(*args, **kwargs)
+    return value.strip() if isinstance(value, str) else value
+
 
 # Settings that must never resolve to an empty value: they are either used
 # to build outgoing requests/identifiers (URLs, hostnames, commit status
