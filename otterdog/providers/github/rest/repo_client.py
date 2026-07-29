@@ -910,7 +910,6 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed getting team permissions for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
-
         status, _ = await self.requester.request_raw(
             "PUT",
             f"/orgs/{org_id}/teams/{team_name}/repos/{org_id}/{repo_name}",
