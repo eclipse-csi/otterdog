@@ -109,7 +109,14 @@ class PullRequestModel(Model):
     closed_at: datetime | None = None
     merged_at: datetime | None = Field(index=True, default=None)
 
-    def automerge_problems(self) -> list[str]:
+    def automerge_problems(self, matching_teams: list[str] | None = None) -> list[str]:
+        """
+        matching_teams, when passed, is the list of team slugs in the org that were
+        actually resolved (via the GitHub API) to match one of the entries in
+        GITHUB_APPROVAL_TEAMS. Left as None when the caller didn't resolve it (e.g. a
+        plain boolean check), in which case the raw patterns are shown instead of a
+        concrete team name.
+        """
         problems = []
         if self.status != PullRequestStatus.OPEN:
             problems.append("pull request is not open")
@@ -128,26 +135,31 @@ class PullRequestModel(Model):
         # If either is true, the pull request can be automerged
         # (author can auto merge without approvals, or it has the required approvals)
         if self.author_can_auto_merge is not True and self.has_required_approvals is not True:
-            if self.author_can_auto_merge is None and self.has_required_approvals is None:
-                problems.append(
-                    "it has not been checked whether the author can auto merge without approvals, "
-                    "and whether the pull request has the required approvals"
+            from otterdog.webapp.utils import describe_admin_teams, describe_approval_teams
+
+            team_description = describe_approval_teams(matching_teams)
+            admin_team_description = describe_admin_teams(self.id.org_id)
+
+            if self.has_required_approvals is None:
+                approval_problem = (
+                    f"it has not been checked yet whether the pull request has been approved by a member of "
+                    f"{team_description}"
                 )
-            elif self.author_can_auto_merge is None and self.has_required_approvals is False:
-                problems.append(
-                    "pull request does not have the required approvals, "
-                    "and it has not been checked whether the author can auto merge without approvals"
+            else:
+                approval_problem = f"the pull request has not been approved by a member of {team_description}"
+
+            if self.author_can_auto_merge is None:
+                author_problem = (
+                    f"it has not been checked yet whether the author is a member of {team_description} or of "
+                    f"{admin_team_description}, which would allow auto-merging without approval"
                 )
-            elif self.author_can_auto_merge is False and self.has_required_approvals is None:
-                problems.append(
-                    "author is not eligible for merge without approvals, "
-                    "and it has not been checked whether the pull request has the required approvals"
+            else:
+                author_problem = (
+                    f"the author is not a member of {team_description} or of {admin_team_description}, "
+                    "so cannot auto-merge without such an approval"
                 )
-            elif self.author_can_auto_merge is False and self.has_required_approvals is False:
-                problems.append(
-                    "pull request does not have the required approvals, "
-                    "and the author is not eligible for merge without approvals"
-                )
+
+            problems.append(f"{approval_problem}; {author_problem}")
         return problems
 
     def can_be_automerged(self) -> bool:

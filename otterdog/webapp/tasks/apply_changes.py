@@ -122,7 +122,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
                 self.logger.error(
                     f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                    f"who is not a member of the admin team, skipping"
+                    f"who is not a member of {get_full_admin_team_slugs(self.org_id)}, skipping"
                 )
 
                 return False

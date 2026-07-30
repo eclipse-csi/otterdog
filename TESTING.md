@@ -100,6 +100,7 @@ OTTERDOG_CONFIG_PATH=<Path to the otterdog.json, e.g. otterdog.json>
 OTTERDOG_CONFIG_TOKEN=<a valid GitHub token, no need for any permissions, just for rate limit purposes>
 
 GITHUB_ADMIN_TEAMS=<comma separated list of teams>
+GITHUB_APPROVAL_TEAMS=<comma separated list of team slugs and/or regexes (matched via re.search against a team slug) to decide if its approval counts towards the required approvals, e.g. project-leads,.*-committers$>
 GITHUB_WEBHOOK_ENDPOINT=/github-webhook/receive
 GITHUB_WEBHOOK_SECRET=<the webhook secret as configured for the GitHub App>
 GITHUB_WEBHOOK_VALIDATION_CONTEXT=<the validation context, e.g. otterdog/otterdog-validation>

@@ -320,6 +320,55 @@ def get_full_admin_team_slugs(org_id: str) -> list[str]:
     return [f"{org_id}/{team_slug}" for team_slug in get_admin_teams()]
 
 
+def describe_admin_teams(org_id: str) -> str:
+    return "team " + " or ".join(f"'{team}'" for team in get_full_admin_team_slugs(org_id))
+
+
+def get_approval_team_patterns() -> list[str]:
+    patterns = str(current_app.config["GITHUB_APPROVAL_TEAMS"])
+    return [pattern.strip() for pattern in patterns.split(",") if pattern.strip()]
+
+
+def team_matches_approval_pattern(team: str) -> bool:
+    return any(re.search(pattern, team) is not None for pattern in get_approval_team_patterns())
+
+
+def contains_team_matching_approval_pattern(teams: Iterable[str]) -> bool:
+    return any(team_matches_approval_pattern(team) for team in teams)
+
+
+async def get_teams_matching_approval_pattern(rest_api: RestApi, org_id: str) -> list[str]:
+    team_slugs = await rest_api.team.get_team_slugs(org_id)
+    return [team_slug for team_slug in team_slugs if team_matches_approval_pattern(team_slug)]
+
+
+def _describe_approval_team_patterns() -> str:
+    patterns = get_approval_team_patterns()
+    if len(patterns) == 1:
+        return f"pattern '{patterns[0]}'"
+    else:
+        return "patterns " + " or ".join(f"'{pattern}'" for pattern in patterns)
+
+
+def describe_approval_teams(matching_teams: list[str] | None) -> str:
+    """
+    matching_teams is the list of team slugs in the org resolved (via the GitHub API) to
+    match one of the entries in GITHUB_APPROVAL_TEAMS (each entry is a regex, matched via
+    re.search, so a plain team slug also works as an entry). Pass None when it wasn't
+    resolved (falls back to showing the raw patterns), or an empty list when resolved but
+    nothing matched.
+    """
+    if matching_teams is None:
+        return f"a team matching {_describe_approval_team_patterns()}"
+    elif matching_teams:
+        return "team " + " or ".join(f"'{team}'" for team in matching_teams)
+    else:
+        return (
+            f"a team matching {_describe_approval_team_patterns()} "
+            "(no team in this organization currently matches any of these patterns)"
+        )
+
+
 async def fetch_config_from_github(
     rest_api: RestApi,
     org_id: str,

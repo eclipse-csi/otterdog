@@ -277,14 +277,14 @@ async def get_organization_config(
 
 
 def contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
-    # FIXME: teams that can approve must be made configurable, this is just EF specific for now
-    return any(x.endswith("project-leads") for x in teams)
+    from otterdog.webapp.utils import contains_team_matching_approval_pattern
+
+    return contains_team_matching_approval_pattern(teams)
 
 
 def contains_eligible_team_for_auto_merge(teams: Iterable[str]) -> bool:
-    from otterdog.webapp.utils import get_admin_teams
+    from otterdog.webapp.utils import contains_team_matching_approval_pattern, get_admin_teams
 
     admin_teams = get_admin_teams()
 
-    # FIXME: teams that can approve must be made configurable, this is just EF specific for now
-    return any(x.endswith("project-leads") or x in admin_teams for x in teams)
+    return contains_team_matching_approval_pattern(teams) or any(x in admin_teams for x in teams)

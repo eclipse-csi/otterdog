@@ -12,6 +12,7 @@ from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.tasks import InstallationBasedTask, Task
+from otterdog.webapp.utils import describe_approval_teams, get_teams_matching_approval_pattern
 
 
 @dataclass(repr=False)
@@ -43,9 +44,16 @@ class AutoMergeCommentTask(InstallationBasedTask, Task[None]):
             self.pull_request_number,
             "<!-- Otterdog Comment: automerge -->",
         ):
-            comment = await render_template("comment/auto_merge_comment.txt")
-
             rest_api = await self.rest_api
+
+            matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
+            team_description = describe_approval_teams(matching_teams)
+
+            comment = await render_template(
+                "comment/auto_merge_comment.txt",
+                team_description=team_description,
+            )
+
             await rest_api.issue.create_comment(
                 self.org_id,
                 self.repo_name,
