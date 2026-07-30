@@ -42,7 +42,6 @@ class OrganizationRuleset(Ruleset):
         return f"orgs.{jsonnet_config.create_org_ruleset}"
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         super().validate(context, parent_object)
 
         repositories = cast("GitHubOrganization", context.root_object).repositories

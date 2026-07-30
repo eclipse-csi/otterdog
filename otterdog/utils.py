@@ -173,7 +173,6 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
 def write_patch_object_as_json(
     diff_object: dict[str, Any], printer: IndentingPrinter, close_object: bool = True
 ) -> None:
-
     # Local helper function to safely quote keys for jsonnet output.
     # jsonnet allows unquoted keys only if they match ^[A-Za-z_][A-Za-z0-9_]*$.
     def quote_key(key: str) -> str:

@@ -361,7 +361,6 @@ class Ruleset(ModelObject, abc.ABC):
     _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         org_settings = cast("GitHubOrganization", context.root_object).settings
 
         if is_set_and_valid(self.target):

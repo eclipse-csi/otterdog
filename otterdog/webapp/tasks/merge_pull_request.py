@@ -37,7 +37,6 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         )
 
     async def _pre_execute_and_return_problems(self) -> list[str]:
-
         pr_model = await find_pull_request(self.org_id, self.repo_name, self.pull_request_number)
         if pr_model is None:
             raise RuntimeError(
