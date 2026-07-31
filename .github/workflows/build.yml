@@ -59,7 +59,7 @@ jobs:
       - name: Build webapp assets
         working-directory: otterdog/webapp/static
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run build
 
       # Run tests

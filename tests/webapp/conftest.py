@@ -27,7 +27,7 @@ os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "dummy-webhook-secret")
 from otterdog.webapp import create_app
 
 
-@pytest.fixture()
+@pytest.fixture
 def app():
     from otterdog.webapp.config import TestingConfig
 
