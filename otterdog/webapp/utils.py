@@ -330,7 +330,13 @@ def get_approval_team_patterns() -> list[str]:
 
 
 def team_matches_approval_pattern(team: str) -> bool:
-    return any(re.search(pattern, team) is not None for pattern in get_approval_team_patterns())
+    for pattern in get_approval_team_patterns():
+        try:
+            if re.search(pattern, team) is not None:
+                return True
+        except re.error as e:
+            logger.warning("invalid regex in GITHUB_APPROVAL_TEAMS entry '%s': %s", pattern, e)
+    return False
 
 
 def contains_team_matching_approval_pattern(teams: Iterable[str]) -> bool:
