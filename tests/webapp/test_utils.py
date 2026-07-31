@@ -49,6 +49,10 @@ async def test_team_matches_approval_pattern_with_literal_and_regex_entries(app)
         assert team_matches_approval_pattern("org/example-committers") is True
         assert team_matches_approval_pattern("org/some-other-team") is False
 
+        # Invalid regex entries should be ignored (and must not crash matching)
+        app.config["GITHUB_APPROVAL_TEAMS"] = "(,project-leads$"
+        assert team_matches_approval_pattern("org/project-leads") is True
+
 
 async def test_contains_team_matching_approval_pattern(app):
     async with app.app_context():
