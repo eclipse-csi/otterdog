@@ -9,8 +9,11 @@
 import os
 import unittest
 
+import jsonschema
+
 from otterdog.config import OtterdogConfig
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import jsonnet_evaluate_file
 
 
 class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
@@ -32,3 +35,20 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         assert organization.github_id == "test-org"
         assert len(organization.webhooks) == 1
         assert len(organization.repositories) == 2
+
+    def test_load_from_model_ignores_unknown_properties(self):
+        data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
+        data["settings"]["deploy_keys_enabled_for_repositories"] = True
+
+        with self.assertLogs("otterdog.models.github_organization", level="WARNING") as log:
+            organization = GitHubOrganization.from_model_data(data)
+
+        assert organization.github_id == "test-org"
+        assert any("deploy_keys_enabled_for_repositories" in message for message in log.output)
+
+    def test_load_from_model_still_rejects_invalid_properties(self):
+        data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
+        data["settings"]["plan"] = 123
+
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            GitHubOrganization.from_model_data(data)
