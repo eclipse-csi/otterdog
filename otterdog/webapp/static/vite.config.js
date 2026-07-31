@@ -14,67 +14,83 @@ export default defineConfig({
             targets: [
                 {
                     src: "../node_modules/jquery/dist/jquery.min.js",
-                    dest: outVendorDir + "/jquery"
+                    dest: outVendorDir + "/jquery",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
-                    dest: outVendorDir + "/bootstrap"
+                    dest: outVendorDir + "/bootstrap",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/bootstrap/dist/css/bootstrap.min.css",
-                    dest: outVendorDir + "/bootstrap"
+                    dest: outVendorDir + "/bootstrap",
+                    rename: {stripBase: true}
                 },
                 {
-                    src: "../node_modules/@fortawesome/fontawesome-free/(css|webfonts)/",
-                    dest: outVendorDir + "/fontawesome-free"
+                    src: "../node_modules/@fortawesome/fontawesome-free/(css|webfonts)/**/*",
+                    dest: outVendorDir + "/fontawesome-free",
+                    rename: {stripBase: 3}
                 },
                 {
                     src: "../node_modules/chart.js/dist/chart.umd.js",
-                    dest: outVendorDir + "/chartjs"
+                    dest: outVendorDir + "/chartjs",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/jsgrid/dist/jsgrid.min.(js|css)",
-                    dest: outVendorDir + "/jsgrid"
+                    dest: outVendorDir + "/jsgrid",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/jsgrid/dist/jsgrid-theme.min.css",
-                    dest: outVendorDir + "/jsgrid"
+                    dest: outVendorDir + "/jsgrid",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/moment/min/moment.min.js",
-                    dest: outVendorDir + "/moment"
+                    dest: outVendorDir + "/moment",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net/js/jquery.dataTables.min.js",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net-responsive/js/dataTables.responsive.min.js",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css",
-                    dest: outVendorDir + "/datatables"
+                    dest: outVendorDir + "/datatables",
+                    rename: {stripBase: true}
                 },
                 {
                     src: "../node_modules/codemirror-mode-jsonnet",
-                    dest: outVendorDir
+                    dest: outVendorDir,
+                    rename: {stripBase: 1}
                 },
                 {
                     src: "../node_modules/marked/marked.min.js",
-                    dest: outVendorDir + "/marked"
+                    dest: outVendorDir + "/marked",
+                    rename: {stripBase: true}
                 },
             ]
         }),
