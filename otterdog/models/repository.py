@@ -107,6 +107,7 @@ class Repository(ModelObject):
     fork_default_branch_only: bool = dataclasses.field(metadata={"model_only": True})
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
+    team_permissions: dict[str, str] | None
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -190,9 +191,31 @@ class Repository(ModelObject):
         "rust",
     }
 
+    _valid_team_permissions: ClassVar[dict[str, str]] = {
+        "pull": "pull",
+        "triage": "triage",
+        "push": "push",
+        "maintain": "maintain",
+        "admin": "admin",
+        "READ": "pull",
+        "TRIAGE": "triage",
+        "WRITE": "push",
+        "MAINTAIN": "maintain",
+        "ADMIN": "admin",
+    }
+
     @property
     def model_object_name(self) -> str:
         return "repository"
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        # stamp the repository name onto each environment so that nested environment
+        # secrets / variables can address the correct REST endpoints later on, see
+        # Environment.repo_name.
+        for env in self.environments:
+            env.repo_name = self.name
 
     def get_all_names(self) -> list[str]:
         return [self.name, *self.aliases]
@@ -242,8 +265,21 @@ class Repository(ModelObject):
     def add_environment(self, environment: Environment) -> None:
         self.environments.append(environment)
 
+    def get_environment(self, name: str) -> Environment | None:
+        return next(filter(lambda x: x.name == name, self.environments), None)
+
     def set_environments(self, environments: list[Environment]) -> None:
         self.environments = environments
+
+    def set_team_permissions(self, permissions: dict[str, str]) -> None:
+        self.team_permissions = {
+            team: self._valid_team_permissions.get(perm, perm) for team, perm in permissions.items()
+        }
+
+    def unset_team_permissions(self) -> None:
+        # we explicitly set the team_permissions to UNSET to mark that this property shall not be used
+        # ignore type checking here as we do not explicitly add the UNSET type yet for all properties
+        self.team_permissions = UNSET  # type: ignore
 
     def coerce_from_org_settings(self, org_settings: OrganizationSettings, for_patch: bool = False) -> Repository:
         copy = dataclasses.replace(self)
@@ -287,7 +323,6 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
             provider = context.provider
@@ -343,7 +378,6 @@ class Repository(ModelObject):
                 )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         github_id = cast("GitHubOrganization", parent_object).github_id
         org_settings = cast("GitHubOrganization", parent_object).settings
 
@@ -452,6 +486,16 @@ class Repository(ModelObject):
                     context.add_failure(
                         FailureType.ERROR,
                         f"{self.get_model_header()} defines an unknown custom property with key '{k}'.",
+                    )
+
+        if is_set_and_present(self.team_permissions) and isinstance(self.team_permissions, dict):
+            for k, v in self.team_permissions.items():
+                if v not in self._valid_team_permissions:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"invalid permission '{v}' "
+                        f"for team '{k}', allowed values are "
+                        f"('read/pull' | 'triage' | 'write/push' | 'maintain' | 'admin').",
                     )
 
         for webhook in self.webhooks:
@@ -854,9 +898,13 @@ class Repository(ModelObject):
 
             return output
 
+        def transform_perm(permissions):
+            return {team: cls._valid_team_permissions[perm] for team, perm in permissions}
+
         mapping.update(
             {
                 "custom_properties": OptionalS("custom_properties", default={}) >> F(property_list_to_map),
+                "team_permissions": OptionalS("team_permissions", default={}) >> F(transform_perm),
                 "webhooks": K([]),
                 "secrets": K([]),
                 "variables": K([]),
@@ -990,6 +1038,9 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.resolve_secrets(secret_resolver)
 
+        for env in self.environments:
+            env.resolve_secrets(secret_resolver)
+
     def copy_secrets(self, other_object: ModelObject) -> None:
         for webhook in self.webhooks:
             other_repo = cast("Repository", other_object)
@@ -1002,6 +1053,12 @@ class Repository(ModelObject):
             other_secret = other_repo.get_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
+
+        for env in self.environments:
+            other_repo = cast("Repository", other_object)
+            other_env = other_repo.get_environment(env.name)
+            if other_env is not None:
+                env.copy_secrets(other_env)
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
@@ -1319,6 +1376,102 @@ class Repository(ModelObject):
         return patch
 
     @classmethod
+    def _calculate_team_permissions(
+        cls, patch: LivePatch[Repository]
+    ) -> tuple[list[str], dict[str, str], dict[str, str]]:
+        """
+        Computes the differences between the current and desired team permissions
+        for a repository based on the provided patch object.
+
+        The patch contains two dictionaries for team_permissions:
+            - 'from_perms': the current team-permission mapping in the system
+            - 'to_perms':   the desired target mapping
+
+        By comparing these two states, the function determines three categories
+        of changes that must be applied:
+
+        Returns:
+            deletes (list[str]):
+                A list of team names that exist in the current state but not in
+                the target state. These teams must have their permissions removed.
+
+            updates (dict[str, str]):
+                A mapping of team names to new permissions for teams that exist
+                in both states but whose permission value has changed.
+
+            adds (dict[str, str]):
+                A mapping of team names to permissions for teams that appear only
+                in the target state and therefore must be newly assigned.
+        """
+
+        changes = patch.changes
+        # No changes exist, so there is no "from" state.
+        # All permissions in expected_object.team_permissions must be added.
+        if changes is None:
+            expected = getattr(patch.expected_object, "team_permissions", None)
+            if isinstance(expected, dict):
+                return [], {}, dict(expected)  # only adds
+            return [], {}, {}
+
+        # Normal diff-based update
+        tp_change = changes.get("team_permissions")
+        if tp_change is None:
+            return [], {}, {}
+
+        from_value = tp_change.from_value
+        to_value = tp_change.to_value
+
+        if not isinstance(from_value, dict) or not isinstance(to_value, dict):
+            return [], {}, {}
+
+        # Now mypy knows these are dictionaries
+        from_perms: dict[str, str] = from_value
+        to_perms: dict[str, str] = to_value
+
+        deletes: list[str] = []
+        updates: dict[str, str] = {}
+        adds: dict[str, str] = {}
+
+        # Keys only in "from": delete
+        for team in from_perms.keys() - to_perms.keys():
+            deletes.append(team)
+
+        # Keys in both: update if permission changed
+        for team in from_perms.keys() & to_perms.keys():
+            if from_perms[team] != to_perms[team]:
+                updates[team] = to_perms[team]
+
+        # Keys only in "to": add
+        for team in to_perms.keys() - from_perms.keys():
+            adds[team] = to_perms[team]
+
+        return deletes, updates, adds
+
+    @classmethod
+    async def _apply_team_permission_changes(
+        cls,
+        provider,
+        org_id: str,
+        repo_name: str,
+        patch: LivePatch[Repository],
+    ) -> None:
+        """
+        Applies the calculated team-permission changes (delete, update, add) to the
+        given repository.
+        """
+
+        deletes, updates, adds = cls._calculate_team_permissions(patch)
+
+        for team in deletes:
+            await provider.delete_team_permission(org_id, repo_name, team)
+
+        for team, perm in updates.items():
+            await provider.update_team_permission(org_id, repo_name, team, perm)
+
+        for team, perm in adds.items():
+            await provider.add_team_permission(org_id, repo_name, team, perm)
+
+    @classmethod
     async def apply_live_patch(
         cls,
         patch: LivePatch[Repository],
@@ -1344,7 +1497,17 @@ class Repository(ModelObject):
                         org_id,
                         expected_object.name,
                         await expected_object.workflows.dict_to_provider_data(org_id, workflow_data, provider),
+                        is_private=expected_object.private is True,
                     )
+
+                # Team permissions are defined on the repository but originate from the team side.
+                # A newly created repository always starts without any team permissions, even if
+                # the desired state already specifies them. After creation we therefore reconcile
+                # the permissions explicitly: remove teams that should not have access, update
+                # teams whose permission differs, and add teams that should be granted access.
+                # All three cases are kept to maintain a consistent reconciliation flow and to
+                # safely handle any unexpected initial state.
+                await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)
 
             case LivePatchType.REMOVE:
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
@@ -1368,4 +1531,17 @@ class Repository(ModelObject):
                     data = unwrap(patch.expected_object).workflows.to_model_dict(for_diff=True)
                     github_data = await RepositoryWorkflowSettings.dict_to_provider_data(org_id, data, provider)
 
-                    await provider.update_repo_workflow_settings(org_id, expected_object.name, github_data)
+                    await provider.update_repo_workflow_settings(
+                        org_id,
+                        expected_object.name,
+                        github_data,
+                        is_private=expected_object.private is True,
+                    )
+
+                # Team permissions sit at the intersection of repositories and teams.
+                # A change in `team_permissions` can represent three different operations:
+                # - removing a team's permission (delete)
+                # - modifying an existing permission (update)
+                # - assigning a new permission (add)
+                # The patch is therefore decomposed into these three categories and applied here.
+                await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)

@@ -109,7 +109,10 @@ local newRepo(name) = {
   branch_protection_rules: [],
 
   # rulesets
-  rulesets: []
+  rulesets: [],
+
+  # team permissions
+  team_permissions: {},
 };
 
 # Function to extend an existing repo with the same name.
@@ -271,10 +274,19 @@ local newEnvironment(name) = {
   name: name,
   wait_timer: 0,
   reviewers: [],
+  prevent_self_review: false,
   # Can be one of: all, protected_branches, branch_policies
   deployment_branch_policy: "all",
   branch_policies: [],
+  secrets: [],
+  variables: [],
 };
+
+# Function to create a new environment secret with default settings.
+local newEnvSecret(name) = newRepoSecret(name);
+
+# Function to create a new environment variable with default settings.
+local newEnvVariable(name) = newRepoVariable(name);
 
 # Function to create a new custom property with default settings.
 local newCustomProperty(name) = {
@@ -441,6 +453,8 @@ local newOrg(name, id=name) = {
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
   newEnvironment:: newEnvironment,
+  newEnvSecret:: newEnvSecret,
+  newEnvVariable:: newEnvVariable,
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,

@@ -46,8 +46,8 @@ class MacOSLargeRunnersUsagePolicy(Policy):
 
             run_id = payload.run_id
 
-            rest_api = await get_rest_api_for_installation(installation_id)
-            cancelled = await rest_api.action.cancel_workflow_run(github_id, repo_name, run_id)
+            async with await get_rest_api_for_installation(installation_id) as rest_api:
+                cancelled = await rest_api.action.cancel_workflow_run(github_id, repo_name, run_id)
             logger.info(f"cancelled workflow run #{run_id} in repo '{github_id}/{repo_name}': success={cancelled}")
 
         await self._update_status(github_id, uses_restricted_runner, permitted)

@@ -115,6 +115,26 @@ However, when named `otterdog.jsonnet` or `otterdog.json`, the cli tool will aut
 > In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
 > However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
+### Environment Variables
+
+#### OTTERDOG_CONFIG_ROOT
+
+The `OTTERDOG_CONFIG_ROOT` environment variable allows you to specify a custom root directory for Otterdog configuration files and organization data. E.g: https://github.com/EclipseFdn/otterdog-configs
+
+When set, Otterdog will:
+- Search for configuration files (`otterdog.jsonnet` or `otterdog.json`) in this directory
+- Use this directory as the base path for the `config_dir` (default: `orgs/`) containing organization configurations
+
+**Usage:**
+
+```bash
+# Set the configuration root directory
+export OTTERDOG_CONFIG_ROOT=/path/to/config
+
+# Run otterdog commands - will automatically use the specified directory
+otterdog fetch-config eclipse-csi
+otterdog apply eclipse-csi
+```
 ### Credentials
 
 Otterdog needs certain credentials to access information from an organization and its repositories on GitHub:

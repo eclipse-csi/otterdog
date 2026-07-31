@@ -6,20 +6,25 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import os
 from io import StringIO
+from pathlib import Path
 
 import pytest
 
 from otterdog.utils import (
     UNSET,
     IndentingPrinter,
+    _make_jsonnet_import_callback,
     camel_to_snake_case,
     deep_merge_dict,
     format_date_for_csv,
     is_different_ignoring_order,
     is_ghsa_repo,
+    jsonnet_evaluate_snippet,
     parse_template_url,
     patch_to_other,
+    restrict_jsonnet_imports,
     snake_to_camel_case,
     snake_to_normal_case,
 )
@@ -120,6 +125,95 @@ def test_format_date_for_csv():
     assert format_date_for_csv("2024-03-15T14:30:45Z") == "2024-03-15 14:30:45"
     assert format_date_for_csv("2023-01-01T00:00:00Z") == "2023-01-01 00:00:00"
     assert format_date_for_csv("2023-12-31T23:59:59Z") == "2023-12-31 23:59:59"
+
+
+def test_jsonnet_import_callback_returns_files_inside_root(tmp_path: Path):
+    (tmp_path / "vendor").mkdir()
+    inside = tmp_path / "vendor" / "lib.libsonnet"
+    inside.write_bytes(b"{ x: 1 }")
+
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+
+    # absolute path inside the root is returned
+    resolved, content = callback("", str(inside))
+    assert resolved == os.path.realpath(str(inside))
+    assert content == "{ x: 1 }"
+
+    # relative path resolved against a base inside the root is returned
+    resolved2, content2 = callback(str(tmp_path / "vendor"), "lib.libsonnet")
+    assert resolved2 == os.path.realpath(str(inside))
+    assert content2 == "{ x: 1 }"
+
+
+def test_jsonnet_import_callback_rejects_absolute_outside_root(tmp_path: Path):
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback("", "/etc/hosts")
+
+
+def test_jsonnet_import_callback_rejects_parent_traversal(tmp_path: Path):
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    callback = _make_jsonnet_import_callback(str(sub))
+
+    # ../ from a base inside the root must not resolve outside the root
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback(str(sub), "../../../etc/hosts")
+
+
+def test_jsonnet_import_callback_resolves_symlinks(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("payload")
+
+    link = root / "linked.libsonnet"
+    try:
+        link.symlink_to(outside)
+    except (OSError, NotImplementedError):  # pragma: no cover - platforms without symlinks
+        pytest.skip("symlinks not supported on this platform")
+
+    callback = _make_jsonnet_import_callback(str(root))
+    # symlinks are resolved before the containment check, so a link pointing
+    # outside the root is rejected
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback("", str(link))
+
+
+def test_evaluate_with_restrict_import(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("payload")
+
+    with restrict_jsonnet_imports(str(root)):
+        snippet = f'{{ outside: importstr "{outside}" }}'
+        with pytest.raises(RuntimeError, match="not allowed"):
+            jsonnet_evaluate_snippet(snippet)
+
+
+def test_evaluate_with_restrict_import_allowed(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    inside = tmp_path / "root" / "inside.txt"
+    inside.write_text("payload")
+
+    with restrict_jsonnet_imports(str(root)):
+        snippet = f'{{ inside: importstr "{inside}" }}'
+        result = jsonnet_evaluate_snippet(snippet)
+        assert result["inside"] == "payload"
+
+
+def test_evaluate_without_restricting_import(tmp_path: Path):
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("payload")
+
+    snippet = f'{{ outside: importstr "{outside}" }}'
+    result = jsonnet_evaluate_snippet(snippet)
+    assert result["outside"] == "payload"
 
 
 _long_string = "Too long to fit console width"

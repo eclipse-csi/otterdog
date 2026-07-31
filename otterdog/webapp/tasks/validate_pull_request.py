@@ -17,7 +17,7 @@ from quart import current_app, render_template
 
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.operations.local_plan import LocalPlanOperation
-from otterdog.utils import IndentingPrinter, LogLevel, unwrap
+from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
@@ -165,13 +165,21 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 operation.init(otterdog_config, printer)
 
                 try:
-                    plan_result = await operation.execute(org_config)
+                    # confine jsonnet imports to the org config directory so that
+                    # configurations cannot reach files outside the expected vendor layout.
+                    with restrict_jsonnet_imports(org_config.jsonnet_config.org_dir):
+                        plan_result = await operation.execute(org_config)
                     validation_result.plan_output = output.getvalue()
                     validation_result.validation_success = plan_result == 0
                 except Exception as ex:
                     self.logger.exception("exception during validate", exc_info=ex)
 
-                    validation_result.plan_output = str(ex)
+                    # use a friendly user-facing message rather than the raw evaluator
+                    # output; full diagnostics stay in the server log.
+                    validation_result.plan_output = (
+                        "Validation failed while evaluating the configuration. "
+                        "Please contact an admin if you believe this is incorrect."
+                    )
                     validation_result.validation_success = False
 
                 self.logger.info("local plan:" + validation_result.plan_output)

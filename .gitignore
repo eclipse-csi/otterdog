@@ -18,6 +18,8 @@ site
 .venv/
 .cache/
 .tox
+.env
+*.pem
 
 ### Ignoring development values for helm charts
 values.yaml

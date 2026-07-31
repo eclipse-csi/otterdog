@@ -190,8 +190,26 @@ class LivePatchHandler(Protocol):
     def __call__(self, patch: LivePatch) -> None: ...
 
 
+class _DefaultValuesMixin:
+    """
+    Mixin that replaces UNSET field values with their Python dataclass defaults in __post_init__.
+    """
+
+    def __post_init__(self):
+        """
+        Assigns to all field which are UNSET their default value, if one is available.
+        """
+        for field in self.all_fields():  # type: ignore[attr-defined]
+            value = self.__getattribute__(field.name)
+            if is_unset(value):
+                if field.default is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default)
+                elif field.default_factory is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default_factory())
+
+
 @dataclasses.dataclass
-class EmbeddedModelObject(ABC):
+class EmbeddedModelObject(_DefaultValuesMixin, ABC):
     """
     The abstract base class for embedded model objects.
     """
@@ -337,22 +355,10 @@ class EmbeddedModelObject(ABC):
 
 
 @dataclasses.dataclass
-class ModelObject(ABC):
+class ModelObject(_DefaultValuesMixin, ABC):
     """
     The abstract base class for any model object.
     """
-
-    def __post_init__(self):
-        """
-        Assigns to all field which are UNSET their default value, if one is available.
-        """
-        for field in self.all_fields():
-            value = self.__getattribute__(field.name)
-            if is_unset(value):
-                if field.default is not dataclasses.MISSING:
-                    self.__setattr__(field.name, field.default)
-                elif field.default_factory is not dataclasses.MISSING:
-                    self.__setattr__(field.name, field.default_factory())
 
     @property
     @abstractmethod

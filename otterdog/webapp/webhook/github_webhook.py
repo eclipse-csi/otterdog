@@ -33,7 +33,9 @@ class GitHubWebhook:
         self._endpoint = app.config["GITHUB_WEBHOOK_ENDPOINT"]
 
         secret = app.config["GITHUB_WEBHOOK_SECRET"]
-        if secret is not None and not isinstance(secret, bytes):
+        if secret is None or secret == "" or secret == b"":
+            raise RuntimeError("GITHUB_WEBHOOK_SECRET is not configured.")
+        if not isinstance(secret, bytes):
             secret = secret.encode("utf-8")
         self._secret = secret
 
@@ -59,23 +61,21 @@ class GitHubWebhook:
         return decorator
 
     async def _get_digest(self):
-        """Return message digest if a secret key was provided"""
+        """Return message digest."""
 
-        if self._secret:
-            return hmac.new(self._secret, await request.data, hashlib.sha1).hexdigest()
+        return hmac.new(self._secret, await request.data, hashlib.sha1).hexdigest()
 
     async def _post_receive(self):
         """Callback from Flask"""
 
         digest = await self._get_digest()
 
-        if digest is not None:
-            sig_parts = _get_header("X-Hub-Signature").split("=", 1)
-            if not isinstance(digest, str):
-                digest = str(digest)
+        sig_parts = _get_header("X-Hub-Signature").split("=", 1)
+        if not isinstance(digest, str):
+            digest = str(digest)
 
-            if len(sig_parts) < 2 or sig_parts[0] != "sha1" or not hmac.compare_digest(sig_parts[1], digest):
-                abort(400, "Invalid signature")
+        if len(sig_parts) < 2 or sig_parts[0] != "sha1" or not hmac.compare_digest(sig_parts[1], digest):
+            abort(400, "Invalid signature")
 
         event_type = _get_header("X-Github-Event")
         content_type = _get_header("content-type")
@@ -150,16 +150,16 @@ EVENT_DESCRIPTIONS = {
 
 
 EVENT_FILTER = {
-    "workflow_job": "'{action}' == 'queued'",
-    "workflow_run": "'{action}' == 'completed'",
+    "workflow_job": lambda data: data.get("action") == "queued",
+    "workflow_run": lambda data: data.get("action") == "completed",
 }
 
 
 def _log_event(event_type, data) -> bool:
-    try:
-        return eval(EVENT_FILTER[event_type].format(**data))  # noqa: S307
-    except KeyError:
+    event_filter = EVENT_FILTER.get(event_type)
+    if event_filter is None:
         return True
+    return event_filter(data)
 
 
 def _format_event(event_type, data):

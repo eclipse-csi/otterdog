@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from quart import current_app, render_template
 
 from otterdog.operations.plan import PlanOperation
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import (
     get_latest_sync_task_for_organization,
@@ -173,7 +173,10 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             operation.set_callback(sync_callback)
             operation.init(otterdog_config, printer)
 
-            await operation.execute(org_config)
+            # confine jsonnet imports to the org config directory so that
+            # configurations cannot reach files outside the expected vendor layout.
+            with restrict_jsonnet_imports(org_config.jsonnet_config.org_dir):
+                await operation.execute(org_config)
 
             self.merge_statistics_from_provider(operation.gh_client)
 

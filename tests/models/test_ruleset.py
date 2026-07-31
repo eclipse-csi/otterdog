@@ -11,8 +11,9 @@ from unittest.mock import patch
 
 import pytest
 from jsonbender import bend
+from pretend import stub
 
-from otterdog.models.ruleset import Ruleset
+from otterdog.models.ruleset import Ruleset, StatusCheckSettings
 
 
 class TestRuleset:
@@ -317,3 +318,41 @@ class TestRuleset:
         result = bend(mapping, data)
 
         assert result["required_merge_queue"] is not None
+
+
+class TestStatusCheckSettings:
+    def make_provider(self, app_ids: dict[str, int] | None = None):
+        async def get_app_ids(app_slugs):
+            return {slug: app_ids[slug] for slug in app_slugs}
+
+        return stub(get_app_ids=get_app_ids)
+
+    async def test_get_mapping_to_provider_numeric_integration_id(self):
+        # a status check reported only by integration_id (no app_slug) is imported
+        # as a bare numeric token, e.g. "15368:Test Summary"; apply must use it
+        # directly instead of resolving it as an app slug via GET /apps/{id}.
+        data = {"status_checks": ["15368:Test Summary"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 15368, "context": "Test Summary"}]
+
+    async def test_get_mapping_to_provider_app_slug(self):
+        data = {"status_checks": ["github-actions:build"], "strict": True}
+        provider = self.make_provider(app_ids={"github-actions": 123})
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 123, "context": "build"}]
+
+    async def test_get_mapping_to_provider_any(self):
+        data = {"status_checks": ["any:build"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"context": "build"}]

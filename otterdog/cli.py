@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,15 +33,21 @@ _CONFIG: OtterdogConfig | None = None
 def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> OtterdogConfig:
     if config_file_param:
         config_file = config_file_param
+        config_root = None
     else:
+        config_root = Path(os.environ.get("OTTERDOG_CONFIG_ROOT", os.curdir))
+
         for file in _CONFIG_FILES:
-            if Path(file).exists():
-                config_file = file
+            config_path = config_root / file
+            if config_path.exists():
+                config_file = str(config_path)
                 break
         else:
-            raise RuntimeError(f"No configuration file specified, and default files {_CONFIG_FILES} not found.")
+            raise RuntimeError(
+                f'No configuration file specified, and default files "{_CONFIG_FILES}" not found in "{config_root}".'
+            )
 
-    return OtterdogConfig.from_file(config_file, local_mode)
+    return OtterdogConfig.from_file(config_file, local_mode, str(config_root) if config_root else None)
 
 
 def complete_organizations(ctx, param, incomplete):
@@ -326,7 +333,7 @@ def push_config(organizations: list[str], no_diff, force, message):
 @cli.command(cls=StdCommand, short_help="Opens a pull request for local configuration changes.")
 @click.option("-b", "--branch", required=True, help="branch name")
 @click.option("-t", "--title", required=True, help="PR title")
-@click.option("-a", "--author", help="GitHub handle of author")
+@click.option("-a", "--author", required=True, help="GitHub handle of author")
 def open_pr(organizations: list[str], branch, title, author):
     """
     Opens a pull request for local configuration changes in the corresponding config repo of an organization.

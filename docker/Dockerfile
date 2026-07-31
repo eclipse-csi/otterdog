@@ -1,4 +1,4 @@
-FROM node:20-alpine@sha256:c13b26e7e602ef2f1074aef304ce6e9b7dd284c419b35d89fcf3cc8e44a8def9 AS builder-node
+FROM node:26-alpine@sha256:c9f02360d2bc66e709b300214395588acd2d3603f600db8141117e67c0faf4ff AS builder-node
 
 WORKDIR /app
 
@@ -10,9 +10,9 @@ RUN npm ci
 RUN npm run build
 
 # build otterdog using a python environment
-FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 AS builder-python3
+FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464 AS builder-python3
 
-ARG version
+ARG version=0.0.0.dev0
 
 RUN apt-get update \
     && apt-get install -y \
@@ -23,7 +23,7 @@ WORKDIR /app
 ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    POETRY_VERSION=2.0.1 \
+    POETRY_VERSION=2.4.1 \
     POETRY_HOME='/usr/local' \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
@@ -42,7 +42,7 @@ RUN poetry config virtualenvs.in-project true && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
-FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249
+FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

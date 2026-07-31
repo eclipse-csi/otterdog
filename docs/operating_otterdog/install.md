@@ -118,7 +118,7 @@ It is required if you are the integration with GitHub ([Create a GitHub app](htt
 **Webhook**
 
 - [X] Active
-- Webhook url: `<OTTERDOG-WEBAPP>`
+- Webhook url: `<OTTERDOG-WEBAPP>/github-webhook/receive`
 - Secret: Choose the secret
 
 Add the following permissions and events:
@@ -213,27 +213,20 @@ Create a `values.yaml` file to define your deployment configuration:
 This is an example
 
 ```yaml
-ghproxy:
-  redisAddress: otterdog-valkey-primary.default.svc.cluster.local:6379
-
 config:
   configOwner: "<ORGANIZATION>"
-  configToken: "<GITHUB TOKEN (BASE64)>"
+  configToken: "<GITHUB TOKEN>"
   configRepo: "otterdog-configs"
   configPath: "otterdog.json"
-  mongoUri: "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog"
-  redisUri: "redis://otterdog-valkey-primary.default.svc.cluster.local:6379"
-  ghProxyUri: "http://otterdog-ghproxy.default.svc.cluster.local:8888"
   dependencyTrackUrl: "https://otterdog-dt.default.svc.cluster"
   dependencyTrackToken: "faketoken"
 
 github:
-  webhookSecret: "<WEBHOOK SECRET (BASE64)>"
+  webhookSecret: "<WEBHOOK SECRET>"
   appId: "<GITHUB APP ID>"
-  appPrivateKey: "<GITHUB APP PRIVATE KEY (BASE64)>"
+  appPrivateKey: "<GITHUB APP PRIVATE KEY>"
   webhookValidationContext: "otterdog/otterdog-validation"
   webhookSyncContext: "otterdog/otterdog-sync"
-
 ```
 
 
@@ -253,22 +246,18 @@ kubectl get svc
 kubectl get ingress
 ```
 
-
 ### Init Otterdog
 
-After deploying Otterdog, you must initialize the webapp by calling the initialization endpoint:
+After deployment, Otterdog initializes itself automatically with a helm hook, but this can also be done manually by calling the initialization endpoint::
 
 ```bash
 curl https://<your-otterdog-address>/internal/init
 ```
 
-This initialization step is **required** and will:
+This initialization will:
 - Fetch the Otterdog configuration from the GitHub repository
 - Sync the current state from GitHub
 - Set up the initial data structures in MongoDB
-
-**Note**: Make sure this endpoint is called after the deployment is complete and all services (MongoDB, Redis/Valkey, and GHProxy) are running.
-
 
 ### Updating the Deployment
 
@@ -286,7 +275,6 @@ helm upgrade eclipse-csi otterdog -f values.yaml
     ```bash
     curl https://<your-otterdog-address>/internal/init
     ```
-
 
 ### Uninstalling Otterdog
 

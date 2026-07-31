@@ -49,10 +49,10 @@ _logger = get_logger(__name__)
 @dataclasses.dataclass
 class PullRequestSettings(EmbeddedModelObject):
     required_approving_review_count: int
-    dismisses_stale_reviews: bool
-    requires_code_owner_review: bool
-    requires_last_push_approval: bool
-    requires_review_thread_resolution: bool
+    dismisses_stale_reviews: bool = dataclasses.field(default=False)
+    requires_code_owner_review: bool = dataclasses.field(default=False)
+    requires_last_push_approval: bool = dataclasses.field(default=False)
+    requires_review_thread_resolution: bool = dataclasses.field(default=False)
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         for key in self.keys(False):
@@ -181,7 +181,7 @@ class StatusCheckSettings(EmbeddedModelObject):
                     if ":" in check:
                         app_slug, _context = re.split(":", check, maxsplit=1)
 
-                        if app_slug != "any" and " " not in app_slug:
+                        if app_slug != "any" and " " not in app_slug and not app_slug.isdigit():
                             app_slugs.add(app_slug)
 
                 return await provider.get_app_ids(app_slugs)
@@ -205,6 +205,8 @@ class StatusCheckSettings(EmbeddedModelObject):
 
             if app_slug is None:
                 return {"context": context}
+            elif app_slug.isdigit():
+                return {"integration_id": int(app_slug), "context": context}
             else:
                 return {"integration_id": app_ids[app_slug], "context": context}
 
@@ -359,7 +361,6 @@ class Ruleset(ModelObject, abc.ABC):
     _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         org_settings = cast("GitHubOrganization", context.root_object).settings
 
         if is_set_and_valid(self.target):

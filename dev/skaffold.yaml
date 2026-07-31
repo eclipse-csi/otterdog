@@ -5,8 +5,11 @@ metadata:
 requires:
 - path: ./dependencies
 
-
 build:
+  local:
+    # Local dev against a local cluster (minikube): build the image locally and do
+    # NOT push it to a remote registry. Skaffold loads it into the cluster instead.
+    push: false
   artifacts:
     - image: ghcr.io/eclipse-csi/otterdog
       context: .
@@ -17,27 +20,39 @@ build:
 
 
 profiles:
-  # This profile is used for local development without exposing the otterdog service using tailscale
+  # Local development without exposing the otterdog service using tailscale.
   - name: dev
     deploy:
       helm:
-        hooks:
+        hooks: &dev-hooks
           before:
             - host:
                 command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./dev-values.yaml`'; exit 1; fi"]
+          after:
+            - host:
+                command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && until kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000; do sleep 2; done"]
         releases:
           - name: otterdog
             remoteChart: eclipse-csi/otterdog
-            valuesFiles:
+            valuesFiles: &dev-valuesFiles
               - ./dev/dev-values.yaml
               - ./values.yaml
 
+  - name: dev-local
+    deploy:
+      helm:
+        hooks: *dev-hooks
+        releases:
+          - name: otterdog
+            chartPath: ../helm-charts/charts/otterdog
+            valuesFiles: *dev-valuesFiles
 
-  # This profile is used for local development with tailscale
+
+  # Local development with tailscale.
   - name: dev-tunnel
     deploy:
       helm:
-        hooks:
+        hooks: &tunnel-hooks
           before:
             - host:
                 command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
@@ -47,8 +62,12 @@ profiles:
                 command: ["sh", "-c", "if [ -z \"$TS_CLIENT_SECRET\" ]; then echo 'Error: TS_CLIENT_SECRET is not set'; exit 1; fi"]
             - host:
                 command: ["sh", "-c", "if [ -z \"$TS_DNS\" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi"]
+          after:
+              - host:
+                  command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && until kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000; do sleep 2; done"]
         releases:
-          - name: dependency-track
+          - &dependency-track-release
+            name: dependency-track
             remoteChart: dependency-track/dependency-track
             namespace: otterdog
             createNamespace: true
@@ -57,7 +76,8 @@ profiles:
             setValueTemplates:
               ingress.hostname: sbom.{{.TS_DNS}}
               ingress.tls[0].hosts[0]: sbom.{{.TS_DNS}}
-          - name: otterdog-tailscale-operator
+          - &tailscale-release
+            name: otterdog-tailscale-operator
             remoteChart: tailscale/tailscale-operator
             namespace: tailscale
             createNamespace: true
@@ -68,9 +88,29 @@ profiles:
             remoteChart: eclipse-csi/otterdog
             namespace: otterdog
             createNamespace: true
-            valuesFiles:
+            valuesFiles: &tunnel-valuesFiles
               - ./dev/dev-values.yaml
               - ./dev/dev-values-tunnel.yaml
               - ./values.yaml
-            setValueTemplates:
+            setValueTemplates: &otterdog-tunnel-setValues
               ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}
+
+
+  # Same as "dev-tunnel" but uses the local Helm chart checkout for the otterdog release.
+  # Assumes the helm-charts repo is checked out next to the otterdog repo:
+  #   <workspace>/otterdog        (this repo)
+  #   <workspace>/helm-charts     (chart source)
+  # Run `helm dependency build ../helm-charts/charts/otterdog` once before the first deploy.
+  - name: dev-tunnel-local
+    deploy:
+      helm:
+        hooks: *tunnel-hooks
+        releases:
+          - *dependency-track-release
+          - *tailscale-release
+          - name: otterdog
+            chartPath: ../helm-charts/charts/otterdog
+            namespace: otterdog
+            createNamespace: true
+            valuesFiles: *tunnel-valuesFiles
+            setValueTemplates: *otterdog-tunnel-setValues
