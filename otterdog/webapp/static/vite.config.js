@@ -5,6 +5,14 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 const outRootDir = path.join(__dirname, "assets")
 const outVendorDir = "vendor"
 
+// Copies vendor file(s) into vendor/<folder>, stripping `stripBase` leading path
+// segments from `src` (true flattens to just the basename).
+const vendorFile = (src, folder, stripBase = true) => ({
+    src: "../node_modules/" + src,
+    dest: folder ? outVendorDir + "/" + folder : outVendorDir,
+    rename: {stripBase}
+})
+
 export default defineConfig({
     root: path.join(__dirname, "./src/"),
     base: "/assets",
@@ -12,86 +20,24 @@ export default defineConfig({
     plugins: [
         viteStaticCopy({
             targets: [
-                {
-                    src: "../node_modules/jquery/dist/jquery.min.js",
-                    dest: outVendorDir + "/jquery",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
-                    dest: outVendorDir + "/bootstrap",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/bootstrap/dist/css/bootstrap.min.css",
-                    dest: outVendorDir + "/bootstrap",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/@fortawesome/fontawesome-free/(css|webfonts)/**/*",
-                    dest: outVendorDir + "/fontawesome-free",
-                    rename: {stripBase: 3}
-                },
-                {
-                    src: "../node_modules/chart.js/dist/chart.umd.js",
-                    dest: outVendorDir + "/chartjs",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/jsgrid/dist/jsgrid.min.(js|css)",
-                    dest: outVendorDir + "/jsgrid",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/jsgrid/dist/jsgrid-theme.min.css",
-                    dest: outVendorDir + "/jsgrid",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/moment/min/moment.min.js",
-                    dest: outVendorDir + "/moment",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net/js/jquery.dataTables.min.js",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net-bs4/css/dataTables.bootstrap4.min.css",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net-bs4/js/dataTables.bootstrap4.min.js",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net-responsive/js/dataTables.responsive.min.js",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css",
-                    dest: outVendorDir + "/datatables",
-                    rename: {stripBase: true}
-                },
-                {
-                    src: "../node_modules/codemirror-mode-jsonnet",
-                    dest: outVendorDir,
-                    rename: {stripBase: 1}
-                },
-                {
-                    src: "../node_modules/marked/marked.min.js",
-                    dest: outVendorDir + "/marked",
-                    rename: {stripBase: true}
-                },
+                vendorFile("jquery/dist/jquery.min.js", "jquery"),
+                vendorFile("bootstrap/dist/js/bootstrap.bundle.min.js", "bootstrap"),
+                vendorFile("bootstrap/dist/css/bootstrap.min.css", "bootstrap"),
+                vendorFile("chart.js/dist/chart.umd.js", "chartjs"),
+                vendorFile("jsgrid/dist/jsgrid.min.(js|css)", "jsgrid"),
+                vendorFile("jsgrid/dist/jsgrid-theme.min.css", "jsgrid"),
+                vendorFile("moment/min/moment.min.js", "moment"),
+                vendorFile("datatables.net/js/jquery.dataTables.min.js", "datatables"),
+                vendorFile("datatables.net-bs4/css/dataTables.bootstrap4.min.css", "datatables"),
+                vendorFile("datatables.net-bs4/js/dataTables.bootstrap4.min.js", "datatables"),
+                vendorFile("datatables.net-responsive/js/dataTables.responsive.min.js", "datatables"),
+                vendorFile("datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js", "datatables"),
+                vendorFile("datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css", "datatables"),
+                vendorFile("marked/marked.min.js", "marked"),
+                // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
+                vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
+                // preserves the package's internal directory structure, so strip only the node_modules/ prefix
+                vendorFile("codemirror-mode-jsonnet", null, 1),
             ]
         }),
     ],
