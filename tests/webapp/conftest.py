@@ -22,6 +22,7 @@ os.environ.setdefault("OTTERDOG_CONFIG_OWNER", "dummy-owner")
 os.environ.setdefault("OTTERDOG_CONFIG_REPO", "dummy-repo")
 os.environ.setdefault("OTTERDOG_CONFIG_PATH", "dummy-path")
 os.environ.setdefault("OTTERDOG_CONFIG_TOKEN", "dummy-config-token")
+os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "dummy-webhook-secret")
 
 from otterdog.webapp import create_app
 
