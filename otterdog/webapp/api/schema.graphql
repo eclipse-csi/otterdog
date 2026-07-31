@@ -74,6 +74,7 @@ type OrganizationSettings {
     members_can_create_private_repositories: Boolean
     members_can_create_public_repositories: Boolean
     members_can_fork_private_repositories: Boolean
+    deploy_keys_enabled_for_repositories: Boolean
     members_can_create_public_pages: Boolean
     members_can_create_private_pages: Boolean
     members_can_change_repo_visibility: Boolean
