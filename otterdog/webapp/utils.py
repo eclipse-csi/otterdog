@@ -364,6 +364,9 @@ def describe_approval_teams(matching_teams: list[str] | None) -> str:
     resolved (falls back to showing the raw patterns), or an empty list when resolved but
     nothing matched.
     """
+    if not get_approval_team_patterns():
+        return "no approval teams are configured (GITHUB_APPROVAL_TEAMS is empty)"
+
     if matching_teams is None:
         return f"a team matching {_describe_approval_team_patterns()}"
     elif matching_teams:
