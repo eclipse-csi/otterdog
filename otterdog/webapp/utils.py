@@ -321,7 +321,8 @@ def get_full_admin_team_slugs(org_id: str) -> list[str]:
 
 
 def describe_admin_teams(org_id: str) -> str:
-    return "team " + " or ".join(f"'{team}'" for team in get_full_admin_team_slugs(org_id))
+    teams = [f"{org_id}/{team_slug.strip()}" for team_slug in get_admin_teams() if team_slug.strip()]
+    return "team " + " or ".join(f"'{team}'" for team in teams)
 
 
 def get_approval_team_patterns() -> list[str]:
