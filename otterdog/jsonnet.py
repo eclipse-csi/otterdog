@@ -384,17 +384,17 @@ class JsonnetConfig:
 
             if not await exists(f"{template_dir}/.git"):
                 _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
-                repo = git.Repo.clone_from(self._base_template_repo_url, template_dir)
-                repo.git.checkout(self._base_template_ref)
+                with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
+                    repo.git.checkout(self._base_template_ref)
             else:
-                repo = git.Repo(template_dir)
-                if not repo.head.is_detached:
-                    _logger.debug(
-                        "pulling changes from base template url '%s' with ref '%s'",
-                        self._base_template_repo_url,
-                        repo.head.ref,
-                    )
-                    repo.remotes.origin.pull()
+                with git.Repo(template_dir) as repo:
+                    if not repo.head.is_detached:
+                        _logger.debug(
+                            "pulling changes from base template url '%s' with ref '%s'",
+                            self._base_template_repo_url,
+                            repo.head.ref,
+                        )
+                        repo.remotes.origin.pull()
 
         # create base directory if it does not exist yet
         if not await exists(self.org_dir):
