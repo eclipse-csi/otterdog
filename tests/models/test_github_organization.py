@@ -6,7 +6,6 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from logging import log
 import os
 import unittest
 
@@ -42,9 +41,8 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         data["settings"]["unknown_property_xyz"] = True
 
         with self.assertLogs("otterdog.models.github_organization", level="WARNING") as log:
-            
             organization = GitHubOrganization.from_model_data(data)
-        print(log.output)
+
         assert organization.github_id == "test-org"
         assert any("unknown_property_xyz" in message for message in log.output)
 
