@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from logging import log
 import os
 import unittest
 
@@ -38,13 +39,14 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
 
     def test_load_from_model_ignores_unknown_properties(self):
         data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
-        data["settings"]["deploy_keys_enabled_for_repositories"] = True
+        data["settings"]["unknown_property_xyz"] = True
 
         with self.assertLogs("otterdog.models.github_organization", level="WARNING") as log:
+            
             organization = GitHubOrganization.from_model_data(data)
-
+        print(log.output)
         assert organization.github_id == "test-org"
-        assert any("deploy_keys_enabled_for_repositories" in message for message in log.output)
+        assert any("unknown_property_xyz" in message for message in log.output)
 
     def test_load_from_model_still_rejects_invalid_properties(self):
         data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
