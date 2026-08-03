@@ -33,7 +33,8 @@ endif
 	poetry sync
 	poetry run python -m playwright install firefox
 
-	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
+	@[ "$$(readlink -f $(OTTERDOG_LINK) 2>/dev/null)" = "$(OTTERDOG_SCRIPT)" ] \
+		|| { ln -sf $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK); echo "Updated symlink: $(OTTERDOG_LINK) -> $(OTTERDOG_SCRIPT)"; }
 
 test:  ## Run tests with coverage
 	poetry run pytest -rs tests --cov=otterdog --cov-report=term --cov-report=html
