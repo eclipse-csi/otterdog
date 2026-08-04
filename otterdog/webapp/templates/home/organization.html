@@ -457,6 +457,7 @@
                             <th>Required</th>
                             <th>Default Value</th>
                             <th>Allowed Values</th>
+                            <th>Values Editable By</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -474,6 +475,11 @@
                             <td>
                               {% if custom_property.allowed_values %}
                               {{ custom_property.allowed_values|pprint }}
+                              {% endif %}
+                            </td>
+                            <td>
+                              {% if custom_property.values_editable_by %}
+                              {{ custom_property.values_editable_by }}
                               {% endif %}
                             </td>
                           </tr>
