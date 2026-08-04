@@ -31,7 +31,7 @@ class WorkflowFile:
         workflows = []
 
         # regular workflows
-        for _k, v in self.content.get("jobs", {}).items():
+        for v in self.content.get("jobs", {}).values():
             if v is None:
                 continue
             # jobs.<job_id>.steps[*].uses

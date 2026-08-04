@@ -227,9 +227,7 @@ class RepoClient(RestClient):
                             break
                         except RuntimeError:
                             _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 10")
-                            import time
-
-                            time.sleep(1)
+                            await asyncio.sleep(1)
 
                     if initialized is False:
                         raise RuntimeError(
@@ -477,9 +475,7 @@ class RepoClient(RestClient):
                     break
 
                 _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 3")
-                import time
-
-                time.sleep(1)
+                await asyncio.sleep(1)
 
             current_gh_pages: Any = current_repo_data.get("gh_pages")
             if current_gh_pages is not None:
@@ -974,7 +970,7 @@ class RepoClient(RestClient):
                 else:
                     await self._create_deployment_branch_policy(org_id, repo_name, env_name, policy)
 
-            for _policy_name, policy_dict in current_branch_policies_by_name.items():
+            for policy_dict in current_branch_policies_by_name.values():
                 await self._delete_deployment_branch_policy(org_id, repo_name, env_name, policy_dict["id"])
 
             _logger.debug("updated deployment branch policies for env '%s'", env_name)
@@ -1335,17 +1331,15 @@ class RepoClient(RestClient):
                 if path.is_file():
                     _logger.debug("updating file '%s'", relative_path)
 
-                    with open(path) as file:
-                        content = file.read()
+                    async with aiofiles.open(path) as file:
+                        content = await file.read()
 
-                        if str(relative_path) in template_paths_set:
-                            content = self._render_template_content(org_id, repo_name, content)
+                    if str(relative_path) in template_paths_set:
+                        content = self._render_template_content(org_id, repo_name, content)
 
-                        updated = await self.rest_api.content.update_content(
-                            org_id, repo_name, str(relative_path), content
-                        )
-                        if updated:
-                            updated_files.append(str(relative_path))
+                    updated = await self.rest_api.content.update_content(org_id, repo_name, str(relative_path), content)
+                    if updated:
+                        updated_files.append(str(relative_path))
 
         return updated_files
 

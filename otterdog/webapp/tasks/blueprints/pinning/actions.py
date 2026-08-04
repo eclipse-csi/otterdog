@@ -9,20 +9,23 @@
 from __future__ import annotations
 
 import dataclasses
-import logging
 import os
 import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import aiofiles
 from semver import Version
 
+from otterdog.logging import get_logger
 from otterdog.utils import unwrap
 
 from .workflow_file import WorkflowFile
 
 if TYPE_CHECKING:
     from otterdog.providers.github.rest import RestApi
+
+_logger = get_logger(__name__)
 
 
 class ActionRef(ABC):
@@ -84,11 +87,11 @@ class ReusableWorkflow(ActionRef):
             if status == 200:
                 return WorkflowFile(content)
             else:
-                logging.debug(f"received status '{status}' while retrieving workflow '{self!r}'")
+                _logger.debug(f"received status '{status}' while retrieving workflow '{self!r}'")
                 return None
         else:
-            with open(self.file_path) as file:
-                return WorkflowFile(file.read())
+            async with aiofiles.open(self.file_path) as file:
+                return WorkflowFile(await file.read())
 
     @classmethod
     def _matches_pattern(cls, pattern) -> bool:
@@ -204,8 +207,8 @@ class LocalGitHubAction(ActionRef):
                 content_path = os.path.join(self.path, f"action.{ext}")
 
                 if os.path.exists(content_path):
-                    with open(content_path) as file:
-                        return WorkflowFile(file.read())
+                    async with aiofiles.open(content_path) as file:
+                        return WorkflowFile(await file.read())
 
             return None
         else:

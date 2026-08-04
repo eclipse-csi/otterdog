@@ -110,7 +110,7 @@ class PlanOperation(DiffOperation):
                     )
 
         settings_to_change = 0
-        for k, _v in modified_object.items():
+        for k in modified_object:
             if current_object.is_read_only_key(k):
                 self.printer.println(f"\n[yellow]Note[/]: setting '{k}' is read-only, will be skipped.")
             else:

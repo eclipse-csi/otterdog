@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 import re
-from asyncio import gather, sleep
+from asyncio import gather, sleep, to_thread
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -249,7 +249,7 @@ class WebClient:
                 except Exception as e:
                     await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                     _logger.warning(f"failed to update setting '{setting}' via web ui:\n{e!s}")
-                    raise e
+                    raise
 
     async def open_browser_with_logged_in_user(self, org_id: str) -> None:
         _logger.trace("opening browser window")
@@ -511,9 +511,9 @@ class WebClient:
             await page.wait_for_url(
                 f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}"
             )
-        except PlaywrightError as e:
+        except PlaywrightError:
             await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
-            raise e
+            raise
 
     async def _login_if_required(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
@@ -527,14 +527,18 @@ class WebClient:
         """Store the current page html and a screenshot if logging is enabled."""
 
         if _logger.isEnabledFor(log_level):
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S.%f")
             url = page.url.replace("/", "_").replace(":", "_")
             html_file = f"web_{timestamp}_{url}.html"
             screenshot_file = f"web_{timestamp}_{url}.png"
 
             content = await page.content()
-            with open(html_file, "w", encoding="utf-8") as f:
-                f.write(content)
+
+            def _write_html() -> None:
+                with open(html_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            await to_thread(_write_html)
 
             await page.screenshot(path=screenshot_file)
 

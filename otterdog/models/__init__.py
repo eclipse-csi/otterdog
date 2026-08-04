@@ -219,7 +219,7 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
 
     def get_difference_from(self, other: Self) -> Change | None:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         from_dict: dict[str, Any] = {}
         to_dict: dict[str, Any] = {}
@@ -245,7 +245,7 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
 
     def get_patch_to(self, other: EmbeddedModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
         for key in self.keys(for_diff=False, for_patch=True, exclude_unset_keys=True):
@@ -325,7 +325,7 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
         return result
 
     @classmethod
-    def from_model_data(cls: type[EMT], data: dict[str, Any]) -> EMT:
+    def from_model_data(cls, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_model()
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -334,7 +334,7 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
         return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
-    def from_provider_data(cls: type[EMT], org_id: str, data: dict[str, Any]) -> EMT:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -400,7 +400,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     def get_difference_from(self, other: Self) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         diff_result: dict[str, Change[T]] = {}
         for key in self.keys(
@@ -440,7 +440,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     def get_patch_to(self, other: ModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
         for key in self.keys(
@@ -553,7 +553,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     @classmethod
     @final
-    def from_model_data(cls: type[MT], data: Mapping[str, Any]) -> MT:
+    def from_model_data(cls, data: Mapping[str, Any]) -> Self:
         mapping = cls.get_mapping_from_model()
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -563,7 +563,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     @classmethod
     @final
-    def from_provider_data(cls: type[MT], org_id: str, data: dict[str, Any]) -> MT:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -724,9 +724,9 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     @classmethod
     def generate_live_patch(
-        cls: type[MT],
-        expected_object: MT | None,
-        current_object: MT | None,
+        cls,
+        expected_object: Self | None,
+        current_object: Self | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
@@ -792,7 +792,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
                 expected_objects_by_all_keys.pop(k)
             expected_objects_by_key.pop(expected_object.get_key_value())
 
-        for _, expected_object in expected_objects_by_key.items():
+        for expected_object in expected_objects_by_key.values():
             if expected_object.include_for_live_patch(context):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 

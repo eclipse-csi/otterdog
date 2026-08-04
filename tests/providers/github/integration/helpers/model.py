@@ -30,7 +30,7 @@ def determine_model_object(
     If both are provided, they must be of the same type.
     """
     if a and b:
-        assert type(a) == type(b), "Both objects must be of the same type"  # noqa: E721
+        assert type(a) == type(b), "Both objects must be of the same type"
         return type(a)
     elif a:
         return type(a)

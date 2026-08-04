@@ -240,7 +240,7 @@ class Operation(ABC):
 
             length = max(length, len(key))
             if isinstance(expected_value, dict):
-                for k, _ in expected_value.items():
+                for k in expected_value:
                     length = max(length, len(k) + self.printer.spaces_per_level)
 
         return length
@@ -251,7 +251,7 @@ class Operation(ABC):
         for key, value in sorted(data.items()):
             length = max(length, len(key))
             if isinstance(value, dict):
-                for k, _ in value.items():
+                for k in value:
                     length = max(length, len(k) + self.printer.spaces_per_level)
 
         return length

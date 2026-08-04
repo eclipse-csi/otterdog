@@ -104,8 +104,8 @@ semver               = "^3.0"
 python-slugify       = "^8.0"
 
 [tool.poetry.group.dev.dependencies]
-ruff = ">=0.15"
-prek = ">=0.3.0"
+ruff = ">=0.16"
+prek = ">=0.4.0"
 
 [tool.poetry.group.test.dependencies]
 tox = ">4.22"
@@ -202,7 +202,8 @@ ignore = [
     "SIM103", # inline return
     "N818",   # exception names
     "S102",   # we deliberately use exec
-    "S105"    # hardcoded passwords (too many false-positives for now)
+    "S105",   # hardcoded passwords (too many false-positives for now)
+    "BLE001"  # deliberate broad excepts at integration boundaries (browser automation, webhooks, vault auth)
 ]
 
 [tool.ruff.lint.per-file-ignores]

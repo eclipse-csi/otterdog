@@ -13,9 +13,9 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
 from rich.console import Console
@@ -93,7 +93,7 @@ def expect_type(value: Any, expected_type: type[T]) -> T:
     if isinstance(value, expected_type):
         return value
     else:
-        raise ValueError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
+        raise TypeError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
 
 
 @dataclass
@@ -405,11 +405,11 @@ class restrict_jsonnet_imports:  # noqa: N801
         self._base_dir = base_dir
         self._token: contextvars.Token[str | None] | None = None
 
-    def __enter__(self) -> restrict_jsonnet_imports:
+    def __enter__(self) -> Self:
         self._token = _jsonnet_import_root.set(self._base_dir)
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         if self._token is not None:
             _jsonnet_import_root.reset(self._token)
             self._token = None
@@ -601,8 +601,8 @@ class PrettyFormatter:
         self.types[obj] = callback
 
     def format(self, value, **args):
-        for key in args:
-            setattr(self, key, args[key])
+        for key, val in args.items():
+            setattr(self, key, val)
         formatter = self.types[type(value) if type(value) in self.types else object]
         return formatter(self, value, self.indent)
 
@@ -696,10 +696,10 @@ def debug_times(category: str):
 
             @functools.wraps(func)
             async def wrapper_timed(*args, **kwargs):
-                start = datetime.now()
+                start = datetime.now(UTC)
                 _logger.debug(f"{category}: starting ...")
                 value = await func(*args, **kwargs)
-                end = datetime.now()
+                end = datetime.now(UTC)
                 _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
                 return value
 
@@ -708,10 +708,10 @@ def debug_times(category: str):
 
             @functools.wraps(func)
             def wrapper_timed(*args, **kwargs):
-                start = datetime.now()
+                start = datetime.now(UTC)
                 _logger.debug(f"{category}: starting ...")
                 value = func(*args, **kwargs)
-                end = datetime.now()
+                end = datetime.now(UTC)
                 _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
                 return value
 
