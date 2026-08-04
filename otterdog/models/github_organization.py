@@ -243,7 +243,19 @@ class GitHubOrganization:
 
             registry = Registry(retrieve=retrieve_from_filesystem)  # type: ignore
             validator = Draft202012Validator(_ORG_SCHEMA, registry=registry)
-            validator.validate(data)
+
+            blocking_errors = []
+            for error in validator.iter_errors(data):
+                if error.validator == "additionalProperties":
+                    _logger.warning(
+                        "ignoring unknown properties found while validating organization config: %s",
+                        error.message,
+                    )
+                else:
+                    blocking_errors.append(error)
+
+            if blocking_errors:
+                raise blocking_errors[0]
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None

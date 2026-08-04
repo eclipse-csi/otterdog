@@ -157,6 +157,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 minversion = "7.2"
 testpaths  = ["tests"]
 pythonpath = [".", "otterdog"]
+addopts    = "--capture=tee-sys"
 
 log_cli             = true
 log_cli_level       = "INFO"
