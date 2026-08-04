@@ -115,3 +115,57 @@ def test_load_jsonnet_not_object(create_tmp_file: CreateTmpFile):
     error_message = str(exc_info.value)
     assert "expected JSON object" in error_message
     assert "array.jsonnet" in error_message
+
+
+_MINIMAL_OTTERDOG_JSON = """\
+{
+  "defaults": {
+    "jsonnet": {
+      "base_template": "https://github.com/test/test#test.libsonnet@main",
+      "config_dir": "."
+    }
+  },
+  "organizations": []
+}
+"""
+
+
+def test_from_file_loads_defaults_override_when_present(create_tmp_file: CreateTmpFile):
+    """from_file() must merge .otterdog-defaults.json into configuration["defaults"]."""
+    config_file = create_tmp_file("otterdog.json", _MINIMAL_OTTERDOG_JSON)
+    create_tmp_file(
+        ".otterdog-defaults.json",
+        '{"pass": {"password_store_dir": "/custom/store"}}',
+    )
+
+    config = OtterdogConfig.from_file(str(config_file), False)
+
+    assert config.configuration["defaults"]["pass"]["password_store_dir"] == "/custom/store"
+
+
+def test_from_file_skips_defaults_override_when_absent(create_tmp_file: CreateTmpFile):
+    """from_file() must not fail and must leave defaults untouched when .otterdog-defaults.json is absent."""
+    config_file = create_tmp_file("otterdog.json", _MINIMAL_OTTERDOG_JSON)
+
+    config = OtterdogConfig.from_file(str(config_file), False)
+
+    assert "pass" not in config.configuration.get("defaults", {})
+
+
+def test_from_file_loads_defaults_override_even_with_explicit_working_dir(create_tmp_file: CreateTmpFile):
+    """from_file() must load .otterdog-defaults.json from config_file_dir regardless of working_dir.
+
+    Regression test: previously the load was gated on `working_dir is None`, which caused
+    .otterdog-defaults.json to never be loaded when OTTERDOG_CONFIG_ROOT was set (because
+    working_dir was always populated from os.curdir in cli.py).
+    """
+    config_file = create_tmp_file("otterdog.json", _MINIMAL_OTTERDOG_JSON)
+    create_tmp_file(
+        ".otterdog-defaults.json",
+        '{"pass": {"password_store_dir": "/custom/store"}}',
+    )
+    different_working_dir = str(config_file.parent)
+
+    config = OtterdogConfig.from_file(str(config_file), False, working_dir=different_working_dir)
+
+    assert config.configuration["defaults"]["pass"]["password_store_dir"] == "/custom/store"
