@@ -16,7 +16,7 @@ from jsonschema import Draft202012Validator, ValidationError
 from referencing import Registry, Resource
 from referencing.exceptions import NoSuchResource
 
-import otterdog.resources as resources
+from otterdog import resources
 
 
 class TestWorkflowSettingsSchemaComposition:

@@ -9,8 +9,7 @@
 import asyncio
 import json
 import re
-import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import cache
 from logging import getLogger
 from typing import cast
@@ -365,33 +364,15 @@ def escape_for_github(text: str) -> str:
 
 
 def epoch_utc_time():
-    if sys.version_info < (3, 12):
-        return datetime.utcfromtimestamp(0)
-    else:
-        from datetime import UTC
-
-        return datetime.fromtimestamp(0, UTC)
+    return datetime.fromtimestamp(0, UTC)
 
 
 def current_utc_time() -> datetime:
-    if sys.version_info < (3, 12):
-        return datetime.utcnow()
-    else:
-        from datetime import UTC
-
-        return datetime.now(UTC)
+    return datetime.now(UTC)
 
 
 def make_aware_utc(d: datetime) -> datetime:
-    if sys.version_info < (3, 12):
-        from datetime import timezone
-
-        utc = timezone(timedelta(0))
-        return d.astimezone(utc)
-    else:
-        from datetime import UTC
-
-        return d.astimezone(UTC)
+    return d.astimezone(UTC)
 
 
 async def backoff_if_needed(last_event: datetime, required_timeout: timedelta) -> None:

@@ -481,7 +481,7 @@ class Repository(ModelObject):
 
         if is_set_and_present(self.custom_properties):
             defined_properties = associate_by_key(org_settings.custom_properties, lambda x: x.name)
-            for k, _v in self.custom_properties.items():
+            for k in self.custom_properties:
                 if k not in defined_properties:
                     context.add_failure(
                         FailureType.ERROR,
@@ -1252,7 +1252,7 @@ class Repository(ModelObject):
                 if not isinstance(from_value, dict) or not isinstance(to_value, dict) or change.to_value is None:
                     raise RuntimeError(f"unexpected change '{change}'")
 
-                for k, _v in from_value.items():
+                for k in from_value:
                     if k not in to_value:
                         change.to_value[k] = None
 
@@ -1433,8 +1433,7 @@ class Repository(ModelObject):
         adds: dict[str, str] = {}
 
         # Keys only in "from": delete
-        for team in from_perms.keys() - to_perms.keys():
-            deletes.append(team)
+        deletes = list(from_perms.keys() - to_perms.keys())
 
         # Keys in both: update if permission changed
         for team in from_perms.keys() & to_perms.keys():

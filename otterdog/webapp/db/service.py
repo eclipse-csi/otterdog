@@ -160,8 +160,7 @@ async def update_installations_from_config(
 
             await session.save(model)
 
-            if github_id in existing_installations:
-                existing_installations.remove(github_id)
+            existing_installations.discard(github_id)
 
         # remove all remaining installations which are not present in the otterdog config
         for github_id in existing_installations:

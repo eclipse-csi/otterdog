@@ -109,8 +109,7 @@ class Requester:
             else:
                 query_params = {k: v[0] for k, v in parse.parse_qs(parse.urlparse(next_url).query).items()}
 
-            for item in entries:
-                result.append(item)
+            result.extend(entries)
 
         return result
 

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -30,7 +30,6 @@ from otterdog.webapp.utils import (
     fetch_config_from_github,
     get_full_admin_team_slugs,
     get_otterdog_config,
-    make_aware_utc,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -100,9 +99,9 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
 
             if len(commits) > 1:
                 previous_commit = commits[-2]
-                commit_time = make_aware_utc(
-                    datetime.strptime(previous_commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
-                )
+                commit_time = datetime.strptime(
+                    previous_commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=UTC)
                 current_time = current_utc_time()
                 timedelta_since_last_commit = current_time - commit_time
                 if timedelta_since_last_commit < timedelta(hours=1):

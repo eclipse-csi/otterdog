@@ -129,7 +129,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
         return True
 
-    async def _post_execute(self, result_or_exception: ApplyResult | None | Exception) -> None:
+    async def _post_execute(self, result_or_exception: ApplyResult | Exception | None) -> None:
         if isinstance(result_or_exception, Exception):
             self._pr_model.apply_status = ApplyStatus.FAILED
         elif result_or_exception is None:

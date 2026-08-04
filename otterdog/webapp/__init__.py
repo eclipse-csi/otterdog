@@ -74,8 +74,6 @@ def register_github_webhook(app) -> None:
 
 
 def register_blueprints(app):
-    global auth_manager
-
     for module_name in _BLUEPRINT_MODULES:
         if module_name == "auth" and auth_manager is None:
             continue

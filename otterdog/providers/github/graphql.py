@@ -317,8 +317,7 @@ class GraphQLClient:
             if status < 400 and "data" in json_data:
                 rules_result = query_json(prefix_selector + selector_type, json_data)
 
-                for rule in rules_result:
-                    result.append(rule)
+                result.extend(rules_result)
 
                 page_info = query_json(prefix_selector + ".pageInfo", json_data)
 

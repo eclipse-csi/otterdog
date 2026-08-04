@@ -64,8 +64,10 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
 
             if not contains_eligible_team_for_auto_merge(team_membership):
                 return [
-                    "Only the author of the pull request, a project-lead or a member of the admin teams "
-                    "is allowed to auto-merge."
+                    (
+                        "Only the author of the pull request, a project-lead or a member of the admin teams "
+                        "is allowed to auto-merge."
+                    )
                 ]
 
         return []
