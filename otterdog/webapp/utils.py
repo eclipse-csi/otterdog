@@ -9,6 +9,7 @@
 import asyncio
 import json
 import re
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from logging import getLogger
