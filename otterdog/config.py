@@ -312,12 +312,13 @@ class OtterdogConfig:
 
         configuration = load_json_or_jsonnet(config_file_file)
 
-        if working_dir is None:
-            override_defaults_file = config_file_dir / ".otterdog-defaults.json"
-            if override_defaults_file.exists():
-                defaults = load_json_or_jsonnet(override_defaults_file)
-                _logger.trace("loading default overrides from '%s'", override_defaults_file)
-                configuration["defaults"] = deep_merge_dict(defaults, configuration.setdefault("defaults", {}))
+        override_defaults_file = config_file_dir / ".otterdog-defaults.json"
+        if override_defaults_file.exists():
+            defaults = load_json_or_jsonnet(override_defaults_file)
+            _logger.trace("loading default overrides from '%s'", override_defaults_file)
+            configuration["defaults"] = deep_merge_dict(defaults, configuration.setdefault("defaults", {}))
+        else:
+            _logger.debug("no default overrides found at '%s'", override_defaults_file)
 
         return cls(configuration, local_mode, working_dir if working_dir is not None else str(config_file_dir))
 
