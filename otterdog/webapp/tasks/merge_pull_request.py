@@ -74,8 +74,10 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             if not contains_eligible_team_for_auto_merge(team_membership):
                 matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
                 return [
-                    f"Only the author of the pull request, a member of {describe_approval_teams(matching_teams)}, "
-                    f"or a member of {describe_admin_teams(self.org_id)} is allowed to auto-merge."
+                    (
+                        f"Only the author of the pull request, a member of {describe_approval_teams(matching_teams)}, "
+                        f"or a member of {describe_admin_teams(self.org_id)} is allowed to auto-merge."
+                    )
                 ]
 
         return []
