@@ -75,6 +75,7 @@ async def test_create_string_type(github: GitHubProviderTestKit):
             "required": False,
             "default_value": "",
             "description": None,
+            "values_editable_by": None,
         },
         response_json={},
     )
@@ -89,6 +90,7 @@ async def test_create_string_type(github: GitHubProviderTestKit):
             default_value="",
             description=None,
             allowed_values=[],
+            values_editable_by=None,
         ),
     )
 
@@ -103,6 +105,7 @@ async def test_create_string_type_with_non_empty_allowed_values(github: GitHubPr
             "required": False,
             "default_value": "",
             "description": None,
+            "values_editable_by": None,
         },
         response_json={},
     )
@@ -117,6 +120,7 @@ async def test_create_string_type_with_non_empty_allowed_values(github: GitHubPr
             default_value="",
             description=None,
             allowed_values=["some_value"],
+            values_editable_by=None,
         ),
     )
 
