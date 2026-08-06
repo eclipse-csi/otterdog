@@ -1,12 +1,16 @@
 FROM node:26-alpine@sha256:c9f02360d2bc66e709b300214395588acd2d3603f600db8141117e67c0faf4ff AS builder-node
 
-WORKDIR /app
-
-COPY ./otterdog ./otterdog
-
 WORKDIR /app/otterdog/webapp/static
 
+# copy only the npm manifests first so `npm ci` layer stays cached
+# across source-only edits (npm ci is by far the slowest step here)
+COPY ./otterdog/webapp/static/package.json ./otterdog/webapp/static/package-lock.json ./
+
 RUN npm ci
+
+# now copy the rest of the source and build
+COPY ./otterdog /app/otterdog
+
 RUN npm run build
 
 # build otterdog using a python environment
@@ -27,18 +31,25 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     POETRY_HOME='/usr/local' \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
-COPY ./otterdog ./otterdog
-COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
-COPY ./docker/start-webapp ./docker/start-webapp
-COPY ./docker/init-webapp ./docker/init-webapp
+# copy only dependency manifests first so `poetry install` layer stays
+# cached across source-only edits (dependency resolution/install is the
+# slowest step here)
+COPY ./pyproject.toml ./poetry.lock ./README.md ./
 
 RUN curl -sSL https://install.python-poetry.org | python -
 
 RUN poetry self add "poetry-dynamic-versioning[plugin]"
 
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --only=main,app --no-root && \
-    poetry build && \
+    poetry install --only=main,app --no-root
+
+# now copy the actual source and build/install the root package
+COPY ./otterdog ./otterdog
+COPY ./docker/hypercorn-cfg.toml ./
+COPY ./docker/start-webapp ./docker/start-webapp
+COPY ./docker/init-webapp ./docker/init-webapp
+
+RUN poetry build && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
