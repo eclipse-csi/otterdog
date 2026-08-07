@@ -69,6 +69,7 @@ profiles:
           - &dependency-track-release
             name: dependency-track
             remoteChart: dependency-track/dependency-track
+            version: 1.3.0
             namespace: otterdog
             createNamespace: true
             valuesFiles:
