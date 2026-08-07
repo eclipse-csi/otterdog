@@ -17,6 +17,11 @@ from otterdog.webapp.tasks import (
     Task,
     contains_eligible_team_for_auto_merge,
 )
+from otterdog.webapp.utils import (
+    describe_admin_teams,
+    describe_approval_teams,
+    get_teams_matching_approval_pattern,
+)
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -45,10 +50,14 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
         else:
             self._pr_model = pr_model
 
-        if problems := pr_model.automerge_problems():
-            return problems
-
         rest_api = await self.rest_api
+
+        if await pr_model.automerge_problems():
+            matching_teams = None
+            if pr_model.author_can_auto_merge is not True and pr_model.has_required_approvals is not True:
+                matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
+            return await pr_model.automerge_problems(matching_teams=matching_teams)
+
         response = await rest_api.pull_request.get_pull_request(
             self.org_id, self.repo_name, str(self.pull_request_number)
         )
@@ -62,11 +71,14 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             team_data = await graphql_api.get_team_membership(self.org_id, self.author)
             team_membership = [team["name"] for team in team_data]
 
-            if not contains_eligible_team_for_auto_merge(team_membership):
+            if not await contains_eligible_team_for_auto_merge(team_membership, self.org_id):
+                matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
+                team_description = await describe_approval_teams(matching_teams, self.org_id)
+                admin_team_description = await describe_admin_teams(self.org_id)
                 return [
                     (
-                        "Only the author of the pull request, a project-lead or a member of the admin teams "
-                        "is allowed to auto-merge."
+                        f"Only the author of the pull request, a member of {team_description}, "
+                        f"or a member of {admin_team_description} is allowed to auto-merge."
                     )
                 ]
 
