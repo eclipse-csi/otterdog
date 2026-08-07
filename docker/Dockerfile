@@ -34,7 +34,7 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
 # slowest step here)
 COPY ./pyproject.toml ./poetry.lock ./README.md ./
 
-RUN pip install --only-binary :all: "poetry==${POETRY_VERSION}" "poetry-dynamic-versioning[plugin]==1.10.0"
+RUN pip install --only-binary :all: "poetry-dynamic-versioning[plugin]==1.10.0" "poetry==${POETRY_VERSION}"
 
 RUN poetry config virtualenvs.in-project true && \
     poetry install --only=main,app --no-root --no-interaction --no-ansi
