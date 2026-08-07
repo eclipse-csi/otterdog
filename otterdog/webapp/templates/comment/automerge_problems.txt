@@ -2,5 +2,5 @@
 > This pull request cannot be auto-merged via `/otterdog merge`
 
 {% for problem in problems %}
-- {{ problem }}
+{{ problem }}
 {% endfor %}

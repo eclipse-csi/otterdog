@@ -62,12 +62,12 @@ class HelpCommentTask(InstallationBasedTask, Task[None]):
         rest_api = await self.rest_api
 
         matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
-        team_description = describe_approval_teams(matching_teams)
+        team_description = await describe_approval_teams(matching_teams, self.org_id)
 
         comment = await render_template(
             "comment/help_comment.txt",
             team_description=team_description,
-            admin_teams=get_full_admin_team_slugs(self.org_id),
+            admin_teams=await get_full_admin_team_slugs(self.org_id),
         )
 
         await self.minimize_outdated_comments(

@@ -47,7 +47,7 @@ class AutoMergeCommentTask(InstallationBasedTask, Task[None]):
             rest_api = await self.rest_api
 
             matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
-            team_description = describe_approval_teams(matching_teams)
+            team_description = await describe_approval_teams(matching_teams, self.org_id)
 
             comment = await render_template(
                 "comment/auto_merge_comment.txt",

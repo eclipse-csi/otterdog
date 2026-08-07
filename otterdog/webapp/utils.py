@@ -312,27 +312,62 @@ async def _load_global_blueprints(ref: str | None = None) -> list[Blueprint]:
     return list(blueprints.values())
 
 
-def get_admin_teams() -> list[str]:
-    teams = str(current_app.config["GITHUB_ADMIN_TEAMS"])
-    return teams.split(",")
+async def get_admin_teams(org_id: str | None = None) -> list[str]:
+    """
+    Resolves the comma-separated GITHUB_ADMIN_TEAMS for org_id. An org can override
+    the global GITHUB_ADMIN_TEAMS setting via the "admin_teams" key in its otterdog
+    config entry, synced into InstallationModel.admin_teams. Falls back to the global
+    setting when org_id is None, the org has no installation, or no override is set.
+    """
+    teams_config: str | None = None
+
+    if org_id is not None:
+        from otterdog.webapp.db.service import get_installation_by_github_id
+
+        installation = await get_installation_by_github_id(org_id)
+        if installation is not None and installation.admin_teams:
+            teams_config = installation.admin_teams
+
+    if teams_config is None:
+        teams_config = str(current_app.config["GITHUB_ADMIN_TEAMS"])
+
+    return teams_config.split(",")
 
 
-def get_full_admin_team_slugs(org_id: str) -> list[str]:
-    return [f"{org_id}/{team_slug}" for team_slug in get_admin_teams()]
+async def get_full_admin_team_slugs(org_id: str) -> list[str]:
+    return [f"{org_id}/{team_slug}" for team_slug in await get_admin_teams(org_id)]
 
 
-def describe_admin_teams(org_id: str) -> str:
-    teams = [f"{org_id}/{team_slug.strip()}" for team_slug in get_admin_teams() if team_slug.strip()]
+async def describe_admin_teams(org_id: str) -> str:
+    teams = [f"{org_id}/{team_slug.strip()}" for team_slug in await get_admin_teams(org_id) if team_slug.strip()]
     return "team " + " or ".join(f"'{team}'" for team in teams)
 
 
-def get_approval_team_patterns() -> list[str]:
-    patterns = str(current_app.config["GITHUB_APPROVAL_TEAMS"])
-    return [pattern.strip() for pattern in patterns.split(",") if pattern.strip()]
+async def get_approval_team_patterns(org_id: str | None = None) -> list[str]:
+    """
+    Resolves the comma-separated GITHUB_APPROVAL_TEAMS patterns for org_id.
+    An org can override the global GITHUB_APPROVAL_TEAMS setting via the
+    "approval_teams" key in its otterdog config entry, synced into
+    InstallationModel.approval_teams. Falls back to the global setting when
+    org_id is None, the org has no installation, or no override is set.
+    """
+    patterns_config: str | None = None
+
+    if org_id is not None:
+        from otterdog.webapp.db.service import get_installation_by_github_id
+
+        installation = await get_installation_by_github_id(org_id)
+        if installation is not None and installation.approval_teams:
+            patterns_config = installation.approval_teams
+
+    if patterns_config is None:
+        patterns_config = str(current_app.config["GITHUB_APPROVAL_TEAMS"])
+
+    return [pattern.strip() for pattern in patterns_config.split(",") if pattern.strip()]
 
 
-def team_matches_approval_pattern(team: str) -> bool:
-    for pattern in get_approval_team_patterns():
+def _team_matches_patterns(team: str, patterns: list[str]) -> bool:
+    for pattern in patterns:
         try:
             if re.search(pattern, team) is not None:
                 return True
@@ -341,41 +376,49 @@ def team_matches_approval_pattern(team: str) -> bool:
     return False
 
 
-def contains_team_matching_approval_pattern(teams: Iterable[str]) -> bool:
-    return any(team_matches_approval_pattern(team) for team in teams)
+async def team_matches_approval_pattern(team: str, org_id: str | None = None) -> bool:
+    patterns = await get_approval_team_patterns(org_id)
+    return _team_matches_patterns(team, patterns)
+
+
+async def contains_team_matching_approval_pattern(teams: Iterable[str], org_id: str | None = None) -> bool:
+    patterns = await get_approval_team_patterns(org_id)
+    return any(_team_matches_patterns(team, patterns) for team in teams)
 
 
 async def get_teams_matching_approval_pattern(rest_api: RestApi, org_id: str) -> list[str]:
+    patterns = await get_approval_team_patterns(org_id)
     team_slugs = await rest_api.team.get_team_slugs(org_id)
-    return [team_slug for team_slug in team_slugs if team_matches_approval_pattern(team_slug)]
+    return [team_slug for team_slug in team_slugs if _team_matches_patterns(team_slug, patterns)]
 
 
-def _describe_approval_team_patterns() -> str:
-    patterns = get_approval_team_patterns()
+def _describe_approval_team_patterns(patterns: list[str]) -> str:
     if len(patterns) == 1:
         return f"pattern '{patterns[0]}'"
     else:
         return "patterns " + " or ".join(f"'{pattern}'" for pattern in patterns)
 
 
-def describe_approval_teams(matching_teams: list[str] | None) -> str:
+async def describe_approval_teams(matching_teams: list[str] | None, org_id: str | None = None) -> str:
     """
     matching_teams is the list of team slugs in the org resolved (via the GitHub API) to
     match one of the entries in GITHUB_APPROVAL_TEAMS (each entry is a regex, matched via
     re.search, so a plain team slug also works as an entry). Pass None when it wasn't
     resolved (falls back to showing the raw patterns), or an empty list when resolved but
-    nothing matched.
+    nothing matched. org_id resolves the org's GITHUB_APPROVAL_TEAMS override, if any.
     """
-    if not get_approval_team_patterns():
+    patterns = await get_approval_team_patterns(org_id)
+
+    if not patterns:
         return "no approval teams are configured (GITHUB_APPROVAL_TEAMS is empty)"
 
     if matching_teams is None:
-        return f"a team matching {_describe_approval_team_patterns()}"
+        return f"a team matching {_describe_approval_team_patterns(patterns)}"
     elif matching_teams:
         return "team " + " or ".join(f"'{team}'" for team in matching_teams)
     else:
         return (
-            f"a team matching {_describe_approval_team_patterns()} "
+            f"a team matching {_describe_approval_team_patterns(patterns)} "
             "(no team in this organization currently matches any of these patterns)"
         )
 

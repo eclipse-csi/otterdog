@@ -1,0 +1,13 @@
+`/otterdog merge` requires **one** of the following conditions:
+
+- The pull request author is a member of `{{ team_description }}` or `{{ admin_team_description }}`
+- A member of one of these teams has approved the pull request.
+
+### Current status
+
+- {{ author_status }}
+- {{ approval_status }}
+
+### How to proceed
+
+Ask a member of `{{ team_description }}` to review and approve this pull request (or, failing that, a member of `{{ admin_team_description }}`), then run `/otterdog merge` again.

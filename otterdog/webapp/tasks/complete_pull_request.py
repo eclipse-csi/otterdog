@@ -64,7 +64,7 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
             return False
 
         rest_api = await self.rest_api
-        admin_teams = get_admin_teams()
+        admin_teams = await get_admin_teams(self.org_id)
         is_admin = False
         for admin_team in admin_teams:
             if await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
@@ -72,14 +72,13 @@ class CompletePullRequestTask(InstallationBasedTask, Task[None]):
                 break
 
         if not is_admin:
-            comment = await render_template(
-                "comment/wrong_team_done_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
-            )
+            full_admin_team_slugs = await get_full_admin_team_slugs(self.org_id)
+            comment = await render_template("comment/wrong_team_done_comment.txt", admin_teams=full_admin_team_slugs)
             await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
             self.logger.error(
                 f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                f"who is not a member of {get_full_admin_team_slugs(self.org_id)}, skipping"
+                f"who is not a member of {full_admin_team_slugs}, skipping"
             )
 
             return False

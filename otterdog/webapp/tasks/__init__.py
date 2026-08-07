@@ -276,15 +276,22 @@ async def get_organization_config(
     )
 
 
-def contains_valid_team_for_approval(teams: Iterable[str]) -> bool:
-    from otterdog.webapp.utils import contains_team_matching_approval_pattern
-
-    return contains_team_matching_approval_pattern(teams)
-
-
-def contains_eligible_team_for_auto_merge(teams: Iterable[str]) -> bool:
+async def _contains_approval_or_admin_team(teams: Iterable[str], org_id: str | None = None) -> bool:
     from otterdog.webapp.utils import contains_team_matching_approval_pattern, get_admin_teams
 
-    admin_teams = get_admin_teams()
+    admin_teams = await get_admin_teams(org_id)
 
-    return contains_team_matching_approval_pattern(teams) or any(x in admin_teams for x in teams)
+    return await contains_team_matching_approval_pattern(teams, org_id) or any(x in admin_teams for x in teams)
+
+
+async def contains_valid_team_for_approval(teams: Iterable[str], org_id: str | None = None) -> bool:
+    """A review counts towards the required approvals when it comes from a member of the
+    approval teams, or - same trust extended to authors auto-merging their own pull request -
+    from a member of the admin teams."""
+    return await _contains_approval_or_admin_team(teams, org_id)
+
+
+async def contains_eligible_team_for_auto_merge(teams: Iterable[str], org_id: str | None = None) -> bool:
+    """An author can auto-merge without any approval when they are a member of the approval
+    teams or the admin teams."""
+    return await _contains_approval_or_admin_team(teams, org_id)
