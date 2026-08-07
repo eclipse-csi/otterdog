@@ -8,6 +8,7 @@ Definition of a `Custom Property` on organization level, the following propertie
 | _default_value_   | string or list[string] or null | The default value to assign to a repository if the property is required        |                                                           |
 | _description_     | string or null                 | A description of this property                                                 |                                                           |
 | _allowed_values_  | list[string] or null           | The list of allowed values if either `single_select` or `multi_select` is used |                                                           |
+| _values_editable_by_ | string or null              | Who can edit the values of this property on a repository                       | `org_actors`, `org_and_repo_actors` or `null`             |
 
 !!! note
 
