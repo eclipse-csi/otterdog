@@ -18,10 +18,6 @@ FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a
 
 ARG version=0.0.0.dev0
 
-RUN apt-get update \
-    && apt-get install -y \
-        curl
-
 WORKDIR /app
 
 ENV PIP_DEFAULT_TIMEOUT=100 \
@@ -29,6 +25,8 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_NO_CACHE_DIR=1 \
     POETRY_VERSION=2.4.1 \
     POETRY_HOME='/usr/local' \
+    POETRY_INSTALLER_ONLY_BINARY=:all: \
+    POETRY_INSTALLER_NO_BINARY=github-flask,jsonbender \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
 # copy only dependency manifests first so `poetry install` layer stays
@@ -36,12 +34,10 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
 # slowest step here)
 COPY ./pyproject.toml ./poetry.lock ./README.md ./
 
-RUN curl -sSL https://install.python-poetry.org | python -
-
-RUN poetry self add "poetry-dynamic-versioning[plugin]"
+RUN pip install "poetry==${POETRY_VERSION}" "poetry-dynamic-versioning[plugin]"
 
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --only=main,app --no-root
+    poetry install --only=main,app --no-root --no-interaction --no-ansi
 
 # now copy the actual source and build/install the root package
 COPY ./otterdog ./otterdog
