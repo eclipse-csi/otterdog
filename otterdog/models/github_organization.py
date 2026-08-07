@@ -630,7 +630,8 @@ class GitHubOrganization:
 
         @debug_times("rulesets")
         async def _load_rulesets() -> None:
-            if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
+            if jsonnet_config.default_org_ruleset_config is not None:
+                _logger.debug("loading org rulesets for org '%s' (plan=%s)", github_id, org.settings.plan)
                 github_rulesets = await provider.get_org_rulesets(github_id)
                 for ruleset in github_rulesets:
                     r = OrganizationRuleset.from_provider_data(github_id, ruleset)
@@ -656,7 +657,6 @@ class GitHubOrganization:
             if jsonnet_config.default_repo_config is not None:
                 async for repo in _load_repos_from_provider(
                     github_id,
-                    org.settings,
                     provider,
                     jsonnet_config,
                     app_installations,
@@ -682,7 +682,6 @@ class GitHubOrganization:
 async def _process_single_repo(
     gh_client: GitHubProvider,
     github_id: str,
-    org_settings: OrganizationSettings,
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
@@ -712,9 +711,7 @@ async def _process_single_repo(
     else:
         _logger.debug("not reading branch protection rules, no default config available")
 
-    if jsonnet_config.default_repo_ruleset_config is not None and (
-        repo.private is False or org_settings.plan == "enterprise"
-    ):
+    if jsonnet_config.default_repo_ruleset_config is not None:
         # get rulesets of the repo
         rulesets = await rest_api.repo.get_rulesets(github_id, repo_name)
         for github_ruleset in rulesets:
@@ -825,7 +822,6 @@ def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[s
 
 async def _load_repos_from_provider(
     github_id: str,
-    org_settings: OrganizationSettings,
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
     app_installations: dict[str, str],
@@ -855,7 +851,6 @@ async def _load_repos_from_provider(
             return await _process_single_repo(
                 provider,
                 github_id,
-                org_settings,
                 repo_name,
                 jsonnet_config,
                 teams,
