@@ -115,3 +115,71 @@ profiles:
             createNamespace: true
             valuesFiles: *tunnel-valuesFiles
             setValueTemplates: *otterdog-tunnel-setValues
+
+
+  # Local development with ngrok (alternative to tailscale).
+  # Required env vars: NGROK_API_KEY, NGROK_AUTHTOKEN, NGROK_DOMAIN
+  # NGROK_DOMAIN must be the exact reserved domain (e.g. a free otterdog-<hash>.ngrok-free.dev
+  # domain, or a custom domain you own): free ngrok domains do NOT support subdomains, so no
+  # "otterdog." prefix is added. Dependency Track is not exposed via ngrok; use
+  # `kubectl port-forward` to reach it (see docs/developing_otterdog/testing.md).
+  - name: dev-ngrok
+    deploy:
+      helm:
+        hooks: &ngrok-hooks
+          before:
+            - host:
+                command: ["sh", "-c", "if [ ! -f ./values.yaml ]; then echo 'Error: Please create the `./values.yaml`'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$NGROK_API_KEY\" ]; then echo 'Error: NGROK_API_KEY is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$NGROK_AUTHTOKEN\" ]; then echo 'Error: NGROK_AUTHTOKEN is not set'; exit 1; fi"]
+            - host:
+                command: ["sh", "-c", "if [ -z \"$NGROK_DOMAIN\" ]; then echo 'Error: NGROK_DOMAIN is not set'; exit 1; fi"]
+            # Helm's `--set` replaces whole lists instead of merging them, so setting only
+            # ingress.hosts[0].host via setValueTemplates silently drops the chart's default
+            # ingress.hosts[0].paths (see https://helm.sh/docs/chart_template_guide/values_files/).
+            # Generate a small values file with host+paths together instead.
+            - host:
+                command: ["sh", "-c", "echo \"ingress: {hosts: [{host: $NGROK_DOMAIN, paths: [{path: /, pathType: ImplementationSpecific}]}]}\" > ./dev/.dev-values-ngrok-host.yaml"]
+          after:
+              - host:
+                  command: ["sh", "-c", "while ! kubectl rollout status deployment/otterdog -n otterdog --timeout=10s 2>/dev/null; do sleep 10; done && until kubectl exec -n otterdog deploy/otterdog -- /app/init-webapp localhost 5000; do sleep 2; done && echo \"Otterdog is reachable at: https://$NGROK_DOMAIN\""]
+        releases:
+          - &dependency-track-ngrok-release
+            name: dependency-track
+            remoteChart: dependency-track/dependency-track
+            version: 1.3.0
+            namespace: otterdog
+            createNamespace: true
+          - &ngrok-release
+            name: otterdog-ngrok-operator
+            remoteChart: ngrok/ngrok-operator
+            namespace: ngrok
+            createNamespace: true
+            setValueTemplates:
+              credentials.apiKey: "{{.NGROK_API_KEY}}"
+              credentials.authtoken: "{{.NGROK_AUTHTOKEN}}"
+          - name: otterdog
+            remoteChart: eclipse-csi/otterdog
+            namespace: otterdog
+            createNamespace: true
+            valuesFiles: &ngrok-valuesFiles
+              - ./dev/dev-values.yaml
+              - ./dev/dev-values-ngrok.yaml
+              - ./values.yaml
+              - ./dev/.dev-values-ngrok-host.yaml
+
+  # Same as "dev-ngrok" but uses the local Helm chart checkout for the otterdog release.
+  - name: dev-ngrok-local
+    deploy:
+      helm:
+        hooks: *ngrok-hooks
+        releases:
+          - *dependency-track-ngrok-release
+          - *ngrok-release
+          - name: otterdog
+            chartPath: ../helm-charts/charts/otterdog
+            namespace: otterdog
+            createNamespace: true
+            valuesFiles: *ngrok-valuesFiles

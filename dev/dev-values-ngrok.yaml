@@ -1,0 +1,6 @@
+ingress:
+  enabled: true
+  className: ngrok
+  ingressClassName: ngrok
+  defaultBackend:
+    enabled: true

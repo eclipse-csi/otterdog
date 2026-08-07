@@ -5,7 +5,7 @@ This document describes how to run tests for Otterdog. You should set up your de
 ## Prerequisites
 
 * [Skaffold](https://skaffold.dev/docs/install/)
-* [tailscale](https://tailscale.com/download)
+* [tailscale](https://tailscale.com/download) or [ngrok](https://ngrok.com/download) (either can expose the dev environment for GitHub Webhooks, see below)
 * [minikube](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
 * [k9s](https://k9scli.io/topics/install/)
 
@@ -119,7 +119,10 @@ helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 make dev-webapp
 ```
 
-If you want use the integration with GitHub, you can use the tailscale
+If you want use the integration with GitHub, you can use tailscale or ngrok to expose your development environment. Pick one:
+
+* [Setup a tailscale tunnel](#setup-a-tailscale-to-enable-github-webhooks-to-your-development-environment)
+* [Setup an ngrok tunnel](#setup-ngrok-to-enable-github-webhooks-to-your-development-environment) (alternative to tailscale)
 
 #### Setup a tailscale to enable GitHub Webhooks to your development environment
 
@@ -212,7 +215,7 @@ HTTPS Certificates -> Click `Enable HTTPS...`
 
 **NOTES**:
 
- - Replace `<OTTERDOG-WEBAPP>` by your `tail<some hash>.ts.net`
+ - Replace `<OTTERDOG-WEBAPP>` by your `tail<some hash>.ts.net` (tailscale) or `otterdog.<your reserved domain>` (ngrok)
  - You can always double check the URL at https://login.tailscale.com/admin/machines as multiple instances
  of your development environment can generate `otterdog-1`, `otterdog-2` ...
 
@@ -311,6 +314,66 @@ curl https://otterdog.tail<some hash>.ts.net/internal/init
 
 Dependency Track is reachable at `https://sbom.tail<some hash>.ts.net` (it still needs to be configured — see below)
 
+#### Setup ngrok to enable GitHub Webhooks to your development environment
+
+Alternative to the tailscale tunnel above.
+
+1. Sign up/Login to [ngrok](https://ngrok.com)
+
+2. Go to the [ngrok dashboard](https://dashboard.ngrok.com)
+
+We use the [ngrok Kubernetes Operator](https://ngrok.com/docs/k8s/) (minikube), configuring it:
+
+1. Get your API Key from https://dashboard.ngrok.com/api and your Authtoken from https://dashboard.ngrok.com/get-started/your-authtoken
+
+2. Reserve a domain in https://dashboard.ngrok.com/domains
+
+    > **NOTE:** Free ngrok domains (e.g. `<something>.ngrok-free.dev`/`.ngrok-free.app`) do not support subdomains — only a custom domain you own, with wildcard DNS delegated to ngrok on a paid plan, does (see [ngrok custom domains](https://ngrok.com/docs/universal-gateway/domains/)). `NGROK_DOMAIN` below is therefore used as-is (no `otterdog.` prefix) for the Otterdog webapp. Dependency Track is not exposed via ngrok in this dev setup — access it with `kubectl port-forward` instead (see [Optional] Configure dependency track below).
+
+3. Export them in your terminal
+
+    ```bash
+    export NGROK_API_KEY=<api key>
+    export NGROK_AUTHTOKEN=<authtoken>
+    export NGROK_DOMAIN=<your reserved domain>
+    ```
+
+    > **NOTE:** If you close the terminal, you will need to re-export these values.
+
+#### Run otterdog with ngrok
+
+Alternative to `#### Run otterdog with tailscale` above.
+
+Make sure you have the `eclipse-csi`, `ngrok`, and `dependency-track` Helm chart repositories added:
+
+```bash
+helm repo add dependency-track https://dependencytrack.github.io/helm-charts
+helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
+helm repo add ngrok https://charts.ngrok.com
+```
+
+Start the otterdog webapp with the ngrok tunnel:
+
+```bash
+make dev-webapp-ngrok
+```
+
+The Otterdog WebApp is reachable at `https://<your reserved domain>`
+
+Trigger the Otterdog initialization:
+
+```bash
+curl https://<your reserved domain>/internal/init
+```
+
+Dependency Track is not exposed via ngrok; reach it with:
+
+```bash
+kubectl port-forward -n otterdog svc/dependency-track-frontend 8080:8080
+```
+
+then open `http://localhost:8080` (it still needs to be configured — see below)
+
 #### Verify webhook delivery
 
 Once the service is running and the GitHub App is installed in your organization, verify that webhooks are correctly reaching the backend by sending a **ping** event from the app's advanced settings:
@@ -325,7 +388,7 @@ Click **Redeliver** on the most recent **ping** delivery to trigger a test event
 
 #### [Optional] Configure dependency track
 
-1. Access the https://sbom.tail<some hash>.ts.net ([default DependencyTrack credentials](https://docs.dependencytrack.org/getting-started/initial-startup/))
+1. Access `https://sbom.tail<some hash>.ts.net` (tailscale) or `http://localhost:8080` via `kubectl port-forward` (ngrok, see above) — [default DependencyTrack credentials](https://docs.dependencytrack.org/getting-started/initial-startup/)
    (First time will ask to change password and re-login)
 
 2. To generate the `dependencyTrackToken`, go to `Administration` > `Access Management` > `Teams`
