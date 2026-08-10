@@ -15,7 +15,7 @@ on:
 env:
   PYTHON_VERSION: '3.12'
   POETRY_VERSION: '2.0.1'
-  PIA_DOMAIN: pia-staging.eclipse.org
+  PRODUCT_NAME: 'otterdog'
 
 permissions:
   contents: read
@@ -26,8 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-    outputs:
-      project-version: ${{ steps.export.outputs.PROJECT_VERSION }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,39 +52,8 @@ jobs:
       - name: Generate sbom
         run: cyclonedx-py requirements -o otterdog-bom.json
       - name: Upload sbom
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: eclipse-csi/workflows/upload-sbom@20e3c63807b2bd61b7f1a9f438e5ce588c054efc
         with:
-          name: sbom
-          path: otterdog-bom.json
-      # Upload SBOM to sbom-staging.eclipse.org using pia-staging.eclipse.org
-      - name: Upload SBOM via PIA (experimental)
-        run: |
-          # Get OIDC token from GitHub Identity Provider
-          ID_TOKEN=$(curl -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${{ env.PIA_DOMAIN }}" | jq -r '.value')
-
-          # Create PIA payload on disk
-          # The bom data is too long for passing it direclty as curl option
-          cat > otterdog-pia.json <<EOF
-          {
-            "product_name": "otterdog",
-            "product_version": "${{ steps.export.outputs.PROJECT_VERSION }}",
-            "bom": "$(base64 --wrap=0 otterdog-bom.json)"
-          }
-          EOF
-
-          # Upload to PIA
-          curl --fail-with-body https://${{ env.PIA_DOMAIN }}/v1/upload/sbom \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
-            --json "@otterdog-pia.json"
-
-
-  store-sbom-data: # stores sbom and metadata in a predefined format for otterdog to pick up
-    needs: ['generate-sbom']
-    uses: eclipse-csi/workflows/.github/workflows/store-sbom-data.yml@main
-    with:
-      projectName: 'otterdog'
-      projectVersion: ${{ needs.generate-sbom.outputs.project-version }}
-      bomArtifact: 'sbom'
-      bomFilename: 'otterdog-bom.json'
-      parentProject: 'caa07057-876a-44f9-b162-d2c0684e5dc5'
+          sbom-file: otterdog-bom.json
+          product-name: ${{ env.PRODUCT_NAME }}
+          product-version: ${{ steps.export.outputs.PROJECT_VERSION }}
