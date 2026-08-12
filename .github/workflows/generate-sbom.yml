@@ -52,7 +52,7 @@ jobs:
       - name: Generate sbom
         run: cyclonedx-py requirements -o otterdog-bom.json
       - name: Upload sbom
-        uses: eclipse-csi/workflows/upload-sbom@20e3c63807b2bd61b7f1a9f438e5ce588c054efc
+        uses: eclipse-csi/workflows/upload-sbom@20e3c63807b2bd61b7f1a9f438e5ce588c054efc # main
         with:
           sbom-file: otterdog-bom.json
           product-name: ${{ env.PRODUCT_NAME }}
