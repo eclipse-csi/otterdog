@@ -142,6 +142,8 @@ async def update_installations_from_config(
                     github_id=github_id,
                     config_repo=org_config.config_repo,
                     base_template=org_config.base_template,
+                    approval_teams=org_config.approval_teams,
+                    admin_teams=org_config.admin_teams,
                 )
 
                 projects_to_update.add(project_name)
@@ -156,6 +158,14 @@ async def update_installations_from_config(
 
                 if model.config_repo != org_config.config_repo:
                     model.config_repo = org_config.config_repo
+                    projects_to_update.add(project_name)
+
+                if model.approval_teams != org_config.approval_teams:
+                    model.approval_teams = org_config.approval_teams
+                    projects_to_update.add(project_name)
+
+                if model.admin_teams != org_config.admin_teams:
+                    model.admin_teams = org_config.admin_teams
                     projects_to_update.add(project_name)
 
             await session.save(model)
