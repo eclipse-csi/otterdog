@@ -142,8 +142,8 @@ class GitHubProvider:
         if len(web_fields) > 0:
             await self.web_client.update_org_settings(org_id, web_fields)
 
-    async def get_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
-        return await self.rest_api.org.get_workflow_settings(org_id)
+    async def get_org_workflow_settings(self, org_id: str, included_keys: set[str] | None = None) -> dict[str, Any]:
+        return await self.rest_api.org.get_workflow_settings(org_id, included_keys=included_keys)
 
     async def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
         await self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
@@ -360,8 +360,12 @@ class GitHubProvider:
     async def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         await self.rest_api.repo.delete_environment(org_id, repo_name, env_name)
 
-    async def get_repo_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
-        return await self.rest_api.repo.get_workflow_settings(org_id, repo_name, is_private=is_private)
+    async def get_repo_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False, included_keys: set[str] | None = None
+    ) -> dict[str, Any]:
+        return await self.rest_api.repo.get_workflow_settings(
+            org_id, repo_name, is_private=is_private, included_keys=included_keys
+        )
 
     async def update_repo_workflow_settings(
         self, org_id: str, repo_name: str, workflow_settings: dict[str, Any], is_private: bool = False

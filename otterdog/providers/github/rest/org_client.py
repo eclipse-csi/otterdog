@@ -490,7 +490,7 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed getting app installations for org '{org_id}':\n{ex}") from ex
 
-    async def get_workflow_settings(self, org_id: str) -> dict[str, Any]:
+    async def get_workflow_settings(self, org_id: str, included_keys: set[str] | None = None) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for org '%s'", org_id)
 
         workflow_settings: dict[str, Any] = {}
@@ -516,7 +516,9 @@ class OrgClient(RestClient):
             workflow_settings.update(await self._get_default_workflow_permissions(org_id))
 
         workflow_settings.update(await self._get_fork_pr_approval_policy(org_id))
-        workflow_settings.update(await self._get_max_cache_size_gb(org_id))
+
+        if included_keys is None or "max_cache_size_gb" in included_keys:
+            workflow_settings.update(await self._get_max_cache_size_gb(org_id))
 
         return workflow_settings
 
@@ -560,7 +562,13 @@ class OrgClient(RestClient):
     async def _get_max_cache_size_gb(self, org_id: str) -> dict[str, Any]:
         _logger.debug("retrieving cache size for org '%s'", org_id)
 
-        response = await self.requester.request_json("GET", f"/organizations/{org_id}/actions/cache/storage-limit")
+        response = await self._get_optional_json(
+            f"/orgs/{org_id}/actions/cache/storage-limit",
+            feature_description=f"cache size for org '{org_id}'",
+        )
+        if response is None:
+            return {}
+
         if "max_cache_size_gb" not in response:
             # An incomplete success response must not become an absent setting:
             # reconciliation would then skip drift detection for the configured limit.
@@ -575,7 +583,7 @@ class OrgClient(RestClient):
 
         status, body = await self.requester.request_raw(
             "PUT",
-            f"/organizations/{org_id}/actions/cache/storage-limit",
+            f"/orgs/{org_id}/actions/cache/storage-limit",
             data=json.dumps({"max_cache_size_gb": max_cache_size_gb}),
         )
 

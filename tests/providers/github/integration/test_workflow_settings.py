@@ -10,7 +10,7 @@ import pytest
 
 from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
-from otterdog.providers.github.exception import GitHubException
+from otterdog.utils import is_set_and_present
 
 from .conftest import GitHubProviderTestKit
 
@@ -32,7 +32,7 @@ async def test_read_org_workflow_settings(github: GitHubProviderTestKit):
     )
     github.http.expect(
         "GET",
-        f"/organizations/{ORG_ID}/actions/cache/storage-limit",
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
         response_json={"max_cache_size_gb": 50},
     )
 
@@ -42,10 +42,7 @@ async def test_read_org_workflow_settings(github: GitHubProviderTestKit):
     assert settings.max_cache_size_gb == 50
 
 
-@pytest.mark.parametrize("response_status", [403, 500])
-async def test_read_org_workflow_settings_propagates_cache_limit_errors(
-    github: GitHubProviderTestKit, response_status: int
-):
+async def test_read_org_workflow_settings_ignores_unavailable_cache_limit(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
         f"/orgs/{ORG_ID}/actions/permissions",
@@ -58,12 +55,36 @@ async def test_read_org_workflow_settings_propagates_cache_limit_errors(
     )
     github.http.expect(
         "GET",
-        f"/organizations/{ORG_ID}/actions/cache/storage-limit",
-        response_status=response_status,
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
+        response_status=403,
         response_text="cache limit unavailable",
     )
 
-    with pytest.raises(GitHubException):
+    provider_data = await github.provider.get_org_workflow_settings(ORG_ID)
+    settings = OrganizationWorkflowSettings.from_provider_data(ORG_ID, provider_data)
+
+    assert not is_set_and_present(settings.max_cache_size_gb)
+
+
+async def test_read_org_workflow_settings_propagates_cache_limit_errors(github: GitHubProviderTestKit):
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/permissions",
+        response_json={"enabled_repositories": "none", "allowed_actions": "none"},
+    )
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/permissions/fork-pr-contributor-approval",
+        response_json={"approval_policy": "first_time_contributors"},
+    )
+    github.http.expect(
+        "GET",
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
+        response_status=500,
+        response_text="cache limit unavailable",
+    )
+
+    with pytest.raises(RuntimeError):
         await github.provider.get_org_workflow_settings(ORG_ID)
 
 
@@ -82,7 +103,7 @@ async def test_read_org_workflow_settings_rejects_incomplete_cache_limit_respons
     )
     github.http.expect(
         "GET",
-        f"/organizations/{ORG_ID}/actions/cache/storage-limit",
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
         response_json={},
     )
 
@@ -93,7 +114,7 @@ async def test_read_org_workflow_settings_rejects_incomplete_cache_limit_respons
 async def test_update_org_workflow_settings(github: GitHubProviderTestKit):
     github.http.expect(
         "PUT",
-        f"/organizations/{ORG_ID}/actions/cache/storage-limit",
+        f"/orgs/{ORG_ID}/actions/cache/storage-limit",
         request_json={"max_cache_size_gb": 50},
         response_status=204,
     )
@@ -122,10 +143,7 @@ async def test_read_repo_workflow_settings(github: GitHubProviderTestKit):
     assert settings.max_cache_size_gb == 50
 
 
-@pytest.mark.parametrize("response_status", [403, 500])
-async def test_read_repo_workflow_settings_propagates_cache_limit_errors(
-    github: GitHubProviderTestKit, response_status: int
-):
+async def test_read_repo_workflow_settings_ignores_unavailable_cache_limit(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
         f"/repos/{ORG_ID}/{REPO_NAME}/actions/permissions",
@@ -134,11 +152,30 @@ async def test_read_repo_workflow_settings_propagates_cache_limit_errors(
     github.http.expect(
         "GET",
         f"/repos/{ORG_ID}/{REPO_NAME}/actions/cache/storage-limit",
-        response_status=response_status,
+        response_status=403,
         response_text="cache limit unavailable",
     )
 
-    with pytest.raises(GitHubException):
+    provider_data = await github.provider.get_repo_workflow_settings(ORG_ID, REPO_NAME, is_private=True)
+    settings = RepositoryWorkflowSettings.from_provider_data(ORG_ID, provider_data)
+
+    assert not is_set_and_present(settings.max_cache_size_gb)
+
+
+async def test_read_repo_workflow_settings_propagates_cache_limit_errors(github: GitHubProviderTestKit):
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/permissions",
+        response_json={"enabled": False, "allowed_actions": "none"},
+    )
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/actions/cache/storage-limit",
+        response_status=500,
+        response_text="cache limit unavailable",
+    )
+
+    with pytest.raises(RuntimeError):
         await github.provider.get_repo_workflow_settings(ORG_ID, REPO_NAME, is_private=True)
 
 

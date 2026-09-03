@@ -1135,7 +1135,9 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
+    async def get_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False, included_keys: set[str] | None = None
+    ) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}
@@ -1156,7 +1158,8 @@ class RepoClient(RestClient):
         if not is_private:
             workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
 
-        workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
+        if included_keys is None or "max_cache_size_gb" in included_keys:
+            workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
 
         return workflow_settings
 
@@ -1203,7 +1206,13 @@ class RepoClient(RestClient):
     async def _get_max_cache_size_gb(self, org_id: str, repo_name: str) -> dict[str, Any]:
         _logger.debug("retrieving cache size for repo '%s/%s'", org_id, repo_name)
 
-        response = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit")
+        response = await self._get_optional_json(
+            f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit",
+            feature_description=f"cache size for repo '{org_id}/{repo_name}'",
+        )
+        if response is None:
+            return {}
+
         if "max_cache_size_gb" not in response:
             # An incomplete success response must not become an absent setting:
             # reconciliation would then skip drift detection for the configured limit.
