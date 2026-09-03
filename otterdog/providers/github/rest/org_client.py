@@ -695,6 +695,14 @@ class OrgClient(RestClient):
                 result.append(await self.get_ruleset(org_id, str(ruleset["id"])))
             return result
         except GitHubException as ex:
+            if ex.status in (403, 404):
+                # org rulesets require a paid plan;
+                _logger.debug(
+                    "org rulesets not available for org '%s' (status=%s)",
+                    org_id,
+                    ex.status,
+                )
+                return []
             raise RuntimeError(f"failed retrieving org rulesets for org '{org_id}':\n{ex}") from ex
 
     async def get_ruleset(self, org_id: str, ruleset_id: str) -> dict[str, Any]:

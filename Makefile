@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -94,6 +94,14 @@ dev-webapp-tunnel: init-minikube clean-ingress-finalizers clean-tailscale-proxie
 dev-webapp-tunnel-local: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
 	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-local --cleanup=false
+
+dev-webapp-ngrok: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=false
+
+dev-webapp-ngrok-local: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok, using local Helm chart checkout
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok-local --cleanup=false
 
 check:  ## Run all pre-commit checks
 	poetry run prek -a

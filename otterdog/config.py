@@ -42,7 +42,7 @@ def load_json_or_jsonnet(file: Path) -> dict[str, Any]:
         except json.JSONDecodeError as e:
             raise RuntimeError(f"failed to parse json file '{file}': {e}") from e
     if not isinstance(data, dict):
-        raise RuntimeError(f"expected JSON object in file '{file}', got: {type(data)}")  # noqa: TRY004
+        raise TypeError(f"expected JSON object in file '{file}', got: {type(data)}")
     return data
 
 

@@ -96,7 +96,7 @@ def test_load_json_not_object(create_tmp_file: CreateTmpFile):
 
     test_file = create_tmp_file("array.json", '["this", "is", "an", "array"]')
 
-    with pytest.raises(RuntimeError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         _ = load_json_or_jsonnet(test_file)
 
     error_message = str(exc_info.value)
@@ -109,7 +109,7 @@ def test_load_jsonnet_not_object(create_tmp_file: CreateTmpFile):
 
     test_file = create_tmp_file("array.jsonnet", '["this", "is", "an", "array"]')
 
-    with pytest.raises(RuntimeError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         _ = load_json_or_jsonnet(test_file)
 
     error_message = str(exc_info.value)

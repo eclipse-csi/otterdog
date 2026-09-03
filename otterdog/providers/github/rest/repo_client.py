@@ -372,6 +372,15 @@ class RepoClient(RestClient):
                 result.append(await self.get_ruleset(org_id, repo_name, str(ruleset["id"])))
             return result
         except GitHubException as ex:
+            if ex.status in (403, 404):
+                # repo rulesets on private repos require a paid plan;
+                _logger.debug(
+                    "rulesets not available for repo '%s/%s' (status=%s)",
+                    org_id,
+                    repo_name,
+                    ex.status,
+                )
+                return []
             raise RuntimeError(f"failed retrieving rulesets for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_ruleset(self, org_id: str, repo_name: str, ruleset_id: str) -> dict[str, Any]:
