@@ -13,7 +13,7 @@ from otterdog.models.repository import Repository
 from tests.models import ModelTest
 
 
-@pytest.fixture()
+@pytest.fixture
 def repository_test():
     class RepositoryTest(ModelTest):
         def create_model(self, data: Mapping[str, Any]) -> ModelObject:
@@ -34,7 +34,7 @@ def repository_test():
     return RepositoryTest()
 
 
-@pytest.fixture()
+@pytest.fixture
 def deterministic_days_since():
     fixed_now = datetime(2025, 1, 1, tzinfo=UTC)
 
@@ -88,7 +88,7 @@ class MockGitHubProvider:
         return self
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_github_provider():
     """Fixture that provides a configurable mock GitHub provider.
 

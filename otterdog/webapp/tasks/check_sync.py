@@ -186,7 +186,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 comment = await render_template(
                     "comment/out_of_sync_comment.txt",
                     result=escape_for_github(sync_output),
-                    admin_teams=get_full_admin_team_slugs(self.org_id),
+                    admin_teams=await get_full_admin_team_slugs(self.org_id),
                 )
             else:
                 # in case the config is in sync, do not add a redundant comment
@@ -263,7 +263,13 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             in_sync=config_in_sync,
         )
 
-        if pull_request_model.can_be_automerged():
+        if await pull_request_model.can_be_automerged():
+            self.logger.info(
+                "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
+                self.pull_request_number,
+                self.org_id,
+                self.repo_name,
+            )
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     def __repr__(self) -> str:

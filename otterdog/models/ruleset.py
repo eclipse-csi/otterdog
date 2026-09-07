@@ -501,7 +501,7 @@ class Ruleset(ModelObject, abc.ABC):
             }
         )
 
-        rules = data.get("rules", [])
+        rules = data.get("rules") or []
 
         def check_simple_rule(prop_key: str, rule_type: str, value_if_rule_is_present: bool) -> None:
             if any((_ := rule) for rule in rules if rule["type"] == rule_type):
@@ -562,14 +562,14 @@ class Ruleset(ModelObject, abc.ABC):
 
         # required pull request
         if any((found := rule) for rule in rules if rule["type"] == "pull_request"):
-            parameters = found.get("parameters", {})
+            parameters = found.get("parameters") or {}
             mapping["required_pull_request"] = K(PullRequestSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_pull_request"] = K(None)
 
         # required status checks
         if any((found := rule) for rule in rules if rule["type"] == "required_status_checks"):
-            parameters = found.get("parameters", {})
+            parameters = found.get("parameters") or {}
             mapping["required_status_checks"] = K(StatusCheckSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_status_checks"] = K(None)
@@ -577,7 +577,7 @@ class Ruleset(ModelObject, abc.ABC):
         # required deployments
         if any((found := rule) for rule in rules if rule["type"] == "required_deployments"):
             mapping["requires_deployments"] = K(True)
-            deployment_environments = found.get("parameters", {}).get("required_deployment_environments", [])
+            deployment_environments = (found.get("parameters") or {}).get("required_deployment_environments", [])
             mapping["required_deployment_environments"] = K(deployment_environments)
         else:
             mapping["requires_deployments"] = K(False)
@@ -585,7 +585,7 @@ class Ruleset(ModelObject, abc.ABC):
 
         # required merge queue
         if any((found := rule) for rule in rules if rule["type"] == "merge_queue"):
-            merge_queue_parameters = found.get("parameters", {})
+            merge_queue_parameters = found.get("parameters") or {}
             mapping["required_merge_queue"] = K(MergeQueueSettings.from_provider_data(org_id, merge_queue_parameters))
         else:
             mapping["required_merge_queue"] = K(None)
@@ -779,7 +779,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_pull_request_config = cast("Ruleset", default_object).required_pull_request
             if default_pull_request_config is None:
                 default_pull_request_config = PullRequestSettings.from_model_data(
-                    jsonnet_config.default_pull_request_config
+                    jsonnet_config.default_pull_request_config or {}
                 )
                 embedded_extend = False
             else:
@@ -801,7 +801,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_merge_queue_config = cast("Ruleset", default_object).required_merge_queue
             if default_merge_queue_config is None:
                 default_merge_queue_config = MergeQueueSettings.from_model_data(
-                    jsonnet_config.default_merge_queue_config
+                    jsonnet_config.default_merge_queue_config or {}
                 )
                 embedded_extend = False
             else:
@@ -823,7 +823,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_status_check_config = cast("Ruleset", default_object).required_status_checks
             if default_status_check_config is None:
                 default_status_check_config = StatusCheckSettings.from_model_data(
-                    jsonnet_config.default_status_checks_config
+                    jsonnet_config.default_status_checks_config or {}
                 )
                 embedded_extend = False
             else:

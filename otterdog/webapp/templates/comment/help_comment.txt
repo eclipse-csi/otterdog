@@ -5,7 +5,7 @@ You can manually add reviewers to this PR to eventually enable auto-merging.
 The following conditions need to be fulfilled for auto-merging to be available:
 
 - valid configuration
-- approved by a project lead
+- approved by a member of {{ team_description }}
 - does not require any secrets
 - does not update settings only accessible via the GitHub Web UI
 - does not remove any resource
@@ -20,6 +20,6 @@ You can trigger otterdog actions by commenting on this PR:
 - `/otterdog validate info` validates the configuration change, printing also validation infos
 - `/otterdog check-sync` checks if the base ref is in sync with live settings
 - `/otterdog merge` merges and applies the changes if the PR is eligible for auto-merging (only accessible for the author)
-- `/otterdog done` notifies the self-service bot that a required manual apply operation has been performed (only accessible for members of the admin team)
-- `/otterdog apply` re-apply a previously failed attempt (only accessible for members of the admin team)
+- `/otterdog done` notifies the self-service bot that a required manual apply operation has been performed (only accessible for members of the admin team(s) `{{ admin_teams|join(', ') }}`)
+- `/otterdog apply` re-apply a previously failed attempt (only accessible for members of the admin team(s) `{{ admin_teams|join(', ') }}`)
 </details>

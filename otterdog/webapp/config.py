@@ -29,6 +29,7 @@ REQUIRED_NON_EMPTY_SETTINGS = (
     "REDIS_URI",
     "GHPROXY_URI",
     "GITHUB_ADMIN_TEAMS",
+    "GITHUB_APPROVAL_TEAMS",
     "GITHUB_WEBHOOK_ENDPOINT",
     "GITHUB_WEBHOOK_VALIDATION_CONTEXT",
     "GITHUB_WEBHOOK_SYNC_CONTEXT",
@@ -79,6 +80,10 @@ class AppConfig:
         SECRET_KEY = secrets.token_hex(16)
 
     GITHUB_ADMIN_TEAMS = config("GITHUB_ADMIN_TEAMS", default="otterdog-admins")
+    # Comma-separated list of entries matched (via re.search) against a user's team slugs to
+    # decide whether their approval satisfies the "required approvals" check for auto-merge.
+    # Each entry can be a plain team slug or a regex, e.g. "project-leads,.*-committers$".
+    GITHUB_APPROVAL_TEAMS = config("GITHUB_APPROVAL_TEAMS", default="project-leads$")
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")
     GITHUB_WEBHOOK_SECRET = config("GITHUB_WEBHOOK_SECRET", default=None)
     GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-validate")

@@ -346,7 +346,6 @@ class Operation(ABC):
                     else:
                         self.printer.println(f"[green]+ [/]{k.ljust(max_key_length, ' ')} = {self._get_value(v)}")
                 elif v is None:
-                    self.printer.println(f"[red]- [/]{k.ljust(max_key_length, ' ')} = {self._get_value(c_v)}")
                     self._print_modified_internal(k, max_key_length, c_v, v, "[green]+ [/]", "green", forced_update)
 
                 else:

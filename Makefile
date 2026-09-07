@@ -97,7 +97,7 @@ dev-webapp-tunnel-local: init-minikube clean-ingress-finalizers clean-tailscale-
 
 dev-webapp-ngrok: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=false
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=true
 
 dev-webapp-ngrok-local: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok, using local Helm chart checkout
 	eval $$(minikube -p minikube docker-env)

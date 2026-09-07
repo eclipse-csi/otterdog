@@ -3,7 +3,8 @@ import json
 import pretend
 import pytest
 
-from otterdog.providers.github.rest.repo_client import GitHubException, RepoClient
+from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.rest.repo_client import RepoClient
 
 
 class TestRepoClientCodeScanningConfig:
@@ -244,6 +245,11 @@ class TestRepoClientForkPrApprovalPolicy:
         repo_client = RepoClient(mock_restapi)
         repo_client._get_fork_pr_approval_policy = mock_get
 
+        async def mock_cache_size(org, repo):
+            return {"max_cache_size_gb": 10}
+
+        repo_client._get_max_cache_size_gb = mock_cache_size
+
         result = await repo_client.get_workflow_settings("org", "repo")
 
         # Assert result includes the approval policy
@@ -263,6 +269,11 @@ class TestRepoClientForkPrApprovalPolicy:
         mock_restapi = pretend.stub(requester=mock_requester)
         repo_client = RepoClient(mock_restapi)
         repo_client._get_fork_pr_approval_policy = mock_get
+
+        async def mock_cache_size(org, repo):
+            return {"max_cache_size_gb": 10}
+
+        repo_client._get_max_cache_size_gb = mock_cache_size
 
         result = await repo_client.get_workflow_settings("org", "repo", is_private=True)
 

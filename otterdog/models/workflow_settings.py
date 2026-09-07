@@ -17,6 +17,7 @@ from jsonbender import OptionalS, S  # type: ignore
 from otterdog.models import EmbeddedModelObject, FailureType, PatchContext, ValidationContext
 from otterdog.utils import (
     UNSET,
+    Change,
     IndentingPrinter,
     is_set_and_valid,
     write_patch_object_as_json,
@@ -56,6 +57,15 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
     in https://docs.github.com/en/rest/actions/permissions?apiVersion=2022-11-28
     """
 
+    max_cache_size_gb: int
+    """
+    ``max_cache_size_gb`` controls the maximum total GitHub Actions cache size
+    for the relevant repository or organization.
+
+    Cache-size changes are marked as cost-related so pull-request validation can
+    require designated review and prevent automatic merging.
+    """
+
     _selected_action_properties: ClassVar[list[str]] = [
         "allow_github_owned_actions",
         "allow_verified_creator_actions",
@@ -67,6 +77,18 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
         "selected": 2,
         "local_only": 3,
     }
+
+    # Keep billing-affecting settings centralized so both full-object and
+    # change-level cost checks use the same definition.
+    _cost_related_properties: ClassVar[set[str]] = {"max_cache_size_gb"}
+
+    def is_cost_related(self) -> bool:
+        """Return whether this settings object contains a cost-affecting value."""
+        return any(is_set_and_valid(self.__getattribute__(key)) for key in self._cost_related_properties)
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Return whether the supplied settings changes can affect costs."""
+        return any(key in changes for key in self._cost_related_properties)
 
     @classmethod
     def get_allowed_actions_level(cls, allowed_actions: str) -> int:

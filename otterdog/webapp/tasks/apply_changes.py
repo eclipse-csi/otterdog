@@ -107,7 +107,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
         if self.author is not None:
             rest_api = await self.rest_api
-            admin_teams = get_admin_teams()
+            admin_teams = await get_admin_teams(self.org_id)
             is_admin = False
             for admin_team in admin_teams:
                 if await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
@@ -115,14 +115,15 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                     break
 
             if not is_admin:
+                full_admin_team_slugs = await get_full_admin_team_slugs(self.org_id)
                 comment = await render_template(
-                    "comment/wrong_team_apply_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
+                    "comment/wrong_team_apply_comment.txt", admin_teams=full_admin_team_slugs
                 )
                 await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
                 self.logger.error(
                     f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                    f"who is not a member of the admin team, skipping"
+                    f"who is not a member of {full_admin_team_slugs}, skipping"
                 )
 
                 return False
@@ -227,7 +228,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 output=escape_for_github(apply_result.apply_output),
                 success=apply_result.apply_success,
                 partial=apply_result.partial,
-                admin_teams=get_full_admin_team_slugs(self.org_id),
+                admin_teams=await get_full_admin_team_slugs(self.org_id),
             )
 
             await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)

@@ -55,6 +55,8 @@ class OrganizationConfig:
         base_template: str,
         jsonnet_config: JsonnetConfig,
         credential_data: dict[str, Any],
+        approval_teams: str | None = None,
+        admin_teams: str | None = None,
     ):
         self._name = name
         self._github_id = github_id
@@ -62,6 +64,8 @@ class OrganizationConfig:
         self._base_template = base_template
         self._jsonnet_config = jsonnet_config
         self._credential_data = credential_data
+        self._approval_teams = approval_teams
+        self._admin_teams = admin_teams
 
     @property
     def name(self):
@@ -82,6 +86,14 @@ class OrganizationConfig:
     @property
     def jsonnet_config(self) -> JsonnetConfig:
         return self._jsonnet_config
+
+    @property
+    def approval_teams(self) -> str | None:
+        return self._approval_teams
+
+    @property
+    def admin_teams(self) -> str | None:
+        return self._admin_teams
 
     @property
     def credential_data(self) -> dict[str, Any]:
@@ -110,6 +122,9 @@ class OrganizationConfig:
         config_repo = data.get("config_repo", otterdog_config.default_config_repo)
         base_template = data.get("base_template", otterdog_config.default_base_template)
 
+        approval_teams = cls._normalize_team_list(data.get("approval_teams"), "approval_teams", name)
+        admin_teams = cls._normalize_team_list(data.get("admin_teams"), "admin_teams", name)
+
         jsonnet_config = JsonnetConfig(
             github_id,
             otterdog_config.jsonnet_base_dir,
@@ -117,11 +132,35 @@ class OrganizationConfig:
             otterdog_config.local_mode,
         )
 
-        data = data.get("credentials", {})
-        if data is None:
+        credentials = data.get("credentials", {})
+        if credentials is None:
             raise RuntimeError(f"missing required credentials for organization config with name '{name}'")
 
-        return cls(name, github_id, config_repo, base_template, jsonnet_config, data)
+        return cls(
+            name,
+            github_id,
+            config_repo,
+            base_template,
+            jsonnet_config,
+            credentials,
+            approval_teams,
+            admin_teams,
+        )
+
+    @staticmethod
+    def _normalize_team_list(value: Any, key: str, org_name: str) -> str | None:
+        """Accepts either a plain string ("project-leads$") or a list of strings
+        (["test-team", "project-leads", ".*-committers$"]) for a comma-separated
+        team-pattern config entry and normalizes it to a single comma-joined string."""
+        if value is None or isinstance(value, str):
+            return value
+        elif isinstance(value, list):
+            return ",".join(str(entry) for entry in value)
+        else:
+            raise RuntimeError(
+                f"invalid '{key}' for organization config with name '{org_name}': "
+                f"expected a string or a list of strings, got {type(value)}"
+            )
 
     @classmethod
     def of(

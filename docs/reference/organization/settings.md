@@ -53,6 +53,10 @@ The following table captures all supported settings on organization level:
 | _default_workflow_permissions_             | string       | The default workflow permissions granted to the GITHUB_TOKEN       | `read` or `write`                                                                                 |
 | _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                     |                                                                                                   |
 | _fork_pr_approval_policy_                  | string       | Controls when fork PR workflows require approval from a maintainer | `first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors` |
+| _max_cache_size_gb_                         | integer      | Maximum total size of all GitHub Actions caches for each repository, in GB |                                                                                                  |
+
+Increasing the cache size limit may incur costs.
+Changes to the limit are flagged for designated review and are not eligible for automatic merging.
 
 ## Validation rules
 

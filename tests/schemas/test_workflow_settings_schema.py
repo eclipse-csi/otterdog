@@ -83,6 +83,7 @@ class TestWorkflowSettingsSchemaComposition:
             "default_workflow_permissions": "read",
             "actions_can_approve_pull_request_reviews": True,
             "fork_pr_approval_policy": "first_time_contributors",
+            "max_cache_size_gb": 50,
         }
 
         validator.validate(data)
@@ -117,6 +118,7 @@ class TestWorkflowSettingsSchemaComposition:
             "default_workflow_permissions": "write",
             "actions_can_approve_pull_request_reviews": False,
             "fork_pr_approval_policy": "all_external_contributors",
+            "max_cache_size_gb": 50,
         }
 
         validator.validate(data)
@@ -136,6 +138,7 @@ class TestWorkflowSettingsSchemaComposition:
             "default_workflow_permissions": "read",
             "actions_can_approve_pull_request_reviews": False,
             "fork_pr_approval_policy": "first_time_contributors_new_to_github",
+            "max_cache_size_gb": 50,
         }
 
         validator.validate(data)
@@ -165,6 +168,7 @@ class TestWorkflowSettingsSchemaComposition:
             ("default_workflow_permissions", "write"),
             ("actions_can_approve_pull_request_reviews", True),
             ("fork_pr_approval_policy", "first_time_contributors"),
+            ("max_cache_size_gb", 50),
         ],
     )
     def test_org_workflow_inherits_individual_base_fields(
@@ -190,6 +194,7 @@ class TestWorkflowSettingsSchemaComposition:
             ("default_workflow_permissions", "read"),
             ("actions_can_approve_pull_request_reviews", False),
             ("fork_pr_approval_policy", "all_external_contributors"),
+            ("max_cache_size_gb", 50),
         ],
     )
     def test_repo_workflow_inherits_individual_base_fields(

@@ -159,6 +159,22 @@ class LivePatch(Generic[MT]):
             case LivePatchType.CHANGE:
                 return unwrap(self.expected_object).contains_secrets()
 
+    def is_cost_related(self) -> bool:
+        """Return whether applying this patch can increase managed costs.
+
+        Deletions cannot introduce new spending, so only additions and changes
+        inspect the desired object or its changed values.
+        """
+        match self.patch_type:
+            case LivePatchType.ADD:
+                return unwrap(self.expected_object).is_cost_related()
+
+            case LivePatchType.REMOVE:
+                return False
+
+            case LivePatchType.CHANGE:
+                return unwrap(self.expected_object).changes_are_cost_related(unwrap(self.changes))
+
     async def apply(self, org_id: str, provider: GitHubProvider) -> None:
         await self.fn(self, org_id, provider)
 
@@ -290,6 +306,14 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
+
+    def is_cost_related(self) -> bool:
+        """Return whether this embedded model contains cost-affecting settings."""
+        return False
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Return whether a change to this embedded model can affect costs."""
+        return False
 
     def keys(
         self,
@@ -601,6 +625,25 @@ class ModelObject(_DefaultValuesMixin, ABC):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
+
+    def is_cost_related(self) -> bool:
+        """Propagate cost metadata from nested models to their owning object."""
+        for field in self.all_fields():
+            value = self.__getattribute__(field.name)
+            if isinstance(value, (EmbeddedModelObject, ModelObject)) and value.is_cost_related():
+                return True
+
+        return False
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Propagate cost metadata through nested change dictionaries."""
+        for key, change in changes.items():
+            value = self.__getattribute__(key)
+            if isinstance(value, (EmbeddedModelObject, ModelObject)) and isinstance(change.to_value, dict):
+                if value.changes_are_cost_related(change.to_value):
+                    return True
+
+        return False
 
     def include_for_live_patch(self, context: LivePatchContext) -> bool:
         """

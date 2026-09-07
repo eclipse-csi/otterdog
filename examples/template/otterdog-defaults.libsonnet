@@ -75,6 +75,9 @@ local newRepo(name) = {
   workflows: {
     enabled: true,
 
+    # Maximum total size of all GitHub Actions caches for this repository, in GB.
+    max_cache_size_gb: 10,
+
     # allow all actions by default
     allowed_actions: "all",
     allow_github_owned_actions: true,
@@ -392,6 +395,9 @@ local newOrg(name, id=name) = {
       # enable workflows for all repositories
       enabled_repositories: "all",
       selected_repositories: [],
+
+      # Maximum total size of all GitHub Actions caches for each repository, in GB.
+      max_cache_size_gb: 10,
 
       # allow all actions by default
       allowed_actions: "all",

@@ -1135,7 +1135,9 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
+    async def get_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False, included_keys: set[str] | None = None
+    ) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}
@@ -1155,6 +1157,9 @@ class RepoClient(RestClient):
 
         if not is_private:
             workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+
+        if included_keys is None or "max_cache_size_gb" in included_keys:
+            workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
 
         return workflow_settings
 
@@ -1193,7 +1198,44 @@ class RepoClient(RestClient):
         if not is_private and "approval_policy" in data:
             await self._update_fork_pr_approval_policy(org_id, repo_name, {"approval_policy": data["approval_policy"]})
 
+        if "max_cache_size_gb" in data:
+            await self._update_max_cache_size_gb(org_id, repo_name, data["max_cache_size_gb"])
+
         _logger.debug("updated %d workflow setting(s)", len(data))
+
+    async def _get_max_cache_size_gb(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        _logger.debug("retrieving cache size for repo '%s/%s'", org_id, repo_name)
+
+        response = await self._get_optional_json(
+            f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit",
+            feature_description=f"cache size for repo '{org_id}/{repo_name}'",
+        )
+        if response is None:
+            return {}
+
+        if "max_cache_size_gb" not in response:
+            # An incomplete success response must not become an absent setting:
+            # reconciliation would then skip drift detection for the configured limit.
+            raise RuntimeError(
+                f"GitHub response for repository cache size of '{org_id}/{repo_name}' "
+                "does not contain 'max_cache_size_gb'"
+            )
+
+        return {"max_cache_size_gb": response["max_cache_size_gb"]}
+
+    async def _update_max_cache_size_gb(self, org_id: str, repo_name: str, max_cache_size_gb: int) -> None:
+        _logger.debug("updating cache size for repo '%s/%s'", org_id, repo_name)
+
+        status, body = await self.requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit",
+            data=json.dumps({"max_cache_size_gb": max_cache_size_gb}),
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update cache size for repo '{org_id}/{repo_name}': {body}")
+
+        _logger.debug("updated cache size for repo '%s/%s'", org_id, repo_name)
 
     async def _get_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
         _logger.debug("retrieving allowed actions for repo '%s/%s'", org_id, repo_name)

@@ -170,7 +170,7 @@ class DiffOperation(Operation):
         validation_status = await self.validate(expected_org, jsonnet_config)
         if self.handle_validation_status(validation_status):
             try:
-                current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config)
+                current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config, expected_org)
             except RuntimeError as e:
                 self.printer.print_error(f"failed to load current configuration\n{e!s}")
                 return 1
@@ -246,7 +246,11 @@ class DiffOperation(Operation):
         return True
 
     async def load_current_org(
-        self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
+        self,
+        project_name: str,
+        github_id: str,
+        jsonnet_config: JsonnetConfig,
+        expected_org: GitHubOrganization | None = None,
     ) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
             project_name,
@@ -257,6 +261,7 @@ class DiffOperation(Operation):
             self.concurrency,
             self.repo_filter,
             exclude_teams=self.config.exclude_teams_pattern,
+            expected_org=expected_org,
         )
 
     def preprocess_orgs(

@@ -10,11 +10,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from logging import getLogger
 from typing import Any
 
 from odmantic import EmbeddedModel, Field, Model
 
 from otterdog.webapp.utils import current_utc_time
+
+logger = getLogger(__name__)
 
 
 class InstallationStatus(StrEnum):
@@ -33,6 +36,8 @@ class InstallationModel(Model):
     installation_status: InstallationStatus
     config_repo: str | None = None
     base_template: str | None = None
+    approval_teams: str | None = None
+    admin_teams: str | None = None
 
 
 class TaskStatus(StrEnum):
@@ -109,49 +114,92 @@ class PullRequestModel(Model):
     closed_at: datetime | None = None
     merged_at: datetime | None = Field(index=True, default=None)
 
-    def automerge_problems(self) -> list[str]:
+    async def automerge_problems(self, matching_teams: list[str] | None = None) -> list[str]:
+        """
+        matching_teams, when passed, is the list of team slugs in the org that were
+        actually resolved (via the GitHub API) to match one of the entries in
+        GITHUB_APPROVAL_TEAMS (or its per-organization override). Left as None when
+        the caller didn't resolve it (e.g. a plain boolean check), in which case the
+        raw patterns are shown instead of a concrete team name.
+        """
+        logger.debug(
+            "automerge_problems for pull request '%s': status=%s, draft=%s, apply_status=%s, valid=%s, "
+            "in_sync=%s, requires_manual_apply=%s, supports_auto_merge=%s, author_can_auto_merge=%s, "
+            "has_required_approvals=%s, matching_teams=%s",
+            self.id,
+            self.status,
+            self.draft,
+            self.apply_status,
+            self.valid,
+            self.in_sync,
+            self.requires_manual_apply,
+            self.supports_auto_merge,
+            self.author_can_auto_merge,
+            self.has_required_approvals,
+            matching_teams,
+        )
+
         problems = []
         if self.status != PullRequestStatus.OPEN:
-            problems.append("pull request is not open")
+            return [f"pull request is {self.status.value}, only open pull requests can be managed"]
         if self.valid is None:
-            problems.append("pull request has not been checked yet")
+            return ["pull request has not been validated yet, run `/otterdog validate` first"]
         if self.valid is False:
-            problems.append("pull request is not valid")
+            problems.append(
+                "pull request is not valid, check the `/otterdog validate` comment for details and push a fix"
+            )
         if self.supports_auto_merge is None:
-            problems.append("it has not been checked whether the pull request supports auto merge")
+            return ["it has not been checked whether the pull request supports auto merge"]
         if self.supports_auto_merge is False:
             problems.append(
-                "pull request cannot be automatically merged "
+                "pull request cannot be automatically merged  "
                 "(contains secrets, requires web UI changes, includes deletions or touches non-configuration files)"
             )
-
         # If either is true, the pull request can be automerged
         # (author can auto merge without approvals, or it has the required approvals)
         if self.author_can_auto_merge is not True and self.has_required_approvals is not True:
-            if self.author_can_auto_merge is None and self.has_required_approvals is None:
-                problems.append(
-                    "it has not been checked whether the author can auto merge without approvals, "
-                    "and whether the pull request has the required approvals"
+            from quart import render_template
+
+            from otterdog.webapp.utils import describe_admin_teams, describe_approval_teams
+
+            team_description = await describe_approval_teams(matching_teams, self.id.org_id)
+            admin_team_description = await describe_admin_teams(self.id.org_id)
+
+            # auto-merge requires ONE of these two independent conditions to hold. None does
+            # not mean "still pending / will resolve on its own" - it means the corresponding
+            # event never happened, so say what needs to happen instead of "not checked yet".
+            if self.has_required_approvals is None:
+                approval_status = (
+                    f"No approval from a member of `{team_description}` or of `{admin_team_description}` "
+                    "has been submitted yet"
                 )
-            elif self.author_can_auto_merge is None and self.has_required_approvals is False:
-                problems.append(
-                    "pull request does not have the required approvals, "
-                    "and it has not been checked whether the author can auto merge without approvals"
+            else:
+                approval_status = (
+                    f"No approval from a member of `{team_description}` or of `{admin_team_description}` was found"
                 )
-            elif self.author_can_auto_merge is False and self.has_required_approvals is None:
-                problems.append(
-                    "author is not eligible for merge without approvals, "
-                    "and it has not been checked whether the pull request has the required approvals"
+
+            if self.author_can_auto_merge is None:
+                author_status = (
+                    "The author's team membership is unknown "
+                    "(comment `/otterdog team-info` on the pull request to refresh it)"
                 )
-            elif self.author_can_auto_merge is False and self.has_required_approvals is False:
-                problems.append(
-                    "pull request does not have the required approvals, "
-                    "and the author is not eligible for merge without approvals"
+            else:
+                author_status = f"The author is not a member of `{team_description}` or of `{admin_team_description}`"
+
+            problems.append(
+                await render_template(
+                    "comment/automerge_eligibility.txt",
+                    team_description=team_description,
+                    admin_team_description=admin_team_description,
+                    approval_status=approval_status,
+                    author_status=author_status,
                 )
+            )
+
         return problems
 
-    def can_be_automerged(self) -> bool:
-        return not self.automerge_problems()
+    async def can_be_automerged(self) -> bool:
+        return not await self.automerge_problems()
 
 
 class StatisticsModel(Model):
