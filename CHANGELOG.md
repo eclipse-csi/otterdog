@@ -1,5 +1,46 @@
 # Change Log
 
+## [1.5.0] - 07/09/2026
+
+### Added
+
+ - feat(org-settings): add deploy_keys_enabled_for_repositories support by @gdams in https://github.com/eclipse-csi/otterdog/pull/643
+ - Add pull_request_template by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/740
+ - Add GITHUB_APPROVAL_TEAMS, handle configurable approval teams by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/715
+ - Support GitHub Actions cache storage limits by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/739
+ - feat(custom-property): add values_editable_by support by @gdams in https://github.com/eclipse-csi/otterdog/pull/642
+
+### Changed
+
+ - Adapt skaffold dev to the otterdog helm chart 1.2.0 by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/706
+ - chore(deps): bump the github-actions group with 3 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/709
+ - chore(deps): bump gitpython from 3.1.52 to 3.1.54 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/710
+ - chore(deps): bump postcss from 8.5.12 to 8.5.23 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/711
+ - chore(deps-dev): bump pymdown-extensions from 10.21.3 to 11.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/708
+ - chore(deps-dev): bump vite and vite-plugin-static-copy in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/696
+ - chore(deps): bump the github-actions group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/720
+ - chore(deps): bump gitpython from 3.1.54 to 3.1.57 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/721
+ - Upgrade Ruff and prek by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/724
+ - Pin dependency-track chart to 1.3.0 for scaffold by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/728
+ - Optimize docker build for scaffold by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/727
+ - ngrok as a tailscale alternative for dev tunnel by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/730
+ - Upload SBOMs to sbom.eclipse.org with pia by @lukpueh in https://github.com/eclipse-csi/otterdog/pull/733
+ - chore(deps): bump the github-actions group across 1 directory with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/734
+ - chore(otterdog): pinning workflows due to blueprint `pin-workflows` by @eclipse-otterdog[bot] in https://github.com/eclipse-csi/otterdog/pull/736
+
+### Fixed
+
+ - Failfast when required configuration is missing, empty or not trim by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/712
+ - fix: docker-compose deployment by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/707
+ - Manage already deleted branch by github by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/713
+ - Potential memory leak in macos large runners policy by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/714
+ - Wrap git connection and allow explicit cleanup after checkout by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/716
+ - fix update symlink when otterdog location changes by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/719
+ - Warn on unknown properties found while validating organization by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/718
+ - fix password_store_dir with .otterdog-defaults.json by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/725
+ - fix: ruff linter with TRY004 by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/726
+ - fix ruleset on private repo regarding paid plan by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/731
+
 ## [1.4.0] - 24/07/2026
 
 ### Added
@@ -10,9 +51,9 @@
 
 ### CHANGED
 
-- Make --author mandatory for open-pr [[#691]](https://github.com/eclipse-csi/otterdog/pull/691)
-- Enhance scaffold [[#683]](https://github.com/eclipse-csi/otterdog/pull/683)
-- docs: enhance testing documentation [[#679]](https://github.com/eclipse-csi/otterdog/pull/679)
+ - Make --author mandatory for open-pr [[#691]](https://github.com/eclipse-csi/otterdog/pull/691)
+ - Enhance scaffold [[#683]](https://github.com/eclipse-csi/otterdog/pull/683)
+ - docs: enhance testing documentation [[#679]](https://github.com/eclipse-csi/otterdog/pull/679)
 
 ### Fixed
 
