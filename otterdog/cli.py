@@ -958,7 +958,7 @@ def install_deps():
 
     import subprocess
 
-    process = subprocess.Popen(args=["playwright", "install", "firefox"], stdout=subprocess.PIPE)
+    process = subprocess.Popen(args=[sys.executable, "-m", "playwright", "install", "firefox"], stdout=subprocess.PIPE)
     for c in iter(lambda: process.stdout.read(1), b""):
         sys.stdout.buffer.write(c)
     sys.stdout.flush()
