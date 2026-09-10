@@ -3401,14 +3401,14 @@ dotenv = ["python-dotenv"]
 
 [[package]]
 name = "quart-auth"
-version = "0.10.1"
+version = "0.12.0"
 description = "A Quart extension to provide secure cookie authentication"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["app"]
 files = [
-    {file = "quart_auth-0.10.1-py3-none-any.whl", hash = "sha256:72a124c5bf6313e53a456034f477f317c382b677beab4fa91279fb5866db946d"},
-    {file = "quart_auth-0.10.1.tar.gz", hash = "sha256:d895d12c0818645a5828f6200b0cbbb8ad4ae3e5dcdc00a3977c105b4294f39a"},
+    {file = "quart_auth-0.12.0-py3-none-any.whl", hash = "sha256:776b76d0ff33a350e77392fe90f2d652361861e09d04d0ebbaf85f7437b1b31a"},
+    {file = "quart_auth-0.12.0.tar.gz", hash = "sha256:245e0e52417f29a344cbbd59028b0728a43c035b0795eeab08acb1e84ae1e728"},
 ]
 
 [package.dependencies]
@@ -4316,4 +4316,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "c4c098c8a324f50190828c3b2ca43696d62fb103aa5bb46ee3fa5e775b2b7ec9"
+content-hash = "e10c1fda517d84abee055540d87b8a07b807e488686eaa61cc88fe61c0f0ccb7"
