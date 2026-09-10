@@ -95,7 +95,7 @@ pymongo              = "==4.17.0"
 pydantic             = "^2.7"
 odmantic             = "^1.1.0"
 quart-auth           = "^0.12"
-quart-redis          = "^2.0"
+quart-redis          = "^3.0"
 github-flask         = "^3.2"
 aiohttp-client-cache = {version=">=0.12.3", extras=["redis"]}
 ariadne              = "^1.1"

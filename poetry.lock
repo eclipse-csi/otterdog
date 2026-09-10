@@ -382,7 +382,7 @@ description = "Timeout context manager for asyncio programs"
 optional = false
 python-versions = ">=3.8"
 groups = ["app"]
-markers = "python_full_version <= \"3.11.2\""
+markers = "python_full_version < \"3.11.3\""
 files = [
     {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
     {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
@@ -2981,6 +2981,21 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyjwt"
+version = "2.13.0"
+description = "JSON Web Token implementation in Python"
+optional = false
+python-versions = ">=3.9"
+groups = ["app"]
+files = [
+    {file = "pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728"},
+    {file = "pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423"},
+]
+
+[package.extras]
+crypto = ["cryptography (>=3.4.0)"]
+
+[[package]]
 name = "pymdown-extensions"
 version = "11.0.2"
 description = "Extension pack for Python Markdown."
@@ -3446,38 +3461,39 @@ quart = ">=0.19"
 
 [[package]]
 name = "quart-redis"
-version = "2.0.0"
+version = "3.0.0"
 description = "A easy way of setting up a redis in quart"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.11"
 groups = ["app"]
 files = [
-    {file = "quart-redis-2.0.0.tar.gz", hash = "sha256:c5bf5d23da973e415a65e2b342242ebacb3734aeb61cde58bcce099dec66a1a9"},
-    {file = "quart_redis-2.0.0-py3-none-any.whl", hash = "sha256:13fcd66245c20dc3c292245f5c3de8b7ecd1353ab64052883e9c051a39091de8"},
+    {file = "quart-redis-3.0.0.tar.gz", hash = "sha256:ec45d0535a6a6e0fd79b787173dd3cd51c7af5ab6d0bb285755e19bada56f8f9"},
+    {file = "quart_redis-3.0.0-py3-none-any.whl", hash = "sha256:78a9f16b80e7ca17189a09b022734796bf21a41a4d0c09f05c51acdabc27cd23"},
 ]
 
 [package.dependencies]
-quart = ">=0.18,<1.0"
-redis = ">=4.2,<5"
+quart = ">=0.20,<1.0"
+redis = ">=5.2.1,<6"
 
 [[package]]
 name = "redis"
-version = "4.6.0"
+version = "5.3.1"
 description = "Python client for Redis database and key-value store"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 groups = ["app"]
 files = [
-    {file = "redis-4.6.0-py3-none-any.whl", hash = "sha256:e2b03db868160ee4591de3cb90d40ebb50a90dd302138775937f6a42b7ed183c"},
-    {file = "redis-4.6.0.tar.gz", hash = "sha256:585dc516b9eb042a619ef0a39c3d7d55fe81bdb4df09a52c9cdde0d07bf1aa7d"},
+    {file = "redis-5.3.1-py3-none-any.whl", hash = "sha256:dc1909bd24669cc31b5f67a039700b16ec30571096c5f1f0d9d2324bff31af97"},
+    {file = "redis-5.3.1.tar.gz", hash = "sha256:ca49577a531ea64039b5a36db3d6cd1a0c7a60c34124d46924a45b956e8cf14c"},
 ]
 
 [package.dependencies]
-async-timeout = {version = ">=4.0.2", markers = "python_full_version <= \"3.11.2\""}
+async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
+PyJWT = ">=2.9.0"
 
 [package.extras]
-hiredis = ["hiredis (>=1.0.0)"]
-ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
+hiredis = ["hiredis (>=3.0.0)"]
+ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"]
 
 [[package]]
 name = "referencing"
@@ -4328,4 +4344,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "190e92c7892429577371c255b894afe7e3311c4bcf85bc80bff98aa277367bdd"
+content-hash = "25e451eca0d55caa91a6a6e73cbf819214fca51768a2107e06d13d3ab596d9cc"
