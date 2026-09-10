@@ -88,7 +88,7 @@ poetry-plugin-export = { version = ">=1.8.0,<2.0.0" }
 poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 
 [tool.poetry.group.app.dependencies]
-quart                = "^0.20"
+quart                = "^0.22"
 quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 pymongo              = "==4.9.1"
