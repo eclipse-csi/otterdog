@@ -13,7 +13,9 @@ import pytest
 from jsonbender import bend
 from pretend import stub
 
+from otterdog.models.repo_ruleset import RepositoryRuleset
 from otterdog.models.ruleset import Ruleset, StatusCheckSettings
+from otterdog.utils import Change
 
 
 class TestRuleset:
@@ -204,6 +206,30 @@ class TestRuleset:
         bypass_actors_result = result["bypass_actors"]
 
         assert bypass_actors_result == [], "Missing bypass_actors key should default to empty list"
+
+    @pytest.mark.parametrize(
+        "conditions",
+        [None, {"ref_name": None}, {"ref_name": {"include": None, "exclude": None}}],
+    )
+    def test_disabled_ruleset_with_null_ref_conditions_can_be_diffed(self, conditions):
+        """Disabled ruleset responses can omit ref conditions at any level; treat them as empty when diffing config."""
+        data = self.create_ruleset_data([])
+        data["enforcement"] = "disabled"
+        data["conditions"] = conditions
+
+        live_ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+        expected_ruleset = RepositoryRuleset.from_model_data(
+            {
+                "name": "test-ruleset",
+                "target": "branch",
+                "enforcement": "disabled",
+                "include_refs": ["refs/heads/main"],
+            }
+        )
+
+        assert live_ruleset.include_refs == []
+        assert live_ruleset.exclude_refs == []
+        assert expected_ruleset.get_difference_from(live_ruleset)["include_refs"] == Change([], ["refs/heads/main"])
 
     def test_get_mapping_from_provider_with_rules(self):
         data = {
