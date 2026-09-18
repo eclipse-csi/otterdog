@@ -258,6 +258,18 @@ This initialization will:
 - Fetch the Otterdog configuration from the GitHub repository
 - Sync the current state from GitHub
 - Set up the initial data structures in MongoDB
+- Refresh, in the background, the per organization pull request digests backing the statistics
+
+!!! note
+
+    Refreshing the pull request digests queries GitHub once per organization, so a deployment
+    with many organizations makes the initialization consume a noticeable part of the GitHub
+    rate limit. The refresh stops on its own once the remaining quota gets low, and the
+    statistics then report the organizations it could not read.
+
+    The digests are cached in Redis for `PULL_REQUEST_STATISTICS_CACHE_TTL` seconds, one day by
+    default. Calling `/internal/init` daily keeps the statistics fresh without anybody ever
+    waiting for GitHub while browsing them.
 
 ### Updating the Deployment
 

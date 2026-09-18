@@ -194,6 +194,15 @@ async def cleanup_data() -> None:
     await cleanup_blueprints_status(valid_orgs)
 
 
+def _abbreviate(values: list[str], limit: int = 20) -> str:
+    """Joins values for a log message, keeping a long list from flooding the log."""
+
+    if len(values) <= limit:
+        return ", ".join(values)
+
+    return ", ".join(values[:limit]) + f", ... and {len(values) - limit} more"
+
+
 async def update_app_installations(
     global_policies: list[Policy],
     global_blueprints: list[Blueprint],
@@ -204,6 +213,15 @@ async def update_app_installations(
     rest_api = get_rest_api_for_app()
     all_installations = await rest_api.app.get_app_installations()
 
+    logger.info("the github app is installed for %d organization(s)", len(all_installations))
+    if len(all_installations) == 0:
+        logger.warning(
+            "the github app is not installed for any organization, no data will be fetched, "
+            "check that GITHUB_APP_ID refers to the app that is installed"
+        )
+
+    unknown_organizations: list[str] = []
+
     async with mongo.odm.session() as session:
         for app_installation in all_installations:
             installation_id = app_installation["id"]
@@ -213,17 +231,46 @@ async def update_app_installations(
 
             model = await get_installation_by_github_id(github_id)
             if model is not None:
+                logger.info(
+                    "updating installation for org '%s': id=%d, status=%s",
+                    github_id,
+                    int(installation_id),
+                    installation_status.value,
+                )
+
                 model.installation_id = int(installation_id)
                 model.installation_status = installation_status
 
                 await session.save(model)
+            else:
+                unknown_organizations.append(github_id)
 
-    for installation in await get_active_installations():
+    if unknown_organizations:
+        # the github id is the primary key of the installation model and thus matched
+        # case-sensitively, a mismatch in the otterdog config goes unnoticed otherwise
+        logger.warning(
+            "the github app is installed for %d organization(s) that the otterdog config does not define, "
+            "ignoring them, note that the github id is matched case-sensitively: %s",
+            len(unknown_organizations),
+            _abbreviate(sorted(unknown_organizations)),
+        )
+
+    active_installations = await get_active_installations()
+    logger.info("found %d active installation(s)", len(active_installations))
+    if len(active_installations) == 0:
+        logger.warning("no active installation found, no configuration or pull request data will be fetched")
+
+    for installation in active_installations:
         configuration_model = await get_configuration_by_github_id(installation.github_id)
         if configuration_model is None or (
             project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
         ):
             await update_data_for_installation(installation)
+        else:
+            logger.debug(
+                "configuration for org '%s' is already present, skipping fetching of its data",
+                installation.github_id,
+            )
 
         await update_policies_and_blueprints_for_installation(installation, global_policies, global_blueprints)
 
@@ -262,6 +309,13 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
     from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
     config_repo = unwrap(installation.config_repo)
+
+    logger.info(
+        "scheduling fetching of the configuration and pull requests for org '%s' from repo '%s/%s'",
+        installation.github_id,
+        installation.github_id,
+        config_repo,
+    )
 
     current_app.add_background_task(
         FetchConfigTask(

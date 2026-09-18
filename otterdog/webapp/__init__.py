@@ -106,7 +106,12 @@ def create_app(app_config: AppConfig):
         with open(manifest_path) as content:
             manifest = json.load(content)
     except OSError as exception:
-        raise RuntimeError(f"Manifest file not found at '{manifest_path}'. Run `npm run build`.") from exception
+        # the assets are only needed to actually serve pages, requiring them to be built would
+        # make the app impossible to instantiate in a test
+        if not getattr(app_config, "TESTING", False):
+            raise RuntimeError(f"Manifest file not found at '{manifest_path}'. Run `npm run build`.") from exception
+
+        app.logger.warning("no manifest file found at '%s', assets are served unhashed", manifest_path)
 
     @app.context_processor
     def context_processor():

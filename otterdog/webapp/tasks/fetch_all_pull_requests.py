@@ -40,6 +40,13 @@ class FetchAllPullRequestsTask(InstallationBasedTask, Task[None]):
             self.org_id, self.repo_name, state="all", base_ref="main"
         )
 
+        self.logger.info(
+            "found %d pull request(s) targeting branch 'main' in repo '%s/%s'",
+            len(all_pull_requests),
+            self.org_id,
+            self.repo_name,
+        )
+
         for pr in all_pull_requests:
             pr_from_github = PullRequest.model_validate(pr)
 

@@ -11,6 +11,57 @@
   <!-- jsGrid -->
   <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
   <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+
+  <style>
+    .stats-tile {
+      border: 1px solid #dee2e6;
+      border-radius: .25rem;
+      padding: .5rem .75rem;
+    }
+
+    .stats-tile-label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .stats-effort-headline {
+      font-size: 1.75rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .stats-tile-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    /* carries the series identity next to the label, the value itself stays in ink */
+    .stats-tile-label .fa-info-circle {
+      color: #adb5bd;
+      cursor: help;
+    }
+
+    /* proportional bar behind an aging bucket, so the shape of the distribution is readable */
+    .stats-aging-bar {
+      display: inline-block;
+      height: .5rem;
+      border-radius: .25rem;
+      background-color: #c07600;
+      min-width: 2px;
+      vertical-align: middle;
+    }
+
+    .stats-dot {
+      display: inline-block;
+      width: .625rem;
+      height: .625rem;
+      border-radius: 50%;
+      margin-right: .25rem;
+      vertical-align: baseline;
+    }
+  </style>
 {% endblock stylesheets %}
 
 {% block content %}
@@ -48,6 +99,9 @@
                   <li class="nav-item">
                     <a class="nav-link" id="merged-pr-tab" data-toggle="pill" href="#merged-prs" role="tab" aria-controls="merged-prs" aria-selected="false">Merged</a>
                   </li>
+                  <li class="nav-item">
+                    <a class="nav-link" id="stats-pr-tab" data-toggle="pill" href="#pr-stats" role="tab" aria-controls="pr-stats" aria-selected="false">Statistics</a>
+                  </li>
                 </ul>
               </div>
               <div class="card-body">
@@ -57,6 +111,239 @@
                   </div>
                   <div class="tab-pane" id="merged-prs" role="tabpanel" aria-labelledby="merged-pr-tab">
                     <div id="mergedPullRequestsGrid"></div>
+                  </div>
+                  <div class="tab-pane" id="pr-stats" role="tabpanel" aria-labelledby="stats-pr-tab">
+                    <div class="form-row align-items-end mb-3">
+                      <div class="col-auto">
+                        <label class="mb-1" for="stats-interval">Interval</label>
+                        <fieldset class="btn-group btn-group-sm d-block" id="stats-interval">
+                          <button type="button" class="btn btn-outline-primary" data-interval="day">Day</button>
+                          <button type="button" class="btn btn-outline-primary" data-interval="week">Week</button>
+                          <button type="button" class="btn btn-outline-primary active" data-interval="month">Month</button>
+                        </fieldset>
+                      </div>
+                      <div class="col-auto">
+                        <label class="mb-1" for="stats-range">Range</label>
+                        <select class="form-control form-control-sm" id="stats-range">
+                          <option value="7d">Last 7 days</option>
+                          <option value="14d">Last 14 days</option>
+                          <option value="30d">Last 30 days</option>
+                          <option value="90d">Last 90 days</option>
+                          <option value="6m">Last 6 months</option>
+                          <option value="12m" selected>Last 12 months</option>
+                          <option value="all">All time</option>
+                        </select>
+                      </div>
+                      <div class="col-auto">
+                        <label class="mb-1" for="stats-org">Organization</label>
+                        <input class="form-control form-control-sm" id="stats-org" list="stats-org-list"
+                               type="search" autocomplete="off" placeholder="All organizations"
+                               title="Type a GitHub organization or a project name, leave empty for all">
+                        <datalist id="stats-org-list"></datalist>
+                      </div>
+                    </div>
+                    <div id="stats-progress" style="display: none;">
+                      <progress id="stats-progress-bar" class="w-100 mb-1" max="100" value="0"></progress>
+                      <small class="text-muted" id="stats-progress-label">Preparing the statistics...</small>
+                    </div>
+                    <div id="stats-error" class="alert alert-danger" style="display: none;"></div>
+                    <div id="stats-warning" class="alert alert-warning" style="display: none;"></div>
+                    <h5 class="mt-4 mb-2">Overview</h5>
+                    <div class="row" id="stats-summary" style="display: none;">
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            <span class="stats-dot" style="background-color: #007bff;"></span>Opened
+                          </div>
+                          <div class="stats-tile-value" id="stats-total-opened">0</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            <span class="stats-dot" style="background-color: #28a745;"></span>Merged manually
+                          </div>
+                          <div class="stats-tile-value" id="stats-total-merged">0</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            <span class="stats-dot" style="background-color: #17a2b8;"></span>Auto-merged
+                          </div>
+                          <div class="stats-tile-value" id="stats-total-auto-merged">0</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            <span class="stats-dot" style="background-color: #dc3545;"></span>Closed without merge
+                          </div>
+                          <div class="stats-tile-value" id="stats-total-closed">0</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            <span class="stats-dot" style="background-color: #c07600;"></span>Still open now
+                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                               title="Pull requests that are open right now, whatever the selected range."></i>
+                          </div>
+                          <div class="stats-tile-value" id="stats-still-open">0</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            Auto-merge rate
+                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                               title="Share of the merged pull requests that the app merged itself, in response to /otterdog merge."></i>
+                          </div>
+                          <div class="stats-tile-value" id="stats-auto-merge-rate">&mdash;</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            Cycle time (median)
+                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                               title="Delay between opening and merging a pull request. Half of them were merged faster than this."></i>
+                          </div>
+                          <div class="stats-tile-value" id="stats-cycle-time-median">&mdash;</div>
+                        </div>
+                      </div>
+                      <div class="col-6 col-md-3 mb-3">
+                        <div class="stats-tile">
+                          <div class="stats-tile-label text-muted">
+                            Cycle time (p90)
+                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                               title="Delay between opening and merging a pull request. Nine out of ten were merged faster than this."></i>
+                          </div>
+                          <div class="stats-tile-value" id="stats-cycle-time-p90">&mdash;</div>
+                        </div>
+                      </div>
+                    </div>
+                    <h5 class="mt-4 mb-2">Activity over time</h5>
+                    <div class="chart">
+                      <canvas id="pull-request-activity-chart" style="min-height: 350px; height: 350px; max-height: 350px; max-width: 100%;"></canvas>
+                    </div>
+                    <h5 class="mt-4 mb-2">Open pull requests</h5>
+                    <div class="row" id="stats-aging" style="display: none;">
+                      <div class="col-md-4">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
+                          Open PR aging
+                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                             title="Age of the pull requests that are open right now, whatever the selected range."></i>
+                        </h6>
+                        <table class="table table-sm mb-2">
+                          <thead>
+                            <tr>
+                              <th scope="col">Age</th>
+                              <th scope="col" class="text-right">Open</th>
+                              <th scope="col"><span class="sr-only">Share of the open pull requests</span></th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-aging-buckets"></tbody>
+                        </table>
+                        <p class="mb-3" id="stats-oldest-open-age"></p>
+                      </div>
+                      <div class="col-md-8">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Oldest open pull requests</h6>
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">Pull request</th>
+                              <th scope="col" class="text-right">Age</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-oldest-open"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <h5 class="mt-4 mb-2">Cycle time and automation impact</h5>
+                    <div class="row mt-4">
+                      <div class="col-md-7">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
+                          Cycle time by merge type
+                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                             title="Delay between opening and merging, kept apart because the two populations are not comparable."></i>
+                        </h6>
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">Metric</th>
+                              <th scope="col" class="text-right">Auto-merge</th>
+                              <th scope="col" class="text-right">Manual merge</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-cycle-times"></tbody>
+                        </table>
+                      </div>
+                      <div class="col-md-5">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
+                          Time saved through automation
+                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                             title="An estimate, not a measurement: the number of pull requests the app merged times an assumed manual effort per pull request."></i>
+                        </h6>
+                        <div class="stats-tile mb-2">
+                          <div class="stats-effort-headline" id="stats-effort-saved">&mdash;</div>
+                          <div id="stats-effort-count">&mdash;</div>
+                          <div class="text-muted"><small id="stats-effort-detail"></small></div>
+                        </div>
+                        <label class="mb-1 text-muted" for="stats-effort-per-pr">
+                          <small>Assumed effort per pull request</small>
+                        </label>
+                        <select class="form-control form-control-sm" id="stats-effort-per-pr">
+                          <option value="5">5 minutes</option>
+                          <option value="10" selected>10 minutes</option>
+                          <option value="15">15 minutes</option>
+                          <option value="30">30 minutes</option>
+                        </select>
+                      </div>
+                    </div>
+                    <h5 class="mt-4 mb-2">Auto-merge rate by organization</h5>
+                    <div class="row">
+                      <div class="col-12">
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">Organization</th>
+                              <th scope="col" class="text-right">Merged</th>
+                              <th scope="col" class="text-right">Auto-merged</th>
+                              <th scope="col" class="text-right">Rate</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-organizations"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <h5 class="mt-4 mb-2">Top openers and closers</h5>
+                    <div class="row">
+                      <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Top 5 openers</h6>
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">User</th>
+                              <th scope="col" class="text-right">Opened</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-top-openers"></tbody>
+                        </table>
+                      </div>
+                      <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Top 5 closers</h6>
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">User</th>
+                              <th scope="col" class="text-right">Closed</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-top-closers"></tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -77,6 +364,9 @@
 
   <!-- jsGrid -->
   <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="/assets/vendor/chartjs/chart.umd.js"></script>
 
   <!-- page script -->
   <script>
@@ -238,6 +528,606 @@
           ]
       });
     });
+
+    var pullRequestActivityChart = null;
+    var pullRequestStatisticsLoaded = false;
+
+    $('[data-toggle="tooltip"]').tooltip();
+
+    $('#stats-pr-tab').on('shown.bs.tab', function() {
+      if (pullRequestStatisticsLoaded) {
+        return;
+      }
+
+      pullRequestStatisticsLoaded = true;
+      loadOrganizationFilter().always(loadPullRequestActivity);
+    });
+
+    $("#stats-interval").find("button").on("click", function() {
+      $("#stats-interval").find("button").removeClass("active");
+      $(this).addClass("active");
+      loadPullRequestActivity();
+    });
+
+    $("#stats-range, #stats-org").on("change", loadPullRequestActivity);
+
+    // only changes an assumption, nothing has to be loaded again
+    $("#stats-effort-per-pr").on("change", updateEffortAvoided);
+
+    // every known organization, used to resolve what was typed and to reject a typo
+    var knownOrganizations = [];
+    var organizationsByProject = {};
+
+    function loadOrganizationFilter() {
+      return $.ajax({
+        url: "/api/organizations",
+        dataType: "json"
+      }).done(function(organizations) {
+        var list = $("#stats-org-list");
+
+        organizations.sort(function(a, b) {
+          return a.github_id.localeCompare(b.github_id);
+        }).forEach(function(organization) {
+          knownOrganizations.push(organization.github_id);
+
+          if (organization.project_name) {
+            organizationsByProject[organization.project_name.toLowerCase()] = organization.github_id;
+          }
+
+          // only a value, no label: firefox shows the label instead of the value, which would
+          // display project names in an order sorted by github id and look arbitrary
+          list.append($("<option>", {value: organization.github_id}));
+        });
+      });
+    }
+
+    function selectedOrganization() {
+      var value = $("#stats-org").val().trim();
+
+      if (value === "" || knownOrganizations.includes(value)) {
+        return {org: value, error: null};
+      }
+
+      // the project name is not in the list anymore, but it stays a valid way to name an org
+      var byProject = organizationsByProject[value.toLowerCase()];
+      if (byProject !== undefined) {
+        return {org: byProject, error: null};
+      }
+
+      return {org: null, error: "No organization named '" + value + "' is known, showing nothing."};
+    }
+
+    function formatPeriod(period, interval) {
+      if (interval === "month") {
+        return period.substring(0, 7);
+      } else if (interval === "week") {
+        return "w/o " + period;
+      } else {
+        return period;
+      }
+    }
+
+    // identifies the current load, so that a load started later makes an earlier one stop
+    var pullRequestActivityLoad = 0;
+
+    // a fully cached view finishes in milliseconds, so poll tightly at first and back off only
+    // when the collection turns out to be a long one
+    var FIRST_POLL_INTERVAL_IN_MILLIS = 200;
+    var MAX_POLL_INTERVAL_IN_MILLIS = 1000;
+
+    function progressLabel(processed, total, fetched) {
+      if (total === 0) {
+        return "Preparing the statistics...";
+      }
+
+      if (processed >= total) {
+        return "Aggregating " + total + " organization(s)...";
+      }
+
+      var progress = processed + " / " + total + " organization(s)";
+
+      // nothing had to be read from GitHub so far, so the cached digests are being reused
+      return fetched > 0 ?
+        "Reading pull requests from GitHub: " + progress :
+        "Reading cached data: " + progress;
+    }
+
+    function showProgress(processed, total, fetched) {
+      var percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+
+      $("#stats-progress").show();
+      $("#stats-progress-bar").attr("value", percent);
+      $("#stats-progress-label").text(progressLabel(processed, total, fetched || 0));
+    }
+
+    function hideProgress() {
+      $("#stats-progress").hide();
+      $("#stats-progress-bar").attr("value", 0);
+    }
+
+    function showStatisticsError(message) {
+      hideProgress();
+      $("#stats-error").text(message).show();
+    }
+
+    function loadPullRequestActivity() {
+      var organization = selectedOrganization();
+
+      if (organization.error !== null) {
+        showStatisticsError(organization.error);
+        return;
+      }
+
+      var parameters = $.param({
+        interval: $("#stats-interval").find("button.active").data("interval"),
+        range: $("#stats-range").val(),
+        org: organization.org
+      });
+
+      $("#stats-error").hide();
+      // the figures shown belong to the previous filters, do not let them look current
+      $("#stats-summary").hide();
+      $("#stats-top-openers, #stats-top-closers, #stats-organizations, #stats-cycle-times").empty();
+      $("#stats-aging").hide();
+      $("#stats-warning").hide();
+      showProgress(0, 0, 0);
+
+      pullRequestActivityLoad += 1;
+      pollPullRequestActivity(parameters, pullRequestActivityLoad, FIRST_POLL_INTERVAL_IN_MILLIS);
+    }
+
+    function pollPullRequestActivity(parameters, load, delay) {
+      $.ajax({
+        url: "/api/pullrequests/statistics/progress?" + parameters,
+        dataType: "json"
+      }).done(function(response) {
+        // the parameters changed in the meantime, this load is not of interest anymore
+        if (load !== pullRequestActivityLoad) {
+          return;
+        }
+
+        if (response.status === "done") {
+          hideProgress();
+          drawPullRequestActivityChart(response.result);
+        } else if (response.status === "failed") {
+          showStatisticsError("Failed loading the pull request statistics. " + response.error);
+        } else {
+          showProgress(response.processed, response.total, response.fetched);
+          setTimeout(function() {
+            pollPullRequestActivity(parameters, load, Math.min(delay * 2, MAX_POLL_INTERVAL_IN_MILLIS));
+          }, delay);
+        }
+      }).fail(function(request) {
+        if (load !== pullRequestActivityLoad) {
+          return;
+        }
+
+        console.error("failed polling the pull request statistics", request.status, request.responseText);
+        showStatisticsError("Failed loading the pull request statistics, could not reach the server.");
+      });
+    }
+
+    function totalsOf(activities) {
+      var totals = {opened: 0, merged: 0, autoMerged: 0, closed: 0};
+
+      activities.forEach(function(activity) {
+        totals.opened += activity.opened;
+        totals.merged += activity.merged;
+        totals.autoMerged += activity.auto_merged;
+        totals.closed += activity.closed;
+      });
+
+      return totals;
+    }
+
+    function updatePullRequestSummary(activities, stillOpen) {
+      var totals = totalsOf(activities);
+
+      $("#stats-total-opened").text(totals.opened.toLocaleString());
+      $("#stats-total-merged").text((totals.merged - totals.autoMerged).toLocaleString());
+      $("#stats-total-auto-merged").text(totals.autoMerged.toLocaleString());
+      $("#stats-total-closed").text(totals.closed.toLocaleString());
+      $("#stats-still-open").text(stillOpen.toLocaleString());
+      $("#stats-auto-merge-rate").html(formatAutoMergeRate(totals.autoMerged, totals.merged));
+
+      $("#stats-summary").show();
+    }
+
+    function formatHours(hours) {
+      if (hours === null || hours === undefined) {
+        return "&mdash;";
+      }
+
+      if (hours < 1) {
+        return Math.round(hours * 60) + " min";
+      }
+
+      // beyond a couple of days the hour is noise, days read better
+      return hours < 48 ? hours.toFixed(1) + " h" : (hours / 24).toFixed(1) + " d";
+    }
+
+    function formatAge(days) {
+      if (days < 1) {
+        return Math.max(1, Math.round(days * 24)) + " h";
+      }
+
+      return Math.round(days) + (Math.round(days) === 1 ? " day" : " days");
+    }
+
+    function updateAging(buckets, oldest) {
+      var body = $("#stats-aging-buckets").empty();
+      var maximum = buckets.reduce(function(highest, bucket) {
+        return Math.max(highest, bucket.count);
+      }, 0);
+
+      buckets.forEach(function(bucket) {
+        var width = maximum > 0 ? Math.round((bucket.count / maximum) * 100) : 0;
+
+        body.append(
+          $("<tr>")
+            .append($("<td>", {text: bucket.label, style: "width: 40%;"}))
+            .append($("<td>", {"class": "text-right", style: "width: 15%;", text: bucket.count.toLocaleString()}))
+            .append($("<td>").append($("<span>", {
+              "class": "stats-aging-bar",
+              style: "width: " + width + "%;",
+              title: bucket.count + " pull request(s)"
+            })))
+        );
+      });
+
+      var oldestBody = $("#stats-oldest-open").empty();
+
+      if (oldest.length === 0) {
+        $("#stats-oldest-open-age").text("");
+        oldestBody.append(
+          $("<tr>").append($("<td>", {colspan: 2, "class": "text-muted", text: "no pull request is open"}))
+        );
+        return;
+      }
+
+      $("#stats-oldest-open-age")
+        .empty()
+        .append($("<span>", {"class": "text-muted", text: "Oldest open pull request: "}))
+        .append($("<strong>", {text: formatAge(oldest[0].age_days)}));
+
+      oldest.forEach(function(pullRequest) {
+        var title = $("<td>").append($("<a>", {
+          href: pullRequest.url,
+          text: pullRequest.org_id + " #" + pullRequest.number,
+          title: pullRequest.title
+        }));
+
+        if (pullRequest.draft) {
+          title.append($("<span>", {"class": "badge badge-secondary ml-1", text: "draft"}));
+        }
+
+        if (pullRequest.author) {
+          title.append($("<span>", {"class": "text-muted ml-1", text: "by " + pullRequest.author}));
+        }
+
+        oldestBody.append(
+          $("<tr>")
+            .append(title)
+            .append($("<td>", {"class": "text-right", text: formatAge(pullRequest.age_days)}))
+        );
+      });
+    }
+
+    function updateCycleTimes(cycleTimes) {
+      var body = $("#stats-cycle-times").empty();
+      var byLabel = {};
+
+      cycleTimes.forEach(function(cycleTime) {
+        byLabel[cycleTime.label] = cycleTime;
+      });
+
+      var auto = byLabel["Auto-merge"] || {count: 0};
+      var manual = byLabel["Manual merge"] || {count: 0};
+
+      var rows = [
+        ["Median cycle time", formatHours(auto.median_hours), formatHours(manual.median_hours)],
+        ["P90 cycle time", formatHours(auto.p90_hours), formatHours(manual.p90_hours)],
+        ["Pull requests merged", auto.count.toLocaleString(), manual.count.toLocaleString()]
+      ];
+
+      rows.forEach(function(row) {
+        body.append(
+          $("<tr>")
+            .append($("<td>", {text: row[0]}))
+            .append($("<td>", {"class": "text-right"}).html(row[1]))
+            .append($("<td>", {"class": "text-right"}).html(row[2]))
+        );
+      });
+    }
+
+    var WORKING_HOURS_PER_DAY = 8;
+
+    function formatSavedEffort(hours) {
+      // effort is not a delay, so it never turns into calendar days
+      if (hours < 1) {
+        var minutes = Math.round(hours * 60);
+        return minutes + (minutes === 1 ? " minute saved" : " minutes saved");
+      }
+
+      var rounded = Math.round(hours);
+      return rounded.toLocaleString() + (rounded === 1 ? " hour saved" : " hours saved");
+    }
+
+    // the number of pull requests the app merged over the selected range, kept around so that
+    // changing the assumed effort recomputes without reloading anything
+    var autoMergedInRange = 0;
+
+    function updateEffortAvoided() {
+      var minutesPerPullRequest = Number.parseInt($("#stats-effort-per-pr").val(), 10);
+      var hours = (autoMergedInRange * minutesPerPullRequest) / 60;
+
+      if (autoMergedInRange === 0) {
+        $("#stats-effort-saved").text("No time saved");
+        $("#stats-effort-count").text("No pull request was merged by the app over this range");
+        $("#stats-effort-detail").text("");
+        return;
+      }
+
+      $("#stats-effort-saved").text(formatSavedEffort(hours));
+      $("#stats-effort-count").text(
+        autoMergedInRange.toLocaleString() +
+          (autoMergedInRange === 1 ? " pull request handled automatically" : " pull requests handled automatically")
+      );
+
+      var assumption = "assuming " + minutesPerPullRequest + " min of manual effort per pull request";
+
+      // below a full working day the conversion adds noise rather than meaning
+      $("#stats-effort-detail").text(
+        hours >= WORKING_HOURS_PER_DAY ?
+          "\u2248 " + (hours / WORKING_HOURS_PER_DAY).toFixed(1) + " working days, " + assumption :
+          assumption.charAt(0).toUpperCase() + assumption.slice(1)
+      );
+    }
+
+    function updateFailedOrganizations(response) {
+      var failed = response.failed_organizations || [];
+
+      if (failed.length === 0) {
+        $("#stats-warning").hide();
+        return;
+      }
+
+      var message = failed.length + " organization(s) could not be read, the figures below are incomplete: " +
+        failed.slice(0, 10).join(", ") + (failed.length > 10 ? ", ..." : "");
+
+      if (response.rate_limited) {
+        message += " The GitHub rate limit was exhausted, try again later.";
+      }
+
+      $("#stats-warning").text(message).show();
+    }
+
+    function updateOrganizations(organizations) {
+      var body = $("#stats-organizations").empty();
+
+      if (organizations.length === 0) {
+        body.append($("<tr>").append($("<td>", {
+          colspan: 4,
+          "class": "text-muted",
+          text: "no pull request was merged in this range"
+        })));
+        return;
+      }
+
+      organizations.forEach(function(organization) {
+        body.append(
+          $("<tr>")
+            .append($("<td>").append($("<a>", {
+              href: "https://github.com/" + organization.org_id,
+              text: organization.org_id
+            })))
+            .append($("<td>", {"class": "text-right", text: organization.merged.toLocaleString()}))
+            .append($("<td>", {"class": "text-right", text: organization.auto_merged.toLocaleString()}))
+            .append($("<td>", {"class": "text-right"}).html(
+              formatAutoMergeRate(organization.auto_merged, organization.merged)
+            ))
+        );
+      });
+    }
+
+    function updateTopContributors(selector, contributors) {
+      var body = $(selector).empty();
+
+      if (contributors.length === 0) {
+        body.append(
+          $("<tr>").append($("<td>", {colspan: 2, "class": "text-muted", text: "no activity in this range"}))
+        );
+        return;
+      }
+
+      contributors.forEach(function(contributor) {
+        var name = $("<td>").append($("<a>", {
+          href: "https://github.com/" + (contributor.bot ? "apps/" + contributor.login : contributor.login),
+          text: contributor.login
+        }));
+
+        if (contributor.bot) {
+          name.append($("<span>", {"class": "badge badge-secondary ml-1", text: "bot"}));
+        }
+
+        body.append(
+          $("<tr>")
+            .append(name)
+            .append($("<td>", {"class": "text-right", text: contributor.count.toLocaleString()}))
+        );
+      });
+    }
+
+    function formatAutoMergeRate(autoMerged, merged) {
+      // no merge in the period means there is no rate to speak of, not a rate of zero
+      return merged > 0 ? Math.round((autoMerged / merged) * 100) + "%" : "&mdash;";
+    }
+
+    function drawPullRequestActivityChart(response) {
+      var labels = [];
+      var opened = [];
+      var merged = [];
+      var autoMerged = [];
+      var closed = [];
+      var stillOpen = [];
+
+      var open = response.open_at_start;
+
+      response.data.forEach(function(activity) {
+        open += activity.opened - activity.merged - activity.closed;
+
+        labels.push(formatPeriod(activity.period, response.interval));
+        opened.push(activity.opened);
+        merged.push(activity.merged - activity.auto_merged);
+        autoMerged.push(activity.auto_merged);
+        closed.push(activity.closed);
+        stillOpen.push(open);
+      });
+
+      updatePullRequestSummary(response.data, open);
+      updateFailedOrganizations(response);
+      updateTopContributors("#stats-top-openers", response.top_openers);
+      updateTopContributors("#stats-top-closers", response.top_closers);
+      updateOrganizations(response.organizations || []);
+      updateAging(response.open_aging || [], response.oldest_open || []);
+      updateCycleTimes(response.cycle_times || []);
+
+      autoMergedInRange = totalsOf(response.data).autoMerged;
+      updateEffortAvoided();
+
+      $("#stats-aging").show();
+
+      $("#stats-cycle-time-median").html(formatHours(response.cycle_time_median_hours));
+      $("#stats-cycle-time-p90").html(formatHours(response.cycle_time_p90_hours));
+
+      if (pullRequestActivityChart !== null) {
+        pullRequestActivityChart.destroy();
+      }
+
+      pullRequestActivityChart = new Chart(document.getElementById('pull-request-activity-chart'), {
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'opened',
+              data: opened,
+              backgroundColor: '#007bff',
+              borderRadius: 4,
+              stack: 'opened',
+              order: 2
+            },
+            {
+              type: 'bar',
+              label: 'merged manually',
+              data: merged,
+              backgroundColor: '#28a745',
+              // a surface coloured gap keeps the two merged segments readable as separate fills
+              borderColor: '#ffffff',
+              borderWidth: {top: 2},
+              stack: 'merged',
+              order: 2
+            },
+            {
+              type: 'bar',
+              label: 'merged via auto-merge',
+              data: autoMerged,
+              backgroundColor: '#17a2b8',
+              borderRadius: 4,
+              stack: 'merged',
+              order: 2
+            },
+            {
+              type: 'bar',
+              label: 'closed without merge',
+              data: closed,
+              backgroundColor: '#dc3545',
+              borderRadius: 4,
+              stack: 'closed',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'still open',
+              data: stillOpen,
+              // a darkened orange: the original #ffc107 only reached a contrast of 1.59:1 against
+              // the light surface, this one clears 3:1 while staying apart from the red bars
+              borderColor: '#c07600',
+              backgroundColor: '#c07600',
+              borderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              yAxisID: 'y1',
+              tension: 0.2,
+              order: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                footer: function(items) {
+                  if (items.length === 0) {
+                    return "";
+                  }
+
+                  var index = items[0].dataIndex;
+                  var activity = response.data[index];
+
+                  return [
+                    "auto-merge rate: " +
+                      formatAutoMergeRate(autoMerged[index], merged[index] + autoMerged[index]).replace("&mdash;", "n/a"),
+                    "cycle time: " +
+                      formatHours(activity.cycle_time_median_hours).replace("&mdash;", "n/a") + " median, " +
+                      formatHours(activity.cycle_time_p90_hours).replace("&mdash;", "n/a") + " p90"
+                  ].join("\n");
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: {
+                precision: 0,
+                stepSize: 1
+              },
+              title: {
+                display: true,
+                text: 'pull requests per period'
+              }
+            },
+            y1: {
+              position: 'right',
+              beginAtZero: true,
+              grid: {
+                drawOnChartArea: false
+              },
+              ticks: {
+                precision: 0,
+                stepSize: 1
+              },
+              title: {
+                display: true,
+                text: 'open pull requests'
+              }
+            }
+          }
+        }
+      });
+    }
   </script>
 
 {% endblock javascripts %}

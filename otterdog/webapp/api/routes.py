@@ -6,6 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from datetime import timedelta
+from logging import getLogger
+
 from ariadne import graphql
 from ariadne.explorer import ExplorerGraphiQL
 from quart import jsonify, request
@@ -21,8 +24,12 @@ from otterdog.webapp.db.service import (
     get_scorecard_results_paged,
     get_tasks_paged,
 )
+from otterdog.webapp.statistics import get_pull_request_activity, get_pull_request_activity_job, statistics_to_json
+from otterdog.webapp.utils import current_utc_time
 
 from . import blueprint
+
+logger = getLogger(__name__)
 
 explorer_html = ExplorerGraphiQL(title="Otterdog GraphQL").html(None)
 
@@ -71,6 +78,67 @@ async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
     result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
     return jsonify(result)
+
+
+# supported time ranges of the pull request statistics, mapped to their length in days,
+# "all" covers the complete history and thus has no lower bound
+_STATISTICS_RANGES = {"7d": 7, "14d": 14, "30d": 30, "90d": 90, "6m": 183, "12m": 365, "all": None}
+
+
+def _statistics_parameters() -> tuple[str, str, str | None]:
+    return (
+        request.args.get("interval", "month"),
+        request.args.get("range", "12m"),
+        request.args.get("org") or None,
+    )
+
+
+def _validate_statistics_parameters(interval: str, time_range: str) -> str | None:
+    if interval not in ("day", "week", "month"):
+        return f"unsupported interval '{interval}'"
+
+    if time_range not in _STATISTICS_RANGES:
+        return f"unsupported range '{time_range}'"
+
+    return None
+
+
+def _since_of_range(time_range: str):
+    days = _STATISTICS_RANGES[time_range]
+    return None if days is None else current_utc_time() - timedelta(days=days)
+
+
+@blueprint.route("/pullrequests/statistics")
+async def pullrequest_statistics():
+    interval, time_range, org_id = _statistics_parameters()
+
+    error = _validate_statistics_parameters(interval, time_range)
+    if error is not None:
+        return {"error": error}, 400
+
+    since = _since_of_range(time_range)
+    statistics = await get_pull_request_activity(interval, since, org_id)
+    return jsonify(statistics_to_json(statistics, interval, time_range))
+
+
+@blueprint.route("/pullrequests/statistics/progress")
+async def pullrequest_statistics_progress():
+    """
+    Reports the progress of collecting the data of /pullrequests/statistics, starting the
+    collection on the first call and returning the result once it is done.
+
+    Polling with short requests is used rather than a single long running one, as collecting
+    the data of all organizations easily outlives the request timeout of a reverse proxy.
+    """
+
+    interval, time_range, org_id = _statistics_parameters()
+
+    error = _validate_statistics_parameters(interval, time_range)
+    if error is not None:
+        return {"error": error}, 400
+
+    since = _since_of_range(time_range)
+    return jsonify(await get_pull_request_activity_job(interval, time_range, since, org_id))
 
 
 @blueprint.route("/blueprints/remediations")
