@@ -80,11 +80,13 @@ def test_next_period(interval, moment, expected):
 def test_unsupported_interval():
     from otterdog.webapp.statistics import _next_period, _truncate_to_interval
 
-    with pytest.raises(RuntimeError):
-        _truncate_to_interval(datetime(2026, 3, 11, tzinfo=UTC), "year")
+    moment = datetime(2026, 3, 11, tzinfo=UTC)
 
     with pytest.raises(RuntimeError):
-        _next_period(datetime(2026, 3, 11, tzinfo=UTC), "year")
+        _truncate_to_interval(moment, "year")
+
+    with pytest.raises(RuntimeError):
+        _next_period(moment, "year")
 
 
 @pytest.mark.parametrize(

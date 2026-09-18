@@ -116,11 +116,11 @@
                     <div class="form-row align-items-end mb-3">
                       <div class="col-auto">
                         <label class="mb-1" for="stats-interval">Interval</label>
-                        <div class="btn-group btn-group-sm d-block" id="stats-interval" role="group">
+                        <fieldset class="btn-group btn-group-sm d-block" id="stats-interval">
                           <button type="button" class="btn btn-outline-primary" data-interval="day">Day</button>
                           <button type="button" class="btn btn-outline-primary" data-interval="week">Week</button>
                           <button type="button" class="btn btn-outline-primary active" data-interval="month">Month</button>
-                        </div>
+                        </fieldset>
                       </div>
                       <div class="col-auto">
                         <label class="mb-1" for="stats-range">Range</label>
@@ -143,10 +143,7 @@
                       </div>
                     </div>
                     <div id="stats-progress" style="display: none;">
-                      <div class="progress mb-1">
-                        <div id="stats-progress-bar" class="progress-bar bg-primary progress-bar-striped" role="progressbar"
-                             style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                      </div>
+                      <progress id="stats-progress-bar" class="w-100 mb-1" max="100" value="0"></progress>
                       <small class="text-muted" id="stats-progress-label">Preparing the statistics...</small>
                     </div>
                     <div id="stats-error" class="alert alert-danger" style="display: none;"></div>
@@ -239,6 +236,13 @@
                              title="Age of the pull requests that are open right now, whatever the selected range."></i>
                         </h6>
                         <table class="table table-sm mb-2">
+                          <thead>
+                            <tr>
+                              <th scope="col">Age</th>
+                              <th scope="col" class="text-right">Open</th>
+                              <th scope="col"><span class="sr-only">Share of the open pull requests</span></th>
+                            </tr>
+                          </thead>
                           <tbody id="stats-aging-buckets"></tbody>
                         </table>
                         <p class="mb-3" id="stats-oldest-open-age"></p>
@@ -246,6 +250,12 @@
                       <div class="col-md-8">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Oldest open pull requests</h6>
                         <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">Pull request</th>
+                              <th scope="col" class="text-right">Age</th>
+                            </tr>
+                          </thead>
                           <tbody id="stats-oldest-open"></tbody>
                         </table>
                       </div>
@@ -261,9 +271,9 @@
                         <table class="table table-sm mb-3">
                           <thead>
                             <tr>
-                              <th>Metric</th>
-                              <th class="text-right">Auto-merge</th>
-                              <th class="text-right">Manual merge</th>
+                              <th scope="col">Metric</th>
+                              <th scope="col" class="text-right">Auto-merge</th>
+                              <th scope="col" class="text-right">Manual merge</th>
                             </tr>
                           </thead>
                           <tbody id="stats-cycle-times"></tbody>
@@ -297,10 +307,10 @@
                         <table class="table table-sm mb-3">
                           <thead>
                             <tr>
-                              <th>Organization</th>
-                              <th class="text-right">Merged</th>
-                              <th class="text-right">Auto-merged</th>
-                              <th class="text-right">Rate</th>
+                              <th scope="col">Organization</th>
+                              <th scope="col" class="text-right">Merged</th>
+                              <th scope="col" class="text-right">Auto-merged</th>
+                              <th scope="col" class="text-right">Rate</th>
                             </tr>
                           </thead>
                           <tbody id="stats-organizations"></tbody>
@@ -312,12 +322,24 @@
                       <div class="col-md-6">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Top 5 openers</h6>
                         <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">User</th>
+                              <th scope="col" class="text-right">Opened</th>
+                            </tr>
+                          </thead>
                           <tbody id="stats-top-openers"></tbody>
                         </table>
                       </div>
                       <div class="col-md-6">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">Top 5 closers</h6>
                         <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">User</th>
+                              <th scope="col" class="text-right">Closed</th>
+                            </tr>
+                          </thead>
                           <tbody id="stats-top-closers"></tbody>
                         </table>
                       </div>
@@ -576,9 +598,9 @@
     }
 
     function selectedOrganization() {
-      var value = $.trim($("#stats-org").val());
+      var value = $("#stats-org").val().trim();
 
-      if (value === "" || knownOrganizations.indexOf(value) >= 0) {
+      if (value === "" || knownOrganizations.includes(value)) {
         return {org: value, error: null};
       }
 
@@ -630,13 +652,13 @@
       var percent = total > 0 ? Math.round((processed / total) * 100) : 0;
 
       $("#stats-progress").show();
-      $("#stats-progress-bar").css("width", percent + "%").attr("aria-valuenow", percent);
+      $("#stats-progress-bar").attr("value", percent);
       $("#stats-progress-label").text(progressLabel(processed, total, fetched || 0));
     }
 
     function hideProgress() {
       $("#stats-progress").hide();
-      $("#stats-progress-bar").css("width", "0%").attr("aria-valuenow", 0);
+      $("#stats-progress-bar").attr("value", 0);
     }
 
     function showStatisticsError(message) {
@@ -773,7 +795,9 @@
 
       if (oldest.length === 0) {
         $("#stats-oldest-open-age").text("");
-        oldestBody.append($("<tr>").append($("<td>", {"class": "text-muted", text: "no pull request is open"})));
+        oldestBody.append(
+          $("<tr>").append($("<td>", {colspan: 2, "class": "text-muted", text: "no pull request is open"}))
+        );
         return;
       }
 
@@ -850,7 +874,7 @@
     var autoMergedInRange = 0;
 
     function updateEffortAvoided() {
-      var minutesPerPullRequest = parseInt($("#stats-effort-per-pr").val(), 10);
+      var minutesPerPullRequest = Number.parseInt($("#stats-effort-per-pr").val(), 10);
       var hours = (autoMergedInRange * minutesPerPullRequest) / 60;
 
       if (autoMergedInRange === 0) {
@@ -926,7 +950,9 @@
       var body = $(selector).empty();
 
       if (contributors.length === 0) {
-        body.append($("<tr>").append($("<td>", {"class": "text-muted", text: "no activity in this range"})));
+        body.append(
+          $("<tr>").append($("<td>", {colspan: 2, "class": "text-muted", text: "no activity in this range"}))
+        );
         return;
       }
 

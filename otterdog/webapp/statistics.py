@@ -297,6 +297,80 @@ def _empty_day() -> dict[str, Any]:
     }
 
 
+class _DigestBuilder:
+    """Accumulates the per day counters of a single organization."""
+
+    def __init__(self, org_id: str, bot_login: str) -> None:
+        self._org_id = org_id
+        self._bot_login = bot_login
+
+        self.days: dict[str, dict[str, Any]] = {}
+        self.bots: set[str] = set()
+        self.open_pull_requests: list[dict[str, Any]] = []
+
+    def add(self, pull_request: dict[str, Any]) -> None:
+        created_at = unwrap(_parse_timestamp(pull_request["createdAt"]))
+        merged_at = _parse_timestamp(pull_request["mergedAt"])
+        closed_at = _parse_timestamp(pull_request["closedAt"])
+
+        day = self._day_of(created_at)
+        day["opened"] += 1
+        self._count_actor(day["openers"], _actor_of(pull_request.get("author")))
+
+        if merged_at is not None:
+            self._add_merged(pull_request, created_at, merged_at)
+        elif closed_at is not None:
+            self._add_closed(pull_request, closed_at)
+        else:
+            self._add_open(pull_request, created_at)
+
+    def _add_merged(self, pull_request: dict[str, Any], created_at: datetime, merged_at: datetime) -> None:
+        day = self._day_of(merged_at)
+        day["merged"] += 1
+        self._count_actor(day["closers"], _closing_actor(pull_request))
+
+        duration = int((merged_at - created_at).total_seconds())
+        merged_by = pull_request.get("mergedBy") or {}
+
+        if normalize_login(merged_by.get("login")) == normalize_login(self._bot_login):
+            day["auto_merged"] += 1
+            day["durations_auto"].append(duration)
+        else:
+            day["durations_manual"].append(duration)
+
+    def _add_closed(self, pull_request: dict[str, Any], closed_at: datetime) -> None:
+        day = self._day_of(closed_at)
+        day["closed"] += 1
+        self._count_actor(day["closers"], _closing_actor(pull_request))
+
+    def _add_open(self, pull_request: dict[str, Any], created_at: datetime) -> None:
+        author = _actor_of(pull_request.get("author"))
+
+        self.open_pull_requests.append(
+            {
+                "org_id": self._org_id,
+                "number": pull_request["number"],
+                "title": pull_request.get("title") or "",
+                "url": pull_request.get("url") or "",
+                "draft": bool(pull_request.get("isDraft")),
+                "author": author[0] if author is not None else None,
+                "created_at": created_at.isoformat(),
+            }
+        )
+
+    def _day_of(self, moment: datetime) -> dict[str, Any]:
+        return self.days.setdefault(moment.date().isoformat(), _empty_day())
+
+    def _count_actor(self, counters: dict[str, int], actor: tuple[str, bool] | None) -> None:
+        if actor is None:
+            return
+
+        login, is_bot = actor
+        counters[login] = counters.get(login, 0) + 1
+        if is_bot:
+            self.bots.add(login)
+
+
 def build_organization_digest(
     org_id: str,
     pull_requests: list[dict[str, Any]],
@@ -312,68 +386,17 @@ def build_organization_digest(
     moment the page is looked at, not against the moment the digest was built.
     """
 
-    days: dict[str, dict[str, Any]] = {}
-    bots: set[str] = set()
-    open_pull_requests: list[dict[str, Any]] = []
-
-    def day_of(moment: datetime) -> dict[str, Any]:
-        return days.setdefault(moment.date().isoformat(), _empty_day())
-
-    def count_actor(counters: dict[str, int], actor: tuple[str, bool] | None) -> None:
-        if actor is None:
-            return
-
-        login, is_bot = actor
-        counters[login] = counters.get(login, 0) + 1
-        if is_bot:
-            bots.add(login)
+    builder = _DigestBuilder(org_id, bot_login)
 
     for pull_request in pull_requests:
-        created_at = unwrap(_parse_timestamp(pull_request["createdAt"]))
-        merged_at = _parse_timestamp(pull_request["mergedAt"])
-        closed_at = _parse_timestamp(pull_request["closedAt"])
-
-        day = day_of(created_at)
-        day["opened"] += 1
-        count_actor(day["openers"], _actor_of(pull_request.get("author")))
-
-        if merged_at is not None:
-            day = day_of(merged_at)
-            day["merged"] += 1
-            count_actor(day["closers"], _closing_actor(pull_request))
-
-            duration = int((merged_at - created_at).total_seconds())
-            merged_by = pull_request.get("mergedBy") or {}
-
-            if normalize_login(merged_by.get("login")) == normalize_login(bot_login):
-                day["auto_merged"] += 1
-                day["durations_auto"].append(duration)
-            else:
-                day["durations_manual"].append(duration)
-        elif closed_at is not None:
-            day = day_of(closed_at)
-            day["closed"] += 1
-            count_actor(day["closers"], _closing_actor(pull_request))
-        else:
-            author = _actor_of(pull_request.get("author"))
-            open_pull_requests.append(
-                {
-                    "org_id": org_id,
-                    "number": pull_request["number"],
-                    "title": pull_request.get("title") or "",
-                    "url": pull_request.get("url") or "",
-                    "draft": bool(pull_request.get("isDraft")),
-                    "author": author[0] if author is not None else None,
-                    "created_at": created_at.isoformat(),
-                }
-            )
+        builder.add(pull_request)
 
     return {
         "org_id": org_id,
-        "open_now": len(open_pull_requests),
-        "open": open_pull_requests,
-        "days": days,
-        "bots": sorted(bots),
+        "open_now": len(builder.open_pull_requests),
+        "open": builder.open_pull_requests,
+        "days": builder.days,
+        "bots": sorted(builder.bots),
         "collected_at": current_utc_time().isoformat(),
     }
 
@@ -505,6 +528,27 @@ async def collect_organization_digests(
     return digests, failed, rate_limited
 
 
+def _aging_label_of(age_days: float) -> str:
+    for label, upper_bound in _AGING_BUCKETS:
+        if upper_bound is None or age_days < upper_bound:
+            return label
+
+    # the last bucket has no upper bound, so this is unreachable
+    raise RuntimeError(f"no aging bucket accepts an age of {age_days} days")
+
+
+def _open_pull_request_of(digest: dict[str, Any], pull_request: dict[str, Any], age_days: float) -> OpenPullRequest:
+    return OpenPullRequest(
+        org_id=pull_request.get("org_id") or digest["org_id"],
+        number=pull_request["number"],
+        title=pull_request.get("title") or "",
+        url=pull_request.get("url") or "",
+        author=pull_request.get("author"),
+        draft=bool(pull_request.get("draft")),
+        age_days=round(age_days, 1),
+    )
+
+
 def open_pull_request_aging(
     digests: list[dict[str, Any]],
     now: datetime,
@@ -527,22 +571,8 @@ def open_pull_request_aging(
 
             age_days = (now - created_at).total_seconds() / 86400
 
-            for label, upper_bound in _AGING_BUCKETS:
-                if upper_bound is None or age_days < upper_bound:
-                    counts[label] += 1
-                    break
-
-            open_pull_requests.append(
-                OpenPullRequest(
-                    org_id=pull_request.get("org_id") or digest["org_id"],
-                    number=pull_request["number"],
-                    title=pull_request.get("title") or "",
-                    url=pull_request.get("url") or "",
-                    author=pull_request.get("author"),
-                    draft=bool(pull_request.get("draft")),
-                    age_days=round(age_days, 1),
-                )
-            )
+            counts[_aging_label_of(age_days)] += 1
+            open_pull_requests.append(_open_pull_request_of(digest, pull_request, age_days))
 
     open_pull_requests.sort(key=lambda x: (-x.age_days, x.org_id, x.number))
 
@@ -559,36 +589,44 @@ def _top_contributors(counter: Counter[str], bots: set[str]) -> list[Contributor
     ]
 
 
-def aggregate_digests(
+@dataclasses.dataclass
+class _Accumulator:
+    """The per period counters and rankings gathered from every digest."""
+
+    counters: dict[datetime, dict[str, Any]] = dataclasses.field(default_factory=dict)
+    openers: Counter[str] = dataclasses.field(default_factory=Counter)
+    closers: Counter[str] = dataclasses.field(default_factory=Counter)
+    bots: set[str] = dataclasses.field(default_factory=set)
+    organizations: list[OrganizationAutoMerge] = dataclasses.field(default_factory=list)
+    earliest: datetime | None = None
+    open_now: int = 0
+
+    def add_day(self, period: datetime, activity: dict[str, Any]) -> None:
+        counter = self.counters.setdefault(period, _empty_day())
+
+        for field in ("opened", "merged", "auto_merged", "closed"):
+            counter[field] += activity.get(field, 0)
+
+        counter["durations_auto"].extend(activity.get("durations_auto", []))
+        counter["durations_manual"].extend(activity.get("durations_manual", []))
+
+        for login, count in activity.get("openers", {}).items():
+            self.openers[login] += count
+
+        for login, count in activity.get("closers", {}).items():
+            self.closers[login] += count
+
+
+def _accumulate_digests(
     digests: list[dict[str, Any]],
     interval: str,
-    since: datetime | None = None,
-    failed_organizations: list[str] | None = None,
-    rate_limited: bool = False,
-) -> PullRequestStatistics:
-    """
-    Aggregates per organization digests into the series shown by the ui.
-
-    This is pure arithmetic over already collected data, which is what makes switching the
-    interval or the time range free of any request to GitHub.
-    """
-
-    if interval not in _ACTIVITY_INTERVALS:
-        raise RuntimeError(f"unexpected interval '{interval}'")
-
-    naive_since = None if since is None else _truncate_to_interval(_as_naive_utc(since), "day")
-
-    counters: dict[datetime, dict[str, Any]] = {}
-    openers: Counter[str] = Counter()
-    closers: Counter[str] = Counter()
-    bots: set[str] = set()
-    organizations: list[OrganizationAutoMerge] = []
-    earliest: datetime | None = None
-    open_now = 0
+    naive_since: datetime | None,
+) -> _Accumulator:
+    accumulator = _Accumulator()
 
     for digest in digests:
-        open_now += digest.get("open_now", 0)
-        bots.update(digest.get("bots", []))
+        accumulator.open_now += digest.get("open_now", 0)
+        accumulator.bots.update(digest.get("bots", []))
 
         org_merged = 0
         org_auto_merged = 0
@@ -596,42 +634,42 @@ def aggregate_digests(
         for day, activity in digest.get("days", {}).items():
             moment = datetime.fromisoformat(day)
 
-            if earliest is None or moment < earliest:
-                earliest = moment
+            if accumulator.earliest is None or moment < accumulator.earliest:
+                accumulator.earliest = moment
 
             if naive_since is not None and moment < naive_since:
                 continue
 
-            counter = counters.setdefault(_truncate_to_interval(moment, interval), _empty_day())
-
-            for field in ("opened", "merged", "auto_merged", "closed"):
-                counter[field] += activity.get(field, 0)
-
-            counter["durations_auto"].extend(activity.get("durations_auto", []))
-            counter["durations_manual"].extend(activity.get("durations_manual", []))
-
-            for login, count in activity.get("openers", {}).items():
-                openers[login] += count
-
-            for login, count in activity.get("closers", {}).items():
-                closers[login] += count
+            accumulator.add_day(_truncate_to_interval(moment, interval), activity)
 
             org_merged += activity.get("merged", 0)
             org_auto_merged += activity.get("auto_merged", 0)
 
         if org_merged > 0:
-            organizations.append(
+            accumulator.organizations.append(
                 OrganizationAutoMerge(org_id=digest["org_id"], merged=org_merged, auto_merged=org_auto_merged)
             )
 
-    now = _truncate_to_interval(_as_naive_utc(current_utc_time()), interval)
+    return accumulator
 
+
+def _first_period(accumulator: _Accumulator, naive_since: datetime | None, now: datetime, interval: str) -> datetime:
     if naive_since is not None:
-        start = _truncate_to_interval(naive_since, interval)
-    elif earliest is not None:
-        start = _truncate_to_interval(earliest, interval)
-    else:
-        start = now
+        return _truncate_to_interval(naive_since, interval)
+
+    if accumulator.earliest is not None:
+        return _truncate_to_interval(accumulator.earliest, interval)
+
+    return now
+
+
+def _build_activities(
+    counters: dict[datetime, dict[str, Any]],
+    start: datetime,
+    now: datetime,
+    interval: str,
+) -> tuple[list[PullRequestActivity], list[float], list[float]]:
+    """Walks the periods from start to now, returning the activity and both duration samples."""
 
     activities = []
     auto_durations: list[float] = []
@@ -661,39 +699,76 @@ def aggregate_digests(
         )
         period = _next_period(period, interval)
 
-    # the number of pull requests being open at the end of the last period is known, so the
-    # backlog of all earlier periods is obtained by walking backwards through the activity
+    return activities, auto_durations, manual_durations
+
+
+def _cycle_time_of(label: str, durations: list[float]) -> CycleTime:
+    return CycleTime(
+        label=label,
+        count=len(durations),
+        median_hours=_round_hours(_percentile(durations, 0.5)),
+        p90_hours=_round_hours(_percentile(durations, 0.9)),
+    )
+
+
+def _backlog_at_start(activities: list[PullRequestActivity], open_now: int) -> int:
+    """
+    The number of pull requests open when the first period started.
+
+    The number of pull requests open at the end of the last period is known, so the backlog of
+    all earlier periods is obtained by walking backwards through the activity.
+    """
+
     open_at_start = open_now
+
     for activity in reversed(activities):
         open_at_start += activity.merged + activity.closed - activity.opened
 
-    organizations.sort(key=lambda x: (-x.merged, x.org_id))
+    return open_at_start
 
-    aging, oldest_open = open_pull_request_aging(digests, _as_naive_utc(current_utc_time()))
+
+def aggregate_digests(
+    digests: list[dict[str, Any]],
+    interval: str,
+    since: datetime | None = None,
+    failed_organizations: list[str] | None = None,
+    rate_limited: bool = False,
+) -> PullRequestStatistics:
+    """
+    Aggregates per organization digests into the series shown by the ui.
+
+    This is pure arithmetic over already collected data, which is what makes switching the
+    interval or the time range free of any request to GitHub.
+    """
+
+    if interval not in _ACTIVITY_INTERVALS:
+        raise RuntimeError(f"unexpected interval '{interval}'")
+
+    naive_since = None if since is None else _truncate_to_interval(_as_naive_utc(since), "day")
+    now = _as_naive_utc(current_utc_time())
+
+    accumulator = _accumulate_digests(digests, interval, naive_since)
+
+    last_period = _truncate_to_interval(now, interval)
+    start = _first_period(accumulator, naive_since, last_period, interval)
+
+    activities, auto_durations, manual_durations = _build_activities(accumulator.counters, start, last_period, interval)
+
+    aging, oldest_open = open_pull_request_aging(digests, now)
     all_durations = auto_durations + manual_durations
 
-    cycle_times = [
-        CycleTime(
-            label="Auto-merge",
-            count=len(auto_durations),
-            median_hours=_round_hours(_percentile(auto_durations, 0.5)),
-            p90_hours=_round_hours(_percentile(auto_durations, 0.9)),
-        ),
-        CycleTime(
-            label="Manual merge",
-            count=len(manual_durations),
-            median_hours=_round_hours(_percentile(manual_durations, 0.5)),
-            p90_hours=_round_hours(_percentile(manual_durations, 0.9)),
-        ),
-    ]
+    accumulator.organizations.sort(key=lambda x: (-x.merged, x.org_id))
 
     return PullRequestStatistics(
         activities=activities,
-        open_at_start=open_at_start,
-        top_openers=_top_contributors(openers, bots),
-        top_closers=_top_contributors(closers, bots),
-        organizations=organizations[:_TOP_ORGANIZATIONS],
-        cycle_times=cycle_times,
+        open_at_start=_backlog_at_start(activities, accumulator.open_now),
+        top_openers=_top_contributors(accumulator.openers, accumulator.bots),
+        top_closers=_top_contributors(accumulator.closers, accumulator.bots),
+        organizations=accumulator.organizations[:_TOP_ORGANIZATIONS],
+        cycle_times=[
+            _cycle_time_of("Auto-merge", auto_durations),
+            _cycle_time_of("Manual merge", manual_durations),
+        ],
         open_aging=aging,
         oldest_open=oldest_open,
         cycle_time_median_hours=_round_hours(_percentile(all_durations, 0.5)),
@@ -814,13 +889,16 @@ async def _run_pull_request_activity_job(
         await store({"status": "failed", "error": str(ex)})
 
 
-async def _wait_for_job(key: str, timeout: float) -> dict[str, Any] | None:
-    """Waits for a freshly started job to reach a terminal state, up to the given timeout."""
+async def _wait_for_job(key: str) -> dict[str, Any] | None:
+    """
+    Waits until a freshly started job reaches a terminal state.
+
+    How long the wait may last is up to the caller, which bounds it with a timeout context.
+    """
 
     redis = get_redis()
-    deadline = asyncio.get_running_loop().time() + timeout
 
-    while asyncio.get_running_loop().time() < deadline:
+    while True:
         await asyncio.sleep(_FAST_PATH_POLL_IN_SECONDS)
 
         state = await redis.get(key)
@@ -831,8 +909,6 @@ async def _wait_for_job(key: str, timeout: float) -> dict[str, Any] | None:
         if state.get("status") in ("done", "failed"):
             await redis.delete(key)
             return state
-
-    return None
 
 
 async def get_pull_request_activity_job(
@@ -866,7 +942,12 @@ async def get_pull_request_activity_job(
 
         # when every digest is cached the whole job takes milliseconds, waiting for it here saves
         # the client a further round trip and the page appears at once
-        finished_state = await _wait_for_job(key, _FAST_PATH_TIMEOUT_IN_SECONDS)
+        try:
+            async with asyncio.timeout(_FAST_PATH_TIMEOUT_IN_SECONDS):
+                finished_state = await _wait_for_job(key)
+        except TimeoutError:
+            finished_state = None
+
         return finished_state if finished_state is not None else initial_state
 
     state = await redis.get(key)
