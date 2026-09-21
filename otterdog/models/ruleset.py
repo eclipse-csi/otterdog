@@ -496,8 +496,12 @@ class Ruleset(ModelObject, abc.ABC):
 
         mapping.update(
             {
-                "include_refs": OptionalS("conditions", "ref_name", "include", default=[]),
-                "exclude_refs": OptionalS("conditions", "ref_name", "exclude", default=[]),
+                # GitHub can return a disabled ruleset with conditions=null, leaving the nested ref paths absent.
+                # Normalize absent/null filters to lists so live data can be compared with configured refs.
+                "include_refs": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("ref_name") or {}).get("include") or []),
+                "exclude_refs": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("ref_name") or {}).get("exclude") or []),
             }
         )
 

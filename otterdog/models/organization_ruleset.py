@@ -12,7 +12,7 @@ import dataclasses
 import fnmatch
 from typing import TYPE_CHECKING, Any, cast
 
-from jsonbender import K, OptionalS  # type: ignore
+from jsonbender import F, K, OptionalS  # type: ignore
 
 from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.ruleset import Ruleset
@@ -87,9 +87,14 @@ class OrganizationRuleset(Ruleset):
 
         mapping.update(
             {
-                "include_repo_names": OptionalS("conditions", "repository_name", "include", default=[]),
-                "exclude_repo_names": OptionalS("conditions", "repository_name", "exclude", default=[]),
-                "protect_repo_names": OptionalS("conditions", "repository_name", "protected", default=False),
+                # Disabled organization rulesets may return conditions as null or omit repository_name entirely.
+                # Normalize those responses before reading the repository-specific filters.
+                "include_repo_names": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("repository_name") or {}).get("include") or []),
+                "exclude_repo_names": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("repository_name") or {}).get("exclude") or []),
+                "protect_repo_names": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("repository_name") or {}).get("protected") or False),
             }
         )
 
