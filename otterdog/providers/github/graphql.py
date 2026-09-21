@@ -367,6 +367,10 @@ class GraphQLClient:
 
             self._update_rate_limit(json_data)
 
+            # a rate limited response commonly comes back as a 200 carrying both data and errors,
+            # so the errors have to be looked at before the data is traversed
+            self._raise_if_rate_limited(json_data)
+
             if status < 400 and "data" in json_data:
                 rules_result = query_json(prefix_selector + selector_type, json_data)
 
@@ -381,7 +385,6 @@ class GraphQLClient:
                 else:
                     finished = True
             else:
-                self._raise_if_rate_limited(json_data)
                 raise RuntimeError(f"failed running graphql query '{query_file}': {body}")
 
         return result
@@ -399,13 +402,13 @@ class GraphQLClient:
         Turns a rate limit rejection into a dedicated exception.
 
         Callers querying many repositories need to tell an exhausted quota, which will make every
-        further request fail as well, apart from an error affecting a single repository.
+        further request of that installation fail as well, apart from an error affecting a single
+        repository.
         """
 
-        errors = json_data.get("errors") or []
-        for error in errors:
-            if error.get("type") == "RATE_LIMITED":
-                raise RateLimitExceededException(error.get("message", "rate limit exceeded"), self.rate_limit_reset_at)
+        message = rate_limit_error_message(json_data)
+        if message is not None:
+            raise RateLimitExceededException(message, self.rate_limit_reset_at)
 
     async def _request_raw(self, method: str, query: str, variables: dict[str, Any]) -> tuple[int, str]:
         _logger.trace("'%s', query = %s, variables = %s", method, query[0:300] + "...", variables)
@@ -460,6 +463,16 @@ class GraphQLClient:
                 raise RuntimeError(f"unsupported actor '{actor}'")
 
         return result
+
+
+def rate_limit_error_message(json_data: dict[str, Any]) -> str | None:
+    """Returns the message of a RATE_LIMITED error of a graphql response, if it carries one."""
+
+    for error in json_data.get("errors") or []:
+        if error.get("type") == "RATE_LIMITED":
+            return error.get("message") or "rate limit exceeded"
+
+    return None
 
 
 @cache

@@ -122,6 +122,7 @@
               </div>
               <div class="card-body">
                 <p class="text-center text-muted" id="pr-automation-loading">Loading the statistics...</p>
+                <div class="alert alert-warning" id="pr-automation-warning" style="display: none;"></div>
                 <div class="row" id="pr-automation" style="display: none;">
                   <div class="col-6 col-md-4 col-xl-2 text-center">
                     <h3 class="text-secondary mb-0" id="pr-automation-rate">&mdash;</h3>
@@ -150,7 +151,7 @@
                 </div>
                 <p class="text-center text-muted mb-0">
                   <small>
-                    Over the last 12 months, across every organization.
+                    Over the last 12 months, across every organization that could be read.
                     <a href="/admin/pullrequests#pr-stats">See the full statistics</a>.
                   </small>
                 </p>
@@ -295,6 +296,18 @@
       $("#pr-automation-cycle-auto").text(formatHours((byLabel["Auto-merge"] || {}).median_hours));
       $("#pr-automation-cycle-manual").text(formatHours((byLabel["Manual merge"] || {}).median_hours));
       $("#pr-automation-oldest").text(oldest ? Math.round(oldest.age_days) + " d" : "n/a");
+
+      var failed = result.failed_organizations || [];
+      if (failed.length > 0) {
+        // the same figures on the statistics page carry this warning, the card must not look
+        // more complete than it is
+        $("#pr-automation-warning")
+          .text(
+            failed.length + " organization(s) could not be read, these figures are incomplete." +
+              (result.rate_limited ? " The GitHub rate limit was exhausted." : "")
+          )
+          .show();
+      }
 
       $("#pr-automation-loading").hide();
       $("#pr-automation").show();

@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from logging import getLogger
 
 from ariadne import graphql
@@ -24,7 +24,7 @@ from otterdog.webapp.db.service import (
     get_scorecard_results_paged,
     get_tasks_paged,
 )
-from otterdog.webapp.statistics import get_pull_request_activity, get_pull_request_activity_job, statistics_to_json
+from otterdog.webapp.statistics import get_pull_request_activity_job
 from otterdog.webapp.utils import current_utc_time
 
 from . import blueprint
@@ -103,29 +103,27 @@ def _validate_statistics_parameters(interval: str, time_range: str) -> str | Non
     return None
 
 
-def _since_of_range(time_range: str):
+def _since_of_range(time_range: str) -> datetime | None:
+    """
+    Start of the given range, inclusive of today.
+
+    The aggregation buckets by whole days, so a range of 7 days has to start 6 days before
+    today, otherwise today plus the seven preceding days make eight daily buckets.
+    """
+
     days = _STATISTICS_RANGES[time_range]
-    return None if days is None else current_utc_time() - timedelta(days=days)
+    if days is None:
+        return None
 
-
-@blueprint.route("/pullrequests/statistics")
-async def pullrequest_statistics():
-    interval, time_range, org_id = _statistics_parameters()
-
-    error = _validate_statistics_parameters(interval, time_range)
-    if error is not None:
-        return {"error": error}, 400
-
-    since = _since_of_range(time_range)
-    statistics = await get_pull_request_activity(interval, since, org_id)
-    return jsonify(statistics_to_json(statistics, interval, time_range))
+    today = current_utc_time().replace(hour=0, minute=0, second=0, microsecond=0)
+    return today - timedelta(days=days - 1)
 
 
 @blueprint.route("/pullrequests/statistics/progress")
 async def pullrequest_statistics_progress():
     """
-    Reports the progress of collecting the data of /pullrequests/statistics, starting the
-    collection on the first call and returning the result once it is done.
+    Reports the progress of collecting the pull request statistics, starting the collection on
+    the first call and returning the result once it is done.
 
     Polling with short requests is used rather than a single long running one, as collecting
     the data of all organizations easily outlives the request timeout of a reverse proxy.

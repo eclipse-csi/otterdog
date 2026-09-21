@@ -317,14 +317,13 @@ async def test_statistics_endpoints_reject_unsupported_parameters(app, parameter
     Booting the app would run its startup hooks, which expect a running mongodb.
     """
 
-    from otterdog.webapp.api.routes import pullrequest_statistics, pullrequest_statistics_progress
+    from otterdog.webapp.api.routes import pullrequest_statistics_progress
 
-    for view in (pullrequest_statistics, pullrequest_statistics_progress):
-        async with app.test_request_context(f"/api/pullrequests/statistics?{parameters}"):
-            body, status = await view()
+    async with app.test_request_context(f"/api/pullrequests/statistics/progress?{parameters}"):
+        body, status = await pullrequest_statistics_progress()
 
-            assert status == 400
-            assert "unsupported" in body["error"]
+        assert status == 400
+        assert "unsupported" in body["error"]
 
 
 def _ranges_offered_by_the_template() -> list[str]:
@@ -489,3 +488,102 @@ def test_cycle_time_of_a_population_without_any_merge_is_undefined(fixed_now):
     assert by_label["Manual merge"].count == 0
     assert by_label["Manual merge"].median_hours is None
     assert by_label["Manual merge"].p90_hours is None
+
+
+@pytest.mark.parametrize(
+    ("time_range", "expected_days"),
+    [("7d", 7), ("14d", 14), ("30d", 30)],
+)
+def test_a_range_covers_exactly_as_many_days_as_it_says(app, monkeypatch, time_range, expected_days):
+    """A range of 7 days must produce 7 daily buckets, today included, not 8."""
+
+    from otterdog.webapp.api import routes
+    from otterdog.webapp.statistics import aggregate_digests
+
+    monkeypatch.setattr(routes, "current_utc_time", lambda: datetime(2026, 3, 11, 12, 0, tzinfo=UTC))
+    monkeypatch.setattr("otterdog.webapp.statistics.current_utc_time", lambda: datetime(2026, 3, 11, 12, 0, tzinfo=UTC))
+
+    statistics = aggregate_digests([], "day", routes._since_of_range(time_range))
+
+    assert len(statistics.activities) == expected_days
+    assert statistics.activities[-1].period == "2026-03-11"
+
+
+def test_the_all_range_has_no_lower_bound(app):
+    from otterdog.webapp.api import routes
+
+    assert routes._since_of_range("all") is None
+
+
+def test_the_organization_breakdown_reports_how_many_it_ranks_among(fixed_now):
+    from otterdog.webapp.statistics import aggregate_digests
+
+    digests = [
+        _digest(
+            [
+                _pull_request(
+                    "2026-03-09T08:00:00Z", "2026-03-10T08:00:00Z", "2026-03-10T08:00:00Z", ("otterdog", "Bot")
+                )
+            ],
+            org_id=f"org-{index:02d}",
+        )
+        for index in range(14)
+    ]
+
+    statistics = aggregate_digests(digests, "month", None)
+
+    # only ten are listed, but the caller is told how many there are
+    assert len(statistics.organizations) == 10
+    assert statistics.organizations_total == 14
+
+
+def test_the_age_of_the_data_is_that_of_the_oldest_digest(fixed_now):
+    from otterdog.webapp.statistics import aggregate_digests
+
+    recent = _digest([_pull_request("2026-03-09T08:00:00Z")], org_id="recent")
+    stale = _digest([_pull_request("2026-03-09T08:00:00Z")], org_id="stale")
+    stale["collected_at"] = "2026-03-01T00:00:00+00:00"
+
+    statistics = aggregate_digests([recent, stale], "month", None)
+
+    assert statistics.data_as_of == "2026-03-01T00:00:00+00:00"
+
+
+async def test_a_rate_limited_organization_does_not_hold_back_the_others(monkeypatch):
+    """A github app is rate limited per installation, so the other quotas stay usable."""
+
+    from otterdog.providers.github.exception import RateLimitExceededException
+    from otterdog.webapp import statistics
+
+    class _Installation:
+        def __init__(self, github_id):
+            self.github_id = github_id
+            self.installation_id = 1
+            self.config_repo = ".eclipsefdn"
+
+    collected = []
+
+    async def collect(installation, bot_login):
+        if installation.github_id == "exhausted":
+            raise RateLimitExceededException("rate limit exceeded")
+
+        collected.append(installation.github_id)
+        return {"org_id": installation.github_id, "days": {}, "open": [], "open_now": 0, "bots": []}
+
+    async def no_cache(installations):
+        return [], list(installations)
+
+    async def no_store(org_id, digest):
+        return None
+
+    monkeypatch.setattr(statistics, "_collect_organization_digest", collect)
+    monkeypatch.setattr(statistics, "_read_cached_digests", no_cache)
+    monkeypatch.setattr(statistics, "_store_digest", no_store)
+
+    installations = [_Installation("exhausted"), _Installation("first"), _Installation("second")]
+    digests, failed, rate_limited = await statistics.collect_organization_digests(installations, "otterdog")
+
+    assert sorted(collected) == ["first", "second"]
+    assert failed == ["exhausted"]
+    assert rate_limited is True
+    assert len(digests) == 2

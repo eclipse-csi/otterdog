@@ -86,6 +86,11 @@ _VIEW_TTL_IN_SECONDS = 60
 _FAST_PATH_TIMEOUT_IN_SECONDS = 1.5
 _FAST_PATH_POLL_IN_SECONDS = 0.05
 
+# claim held while a refresh of every digest is running, with a ttl long enough to cover it and
+# short enough to recover from a worker disappearing mid-refresh
+_REFRESH_LOCK_KEY = "pull-request-activity-refresh"
+_REFRESH_LOCK_TTL = 3600
+
 _APP_BOT_LOGIN: str | None = None
 _APP_BOT_LOGIN_LOCK = asyncio.Lock()
 
@@ -159,6 +164,8 @@ class PullRequestStatistics:
     top_openers: list[Contributor]
     top_closers: list[Contributor]
     organizations: list[OrganizationAutoMerge]
+    organizations_total: int = 0
+    data_as_of: str | None = None
     cycle_times: list[CycleTime] = dataclasses.field(default_factory=list)
     open_aging: list[AgingBucket] = dataclasses.field(default_factory=list)
     oldest_open: list[OpenPullRequest] = dataclasses.field(default_factory=list)
@@ -472,8 +479,8 @@ async def collect_organization_digests(
     """
     Returns the digests of the given organizations, along with those that could not be read.
 
-    Once the rate limit is exhausted every further request would fail as well, so the remaining
-    organizations are left alone and reported as failed rather than hammering GitHub.
+    An organization whose rate limit is exhausted is reported as failed and sets the aggregate
+    warning flag, without holding back the organizations whose own quota is untouched.
     """
 
     total = len(installations)
@@ -498,17 +505,15 @@ async def collect_organization_digests(
 
         async with semaphore:
             try:
-                if rate_limited:
-                    return None
-
                 digest = await _collect_organization_digest(installation, bot_login)
                 await _store_digest(installation.github_id, digest)
                 fetched += 1
 
                 return digest
             except RateLimitExceededException as ex:
-                if rate_limited is False:
-                    logger.warning("the github rate limit is exhausted, skipping the remaining organizations: %s", ex)
+                # a github app is rate limited per installation, so the quota of the other
+                # organizations may well be healthy and is worth spending
+                logger.warning("the github rate limit of org '%s' is exhausted: %s", installation.github_id, ex)
                 rate_limited = True
                 return None
             except Exception as ex:
@@ -600,6 +605,8 @@ class _Accumulator:
     organizations: list[OrganizationAutoMerge] = dataclasses.field(default_factory=list)
     earliest: datetime | None = None
     open_now: int = 0
+    # the oldest moment any of the digests was collected at, which is how stale the whole view is
+    collected_at: str | None = None
 
     def add_day(self, period: datetime, activity: dict[str, Any]) -> None:
         counter = self.counters.setdefault(period, _empty_day())
@@ -627,6 +634,10 @@ def _accumulate_digests(
     for digest in digests:
         accumulator.open_now += digest.get("open_now", 0)
         accumulator.bots.update(digest.get("bots", []))
+
+        collected_at = digest.get("collected_at")
+        if collected_at is not None and (accumulator.collected_at is None or collected_at < accumulator.collected_at):
+            accumulator.collected_at = collected_at
 
         org_merged = 0
         org_auto_merged = 0
@@ -765,6 +776,8 @@ def aggregate_digests(
         top_openers=_top_contributors(accumulator.openers, accumulator.bots),
         top_closers=_top_contributors(accumulator.closers, accumulator.bots),
         organizations=accumulator.organizations[:_TOP_ORGANIZATIONS],
+        organizations_total=len(accumulator.organizations),
+        data_as_of=accumulator.collected_at,
         cycle_times=[
             _cycle_time_of("Auto-merge", auto_durations),
             _cycle_time_of("Manual merge", manual_durations),
@@ -815,21 +828,43 @@ async def refresh_organization_digests() -> None:
 
     Meant to be triggered out of band, e.g. by /internal/init, so that opening the statistics
     page never has to wait for hundreds of organizations to be queried.
+
+    A redis claim keeps a second refresh from starting while one is running, as they would query
+    the very same organizations and spend the rate limit twice.
     """
 
-    bot_login = await get_app_bot_login()
-    installations = await _installations_for(None)
+    redis = get_redis()
 
-    logger.info("refreshing the pull request digests of %d organization(s)", len(installations))
+    claimed = await redis.set(_REFRESH_LOCK_KEY, current_utc_time().isoformat(), nx=True, ex=_REFRESH_LOCK_TTL)
+    if not claimed:
+        logger.info("a refresh of the pull request digests is already running, skipping this one")
+        return
 
-    digests, failed, rate_limited = await collect_organization_digests(installations, bot_login, refresh=True)
+    try:
+        bot_login = await get_app_bot_login()
+        installations = await _installations_for(None)
 
-    logger.info(
-        "refreshed the pull request digests of %d organization(s), %d failed%s",
-        len(digests),
-        len(failed),
-        ", the rate limit was exhausted" if rate_limited else "",
-    )
+        logger.info("refreshing the pull request digests of %d organization(s)", len(installations))
+
+        digests, failed, rate_limited = await collect_organization_digests(installations, bot_login, refresh=True)
+
+        logger.info(
+            "refreshed the pull request digests of %d organization(s), %d failed%s",
+            len(digests),
+            len(failed),
+            ", at least one rate limit was exhausted" if rate_limited else "",
+        )
+
+        if failed:
+            # their previous digest, if any, is still served and now known to be out of date
+            logger.warning(
+                "the pull request digests of %d organization(s) could not be refreshed, the "
+                "statistics keep reporting whatever was collected before: %s",
+                len(failed),
+                ", ".join(failed[:20]) + (", ..." if len(failed) > 20 else ""),
+            )
+    finally:
+        await redis.delete(_REFRESH_LOCK_KEY)
 
 
 def statistics_to_json(statistics: PullRequestStatistics, interval: str, time_range: str) -> dict[str, Any]:
@@ -841,6 +876,8 @@ def statistics_to_json(statistics: PullRequestStatistics, interval: str, time_ra
         "top_openers": [dataclasses.asdict(x) for x in statistics.top_openers],
         "top_closers": [dataclasses.asdict(x) for x in statistics.top_closers],
         "organizations": [dataclasses.asdict(x) for x in statistics.organizations],
+        "organizations_total": statistics.organizations_total,
+        "data_as_of": statistics.data_as_of,
         "cycle_times": [dataclasses.asdict(x) for x in statistics.cycle_times],
         "open_aging": [dataclasses.asdict(x) for x in statistics.open_aging],
         "oldest_open": [dataclasses.asdict(x) for x in statistics.oldest_open],

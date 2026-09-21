@@ -148,6 +148,7 @@
                     </div>
                     <div id="stats-error" class="alert alert-danger" style="display: none;"></div>
                     <div id="stats-warning" class="alert alert-warning" style="display: none;"></div>
+                    <p class="text-muted" id="stats-collected-at"></p>
                     <h5 class="mt-4 mb-2">Overview</h5>
                     <div class="row" id="stats-summary" style="display: none;">
                       <div class="col-6 col-md-3 mb-3">
@@ -227,6 +228,24 @@
                     <div class="chart">
                       <canvas id="pull-request-activity-chart" style="min-height: 350px; height: 350px; max-height: 350px; max-width: 100%;"></canvas>
                     </div>
+                    <details class="mb-2" id="stats-chart-data">
+                      <summary class="text-muted"><small>View the chart data as a table</small></summary>
+                      <table class="table table-sm mt-2">
+                        <caption class="sr-only">Pull requests opened, merged and closed per period</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Period</th>
+                            <th scope="col" class="text-right">Opened</th>
+                            <th scope="col" class="text-right">Merged manually</th>
+                            <th scope="col" class="text-right">Auto-merged</th>
+                            <th scope="col" class="text-right">Closed without merge</th>
+                            <th scope="col" class="text-right">Still open</th>
+                          </tr>
+                        </thead>
+                        <tbody id="stats-chart-data-rows"></tbody>
+                      </table>
+                    </details>
+
                     <h5 class="mt-4 mb-2">Open pull requests</h5>
                     <div class="row" id="stats-aging" style="display: none;">
                       <div class="col-md-4">
@@ -302,6 +321,7 @@
                       </div>
                     </div>
                     <h5 class="mt-4 mb-2">Auto-merge rate by organization</h5>
+                    <p class="text-muted mb-2"><small id="stats-organizations-scope"></small></p>
                     <div class="row">
                       <div class="col-12">
                         <table class="table table-sm mb-3">
@@ -668,6 +688,8 @@
       // the figures shown belong to the previous filters, do not let them look current
       $("#stats-summary").hide();
       $("#stats-top-openers, #stats-top-closers, #stats-organizations, #stats-cycle-times").empty();
+      $("#stats-chart-data-rows").empty();
+      $("#stats-collected-at, #stats-organizations-scope").text("");
       $("#stats-aging").hide();
       $("#stats-warning").hide();
       showProgress(0, 0, 0);
@@ -902,8 +924,44 @@
       $("#stats-warning").text(message).show();
     }
 
-    function updateOrganizations(organizations) {
+    function updateChartDataTable(labels, opened, merged, autoMerged, closed, stillOpen) {
+      var body = $("#stats-chart-data-rows").empty();
+
+      labels.forEach(function(label, index) {
+        body.append(
+          $("<tr>")
+            .append($("<th>", {scope: "row", text: label}))
+            .append($("<td>", {"class": "text-right", text: opened[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-right", text: merged[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-right", text: autoMerged[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-right", text: closed[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-right", text: stillOpen[index].toLocaleString()}))
+        );
+      });
+    }
+
+    function updateCollectedAt(collectedAt) {
+      var element = $("#stats-collected-at");
+
+      if (!collectedAt) {
+        element.text("");
+        return;
+      }
+
+      // the digests are refreshed out of band, so what is shown may lag behind GitHub
+      element.html(
+        $("<small>").text("Collected from GitHub on " + new Date(collectedAt).toLocaleString() + ".").prop("outerHTML")
+      );
+    }
+
+    function updateOrganizations(organizations, total) {
       var body = $("#stats-organizations").empty();
+
+      $("#stats-organizations-scope").text(
+        total > organizations.length ?
+          "The " + organizations.length + " organizations with the most merges, out of " + total + "." :
+          ""
+      );
 
       if (organizations.length === 0) {
         body.append($("<tr>").append($("<td>", {
@@ -988,7 +1046,9 @@
       updateFailedOrganizations(response);
       updateTopContributors("#stats-top-openers", response.top_openers);
       updateTopContributors("#stats-top-closers", response.top_closers);
-      updateOrganizations(response.organizations || []);
+      updateOrganizations(response.organizations || [], response.organizations_total || 0);
+      updateChartDataTable(labels, opened, merged, autoMerged, closed, stillOpen);
+      updateCollectedAt(response.data_as_of);
       updateAging(response.open_aging || [], response.oldest_open || []);
       updateCycleTimes(response.cycle_times || []);
 
