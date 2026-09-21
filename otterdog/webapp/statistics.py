@@ -608,6 +608,21 @@ class _Accumulator:
     # the oldest moment any of the digests was collected at, which is how stale the whole view is
     collected_at: str | None = None
 
+    def note_collected_at(self, collected_at: str | None) -> None:
+        """Keeps the oldest collection moment, which is how stale the whole view is."""
+
+        if collected_at is None:
+            return
+
+        if self.collected_at is None or collected_at < self.collected_at:
+            self.collected_at = collected_at
+
+    def note_earliest(self, moment: datetime) -> None:
+        """Keeps the oldest day seen, which is where a view without a time range starts."""
+
+        if self.earliest is None or moment < self.earliest:
+            self.earliest = moment
+
     def add_day(self, period: datetime, activity: dict[str, Any]) -> None:
         counter = self.counters.setdefault(period, _empty_day())
 
@@ -624,6 +639,39 @@ class _Accumulator:
             self.closers[login] += count
 
 
+def _accumulate_digest(
+    accumulator: _Accumulator,
+    digest: dict[str, Any],
+    interval: str,
+    naive_since: datetime | None,
+) -> None:
+    """Folds the days of a single organization into the accumulator."""
+
+    accumulator.open_now += digest.get("open_now", 0)
+    accumulator.bots.update(digest.get("bots", []))
+    accumulator.note_collected_at(digest.get("collected_at"))
+
+    org_merged = 0
+    org_auto_merged = 0
+
+    for day, activity in digest.get("days", {}).items():
+        moment = datetime.fromisoformat(day)
+        accumulator.note_earliest(moment)
+
+        if naive_since is not None and moment < naive_since:
+            continue
+
+        accumulator.add_day(_truncate_to_interval(moment, interval), activity)
+
+        org_merged += activity.get("merged", 0)
+        org_auto_merged += activity.get("auto_merged", 0)
+
+    if org_merged > 0:
+        accumulator.organizations.append(
+            OrganizationAutoMerge(org_id=digest["org_id"], merged=org_merged, auto_merged=org_auto_merged)
+        )
+
+
 def _accumulate_digests(
     digests: list[dict[str, Any]],
     interval: str,
@@ -632,34 +680,7 @@ def _accumulate_digests(
     accumulator = _Accumulator()
 
     for digest in digests:
-        accumulator.open_now += digest.get("open_now", 0)
-        accumulator.bots.update(digest.get("bots", []))
-
-        collected_at = digest.get("collected_at")
-        if collected_at is not None and (accumulator.collected_at is None or collected_at < accumulator.collected_at):
-            accumulator.collected_at = collected_at
-
-        org_merged = 0
-        org_auto_merged = 0
-
-        for day, activity in digest.get("days", {}).items():
-            moment = datetime.fromisoformat(day)
-
-            if accumulator.earliest is None or moment < accumulator.earliest:
-                accumulator.earliest = moment
-
-            if naive_since is not None and moment < naive_since:
-                continue
-
-            accumulator.add_day(_truncate_to_interval(moment, interval), activity)
-
-            org_merged += activity.get("merged", 0)
-            org_auto_merged += activity.get("auto_merged", 0)
-
-        if org_merged > 0:
-            accumulator.organizations.append(
-                OrganizationAutoMerge(org_id=digest["org_id"], merged=org_merged, auto_merged=org_auto_merged)
-            )
+        _accumulate_digest(accumulator, digest, interval, naive_since)
 
     return accumulator
 
