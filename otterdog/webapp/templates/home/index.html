@@ -313,7 +313,7 @@
         $("#pr-automation-warning")
           .text(
             failed.length + " organization(s) could not be read, these figures are incomplete." +
-              (result.rate_limited ? " The GitHub rate limit was exhausted." : "")
+              (result.rate_limited ? " GitHub collection stopped because too few rate-limit points remained." : "")
           )
           .show();
       }
