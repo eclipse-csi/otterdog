@@ -29,9 +29,12 @@ permissions:
   copilot-requests: write
 
 tools:
+  bash: []
+  cli-proxy: false
   github:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
+    min-integrity: none
 
 safe-outputs:
   add-labels:
