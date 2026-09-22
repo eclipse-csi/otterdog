@@ -29,8 +29,7 @@ permissions:
   copilot-requests: write
 
 tools:
-  bash: []
-  cli-proxy: false
+  bash: ["cat", "ls", "find", "grep", "head", "tail", "wc", "gh"]
   github:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     toolsets: [issues]
