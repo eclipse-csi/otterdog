@@ -115,11 +115,16 @@
                   <div class="tab-pane" id="pr-stats" role="tabpanel" aria-labelledby="stats-pr-tab">
                     <div class="form-row align-items-end mb-3">
                       <div class="col-auto">
-                        <label class="mb-1" for="stats-interval">Interval</label>
-                        <fieldset class="btn-group btn-group-sm d-block" id="stats-interval">
-                          <button type="button" class="btn btn-outline-primary" data-interval="day">Day</button>
-                          <button type="button" class="btn btn-outline-primary" data-interval="week">Week</button>
-                          <button type="button" class="btn btn-outline-primary active" data-interval="month">Month</button>
+                        <fieldset id="stats-interval">
+                          <legend class="col-form-label mb-1 p-0" style="font-size: 1rem;">Interval</legend>
+                          <div class="btn-group btn-group-sm d-block">
+                            <button type="button" class="btn btn-outline-primary" data-interval="day"
+                                    aria-pressed="false">Day</button>
+                            <button type="button" class="btn btn-outline-primary" data-interval="week"
+                                    aria-pressed="false">Week</button>
+                            <button type="button" class="btn btn-outline-primary active" data-interval="month"
+                                    aria-pressed="true">Month</button>
+                          </div>
                         </fieldset>
                       </div>
                       <div class="col-auto">
@@ -564,8 +569,8 @@
     });
 
     $("#stats-interval").find("button").on("click", function() {
-      $("#stats-interval").find("button").removeClass("active");
-      $(this).addClass("active");
+      $("#stats-interval").find("button").removeClass("active").attr("aria-pressed", "false");
+      $(this).addClass("active").attr("aria-pressed", "true");
       loadPullRequestActivity();
     });
 
@@ -674,7 +679,9 @@
       var organization = selectedOrganization();
 
       if (organization.error !== null) {
+        // a poll started for the previous selection would otherwise overwrite this error
         pullRequestActivityLoad += 1;
+        hideProgress();
         showStatisticsError(organization.error);
         return;
       }
@@ -697,6 +704,12 @@
       $("#stats-collected-at, #stats-organizations-scope").text("");
       $("#stats-aging").hide();
       $("#stats-warning").hide();
+      $("#stats-chart-data").hide();
+
+      if (pullRequestActivityChart !== null) {
+        pullRequestActivityChart.destroy();
+        pullRequestActivityChart = null;
+      }
       showProgress(0, 0, 0);
 
       pullRequestActivityLoad += 1;
@@ -1054,6 +1067,7 @@
       updateOrganizations(response.organizations || [], response.organizations_total || 0);
       updateChartDataTable(labels, opened, merged, autoMerged, closed, stillOpen);
       updateCollectedAt(response.data_as_of);
+      $("#stats-chart-data").show();
       updateAging(response.open_aging || [], response.oldest_open || []);
       updateCycleTimes(response.cycle_times || []);
 

@@ -239,6 +239,15 @@
     // rather than polling the dashboard forever
     var MAX_AUTOMATION_POLLS = 15;
 
+    function formatAge(days) {
+      // a backlog younger than a day would otherwise read as an age of zero
+      if (days < 1) {
+        return Math.max(1, Math.round(days * 24)) + " h";
+      }
+
+      return Math.round(days) + " d";
+    }
+
     function formatHours(hours) {
       if (hours === null || hours === undefined) {
         return "n/a";

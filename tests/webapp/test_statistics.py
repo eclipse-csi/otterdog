@@ -462,9 +462,10 @@ def test_cycle_time_separates_auto_merged_from_manually_merged(fixed_now):
 
     by_label = {x.label: x for x in statistics.cycle_times}
 
-    # nearest rank, so the median of two values is the lower one
+    # nearest rank, so the median of two values is the lower one, and the value keeps its full
+    # precision: rounding 0.25 to 0.2 would make the ui report 12 minutes instead of 15
     assert by_label["Auto-merge"].count == 2
-    assert by_label["Auto-merge"].median_hours == 0.2
+    assert by_label["Auto-merge"].median_hours == 0.25
     assert by_label["Auto-merge"].p90_hours == 1.0
     assert by_label["Manual merge"].count == 2
     assert by_label["Manual merge"].median_hours == 48.0
@@ -587,3 +588,18 @@ async def test_a_rate_limited_organization_does_not_hold_back_the_others(monkeyp
     assert failed == ["exhausted"]
     assert rate_limited is True
     assert len(digests) == 2
+
+
+def test_a_sub_hour_cycle_time_keeps_its_precision(fixed_now):
+    """Rounding to a tenth of an hour would turn a 15 minute median into 12 minutes."""
+
+    from otterdog.webapp.statistics import aggregate_digests
+
+    pull_requests = [
+        _pull_request("2026-03-10T00:00:00Z", "2026-03-10T00:15:00Z", "2026-03-10T00:15:00Z", ("otterdog", "Bot"))
+    ]
+
+    statistics = aggregate_digests([_digest(pull_requests)], "month", None)
+
+    assert statistics.cycle_time_median_hours == 0.25
+    assert round(statistics.cycle_time_median_hours * 60) == 15

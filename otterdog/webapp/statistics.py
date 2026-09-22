@@ -24,6 +24,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from logging import getLogger
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from quart import current_app
 from quart_redis import get_redis  # type: ignore
@@ -86,10 +87,15 @@ _VIEW_TTL_IN_SECONDS = 60
 _FAST_PATH_TIMEOUT_IN_SECONDS = 1.5
 _FAST_PATH_POLL_IN_SECONDS = 0.05
 
-# claim held while a refresh of every digest is running, with a ttl long enough to cover it and
-# short enough to recover from a worker disappearing mid-refresh
+# claim held while a refresh of every digest is running, short enough to recover quickly from a
+# worker disappearing mid-refresh, and renewed as long as the refresh makes progress
 _REFRESH_LOCK_KEY = "pull-request-activity-refresh"
-_REFRESH_LOCK_TTL = 3600
+_REFRESH_LOCK_TTL = 300
+
+# the lease may expire under a refresh that stalled, so ownership is checked before renewing or
+# releasing it, otherwise a refresh could drop the lock of the one that replaced it
+_RENEW_IF_OWNED = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) end"
+_RELEASE_IF_OWNED = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end"
 
 _APP_BOT_LOGIN: str | None = None
 _APP_BOT_LOGIN_LOCK = asyncio.Lock()
@@ -225,10 +231,6 @@ def _percentile(values: list[float], percentile: float) -> float | None:
     ordered = sorted(values)
     rank = max(1, math.ceil(percentile * len(ordered)))
     return ordered[rank - 1]
-
-
-def _round_hours(hours: float | None) -> float | None:
-    return None if hours is None else round(hours, 1)
 
 
 def normalize_login(login: str | None) -> str | None:
@@ -421,14 +423,11 @@ async def _collect_organization_digest(installation: InstallationModel, bot_logi
 
     graphql_api = await get_graphql_api_for_installation(installation.installation_id)
     try:
-        pull_requests = await graphql_api.get_pull_requests(org_id, config_repo, BASE_REF)
-
-        remaining = graphql_api.rate_limit_remaining
-        if remaining is not None and remaining < _RATE_LIMIT_RESERVE:
-            raise RateLimitExceededException(
-                f"only {remaining} graphql points left after querying org '{org_id}'",
-                graphql_api.rate_limit_reset_at,
-            )
+        # the reserve is enforced between pages: a history completed within it is kept, while
+        # starting a further page is refused so that the webhook driven tasks keep their quota
+        pull_requests = await graphql_api.get_pull_requests(
+            org_id, config_repo, BASE_REF, rate_limit_reserve=_RATE_LIMIT_RESERVE
+        )
 
         return build_organization_digest(org_id, pull_requests, bot_login)
     finally:
@@ -725,8 +724,8 @@ def _build_activities(
                 merged=counter["merged"],
                 auto_merged=counter["auto_merged"],
                 closed=counter["closed"],
-                cycle_time_median_hours=_round_hours(_percentile(durations, 0.5)),
-                cycle_time_p90_hours=_round_hours(_percentile(durations, 0.9)),
+                cycle_time_median_hours=_percentile(durations, 0.5),
+                cycle_time_p90_hours=_percentile(durations, 0.9),
             )
         )
         period = _next_period(period, interval)
@@ -738,8 +737,8 @@ def _cycle_time_of(label: str, durations: list[float]) -> CycleTime:
     return CycleTime(
         label=label,
         count=len(durations),
-        median_hours=_round_hours(_percentile(durations, 0.5)),
-        p90_hours=_round_hours(_percentile(durations, 0.9)),
+        median_hours=_percentile(durations, 0.5),
+        p90_hours=_percentile(durations, 0.9),
     )
 
 
@@ -805,8 +804,8 @@ def aggregate_digests(
         ],
         open_aging=aging,
         oldest_open=oldest_open,
-        cycle_time_median_hours=_round_hours(_percentile(all_durations, 0.5)),
-        cycle_time_p90_hours=_round_hours(_percentile(all_durations, 0.9)),
+        cycle_time_median_hours=_percentile(all_durations, 0.5),
+        cycle_time_p90_hours=_percentile(all_durations, 0.9),
         failed_organizations=failed_organizations or [],
         rate_limited=rate_limited,
     )
@@ -855,11 +854,15 @@ async def refresh_organization_digests() -> None:
     """
 
     redis = get_redis()
+    token = uuid4().hex
 
-    claimed = await redis.set(_REFRESH_LOCK_KEY, current_utc_time().isoformat(), nx=True, ex=_REFRESH_LOCK_TTL)
+    claimed = await redis.set(_REFRESH_LOCK_KEY, token, nx=True, ex=_REFRESH_LOCK_TTL)
     if not claimed:
         logger.info("a refresh of the pull request digests is already running, skipping this one")
         return
+
+    async def renew_lease(processed: int, total: int, fetched: int) -> None:
+        await redis.eval(_RENEW_IF_OWNED, 1, _REFRESH_LOCK_KEY, token, _REFRESH_LOCK_TTL)
 
     try:
         bot_login = await get_app_bot_login()
@@ -867,7 +870,9 @@ async def refresh_organization_digests() -> None:
 
         logger.info("refreshing the pull request digests of %d organization(s)", len(installations))
 
-        digests, failed, rate_limited = await collect_organization_digests(installations, bot_login, refresh=True)
+        digests, failed, rate_limited = await collect_organization_digests(
+            installations, bot_login, progress=renew_lease, refresh=True
+        )
 
         logger.info(
             "refreshed the pull request digests of %d organization(s), %d failed%s",
@@ -885,7 +890,7 @@ async def refresh_organization_digests() -> None:
                 ", ".join(failed[:20]) + (", ..." if len(failed) > 20 else ""),
             )
     finally:
-        await redis.delete(_REFRESH_LOCK_KEY)
+        await redis.eval(_RELEASE_IF_OWNED, 1, _REFRESH_LOCK_KEY, token)
 
 
 def statistics_to_json(statistics: PullRequestStatistics, interval: str, time_range: str) -> dict[str, Any]:

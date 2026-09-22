@@ -312,6 +312,7 @@ class GraphQLClient:
         repo_name: str,
         base_ref: str,
         updated_since: datetime | None = None,
+        rate_limit_reserve: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Retrieves the pull requests targeting the given base ref, in descending order of their
@@ -337,6 +338,7 @@ class GraphQLClient:
             "get-pull-requests.gql",
             "data.repository.pullRequests",
             stop_after=outdated,
+            rate_limit_reserve=rate_limit_reserve,
         )
 
     async def _run_paged_query(
@@ -346,6 +348,7 @@ class GraphQLClient:
         prefix_selector: str = "data.repository.branchProtectionRules",
         selector_type: str = ".nodes",
         stop_after: Callable[[list[dict[str, Any]]], bool] | None = None,
+        rate_limit_reserve: int | None = None,
     ) -> list[dict[str, Any]]:
         _logger.debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
@@ -381,6 +384,9 @@ class GraphQLClient:
                 if stop_after is not None and stop_after(rules_result):
                     finished = True
                 elif page_info["hasNextPage"]:
+                    # a page that completes the query is always welcome, but fetching a further
+                    # one has to leave enough quota for the requests that matter more
+                    self._raise_if_below_rate_limit_reserve(rate_limit_reserve)
                     end_cursor = page_info["endCursor"]
                 else:
                     finished = True
@@ -396,6 +402,15 @@ class GraphQLClient:
 
         self._rate_limit_remaining = rate_limit.get("remaining")
         self._rate_limit_reset_at = rate_limit.get("resetAt")
+
+    def _raise_if_below_rate_limit_reserve(self, reserve: int | None) -> None:
+        remaining = self._rate_limit_remaining
+
+        if reserve is not None and remaining is not None and remaining < reserve:
+            raise RateLimitExceededException(
+                f"only {remaining} graphql points left, which is below the reserve of {reserve}",
+                self.rate_limit_reset_at,
+            )
 
     def _raise_if_rate_limited(self, json_data: dict[str, Any]) -> None:
         """
