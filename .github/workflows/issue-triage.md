@@ -16,7 +16,7 @@ on:
         type: string
   schedule: weekly
   skip-if-no-match:
-    query: "is:issue is:open no:label OR label:status:needs-triage"
+    query: "is:issue is:open label:status:needs-triage"
     min: 1
   reaction: eyes
 
