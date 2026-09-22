@@ -674,6 +674,7 @@
       var organization = selectedOrganization();
 
       if (organization.error !== null) {
+        pullRequestActivityLoad += 1;
         showStatisticsError(organization.error);
         return;
       }
