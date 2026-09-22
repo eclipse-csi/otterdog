@@ -710,10 +710,6 @@
 
       $("#stats-error").hide();
       // the figures shown belong to the previous filters, do not let them look current
-      if (pullRequestActivityChart !== null) {
-        pullRequestActivityChart.destroy();
-        pullRequestActivityChart = null;
-      }
       $("#stats-summary").hide();
       $("#stats-top-openers, #stats-top-closers, #stats-organizations").empty();
       $("#stats-cycle-times, #stats-wait-times").empty();
