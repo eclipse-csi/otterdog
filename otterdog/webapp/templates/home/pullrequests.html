@@ -302,6 +302,22 @@
                           </thead>
                           <tbody id="stats-cycle-times"></tbody>
                         </table>
+
+                        <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
+                          Wait time
+                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                             title="How long requests waited. Cycle time only knows the merged ones; this also counts those closed without a merge and those still open, which count the time waited so far."></i>
+                        </h6>
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th scope="col">Metric</th>
+                              <th scope="col" class="text-right">Merged only</th>
+                              <th scope="col" class="text-right">All requests</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stats-wait-times"></tbody>
+                        </table>
                       </div>
                       <div class="col-md-5">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
@@ -699,7 +715,8 @@
         pullRequestActivityChart = null;
       }
       $("#stats-summary").hide();
-      $("#stats-top-openers, #stats-top-closers, #stats-organizations, #stats-cycle-times").empty();
+      $("#stats-top-openers, #stats-top-closers, #stats-organizations").empty();
+      $("#stats-cycle-times, #stats-wait-times").empty();
       $("#stats-chart-data-rows").empty();
       $("#stats-collected-at, #stats-organizations-scope").text("");
       $("#stats-aging").hide();
@@ -853,22 +870,18 @@
       });
     }
 
-    function updateCycleTimes(cycleTimes) {
-      var body = $("#stats-cycle-times").empty();
+    function byLabelOf(entries) {
       var byLabel = {};
 
-      cycleTimes.forEach(function(cycleTime) {
-        byLabel[cycleTime.label] = cycleTime;
+      entries.forEach(function(entry) {
+        byLabel[entry.label] = entry;
       });
 
-      var auto = byLabel["Auto-merge"] || {count: 0};
-      var manual = byLabel["Manual merge"] || {count: 0};
+      return byLabel;
+    }
 
-      var rows = [
-        ["Median cycle time", formatHours(auto.median_hours), formatHours(manual.median_hours)],
-        ["P90 cycle time", formatHours(auto.p90_hours), formatHours(manual.p90_hours)],
-        ["Pull requests merged", auto.count.toLocaleString(), manual.count.toLocaleString()]
-      ];
+    function appendComparisonRows(selector, rows) {
+      var body = $(selector).empty();
 
       rows.forEach(function(row) {
         body.append(
@@ -878,6 +891,30 @@
             .append($("<td>", {"class": "text-right"}).html(row[2]))
         );
       });
+    }
+
+    function updateCycleTimes(cycleTimes) {
+      var byLabel = byLabelOf(cycleTimes);
+      var auto = byLabel["Auto-merge"] || {count: 0};
+      var manual = byLabel["Manual merge"] || {count: 0};
+
+      appendComparisonRows("#stats-cycle-times", [
+        ["Median cycle time", formatHours(auto.median_hours), formatHours(manual.median_hours)],
+        ["P90 cycle time", formatHours(auto.p90_hours), formatHours(manual.p90_hours)],
+        ["Pull requests merged", auto.count.toLocaleString(), manual.count.toLocaleString()]
+      ]);
+    }
+
+    function updateWaitTimes(waitTimes) {
+      var byLabel = byLabelOf(waitTimes);
+      var merged = byLabel["Merged only"] || {count: 0};
+      var all = byLabel["All requests"] || {count: 0};
+
+      appendComparisonRows("#stats-wait-times", [
+        ["Median wait", formatHours(merged.median_hours), formatHours(all.median_hours)],
+        ["P90 wait", formatHours(merged.p90_hours), formatHours(all.p90_hours)],
+        ["Requests counted", merged.count.toLocaleString(), all.count.toLocaleString()]
+      ]);
     }
 
     var WORKING_HOURS_PER_DAY = 8;
@@ -1070,6 +1107,7 @@
       $("#stats-chart-data").show();
       updateAging(response.open_aging || [], response.oldest_open || []);
       updateCycleTimes(response.cycle_times || []);
+      updateWaitTimes(response.wait_times || []);
 
       autoMergedInRange = totalsOf(response.data).autoMerged;
       updateEffortAvoided();

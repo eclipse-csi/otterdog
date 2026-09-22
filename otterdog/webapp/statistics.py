@@ -173,6 +173,7 @@ class PullRequestStatistics:
     organizations_total: int = 0
     data_as_of: str | None = None
     cycle_times: list[CycleTime] = dataclasses.field(default_factory=list)
+    wait_times: list[CycleTime] = dataclasses.field(default_factory=list)
     open_aging: list[AgingBucket] = dataclasses.field(default_factory=list)
     oldest_open: list[OpenPullRequest] = dataclasses.field(default_factory=list)
     cycle_time_median_hours: float | None = None
@@ -301,6 +302,8 @@ def _empty_day() -> dict[str, Any]:
         # comparable about how long they took
         "durations_auto": [],
         "durations_manual": [],
+        # how long a request waited before being given up on, which is a wait all the same
+        "durations_closed": [],
         "openers": {},
         "closers": {},
     }
@@ -329,7 +332,7 @@ class _DigestBuilder:
         if merged_at is not None:
             self._add_merged(pull_request, created_at, merged_at)
         elif closed_at is not None:
-            self._add_closed(pull_request, closed_at)
+            self._add_closed(pull_request, created_at, closed_at)
         else:
             self._add_open(pull_request, created_at)
 
@@ -347,9 +350,10 @@ class _DigestBuilder:
         else:
             day["durations_manual"].append(duration)
 
-    def _add_closed(self, pull_request: dict[str, Any], closed_at: datetime) -> None:
+    def _add_closed(self, pull_request: dict[str, Any], created_at: datetime, closed_at: datetime) -> None:
         day = self._day_of(closed_at)
         day["closed"] += 1
+        day["durations_closed"].append(int((closed_at - created_at).total_seconds()))
         self._count_actor(day["closers"], _closing_actor(pull_request))
 
     def _add_open(self, pull_request: dict[str, Any], created_at: datetime) -> None:
@@ -412,7 +416,7 @@ def build_organization_digest(
 
 def _digest_key(org_id: str) -> str:
     # the version guards against reading a digest written in an older, incompatible format
-    return f"pull-request-activity:org:v3:{org_id}"
+    return f"pull-request-activity:org:v4:{org_id}"
 
 
 async def _collect_organization_digest(installation: InstallationModel, bot_login: str) -> dict[str, Any]:
@@ -628,8 +632,8 @@ class _Accumulator:
         for field in ("opened", "merged", "auto_merged", "closed"):
             counter[field] += activity.get(field, 0)
 
-        counter["durations_auto"].extend(activity.get("durations_auto", []))
-        counter["durations_manual"].extend(activity.get("durations_manual", []))
+        for durations in ("durations_auto", "durations_manual", "durations_closed"):
+            counter[durations].extend(activity.get(durations, []))
 
         for login, count in activity.get("openers", {}).items():
             self.openers[login] += count
@@ -694,17 +698,32 @@ def _first_period(accumulator: _Accumulator, naive_since: datetime | None, now: 
     return now
 
 
+def _open_ages_in_hours(digests: list[dict[str, Any]], now: datetime) -> list[float]:
+    """How long every pull request that is still open has been waiting so far."""
+
+    ages = []
+
+    for digest in digests:
+        for pull_request in digest.get("open", []):
+            created_at = _parse_timestamp(pull_request["created_at"])
+            if created_at is not None:
+                ages.append((now - created_at).total_seconds() / 3600)
+
+    return ages
+
+
 def _build_activities(
     counters: dict[datetime, dict[str, Any]],
     start: datetime,
     now: datetime,
     interval: str,
-) -> tuple[list[PullRequestActivity], list[float], list[float]]:
-    """Walks the periods from start to now, returning the activity and both duration samples."""
+) -> tuple[list[PullRequestActivity], list[float], list[float], list[float]]:
+    """Walks the periods from start to now, returning the activity and the duration samples."""
 
     activities = []
     auto_durations: list[float] = []
     manual_durations: list[float] = []
+    closed_durations: list[float] = []
     period = start
 
     while period <= now:
@@ -716,6 +735,7 @@ def _build_activities(
 
         auto_durations.extend(period_auto)
         manual_durations.extend(period_manual)
+        closed_durations.extend(x / 3600 for x in counter["durations_closed"])
 
         activities.append(
             PullRequestActivity(
@@ -730,7 +750,7 @@ def _build_activities(
         )
         period = _next_period(period, interval)
 
-    return activities, auto_durations, manual_durations
+    return activities, auto_durations, manual_durations, closed_durations
 
 
 def _cycle_time_of(label: str, durations: list[float]) -> CycleTime:
@@ -783,10 +803,17 @@ def aggregate_digests(
     last_period = _truncate_to_interval(now, interval)
     start = _first_period(accumulator, naive_since, last_period, interval)
 
-    activities, auto_durations, manual_durations = _build_activities(accumulator.counters, start, last_period, interval)
+    activities, auto_durations, manual_durations, closed_durations = _build_activities(
+        accumulator.counters, start, last_period, interval
+    )
 
     aging, oldest_open = open_pull_request_aging(digests, now)
     all_durations = auto_durations + manual_durations
+
+    # what every request waited, not only what the merged ones took: a pull request left open
+    # never enters the cycle time, which is exactly what hides the worst waits
+    open_ages = _open_ages_in_hours(digests, now)
+    wait_durations = all_durations + closed_durations + open_ages
 
     accumulator.organizations.sort(key=lambda x: (-x.merged, x.org_id))
 
@@ -801,6 +828,10 @@ def aggregate_digests(
         cycle_times=[
             _cycle_time_of("Auto-merge", auto_durations),
             _cycle_time_of("Manual merge", manual_durations),
+        ],
+        wait_times=[
+            _cycle_time_of("Merged only", all_durations),
+            _cycle_time_of("All requests", wait_durations),
         ],
         open_aging=aging,
         oldest_open=oldest_open,
@@ -905,6 +936,7 @@ def statistics_to_json(statistics: PullRequestStatistics, interval: str, time_ra
         "organizations_total": statistics.organizations_total,
         "data_as_of": statistics.data_as_of,
         "cycle_times": [dataclasses.asdict(x) for x in statistics.cycle_times],
+        "wait_times": [dataclasses.asdict(x) for x in statistics.wait_times],
         "open_aging": [dataclasses.asdict(x) for x in statistics.open_aging],
         "oldest_open": [dataclasses.asdict(x) for x in statistics.oldest_open],
         "cycle_time_median_hours": statistics.cycle_time_median_hours,

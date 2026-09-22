@@ -603,3 +603,44 @@ def test_a_sub_hour_cycle_time_keeps_its_precision(fixed_now):
 
     assert statistics.cycle_time_median_hours == 0.25
     assert round(statistics.cycle_time_median_hours * 60) == 15
+
+
+def test_the_wait_time_covers_the_requests_the_cycle_time_leaves_out(fixed_now):
+    """A pull request left open never reaches the cycle time, which is what hides the worst waits."""
+
+    from otterdog.webapp.statistics import aggregate_digests
+
+    pull_requests = [
+        # merged within an hour
+        _pull_request("2026-03-10T00:00:00Z", "2026-03-10T01:00:00Z", "2026-03-10T01:00:00Z", ("otterdog", "Bot")),
+        # given up on after two days
+        _pull_request("2026-03-08T12:00:00Z", "2026-03-10T12:00:00Z", number=2),
+        # opened a hundred days ago and still waiting
+        _pull_request("2025-12-01T12:00:00Z", number=3),
+    ]
+
+    statistics = aggregate_digests([_digest(pull_requests)], "month", None)
+
+    by_label = {x.label: x for x in statistics.wait_times}
+
+    # the cycle time only knows the merged one
+    assert by_label["Merged only"].count == 1
+    assert by_label["Merged only"].median_hours == 1.0
+
+    # the wait covers the three of them, and the still open one dominates
+    assert by_label["All requests"].count == 3
+    assert by_label["All requests"].median_hours == 48.0
+    assert by_label["All requests"].p90_hours == 2400.0
+
+
+def test_the_wait_of_a_still_open_request_grows_with_time(fixed_now):
+    from otterdog.webapp.statistics import aggregate_digests
+
+    digests = [_digest([_pull_request("2026-03-10T12:00:00Z")])]
+
+    statistics = aggregate_digests(digests, "month", None)
+    by_label = {x.label: x for x in statistics.wait_times}
+
+    # frozen now is 2026-03-11 12:00, so the request has been waiting for a day
+    assert by_label["All requests"].median_hours == 24.0
+    assert by_label["Merged only"].count == 0
