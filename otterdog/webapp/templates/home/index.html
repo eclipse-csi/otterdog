@@ -295,7 +295,13 @@
       $("#pr-automation-merged").text((merged - autoMerged).toLocaleString());
       $("#pr-automation-cycle-auto").text(formatHours((byLabel["Auto-merge"] || {}).median_hours));
       $("#pr-automation-cycle-manual").text(formatHours((byLabel["Manual merge"] || {}).median_hours));
-      $("#pr-automation-oldest").text(oldest ? Math.round(oldest.age_days) + " d" : "n/a");
+      $("#pr-automation-oldest").text(
+        oldest
+          ? oldest.age_days < 1
+            ? Math.max(1, Math.round(oldest.age_days * 24)) + " h"
+            : Math.round(oldest.age_days) + " d"
+          : "n/a"
+      );
 
       var failed = result.failed_organizations || [];
       if (failed.length > 0) {
