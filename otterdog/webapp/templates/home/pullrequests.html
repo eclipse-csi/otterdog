@@ -969,7 +969,7 @@
         failed.slice(0, 10).join(", ") + (failed.length > 10 ? ", ..." : "");
 
       if (response.rate_limited) {
-        message += " The GitHub rate limit was exhausted, try again later.";
+        message += " GitHub collection stopped because too few rate-limit points remained; try again later.";
       }
 
       $("#stats-warning").text(message).show();
