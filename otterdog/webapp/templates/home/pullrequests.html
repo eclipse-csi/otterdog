@@ -687,6 +687,10 @@
 
       $("#stats-error").hide();
       // the figures shown belong to the previous filters, do not let them look current
+      if (pullRequestActivityChart !== null) {
+        pullRequestActivityChart.destroy();
+        pullRequestActivityChart = null;
+      }
       $("#stats-summary").hide();
       $("#stats-top-openers, #stats-top-closers, #stats-organizations, #stats-cycle-times").empty();
       $("#stats-chart-data-rows").empty();
