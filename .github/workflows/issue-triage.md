@@ -16,7 +16,7 @@ on:
         type: string
   schedule: weekly
   skip-if-no-match:
-    query: "is:issue is:open label:status:needs-triage"
+    query: "is:issue is:open -label:\"ai-triaged\""
     min: 1
   reaction: eyes
 
@@ -40,6 +40,7 @@ safe-outputs:
       - invalid
       - good first issue
       - help wanted
+      - ai-triaged
       - severity:critical
       - severity:high
       - severity:medium
@@ -67,7 +68,7 @@ safe-outputs:
       - status:needs-triage
       - status:needs-info
       - status:blocked
-    max: 6
+    max: 7
   remove-labels:
     allowed:
       - duplicate
@@ -113,7 +114,10 @@ Determine which issue(s) to analyze based on how this run was triggered:
 - `workflow_dispatch`: the issue is number `${{ github.event.inputs.issue_number }}`.
 - `issues` event (opened/reopened): the issue is the one in the event payload.
 - `schedule` (weekly backlog sweep): use the `github` tool's `list_issues`/search to find open
-  issues that are unlabeled or only carry `status:needs-triage`, then process each one in turn.
+  issues that don't carry the `ai-triaged` label yet, then process each one in turn. This
+  includes issues never touched by this workflow and issues previously left at
+  `status:needs-triage`/`status:needs-info` (a maintainer removing `ai-triaged` from an issue is
+  also how they force a re-triage on demand).
 
 For each issue to triage, apply labels across these independent dimensions — only when you have
 reasonable confidence, never guess:
@@ -138,12 +142,17 @@ reasonable confidence, never guess:
 7. If you cannot classify type/component with reasonable confidence, or the report is missing
    information needed to assess severity/effort, do not guess: apply `status:needs-triage` (unclear
    overall) or `status:needs-info` (specific missing info — state exactly what's missing) instead
-   of forcing a full classification.
-8. If the issue was previously mislabeled (stale type/severity/priority/effort, or a
+   of forcing a full classification. Do **not** apply `ai-triaged` in this case, so the issue stays
+   eligible for the next weekly sweep once more information is available.
+8. Once you reach a confident classification (a `type:*` label applied, or `duplicate`), also
+   apply `ai-triaged` to mark the issue as processed — this is what keeps it out of future sweeps.
+9. If the issue was previously mislabeled (stale type/severity/priority/effort, or a
    `status:needs-triage`/`status:needs-info` that no longer applies now that you can classify it),
-   remove the incorrect label(s) via `remove-labels` before adding the correct ones.
-9. If you encounter an existing comment that is clearly spam, abuse, or off-topic, hide it with
-   the appropriate reason instead of leaving it visible.
+   remove the incorrect label(s) via `remove-labels` before adding the correct ones. Leave
+   `ai-triaged` alone either way — only a maintainer removing it manually should trigger a
+   from-scratch re-triage.
+10. If you encounter an existing comment that is clearly spam, abuse, or off-topic, hide it with
+    the appropriate reason instead of leaving it visible.
 
 Post one short comment per issue containing:
 
