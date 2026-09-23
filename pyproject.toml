@@ -105,7 +105,7 @@ python-slugify       = "^8.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = ">=0.16"
-prek = ">=0.4.0"
+prek = ">=0.5.3"
 
 [tool.poetry.group.test.dependencies]
 tox = ">4.22"
