@@ -49,18 +49,59 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
     async def _pre_execute(self) -> bool:
         blueprint_status = await find_blueprint_status(self.org_id, self.repo_name, self.blueprint.id)
-        if blueprint_status is None:
-            return True
+        if blueprint_status is not None and blueprint_status.status == BlueprintStatus.DISMISSED:
+            self.logger.debug(
+                f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}', skipping"
+            )
+            return False
 
-        match blueprint_status.status:
-            case BlueprintStatus.DISMISSED:
-                self.logger.debug(
-                    f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}', skipping"
-                )
-                return False
+        # the stored status might have been lost (e.g. removed while the blueprints could not be fetched,
+        # or a fresh database), so also check GitHub whether a remediation PR has been dismissed before
+        try:
+            dismissed_pr_number = await self._find_dismissed_pull_request()
+        except RuntimeError as ex:
+            self.logger.warning(
+                f"failed to check for dismissed PRs of blueprint '{self.blueprint.id}' "
+                f"in repo '{self.org_id}/{self.repo_name}', skipping",
+                exc_info=ex,
+            )
+            return False
 
-            case _:
-                return True
+        if dismissed_pr_number is not None:
+            self.logger.info(
+                f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}' "
+                f"as PR#{dismissed_pr_number} was closed without merging, skipping"
+            )
+            await update_or_create_blueprint_status(
+                self.org_id,
+                self.repo_name,
+                self.blueprint.id,
+                BlueprintStatus.DISMISSED,
+                dismissed_pr_number,
+            )
+            return False
+
+        return True
+
+    async def _find_dismissed_pull_request(self) -> int | None:
+        """
+        Returns the number of the latest remediation PR for the associated blueprint if it was closed
+        without being merged, None otherwise. Otterdog never closes such PRs itself, so this means that
+        the remediation has been dismissed. Re-opening the PR reinstates the blueprint.
+        """
+        rest_api = await self.rest_api
+        pull_requests = await rest_api.pull_request.get_pull_requests(
+            self.org_id, self.repo_name, "all", head_ref=self.branch_name
+        )
+
+        if len(pull_requests) == 0:
+            return None
+
+        latest_pr = max(pull_requests, key=lambda pr: pr["created_at"])
+        if latest_pr["state"] == "closed" and latest_pr.get("merged_at") is None:
+            return latest_pr["number"]
+
+        return None
 
     async def _post_execute(self, result_or_exception: CheckResult | Exception) -> None:
         if isinstance(result_or_exception, Exception):

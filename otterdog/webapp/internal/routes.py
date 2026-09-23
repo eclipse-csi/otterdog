@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from quart import current_app
+
 from otterdog.webapp.blueprints import create_blueprint_from_model
 from otterdog.webapp.db.service import (
     get_active_installations,
@@ -16,6 +18,7 @@ from otterdog.webapp.db.service import (
     update_data_for_installation,
     update_installations_from_config,
 )
+from otterdog.webapp.statistics import refresh_organization_digests
 from otterdog.webapp.utils import (
     current_utc_time,
     has_minimum_timedelta_elapsed,
@@ -42,6 +45,9 @@ async def init():
     for installation in await get_active_installations():
         await update_data_for_installation(installation)
 
+    # refreshed in the background, the statistics page then never waits for GitHub itself
+    current_app.add_background_task(refresh_organization_digests)
+
     return {}, 200
 
 
@@ -56,7 +62,7 @@ async def check(limit: int):
         org_id = blueprint_model.id.org_id
 
         if blueprint_model.last_checked is not None and not has_minimum_timedelta_elapsed(
-            blueprint_model.last_checked, timedelta(hours=1)
+            blueprint_model.last_checked, timedelta(seconds=current_app.config["BLUEPRINT_CHECK_INTERVAL"])
         ):
             logger.debug(
                 "skipping blueprint with id '%s' for org '%s', last checked at '%s'",
