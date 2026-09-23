@@ -11,8 +11,12 @@ from unittest.mock import patch
 
 import pytest
 from jsonbender import bend
+from pretend import stub
 
-from otterdog.models.ruleset import Ruleset
+from otterdog.models.organization_ruleset import OrganizationRuleset
+from otterdog.models.repo_ruleset import RepositoryRuleset
+from otterdog.models.ruleset import Ruleset, StatusCheckSettings
+from otterdog.utils import Change
 
 
 class TestRuleset:
@@ -204,6 +208,65 @@ class TestRuleset:
 
         assert bypass_actors_result == [], "Missing bypass_actors key should default to empty list"
 
+    @pytest.mark.parametrize(
+        "conditions,remove_conditions",
+        [
+            # GitHub may return null at any level or omit the conditions key altogether.
+            (None, False),
+            ({"ref_name": None}, False),
+            ({"ref_name": {"include": None, "exclude": None}}, False),
+            (None, True),
+        ],
+        ids=["null_conditions", "null_ref_name", "null_ref_lists", "missing_conditions"],
+    )
+    def test_disabled_ruleset_with_null_ref_conditions_can_be_diffed(self, conditions, remove_conditions):
+        """Disabled ruleset responses can omit ref conditions at any level; treat them as empty when diffing config."""
+        data = self.create_ruleset_data([])
+        data["enforcement"] = "disabled"
+        if remove_conditions:
+            data.pop("conditions")
+        else:
+            data["conditions"] = conditions
+
+        live_ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+        expected_ruleset = RepositoryRuleset.from_model_data(
+            {
+                "name": "test-ruleset",
+                "target": "branch",
+                "enforcement": "disabled",
+                "include_refs": ["refs/heads/main"],
+            }
+        )
+
+        assert live_ruleset.include_refs == []
+        assert live_ruleset.exclude_refs == []
+        assert expected_ruleset.get_difference_from(live_ruleset)["include_refs"] == Change([], ["refs/heads/main"])
+
+    @pytest.mark.parametrize(
+        "conditions,remove_conditions",
+        [
+            (None, False),
+            ({"repository_name": None}, False),
+            ({"repository_name": {"include": None, "exclude": None, "protected": None}}, False),
+            (None, True),
+        ],
+        ids=["null_conditions", "null_repository_name", "null_repository_name_filters", "missing_conditions"],
+    )
+    def test_disabled_org_ruleset_with_null_conditions_can_be_loaded(self, conditions, remove_conditions):
+        """Organization rulesets must tolerate missing or null repository-name conditions."""
+        data = self.create_ruleset_data([])
+        data["enforcement"] = "disabled"
+        if remove_conditions:
+            data.pop("conditions")
+        else:
+            data["conditions"] = conditions
+
+        live_ruleset = OrganizationRuleset.from_provider_data(self.org_id, data)
+
+        assert live_ruleset.include_repo_names == []
+        assert live_ruleset.exclude_repo_names == []
+        assert live_ruleset.protect_repo_names is False
+
     def test_get_mapping_from_provider_with_rules(self):
         data = {
             "id": 123,
@@ -317,3 +380,41 @@ class TestRuleset:
         result = bend(mapping, data)
 
         assert result["required_merge_queue"] is not None
+
+
+class TestStatusCheckSettings:
+    def make_provider(self, app_ids: dict[str, int] | None = None):
+        async def get_app_ids(app_slugs):
+            return {slug: app_ids[slug] for slug in app_slugs}
+
+        return stub(get_app_ids=get_app_ids)
+
+    async def test_get_mapping_to_provider_numeric_integration_id(self):
+        # a status check reported only by integration_id (no app_slug) is imported
+        # as a bare numeric token, e.g. "15368:Test Summary"; apply must use it
+        # directly instead of resolving it as an app slug via GET /apps/{id}.
+        data = {"status_checks": ["15368:Test Summary"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 15368, "context": "Test Summary"}]
+
+    async def test_get_mapping_to_provider_app_slug(self):
+        data = {"status_checks": ["github-actions:build"], "strict": True}
+        provider = self.make_provider(app_ids={"github-actions": 123})
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 123, "context": "build"}]
+
+    async def test_get_mapping_to_provider_any(self):
+        data = {"status_checks": ["any:build"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"context": "build"}]

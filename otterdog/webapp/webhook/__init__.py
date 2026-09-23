@@ -76,7 +76,7 @@ async def on_pull_request_received(data):
     try:
         event = PullRequestEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load pull request event data", exc_info=True)
+        logger.exception("failed to load pull request event data")
         return success()
 
     if event.installation is None or event.organization is None:
@@ -194,7 +194,7 @@ async def on_pull_request_review_received(data):
     try:
         event = PullRequestReviewEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load pull request review event data", exc_info=True)
+        logger.exception("failed to load pull request review event data")
         return success()
 
     if event.installation is None or event.organization is None:
@@ -226,7 +226,7 @@ async def on_issue_comment_received(data):
     try:
         event = IssueCommentEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load issue comment event data", exc_info=True)
+        logger.exception("failed to load issue comment event data")
         return success()
 
     if event.installation is None or event.organization is None:
@@ -254,7 +254,7 @@ async def on_push_received(data):
     try:
         event = PushEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load push event data", exc_info=True)
+        logger.exception("failed to load push event data")
         return success()
 
     # check if the push targets the default branch of the config repo of an installation,
@@ -341,7 +341,7 @@ async def on_installation_received(data):
     try:
         event = InstallationEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load installation event data", exc_info=True)
+        logger.exception("failed to load installation event data")
         return success()
 
     current_app.add_background_task(update_installation_status, event.installation.id, event.action)
@@ -353,7 +353,7 @@ async def on_workflow_job_received(data):
     try:
         event = WorkflowJobEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load workflow job event data", exc_info=True)
+        logger.exception("failed to load workflow job event data")
         return success()
 
     if event.installation is None or event.organization is None:
@@ -390,7 +390,7 @@ async def on_workflow_run_received(data):
     try:
         event = WorkflowRunEvent.model_validate(data)
     except ValidationError:
-        logger.error("failed to load workflow run event data", exc_info=True)
+        logger.exception("failed to load workflow run event data")
         return success()
 
     if event.installation is None or event.organization is None:

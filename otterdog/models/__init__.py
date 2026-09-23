@@ -159,6 +159,22 @@ class LivePatch(Generic[MT]):
             case LivePatchType.CHANGE:
                 return unwrap(self.expected_object).contains_secrets()
 
+    def is_cost_related(self) -> bool:
+        """Return whether applying this patch can increase managed costs.
+
+        Deletions cannot introduce new spending, so only additions and changes
+        inspect the desired object or its changed values.
+        """
+        match self.patch_type:
+            case LivePatchType.ADD:
+                return unwrap(self.expected_object).is_cost_related()
+
+            case LivePatchType.REMOVE:
+                return False
+
+            case LivePatchType.CHANGE:
+                return unwrap(self.expected_object).changes_are_cost_related(unwrap(self.changes))
+
     async def apply(self, org_id: str, provider: GitHubProvider) -> None:
         await self.fn(self, org_id, provider)
 
@@ -190,8 +206,26 @@ class LivePatchHandler(Protocol):
     def __call__(self, patch: LivePatch) -> None: ...
 
 
+class _DefaultValuesMixin:
+    """
+    Mixin that replaces UNSET field values with their Python dataclass defaults in __post_init__.
+    """
+
+    def __post_init__(self):
+        """
+        Assigns to all field which are UNSET their default value, if one is available.
+        """
+        for field in self.all_fields():  # type: ignore[attr-defined]
+            value = self.__getattribute__(field.name)
+            if is_unset(value):
+                if field.default is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default)
+                elif field.default_factory is not dataclasses.MISSING:
+                    self.__setattr__(field.name, field.default_factory())
+
+
 @dataclasses.dataclass
-class EmbeddedModelObject(ABC):
+class EmbeddedModelObject(_DefaultValuesMixin, ABC):
     """
     The abstract base class for embedded model objects.
     """
@@ -201,7 +235,7 @@ class EmbeddedModelObject(ABC):
 
     def get_difference_from(self, other: Self) -> Change | None:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         from_dict: dict[str, Any] = {}
         to_dict: dict[str, Any] = {}
@@ -227,7 +261,7 @@ class EmbeddedModelObject(ABC):
 
     def get_patch_to(self, other: EmbeddedModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
         for key in self.keys(for_diff=False, for_patch=True, exclude_unset_keys=True):
@@ -273,6 +307,14 @@ class EmbeddedModelObject(ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
+    def is_cost_related(self) -> bool:
+        """Return whether this embedded model contains cost-affecting settings."""
+        return False
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Return whether a change to this embedded model can affect costs."""
+        return False
+
     def keys(
         self,
         for_diff: bool = False,
@@ -307,7 +349,7 @@ class EmbeddedModelObject(ABC):
         return result
 
     @classmethod
-    def from_model_data(cls: type[EMT], data: dict[str, Any]) -> EMT:
+    def from_model_data(cls, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_model()
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -316,7 +358,7 @@ class EmbeddedModelObject(ABC):
         return {k: OptionalS(k, default=UNSET) for k in (x.name for x in cls.all_fields())}
 
     @classmethod
-    def from_provider_data(cls: type[EMT], org_id: str, data: dict[str, Any]) -> EMT:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -337,22 +379,10 @@ class EmbeddedModelObject(ABC):
 
 
 @dataclasses.dataclass
-class ModelObject(ABC):
+class ModelObject(_DefaultValuesMixin, ABC):
     """
     The abstract base class for any model object.
     """
-
-    def __post_init__(self):
-        """
-        Assigns to all field which are UNSET their default value, if one is available.
-        """
-        for field in self.all_fields():
-            value = self.__getattribute__(field.name)
-            if is_unset(value):
-                if field.default is not dataclasses.MISSING:
-                    self.__setattr__(field.name, field.default)
-                elif field.default_factory is not dataclasses.MISSING:
-                    self.__setattr__(field.name, field.default_factory())
 
     @property
     @abstractmethod
@@ -394,7 +424,7 @@ class ModelObject(ABC):
 
     def get_difference_from(self, other: Self) -> dict[str, Change[T]]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         diff_result: dict[str, Change[T]] = {}
         for key in self.keys(
@@ -434,7 +464,7 @@ class ModelObject(ABC):
 
     def get_patch_to(self, other: ModelObject) -> dict[str, Any]:
         if not isinstance(other, self.__class__):
-            raise ValueError(f"'types do not match: {type(self)}' != '{type(other)}'")
+            raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
         patch_result = {}
         for key in self.keys(
@@ -547,7 +577,7 @@ class ModelObject(ABC):
 
     @classmethod
     @final
-    def from_model_data(cls: type[MT], data: Mapping[str, Any]) -> MT:
+    def from_model_data(cls, data: Mapping[str, Any]) -> Self:
         mapping = cls.get_mapping_from_model()
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -557,7 +587,7 @@ class ModelObject(ABC):
 
     @classmethod
     @final
-    def from_provider_data(cls: type[MT], org_id: str, data: dict[str, Any]) -> MT:
+    def from_provider_data(cls, org_id: str, data: dict[str, Any]) -> Self:
         mapping = cls.get_mapping_from_provider(org_id, data)
         return cls(**bend(mapping, data))  # type: ignore
 
@@ -595,6 +625,25 @@ class ModelObject(ABC):
 
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
+
+    def is_cost_related(self) -> bool:
+        """Propagate cost metadata from nested models to their owning object."""
+        for field in self.all_fields():
+            value = self.__getattribute__(field.name)
+            if isinstance(value, (EmbeddedModelObject, ModelObject)) and value.is_cost_related():
+                return True
+
+        return False
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Propagate cost metadata through nested change dictionaries."""
+        for key, change in changes.items():
+            value = self.__getattribute__(key)
+            if isinstance(value, (EmbeddedModelObject, ModelObject)) and isinstance(change.to_value, dict):
+                if value.changes_are_cost_related(change.to_value):
+                    return True
+
+        return False
 
     def include_for_live_patch(self, context: LivePatchContext) -> bool:
         """
@@ -718,9 +767,9 @@ class ModelObject(ABC):
 
     @classmethod
     def generate_live_patch(
-        cls: type[MT],
-        expected_object: MT | None,
-        current_object: MT | None,
+        cls,
+        expected_object: Self | None,
+        current_object: Self | None,
         parent_object: ModelObject | None,
         context: LivePatchContext,
         handler: LivePatchHandler,
@@ -786,7 +835,7 @@ class ModelObject(ABC):
                 expected_objects_by_all_keys.pop(k)
             expected_objects_by_key.pop(expected_object.get_key_value())
 
-        for _, expected_object in expected_objects_by_key.items():
+        for expected_object in expected_objects_by_key.values():
             if expected_object.include_for_live_patch(context):
                 cls.generate_live_patch(expected_object, None, parent_object, context, handler)
 

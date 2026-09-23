@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -30,7 +30,6 @@ from otterdog.webapp.utils import (
     fetch_config_from_github,
     get_full_admin_team_slugs,
     get_otterdog_config,
-    make_aware_utc,
 )
 from otterdog.webapp.webhook.github_models import PullRequest
 
@@ -100,9 +99,9 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
 
             if len(commits) > 1:
                 previous_commit = commits[-2]
-                commit_time = make_aware_utc(
-                    datetime.strptime(previous_commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
-                )
+                commit_time = datetime.strptime(
+                    previous_commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=UTC)
                 current_time = current_utc_time()
                 timedelta_since_last_commit = current_time - commit_time
                 if timedelta_since_last_commit < timedelta(hours=1):
@@ -187,7 +186,7 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
                 comment = await render_template(
                     "comment/out_of_sync_comment.txt",
                     result=escape_for_github(sync_output),
-                    admin_teams=get_full_admin_team_slugs(self.org_id),
+                    admin_teams=await get_full_admin_team_slugs(self.org_id),
                 )
             else:
                 # in case the config is in sync, do not add a redundant comment
@@ -264,7 +263,13 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
             in_sync=config_in_sync,
         )
 
-        if pull_request_model.can_be_automerged():
+        if await pull_request_model.can_be_automerged():
+            self.logger.info(
+                "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
+                self.pull_request_number,
+                self.org_id,
+                self.repo_name,
+            )
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     def __repr__(self) -> str:

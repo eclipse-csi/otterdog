@@ -104,7 +104,7 @@ class CheckStatusOperation(DiffOperation):
         parent_object: ModelObject | None = None,
     ) -> int:
         settings_to_change = 0
-        for k, _v in modified_object.items():
+        for k in modified_object:
             if not current_object.is_read_only_key(k):
                 settings_to_change += 1
 

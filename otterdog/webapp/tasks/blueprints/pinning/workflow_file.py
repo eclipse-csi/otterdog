@@ -21,14 +21,19 @@ class WorkflowFile:
     lines: list[str] = field(init=False)
 
     def __post_init__(self):
-        self.content = yaml.safe_load(self.raw_content)
+        try:
+            self.content = yaml.safe_load(self.raw_content)
+        except yaml.YAMLError as e:
+            raise RuntimeError(f"failed to parse workflow YAML: {e}") from e
         self.lines = self.raw_content.splitlines(keepends=True)
 
     def get_used_actions(self) -> list[str]:
         workflows = []
 
         # regular workflows
-        for _k, v in self.content.get("jobs", {}).items():
+        for v in self.content.get("jobs", {}).values():
+            if v is None:
+                continue
             # jobs.<job_id>.steps[*].uses
             for step in v.get("steps", []):
                 if "uses" in step:

@@ -1,19 +1,21 @@
 valkey:
-  enabled: false
+  enabled: true
+  auth:
+    enabled: true
 
 mongodb:
-  enabled: false
-
-ghproxy:
-  redisAddress: valkey.otterdog.svc.cluster.local:6379
+  enabled: true
+  auth:
+    enabled: true
 
 config:
   debug: true
   configRepo: "otterdog-configs"
   configPath: "otterdog.json"
-  mongoUri: "mongodb://root:secret@mongodb.otterdog.svc.cluster.local:27017/otterdog"
-  redisUri: "redis://valkey.otterdog.svc.cluster.local:6379"
-  ghProxyUri: "http://otterdog-ghproxy.otterdog.svc.cluster.local:8888"
+  # Re-evaluate blueprints on every /internal/check run (every 5 minutes, see policies.schedule)
+  # instead of once per hour. Slightly below 300s: last_checked is stored once the evaluation
+  # has finished, so exactly 300s would skip every other run.
+  blueprintCheckInterval: 240
 
 github:
   webhookValidationContext: "otterdog/otterdog-validation"

@@ -67,7 +67,7 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
 
             self.logger.debug(f"approved by teams: {approved_by_teams}")
 
-            has_required_approvals = contains_valid_team_for_approval(approved_by_teams)
+            has_required_approvals = await contains_valid_team_for_approval(approved_by_teams, self.org_id)
 
             pull_request_model = await update_or_create_pull_request(
                 self.org_id,
@@ -76,7 +76,13 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
                 has_required_approvals=has_required_approvals,
             )
 
-            if pull_request_model.can_be_automerged():
+            if await pull_request_model.can_be_automerged():
+                self.logger.info(
+                    "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
+                    self.pull_request_number,
+                    self.org_id,
+                    self.repo_name,
+                )
                 self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
         else:
             await update_or_create_pull_request(

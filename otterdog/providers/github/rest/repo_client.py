@@ -227,9 +227,7 @@ class RepoClient(RestClient):
                             break
                         except RuntimeError:
                             _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 10")
-                            import time
-
-                            time.sleep(1)
+                            await asyncio.sleep(1)
 
                     if initialized is False:
                         raise RuntimeError(
@@ -374,6 +372,15 @@ class RepoClient(RestClient):
                 result.append(await self.get_ruleset(org_id, repo_name, str(ruleset["id"])))
             return result
         except GitHubException as ex:
+            if ex.status in (403, 404):
+                # repo rulesets on private repos require a paid plan;
+                _logger.debug(
+                    "rulesets not available for repo '%s/%s' (status=%s)",
+                    org_id,
+                    repo_name,
+                    ex.status,
+                )
+                return []
             raise RuntimeError(f"failed retrieving rulesets for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def get_ruleset(self, org_id: str, repo_name: str, ruleset_id: str) -> dict[str, Any]:
@@ -477,9 +484,7 @@ class RepoClient(RestClient):
                     break
 
                 _logger.trace(f"waiting for repo '{org_id}/{repo_name}' to be initialized, try {i} of 3")
-                import time
-
-                time.sleep(1)
+                await asyncio.sleep(1)
 
             current_gh_pages: Any = current_repo_data.get("gh_pages")
             if current_gh_pages is not None:
@@ -741,6 +746,166 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo environment '%s'", env_name)
 
+    async def get_environment_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving secrets for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
+
+        try:
+            status, body = await self.requester.request_raw(
+                "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets"
+            )
+            if status == 200:
+                return json.loads(body)["secrets"]
+            else:
+                return []
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving secrets for environment '{env_name}' of repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def update_environment_secret(
+        self, org_id: str, repo_name: str, env_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        _logger.debug(
+            "updating secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
+        )
+
+        if "name" in secret:
+            secret.pop("name")
+
+        await self._encrypt_environment_secret_inplace(org_id, repo_name, env_name, secret)
+
+        status, _ = await self.requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}",
+            json.dumps(secret),
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update environment secret '{secret_name}'")
+
+        _logger.debug("updated environment secret '%s'", secret_name)
+
+    async def add_environment_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        secret_name = data.pop("name")
+        _logger.debug(
+            "adding secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
+        )
+
+        await self._encrypt_environment_secret_inplace(org_id, repo_name, env_name, data)
+
+        status, _ = await self.requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}",
+            json.dumps(data),
+        )
+
+        if status != 201:
+            raise RuntimeError(f"failed to add environment secret '{secret_name}'")
+
+        _logger.debug("added environment secret '%s'", secret_name)
+
+    async def _encrypt_environment_secret_inplace(
+        self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]
+    ) -> None:
+        value = data.pop("value")
+        key_id, public_key = await self.get_environment_public_key(org_id, repo_name, env_name)
+        data["encrypted_value"] = encrypt_value(public_key, value)
+        data["key_id"] = key_id
+
+    async def delete_environment_secret(self, org_id: str, repo_name: str, env_name: str, secret_name: str) -> None:
+        _logger.debug(
+            "deleting secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
+        )
+
+        status, _ = await self.requester.request_raw(
+            "DELETE", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete environment secret '{secret_name}'")
+
+        _logger.debug("removed environment secret '%s'", secret_name)
+
+    async def get_environment_public_key(self, org_id: str, repo_name: str, env_name: str) -> tuple[str, str]:
+        _logger.debug("retrieving public key for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
+
+        try:
+            response = await self.requester.request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/public-key"
+            )
+            return response["key_id"], response["key"]
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving public key for environment '{env_name}' of repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def get_environment_variables(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving variables for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
+
+        try:
+            status, body = await self.requester.request_raw(
+                "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/variables"
+            )
+            if status == 200:
+                return json.loads(body)["variables"]
+            else:
+                return []
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving variables for environment '{env_name}' of repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def update_environment_variable(
+        self, org_id: str, repo_name: str, env_name: str, variable_name: str, variable: dict[str, Any]
+    ) -> None:
+        _logger.debug(
+            "updating variable '%s' for environment '%s' of repo '%s/%s'", variable_name, env_name, org_id, repo_name
+        )
+
+        if "name" in variable:
+            variable.pop("name")
+
+        status, body = await self.requester.request_raw(
+            "PATCH",
+            f"/repos/{org_id}/{repo_name}/environments/{env_name}/variables/{variable_name}",
+            json.dumps(variable),
+        )
+        if status != 204:
+            raise RuntimeError(f"failed to update environment variable '{variable_name}': {body}")
+
+        _logger.debug("updated environment variable '%s'", variable_name)
+
+    async def add_environment_variable(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        variable_name = data.get("name")
+        _logger.debug(
+            "adding variable '%s' for environment '%s' of repo '%s/%s'", variable_name, env_name, org_id, repo_name
+        )
+
+        status, body = await self.requester.request_raw(
+            "POST",
+            f"/repos/{org_id}/{repo_name}/environments/{env_name}/variables",
+            json.dumps(data),
+        )
+
+        if status != 201:
+            raise RuntimeError(f"failed to add environment variable '{variable_name}': {body}")
+
+        _logger.debug("added environment variable '%s'", variable_name)
+
+    async def delete_environment_variable(self, org_id: str, repo_name: str, env_name: str, variable_name: str) -> None:
+        _logger.debug(
+            "deleting variable '%s' for environment '%s' of repo '%s/%s'", variable_name, env_name, org_id, repo_name
+        )
+
+        status, _ = await self.requester.request_raw(
+            "DELETE", f"/repos/{org_id}/{repo_name}/environments/{env_name}/variables/{variable_name}"
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to delete environment variable '{variable_name}'")
+
+        _logger.debug("removed environment variable '%s'", variable_name)
+
     async def get_team_permissions(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving teams with permissions for repo '%s/%s'", org_id, repo_name)
 
@@ -750,7 +915,6 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed getting team permissions for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def update_team_permission(self, org_id: str, repo_name: str, team_name: str, team_permission: str) -> None:
-
         status, _ = await self.requester.request_raw(
             "PUT",
             f"/orgs/{org_id}/teams/{team_name}/repos/{org_id}/{repo_name}",
@@ -815,7 +979,7 @@ class RepoClient(RestClient):
                 else:
                     await self._create_deployment_branch_policy(org_id, repo_name, env_name, policy)
 
-            for _policy_name, policy_dict in current_branch_policies_by_name.items():
+            for policy_dict in current_branch_policies_by_name.values():
                 await self._delete_deployment_branch_policy(org_id, repo_name, env_name, policy_dict["id"])
 
             _logger.debug("updated deployment branch policies for env '%s'", env_name)
@@ -971,7 +1135,9 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo variable '%s'", variable_name)
 
-    async def get_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
+    async def get_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False, included_keys: set[str] | None = None
+    ) -> dict[str, Any]:
         _logger.debug("retrieving workflow settings for repo '%s/%s'", org_id, repo_name)
 
         workflow_settings: dict[str, Any] = {}
@@ -991,6 +1157,9 @@ class RepoClient(RestClient):
 
         if not is_private:
             workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
+
+        if included_keys is None or "max_cache_size_gb" in included_keys:
+            workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
 
         return workflow_settings
 
@@ -1029,7 +1198,44 @@ class RepoClient(RestClient):
         if not is_private and "approval_policy" in data:
             await self._update_fork_pr_approval_policy(org_id, repo_name, {"approval_policy": data["approval_policy"]})
 
+        if "max_cache_size_gb" in data:
+            await self._update_max_cache_size_gb(org_id, repo_name, data["max_cache_size_gb"])
+
         _logger.debug("updated %d workflow setting(s)", len(data))
+
+    async def _get_max_cache_size_gb(self, org_id: str, repo_name: str) -> dict[str, Any]:
+        _logger.debug("retrieving cache size for repo '%s/%s'", org_id, repo_name)
+
+        response = await self._get_optional_json(
+            f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit",
+            feature_description=f"cache size for repo '{org_id}/{repo_name}'",
+        )
+        if response is None:
+            return {}
+
+        if "max_cache_size_gb" not in response:
+            # An incomplete success response must not become an absent setting:
+            # reconciliation would then skip drift detection for the configured limit.
+            raise RuntimeError(
+                f"GitHub response for repository cache size of '{org_id}/{repo_name}' "
+                "does not contain 'max_cache_size_gb'"
+            )
+
+        return {"max_cache_size_gb": response["max_cache_size_gb"]}
+
+    async def _update_max_cache_size_gb(self, org_id: str, repo_name: str, max_cache_size_gb: int) -> None:
+        _logger.debug("updating cache size for repo '%s/%s'", org_id, repo_name)
+
+        status, body = await self.requester.request_raw(
+            "PUT",
+            f"/repos/{org_id}/{repo_name}/actions/cache/storage-limit",
+            data=json.dumps({"max_cache_size_gb": max_cache_size_gb}),
+        )
+
+        if status != 204:
+            raise RuntimeError(f"failed to update cache size for repo '{org_id}/{repo_name}': {body}")
+
+        _logger.debug("updated cache size for repo '%s/%s'", org_id, repo_name)
 
     async def _get_selected_actions_for_workflow_settings(self, org_id: str, repo_name: str) -> dict[str, Any]:
         _logger.debug("retrieving allowed actions for repo '%s/%s'", org_id, repo_name)
@@ -1176,17 +1382,15 @@ class RepoClient(RestClient):
                 if path.is_file():
                     _logger.debug("updating file '%s'", relative_path)
 
-                    with open(path) as file:
-                        content = file.read()
+                    async with aiofiles.open(path) as file:
+                        content = await file.read()
 
-                        if str(relative_path) in template_paths_set:
-                            content = self._render_template_content(org_id, repo_name, content)
+                    if str(relative_path) in template_paths_set:
+                        content = self._render_template_content(org_id, repo_name, content)
 
-                        updated = await self.rest_api.content.update_content(
-                            org_id, repo_name, str(relative_path), content
-                        )
-                        if updated:
-                            updated_files.append(str(relative_path))
+                    updated = await self.rest_api.content.update_content(org_id, repo_name, str(relative_path), content)
+                    if updated:
+                        updated_files.append(str(relative_path))
 
         return updated_files
 

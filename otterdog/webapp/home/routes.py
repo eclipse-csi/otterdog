@@ -341,6 +341,8 @@ async def defaults(project_name: str):
             ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
             ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
             ("environment", "Environment", f"{jsonnet_config.create_environment}('<name>')"),
+            ("environment-secret", "Environment Secret", f"{jsonnet_config.create_environment_secret}('<name>')"),
+            ("environment-variable", "Environment Variable", f"{jsonnet_config.create_environment_variable}('<name>')"),
             ("bpr", "Branch Protection Rule", f"{jsonnet_config.create_branch_protection_rule}('<pattern>')"),
             ("repo-ruleset", "Repository Ruleset", f"{jsonnet_config.create_repo_ruleset}('<name>')"),
             ("ruleset-pull-request", "Pull Request Settings", f"{jsonnet_config.create_pull_request}()"),

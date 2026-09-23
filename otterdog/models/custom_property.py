@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from jsonbender import OptionalS, S  # type: ignore
 
@@ -35,12 +35,15 @@ class CustomProperty(ModelObject):
     Represents a Custom Property defined in an Organization.
     """
 
+    VALUE_TYPES_WITH_ALLOWED_VALUES: ClassVar[frozenset[str]] = frozenset({"single_select", "multi_select"})
+
     name: str = dataclasses.field(metadata={"key": True})
     value_type: str
     required: bool
     default_value: str | list[str] | None
     description: str | None
     allowed_values: list[str] | None
+    values_editable_by: str | None
 
     @property
     def model_object_name(self) -> str:
@@ -56,7 +59,7 @@ class CustomProperty(ModelObject):
                 )
 
             if (
-                self.value_type in {"single_select", "multi_select"}
+                self.value_type in self.VALUE_TYPES_WITH_ALLOWED_VALUES
                 and is_set_and_present(self.allowed_values)
                 and len(self.allowed_values) == 0
             ):
@@ -67,7 +70,7 @@ class CustomProperty(ModelObject):
                 )
 
             if (
-                self.value_type in {"single_select", "multi_select"}
+                self.value_type in self.VALUE_TYPES_WITH_ALLOWED_VALUES
                 and is_set_and_present(self.allowed_values)
                 and len(self.allowed_values) > 200
             ):
@@ -128,11 +131,22 @@ class CustomProperty(ModelObject):
                             f"but some of its elements are not in the list of allowed values '{self.allowed_values}'.",
                         )
 
+        if is_set_and_present(self.values_editable_by) and self.values_editable_by not in {
+            "org_actors",
+            "org_and_repo_actors",
+        }:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'values_editable_by' of value "
+                f"'{self.values_editable_by}', "
+                f"while only values ('org_actors' | 'org_and_repo_actors' | null) are allowed.",
+            )
+
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.required is not True and field.name in ["default_value"]:
             return False
 
-        if self.value_type not in {"single_select", "multi_select"} and field.name in ["allowed_values"]:
+        if self.value_type not in self.VALUE_TYPES_WITH_ALLOWED_VALUES and field.name in ["allowed_values"]:
             return False
 
         return True
@@ -159,6 +173,10 @@ class CustomProperty(ModelObject):
 
         if "name" in data:
             mapping.pop("name")
+
+        value_type = data.get("value_type")
+        if value_type not in cls.VALUE_TYPES_WITH_ALLOWED_VALUES and "allowed_values" in mapping:
+            mapping.pop("allowed_values")
 
         return mapping
 

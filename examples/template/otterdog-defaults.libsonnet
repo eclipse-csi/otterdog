@@ -75,6 +75,9 @@ local newRepo(name) = {
   workflows: {
     enabled: true,
 
+    # Maximum total size of all GitHub Actions caches for this repository, in GB.
+    max_cache_size_gb: 10,
+
     # allow all actions by default
     allowed_actions: "all",
     allow_github_owned_actions: true,
@@ -274,10 +277,19 @@ local newEnvironment(name) = {
   name: name,
   wait_timer: 0,
   reviewers: [],
+  prevent_self_review: false,
   # Can be one of: all, protected_branches, branch_policies
   deployment_branch_policy: "all",
   branch_policies: [],
+  secrets: [],
+  variables: [],
 };
+
+# Function to create a new environment secret with default settings.
+local newEnvSecret(name) = newRepoSecret(name);
+
+# Function to create a new environment variable with default settings.
+local newEnvVariable(name) = newRepoVariable(name);
 
 # Function to create a new custom property with default settings.
 local newCustomProperty(name) = {
@@ -287,6 +299,7 @@ local newCustomProperty(name) = {
   default_value: null,
   description: null,
   allowed_values: [],
+  values_editable_by: null,
 };
 
 # Function to create a new organization with default settings.
@@ -321,6 +334,10 @@ local newOrg(name, id=name) = {
 
     # Repository forking
     members_can_fork_private_repositories: false,
+
+    # Controls whether members with admin permissions on repositories can add deploy keys.
+    # Disabling this prevents new deploy keys from being added across all repositories in the organization.
+    deploy_keys_enabled_for_repositories: true,
 
     # Repository defaults: Commit signoff
     web_commit_signoff_required: true,
@@ -378,6 +395,9 @@ local newOrg(name, id=name) = {
       # enable workflows for all repositories
       enabled_repositories: "all",
       selected_repositories: [],
+
+      # Maximum total size of all GitHub Actions caches for each repository, in GB.
+      max_cache_size_gb: 10,
 
       # allow all actions by default
       allowed_actions: "all",
@@ -440,6 +460,8 @@ local newOrg(name, id=name) = {
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,
   newEnvironment:: newEnvironment,
+  newEnvSecret:: newEnvSecret,
+  newEnvVariable:: newEnvVariable,
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,
