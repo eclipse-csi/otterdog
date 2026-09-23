@@ -12,6 +12,10 @@ config:
   debug: true
   configRepo: "otterdog-configs"
   configPath: "otterdog.json"
+  # Re-evaluate blueprints on every /internal/check run (every 5 minutes, see policies.schedule)
+  # instead of once per hour. Slightly below 300s: last_checked is stored once the evaluation
+  # has finished, so exactly 300s would skip every other run.
+  blueprintCheckInterval: 240
 
 github:
   webhookValidationContext: "otterdog/otterdog-validation"
