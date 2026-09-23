@@ -1,5 +1,35 @@
 # Change Log
 
+## [1.6.0] - 23/09/2026
+
+### Added
+
+ - Dependabot support python by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/744
+ - Pull Request Statistics dashboard by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/752
+ - Add AI-assisted issue triage workflow via GitHub Agentic Workflows by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/759
+
+### Changed
+
+ - chore(deps): bump the github-actions group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/742
+ - chore(deps): bump gitpython from 3.1.58 to 3.1.59 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/743
+ - chore(deps-dev): bump quart from 0.20.0 to 0.22.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/745
+ - chore(deps-dev): bump quart-auth from 0.10.1 to 0.12.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/747
+ - chore(deps-dev): bump pymongo from 4.9.1 to 4.17.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/748
+ - chore(deps-dev): bump quart-redis from 2.0.0 to 3.0.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/746
+ - chore(deps-dev): bump pymongo from 4.17.0 to 4.18.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/750
+ - chore(deps-dev): bump pymongo from 4.18.0 to 4.18.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/753
+ - chore(deps-dev): bump prek from 0.5.2 to 0.5.3 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/758
+ - chore(deps): bump pyjwt from 2.13.0 to 2.14.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/754
+ - chore(deps-dev): bump python-slugify from 8.0.4 to 9.0.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/757
+ - chore(deps): bump docker/build-push-action from 7.3.0 to 7.4.0 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/756
+ - chore(deps-dev): bump pymdown-extensions from 11.0.2 to 12.0.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/755
+
+### Fixed
+
+ - Handle null ref conditions in disabled rulesets by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/751
+ - fix: raise out-of-sync notification level by @jacksonsr451 in https://github.com/eclipse-csi/otterdog/pull/765
+ - Fix blueprint dismissed by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/766
+
 ## [1.5.0] - 07/09/2026
 
 ### Added
