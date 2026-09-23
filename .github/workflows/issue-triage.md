@@ -19,6 +19,7 @@ on:
     query: "is:issue is:open -label:\"ai-triaged\""
     min: 1
   reaction: eyes
+  roles: [admin, maintainer, write, read]
 
 concurrency:
   job-discriminator: ${{ github.event.inputs.issue_number || github.event.issue.number || github.run_id }}
