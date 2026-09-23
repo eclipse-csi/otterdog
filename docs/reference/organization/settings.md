@@ -14,6 +14,7 @@ The following table captures all supported settings on organization level:
 | _default_branch_name_                           | string                                       | The default branch name for newly created repositories                                                                                                                         |                                                          |
 | _default_repository_permission_                 | string                                       | The base permission for all members of the organization for its repositories                                                                                                   | `none`, `read`, `write` or `admin`                       |
 | _default_code_security_configurations_disabled_ | boolean                                      | If default code security configuration should be disabled, no processing if the setting is set to `true`                                                                       |                                                          |
+| _deploy_keys_enabled_for_repositories_          | boolean                                      | If deploy keys can be added to and used for repositories within the organization                                                                                               |                                                          |
 | _discussion_source_repository_                  | string or null                               | The source repository to host organization discussions                                                                                                                         |                                                          |
 | _has_discussions_                               | boolean                                      | If discussions are enabled for the organization. If `true`, property `discussion_source_repository` must be set as well                                                        |                                                          |
 | _has_organization_projects_                     | boolean                                      | If the organization can have organization projects                                                                                                                             |                                                          |
@@ -52,6 +53,10 @@ The following table captures all supported settings on organization level:
 | _default_workflow_permissions_             | string       | The default workflow permissions granted to the GITHUB_TOKEN       | `read` or `write`                                                                                 |
 | _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                     |                                                                                                   |
 | _fork_pr_approval_policy_                  | string       | Controls when fork PR workflows require approval from a maintainer | `first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors` |
+| _max_cache_size_gb_                         | integer      | Maximum total size of all GitHub Actions caches for each repository, in GB |                                                                                                  |
+
+Increasing the cache size limit may incur costs.
+Changes to the limit are flagged for designated review and are not eligible for automatic merging.
 
 ## Validation rules
 

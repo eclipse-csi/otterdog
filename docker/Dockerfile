@@ -1,48 +1,55 @@
-FROM node:20-alpine@sha256:c13b26e7e602ef2f1074aef304ce6e9b7dd284c419b35d89fcf3cc8e44a8def9 AS builder-node
-
-WORKDIR /app
-
-COPY ./otterdog ./otterdog
+FROM node:26-alpine@sha256:c9f02360d2bc66e709b300214395588acd2d3603f600db8141117e67c0faf4ff AS builder-node
 
 WORKDIR /app/otterdog/webapp/static
 
+# copy only the npm manifests first so `npm ci` layer stays cached
+# across source-only edits (npm ci is by far the slowest step here)
+COPY ./otterdog/webapp/static/package.json ./otterdog/webapp/static/package-lock.json ./
+
 RUN npm ci
+
+# now copy the rest of the source and build
+COPY ./otterdog /app/otterdog
+
 RUN npm run build
 
 # build otterdog using a python environment
-FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249 AS builder-python3
+FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464 AS builder-python3
 
-ARG version
-
-RUN apt-get update \
-    && apt-get install -y \
-        curl
+ARG version=0.0.0.dev0
 
 WORKDIR /app
 
 ENV PIP_DEFAULT_TIMEOUT=100 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    POETRY_VERSION=2.0.1 \
+    POETRY_VERSION=2.4.1 \
     POETRY_HOME='/usr/local' \
+    POETRY_INSTALLER_ONLY_BINARY=:all: \
+    POETRY_INSTALLER_NO_BINARY=github-flask,jsonbender \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
+# copy only dependency manifests first so `poetry install` layer stays
+# cached across source-only edits (dependency resolution/install is the
+# slowest step here)
+COPY ./pyproject.toml ./poetry.lock ./README.md ./
+
+RUN pip install --only-binary :all: "poetry-dynamic-versioning[plugin]==1.10.0" "poetry==${POETRY_VERSION}"
+
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --only=main,app --no-root --no-interaction --no-ansi
+
+# now copy the actual source and build/install the root package
 COPY ./otterdog ./otterdog
-COPY ./pyproject.toml ./poetry.lock ./README.md ./docker/hypercorn-cfg.toml ./
+COPY ./docker/hypercorn-cfg.toml ./
 COPY ./docker/start-webapp ./docker/start-webapp
 COPY ./docker/init-webapp ./docker/init-webapp
 
-RUN curl -sSL https://install.python-poetry.org | python -
-
-RUN poetry self add "poetry-dynamic-versioning[plugin]"
-
-RUN poetry config virtualenvs.in-project true && \
-    poetry install --only=main,app --no-root && \
-    poetry build && \
+RUN poetry build && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
-FROM python:3.12.7-slim@sha256:032c52613401895aa3d418a4c563d2d05f993bc3ecc065c8f4e2280978acd249
+FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

@@ -52,7 +52,7 @@ class InstallAppOperation(Operation):
 
         try:
             try:
-                credentials = self.get_credentials(org_config)
+                credentials = self.get_credentials(org_config, only_token=True)
             except RuntimeError as e:
                 self.printer.print_error(f"invalid credentials\n{e!s}")
                 return 1

@@ -11,7 +11,56 @@ import json
 import pretend
 import pytest
 
-from otterdog.providers.github.rest.org_client import GitHubException, OrgClient
+from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.rest.org_client import OrgClient
+
+
+class TestRestClientOptionalJson:
+    async def test_get_optional_json_returns_response(self):
+        expected_response = {"max_cache_size_gb": 50}
+
+        async def mock_request(method, url):
+            assert method == "GET"
+            assert url == "/orgs/org/actions/cache/storage-limit"
+            return 200, json.dumps(expected_response)
+
+        mock_requester = pretend.stub(request_raw=mock_request)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client._get_optional_json(
+            "/orgs/org/actions/cache/storage-limit",
+            feature_description="cache size for org 'org'",
+        )
+
+        assert result == expected_response
+
+    @pytest.mark.parametrize("status", [402, 403, 404])
+    async def test_get_optional_json_returns_none_for_unavailable_endpoint(self, status):
+        async def mock_request(method, url):
+            return status, "feature unavailable"
+
+        mock_requester = pretend.stub(request_raw=mock_request)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client._get_optional_json(
+            "/orgs/org/actions/cache/storage-limit",
+            feature_description="cache size for org 'org'",
+        )
+
+        assert result is None
+
+    async def test_get_optional_json_raises_for_unexpected_status(self):
+        async def mock_request(method, url):
+            return 500, "internal server error"
+
+        mock_requester = pretend.stub(request_raw=mock_request)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        with pytest.raises(RuntimeError, match="cache size for org 'org': 500"):
+            await org_client._get_optional_json(
+                "/orgs/org/actions/cache/storage-limit",
+                feature_description="cache size for org 'org'",
+            )
 
 
 class TestOrgClientForkPrApprovalPolicy:
@@ -113,6 +162,11 @@ class TestOrgClientForkPrApprovalPolicy:
         mock_restapi = pretend.stub(requester=mock_requester)
         org_client = OrgClient(mock_restapi)
         org_client._get_fork_pr_approval_policy = mock_get
+
+        async def mock_cache_size(org):
+            return {"max_cache_size_gb": 10}
+
+        org_client._get_max_cache_size_gb = mock_cache_size
 
         result = await org_client.get_workflow_settings("org")
 

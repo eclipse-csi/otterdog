@@ -6,6 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from datetime import datetime, timedelta
+from logging import getLogger
+
 from ariadne import graphql
 from ariadne.explorer import ExplorerGraphiQL
 from quart import jsonify, request
@@ -21,8 +24,12 @@ from otterdog.webapp.db.service import (
     get_scorecard_results_paged,
     get_tasks_paged,
 )
+from otterdog.webapp.statistics import get_pull_request_activity_job
+from otterdog.webapp.utils import current_utc_time
 
 from . import blueprint
+
+logger = getLogger(__name__)
 
 explorer_html = ExplorerGraphiQL(title="Otterdog GraphQL").html(None)
 
@@ -71,6 +78,65 @@ async def merged_pullrequests():
     paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
     result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
     return jsonify(result)
+
+
+# supported time ranges of the pull request statistics, mapped to their length in days,
+# "all" covers the complete history and thus has no lower bound
+_STATISTICS_RANGES = {"7d": 7, "14d": 14, "30d": 30, "90d": 90, "6m": 183, "12m": 365, "all": None}
+
+
+def _statistics_parameters() -> tuple[str, str, str | None]:
+    return (
+        request.args.get("interval", "month"),
+        request.args.get("range", "12m"),
+        request.args.get("org") or None,
+    )
+
+
+def _validate_statistics_parameters(interval: str, time_range: str) -> str | None:
+    if interval not in ("day", "week", "month"):
+        return f"unsupported interval '{interval}'"
+
+    if time_range not in _STATISTICS_RANGES:
+        return f"unsupported range '{time_range}'"
+
+    return None
+
+
+def _since_of_range(time_range: str) -> datetime | None:
+    """
+    Start of the given range, inclusive of today.
+
+    The aggregation buckets by whole days, so a range of 7 days has to start 6 days before
+    today, otherwise today plus the seven preceding days make eight daily buckets.
+    """
+
+    days = _STATISTICS_RANGES[time_range]
+    if days is None:
+        return None
+
+    today = current_utc_time().replace(hour=0, minute=0, second=0, microsecond=0)
+    return today - timedelta(days=days - 1)
+
+
+@blueprint.route("/pullrequests/statistics/progress")
+async def pullrequest_statistics_progress():
+    """
+    Reports the progress of collecting the pull request statistics, starting the collection on
+    the first call and returning the result once it is done.
+
+    Polling with short requests is used rather than a single long running one, as collecting
+    the data of all organizations easily outlives the request timeout of a reverse proxy.
+    """
+
+    interval, time_range, org_id = _statistics_parameters()
+
+    error = _validate_statistics_parameters(interval, time_range)
+    if error is not None:
+        return {"error": error}, 400
+
+    since = _since_of_range(time_range)
+    return jsonify(await get_pull_request_activity_job(interval, time_range, since, org_id))
 
 
 @blueprint.route("/blueprints/remediations")

@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from otterdog.logging import get_logger
 from otterdog.providers.github.cache.file import file_cache
 
 from .requester import Requester
@@ -20,6 +22,8 @@ if TYPE_CHECKING:
     from otterdog.providers.github.auth import AuthStrategy
     from otterdog.providers.github.cache import CacheStrategy
     from otterdog.providers.github.stats import RequestStatistics
+
+_logger = get_logger(__name__)
 
 _DEFAULT_CACHE_STRATEGY = file_cache()
 
@@ -148,6 +152,33 @@ class RestClient:
     @property
     def requester(self) -> Requester:
         return self.__rest_api.requester
+
+    async def _get_optional_json(
+        self,
+        url_path: str,
+        *,
+        feature_description: str,
+        unavailable_statuses: tuple[int, ...] = (402, 403, 404),
+    ) -> dict[str, Any] | None:
+        """Fetch a GitHub endpoint that might not be available depending on the plan or add-ons.
+
+        Returns None (after warning once per endpoint) if the response status is one of
+        ``unavailable_statuses``, instead of raising.
+        """
+        status, body = await self.requester.request_raw("GET", url_path)
+
+        if status in unavailable_statuses:
+            _logger.warning(
+                "%s not available (status=%s), any configured setting will not be validated",
+                feature_description,
+                status,
+            )
+            return None
+
+        if status != 200:
+            raise RuntimeError(f"failed retrieving {feature_description}: {status}: {body}")
+
+        return json.loads(body)
 
 
 def encrypt_value(public_key: str, secret_value: str) -> str:

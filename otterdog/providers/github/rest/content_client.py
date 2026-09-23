@@ -26,7 +26,7 @@ class ContentClient(RestClient):
     ) -> list[dict[str, Any]]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         if not isinstance(json_response, list):
-            raise RuntimeError(f"unexpected result for retrieving contents of path '{path}': '{type(json_response)}'")
+            raise TypeError(f"unexpected result for retrieving contents of path '{path}': '{type(json_response)}'")
         return json_response
 
     async def get_content_object(
@@ -46,7 +46,7 @@ class ContentClient(RestClient):
     async def get_content(self, org_id: str, repo_name: str, path: str, ref: str | None = None) -> str:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         if not isinstance(json_response, dict):
-            raise RuntimeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
+            raise TypeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
         return base64.b64decode(json_response["content"]).decode("utf-8")
 
     async def get_content_with_sha(
@@ -54,7 +54,7 @@ class ContentClient(RestClient):
     ) -> tuple[str, str]:
         json_response = await self.get_content_object(org_id, repo_name, path, ref)
         if not isinstance(json_response, dict):
-            raise RuntimeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
+            raise TypeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
         return base64.b64decode(json_response["content"]).decode("utf-8"), json_response["sha"]
 
     async def update_content(
@@ -74,12 +74,10 @@ class ContentClient(RestClient):
         try:
             json_response = await self.get_content_object(org_id, repo_name, path, ref)
             if not isinstance(json_response, dict):
-                raise RuntimeError(
-                    f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'"
-                )
+                raise TypeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
             old_sha = json_response["sha"]
             old_content = base64.b64decode(json_response["content"]).decode("utf-8")
-        except RuntimeError:
+        except (RuntimeError, TypeError):
             old_sha = None
             old_content = None
 
@@ -132,11 +130,9 @@ class ContentClient(RestClient):
         try:
             json_response = await self.get_content_object(org_id, repo_name, path)
             if not isinstance(json_response, dict):
-                raise RuntimeError(
-                    f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'"
-                )
+                raise TypeError(f"unexpected result for retrieving content of path '{path}': '{type(json_response)}'")
             old_sha = json_response["sha"]
-        except RuntimeError:
+        except (RuntimeError, TypeError):
             old_sha = None
 
         if old_sha is None:

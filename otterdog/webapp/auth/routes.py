@@ -44,16 +44,23 @@ async def authorized(oauth_token):
     if oauth_token is None:
         return redirect(next_url)
 
-    from requests import get
+    import aiohttp
 
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {oauth_token}",
     }
 
-    response = get("https://api.github.com/user", headers=headers, timeout=10)
-    if response.ok:
-        account_info = response.json()
+    async with (
+        aiohttp.ClientSession() as session,
+        session.get(
+            "https://api.github.com/user", headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+        ) as response,
+    ):
+        response_ok = response.ok
+        account_info = await response.json() if response_ok else None
+
+    if response_ok:
         node_id = account_info["node_id"]
         username = account_info["login"]
         email = account_info["email"]

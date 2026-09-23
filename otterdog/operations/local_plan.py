@@ -66,7 +66,11 @@ class LocalPlanOperation(PlanOperation):
         return GitHubProvider(self.get_credentials(org_config, only_token=True))
 
     async def load_current_org(
-        self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
+        self,
+        project_name: str,
+        github_id: str,
+        jsonnet_config: JsonnetConfig,
+        expected_org: GitHubOrganization | None = None,
     ) -> GitHubOrganization:
         other_org_file_name = jsonnet_config.org_config_file + self.suffix
 

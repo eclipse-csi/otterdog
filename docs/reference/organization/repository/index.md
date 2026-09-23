@@ -51,7 +51,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _webhooks_                                | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                                                                                                                            |
 | _secrets_                                 | list\[[RepositorySecret](secret.md)\]                     | secrets defined for this repo, see section below for details                            |                                                                                                                                                                                            |
 | _variables_                               | list\[[RepositoryVariable](variable.md)\]                 | variables defined for this repo, see section below for details                          |                                                                                                                                                                                            |
-| _environments_                            | list\[[Environment](environment.md)\]                     | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
+| _environments_                            | list\[[Environment](environment/index.md)\]               | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
 | _branch_protection_rules_                 | list\[[BranchProtectionRule](branch-protection-rule.md)\] | branch protection rules of the repo, see section below for details                      |                                                                                                                                                                                            |
 
 ## Embedded Models
@@ -61,6 +61,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | Key                                        | Value        | Description                                                        | Notes                                                                                             |
 |--------------------------------------------|--------------|--------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
 | _enabled_                                  | boolean      | If GitHub actions are enabled for this repository                  |                                                                                                   |
+| _max_cache_size_gb_                        | integer      | Maximum total size of all GitHub Actions caches, in GB             |                                                                                                   |
 | _allowed_actions_                          | string       | Defines which type of GitHub Actions are permitted to run          | `all`, `local_only` or `selected`                                                                 |
 | _allow_github_owned_actions_               | boolean      | If GitHub owned actions are permitted to run                       | Only taken into account when `allowed_actions` is set to `selected`                               |
 | _allow_verified_creator_actions_           | boolean      | If GitHub Actions from verified creators are permitted to run      | Only taken into account when `allowed_actions` is set to `selected`                               |
@@ -69,6 +70,8 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                     |                                                                                                   |
 | _fork_pr_approval_policy_                  | string       | Controls when fork PR workflows require approval from a maintainer | `first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors` |
 
+Increasing the cache size limit may incur costs.
+Changes to the limit are flagged for designated review and are not eligible for automatic merging.
 
 ## Jsonnet Function
 
@@ -135,6 +138,7 @@ Definition of a Repository for a GitHub organization, the following properties a
           web_commit_signoff_required: false,
           workflows+: {
             enabled: false,
+            max_cache_size_gb: 50,
           },
           branch_protection_rules: [
             orgs.newBranchProtectionRule('main'),

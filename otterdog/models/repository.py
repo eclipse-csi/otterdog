@@ -208,6 +208,15 @@ class Repository(ModelObject):
     def model_object_name(self) -> str:
         return "repository"
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        # stamp the repository name onto each environment so that nested environment
+        # secrets / variables can address the correct REST endpoints later on, see
+        # Environment.repo_name.
+        for env in self.environments:
+            env.repo_name = self.name
+
     def get_all_names(self) -> list[str]:
         return [self.name, *self.aliases]
 
@@ -255,6 +264,9 @@ class Repository(ModelObject):
 
     def add_environment(self, environment: Environment) -> None:
         self.environments.append(environment)
+
+    def get_environment(self, name: str) -> Environment | None:
+        return next(filter(lambda x: x.name == name, self.environments), None)
 
     def set_environments(self, environments: list[Environment]) -> None:
         self.environments = environments
@@ -311,7 +323,6 @@ class Repository(ModelObject):
         )
 
     async def validate_code_scanning_languages(self, context: ValidationContext, parent_object: Any) -> None:
-
         # Only validate if provider is available and validation is required
         if self.requires_language_validation() and context.provider is not None:
             provider = context.provider
@@ -367,7 +378,6 @@ class Repository(ModelObject):
                 )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         github_id = cast("GitHubOrganization", parent_object).github_id
         org_settings = cast("GitHubOrganization", parent_object).settings
 
@@ -471,7 +481,7 @@ class Repository(ModelObject):
 
         if is_set_and_present(self.custom_properties):
             defined_properties = associate_by_key(org_settings.custom_properties, lambda x: x.name)
-            for k, _v in self.custom_properties.items():
+            for k in self.custom_properties:
                 if k not in defined_properties:
                     context.add_failure(
                         FailureType.ERROR,
@@ -1028,6 +1038,9 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.resolve_secrets(secret_resolver)
 
+        for env in self.environments:
+            env.resolve_secrets(secret_resolver)
+
     def copy_secrets(self, other_object: ModelObject) -> None:
         for webhook in self.webhooks:
             other_repo = cast("Repository", other_object)
@@ -1040,6 +1053,12 @@ class Repository(ModelObject):
             other_secret = other_repo.get_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
+
+        for env in self.environments:
+            other_repo = cast("Repository", other_object)
+            other_env = other_repo.get_environment(env.name)
+            if other_env is not None:
+                env.copy_secrets(other_env)
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.extend_repo}" if extend else f"orgs.{jsonnet_config.create_repo}"
@@ -1233,7 +1252,7 @@ class Repository(ModelObject):
                 if not isinstance(from_value, dict) or not isinstance(to_value, dict) or change.to_value is None:
                     raise RuntimeError(f"unexpected change '{change}'")
 
-                for k, _v in from_value.items():
+                for k in from_value:
                     if k not in to_value:
                         change.to_value[k] = None
 
@@ -1414,8 +1433,7 @@ class Repository(ModelObject):
         adds: dict[str, str] = {}
 
         # Keys only in "from": delete
-        for team in from_perms.keys() - to_perms.keys():
-            deletes.append(team)
+        deletes = list(from_perms.keys() - to_perms.keys())
 
         # Keys in both: update if permission changed
         for team in from_perms.keys() & to_perms.keys():

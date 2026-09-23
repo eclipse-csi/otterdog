@@ -28,7 +28,7 @@ class GitHubProviderTestKit:
         self.provider = self._create_provider_with_mock_client()
 
     def _create_provider_with_mock_client(self) -> GitHubProvider:
-        import otterdog.providers.github.rest.requester as requester
+        from otterdog.providers.github.rest import requester
 
         credentials = Credentials(
             "fake-user",
@@ -55,8 +55,7 @@ class GitHubProviderTestKit:
 
         # we need to patch the encrypt_value function where it is being used
         # see: https://docs.python.org/3/library/unittest.mock.html#where-to-patch
-        import otterdog.providers.github.rest.org_client as org_client
-        import otterdog.providers.github.rest.repo_client as repo_client
+        from otterdog.providers.github.rest import org_client, repo_client
 
         def encrypt_value(pk: str, value: str) -> str:
             assert pk == params[0], f"unexpected public key: {pk!r}"

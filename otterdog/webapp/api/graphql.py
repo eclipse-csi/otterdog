@@ -16,7 +16,6 @@ from ariadne import (
     QueryType,
     load_schema_from_path,
     make_executable_schema,
-    snake_case_fallback_resolvers,
 )
 
 from otterdog.utils import query_json
@@ -53,4 +52,4 @@ async def resolve_repositories(config: dict[str, Any], *_, filter=None):
     return repositories
 
 
-schema = make_executable_schema(type_defs, query, configuration_type, snake_case_fallback_resolvers)
+schema = make_executable_schema(type_defs, query, configuration_type, convert_names_case=True)

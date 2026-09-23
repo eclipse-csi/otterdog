@@ -110,6 +110,58 @@
         <!-- ./row -->
 
         <div class="row">
+          <div class="col-12">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Pull Request Automation</h3>
+                <div class="card-tools">
+                  <a href="/admin/pullrequests#pr-stats" class="btn btn-tool" title="Open the statistics">
+                    <i class="fas fa-chart-bar"></i>
+                  </a>
+                </div>
+              </div>
+              <div class="card-body">
+                <p class="text-center text-muted" id="pr-automation-loading">Loading the statistics...</p>
+                <div class="alert alert-warning" id="pr-automation-warning" style="display: none;"></div>
+                <div class="row" id="pr-automation" style="display: none;">
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-rate">&mdash;</h3>
+                    <p class="text-muted mb-3"><small>Auto-merge rate</small></p>
+                  </div>
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-auto-merged">0</h3>
+                    <p class="text-muted mb-3"><small>Auto-merged</small></p>
+                  </div>
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-merged">0</h3>
+                    <p class="text-muted mb-3"><small>Merged manually</small></p>
+                  </div>
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-cycle-auto">&mdash;</h3>
+                    <p class="text-muted mb-3"><small>Cycle time (auto)</small></p>
+                  </div>
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-cycle-manual">&mdash;</h3>
+                    <p class="text-muted mb-3"><small>Cycle time (manual)</small></p>
+                  </div>
+                  <div class="col-6 col-md-4 col-xl-2 text-center">
+                    <h3 class="text-secondary mb-0" id="pr-automation-oldest">&mdash;</h3>
+                    <p class="text-muted mb-3"><small>Oldest open PR</small></p>
+                  </div>
+                </div>
+                <p class="text-center text-muted mb-0">
+                  <small>
+                    Over the last 12 months, across every organization that could be read.
+                    <a href="/admin/pullrequests#pr-stats">See the full statistics</a>.
+                  </small>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- ./row -->
+
+        <div class="row">
           <div class="col-sm-3">
             <div class="card card-info">
               <div class="card-header">
@@ -183,7 +235,95 @@
   <script src="/assets/vendor/chartjs/chart.umd.js"></script>
 
   <script type="module">
+    // the statistics are read from GitHub and may need a moment the very first time, so give up
+    // rather than polling the dashboard forever
+    var MAX_AUTOMATION_POLLS = 15;
+
+    function formatAge(days) {
+      // a backlog younger than a day would otherwise read as an age of zero
+      if (days < 1) {
+        return Math.max(1, Math.round(days * 24)) + " h";
+      }
+
+      return Math.round(days) + " d";
+    }
+
+    function formatHours(hours) {
+      if (hours === null || hours === undefined) {
+        return "n/a";
+      }
+
+      if (hours < 1) {
+        return Math.round(hours * 60) + " min";
+      }
+
+      return hours < 48 ? hours.toFixed(1) + " h" : (hours / 24).toFixed(1) + " d";
+    }
+
+    function loadPullRequestAutomation(attempt) {
+      $.ajax({
+        url: "/api/pullrequests/statistics/progress?interval=month&range=12m",
+        dataType: "json"
+      }).done(function(response) {
+        if (response.status === "done") {
+          showPullRequestAutomation(response.result);
+          return;
+        }
+
+        if (response.status === "failed" || attempt >= MAX_AUTOMATION_POLLS) {
+          $("#pr-automation-loading").text("The statistics are not available right now.");
+          return;
+        }
+
+        setTimeout(function() {
+          loadPullRequestAutomation(attempt + 1);
+        }, Math.min(500 * attempt, 2000));
+      }).fail(function() {
+        $("#pr-automation-loading").text("The statistics are not available right now.");
+      });
+    }
+
+    function showPullRequestAutomation(result) {
+      var merged = 0;
+      var autoMerged = 0;
+
+      result.data.forEach(function(activity) {
+        merged += activity.merged;
+        autoMerged += activity.auto_merged;
+      });
+
+      var byLabel = {};
+      (result.cycle_times || []).forEach(function(cycleTime) {
+        byLabel[cycleTime.label] = cycleTime;
+      });
+
+      var oldest = (result.oldest_open || [])[0];
+
+      $("#pr-automation-rate").text(merged > 0 ? Math.round((autoMerged / merged) * 100) + "%" : "n/a");
+      $("#pr-automation-auto-merged").text(autoMerged.toLocaleString());
+      $("#pr-automation-merged").text((merged - autoMerged).toLocaleString());
+      $("#pr-automation-cycle-auto").text(formatHours((byLabel["Auto-merge"] || {}).median_hours));
+      $("#pr-automation-cycle-manual").text(formatHours((byLabel["Manual merge"] || {}).median_hours));
+      $("#pr-automation-oldest").text(oldest ? formatAge(oldest.age_days) : "n/a");
+
+      var failed = result.failed_organizations || [];
+      if (failed.length > 0) {
+        // the same figures on the statistics page carry this warning, the card must not look
+        // more complete than it is
+        $("#pr-automation-warning")
+          .text(
+            failed.length + " organization(s) could not be read, these figures are incomplete." +
+              (result.rate_limited ? " GitHub collection stopped because too few rate-limit points remained." : "")
+          )
+          .show();
+      }
+
+      $("#pr-automation-loading").hide();
+      $("#pr-automation").show();
+    }
+
     $(document).ready(function() {
+      loadPullRequestAutomation(1);
       drawTwoFactorChart();
       drawSecretScanningChart();
       drawDependabotChart();

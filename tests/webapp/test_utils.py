@@ -7,8 +7,16 @@
 #  *******************************************************************************
 
 from datetime import timedelta
+from unittest.mock import AsyncMock, patch
 
-from otterdog.webapp.utils import backoff_if_needed, current_utc_time
+from otterdog.webapp.utils import (
+    backoff_if_needed,
+    contains_team_matching_approval_pattern,
+    current_utc_time,
+    describe_approval_teams,
+    get_approval_team_patterns,
+    team_matches_approval_pattern,
+)
 
 
 async def test_backoff_if_needed():
@@ -23,3 +31,82 @@ async def test_backoff_if_needed():
     await backoff_if_needed(start - timedelta(seconds=60), timedelta(seconds=3))
     end = current_utc_time()
     assert end - start < timedelta(seconds=1)
+
+
+async def test_get_approval_team_patterns_splits_and_strips_entries(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = " project-leads , .*-committers$ "
+        assert await get_approval_team_patterns() == ["project-leads", ".*-committers$"]
+
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads$"
+        assert await get_approval_team_patterns() == ["project-leads$"]
+
+
+def _installation_with_approval_teams(approval_teams: str | None):
+    installation = AsyncMock()
+    installation.approval_teams = approval_teams
+    return installation
+
+
+async def test_get_approval_team_patterns_org_override(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads$"
+
+        with patch(
+            "otterdog.webapp.db.service.get_installation_by_github_id",
+            return_value=_installation_with_approval_teams("org-leads,.*-maintainers$"),
+        ):
+            assert await get_approval_team_patterns("SomeOrg") == ["org-leads", ".*-maintainers$"]
+
+        # no installation found for the org: falls back to the global setting
+        with patch("otterdog.webapp.db.service.get_installation_by_github_id", return_value=None):
+            assert await get_approval_team_patterns("SomeOrg") == ["project-leads$"]
+
+        # installation found but without an override: falls back to the global setting
+        with patch(
+            "otterdog.webapp.db.service.get_installation_by_github_id",
+            return_value=_installation_with_approval_teams(None),
+        ):
+            assert await get_approval_team_patterns("SomeOrg") == ["project-leads$"]
+
+
+async def test_team_matches_approval_pattern_with_literal_and_regex_entries(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads,.*-committers$"
+
+        assert await team_matches_approval_pattern("org/project-leads") is True
+        assert await team_matches_approval_pattern("org/example-committers") is True
+        assert await team_matches_approval_pattern("org/some-other-team") is False
+
+        # Invalid regex entries should be ignored (and must not crash matching)
+        app.config["GITHUB_APPROVAL_TEAMS"] = "(,project-leads$"
+        assert await team_matches_approval_pattern("org/project-leads") is True
+
+
+async def test_contains_team_matching_approval_pattern(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads$"
+
+        assert await contains_team_matching_approval_pattern(["org/some-team", "org/project-leads"]) is True
+        assert await contains_team_matching_approval_pattern(["org/some-team", "org/other-team"]) is False
+        assert await contains_team_matching_approval_pattern([]) is False
+
+
+async def test_describe_approval_teams(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads$"
+
+        assert await describe_approval_teams(None) == "a team matching pattern 'project-leads$'"
+        assert await describe_approval_teams(["org/project-leads"]) == "team 'org/project-leads'"
+        assert await describe_approval_teams(["org/team-a", "org/team-b"]) == "team 'org/team-a' or 'org/team-b'"
+        assert await describe_approval_teams([]) == (
+            "a team matching pattern 'project-leads$' "
+            "(no team in this organization currently matches any of these patterns)"
+        )
+
+
+async def test_describe_approval_teams_with_multiple_patterns(app):
+    async with app.app_context():
+        app.config["GITHUB_APPROVAL_TEAMS"] = "project-leads$,.*-committers$"
+
+        assert await describe_approval_teams(None) == "a team matching patterns 'project-leads$' or '.*-committers$'"

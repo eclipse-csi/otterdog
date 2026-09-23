@@ -34,6 +34,7 @@ class CustomPropertyTest(ModelTest):
             "default_value": "Python",
             "description": "Primary language",
             "allowed_values": ["Python", "Java"],
+            "values_editable_by": "org_and_repo_actors",
         }
 
     @property
@@ -45,6 +46,7 @@ class CustomPropertyTest(ModelTest):
             "default_value": "Python",
             "description": "Primary language",
             "allowed_values": ["Python", "Java"],
+            "values_editable_by": "org_and_repo_actors",
         }
 
     def test_load_from_model(self):
@@ -57,6 +59,7 @@ class CustomPropertyTest(ModelTest):
         assert custom_property.default_value == "Python"
         assert custom_property.description == "Primary language"
         assert custom_property.allowed_values == ["Python", "Java"]
+        assert custom_property.values_editable_by == "org_and_repo_actors"
 
     def test_load_from_provider(self):
         """Loads a custom property from provider data."""
@@ -68,6 +71,7 @@ class CustomPropertyTest(ModelTest):
         assert custom_property.default_value == "Python"
         assert custom_property.description == "Primary language"
         assert custom_property.allowed_values == ["Python", "Java"]
+        assert custom_property.values_editable_by == "org_and_repo_actors"
 
     async def test_to_provider_excludes_name(self):
         """Converts to provider data without including the name key."""

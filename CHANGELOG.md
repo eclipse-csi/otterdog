@@ -1,6 +1,112 @@
 # Change Log
 
-## [1.3.4] - Unreleased
+## [1.6.0] - 23/09/2026
+
+### Added
+
+ - Dependabot support python by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/744
+ - Pull Request Statistics dashboard by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/752
+ - Add AI-assisted issue triage workflow via GitHub Agentic Workflows by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/759
+
+### Changed
+
+ - chore(deps): bump the github-actions group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/742
+ - chore(deps): bump gitpython from 3.1.58 to 3.1.59 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/743
+ - chore(deps-dev): bump quart from 0.20.0 to 0.22.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/745
+ - chore(deps-dev): bump quart-auth from 0.10.1 to 0.12.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/747
+ - chore(deps-dev): bump pymongo from 4.9.1 to 4.17.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/748
+ - chore(deps-dev): bump quart-redis from 2.0.0 to 3.0.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/746
+ - chore(deps-dev): bump pymongo from 4.17.0 to 4.18.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/750
+ - chore(deps-dev): bump pymongo from 4.18.0 to 4.18.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/753
+ - chore(deps-dev): bump prek from 0.5.2 to 0.5.3 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/758
+ - chore(deps): bump pyjwt from 2.13.0 to 2.14.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/754
+ - chore(deps-dev): bump python-slugify from 8.0.4 to 9.0.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/757
+ - chore(deps): bump docker/build-push-action from 7.3.0 to 7.4.0 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/756
+ - chore(deps-dev): bump pymdown-extensions from 11.0.2 to 12.0.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/755
+
+### Fixed
+
+ - Handle null ref conditions in disabled rulesets by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/751
+ - fix: raise out-of-sync notification level by @jacksonsr451 in https://github.com/eclipse-csi/otterdog/pull/765
+ - Fix blueprint dismissed by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/766
+
+## [1.5.0] - 07/09/2026
+
+### Added
+
+ - feat(org-settings): add deploy_keys_enabled_for_repositories support by @gdams in https://github.com/eclipse-csi/otterdog/pull/643
+ - Add pull_request_template by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/740
+ - Add GITHUB_APPROVAL_TEAMS, handle configurable approval teams by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/715
+ - Support GitHub Actions cache storage limits by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/739
+ - feat(custom-property): add values_editable_by support by @gdams in https://github.com/eclipse-csi/otterdog/pull/642
+
+### Changed
+
+ - Adapt skaffold dev to the otterdog helm chart 1.2.0 by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/706
+ - chore(deps): bump the github-actions group with 3 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/709
+ - chore(deps): bump gitpython from 3.1.52 to 3.1.54 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/710
+ - chore(deps): bump postcss from 8.5.12 to 8.5.23 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/711
+ - chore(deps-dev): bump pymdown-extensions from 10.21.3 to 11.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/708
+ - chore(deps-dev): bump vite and vite-plugin-static-copy in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/696
+ - chore(deps): bump the github-actions group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/720
+ - chore(deps): bump gitpython from 3.1.54 to 3.1.57 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/721
+ - Upgrade Ruff and prek by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/724
+ - Pin dependency-track chart to 1.3.0 for scaffold by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/728
+ - Optimize docker build for scaffold by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/727
+ - ngrok as a tailscale alternative for dev tunnel by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/730
+ - Upload SBOMs to sbom.eclipse.org with pia by @lukpueh in https://github.com/eclipse-csi/otterdog/pull/733
+ - chore(deps): bump the github-actions group across 1 directory with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/734
+ - chore(otterdog): pinning workflows due to blueprint `pin-workflows` by @eclipse-otterdog[bot] in https://github.com/eclipse-csi/otterdog/pull/736
+
+### Fixed
+
+ - Failfast when required configuration is missing, empty or not trim by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/712
+ - fix: docker-compose deployment by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/707
+ - Manage already deleted branch by github by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/713
+ - Potential memory leak in macos large runners policy by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/714
+ - Wrap git connection and allow explicit cleanup after checkout by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/716
+ - fix update symlink when otterdog location changes by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/719
+ - Warn on unknown properties found while validating organization by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/718
+ - fix password_store_dir with .otterdog-defaults.json by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/725
+ - fix: ruff linter with TRY004 by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/726
+ - fix ruleset on private repo regarding paid plan by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/731
+
+## [1.4.0] - 24/07/2026
+
+### Added
+
+ - Add support for environment secrets and variables ([#537](https://github.com/eclipse-csi/otterdog/issues/537))
+ - Add support for `prevent_self_review` on environments ([#641](https://github.com/eclipse-csi/otterdog/issues/641))
+ - Add environment variables and secrets [[#689]](https://github.com/eclipse-csi/otterdog/pull/689)
+
+### CHANGED
+
+ - Make --author mandatory for open-pr [[#691]](https://github.com/eclipse-csi/otterdog/pull/691)
+ - Enhance scaffold [[#683]](https://github.com/eclipse-csi/otterdog/pull/683)
+ - docs: enhance testing documentation [[#679]](https://github.com/eclipse-csi/otterdog/pull/679)
+
+### Fixed
+
+ - Retry loading org settings pages via the web UI on a transient 404, which can occur right after an organization has been created Handle transient 404 on organization repository-defaults during first import [[#659]](https://github.com/eclipse-csi/otterdog/pull/659), issue:([#649](https://github.com/eclipse-csi/otterdog/issues/649))
+
+ - Workflow file parsing error [[#684]](https://github.com/eclipse-csi/otterdog/pull/684)
+ - Handle invalid workflow YAML in PinWorkflowTask [[#685]](https://github.com/eclipse-csi/otterdog/pull/685)
+ - fix: stylesheet on 404 pages [[#687]](https://github.com/eclipse-csi/otterdog/pull/687)
+ - Dont access web ui credentials for operations that do not need them ([#693](https://github.com/eclipse-csi/otterdog/issues/693))
+ - Fix provider transformation for ruleset status checks ([#695](https://github.com/eclipse-csi/otterdog/issues/695))
+ - Add `python-dotenv` as a main depdendency as required by the `EnvVault` [[#698]](https://github.com/eclipse-csi/otterdog/pull/698) issue:([#692](https://github.com/eclipse-csi/otterdog/issues/692))
+ - fix: only access tokens in operations if web ui access is permitted [[#699]](https://github.com/eclipse-csi/otterdog/pull/699)
+ - fix: support integration_ids for status checks [[#700]](https://github.com/eclipse-csi/otterdog/pull/700)
+ - Handle mongodb uri with alternative authSource [[#702]](https://github.com/eclipse-csi/otterdog/pull/702)
+
+
+## [1.3.4] - 29/06/2026
+
+### Fixed
+
+ - Fix ruleset default value when UNSET ([#675](https://github.com/eclipse-csi/otterdog/pull/675))
+ - Don't send `allowed_values` for `string`/`true_false` custom properties ([#653](https://github.com/eclipse-csi/otterdog/pull/653))
+ - Strip OTTERDOG_CONFIG_TOKEN and fix log info for config_file_path ([#677](https://github.com/eclipse-csi/otterdog/pull/677))
 
 ## [1.3.3] - 08/05/2026
 

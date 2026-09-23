@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 import re
-from asyncio import gather
+from asyncio import gather, sleep, to_thread
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -33,6 +33,9 @@ _logger = logging.get_logger(__name__)
 class WebClient:
     # use 10s as default timeout
     _DEFAULT_TIMEOUT = 10000
+    _REPO_DEFAULTS_PAGE_URL = "/settings/repository-defaults"
+    _REPO_DEFAULTS_404_RETRIES = 5
+    _REPO_DEFAULTS_404_RETRY_DELAY = 1
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
@@ -258,7 +261,7 @@ class WebClient:
                 except Exception as e:
                     await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
                     _logger.warning(f"failed to update setting '{setting}' via web ui:\n{e!s}")
-                    raise e
+                    raise
 
     async def open_browser_with_logged_in_user(self, org_id: str) -> None:
         _logger.trace("opening browser window")
@@ -520,9 +523,9 @@ class WebClient:
             await page.wait_for_url(
                 f"https://github.com/organizations/{org_id}/settings/installations/{installation_id}"
             )
-        except PlaywrightError as e:
+        except PlaywrightError:
             await self._store_html_and_screenshot(page, log_level=logging.DEBUG)
-            raise e
+            raise
 
     async def _login_if_required(self, page: Page) -> None:
         actor = await self._logged_in_as(page)
@@ -536,14 +539,18 @@ class WebClient:
         """Store the current page html and a screenshot if logging is enabled."""
 
         if _logger.isEnabledFor(log_level):
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+            timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S.%f")
             url = page.url.replace("/", "_").replace(":", "_")
             html_file = f"web_{timestamp}_{url}.html"
             screenshot_file = f"web_{timestamp}_{url}.png"
 
             content = await page.content()
-            with open(html_file, "w", encoding="utf-8") as f:
-                f.write(content)
+
+            def _write_html() -> None:
+                with open(html_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+
+            await to_thread(_write_html)
 
             await page.screenshot(path=screenshot_file)
 
@@ -555,11 +562,28 @@ class WebClient:
 
         Also, save a screenshot if trace logging is enabled.
         """
-        _logger.trace("loading page '%s'", url)
-        response = await page.goto(url)
-        response = unwrap(response)
-        if not response.ok:
-            raise RuntimeError(f"unable to load github page '{url}': {response.status}")
+        max_retries = self._REPO_DEFAULTS_404_RETRIES
+        max_attempts = max_retries + 1
+        for retry_idx in range(max_attempts):
+            _logger.trace("loading page '%s'", url)
+            response = await page.goto(url)
+            response = unwrap(response)
+            status = response.status
+
+            if response.ok:
+                break
+
+            if status == 404 and url.endswith(self._REPO_DEFAULTS_PAGE_URL) and retry_idx < max_retries:
+                _logger.debug(
+                    "loading github page '%s' returned 404 (attempt %s/%s), retrying ...",
+                    url,
+                    retry_idx + 1,
+                    max_attempts,
+                )
+                await sleep(self._REPO_DEFAULTS_404_RETRY_DELAY)
+                continue
+
+            raise RuntimeError(f"unable to load github page '{url}': {status}")
 
         _logger.trace("loaded page '%s' with title '%s'", url, await page.title())
 
