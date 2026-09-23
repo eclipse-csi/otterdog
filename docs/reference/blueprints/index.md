@@ -13,6 +13,9 @@ its contents. The committers of an organization still need to manually merge the
 
 If such a remediation PR gets closed without being merged, the associated blueprint for that repository is put into state `DISMISSED`,
 and not further checks will be performed for that pair of blueprint / repository. In order to reinstate the checks, the PR needs to be reopened.
+Before remediating, `otterdog` also checks the latest PR of the blueprint branch (`otterdog/blueprint/<id>`) on GitHub: if it was closed
+without being merged, the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated, even if the
+stored status got lost.
 
 ## Check frequency
 
