@@ -62,7 +62,7 @@ async def check(limit: int):
         org_id = blueprint_model.id.org_id
 
         if blueprint_model.last_checked is not None and not has_minimum_timedelta_elapsed(
-            blueprint_model.last_checked, timedelta(hours=1)
+            blueprint_model.last_checked, timedelta(seconds=current_app.config["BLUEPRINT_CHECK_INTERVAL"])
         ):
             logger.debug(
                 "skipping blueprint with id '%s' for org '%s', last checked at '%s'",
