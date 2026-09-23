@@ -226,7 +226,7 @@ class GitHubOrganization:
             for ruleset in self.rulesets:
                 ruleset.validate(context, self)
 
-        # Run synchronous validations and collect repos needing API codescaning validation
+        # Run synchronous validations and collect repos needing API code scanning validation
         repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
             repo.validate(context, self)
@@ -236,10 +236,20 @@ class GitHubOrganization:
         if repos_needing_codescaning_language_validation and context.provider is not None:
             import asyncio
 
-            tasks = [
-                repo.validate_code_scanning_languages(context, self)
-                for repo in repos_needing_codescaning_language_validation
-            ]
+            existing_repositories = set(await context.provider.get_repos(self.github_id))
+
+            repos_to_validate = []
+            for repo in repos_needing_codescaning_language_validation:
+                if repo.name not in existing_repositories:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{repo.get_model_header()} has 'code_scanning_default_languages' configured "
+                        "while the repository does not yet exist.",
+                    )
+                else:
+                    repos_to_validate.append(repo)
+
+            tasks = [repo.validate_code_scanning_languages(context, self) for repo in repos_to_validate]
             await asyncio.gather(*tasks)
 
         return context
