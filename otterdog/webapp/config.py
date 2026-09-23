@@ -103,6 +103,10 @@ class AppConfig:
     # load query GitHub again.
     PULL_REQUEST_STATISTICS_CACHE_TTL = config("PULL_REQUEST_STATISTICS_CACHE_TTL", default=86400, cast=int)
 
+    # Minimum number of seconds between two evaluations of the same blueprint for an organization.
+    # Calls to /internal/check within that interval skip the blueprint.
+    BLUEPRINT_CHECK_INTERVAL = config("BLUEPRINT_CHECK_INTERVAL", default=3600, cast=int)
+
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")

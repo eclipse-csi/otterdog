@@ -14,6 +14,18 @@ its contents. The committers of an organization still need to manually merge the
 If such a remediation PR gets closed without being merged, the associated blueprint for that repository is put into state `DISMISSED`,
 and not further checks will be performed for that pair of blueprint / repository. In order to reinstate the checks, the PR needs to be reopened.
 
+## Check frequency
+
+Blueprints are evaluated when `/internal/check` is called, every 5 minutes by default (`policies.schedule` in the Helm chart).
+A blueprint is evaluated at most once per `BLUEPRINT_CHECK_INTERVAL` seconds for a given organization, one hour by default
+(`config.blueprintCheckInterval` in the Helm chart). Calls within that interval skip the blueprint, which is logged at debug level:
+
+```
+skipping blueprint with id '<id>' for org '<org>', last checked at '<date>'
+```
+
+A change to a blueprint definition is therefore picked up at the next evaluation, at most `BLUEPRINT_CHECK_INTERVAL` seconds later.
+
 ## Configuration
 
 Blueprints are defined using a `yaml` syntax and placed in the `otterdog/blueprints` folder of
