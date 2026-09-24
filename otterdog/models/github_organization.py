@@ -234,9 +234,14 @@ class GitHubOrganization:
                 repos_needing_codescaning_language_validation.append(repo)
 
         if repos_needing_codescaning_language_validation and context.provider is not None:
-            import asyncio
-
-            existing_repositories = set(await context.provider.get_repos(self.github_id))
+            try:
+                existing_repositories = set(await context.provider.get_repos(self.github_id))
+            except Exception as e:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"could not retrieve repositories to validate code scanning languages: {e}",
+                )
+                return context
 
             repos_to_validate = []
             for repo in repos_needing_codescaning_language_validation:

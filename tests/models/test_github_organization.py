@@ -61,12 +61,14 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         repository = organization.repositories[0]
         repository.code_scanning_default_setup_enabled = True
         repository.code_scanning_default_languages = ["python"]
+        get_languages_calls = []
 
         async def get_repos(_github_id):
             return []
 
         async def get_languages(_github_id, _repo_name):
-            raise AssertionError("get_languages must not be called for a repository that does not exist")
+            get_languages_calls.append((_github_id, _repo_name))
+            return {"Python": 100}
 
         provider = pretend.stub(
             get_repos=get_repos,
@@ -90,18 +92,21 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             and "while the repository does not yet exist" in message
             for failure_type, message in context.validation_failures
         )
+        assert get_languages_calls == []
 
     async def test_validate_code_scanning_only_checks_existing_repositories(self):
         organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
         repository = organization.repositories[0]
         repository.code_scanning_default_setup_enabled = True
         repository.code_scanning_default_languages = ["python"]
+        get_languages_calls = []
 
         async def get_repos(_github_id):
             return [repository.name]
 
         async def get_languages(_github_id, _repo_name):
-            return ["Python"]
+            get_languages_calls.append((_github_id, _repo_name))
+            return {"Python": 100}
 
         provider = pretend.stub(
             get_repos=get_repos,
@@ -120,3 +125,45 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             )
 
         assert not context.validation_failures
+        assert get_languages_calls == [(self.TEST_ORG, repository.name)]
+
+    async def test_validate_code_scanning_reports_get_repos_failure(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        repository = organization.repositories[0]
+        repository.code_scanning_default_setup_enabled = True
+        repository.code_scanning_default_languages = ["python"]
+        get_languages_calls = []
+
+        async def get_repos(_github_id):
+            raise RuntimeError("repository lookup failed")
+
+        async def get_languages(_github_id, _repo_name):
+            get_languages_calls.append((_github_id, _repo_name))
+            return {"Python": 100}
+
+        provider = pretend.stub(
+            get_repos=get_repos,
+            rest_api=pretend.stub(repo=pretend.stub(get_languages=get_languages)),
+        )
+        with patch.object(
+            self.jsonnet_config,
+            "default_org_config_for_org_id",
+            return_value=jsonnet_evaluate_file(self.jsonnet_config.org_config_file),
+        ):
+            context = await organization.validate(
+                self.otterdog_config,
+                self.jsonnet_config,
+                pretend.stub(is_supported_secret_provider=lambda _provider: False, get_secret=lambda value: value),
+                provider,
+            )
+
+        assert any(
+            failure_type == FailureType.WARNING
+            and "could not retrieve repositories" in message
+            and "repository lookup failed" in message
+            for failure_type, message in context.validation_failures
+        )
+        assert not any(
+            "while the repository does not yet exist" in message for _, message in context.validation_failures
+        )
+        assert get_languages_calls == []
