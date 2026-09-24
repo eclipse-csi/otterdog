@@ -194,4 +194,9 @@ several labels or duplicates to list. Do not invent implementation details, affe
 compatibility constraints, GitHub plan requirements, or duplicate relationships that cannot be
 supported by the available information.
 
+Because `add-comment` is limited to a single use in this workflow, never spend it on a draft,
+placeholder, test, verification, or partial comment. Call `add-comment` exactly once, only after
+you have finished the issue analysis and assembled the complete final comment body that you intend
+to leave on the issue.
+
 Skip the comment for the weekly sweep if nothing changed for that issue.
