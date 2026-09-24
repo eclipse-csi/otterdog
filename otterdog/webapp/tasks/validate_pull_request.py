@@ -195,14 +195,14 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
             warnings = []
             if validation_result.requires_secrets:
-                warnings.append("some of requested changes require secrets, need to apply these changes manually")
+                warnings.append("some of the requested changes require secrets, need to apply these changes manually")
             if validation_result.requires_web_ui:
                 warnings.append(
-                    "some of requested changes require accessing the Web UI, need to apply these changes manually"
+                    "some of the requested changes require accessing the Web UI, need to apply these changes manually"
                 )
             if validation_result.cost_related:
                 # Cost changes need review even when the change itself is API-applicable.
-                warnings.append("some of requested changes may incur costs, need review by the designated team")
+                warnings.append("some of the requested changes may incur costs, need review by the designated team")
 
             comment = await render_template(
                 "comment/validation_comment.txt",
