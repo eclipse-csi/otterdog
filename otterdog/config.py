@@ -311,7 +311,14 @@ class OtterdogConfig:
 
     @cached_property
     def cost_policy(self) -> CostPolicy:
-        cost_policy_config = query_json("defaults.cost_policy", self.configuration) or {}
+cost_policy_config = query_json("defaults.cost_policy", self.configuration)
+        if cost_policy_config is None:
+            cost_policy_config = {}
+        elif not isinstance(cost_policy_config, dict):
+            raise RuntimeError(
+                "'defaults.cost_policy' must be an object, "
+                f"got: {cost_policy_config!r}"
+            )
         free_max_cache_size_gb = cost_policy_config.get("free_max_cache_size_gb", CostPolicy.free_max_cache_size_gb)
         if (
             not isinstance(free_max_cache_size_gb, int)
