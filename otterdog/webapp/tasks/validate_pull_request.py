@@ -158,16 +158,17 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 printer = IndentingPrinter(output, log_level=self.log_level, output_for_github=True)
                 operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
 
+                otterdog_config = await get_otterdog_config()
+                cost_policy = otterdog_config.cost_policy
+
                 def callback(
                     org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
                 ):
                     validation_result.requires_secrets = any(x.requires_secrets() for x in patches)
                     validation_result.requires_web_ui = any(x.requires_web_ui() for x in patches)
-                    validation_result.cost_related = any(x.is_cost_related() for x in patches)
+                    validation_result.cost_related = any(x.is_cost_related(cost_policy) for x in patches)
 
                     validation_result.includes_deletions = any(x.patch_type == LivePatchType.REMOVE for x in patches)
-
-                otterdog_config = await get_otterdog_config()
 
                 operation.set_callback(callback)
                 operation.init(otterdog_config, printer)

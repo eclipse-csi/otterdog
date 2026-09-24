@@ -152,8 +152,9 @@ class PullRequestModel(Model):
             return ["it has not been checked whether the pull request supports auto merge"]
         if self.supports_auto_merge is False:
             problems.append(
-                "pull request cannot be automatically merged  "
-                "(contains secrets, requires web UI changes, includes deletions or touches non-configuration files)"
+                "pull request cannot be automatically merged "
+                "(contains secrets, requires web UI changes, may incur costs, includes deletions "
+                "or touches non-configuration files)"
             )
         # If either is true, the pull request can be automerged
         # (author can auto merge without approvals, or it has the required approvals)

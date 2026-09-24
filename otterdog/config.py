@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from otterdog.credentials import CredentialPlaceHolders, CredentialProvider
+from otterdog.models import CostPolicy
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
@@ -307,6 +308,25 @@ class OtterdogConfig:
     @property
     def default_credential_provider(self) -> str:
         return self._default_credential_provider
+
+    @cached_property
+    def cost_policy(self) -> CostPolicy:
+        cost_policy_config = query_json("defaults.cost_policy", self.configuration)
+        if cost_policy_config is None:
+            cost_policy_config = {}
+        elif not isinstance(cost_policy_config, dict):
+            raise RuntimeError(f"'defaults.cost_policy' must be an object, got: {cost_policy_config!r}")
+        free_max_cache_size_gb = cost_policy_config.get("free_max_cache_size_gb", CostPolicy.free_max_cache_size_gb)
+        if (
+            not isinstance(free_max_cache_size_gb, int)
+            or isinstance(free_max_cache_size_gb, bool)
+            or free_max_cache_size_gb < 0
+        ):
+            raise RuntimeError(
+                "'defaults.cost_policy.free_max_cache_size_gb' must be a non-negative integer, "
+                f"got: {free_max_cache_size_gb!r}"
+            )
+        return CostPolicy(free_max_cache_size_gb=free_max_cache_size_gb)
 
     @property
     def default_base_template(self) -> str:
