@@ -44,6 +44,18 @@ MT = TypeVar("MT", bound="ModelObject")
 EMT = TypeVar("EMT", bound="EmbeddedModelObject")
 
 
+@dataclasses.dataclass(frozen=True)
+class CostPolicy:
+    """
+    Thresholds used to decide whether a change can incur costs.
+
+    ``free_max_cache_size_gb`` is the GitHub Actions cache size limit that is
+    included free of charge, values up to this limit are not considered cost-related.
+    """
+
+    free_max_cache_size_gb: int = 10
+
+
 class FailureType(Enum):
     INFO = 1
     WARNING = 2
@@ -159,7 +171,7 @@ class LivePatch(Generic[MT]):
             case LivePatchType.CHANGE:
                 return unwrap(self.expected_object).contains_secrets()
 
-    def is_cost_related(self) -> bool:
+    def is_cost_related(self, cost_policy: CostPolicy | None = None) -> bool:
         """Return whether applying this patch can increase managed costs.
 
         Deletions cannot introduce new spending, so only additions and changes
@@ -167,7 +179,7 @@ class LivePatch(Generic[MT]):
         """
         match self.patch_type:
             case LivePatchType.ADD:
-                return unwrap(self.expected_object).is_cost_related()
+                return unwrap(self.expected_object).is_cost_related(cost_policy or CostPolicy())
 
             case LivePatchType.REMOVE:
                 return False
@@ -307,7 +319,7 @@ class EmbeddedModelObject(_DefaultValuesMixin, ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def is_cost_related(self) -> bool:
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
         """Return whether this embedded model contains cost-affecting settings."""
         return False
 
@@ -626,11 +638,11 @@ class ModelObject(_DefaultValuesMixin, ABC):
     def include_field_for_patch_computation(self, field: dataclasses.Field) -> bool:
         return self.include_field_for_diff_computation(field)
 
-    def is_cost_related(self) -> bool:
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
         """Propagate cost metadata from nested models to their owning object."""
         for field in self.all_fields():
             value = self.__getattribute__(field.name)
-            if isinstance(value, (EmbeddedModelObject, ModelObject)) and value.is_cost_related():
+            if isinstance(value, (EmbeddedModelObject, ModelObject)) and value.is_cost_related(cost_policy):
                 return True
 
         return False

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from jsonbender import OptionalS, S  # type: ignore
 
-from otterdog.models import EmbeddedModelObject, FailureType, PatchContext, ValidationContext
+from otterdog.models import CostPolicy, EmbeddedModelObject, FailureType, PatchContext, ValidationContext
 from otterdog.utils import (
     UNSET,
     Change,
@@ -82,9 +82,10 @@ class WorkflowSettings(EmbeddedModelObject, abc.ABC):
     # change-level cost checks use the same definition.
     _cost_related_properties: ClassVar[set[str]] = {"max_cache_size_gb"}
 
-    def is_cost_related(self) -> bool:
-        """Return whether this settings object contains a cost-affecting value."""
-        return any(is_set_and_valid(self.__getattribute__(key)) for key in self._cost_related_properties)
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
+        """Return whether this settings object contains a cache size exceeding the free limit of the cost policy."""
+        max_cache_size_gb = self.max_cache_size_gb
+        return is_set_and_valid(max_cache_size_gb) and max_cache_size_gb > cost_policy.free_max_cache_size_gb
 
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
         """Return whether the supplied settings changes can affect costs."""

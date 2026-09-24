@@ -49,6 +49,27 @@ However, when named `otterdog.json`, the cli tool will automatically detect and 
     In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
     However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
+### Cost policy
+
+Pull requests that may incur costs cannot be auto-merged and require a review by the designated team.
+The thresholds used for this check can be adjusted in the `defaults` of the `otterdog.json` file:
+
+```json
+{
+  "defaults": {
+    "cost_policy": {
+      "free_max_cache_size_gb": 10
+    }
+  }
+}
+```
+
+| Key                      | Default | Description                                                                                                                  |
+|--------------------------|---------|------------------------------------------------------------------------------------------------------------------------------|
+| `free_max_cache_size_gb` | `10`    | GitHub Actions cache size limit (in GB) included free of charge, adding a repository with a `max_cache_size_gb` above this value is considered cost-related |
+
+Any change of `max_cache_size_gb` on an existing repository or organization is always considered cost-related.
+
 ### Credentials
 
 Otterdog needs certain credentials to access information from an organization and its repositories on GitHub:
