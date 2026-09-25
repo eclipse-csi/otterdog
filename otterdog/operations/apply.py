@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from otterdog.models import LivePatch, LivePatchType
-from otterdog.utils import Change, IndentingPrinter, get_approval
+from otterdog.utils import Change, IndentingPrinter, get_approval, unwrap
 
 from .plan import PlanOperation
 
@@ -124,6 +124,7 @@ class ApplyOperation(PlanOperation):
         from rich.progress import Progress
 
         errors = 0
+        failed_patches: list[LivePatch] = []
 
         self.printer.println("\nApplying changes:")
 
@@ -147,6 +148,7 @@ class ApplyOperation(PlanOperation):
                         await patch.apply(org_id, self.gh_client)
                     except RuntimeError as ex:
                         errors += 1
+                        failed_patches.append(patch)
                         self.printer.println()
                         self.printer.print_error(f"failed to apply patch: {patch!r}\n{ex}")
                     finally:
@@ -156,14 +158,26 @@ class ApplyOperation(PlanOperation):
 
         self.printer.println("\nDone.")
 
+        # only report what has actually been applied, failed patches are reported separately
+        failed_status = _count_patches(failed_patches)
         self.printer.println(
-            f"\n[bold]Executed plan:[/] {diff_status.additions} added, "
-            f"{diff_status.differences} changed, "
-            f"{diff_status.deletions} {delete_snippet}.",
+            f"\n[bold]Executed plan:[/] {diff_status.additions - failed_status.additions} added, "
+            f"{diff_status.differences - failed_status.differences} changed, "
+            f"{diff_status.deletions - failed_status.deletions} {delete_snippet}.",
             highlight=True,
         )
 
-        add_patches = [p for p in patches if p.patch_type == LivePatchType.ADD]
+        if len(failed_patches) > 0:
+            self.printer.println(
+                f"[bold red]Failed:[/] {failed_status.additions} to add, "
+                f"{failed_status.differences} to change, "
+                f"{failed_status.deletions} to delete, see errors above.",
+                highlight=True,
+            )
+
+        # custom hooks, e.g. announcing newly created repositories, must only see additions that succeeded
+        failed_patch_ids = {id(p) for p in failed_patches}
+        add_patches = [p for p in patches if p.patch_type == LivePatchType.ADD and id(p) not in failed_patch_ids]
         if len(add_patches) > 0:
             self.execute_custom_hook_if_present_with_patches(self.org_config, add_patches, "post-add-objects-hook.py")
 
@@ -188,3 +202,22 @@ class ApplyOperation(PlanOperation):
         if os.path.exists(hook_script):
             with open(hook_script) as file:
                 exec(file.read())
+
+
+def _count_patches(patches: list[LivePatch]) -> DiffStatus:
+    """Counts patches the same way as they are counted when generating the diff."""
+    from .diff_operation import DiffStatus
+
+    status = DiffStatus()
+    for patch in patches:
+        match patch.patch_type:
+            case LivePatchType.ADD:
+                status.additions += 1
+            case LivePatchType.REMOVE:
+                status.deletions += 1
+            case LivePatchType.CHANGE:
+                current_object = unwrap(patch.current_object)
+                status.differences += sum(
+                    1 for key in unwrap(patch.changes) if not current_object.is_read_only_key(key)
+                )
+    return status
