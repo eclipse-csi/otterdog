@@ -269,6 +269,32 @@ class DiffOperation(Operation):
     ) -> tuple[GitHubOrganization, GitHubOrganization]:
         return expected_org, current_org
 
+    async def add_existing_repositories(
+        self,
+        current_org: GitHubOrganization,
+        expected_org: GitHubOrganization | None,
+        jsonnet_config: JsonnetConfig,
+    ) -> None:
+        """
+        For operations comparing two configurations: repositories added by the expected configuration
+        that already exist on GitHub are compared with their live state, so that they get updated
+        instead of being created.
+        """
+        if expected_org is None:
+            return
+
+        existing_repo_names = await current_org.add_existing_repositories_from_provider(
+            expected_org, jsonnet_config, self.gh_client, self.repo_filter
+        )
+
+        if len(existing_repo_names) > 0:
+            repo_list = "\n".join(f"- {name}" for name in sorted(existing_repo_names))
+            self.printer.println()
+            self.printer.print_warn(
+                "the following repositories are added to the configuration but already exist on GitHub, "
+                f"they will be updated according to their live settings instead of being created:\n{repo_list}"
+            )
+
     @abstractmethod
     def handle_add_object(
         self,
