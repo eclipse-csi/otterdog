@@ -146,3 +146,105 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             "while the repository does not yet exist" in message for _, message in context.validation_failures
         )
         assert get_languages_calls == []
+
+    def _load_organizations_for_import(self, aliases=None):
+        expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        if aliases is not None:
+            expected_org.repositories[0].aliases = aliases
+
+        # the base configuration does not yet contain any repository
+        current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        current_org.set_repositories([])
+        return expected_org, current_org
+
+    @staticmethod
+    def _provider(live_repo_names):
+        async def get_repos(_github_id):
+            return live_repo_names
+
+        async def get_app_installations(_github_id):
+            return []
+
+        return pretend.stub(
+            get_repos=get_repos,
+            rest_api=pretend.stub(org=pretend.stub(get_app_installations=get_app_installations)),
+        )
+
+    async def _add_existing_repositories(self, expected_org, current_org, provider, live_repos):
+        load_calls = []
+
+        async def load_repos_from_provider(*_args, **kwargs):
+            load_calls.append(kwargs["repo_names"])
+            for repo in live_repos:
+                yield repo
+
+        with patch("otterdog.models.github_organization._load_repos_from_provider", load_repos_from_provider):
+            names = await current_org.add_existing_repositories_from_provider(
+                expected_org, self.jsonnet_config, provider
+            )
+
+        return names, load_calls
+
+    async def test_add_existing_repositories_updates_instead_of_creating(self):
+        import dataclasses
+
+        from otterdog.models import LivePatchContext, LivePatchType
+        from otterdog.models.repository import Repository
+
+        expected_org, current_org = self._load_organizations_for_import()
+        existing_repo, new_repo = expected_org.repositories
+        live_repo = dataclasses.replace(existing_repo, description="live description")
+
+        names, load_calls = await self._add_existing_repositories(
+            expected_org, current_org, self._provider([existing_repo.name, "unrelated"]), [live_repo]
+        )
+
+        assert names == [existing_repo.name]
+        assert load_calls == [[existing_repo.name]]
+
+        patches = []
+        context = LivePatchContext(self.TEST_ORG, "*", False, False, "", current_org.settings, expected_org.settings)
+        expected_org.generate_live_patch(current_org, context, patches.append)
+
+        repo_patches = {
+            (patch.patch_type, repo.name)
+            for patch in patches
+            if isinstance(repo := patch.expected_object or patch.current_object, Repository)
+        }
+        assert (LivePatchType.CHANGE, existing_repo.name) in repo_patches
+        assert (LivePatchType.ADD, existing_repo.name) not in repo_patches
+        assert (LivePatchType.ADD, new_repo.name) in repo_patches
+
+    async def test_add_existing_repositories_considers_aliases(self):
+        expected_org, current_org = self._load_organizations_for_import(aliases=["previous-name"])
+
+        names, load_calls = await self._add_existing_repositories(
+            expected_org, current_org, self._provider(["previous-name"]), []
+        )
+
+        assert names == ["previous-name"]
+        assert load_calls == [["previous-name"]]
+
+    async def test_add_existing_repositories_without_added_repositories(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+
+        async def get_repos(_github_id):
+            raise AssertionError("repositories should not be retrieved")
+
+        names, load_calls = await self._add_existing_repositories(
+            organization, organization, pretend.stub(get_repos=get_repos), []
+        )
+
+        assert names == []
+        assert load_calls == []
+
+    async def test_add_existing_repositories_without_existing_repositories(self):
+        expected_org, current_org = self._load_organizations_for_import()
+
+        names, load_calls = await self._add_existing_repositories(
+            expected_org, current_org, self._provider(["unrelated"]), []
+        )
+
+        assert names == []
+        assert load_calls == []
+        assert current_org.repositories == []

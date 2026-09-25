@@ -724,6 +724,66 @@ class GitHubOrganization:
 
         return org
 
+    async def add_existing_repositories_from_provider(
+        self,
+        expected_org: GitHubOrganization,
+        jsonnet_config: JsonnetConfig,
+        provider: GitHubProvider,
+        repo_filter: str | None = None,
+    ) -> list[str]:
+        """
+        Adds the live state of repositories that are added by the expected organization although they
+        already exist on GitHub, e.g. when existing repositories are imported into the configuration.
+
+        This organization is expected to be loaded from a configuration file. Without this step, such
+        repositories would be considered as new and their creation would fail as they already exist,
+        with their live state, they are updated instead.
+
+        Returns the names of the repositories that have been added.
+        """
+        import fnmatch
+
+        known_names = {name for repo in self.repositories for name in repo.get_all_names()}
+        added_repos = [
+            repo for repo in expected_org.repositories if not any(name in known_names for name in repo.get_all_names())
+        ]
+        if repo_filter is not None:
+            added_repos = [repo for repo in added_repos if fnmatch.fnmatch(repo.name, repo_filter)]
+
+        if len(added_repos) == 0:
+            return []
+
+        live_names = {name.lower(): name for name in await provider.get_repos(self.github_id)}
+
+        existing_repo_names = []
+        for repo in added_repos:
+            # a repository might also be renamed, it then still exists under one of its aliases
+            live_name = next(
+                (live_names[name.lower()] for name in repo.get_all_names() if name.lower() in live_names), None
+            )
+            if live_name is not None:
+                existing_repo_names.append(live_name)
+
+        if len(existing_repo_names) == 0:
+            return []
+
+        app_installations = {
+            str(installation["app_id"]): installation["app_slug"]
+            for installation in await provider.rest_api.org.get_app_installations(self.github_id)
+        }
+
+        async for repo in _load_repos_from_provider(
+            self.github_id,
+            provider,
+            jsonnet_config,
+            app_installations,
+            expected_org=expected_org,
+            repo_names=existing_repo_names,
+        ):
+            self.add_repository(repo)
+
+        return existing_repo_names
+
 
 async def _process_single_repo(
     gh_client: GitHubProvider,
@@ -887,10 +947,12 @@ async def _load_repos_from_provider(
     concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
+    repo_names: list[str] | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 
-    repo_names = await provider.get_repos(github_id)
+    if repo_names is None:
+        repo_names = await provider.get_repos(github_id)
 
     if repo_filter is not None:
         repo_names = fnmatch.filter(repo_names, repo_filter)

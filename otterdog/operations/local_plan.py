@@ -77,7 +77,9 @@ class LocalPlanOperation(PlanOperation):
         if not await ospath.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-        return GitHubOrganization.load_from_file(github_id, other_org_file_name)
+        github_organization = GitHubOrganization.load_from_file(github_id, other_org_file_name)
+        await self.add_existing_repositories(github_organization, expected_org, jsonnet_config)
+        return github_organization
 
     def preprocess_orgs(
         self, expected_org: GitHubOrganization, current_org: GitHubOrganization
