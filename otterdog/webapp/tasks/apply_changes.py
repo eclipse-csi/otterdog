@@ -12,13 +12,14 @@ from io import StringIO
 from quart import render_template
 
 from otterdog.operations.local_apply import LocalApplyOperation
-from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports
+from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
+    find_base_commit_sha,
     get_admin_teams,
     get_full_admin_team_slugs,
     get_otterdog_config,
@@ -161,13 +162,13 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self._pull_request.merge_commit_sha,
             )
 
-            merge_commit = await rest_api.commit.get_commit(
+            parent_commit = await find_base_commit_sha(
+                rest_api,
                 self.org_id,
                 self.repo_name,
-                self._pull_request.merge_commit_sha,
+                self.pull_request_number,
+                unwrap(self._pull_request.merge_commit_sha),
             )
-            parents = merge_commit["parents"]
-            parent_commit = parents[0]["sha"] if len(parents) == 1 else "HEAD~1"
 
             base_file = org_config.jsonnet_config.org_config_file + "-BASE"
             await fetch_config_from_github(

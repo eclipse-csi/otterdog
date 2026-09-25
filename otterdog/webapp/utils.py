@@ -423,6 +423,48 @@ async def describe_approval_teams(matching_teams: list[str] | None, org_id: str 
         )
 
 
+# upper bound for the number of commits of a pull request, GitHub does not list more than 250 commits
+_MAX_PULL_REQUEST_COMMITS = 250
+
+
+async def find_base_commit_sha(
+    rest_api: RestApi,
+    org_id: str,
+    repo_name: str,
+    pull_request_number: int,
+    merge_commit_sha: str,
+) -> str:
+    """
+    Returns the sha of the commit on the base branch onto which a pull request has been merged.
+
+    For a merge commit, this is its first parent. For a squash or rebase merge, the first-parent
+    chain is walked up until reaching a commit that is not associated with the pull request, as a
+    rebase merge adds all commits of the pull request to the base branch and the parent of the
+    merge commit would then already contain most of the changes.
+    """
+    sha = merge_commit_sha
+    for _ in range(_MAX_PULL_REQUEST_COMMITS):
+        commit = await rest_api.commit.get_commit(org_id, repo_name, sha)
+        parents = commit["parents"]
+        if len(parents) == 0:
+            raise RuntimeError(f"commit '{sha}' has no parent, unable to determine base of merged pull request")
+
+        parent_sha = parents[0]["sha"]
+        if len(parents) > 1:
+            return parent_sha
+
+        associated_pull_requests = await rest_api.commit.get_associated_pull_requests(org_id, repo_name, parent_sha)
+        if not any(pr["number"] == pull_request_number for pr in associated_pull_requests):
+            return parent_sha
+
+        sha = parent_sha
+
+    raise RuntimeError(
+        f"unable to determine base of pull request #{pull_request_number}, "
+        f"more than {_MAX_PULL_REQUEST_COMMITS} commits are associated with it"
+    )
+
+
 async def fetch_config_from_github(
     rest_api: RestApi,
     org_id: str,
