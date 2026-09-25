@@ -48,11 +48,15 @@ _logger = get_logger(__name__)
 
 @dataclasses.dataclass
 class PullRequestSettings(EmbeddedModelObject):
+    VALID_MERGE_METHODS: ClassVar[list[str]] = ["merge", "squash", "rebase"]
+
     required_approving_review_count: int
     dismisses_stale_reviews: bool = dataclasses.field(default=False)
     requires_code_owner_review: bool = dataclasses.field(default=False)
     requires_last_push_approval: bool = dataclasses.field(default=False)
     requires_review_thread_resolution: bool = dataclasses.field(default=False)
+    # GitHub's default when the parameter is omitted: all three methods allowed.
+    allowed_merge_methods: list[str] = dataclasses.field(default_factory=lambda: ["merge", "squash", "rebase"])
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         for key in self.keys(False):
@@ -73,6 +77,23 @@ class PullRequestSettings(EmbeddedModelObject):
                     f"'{self.required_approving_review_count}' while only integers in the range [0, 10] are allowed.",
                 )
 
+        if is_set_and_valid(self.allowed_merge_methods):
+            if len(self.allowed_merge_methods) == 0:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header(parent_object)} has an empty "
+                    f"'required_pull_request.allowed_merge_methods' while at least one merge method must be allowed.",
+                )
+
+            for method in self.allowed_merge_methods:
+                if method not in self.VALID_MERGE_METHODS:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{parent_object.get_model_header(parent_object)} has "
+                        f"'required_pull_request.allowed_merge_methods' containing value '{method}' "
+                        f"while only values in {self.VALID_MERGE_METHODS} are allowed.",
+                    )
+
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_pull_request}"
 
@@ -87,6 +108,7 @@ class PullRequestSettings(EmbeddedModelObject):
                 "requires_code_owner_review": OptionalS("require_code_owner_review", default=UNSET),
                 "requires_last_push_approval": OptionalS("require_last_push_approval", default=UNSET),
                 "requires_review_thread_resolution": OptionalS("required_review_thread_resolution", default=UNSET),
+                "allowed_merge_methods": OptionalS("allowed_merge_methods", default=UNSET),
             }
         )
 
