@@ -56,11 +56,13 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(jsonschema.exceptions.ValidationError):
             GitHubOrganization.from_model_data(data)
 
-    async def _validate_code_scanning_repository(self, get_repos):
+    async def _validate_code_scanning_repository(self, get_repos, aliases=None):
         organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
         repository = organization.repositories[0]
         repository.code_scanning_default_setup_enabled = True
         repository.code_scanning_default_languages = ["python"]
+        if aliases is not None:
+            repository.aliases = aliases
         get_languages_calls = []
 
         async def get_languages(_github_id, _repo_name):
@@ -102,6 +104,26 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
     async def test_validate_code_scanning_only_checks_existing_repositories(self):
         async def get_repos(_github_id, repository_name):
             return [repository_name]
+
+        context, repository, get_languages_calls = await self._validate_code_scanning_repository(get_repos)
+
+        assert not context.validation_failures
+        assert get_languages_calls == [(self.TEST_ORG, repository.name)]
+
+    async def test_validate_code_scanning_checks_renamed_repository(self):
+        async def get_repos(_github_id, _repository_name):
+            return ["previous-name"]
+
+        context, repository, get_languages_calls = await self._validate_code_scanning_repository(
+            get_repos, aliases=["previous-name"]
+        )
+
+        assert not context.validation_failures
+        assert get_languages_calls == [(self.TEST_ORG, repository.name)]
+
+    async def test_validate_code_scanning_matches_repository_name_case_insensitively(self):
+        async def get_repos(_github_id, repository_name):
+            return [repository_name.upper()]
 
         context, repository, get_languages_calls = await self._validate_code_scanning_repository(get_repos)
 

@@ -234,28 +234,32 @@ class GitHubOrganization:
                 repos_needing_codescaning_language_validation.append(repo)
 
         if repos_needing_codescaning_language_validation and context.provider is not None:
+            existing_repositories: set[str] | None
             try:
-                existing_repositories = set(await context.provider.get_repos(self.github_id))
+                # repository names are case-insensitive on GitHub
+                existing_repositories = {name.lower() for name in await context.provider.get_repos(self.github_id)}
             except Exception as e:
                 context.add_failure(
                     FailureType.WARNING,
                     f"could not retrieve repositories to validate code scanning languages: {e}",
                 )
-                return context
+                existing_repositories = None
 
-            repos_to_validate = []
-            for repo in repos_needing_codescaning_language_validation:
-                if repo.name not in existing_repositories:
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{repo.get_model_header()} has 'code_scanning_default_languages' configured "
-                        "while the repository does not yet exist.",
-                    )
-                else:
-                    repos_to_validate.append(repo)
+            if existing_repositories is not None:
+                repos_to_validate = []
+                for repo in repos_needing_codescaning_language_validation:
+                    # take aliases into account, a renamed repository still exists under its previous name
+                    if not any(name.lower() in existing_repositories for name in repo.get_all_names()):
+                        context.add_failure(
+                            FailureType.ERROR,
+                            f"{repo.get_model_header()} has 'code_scanning_default_languages' configured "
+                            "while the repository does not yet exist.",
+                        )
+                    else:
+                        repos_to_validate.append(repo)
 
-            tasks = [repo.validate_code_scanning_languages(context, self) for repo in repos_to_validate]
-            await asyncio.gather(*tasks)
+                tasks = [repo.validate_code_scanning_languages(context, self) for repo in repos_to_validate]
+                await asyncio.gather(*tasks)
 
         return context
 
