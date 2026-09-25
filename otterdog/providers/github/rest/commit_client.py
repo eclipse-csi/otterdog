@@ -29,6 +29,14 @@ class CommitClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving commit:\n{ex}") from ex
 
+    async def get_associated_pull_requests(self, org_id: str, repo_name: str, sha: str) -> list[dict[str, Any]]:
+        _logger.debug("getting pull requests associated with commit '%s' from repo '%s/%s'", sha, org_id, repo_name)
+
+        try:
+            return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/commits/{sha}/pulls")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving pull requests associated with commit:\n{ex}") from ex
+
     async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
         _logger.debug("getting commit statuses for ref '%s' from repo '%s/%s'", ref, org_id, repo_name)
 
