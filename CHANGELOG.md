@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.6.1] - 24/09/2026
+
+### Fixed
+
+ - Fix cost policy auto merge by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/770
+
 ## [1.6.0] - 23/09/2026
 
 ### Added

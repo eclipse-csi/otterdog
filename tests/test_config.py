@@ -169,3 +169,26 @@ def test_from_file_loads_defaults_override_even_with_explicit_working_dir(create
     config = OtterdogConfig.from_file(str(config_file), False, working_dir=different_working_dir)
 
     assert config.configuration["defaults"]["pass"]["password_store_dir"] == "/custom/store"
+
+
+def _config_with_defaults(defaults: dict) -> OtterdogConfig:
+    with TemporaryDirectory() as temp_dir:
+        return OtterdogConfig.from_dict({"defaults": defaults, "organizations": []}, False, temp_dir)
+
+
+def test_cost_policy_defaults_to_github_free_cache_size():
+    assert _config_with_defaults({}).cost_policy.free_max_cache_size_gb == 10
+
+
+def test_cost_policy_reads_configured_free_cache_size():
+    config = _config_with_defaults({"cost_policy": {"free_max_cache_size_gb": 25}})
+
+    assert config.cost_policy.free_max_cache_size_gb == 25
+
+
+@pytest.mark.parametrize("value", [-1, "10", 1.5, True, None])
+def test_cost_policy_rejects_invalid_free_cache_size(value):
+    config = _config_with_defaults({"cost_policy": {"free_max_cache_size_gb": value}})
+
+    with pytest.raises(RuntimeError, match="free_max_cache_size_gb"):
+        _ = config.cost_policy
