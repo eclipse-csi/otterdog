@@ -753,12 +753,14 @@ class GitHubOrganization:
         if len(added_repos) == 0:
             return []
 
-        live_names = set(await provider.get_repos(self.github_id))
+        live_names = {name.lower(): name for name in await provider.get_repos(self.github_id)}
 
         existing_repo_names = []
         for repo in added_repos:
             # a repository might also be renamed, it then still exists under one of its aliases
-            live_name = next((name for name in repo.get_all_names() if name in live_names), None)
+            live_name = next(
+                (live_names[name.lower()] for name in repo.get_all_names() if name.lower() in live_names), None
+            )
             if live_name is not None:
                 existing_repo_names.append(live_name)
 
