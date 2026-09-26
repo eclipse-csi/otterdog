@@ -132,6 +132,7 @@ Repository Permissions
 | Administration       | Read & Write |
 | Commit statuses      | Read & Write |
 | Contents             | Read & Write |
+| Custom properties    | Read & Write |
 | Environments         | Read & Write |
 | Issues               | Read only    |
 | Metadata             | Read only    |
@@ -148,6 +149,7 @@ Organization Permissions
 |-----------------------------|--------------|
 | Administration              | Read & Write |
 | Custom Organization Roles   | Read & Write |
+| Custom properties           | Admin        |
 | Members                     | Read only    |
 | Plan                        | Read only    |
 | Secrets                     | Read & Write |
@@ -164,6 +166,11 @@ Events
 | Push                    |
 | Workflow job            |
 | Workflow run            |
+
+!!! note
+    When permissions are added to an existing GitHub App, each installation keeps its previous
+    permissions until an organization owner accepts the new ones in the organization settings
+    (`Settings` > `GitHub Apps` > `Configure` > `Review request`).
 
 <!--github-app-end-->
 
