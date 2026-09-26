@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 from asyncio import CancelledError
@@ -43,6 +44,8 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
 class GitHubProvider:
     def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
+        self._user_logins: dict[int, str] = {}
+        self._user_login_lock = asyncio.Lock()
 
         if credentials is not None:
             self._init_clients()
@@ -512,6 +515,14 @@ class GitHubProvider:
 
     async def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
         return {app_name: (await self.rest_api.app.get_app_ids(app_name))[0] for app_name in app_names}
+
+    async def get_user_logins(self, user_ids: set[int]) -> dict[int, str]:
+        async with self._user_login_lock:
+            missing_user_ids = user_ids - self._user_logins.keys()
+            for user_id in missing_user_ids:
+                self._user_logins[user_id] = await self.rest_api.user.get_user_login(user_id)
+
+        return {user_id: self._user_logins[user_id] for user_id in user_ids}
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return await self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)

@@ -4,6 +4,7 @@ The following format is used to distinguish between the different types of actor
 | Actor Type | Format                        | Example                    |
 |------------|-------------------------------|----------------------------|
 | Role       | `#<role-name>`                | `#Maintain`                |
+| User       | `@<github_handle>`            | `@alice`                   |
 | Team       | `@<organization>/<team-slug>` | `@OtterdogTest/committers` |
 | App        | `<app-slug>`                  | `eclipse-eca-validation`   |
 
@@ -13,10 +14,6 @@ The following roles are currently supported:
 - Maintain
 - RepositoryAdmin
 - OrganizationAdmin
-
-!!! note
-
-    Currently, GitHub does not support to specify individual users as a bypass actor for a ruleset.
 
 # Bypass Mode
 

@@ -678,6 +678,7 @@ class GitHubOrganization:
             if jsonnet_config.default_org_ruleset_config is not None:
                 _logger.debug("loading org rulesets for org '%s' (plan=%s)", github_id, org.settings.plan)
                 github_rulesets = await provider.get_org_rulesets(github_id)
+                await _enrich_user_bypass_actors(github_rulesets, provider)
                 for ruleset in github_rulesets:
                     r = OrganizationRuleset.from_provider_data(github_id, ruleset)
 
@@ -723,6 +724,23 @@ class GitHubOrganization:
             task_group.soonify(_load_repos)()
 
         return org
+
+
+async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: GitHubProvider) -> None:
+    user_ids = {
+        actor["actor_id"]
+        for ruleset in rulesets
+        for actor in ruleset.get("bypass_actors", [])
+        if actor.get("actor_type") == "User" and actor.get("actor_id") is not None
+    }
+    if not user_ids:
+        return
+
+    user_logins = await provider.get_user_logins(user_ids)
+    for ruleset in rulesets:
+        for actor in ruleset.get("bypass_actors", []):
+            if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
+                actor["user_login"] = user_logins[actor["actor_id"]]
 
 
 async def _process_single_repo(
@@ -786,6 +804,8 @@ async def _process_single_repo(
                     actor_id = str(actor.get("actor_id", 0))
                     if actor_id in teams:
                         actor["team_slug"] = teams[actor_id]
+
+            await _enrich_user_bypass_actors([github_ruleset], gh_client)
 
             for rule in github_ruleset.get("rules", []):
                 if rule.get("type", None) == "required_status_checks":
