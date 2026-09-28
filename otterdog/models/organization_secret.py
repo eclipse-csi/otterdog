@@ -25,30 +25,19 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass
-class OrganizationSecret(Secret):
+class OrganizationSecretBase(Secret):
     """
-    Represents a Secret defined on organization level.
+    Shared visibility validation and mappings for organization-level secrets.
     """
 
     visibility: str
     selected_repositories: list[str]
 
-    @property
-    def model_object_name(self) -> str:
-        return "org_secret"
-
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         super().validate(context, parent_object)
 
         if is_set_and_valid(self.visibility):
-            org = cast("GitHubOrganization", parent_object)
-            if self.visibility == "private" and org.settings.plan == "free":
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has 'visibility' of value "
-                    f"'{self.visibility}', which is not available for an organization with free plan.",
-                )
-            elif self.visibility not in {"public", "private", "selected"}:
+            if self.visibility not in {"public", "private", "selected"}:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'visibility' of value "
@@ -96,6 +85,25 @@ class OrganizationSecret(Secret):
             mapping["selected_repository_ids"] = K(await provider.get_repo_ids(org_id, data["selected_repositories"]))
 
         return mapping
+
+
+class OrganizationSecret(OrganizationSecretBase):
+    """Organization-level secret consumed by GitHub Actions."""
+
+    @property
+    def model_object_name(self) -> str:
+        return "org_secret"
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        super().validate(context, parent_object)
+
+        org = cast("GitHubOrganization", parent_object)
+        if self.visibility == "private" and org.settings.plan == "free":
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'visibility' of value "
+                f"'{self.visibility}', which is not available for an organization with free plan.",
+            )
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_secret}"

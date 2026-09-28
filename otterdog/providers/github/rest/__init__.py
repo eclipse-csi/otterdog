@@ -117,6 +117,14 @@ class RestApi:
         return RepoClient(self)
 
     @cached_property
+    def secret(self):
+        # REST client modules depend on RestApi and RestClient; load this client
+        # lazily to preserve the package's existing circular-import boundary.
+        from .secret_client import SecretClient
+
+        return SecretClient(self)
+
+    @cached_property
     def org(self):
         from .org_client import OrgClient
 

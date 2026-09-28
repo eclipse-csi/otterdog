@@ -35,12 +35,16 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
+from otterdog.models.organization_dependabot_secret import OrganizationDependabotSecret
 from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
 from otterdog.models.organization_webhook import OrganizationWebhook
+from otterdog.models.repo_codespaces_secret import RepositoryCodespacesSecret
+from otterdog.models.repo_dependabot_secret import RepositoryDependabotSecret
 from otterdog.models.repo_ruleset import RepositoryRuleset
 from otterdog.models.repo_secret import RepositorySecret
 from otterdog.models.repo_variable import RepositoryVariable
@@ -94,6 +98,10 @@ class GitHubOrganization:
     teams: list[Team] = dataclasses.field(default_factory=list)
     webhooks: list[OrganizationWebhook] = dataclasses.field(default_factory=list)
     secrets: list[OrganizationSecret] = dataclasses.field(default_factory=list)
+    # GitHub exposes Dependabot and Codespaces secrets through separate APIs;
+    # keep their model collections distinct from Actions secrets accordingly.
+    dependabot_secrets: list[OrganizationDependabotSecret] = dataclasses.field(default_factory=list)
+    codespaces_secrets: list[OrganizationCodespacesSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
     rulesets: list[OrganizationRuleset] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
@@ -139,6 +147,24 @@ class GitHubOrganization:
 
     def set_secrets(self, secrets: list[OrganizationSecret]) -> None:
         self.secrets = secrets
+
+    def add_dependabot_secret(self, secret: OrganizationDependabotSecret) -> None:
+        self.dependabot_secrets.append(secret)
+
+    def get_dependabot_secret(self, name: str) -> OrganizationDependabotSecret | None:
+        return next(filter(lambda x: x.name == name, self.dependabot_secrets), None)
+
+    def set_dependabot_secrets(self, secrets: list[OrganizationDependabotSecret]) -> None:
+        self.dependabot_secrets = secrets
+
+    def add_codespaces_secret(self, secret: OrganizationCodespacesSecret) -> None:
+        self.codespaces_secrets.append(secret)
+
+    def get_codespaces_secret(self, name: str) -> OrganizationCodespacesSecret | None:
+        return next(filter(lambda x: x.name == name, self.codespaces_secrets), None)
+
+    def set_codespaces_secrets(self, secrets: list[OrganizationCodespacesSecret]) -> None:
+        self.codespaces_secrets = secrets
 
     def add_variable(self, variable: OrganizationVariable) -> None:
         self.variables.append(variable)
@@ -215,6 +241,12 @@ class GitHubOrganization:
 
         for secret in self.secrets:
             secret.validate(context, self)
+
+        for dependabot_secret in self.dependabot_secrets:
+            dependabot_secret.validate(context, self)
+
+        for codespaces_secret in self.codespaces_secrets:
+            codespaces_secret.validate(context, self)
 
         if len(self.rulesets) > 0 and not enterprise_plan:
             context.add_failure(
@@ -315,6 +347,14 @@ class GitHubOrganization:
             yield secret, None
             yield from secret.get_model_objects()
 
+        for dependabot_secret in self.dependabot_secrets:
+            yield dependabot_secret, None
+            yield from dependabot_secret.get_model_objects()
+
+        for codespaces_secret in self.codespaces_secrets:
+            yield codespaces_secret, None
+            yield from codespaces_secret.get_model_objects()
+
         for variable in self.variables:
             yield variable, None
             yield from variable.get_model_objects()
@@ -340,6 +380,10 @@ class GitHubOrganization:
             "teams": OptionalS("teams", default=[]) >> Forall(lambda x: Team.from_model_data(x)),
             "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: OrganizationWebhook.from_model_data(x)),
             "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: OrganizationSecret.from_model_data(x)),
+            "dependabot_secrets": OptionalS("dependabot_secrets", default=[])
+            >> Forall(lambda x: OrganizationDependabotSecret.from_model_data(x)),
+            "codespaces_secrets": OptionalS("codespaces_secrets", default=[])
+            >> Forall(lambda x: OrganizationCodespacesSecret.from_model_data(x)),
             "variables": OptionalS("variables", default=[])
             >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
             "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: OrganizationRuleset.from_model_data(x)),
@@ -357,6 +401,12 @@ class GitHubOrganization:
         for secret in self.secrets:
             secret.resolve_secrets(secret_resolver)
 
+        for dependabot_secret in self.dependabot_secrets:
+            dependabot_secret.resolve_secrets(secret_resolver)
+
+        for codespaces_secret in self.codespaces_secrets:
+            codespaces_secret.resolve_secrets(secret_resolver)
+
         for repo in self.repositories:
             repo.resolve_secrets(secret_resolver)
 
@@ -372,6 +422,16 @@ class GitHubOrganization:
             other_secret = other_org.get_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
+
+        for dependabot_secret in self.dependabot_secrets:
+            other_dependabot_secret = other_org.get_dependabot_secret(dependabot_secret.name)
+            if other_dependabot_secret is not None:
+                dependabot_secret.copy_secrets(other_dependabot_secret)
+
+        for codespaces_secret in self.codespaces_secrets:
+            other_codespaces_secret = other_org.get_codespaces_secret(codespaces_secret.name)
+            if other_codespaces_secret is not None:
+                codespaces_secret.copy_secrets(other_codespaces_secret)
 
         for repo in self.repositories:
             other_repo = other_org.get_repository(repo.name)
@@ -464,6 +524,34 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        if len(self.dependabot_secrets) > 0:
+            default_dependabot_secret = OrganizationDependabotSecret.from_model_data(
+                config.default_org_dependabot_secret_config
+            )
+
+            printer.println("dependabot_secrets+: [")
+            printer.level_up()
+
+            for dependabot_secret in self.dependabot_secrets:
+                dependabot_secret.to_jsonnet(printer, config, context, False, default_dependabot_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        if len(self.codespaces_secrets) > 0:
+            default_codespaces_secret = OrganizationCodespacesSecret.from_model_data(
+                config.default_org_codespaces_secret_config
+            )
+
+            printer.println("codespaces_secrets+: [")
+            printer.level_up()
+
+            for codespaces_secret in self.codespaces_secrets:
+                codespaces_secret.to_jsonnet(printer, config, context, False, default_codespaces_secret)
+
+            printer.level_down()
+            printer.println("],")
+
         # print organization variables
         if len(self.variables) > 0:
             default_org_variable = OrganizationVariable.from_model_data(config.default_org_variable_config)
@@ -534,6 +622,12 @@ class GitHubOrganization:
         )
         OrganizationSecret.generate_live_patch_of_list(
             self.secrets, current_organization.secrets, None, context, handler
+        )
+        OrganizationDependabotSecret.generate_live_patch_of_list(
+            self.dependabot_secrets, current_organization.dependabot_secrets, None, context, handler
+        )
+        OrganizationCodespacesSecret.generate_live_patch_of_list(
+            self.codespaces_secrets, current_organization.codespaces_secrets, None, context, handler
         )
         OrganizationVariable.generate_live_patch_of_list(
             self.variables, current_organization.variables, None, context, handler
@@ -664,6 +758,24 @@ class GitHubOrganization:
             else:
                 _logger.debug("not reading org secrets, no default config available")
 
+        @debug_times("dependabot_secrets")
+        async def _load_dependabot_secrets() -> None:
+            if jsonnet_config.default_org_dependabot_secret_config is not None:
+                github_secrets = await provider.get_org_dependabot_secrets(github_id)
+                for secret in github_secrets:
+                    org.add_dependabot_secret(OrganizationDependabotSecret.from_provider_data(github_id, secret))
+            else:
+                _logger.debug("not reading org Dependabot secrets, no default config available")
+
+        @debug_times("codespaces_secrets")
+        async def _load_codespaces_secrets() -> None:
+            if jsonnet_config.default_org_codespaces_secret_config is not None:
+                github_secrets = await provider.get_org_codespaces_secrets(github_id)
+                for secret in github_secrets:
+                    org.add_codespaces_secret(OrganizationCodespacesSecret.from_provider_data(github_id, secret))
+            else:
+                _logger.debug("not reading org Codespaces secrets, no default config available")
+
         @debug_times("variables")
         async def _load_variables() -> None:
             if jsonnet_config.default_org_variable_config is not None:
@@ -718,6 +830,8 @@ class GitHubOrganization:
             task_group.soonify(_load_teams)()
             task_group.soonify(_load_webhooks)()
             task_group.soonify(_load_secrets)()
+            task_group.soonify(_load_dependabot_secrets)()
+            task_group.soonify(_load_codespaces_secrets)()
             task_group.soonify(_load_variables)()
             task_group.soonify(_load_rulesets)()
             task_group.soonify(_load_repos)()
@@ -809,11 +923,25 @@ async def _process_single_repo(
 
     if jsonnet_config.default_repo_secret_config is not None:
         # get secrets of the repo
-        secrets = await rest_api.repo.get_secrets(github_id, repo_name)
+        secrets = await gh_client.get_repo_secrets(github_id, repo_name)
         for github_secret in secrets:
             repo.add_secret(RepositorySecret.from_provider_data(github_id, github_secret))
     else:
         _logger.debug("not reading repo secrets, no default config available")
+
+    if jsonnet_config.default_repo_dependabot_secret_config is not None:
+        secrets = await gh_client.get_repo_dependabot_secrets(github_id, repo_name)
+        for github_secret in secrets:
+            repo.add_dependabot_secret(RepositoryDependabotSecret.from_provider_data(github_id, github_secret))
+    else:
+        _logger.debug("not reading repo Dependabot secrets, no default config available")
+
+    if jsonnet_config.default_repo_codespaces_secret_config is not None:
+        secrets = await gh_client.get_repo_codespaces_secrets(github_id, repo_name)
+        for github_secret in secrets:
+            repo.add_codespaces_secret(RepositoryCodespacesSecret.from_provider_data(github_id, github_secret))
+    else:
+        _logger.debug("not reading repo Codespaces secrets, no default config available")
 
     if jsonnet_config.default_repo_variable_config is not None:
         # get variables of the repo
@@ -832,7 +960,7 @@ async def _process_single_repo(
 
             if jsonnet_config.default_environment_secret_config is not None:
                 # get secrets of the environment
-                env_secrets = await rest_api.repo.get_environment_secrets(github_id, repo_name, env.name)
+                env_secrets = await gh_client.get_environment_secrets(github_id, repo_name, env.name)
                 for github_secret in env_secrets:
                     env.add_secret(EnvironmentSecret.from_provider_data(github_id, github_secret))
             else:
