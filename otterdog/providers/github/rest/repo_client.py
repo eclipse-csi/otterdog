@@ -561,6 +561,28 @@ class RepoClient(RestClient):
             )
             _logger.debug("updated code scanning config for repo '%s/%s'", org_id, repo_name)
         except GitHubException as ex:
+            # GitHub returns this response when code scanning is unavailable for a repository,
+            # for example when Code Security is not enabled for a private repository. In that
+            # situation, the requested ``not-configured`` state is already the effective state.
+            if ex.status == 403 and code_scanning.get("state") == "not-configured":
+                try:
+                    error_data = json.loads(ex.data)
+                except json.JSONDecodeError:
+                    error_data = {}
+
+                error_message = error_data.get("message", "") if isinstance(error_data, dict) else ""
+
+                if (
+                    isinstance(error_message, str)
+                    and "must be enabled for this repository to use code scanning" in error_message.lower()
+                ):
+                    _logger.info(
+                        "code scanning is unavailable for repo '%s/%s'; treating it as disabled",
+                        org_id,
+                        repo_name,
+                    )
+                    return
+
             raise RuntimeError(f"failed to update code scanning config for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
