@@ -235,11 +235,21 @@ local newOrgSecret(name) = {
   value: null
 };
 
+# Functions for the organization-level secret scopes with the same shape as
+# Actions organization secrets.
+local newOrgDependabotSecret(name) = newOrgSecret(name);
+local newOrgCodespacesSecret(name) = newOrgSecret(name);
+
 # Function to create a new repository secret with default settings.
 local newRepoSecret(name) = {
   name: name,
   value: null
 };
+
+# Functions for repository-level secret scopes with the same shape as Actions
+# repository secrets.
+local newRepoDependabotSecret(name) = newRepoSecret(name);
+local newRepoCodespacesSecret(name) = newRepoSecret(name);
 
 # Function to create a new environment with default settings.
 local newEnvironment(name) = {
@@ -256,10 +266,14 @@ local newEnvironment(name) = {
   newOrg:: newOrg,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
+  newOrgDependabotSecret:: newOrgDependabotSecret,
+  newOrgCodespacesSecret:: newOrgCodespacesSecret,
   newRepo:: newRepo,
   extendRepo:: extendRepo,
   newRepoWebhook:: newRepoWebhook,
   newRepoSecret:: newRepoSecret,
+  newRepoDependabotSecret:: newRepoDependabotSecret,
+  newRepoCodespacesSecret:: newRepoCodespacesSecret,
   newBranchProtectionRule:: newBranchProtectionRule,
   newEnvironment:: newEnvironment
 }
