@@ -163,7 +163,7 @@ async def test_organization_validation_checks_repository_special_secret_names(
 @pytest.mark.parametrize("scope", ["secrets", "dependabot_secrets", "codespaces_secrets"])
 @pytest.mark.parametrize("visibility", ["public", "private", "selected", "invalid"])
 async def test_free_plan_organization_secret_visibility(scope: str, visibility: str) -> None:
-    """All scopes validate visibility; only Actions restricts private visibility on Free."""
+    """Organization Actions and Codespaces private secrets require a paid plan."""
     organization = GitHubOrganization.from_model_data(
         {
             "project_name": "project",
@@ -182,7 +182,7 @@ async def test_free_plan_organization_secret_visibility(scope: str, visibility: 
     if visibility == "invalid":
         assert len(errors) == 1
         assert "only values ('public' | 'private' | 'selected') are allowed" in errors[0]
-    elif scope == "secrets" and visibility == "private":
+    elif scope in {"secrets", "codespaces_secrets"} and visibility == "private":
         assert len(errors) == 1
         assert "not available for an organization with free plan" in errors[0]
     else:

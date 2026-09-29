@@ -8,19 +8,31 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
-from otterdog.models import LivePatch, LivePatchType
+from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.organization_secret import OrganizationSecretBase
 from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models.github_organization import GitHubOrganization
     from otterdog.providers.github import GitHubProvider
 
 
 class OrganizationCodespacesSecret(OrganizationSecretBase):
     """Organization-level secret consumed by Codespaces."""
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        super().validate(context, parent_object)
+
+        organization = cast("GitHubOrganization", parent_object)
+        if self.visibility == "private" and organization.settings.plan == "free":
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'visibility' of value "
+                f"'{self.visibility}', which is not available for an organization with free plan.",
+            )
 
     @property
     def model_object_name(self) -> str:
