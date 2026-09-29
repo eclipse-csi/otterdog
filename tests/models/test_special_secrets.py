@@ -161,9 +161,26 @@ async def test_organization_validation_checks_repository_special_secret_names(
 
 
 @pytest.mark.parametrize("scope", ["secrets", "dependabot_secrets", "codespaces_secrets"])
+async def test_organization_secret_without_selected_repositories_validates(scope: str) -> None:
+    """The optional selected repository list defaults to an empty selection during validation."""
+    organization = GitHubOrganization.from_model_data(
+        {
+            "project_name": "project",
+            "github_id": "test-org",
+            "settings": {"name": "test-org", "plan": "team"},
+            scope: [{"name": "TEST_SECRET", "value": "********", "visibility": "public"}],
+        }
+    )
+
+    context = await _validate_organization(organization)
+
+    assert all(failure_type != FailureType.ERROR for failure_type, _ in context.validation_failures)
+
+
+@pytest.mark.parametrize("scope", ["secrets", "dependabot_secrets", "codespaces_secrets"])
 @pytest.mark.parametrize("visibility", ["public", "private", "selected", "invalid"])
 async def test_free_plan_organization_secret_visibility(scope: str, visibility: str) -> None:
-    """Organization Actions and Codespaces private secrets require a paid plan."""
+    """Only organization Actions private secrets require a paid plan."""
     organization = GitHubOrganization.from_model_data(
         {
             "project_name": "project",
@@ -182,7 +199,7 @@ async def test_free_plan_organization_secret_visibility(scope: str, visibility: 
     if visibility == "invalid":
         assert len(errors) == 1
         assert "only values ('public' | 'private' | 'selected') are allowed" in errors[0]
-    elif scope in {"secrets", "codespaces_secrets"} and visibility == "private":
+    elif scope == "secrets" and visibility == "private":
         assert len(errors) == 1
         assert "not available for an organization with free plan" in errors[0]
     else:

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from typing import Any
+from urllib.parse import quote
 
 from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
@@ -71,7 +72,8 @@ class SecretClient(RestClient):
         if scope is SecretScope.ENVIRONMENT:
             if environment_name is None:
                 raise ValueError("environment name is required for environment secrets")
-            return f"/repos/{org_id}/{repo_name}/environments/{environment_name}/secrets{suffix}"
+            encoded_environment_name = quote(environment_name, safe="")
+            return f"/repos/{org_id}/{repo_name}/environments/{encoded_environment_name}/secrets{suffix}"
 
         segment = {
             SecretScope.REPOSITORY_ACTIONS: "actions",
