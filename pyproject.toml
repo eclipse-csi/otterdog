@@ -21,7 +21,7 @@ dependencies = [
     "jsonschema (>=4.23,<5.0)",
     "pyjwt[crypto] (>=2.14.0,<3.0)",
     "mintotp (>=0.3,<1.0)",
-    "playwright (>=1.44,<2.0)",
+    "playwright (>=1.63.0,<2.0)",
     "requests (>=2.32,<3.0)",
     "rich (>=13.9,<14.0)",
     "rjsonnet (>=0.5,<1.0)",
@@ -100,15 +100,15 @@ github-flask         = "^3.2"
 aiohttp-client-cache = {version=">=0.12.3", extras=["redis"]}
 ariadne              = "^1.1"
 pyyaml               = "^6.0"
-semver               = "^3.0"
-python-slugify       = "^9.0"
+semver               = "^3.1"
+python-slugify       = "^9.1"
 
 [tool.poetry.group.dev.dependencies]
-ruff = ">=0.16"
+ruff = ">=0.16.8"
 prek = ">=0.5.3"
 
 [tool.poetry.group.test.dependencies]
-tox = ">4.22"
+tox = ">=4.63.0"
 pytest = ">=9.0.3"
 pytest-asyncio = ">=0.24"
 parameterized  = ">=0.9"
