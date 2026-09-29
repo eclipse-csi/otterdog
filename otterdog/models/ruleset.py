@@ -451,6 +451,9 @@ class Ruleset(ModelObject, abc.ABC):
         if is_set_and_present(self.required_pull_request):
             self.required_pull_request.validate(context, parent_object)
 
+        if is_set_and_present(self.required_status_checks):
+            self.required_status_checks.validate(context, parent_object)
+
         if is_set_and_present(self.required_merge_queue):
             self.required_merge_queue.validate(context, parent_object)
 
