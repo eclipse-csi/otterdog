@@ -45,7 +45,11 @@ class OrganizationSecretBase(Secret):
                     f"while only values ('public' | 'private' | 'selected') are allowed.",
                 )
 
-            if self.visibility != "selected" and len(self.selected_repositories) > 0:
+            if (
+                self.visibility != "selected"
+                and is_set_and_valid(self.selected_repositories)
+                and len(self.selected_repositories) > 0
+            ):
                 context.add_failure(
                     FailureType.WARNING,
                     f"{self.get_model_header(parent_object)} has 'visibility' set to '{self.visibility}', "
