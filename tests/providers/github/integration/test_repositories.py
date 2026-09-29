@@ -6,7 +6,11 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from unittest.mock import AsyncMock
+
 import pytest
+
+from otterdog.providers.github.rest import repo_client
 
 from .conftest import GitHubProviderTestKit
 
@@ -31,21 +35,79 @@ async def test_update_repo_code_scanning_config(github: GitHubProviderTestKit):
     )
 
 
-async def test_update_repo_ignores_unavailable_code_scanning_when_disabled(github: GitHubProviderTestKit):
-    """Disabling unavailable code scanning is an effective no-op for private repositories."""
+@pytest.fixture
+def no_sleep(monkeypatch: pytest.MonkeyPatch):
+    """Skip the arbitrary wait performed after creating a repository."""
+    monkeypatch.setattr(repo_client.asyncio, "sleep", AsyncMock())
+
+
+def expect_repo_creation(github: GitHubProviderTestKit, private: bool) -> None:
     github.http.expect(
-        "PATCH",
+        "POST",
+        f"/orgs/{ORG_ID}/repos",
+        request_json={"name": REPO_NAME, "private": private, "auto_init": False},
+        response_json={"name": REPO_NAME, "private": private},
+    )
+
+
+async def add_repo(github: GitHubProviderTestKit, private: bool, state: str) -> None:
+    await github.provider.add_repo(
+        ORG_ID,
+        {"name": REPO_NAME, "private": private, "code_scanning_default_config": {"state": state}},
+        None,
+        [],
+        None,
+        False,
+        False,
+    )
+
+
+async def test_add_repo_skips_disabling_unavailable_code_scanning(github: GitHubProviderTestKit, no_sleep):
+    """Code scanning unavailable for a new repository (e.g. private without Code Security) is already disabled."""
+    expect_repo_creation(github, private=True)
+    github.http.expect(
+        "GET",
         CODE_SCANNING_URL,
-        request_json={"state": "not-configured"},
         response_status=403,
         response_json={"message": "Code Security must be enabled for this repository to use code scanning."},
     )
 
-    await github.provider.update_repo(
-        ORG_ID,
-        REPO_NAME,
-        {"code_scanning_default_config": {"state": "not-configured"}},
+    await add_repo(github, private=True, state="not-configured")
+
+
+async def test_add_repo_skips_disabling_not_configured_code_scanning(github: GitHubProviderTestKit, no_sleep):
+    """A new repository without code scanning default setup does not need to be updated."""
+    expect_repo_creation(github, private=False)
+    github.http.expect("GET", CODE_SCANNING_URL, response_json={"state": "not-configured"})
+
+    await add_repo(github, private=False, state="not-configured")
+
+
+async def test_add_repo_disables_code_scanning_configured_by_org(github: GitHubProviderTestKit, no_sleep):
+    """Code scanning enabled on a new repository, e.g. by an org code security configuration, gets disabled."""
+    expect_repo_creation(github, private=False)
+    github.http.expect("GET", CODE_SCANNING_URL, response_json={"state": "configured", "languages": ["python"]})
+    github.http.expect(
+        "PATCH",
+        CODE_SCANNING_URL,
+        request_json={"state": "not-configured"},
+        response_json={"state": "not-configured"},
     )
+
+    await add_repo(github, private=False, state="not-configured")
+
+
+async def test_add_repo_configures_enabled_code_scanning(github: GitHubProviderTestKit, no_sleep):
+    """Enabling code scanning on a new repository is applied after its creation."""
+    expect_repo_creation(github, private=False)
+    github.http.expect(
+        "PATCH",
+        CODE_SCANNING_URL,
+        request_json={"state": "configured"},
+        response_json={"state": "configured"},
+    )
+
+    await add_repo(github, private=False, state="configured")
 
 
 async def test_update_repo_propagates_unavailable_code_scanning_when_enabled(github: GitHubProviderTestKit):
@@ -63,22 +125,4 @@ async def test_update_repo_propagates_unavailable_code_scanning_when_enabled(git
             ORG_ID,
             REPO_NAME,
             {"code_scanning_default_config": {"state": "configured"}},
-        )
-
-
-async def test_update_repo_propagates_unrelated_code_scanning_errors(github: GitHubProviderTestKit):
-    """A 403 unrelated to unavailable Code Security must still fail the repository update."""
-    github.http.expect(
-        "PATCH",
-        CODE_SCANNING_URL,
-        request_json={"state": "not-configured"},
-        response_status=403,
-        response_json={"message": "Resource access denied"},
-    )
-
-    with pytest.raises(RuntimeError, match="failed to update code scanning config"):
-        await github.provider.update_repo(
-            ORG_ID,
-            REPO_NAME,
-            {"code_scanning_default_config": {"state": "not-configured"}},
         )

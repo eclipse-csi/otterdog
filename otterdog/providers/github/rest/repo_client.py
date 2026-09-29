@@ -184,6 +184,7 @@ class RepoClient(RestClient):
                 # to defaults from the organization (like web_commit_signoff_required)
                 current_data = await self.get_repo_data(org_id, repo_name)
                 self._remove_already_active_settings(data, current_data)
+                await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)
 
                 _logger.debug("forked repo with name '%s' from repo '%s'", repo_name, forked_repository)
@@ -215,6 +216,7 @@ class RepoClient(RestClient):
                 # to defaults from the organization (like web_commit_signoff_required)
                 current_data = await self.get_repo_data(org_id, repo_name)
                 self._remove_already_active_settings(data, current_data)
+                await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)
 
                 # wait till the repo is initialized, this might take a while.
@@ -289,6 +291,7 @@ class RepoClient(RestClient):
             # in some cases, the repo can not be access yet via the REST API, resulting in 404 errors
             # we prevent that by adding an arbitrary sleep
             await asyncio.sleep(2)
+            await self._remove_not_configured_code_scanning(org_id, repo_name, update_data)
             await self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}") from ex
@@ -458,6 +461,29 @@ class RepoClient(RestClient):
                     _logger.debug("omitting setting '%s' as it is already set", key)
                     update_data.pop(key)
 
+    async def _remove_not_configured_code_scanning(
+        self,
+        org_id: str,
+        repo_name: str,
+        update_data: dict[str, Any],
+        current_data: dict[str, Any] | None = None,
+    ) -> None:
+        # a newly created repo usually has no code scanning default setup, only disable it if it got
+        # configured (e.g. by an org code security configuration), as the update fails when code scanning
+        # is unavailable for the repo (e.g. private repo without Code Security)
+        code_scanning = update_data.get("code_scanning_default_config")
+        if code_scanning is None or code_scanning.get("state") != "not-configured":
+            return
+
+        if current_data is None:
+            current_data = {}
+            await self._fill_code_scanning_config(org_id, repo_name, current_data)
+
+        current_state = current_data.get("code_scanning_default_config", {}).get("state", "not-configured")
+        if current_state == "not-configured":
+            _logger.debug("omitting setting 'code_scanning_default_config' as it is not configured")
+            update_data.pop("code_scanning_default_config")
+
     async def _fill_github_pages_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         _logger.debug("retrieving github pages config for '%s/%s'", org_id, repo_name)
 
@@ -561,28 +587,6 @@ class RepoClient(RestClient):
             )
             _logger.debug("updated code scanning config for repo '%s/%s'", org_id, repo_name)
         except GitHubException as ex:
-            # GitHub returns this response when code scanning is unavailable for a repository,
-            # for example when Code Security is not enabled for a private repository. In that
-            # situation, the requested ``not-configured`` state is already the effective state.
-            if ex.status == 403 and code_scanning.get("state") == "not-configured":
-                try:
-                    error_data = json.loads(ex.data)
-                except json.JSONDecodeError:
-                    error_data = {}
-
-                error_message = error_data.get("message", "") if isinstance(error_data, dict) else ""
-
-                if (
-                    isinstance(error_message, str)
-                    and "must be enabled for this repository to use code scanning" in error_message.lower()
-                ):
-                    _logger.info(
-                        "code scanning is unavailable for repo '%s/%s'; treating it as disabled",
-                        org_id,
-                        repo_name,
-                    )
-                    return
-
             raise RuntimeError(f"failed to update code scanning config for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
     async def _update_default_branch(self, org_id: str, repo_name: str, new_default_branch: str) -> None:
