@@ -13,6 +13,7 @@ import pytest
 from jsonbender import bend
 from pretend import stub
 
+from otterdog.models import FailureType, ValidationContext
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repo_ruleset import RepositoryRuleset
 from otterdog.models.ruleset import Ruleset, StatusCheckSettings
@@ -418,3 +419,57 @@ class TestStatusCheckSettings:
         result = bend(mapping, data)
 
         assert result["required_status_checks"] == [{"context": "build"}]
+
+
+class TestRulesetValidation:
+    def create_ruleset(self, required_status_checks) -> RepositoryRuleset:
+        return RepositoryRuleset.from_model_data(
+            {
+                "name": "main",
+                "enforcement": "active",
+                "target": "branch",
+                "include_refs": ["~DEFAULT_BRANCH"],
+                "exclude_refs": [],
+                "bypass_actors": [],
+                "requires_deployments": False,
+                "required_deployment_environments": [],
+                "required_status_checks": required_status_checks,
+            }
+        )
+
+    def validate(self, ruleset: RepositoryRuleset) -> list[str]:
+        context = ValidationContext(
+            root_object=stub(settings=stub(plan="free")),
+            secret_resolver=stub(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+        repository = stub(get_model_header=lambda _: 'repository[name="test-repo"]')
+
+        ruleset.validate(context, repository)
+
+        return [message for failure_type, message in context.validation_failures if failure_type == FailureType.ERROR]
+
+    def test_validate_required_status_checks_without_strict(self):
+        # a ruleset extended with 'required_status_checks+:' without being based on
+        # orgs.newRepoRuleset does not set 'strict', which used to fail only at apply time.
+        ruleset = self.create_ruleset({"status_checks": ["check-approvals"]})
+
+        errors = self.validate(ruleset)
+
+        assert len(errors) == 1
+        assert "has not set required parameter 'required_status_checks.strict'" in errors[0]
+
+    def test_validate_required_status_checks_with_strict(self):
+        ruleset = self.create_ruleset(
+            {"do_not_enforce_on_create": False, "strict": False, "status_checks": ["check-approvals"]}
+        )
+
+        assert self.validate(ruleset) == []
+
+    def test_validate_without_required_status_checks(self):
+        ruleset = self.create_ruleset(None)
+
+        assert self.validate(ruleset) == []
