@@ -220,11 +220,17 @@ class TestRuleset:
 
         assert bypass_actors_result == [], "Missing bypass_actors key should default to empty list"
 
-    def test_get_mapping_from_provider_user_without_login_fails(self):
-        data = self.create_ruleset_data([{"actor_type": "User", "actor_id": 321, "bypass_mode": "always"}])
+    def test_get_mapping_from_provider_user_without_login_is_skipped(self):
+        data = self.create_ruleset_data(
+            [
+                {"actor_type": "User", "actor_id": 321, "bypass_mode": "always"},
+                {"actor_type": "User", "actor_id": 123, "user_login": "alice", "bypass_mode": "always"},
+            ]
+        )
 
-        with pytest.raises(RuntimeError, match="user actor '321': login is unavailable"):
-            Ruleset.get_mapping_from_provider(self.org_id, data)
+        mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        assert bend(mapping, data)["bypass_actors"] == ["@alice"]
 
     @staticmethod
     def _successful_actor_provider():

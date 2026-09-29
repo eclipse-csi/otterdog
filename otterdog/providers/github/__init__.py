@@ -520,9 +520,12 @@ class GitHubProvider:
         async with self._user_login_lock:
             missing_user_ids = user_ids - self._user_logins.keys()
             for user_id in missing_user_ids:
-                self._user_logins[user_id] = await self.rest_api.user.get_user_login(user_id)
+                try:
+                    self._user_logins[user_id] = await self.rest_api.user.get_user_login(user_id)
+                except RuntimeError as ex:
+                    _logger.warning("failed to resolve login for user id '%s': %s", user_id, ex)
 
-        return {user_id: self._user_logins[user_id] for user_id in user_ids}
+        return {user_id: self._user_logins[user_id] for user_id in user_ids if user_id in self._user_logins}
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return await self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)

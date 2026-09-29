@@ -545,9 +545,8 @@ class Ruleset(ModelObject, abc.ABC):
                 elif actor_type == "User":
                     user_login = actor.get("user_login")
                     if user_login is None:
-                        raise RuntimeError(
-                            f"fail to map user actor '{actor.get('actor_id', 'unknown')}': login is unavailable"
-                        )
+                        _logger.warning("fail to map user actor '%s', skipping", actor.get("actor_id", "unknown"))
+                        continue
                     transformed_actor = f"@{user_login}"
                 elif actor_type == "Integration":
                     app_slug = actor.get("app_slug")

@@ -94,18 +94,17 @@ async def test_organization_loader_deduplicates_ids_and_skips_lookup_without_use
 
 
 @pytest.mark.asyncio
-async def test_organization_loader_propagates_lookup_failure_and_keeps_unresolved_actor():
+async def test_organization_loader_skips_unresolved_user_actor():
     rulesets = [ruleset_data(user_actor())]
     provider = organization_provider(rulesets)
-    provider.get_user_logins.side_effect = RuntimeError("lookup failed")
+    provider.get_user_logins.return_value = {}
 
     with patch("otterdog.models.github_organization.OrganizationSettings.from_provider_data") as settings_model:
         settings_model.return_value = SimpleNamespace(plan="enterprise")
-        with pytest.raises(ExceptionGroup) as error:
-            await GitHubOrganization.load_from_provider("project", "acme", minimal_config(), provider)
-        assert "lookup failed" in repr(error.value)
+        organization = await GitHubOrganization.load_from_provider("project", "acme", minimal_config(), provider)
 
     assert "user_login" not in rulesets[0]["bypass_actors"][0]
+    assert organization.rulesets[0].bypass_actors == []
 
 
 def repository_provider(rulesets):
@@ -142,7 +141,7 @@ async def test_repository_loader_enriches_user_before_conversion():
 
 
 @pytest.mark.asyncio
-async def test_repository_loader_skips_lookup_without_users_and_propagates_failure():
+async def test_repository_loader_skips_lookup_without_users_and_skips_unresolved_user():
     rulesets = [ruleset_data({"actor_type": "Team", "actor_id": 2, "team_slug": "acme/backend"})]
     provider, repository = repository_provider(rulesets)
     config = minimal_config(default_repo_ruleset_config={})
@@ -150,22 +149,11 @@ async def test_repository_loader_skips_lookup_without_users_and_propagates_failu
         await _process_single_repo(provider, "acme", "backend", config, {}, {}, {})
     provider.get_user_logins.assert_not_awaited()
 
-    rulesets = [ruleset_data(user_actor())]
-    provider, repository = repository_provider(rulesets)
-    provider.get_user_logins.side_effect = RuntimeError("lookup failed")
-    with (
-        patch("otterdog.models.github_organization.Repository.from_provider_data", return_value=repository),
-        pytest.raises(RuntimeError, match="lookup failed"),
-    ):
-        await _process_single_repo(provider, "acme", "backend", config, {}, {}, {})
-
     provider, repository = repository_provider([ruleset_data(user_actor())])
     provider.get_user_logins.return_value = {}
-    with (
-        patch("otterdog.models.github_organization.Repository.from_provider_data", return_value=repository),
-        pytest.raises(RuntimeError, match="login is unavailable"),
-    ):
-        await _process_single_repo(provider, "acme", "backend", config, {}, {}, {})
+    with patch("otterdog.models.github_organization.Repository.from_provider_data", return_value=repository):
+        result = await _process_single_repo(provider, "acme", "backend", config, {}, {}, {})
+    assert result[1].rulesets[0].bypass_actors == []
 
 
 @pytest.mark.asyncio
@@ -222,8 +210,7 @@ async def test_provider_user_login_cache_and_partial_failure():
         return response
 
     provider.rest_api.user.get_user_login = failing_login
-    with pytest.raises(RuntimeError, match="failed"):
-        await provider.get_user_logins({789})
+    assert await provider.get_user_logins({789}) == {}
     responses[789] = "carol"
     assert await provider.get_user_logins({123, 789}) == {123: "alice", 789: "carol"}
     assert calls == [123, 456, 789, 789]
@@ -247,8 +234,7 @@ async def test_provider_partial_population_keeps_successful_id_cached():
     provider = GitHubProvider(None)
     provider.rest_api = stub(user=stub(get_user_login=get_user_login))
     assert await provider.get_user_logins({123}) == {123: "alice"}
-    with pytest.raises(RuntimeError, match="failed"):
-        await provider.get_user_logins({456})
+    assert await provider.get_user_logins({123, 456}) == {123: "alice"}
     assert await provider.get_user_logins({123}) == {123: "alice"}
     assert await provider.get_user_logins({456}) == {456: "bob"}
     assert calls == [123, 456, 456]
