@@ -56,7 +56,11 @@
         "dismisses_stale_reviews": { "type": "boolean" },
         "requires_code_owner_review": { "type": "boolean" },
         "requires_last_push_approval": { "type": "boolean" },
-        "requires_review_thread_resolution": { "type": "boolean" }
+        "requires_review_thread_resolution": { "type": "boolean" },
+        "allowed_merge_methods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["merge", "squash", "rebase"] }
+        }
       },
       "additionalProperties": false
     },
