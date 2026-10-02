@@ -15,7 +15,7 @@ from logging import Logger, getLogger
 from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import aiofiles
-from quart import current_app
+from quart import current_app, render_template
 
 from otterdog.config import OrganizationConfig
 from otterdog.providers.github.stats import RequestStatistics
@@ -241,6 +241,61 @@ class InstallationBasedTask(Protocol):
                 return True
 
         return False
+
+    async def has_write_access(self, org_id: str, repo_name: str, user: str) -> bool:
+        """
+        Checks whether the user has at least write permission on the repository.
+        Used to guard comment commands that modify branches or pull requests.
+        """
+        rest_api = await self.rest_api
+        permission = await rest_api.repo.get_collaborator_permission(org_id, repo_name, user)
+        return permission in ("admin", "write", "maintain")
+
+    async def create_or_update_comment(
+        self,
+        org_id: str,
+        repo_name: str,
+        issue_number: int,
+        matching_header: str,
+        body: str,
+    ) -> None:
+        """
+        Posts a comment on an issue or pull request, or updates the existing comment
+        that carries the same (hidden) header so repeated runs edit in place.
+        """
+        rest_api = await self.rest_api
+        for comment in await rest_api.issue.get_comments(org_id, repo_name, issue_number):
+            if matching_header in (comment.get("body") or ""):
+                await rest_api.issue.update_comment(org_id, repo_name, comment["id"], body)
+                return
+
+        await rest_api.issue.create_comment(org_id, repo_name, str(issue_number), body)
+
+    async def comment_on_failure(
+        self,
+        org_id: str,
+        repo_name: str,
+        issue_number: int,
+        author: str,
+        command: str,
+        exception: Exception,
+    ) -> None:
+        """
+        Replies to a comment command that aborted with an exception, so that a command never
+        goes unanswered. Errors while replying are only logged.
+        """
+        try:
+            comment = await render_template(
+                "comment/command_failed_comment.txt",
+                author=author,
+                command=command,
+                task=type(self).__name__,
+                error=str(exception).strip().splitlines()[0] if str(exception).strip() else type(exception).__name__,
+            )
+            rest_api = await self.rest_api
+            await rest_api.issue.create_comment(org_id, repo_name, str(issue_number), comment)
+        except Exception as ex:
+            self.logger.warning(f"failed to report the failure of '{self!r}'", exc_info=ex)
 
     def schedule_automerge_task(self, org_id: str, repo_name: str, pull_request_number: int) -> None:
         from .auto_merge_comment import AutoMergeCommentTask

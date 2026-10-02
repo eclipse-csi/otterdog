@@ -232,19 +232,31 @@ async def on_issue_comment_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
-    # currently we only handle comments to pull requests
-    if event.issue.pull_request is None:
+    if event.action not in ["created", "edited"]:
         return success()
 
-    if not await targets_config_repo(event.repository.name, event.installation.id):
+    # comments by the app itself never trigger a command
+    if event.sender.type.lower() == "bot":
         return success()
 
-    if event.action in ["created", "edited"]:
-        for handler in comment_handlers:
-            match = handler.matches(event.comment.body)
-            if match is not None:
+    is_pull_request = event.issue.pull_request is not None
+    is_config_repo = await targets_config_repo(event.repository.name, event.installation.id)
+
+    for handler in comment_handlers:
+        match = handler.matches(event.comment.body)
+        if match is not None:
+            if handler.applies_to(is_pull_request, is_config_repo):
                 handler.process(match, event)
-                break
+            else:
+                logger.debug(
+                    "ignoring command '%s' in '%s/%s#%d', handler scope '%s' does not apply",
+                    match.group(0),
+                    event.organization.login,
+                    event.repository.name,
+                    event.issue.number,
+                    handler.scope,
+                )
+            break
 
     return success()
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,31 @@ if TYPE_CHECKING:
     from otterdog.webapp.webhook import IssueCommentEvent
 
 
+class CommentScope(StrEnum):
+    """Where a comment command is accepted."""
+
+    # only on pull requests of the configuration repository, the default
+    CONFIG_REPO_PULL_REQUEST = "config_repo_pull_request"
+    # on pull requests of any repository of the organization, e.g. remediation PRs of blueprints
+    PULL_REQUEST = "pull_request"
+    # on issues and pull requests of any repository of the organization
+    ANY = "any"
+
+
 class CommentHandler(ABC):
+    @property
+    def scope(self) -> CommentScope:
+        return CommentScope.CONFIG_REPO_PULL_REQUEST
+
+    def applies_to(self, is_pull_request: bool, is_config_repo: bool) -> bool:
+        match self.scope:
+            case CommentScope.CONFIG_REPO_PULL_REQUEST:
+                return is_pull_request and is_config_repo
+            case CommentScope.PULL_REQUEST:
+                return is_pull_request
+            case CommentScope.ANY:
+                return True
+
     @cached_property
     def pattern(self) -> Pattern:
         return self._create_pattern()

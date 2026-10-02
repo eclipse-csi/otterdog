@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from typing import Any
+
 from otterdog.logging import get_logger
 from otterdog.providers.github.exception import GitHubException
 
@@ -28,3 +30,24 @@ class IssueClient(RestClient):
             )
         except GitHubException as ex:
             raise RuntimeError(f"failed creating issue comment:\n{ex}") from ex
+
+    async def get_comments(self, org_id: str, repo_name: str, issue_number: int) -> list[dict[str, Any]]:
+        _logger.debug("retrieving comments for issue '%s' in repo '%s/%s'", issue_number, org_id, repo_name)
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/comments"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving issue comments:\n{ex}") from ex
+
+    async def update_comment(self, org_id: str, repo_name: str, comment_id: int, body: str) -> None:
+        _logger.debug("updating issue comment '%s' in repo '%s/%s'", comment_id, org_id, repo_name)
+
+        try:
+            data = {"body": body}
+            await self.requester.request_json(
+                "PATCH", f"/repos/{org_id}/{repo_name}/issues/comments/{comment_id}", data=data
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed updating issue comment:\n{ex}") from ex

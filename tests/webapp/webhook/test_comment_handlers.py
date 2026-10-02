@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import re
 import unittest
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
@@ -16,6 +17,7 @@ from otterdog.webapp.webhook.comment_handlers import (
     ApplyCommentHandler,
     CheckSyncCommentHandler,
     CommentHandler,
+    CommentScope,
     DoneCommentHandler,
     HelpCommentHandler,
     MergeCommentHandler,
@@ -159,3 +161,48 @@ class ValidateCommentHandlerTest(CommentHandlerTest[ValidateCommentHandler]):
     )
     def test_matches(self, test_input, expected):
         self._test_matches(test_input, expected)
+
+
+class CommentScopeTest(unittest.TestCase):
+    def test_existing_handlers_only_apply_to_config_repo_pull_requests(self):
+        for handler in [
+            HelpCommentHandler(),
+            TeamInfoCommentHandler(),
+            CheckSyncCommentHandler(),
+            ApplyCommentHandler(),
+            DoneCommentHandler(),
+            MergeCommentHandler(),
+            ValidateCommentHandler(),
+        ]:
+            assert handler.scope == CommentScope.CONFIG_REPO_PULL_REQUEST
+            assert handler.applies_to(is_pull_request=True, is_config_repo=True) is True
+            assert handler.applies_to(is_pull_request=True, is_config_repo=False) is False
+            assert handler.applies_to(is_pull_request=False, is_config_repo=True) is False
+            assert handler.applies_to(is_pull_request=False, is_config_repo=False) is False
+
+    @parameterized.expand(
+        [
+            (CommentScope.PULL_REQUEST, True, True, True),
+            (CommentScope.PULL_REQUEST, True, False, True),
+            (CommentScope.PULL_REQUEST, False, True, False),
+            (CommentScope.PULL_REQUEST, False, False, False),
+            (CommentScope.ANY, True, True, True),
+            (CommentScope.ANY, True, False, True),
+            (CommentScope.ANY, False, True, True),
+            (CommentScope.ANY, False, False, True),
+        ]
+    )
+    def test_scope_matrix(self, scope, is_pull_request, is_config_repo, expected):
+        class ScopedHandler(CommentHandler):
+            @property
+            def scope(self) -> CommentScope:
+                return scope_value
+
+            def _create_pattern(self):
+                return re.compile(r"/otterdog\s+scoped")
+
+            def process(self, match, event) -> None:
+                pass
+
+        scope_value = scope
+        assert ScopedHandler().applies_to(is_pull_request, is_config_repo) is expected

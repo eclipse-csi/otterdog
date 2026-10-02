@@ -49,6 +49,25 @@ class RepoClient(RestClient):
         repo_data = await self.get_simple_repo_data(org_id, repo_name)
         return repo_data["default_branch"]
 
+    async def get_collaborator_permission(self, org_id: str, repo_name: str, user: str) -> str:
+        """
+        Returns the effective permission of a user on a repository: 'admin', 'write', 'read' or 'none'.
+        """
+        _logger.debug("retrieving permission of user '%s' for repo '%s/%s'", user, org_id, repo_name)
+
+        status, body = await self.requester.request_raw(
+            "GET", f"/repos/{org_id}/{repo_name}/collaborators/{user}/permission"
+        )
+
+        if status == 200:
+            return json.loads(body)["permission"]
+        elif status == 404:
+            return "none"
+        else:
+            raise RuntimeError(
+                f"failed retrieving permission of user '{user}' for repo '{org_id}/{repo_name}'\n{status}: {body}"
+            )
+
     async def get_branch(self, org_id: str, repo_name: str, branch_name: str) -> dict[str, Any]:
         _logger.debug("retrieving data for branch '%s' in repo '%s/%s'", branch_name, org_id, repo_name)
 
