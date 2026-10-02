@@ -85,3 +85,32 @@ async def test_pending_recheck_survives_unrelated_update():
 
     assert recheck is True
     assert saved.recheck_needed is True
+
+
+async def test_changing_type_replaces_model():
+    # the type is part of the primary key, so the old model is deleted and a new one created
+    stored = _stored_model(_blueprint())
+    changed_type = read_blueprint(
+        BLUEPRINT_PATH,
+        {
+            "id": "codeql",
+            "name": "CodeQL",
+            "type": "scorecard_integration",
+            "config": {"workflow_content": "name: scorecard"},
+        },
+    )
+
+    with (
+        patch("otterdog.webapp.db.service.find_blueprint", AsyncMock(return_value=stored)),
+        patch("otterdog.webapp.db.service.save_blueprint", AsyncMock()) as save,
+        patch("otterdog.webapp.db.service.mongo") as mongo,
+    ):
+        mongo.odm.delete = AsyncMock()
+        recheck = await update_or_create_blueprint("my-org", changed_type)
+
+    mongo.odm.delete.assert_awaited_once_with(stored)
+    saved = save.await_args.args[0]
+    assert recheck is True
+    assert saved.id.blueprint_type == "scorecard_integration"
+    assert saved.id.blueprint_id == "codeql"
+    assert saved.recheck_needed is True

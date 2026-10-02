@@ -940,6 +940,25 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
             description=blueprint.description,
             config=blueprint.config,
         )
+    elif blueprint_model.id.blueprint_type != blueprint.type.value:
+        # the type is part of the primary key, so an existing model can not be
+        # updated in place: replace it, the status models are keyed by id only
+        # and keep applying to the blueprint.
+        logger.info(
+            "blueprint '%s' of org '%s' changed its type from '%s' to '%s', replacing model",
+            blueprint.id,
+            owner,
+            blueprint_model.id.blueprint_type,
+            blueprint.type.value,
+        )
+        await mongo.odm.delete(blueprint_model)
+        blueprint_model = BlueprintModel(
+            id=BlueprintId(org_id=owner, blueprint_type=blueprint.type.value, blueprint_id=blueprint.id),
+            path=blueprint.path,
+            name=blueprint.name,
+            description=blueprint.description,
+            config=blueprint.config,
+        )
     else:
 
         def update_if_changed(obj: BlueprintModel, attr: str, value: Any) -> bool:
