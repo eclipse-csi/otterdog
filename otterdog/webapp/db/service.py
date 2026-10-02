@@ -551,8 +551,20 @@ async def update_or_create_pull_request(
     # they were scheduled, do not let such a snapshot revert a newer state, e.g. turning
     # an already merged pull request back to open. The condition is evaluated by mongo
     # so that it also holds when several tasks update the same pull request concurrently.
+    status_rank = _PULL_REQUEST_STATUS_ORDER.index(pr_model.status)
     await collection.update_one(
-        {"_id": doc["_id"], "updated_at": {"$lte": doc["updated_at"]}},
+        {
+            "_id": doc["_id"],
+            "$or": [
+                {"updated_at": {"$lt": doc["updated_at"]}},
+                # GitHub timestamps have a precision of one second and can not order snapshots
+                # taken within the same second, never go back in the lifecycle in that case.
+                {
+                    "updated_at": doc["updated_at"],
+                    "status": {"$in": [s.value for s in _PULL_REQUEST_STATUS_ORDER[: status_rank + 1]]},
+                },
+            ],
+        },
         {"$set": {k: doc[k] for k in _PULL_REQUEST_LIFECYCLE_FIELDS}},
     )
 
@@ -564,6 +576,7 @@ async def update_or_create_pull_request(
 
 
 _PULL_REQUEST_LIFECYCLE_FIELDS = ("draft", "status", "created_at", "updated_at", "closed_at", "merged_at")
+_PULL_REQUEST_STATUS_ORDER = (PullRequestStatus.OPEN, PullRequestStatus.CLOSED, PullRequestStatus.MERGED)
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:

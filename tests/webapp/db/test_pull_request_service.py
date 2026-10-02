@@ -80,12 +80,31 @@ class _FakeCollection:
             await self.before_update(update_filter)
 
         doc = self.docs.get(repr(update_filter["_id"]))
-        if doc is None:
-            return
-        condition = update_filter.get("updated_at")
-        if condition is not None and not doc["updated_at"] <= condition["$lte"]:
-            return
-        doc.update(update["$set"])
+        if doc is not None and _matches(doc, update_filter):
+            doc.update(update["$set"])
+
+
+def _matches(doc, query) -> bool:
+    for field, condition in query.items():
+        if field == "$or":
+            if not any(_matches(doc, alternative) for alternative in condition):
+                return False
+        elif isinstance(condition, dict) and all(k.startswith("$") for k in condition):
+            for operator, operand in condition.items():
+                match operator:
+                    case "$lt":
+                        matched = doc[field] < operand
+                    case "$lte":
+                        matched = doc[field] <= operand
+                    case "$in":
+                        matched = doc[field] in operand
+                    case _:
+                        raise NotImplementedError(operator)
+                if not matched:
+                    return False
+        elif doc[field] != condition:
+            return False
+    return True
 
 
 @pytest.fixture
@@ -184,3 +203,43 @@ async def test_newer_snapshot_updates_pull_request(collection):
 
     assert result.status == PullRequestStatus.OPEN
     assert result.closed_at is None
+
+
+async def test_snapshot_of_same_second_does_not_reopen_merged_pull_request(collection):
+    # opened snapshot taken within the same second as the merge, e.g. the review that
+    # triggered the native auto-merge of GitHub
+    opened = _pull_request("open", "2026-09-29T22:32:10Z")
+
+    await service.update_or_create_pull_request("org", ".eclipsefdn", opened)
+
+    stale_read_done = asyncio.Event()
+    merge_stored = asyncio.Event()
+
+    async def before_update(update_filter):
+        if asyncio.current_task() is stale and not merge_stored.is_set():
+            stale_read_done.set()
+            await merge_stored.wait()
+
+    collection.before_update = before_update
+
+    stale = asyncio.create_task(service.update_or_create_pull_request("org", ".eclipsefdn", opened, in_sync=True))
+    await asyncio.wait_for(stale_read_done.wait(), timeout=5)
+
+    await service.update_or_create_pull_request("org", ".eclipsefdn", _MERGED, apply_status=ApplyStatus.COMPLETED)
+    merge_stored.set()
+
+    result = await stale
+
+    assert result.status == PullRequestStatus.MERGED
+    assert result.merged_at == _MERGED_AT
+    assert result.in_sync is True
+
+
+async def test_snapshot_of_same_second_moves_lifecycle_forward(collection):
+    opened = _pull_request("open", "2026-09-29T22:32:10Z")
+
+    await service.update_or_create_pull_request("org", ".eclipsefdn", opened)
+    result = await service.update_or_create_pull_request("org", ".eclipsefdn", _MERGED)
+
+    assert result.status == PullRequestStatus.MERGED
+    assert result.merged_at == _MERGED_AT
