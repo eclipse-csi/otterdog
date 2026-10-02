@@ -33,6 +33,9 @@ class ScorecardIntegrationBlueprint(Blueprint):
     def type(self) -> BlueprintType:
         return BlueprintType.SCORECARD_INTEGRATION
 
+    def managed_workflows(self) -> list[str]:
+        return [self.workflow_name]
+
     def _matches(self, repo: Repository) -> bool:
         if self.repo_selector is None:
             return True

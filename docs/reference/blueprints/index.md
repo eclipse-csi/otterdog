@@ -85,6 +85,7 @@ Every `config` additionally accepts the following settings that control the reme
 | labels    | optional  | list[string] | labels added to the PR, in addition to `otterdog` and `blueprint:<id>` which are always added |
 | reviewers | optional  | list[string] | team slugs requested as reviewers                                                             |
 | assignees | optional  | list[string] | users assigned to the PR                                                                      |
+| status_workflow | optional | string \| list[string] | workflow(s) whose jobs `/otterdog status` reports, by file name or workflow name; defaults to the workflows the blueprint manages, or all |
 
 ## Remediation pull requests
 

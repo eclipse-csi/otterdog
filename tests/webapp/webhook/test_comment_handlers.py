@@ -25,6 +25,7 @@ from otterdog.webapp.webhook.comment_handlers import (
     RebaseCommentHandler,
     RecheckCommentHandler,
     RecreateCommentHandler,
+    StatusCommentHandler,
     TeamInfoCommentHandler,
     ValidateCommentHandler,
 )
@@ -259,3 +260,44 @@ class RemediationCommandHandlersTest(unittest.TestCase):
     def test_scope_is_pull_request(self):
         for handler_class in (RebaseCommentHandler, RecreateCommentHandler, IgnoreCommentHandler):
             assert handler_class().scope == CommentScope.PULL_REQUEST
+
+
+class StatusCommentHandlerTest(CommentHandlerTest[StatusCommentHandler]):
+    @property
+    def handler(self) -> CommentHandler:
+        return StatusCommentHandler()
+
+    @parameterized.expand(
+        [
+            ("/otterdog status", True),
+            ("/otterdog status codeql", True),
+            ("/otterdog status codeql --workflow build.yml", True),
+            ("/otterdog status codeql --label blueprint:codeql --status failure", True),
+            ("/otterdog status --status failure", True),
+            ("/otterdog status codeql --unknown x", False),
+            ("/otterdog status codeql extra", False),
+            ("   /otterdog status", False),
+            ("/status", False),
+        ]
+    )
+    def test_matches(self, test_input, expected):
+        self._test_matches(test_input, expected)
+
+    def test_scope_is_any(self):
+        assert self.handler.scope == CommentScope.ANY
+
+    def test_options_are_parsed(self):
+        match = self.handler.matches(
+            "/otterdog status codeql --workflow build --label blueprint:codeql --status failure"
+        )
+        assert match.group("blueprint_id") == "codeql"
+        assert StatusCommentHandler.parse_options(match.group("options")) == {
+            "workflow": "build",
+            "label": "blueprint:codeql",
+            "status": "failure",
+        }
+
+    def test_blueprint_id_is_optional_with_options(self):
+        match = self.handler.matches("/otterdog status --status failure")
+        assert match.group("blueprint_id") is None
+        assert StatusCommentHandler.parse_options(match.group("options")) == {"status": "failure"}

@@ -48,6 +48,19 @@ class Blueprint(ABC, BaseModel):
     reviewers: list[str] = Field(default_factory=list)
     # users assigned to remediation pull requests
     assignees: list[str] = Field(default_factory=list)
+    # workflow(s) whose jobs `/otterdog status` reports, by file name or workflow name;
+    # defaults to the workflows managed by the blueprint, or all workflows of the repository
+    status_workflow: str | list[str] | None = None
+
+    @property
+    def status_workflows(self) -> list[str]:
+        if self.status_workflow is None:
+            return []
+        return [self.status_workflow] if isinstance(self.status_workflow, str) else list(self.status_workflow)
+
+    def managed_workflows(self) -> list[str]:
+        """File names of workflows under `.github/workflows` that this blueprint writes, if any."""
+        return []
 
     @cached_property
     def logger(self) -> Logger:

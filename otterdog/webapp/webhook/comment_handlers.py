@@ -12,7 +12,7 @@ import re
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from quart import current_app
 
@@ -277,3 +277,41 @@ class IgnoreCommentHandler(RemediationCommandHandler):
     @property
     def command(self) -> str:
         return "ignore"
+
+
+class StatusCommentHandler(CommentHandler):
+    """`/otterdog status [<blueprint-id>] [--workflow <name>] [--label <label>] [--status <status>]`."""
+
+    _OPTIONS: ClassVar[re.Pattern] = re.compile(r"--(workflow|label|status)\s+(\S+)")
+
+    @property
+    def scope(self) -> CommentScope:
+        return CommentScope.ANY
+
+    def _create_pattern(self) -> re.Pattern:
+        return re.compile(
+            r"/otterdog\s+status(?:\s+(?P<blueprint_id>[\w.-]+))?(?P<options>(?:\s+--(?:workflow|label|status)\s+\S+)*)\s*$"
+        )
+
+    @classmethod
+    def parse_options(cls, options: str | None) -> dict[str, str]:
+        return dict(cls._OPTIONS.findall(options or ""))
+
+    def process(self, match: re.Match, event: IssueCommentEvent) -> None:
+        from otterdog.webapp.tasks.blueprints.status_comment import BlueprintStatusCommentTask
+
+        options = self.parse_options(match.group("options"))
+
+        self.schedule_task(
+            BlueprintStatusCommentTask(
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
+                event.repository.name,
+                event.issue.number,
+                event.sender.login,
+                match.group("blueprint_id"),
+                options.get("workflow"),
+                options.get("label"),
+                options.get("status"),
+            )
+        )

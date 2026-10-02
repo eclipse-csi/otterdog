@@ -1074,6 +1074,7 @@ async def update_or_create_blueprint_status(
         blueprint_status_model.status = status
 
     blueprint_status_model.remediation_pr = remediation_pr
+    blueprint_status_model.updated_at = current_utc_time()
 
     if remediation_pr is None:
         blueprint_status_model.remediation_revision = None

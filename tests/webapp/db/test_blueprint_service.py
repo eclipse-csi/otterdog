@@ -166,3 +166,24 @@ async def test_status_revision_follows_written_content():
         # no pull request any more: no revision either
         await update_or_create_blueprint_status("osgi", "r", "codeql", BlueprintStatus.RECHECK, None)
         assert stored.remediation_revision is None
+
+
+async def test_status_update_refreshes_timestamp():
+    from datetime import UTC, datetime
+
+    from otterdog.webapp.db.models import BlueprintStatus, BlueprintStatusId, BlueprintStatusModel
+    from otterdog.webapp.db.service import update_or_create_blueprint_status
+
+    stored = BlueprintStatusModel(
+        id=BlueprintStatusId(org_id="osgi", repo_name="r", blueprint_id="codeql"),
+        updated_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+
+    with (
+        patch("otterdog.webapp.db.service.find_blueprint_status", AsyncMock(return_value=stored)),
+        patch("otterdog.webapp.db.service.mongo") as mongo,
+    ):
+        mongo.odm.save = AsyncMock()
+        await update_or_create_blueprint_status("osgi", "r", "codeql", BlueprintStatus.SUCCESS)
+
+    assert stored.updated_at.year >= 2026

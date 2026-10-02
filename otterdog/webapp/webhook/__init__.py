@@ -46,6 +46,7 @@ from .comment_handlers import (
     RebaseCommentHandler,
     RecheckCommentHandler,
     RecreateCommentHandler,
+    StatusCommentHandler,
     TeamInfoCommentHandler,
     ValidateCommentHandler,
 )
@@ -75,6 +76,7 @@ comment_handlers: list[CommentHandler] = [
     RebaseCommentHandler(),
     RecreateCommentHandler(),
     IgnoreCommentHandler(),
+    StatusCommentHandler(),
 ]
 
 logger = getLogger(__name__)

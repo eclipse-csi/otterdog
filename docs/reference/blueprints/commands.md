@@ -65,3 +65,44 @@ makes the intent visible. `/otterdog recreate` reinstates the blueprint.
 ```text
 /otterdog ignore
 ```
+
+## `/otterdog status [<blueprint-id>] [--workflow <name>] [--label <label>] [--status <status>]`
+
+Scope: any. Posts one comment, updated in place on repeated runs, with one row per repository the blueprint applies
+to: the stored blueprint status, the remediation pull request with its state, mergeability and labels, an
+**outdated** marker when the pull request content is older than the current blueprint, and one label per job of the
+latest workflow run on the default branch in the form `workflow / job: <status>`.
+
+- In the configuration repository every repository matched by the blueprint's selector is listed, in any other
+  repository only that repository.
+- Without a blueprint id, every blueprint of the organization is reported.
+
+The status text is GitHub's own value, verbatim: the job's `conclusion` when completed (`success`, `failure`,
+`cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`), otherwise its `status` (`queued`,
+`in_progress`, `waiting`, `pending`, `requested`). A workflow without a run on the default branch shows `no_run`.
+Every label links to the job's log.
+
+Which workflows are reported, first match wins:
+
+1. `--workflow <name>` on the command, by file name (with or without extension) or by the workflow's `name`
+2. `status_workflow` in the blueprint config, a name or a list
+3. the workflows the blueprint itself manages: the scorecard workflow for `scorecard_integration`, the workflows
+   among the `files` of a `required_file` blueprint
+4. nothing defined: every workflow of the repository, every job
+
+`--label` keeps only repositories whose pull request carries that label, `--status` only repositories with at least
+one job in that GitHub status.
+
+Examples:
+
+```text
+/otterdog status
+/otterdog status codeql
+/otterdog status codeql --workflow build.yml
+/otterdog status codeql --label blueprint:codeql
+/otterdog status codeql --status failure
+/otterdog status codeql --workflow build --status in_progress
+```
+
+Cost: one pull request, one workflow list, one run list and one job list per workflow for every repository; results
+are cached for the duration of one command.
