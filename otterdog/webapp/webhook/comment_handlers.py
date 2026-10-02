@@ -315,3 +315,51 @@ class StatusCommentHandler(CommentHandler):
                 options.get("status"),
             )
         )
+
+
+class CreateBlueprintCommentHandler(CommentHandler):
+    """`/otterdog create blueprint <type> [--id <id>] [--from <path>]... [--filter <regex>]`."""
+
+    _OPTIONS: ClassVar[re.Pattern] = re.compile(r"--(id|from|filter)\s+(\S+)")
+
+    @property
+    def scope(self) -> CommentScope:
+        return CommentScope.ANY
+
+    def _create_pattern(self) -> re.Pattern:
+        return re.compile(
+            r"/otterdog\s+create\s+blueprint\s+(?P<type>[\w-]+)(?P<options>(?:\s+--(?:id|from|filter)\s+\S+)*)\s*$"
+        )
+
+    @classmethod
+    def parse_options(cls, options: str | None) -> tuple[str | None, list[str], str | None]:
+        blueprint_id = None
+        from_paths = []
+        name_pattern = None
+        for key, value in cls._OPTIONS.findall(options or ""):
+            if key == "id":
+                blueprint_id = value
+            elif key == "from":
+                from_paths.append(value)
+            elif key == "filter":
+                name_pattern = value
+        return blueprint_id, from_paths, name_pattern
+
+    def process(self, match: re.Match, event: IssueCommentEvent) -> None:
+        from otterdog.webapp.tasks.blueprints.create_blueprint import CreateBlueprintTask
+
+        blueprint_id, from_paths, name_pattern = self.parse_options(match.group("options"))
+
+        self.schedule_task(
+            CreateBlueprintTask(
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
+                event.repository.name,
+                event.issue.number,
+                event.sender.login,
+                match.group("type"),
+                blueprint_id,
+                from_paths,
+                name_pattern,
+            )
+        )

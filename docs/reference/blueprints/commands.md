@@ -106,3 +106,32 @@ Examples:
 
 Cost: one pull request, one workflow list, one run list and one job list per workflow for every repository; results
 are cached for the duration of one command.
+
+## `/otterdog create blueprint <type> [--id <id>] [--from <path>]... [--filter <regex>]`
+
+Scope: any. Scaffolds `otterdog/blueprints/<id>.yml` and opens a pull request against the configuration repository.
+
+- `<type>` is one of `required_file`, `pin_workflow`, `append_configuration`, `scorecard_integration`; an unknown
+  type lists the valid ones.
+- `--from <path>` takes that file from the repository the comment is made in as content, so an existing repository
+  is the reference for its siblings. Repeatable. Without it, a placeholder file is generated.
+- `--filter <regex>` becomes `repo_selector.name_pattern`. In a target repository without `--filter` the selector
+  defaults to that repository's exact name, so the blueprint starts narrow and is widened later; in the configuration
+  repository without `--filter` no selector is set. `append_configuration` has no selector, `--filter` is ignored
+  for it.
+- `--id <id>` names the blueprint; the default is derived from the first file, e.g. `require-build`. Ids consist of
+  letters, digits, `.`, `_` and `-`.
+
+Examples:
+
+```text
+/otterdog create blueprint required_file --from .github/workflows/build.yml
+/otterdog create blueprint required_file --from .github/workflows/build.yml --from .github/dependabot.yml --id require-ci-files
+/otterdog create blueprint required_file --from .github/workflows/build.yml --filter '^org\.osgi\..*'
+/otterdog create blueprint scorecard_integration --from .github/workflows/scorecard.yml
+/otterdog create blueprint pin_workflow --filter '^org\.osgi\.test\..*'
+```
+
+Otterdog replies with the link to the pull request. The generated file validates against the blueprint model before
+the pull request is opened. The same scaffolding is available offline as the CLI command
+[`otterdog create-blueprint`](../operations/create-blueprint.md).

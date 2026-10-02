@@ -90,6 +90,7 @@ nav:
         - Plan: reference/operations/plan.md
         - Validate: reference/operations/validate.md
         - List Advisories: reference/operations/list-advisories.md
+        - Create Blueprint: reference/operations/create-blueprint.md
 - User Guide:
     - userguide/index.md
     - Workflow: userguide/workflow.md

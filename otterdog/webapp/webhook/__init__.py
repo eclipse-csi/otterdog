@@ -39,6 +39,7 @@ from .comment_handlers import (
     ApplyCommentHandler,
     CheckSyncCommentHandler,
     CommentHandler,
+    CreateBlueprintCommentHandler,
     DoneCommentHandler,
     HelpCommentHandler,
     IgnoreCommentHandler,
@@ -77,6 +78,7 @@ comment_handlers: list[CommentHandler] = [
     RecreateCommentHandler(),
     IgnoreCommentHandler(),
     StatusCommentHandler(),
+    CreateBlueprintCommentHandler(),
 ]
 
 logger = getLogger(__name__)

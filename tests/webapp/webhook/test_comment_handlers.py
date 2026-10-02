@@ -18,6 +18,7 @@ from otterdog.webapp.webhook.comment_handlers import (
     CheckSyncCommentHandler,
     CommentHandler,
     CommentScope,
+    CreateBlueprintCommentHandler,
     DoneCommentHandler,
     HelpCommentHandler,
     IgnoreCommentHandler,
@@ -301,3 +302,40 @@ class StatusCommentHandlerTest(CommentHandlerTest[StatusCommentHandler]):
         match = self.handler.matches("/otterdog status --status failure")
         assert match.group("blueprint_id") is None
         assert StatusCommentHandler.parse_options(match.group("options")) == {"status": "failure"}
+
+
+class CreateBlueprintCommentHandlerTest(CommentHandlerTest[CreateBlueprintCommentHandler]):
+    @property
+    def handler(self) -> CommentHandler:
+        return CreateBlueprintCommentHandler()
+
+    @parameterized.expand(
+        [
+            ("/otterdog create blueprint required_file", True),
+            ("/otterdog create blueprint required_file --from .github/workflows/build.yml", True),
+            (
+                "/otterdog create blueprint required_file --from a.yml --from b.yml --id ci --filter '^org\\.osgi\\..*'",
+                True,
+            ),
+            ("/otterdog create blueprint", False),
+            ("/otterdog create blueprint required_file extra", False),
+            ("/otterdog create blueprint required_file --unknown x", False),
+            ("/otterdog create", False),
+        ]
+    )
+    def test_matches(self, test_input, expected):
+        self._test_matches(test_input, expected)
+
+    def test_scope_is_any(self):
+        assert self.handler.scope == CommentScope.ANY
+
+    def test_options_are_parsed(self):
+        match = self.handler.matches(
+            "/otterdog create blueprint required_file --from a.yml --id ci --from b.yml --filter ^org\\.osgi\\..*"
+        )
+        assert match.group("type") == "required_file"
+        assert CreateBlueprintCommentHandler.parse_options(match.group("options")) == (
+            "ci",
+            ["a.yml", "b.yml"],
+            "^org\\.osgi\\..*",
+        )
