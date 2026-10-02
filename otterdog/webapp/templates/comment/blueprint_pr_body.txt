@@ -1,12 +1,31 @@
-This PR has been automatically created by Otterdog due to blueprint: [{{ blueprint.name }}]({{ blueprint.path }}).
+<!-- otterdog:blueprint={{ blueprint.id }} revision={{ revision }} -->
+This PR has been automatically created by Otterdog due to blueprint [{{ blueprint.name if blueprint.name is not none else blueprint.id }}]({{ blueprint.path }}) (`{{ blueprint.id }}`).
 
 {% if description is not none %}
 > {{ description }}
 {% endif %}
+{%- if files | length > 0 %}
+| File | Mode | This PR |
+|------|------|---------|
+{%- for file in files %}
+| `{{ file.path }}` | {{ 'strict: content must match' if file.strict else 'non-strict: only has to exist' }} | {{ 'written from the blueprint' if file.written else 'kept as edited on this branch' }} |
+{%- endfor %}
+{% endif %}
+Rendered from blueprint revision `{{ revision }}`. If the blueprint changes later, this PR is marked as outdated by `/otterdog status`.
 
-> [!NOTE]
-> Closing this PR without merging will dismiss this blueprint for this repository.
-> To re-enable the blueprint, re-open the PR.
+<details>
+<summary>Otterdog commands for this pull request</summary>
+
+Comment on this pull request to trigger an action (write access to the repository required):
+
+- `/otterdog rebase` – bring this branch up to date with the default branch and write the blueprint's files on top; edits made on this branch are preserved
+- `/otterdog recreate` – recreate this branch from the default branch with the current blueprint content, reopen the PR if it was closed and clear a dismissal
+- `/otterdog ignore` – dismiss blueprint `{{ blueprint.id }}` for `{{ repo_name }}`: closes this PR, no further PRs are created until `/otterdog recreate`
+- `/otterdog recheck {{ blueprint.id }}` – re-evaluate blueprint `{{ blueprint.id }}` for this repository now
+- `/otterdog status {{ blueprint.id }}` – show blueprint state, PR mergeability, labels and the jobs of the latest default-branch run
+
+Closing this PR without merging has the same effect as `/otterdog ignore`.
+</details>
 
 > [!TIP]
 > The status of the blueprint can also be accessed via the [Dashboard]({{ dashboard_url }}).

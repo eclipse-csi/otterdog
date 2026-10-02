@@ -1,0 +1,13 @@
+This pull request was scaffolded by @{{ author }} with `/otterdog create blueprint {{ blueprint_type }}` in {{ org_id }}/{{ repo_name }}#{{ issue_number }}.
+
+It adds the blueprint `{{ result.blueprint_id }}` at `{{ result.file_path }}`.
+
+{% if result.files | length > 0 -%}
+Content taken from `{{ repo_name }}`: {% for path in result.files %}`{{ path }}`{% if not loop.last %}, {% endif %}{% endfor %}.
+{% endif -%}
+{% if result.name_pattern is not none -%}
+Repository selector: `{{ result.name_pattern }}`. Start narrow, widen the selector once the blueprint works for the first repository.
+{% else -%}
+No repository selector is set, so the blueprint applies to every repository of the organization. Consider adding `repo_selector.name_pattern`.
+{% endif %}
+Adjust `name`, `description` and the content as needed. Once merged, the blueprint is evaluated at the next check, or immediately with `/otterdog recheck {{ result.blueprint_id }}`.

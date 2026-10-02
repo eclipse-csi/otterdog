@@ -914,6 +914,18 @@ async def get_blueprints(owner: str) -> list[BlueprintModel]:
     )
 
 
+async def get_blueprints_for_command(owner: str, blueprint_id: str | None) -> tuple[list[BlueprintModel], list[str]]:
+    """
+    Returns the blueprints of an organization a comment command acts on, and all known ids.
+    With a blueprint id only that blueprint is returned, an unknown id yields an empty list.
+    """
+    models = await get_blueprints(owner)
+    known_ids = [model.id.blueprint_id for model in models]
+    if blueprint_id is not None:
+        models = [model for model in models if model.id.blueprint_id == blueprint_id]
+    return models, known_ids
+
+
 async def get_blueprints_by_last_checked_time(limit: int) -> list[BlueprintModel]:
     return await mongo.odm.find(
         BlueprintModel,
@@ -940,8 +952,26 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
             description=blueprint.description,
             config=blueprint.config,
         )
+    elif blueprint_model.id.blueprint_type != blueprint.type.value:
+        # the type is part of the primary key, so an existing model can not be
+        # updated in place: replace it, the status models are keyed by id only
+        # and keep applying to the blueprint.
+        logger.info(
+            "blueprint '%s' of org '%s' changed its type from '%s' to '%s', replacing model",
+            blueprint.id,
+            owner,
+            blueprint_model.id.blueprint_type,
+            blueprint.type.value,
+        )
+        await mongo.odm.delete(blueprint_model)
+        blueprint_model = BlueprintModel(
+            id=BlueprintId(org_id=owner, blueprint_type=blueprint.type.value, blueprint_id=blueprint.id),
+            path=blueprint.path,
+            name=blueprint.name,
+            description=blueprint.description,
+            config=blueprint.config,
+        )
     else:
-        recheck = False
 
         def update_if_changed(obj: BlueprintModel, attr: str, value: Any) -> bool:
             if obj.__getattribute__(attr) != value:
@@ -950,12 +980,20 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
             else:
                 return False
 
-        recheck = recheck or update_if_changed(blueprint_model, "path", blueprint.path)
-        recheck = recheck or update_if_changed(blueprint_model, "name", blueprint.name)
-        recheck = recheck or update_if_changed(blueprint_model, "description", blueprint.description)
-        recheck = recheck or update_if_changed(blueprint_model, "config", blueprint.config)
+        # evaluate every attribute: a short-circuiting `or` would stop writing attributes
+        # as soon as the first one differs, e.g. a changed description would swallow a
+        # changed content.
+        changed = [
+            update_if_changed(blueprint_model, "path", blueprint.path),
+            update_if_changed(blueprint_model, "name", blueprint.name),
+            update_if_changed(blueprint_model, "description", blueprint.description),
+            update_if_changed(blueprint_model, "config", blueprint.config),
+        ]
+        recheck = any(changed)
 
-        blueprint_model.recheck_needed = recheck
+        # a pending recheck is only cleared by a completed evaluation, never by an
+        # unrelated update that leaves this blueprint unchanged.
+        blueprint_model.recheck_needed = blueprint_model.recheck_needed or recheck
 
     await save_blueprint(blueprint_model)
     return blueprint_model.recheck_needed
@@ -1024,6 +1062,7 @@ async def update_or_create_blueprint_status(
     blueprint_id: str,
     status: BlueprintStatus | None = None,
     remediation_pr: int | None = None,
+    remediation_revision: str | None = None,
 ) -> None:
     blueprint_status_model = await find_blueprint_status(owner, repo_name, blueprint_id)
     if blueprint_status_model is None:
@@ -1035,6 +1074,12 @@ async def update_or_create_blueprint_status(
         blueprint_status_model.status = status
 
     blueprint_status_model.remediation_pr = remediation_pr
+    blueprint_status_model.updated_at = current_utc_time()
+
+    if remediation_pr is None:
+        blueprint_status_model.remediation_revision = None
+    elif remediation_revision is not None:
+        blueprint_status_model.remediation_revision = remediation_revision
 
     await mongo.odm.save(blueprint_status_model)
 

@@ -13,7 +13,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import render_chevron
 from otterdog.webapp.blueprints.required_file import RequiredFile, RequiredFileBlueprint
 from otterdog.webapp.db.models import ConfigurationModel
-from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
+from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult, RemediationFile
 
 
 @dataclass(repr=False)
@@ -92,14 +92,17 @@ class CheckFilesTask(BlueprintTask):
         rest_api = await self.rest_api
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
 
-        branch_created = await self._create_branch_if_needed(default_branch)
+        # True if the branch is new, was reset, or only carries otterdog commits
+        branch_is_fresh = await self._prepare_branch(default_branch)
 
-        # update content in the branch if necessary
+        remediation_files = []
         for file, content in files_needing_update:
-            # if the branch already existed and the required file is not strict
-            # do not update the file content in the branch as it would override
-            # any maintainer modifications.
-            if file.strict is False and branch_created is False:
+            # if the branch carries commits of maintainers and the required file is not strict,
+            # do not update the file content in the branch as it would override their modifications.
+            write = file.strict is True or branch_is_fresh is True
+            remediation_files.append(RemediationFile(file.path, file.strict, write))
+
+            if write is False:
                 continue
 
             await rest_api.content.update_content(
@@ -111,12 +114,15 @@ class CheckFilesTask(BlueprintTask):
                 f"Updating file {file.path}",
             )
 
+        result.content_written = all(file.written for file in remediation_files)
+
         existing_pr_number = await self._find_existing_pull_request(default_branch)
         if existing_pr_number is not None:
             result.remediation_pr = existing_pr_number
+            await self._update_existing_pull_request(existing_pr_number, remediation_files)
         else:
             pr_title = f"chore(otterdog): adding / updating file(s) due to blueprint `{self.blueprint.id}`"
-            result.remediation_pr = await self._create_pull_request(pr_title, default_branch)
+            result.remediation_pr = await self._create_pull_request(pr_title, default_branch, files=remediation_files)
 
     def __repr__(self) -> str:
         return f"CheckFilesTask(repo='{self.org_id}/{self.repo_name}', blueprint='{self.blueprint.id}')"

@@ -1,0 +1,23 @@
+<!-- Otterdog Comment: blueprint-recheck -->
+{%- if result.permission_denied %}
+@{{ author }} you need write access to this repository to trigger a recheck of blueprints.
+{%- elif result.unknown_blueprint_id is not none %}
+Unknown blueprint id `{{ result.unknown_blueprint_id }}`. Blueprints defined for `{{ org_id }}`:
+{% for blueprint_id in result.known_blueprint_ids %}
+- `{{ blueprint_id }}`
+{%- endfor %}
+{%- elif result.scheduled | length == 0 %}
+No blueprint applies to this repository{% if result.not_matching | length > 0 %} (not matching: {% for blueprint_id in result.not_matching %}`{{ blueprint_id }}`{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}, nothing to recheck.
+{%- else %}
+Re-evaluating the following blueprint(s) now, ignoring the check interval and the stored status:
+{% for blueprint_id, repos in result.scheduled.items() %}
+- `{{ blueprint_id }}`: {{ repos | length }} repositor{{ 'y' if repos | length == 1 else 'ies' }}{% if repos | length <= 10 %} ({% for repo in repos %}`{{ repo }}`{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}
+{%- endfor %}
+
+Remediation pull requests are opened or updated in the background. Follow the result on the
+[dashboard]({{ dashboard_url }}) or run `/otterdog status{% if result.scheduled | length == 1 %} {{ (result.scheduled.keys() | list)[0] }}{% endif %}`.
+
+> [!NOTE]
+> A blueprint that was dismissed for a repository (its remediation pull request was closed without merging)
+> stays dismissed. Comment `/otterdog recreate` on that pull request to reinstate it.
+{%- endif %}

@@ -58,6 +58,33 @@ class PullRequestClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed creating pull request:\n{ex}") from ex
 
+    async def update_pull_request(
+        self,
+        org_id: str,
+        repo_name: str,
+        pull_request_number: int,
+        state: str | None = None,
+        title: str | None = None,
+        body: str | None = None,
+    ) -> dict[str, Any]:
+        """Updates a pull request, e.g. `state='open'` reopens a closed one (its head branch must exist)."""
+        _logger.debug("updating pull request #%d in repo '%s/%s'", pull_request_number, org_id, repo_name)
+
+        data: dict[str, Any] = {}
+        if state is not None:
+            data["state"] = state
+        if title is not None:
+            data["title"] = title
+        if body is not None:
+            data["body"] = body
+
+        try:
+            return await self.requester.request_json(
+                "PATCH", f"/repos/{org_id}/{repo_name}/pulls/{pull_request_number}", data=data
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed updating pull request #{pull_request_number}:\n{ex}") from ex
+
     async def get_pull_requests(
         self,
         org_id: str,

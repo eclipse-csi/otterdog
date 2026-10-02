@@ -18,7 +18,8 @@ from quart import render_template
 from otterdog.webapp.db.models import BlueprintStatus, TaskModel
 from otterdog.webapp.db.service import find_blueprint_status, update_or_create_blueprint_status
 from otterdog.webapp.tasks import InstallationBasedTask, Task
-from otterdog.webapp.utils import get_base_url
+from otterdog.webapp.tasks.blueprints.branches import branch_name_for, sync_branch_with_default_branch
+from otterdog.webapp.utils import get_app_bot_login, get_base_url
 
 if TYPE_CHECKING:
     from otterdog.webapp.blueprints import Blueprint
@@ -29,6 +30,18 @@ class CheckResult:
     remediation_needed: bool
     remediation_pr: int | None = None
     check_failed: bool = False
+    # True if every file of the blueprint was written to the remediation branch in this run,
+    # i.e. the branch carries the current revision of the blueprint
+    content_written: bool = False
+
+
+@dataclass
+class RemediationFile:
+    """A file touched by a remediation, rendered into the pull request body."""
+
+    path: str
+    strict: bool = True
+    written: bool = True
 
 
 class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
@@ -38,7 +51,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
     @cached_property
     def branch_name(self) -> str:
-        return f"otterdog/blueprint/{self.blueprint.id}"
+        return branch_name_for(self.blueprint.id)
 
     def create_task_model(self):
         return TaskModel(
@@ -56,7 +69,9 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             return False
 
         # the stored status might have been lost (e.g. removed while the blueprints could not be fetched,
-        # or a fresh database), so also check GitHub whether a remediation PR has been dismissed before
+        # or a fresh database), or the webhook closing the PR might have been missed, so also check GitHub
+        # whether the latest remediation PR has been dismissed. A status that was explicitly reset, e.g. by
+        # `/otterdog recreate`, no longer references that PR and is trusted.
         try:
             dismissed_pr_number = await self._find_dismissed_pull_request()
         except RuntimeError as ex:
@@ -67,7 +82,9 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             )
             return False
 
-        if dismissed_pr_number is not None:
+        if dismissed_pr_number is not None and (
+            blueprint_status is None or blueprint_status.remediation_pr == dismissed_pr_number
+        ):
             self.logger.info(
                 f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}' "
                 f"as PR#{dismissed_pr_number} was closed without merging, skipping"
@@ -125,7 +142,33 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
                 self.blueprint.id,
                 status,
                 result_or_exception.remediation_pr,
+                self.blueprint.revision if result_or_exception.content_written else None,
             )
+
+    async def _prepare_branch(self, default_branch: str) -> bool:
+        """
+        Makes sure the remediation branch exists and is up to date with the default branch.
+
+        :param default_branch: the name of the default branch
+        :return: True if the branch was created or reset to the default branch and therefore
+                 carries no content yet, i.e. every file must be written, False otherwise
+        """
+        if await self._create_branch_if_needed(default_branch) is True:
+            return True
+
+        return await self._sync_branch_with_default_branch(default_branch)
+
+    async def _sync_branch_with_default_branch(self, default_branch: str) -> bool:
+        """See `branches.sync_branch_with_default_branch`."""
+        return await sync_branch_with_default_branch(
+            await self.rest_api,
+            self.org_id,
+            self.repo_name,
+            self.branch_name,
+            default_branch,
+            await get_app_bot_login(),
+            self.logger,
+        )
 
     async def _create_branch_if_needed(self, default_branch: str) -> bool:
         """
@@ -175,16 +218,11 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
         return None
 
-    async def _create_pull_request(
-        self,
-        pr_title: str,
-        default_branch: str,
-        team_reviewers: list[str] | None = None,
-    ) -> int:
-        self.logger.debug(
-            f"creating pull request for blueprint '{self.blueprint.id}' in repo '{self.org_id}/{self.repo_name}'"
-        )
+    @property
+    def _default_labels(self) -> list[str]:
+        return ["otterdog", f"blueprint:{self.blueprint.id}", *self.blueprint.labels]
 
+    async def _render_pull_request_body(self, files: list[RemediationFile] | None) -> str:
         if self.blueprint.description is not None:
             description_lines = self.blueprint.description.rstrip().split("\n")
             description = " ".join(description_lines)
@@ -193,12 +231,28 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
         dashboard_url = get_base_url() + f"/organizations/{self.org_id}#blueprint-{self.blueprint.id}"
 
-        pr_body = await render_template(
+        return await render_template(
             "comment/blueprint_pr_body.txt",
             blueprint=self.blueprint,
             description=description,
             dashboard_url=dashboard_url,
+            files=files or [],
+            revision=self.blueprint.revision,
+            repo_name=self.repo_name,
         )
+
+    async def _create_pull_request(
+        self,
+        pr_title: str,
+        default_branch: str,
+        team_reviewers: list[str] | None = None,
+        files: list[RemediationFile] | None = None,
+    ) -> int:
+        self.logger.debug(
+            f"creating pull request for blueprint '{self.blueprint.id}' in repo '{self.org_id}/{self.repo_name}'"
+        )
+
+        pr_body = await self._render_pull_request_body(files)
 
         rest_api = await self.rest_api
         created_pr = await rest_api.pull_request.create_pull_request(
@@ -212,9 +266,54 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
         pull_request_number = created_pr["number"]
 
-        if team_reviewers is not None and len(team_reviewers) > 0:
+        reviewers = team_reviewers if team_reviewers is not None else self.blueprint.reviewers
+        if len(reviewers) > 0:
             await rest_api.pull_request.request_reviews(
-                self.org_id, self.repo_name, pull_request_number, team_reviewers=team_reviewers
+                self.org_id, self.repo_name, pull_request_number, team_reviewers=reviewers
             )
 
+        await self._decorate_pull_request(pull_request_number)
         return pull_request_number
+
+    async def _update_existing_pull_request(
+        self,
+        pull_request_number: int,
+        files: list[RemediationFile] | None = None,
+    ) -> None:
+        """Refreshes body and labels of an existing remediation pull request after its content was updated."""
+        rest_api = await self.rest_api
+        pr_body = await self._render_pull_request_body(files)
+
+        try:
+            pull_request = await rest_api.pull_request.get_pull_request(
+                self.org_id, self.repo_name, str(pull_request_number)
+            )
+            # avoid a write on every evaluation when nothing changed
+            if (pull_request.get("body") or "").strip() != pr_body.strip():
+                await rest_api.pull_request.update_pull_request(
+                    self.org_id, self.repo_name, pull_request_number, body=pr_body
+                )
+
+            existing_labels = {label["name"] for label in pull_request.get("labels", [])}
+            if not set(self._default_labels).issubset(existing_labels):
+                await self._decorate_pull_request(pull_request_number)
+        except RuntimeError as ex:
+            self.logger.warning(
+                f"failed to refresh pull request #{pull_request_number} in '{self.org_id}/{self.repo_name}'",
+                exc_info=ex,
+            )
+
+    async def _decorate_pull_request(self, pull_request_number: int) -> None:
+        rest_api = await self.rest_api
+
+        try:
+            await rest_api.issue.add_labels(self.org_id, self.repo_name, pull_request_number, self._default_labels)
+            await rest_api.issue.add_assignees(
+                self.org_id, self.repo_name, pull_request_number, self.blueprint.assignees
+            )
+        except RuntimeError as ex:
+            # labels and assignees need `Issues: write`, do not fail the remediation without it
+            self.logger.warning(
+                f"failed to label / assign pull request #{pull_request_number} in '{self.org_id}/{self.repo_name}'",
+                exc_info=ex,
+            )
