@@ -61,11 +61,17 @@ class _FakeCollection:
 
     def __init__(self):
         self.docs: dict[str, dict] = {}
+        self.before_insert = None
         self.before_update = None
+        self.duplicate_key_errors = 0
 
     async def insert_one(self, doc):
+        if self.before_insert is not None:
+            await self.before_insert()
+
         key = repr(doc["_id"])
         if key in self.docs:
+            self.duplicate_key_errors += 1
             raise DuplicateKeyError("duplicate key")
         self.docs[key] = dict(doc)
 
@@ -145,6 +151,14 @@ async def test_stale_snapshot_saved_concurrently_does_not_reopen_merged_pull_req
 
 
 async def test_concurrent_creation_of_pull_request(collection):
+    # both tasks first observe the pull request as absent, then race to insert it
+    barrier = asyncio.Barrier(2)
+
+    async def before_insert():
+        await asyncio.wait_for(barrier.wait(), timeout=5)
+
+    collection.before_insert = before_insert
+
     await asyncio.gather(
         service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, valid=True),
         service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, in_sync=True),
@@ -153,6 +167,8 @@ async def test_concurrent_creation_of_pull_request(collection):
     result = await service.find_pull_request("org", ".eclipsefdn", 25)
 
     assert len(collection.docs) == 1
+    # the task losing the race recovered from the duplicate key error
+    assert collection.duplicate_key_errors == 1
     assert result is not None
     assert result.status == PullRequestStatus.OPEN
     assert result.valid is True
