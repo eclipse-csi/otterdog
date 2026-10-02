@@ -49,6 +49,8 @@ nav:
         - Organization Role: reference/organization/role.md
         - Organization Webhook: reference/organization/webhook.md
         - Organization Secret: reference/organization/secret.md
+        - Organization Dependabot Secret: reference/organization/dependabot-secret.md
+        - Organization Codespaces Secret: reference/organization/codespaces-secret.md
         - Organization Variable: reference/organization/variable.md
         - Organization Ruleset: reference/organization/ruleset.md
         - Custom Property: reference/organization/custom-property.md
@@ -57,6 +59,8 @@ nav:
           - reference/organization/repository/index.md
           - Repository Webhook: reference/organization/repository/webhook.md
           - Repository Secret: reference/organization/repository/secret.md
+          - Repository Dependabot Secret: reference/organization/repository/dependabot-secret.md
+          - Repository Codespaces Secret: reference/organization/repository/codespaces-secret.md
           - Repository Variable: reference/organization/repository/variable.md
           - Environment:
             - reference/organization/repository/index.md

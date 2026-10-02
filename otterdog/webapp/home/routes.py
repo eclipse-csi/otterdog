@@ -329,6 +329,16 @@ async def defaults(project_name: str):
             ("org-ruleset", "Organization Ruleset", f"{jsonnet_config.create_org_ruleset}('<name>')"),
             ("org-team", "Organization Team", f"{jsonnet_config.create_org_team}('<name>')"),
             ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
+            (
+                "org-dependabot-secret",
+                "Organization Dependabot Secret",
+                f"{jsonnet_config.create_org_dependabot_secret}('<name>')",
+            ),
+            (
+                "org-codespaces-secret",
+                "Organization Codespaces Secret",
+                f"{jsonnet_config.create_org_codespaces_secret}('<name>')",
+            ),
             ("org-variable", "Organization Variable", f"{jsonnet_config.create_org_variable}('<name>')"),
             ("org-webhook", "Organization Webhook", f"{jsonnet_config.create_org_webhook}('<url>')"),
             (
@@ -338,6 +348,16 @@ async def defaults(project_name: str):
             ),
             ("repo", "Repository", f"{jsonnet_config.create_repo}('<name>')"),
             ("repo-secret", "Repository Secret", f"{jsonnet_config.create_repo_secret}('<name>')"),
+            (
+                "repo-dependabot-secret",
+                "Repository Dependabot Secret",
+                f"{jsonnet_config.create_repo_dependabot_secret}('<name>')",
+            ),
+            (
+                "repo-codespaces-secret",
+                "Repository Codespaces Secret",
+                f"{jsonnet_config.create_repo_codespaces_secret}('<name>')",
+            ),
             ("repo-variable", "Repository Variable", f"{jsonnet_config.create_repo_variable}('<name>')"),
             ("repo-webhook", "Repository Webhook", f"{jsonnet_config.create_repo_webhook}('<url>')"),
             ("environment", "Environment", f"{jsonnet_config.create_environment}('<name>')"),

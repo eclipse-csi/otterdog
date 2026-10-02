@@ -37,6 +37,8 @@ from otterdog.utils import (
 
 from .branch_protection_rule import BranchProtectionRule
 from .environment import Environment
+from .repo_codespaces_secret import RepositoryCodespacesSecret
+from .repo_dependabot_secret import RepositoryDependabotSecret
 from .repo_ruleset import RepositoryRuleset
 from .repo_secret import RepositorySecret
 from .repo_variable import RepositoryVariable
@@ -117,6 +119,14 @@ class Repository(ModelObject):
     # nested model fields
     webhooks: list[RepositoryWebhook] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     secrets: list[RepositorySecret] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
+    # These collections map to the repository Dependabot and Codespaces APIs,
+    # whose secret names are independent from repository Actions secrets.
+    dependabot_secrets: list[RepositoryDependabotSecret] = dataclasses.field(
+        metadata={"nested_model": True}, default_factory=list
+    )
+    codespaces_secrets: list[RepositoryCodespacesSecret] = dataclasses.field(
+        metadata={"nested_model": True}, default_factory=list
+    )
     variables: list[RepositoryVariable] = dataclasses.field(metadata={"nested_model": True}, default_factory=list)
     branch_protection_rules: list[BranchProtectionRule] = dataclasses.field(
         metadata={"nested_model": True}, default_factory=list
@@ -252,6 +262,24 @@ class Repository(ModelObject):
 
     def set_secrets(self, secrets: list[RepositorySecret]) -> None:
         self.secrets = secrets
+
+    def add_dependabot_secret(self, secret: RepositoryDependabotSecret) -> None:
+        self.dependabot_secrets.append(secret)
+
+    def get_dependabot_secret(self, name: str) -> RepositoryDependabotSecret | None:
+        return next(filter(lambda x: x.name == name, self.dependabot_secrets), None)
+
+    def set_dependabot_secrets(self, secrets: list[RepositoryDependabotSecret]) -> None:
+        self.dependabot_secrets = secrets
+
+    def add_codespaces_secret(self, secret: RepositoryCodespacesSecret) -> None:
+        self.codespaces_secrets.append(secret)
+
+    def get_codespaces_secret(self, name: str) -> RepositoryCodespacesSecret | None:
+        return next(filter(lambda x: x.name == name, self.codespaces_secrets), None)
+
+    def set_codespaces_secrets(self, secrets: list[RepositoryCodespacesSecret]) -> None:
+        self.codespaces_secrets = secrets
 
     def add_variable(self, variable: RepositoryVariable) -> None:
         self.variables.append(variable)
@@ -708,6 +736,12 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.validate(context, self)
 
+        for secret in self.dependabot_secrets:
+            secret.validate(context, self)
+
+        for secret in self.codespaces_secrets:
+            secret.validate(context, self)
+
         for variable in self.variables:
             variable.validate(context, self)
 
@@ -804,6 +838,14 @@ class Repository(ModelObject):
             yield secret, self
             yield from secret.get_model_objects()
 
+        for secret in self.dependabot_secrets:
+            yield secret, self
+            yield from secret.get_model_objects()
+
+        for secret in self.codespaces_secrets:
+            yield secret, self
+            yield from secret.get_model_objects()
+
         for variable in self.variables:
             yield variable, self
             yield from variable.get_model_objects()
@@ -828,6 +870,10 @@ class Repository(ModelObject):
             {
                 "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: RepositoryWebhook.from_model_data(x)),
                 "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: RepositorySecret.from_model_data(x)),
+                "dependabot_secrets": OptionalS("dependabot_secrets", default=[])
+                >> Forall(lambda x: RepositoryDependabotSecret.from_model_data(x)),
+                "codespaces_secrets": OptionalS("codespaces_secrets", default=[])
+                >> Forall(lambda x: RepositoryCodespacesSecret.from_model_data(x)),
                 "variables": OptionalS("variables", default=[])
                 >> Forall(lambda x: RepositoryVariable.from_model_data(x)),
                 "branch_protection_rules": OptionalS("branch_protection_rules", default=[])
@@ -1038,6 +1084,12 @@ class Repository(ModelObject):
         for secret in self.secrets:
             secret.resolve_secrets(secret_resolver)
 
+        for secret in self.dependabot_secrets:
+            secret.resolve_secrets(secret_resolver)
+
+        for secret in self.codespaces_secrets:
+            secret.resolve_secrets(secret_resolver)
+
         for env in self.environments:
             env.resolve_secrets(secret_resolver)
 
@@ -1051,6 +1103,18 @@ class Repository(ModelObject):
         for secret in self.secrets:
             other_repo = cast("Repository", other_object)
             other_secret = other_repo.get_secret(secret.name)
+            if other_secret is not None:
+                secret.copy_secrets(other_secret)
+
+        for secret in self.dependabot_secrets:
+            other_repo = cast("Repository", other_object)
+            other_secret = other_repo.get_dependabot_secret(secret.name)
+            if other_secret is not None:
+                secret.copy_secrets(other_secret)
+
+        for secret in self.codespaces_secrets:
+            other_repo = cast("Repository", other_object)
+            other_secret = other_repo.get_codespaces_secret(secret.name)
             if other_secret is not None:
                 secret.copy_secrets(other_secret)
 
@@ -1076,6 +1140,8 @@ class Repository(ModelObject):
 
         has_webhooks = len(self.webhooks) > 0
         has_secrets = len(self.secrets) > 0
+        has_dependabot_secrets = len(self.dependabot_secrets) > 0
+        has_codespaces_secrets = len(self.codespaces_secrets) > 0
         has_variables = len(self.variables) > 0
         has_branch_protection_rules = len(self.branch_protection_rules) > 0
         has_rulesets = len(self.rulesets) > 0
@@ -1138,6 +1204,34 @@ class Repository(ModelObject):
 
             for secret in self.secrets:
                 secret.to_jsonnet(printer, jsonnet_config, context, False, default_repo_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        if has_dependabot_secrets and not extend:
+            default_dependabot_secret = RepositoryDependabotSecret.from_model_data(
+                jsonnet_config.default_repo_dependabot_secret_config
+            )
+
+            printer.println("dependabot_secrets: [")
+            printer.level_up()
+
+            for secret in self.dependabot_secrets:
+                secret.to_jsonnet(printer, jsonnet_config, context, False, default_dependabot_secret)
+
+            printer.level_down()
+            printer.println("],")
+
+        if has_codespaces_secrets and not extend:
+            default_codespaces_secret = RepositoryCodespacesSecret.from_model_data(
+                jsonnet_config.default_repo_codespaces_secret_config
+            )
+
+            printer.println("codespaces_secrets: [")
+            printer.level_up()
+
+            for secret in self.codespaces_secrets:
+                secret.to_jsonnet(printer, jsonnet_config, context, False, default_codespaces_secret)
 
             printer.level_down()
             printer.println("],")
@@ -1286,6 +1380,22 @@ class Repository(ModelObject):
         RepositorySecret.generate_live_patch_of_list(
             coerced_object.secrets,
             current_object.secrets if current_object is not None else [],
+            coerced_object,
+            context,
+            handler,
+        )
+
+        RepositoryDependabotSecret.generate_live_patch_of_list(
+            coerced_object.dependabot_secrets,
+            current_object.dependabot_secrets if current_object is not None else [],
+            coerced_object,
+            context,
+            handler,
+        )
+
+        RepositoryCodespacesSecret.generate_live_patch_of_list(
+            coerced_object.codespaces_secrets,
+            current_object.codespaces_secrets if current_object is not None else [],
             coerced_object,
             context,
             handler,

@@ -11,9 +11,13 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
+from otterdog.models.organization_dependabot_secret import OrganizationDependabotSecret
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
+from otterdog.models.repo_codespaces_secret import RepositoryCodespacesSecret
+from otterdog.models.repo_dependabot_secret import RepositoryDependabotSecret
 from otterdog.models.repo_secret import RepositorySecret
 from otterdog.models.repo_variable import RepositoryVariable
 from otterdog.models.repository import Repository
@@ -102,10 +106,22 @@ class ModelForContext:
         """
 
         model_cls = determine_model_object(old, new)
-        if model_cls in {RepositorySecret, RepositoryVariable, Environment}:
+        if model_cls in {
+            RepositorySecret,
+            RepositoryDependabotSecret,
+            RepositoryCodespacesSecret,
+            RepositoryVariable,
+            Environment,
+        }:
             return self.repository
         if model_cls in {EnvironmentSecret, EnvironmentVariable}:
             return self.environment
-        if model_cls in {OrganizationSecret, OrganizationVariable, CustomProperty}:
+        if model_cls in {
+            OrganizationSecret,
+            OrganizationDependabotSecret,
+            OrganizationCodespacesSecret,
+            OrganizationVariable,
+            CustomProperty,
+        }:
             return None  # Organization-level, no parent object
         raise ValueError(f"Unknown model class for parent: {model_cls}")

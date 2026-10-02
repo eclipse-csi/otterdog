@@ -72,6 +72,7 @@ async def test_read(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
         f"/repos/{ORG_ID}/{REPO_NAME}/actions/secrets",
+        request_params={"per_page": "100"},
         response_json={
             "total_count": 2,
             "secrets": [
