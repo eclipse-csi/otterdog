@@ -6,12 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 from datetime import UTC, datetime
+from unittest import mock
 
 import pytest
+from pymongo.errors import DuplicateKeyError
 
 from otterdog.webapp.db import service
-from otterdog.webapp.db.models import ApplyStatus, PullRequestId, PullRequestModel, PullRequestStatus
+from otterdog.webapp.db.models import ApplyStatus, PullRequestModel, PullRequestStatus
 from otterdog.webapp.webhook.github_models import PullRequest
 
 _REF = {
@@ -53,58 +56,114 @@ def _pull_request(state: str, updated_at: str, merged_at: str | None = None) -> 
     )
 
 
-def _naive_utc(*args: int) -> datetime:
-    # mongo returns naive datetimes in UTC
-    return datetime(*args, tzinfo=UTC).replace(tzinfo=None)
+class _FakeCollection:
+    """In-memory collection supporting the queries used for pull requests."""
 
+    def __init__(self):
+        self.docs: dict[str, dict] = {}
+        self.before_update = None
 
-def _merged_model() -> PullRequestModel:
-    return PullRequestModel(
-        id=PullRequestId(org_id="org", repo_name=".eclipsefdn", pull_request=25),
-        draft=False,
-        status=PullRequestStatus.MERGED,
-        apply_status=ApplyStatus.COMPLETED,
-        created_at=_naive_utc(2026, 9, 29, 22, 31, 28),
-        updated_at=_naive_utc(2026, 9, 29, 22, 32, 10),
-        closed_at=_naive_utc(2026, 9, 29, 22, 32, 10),
-        merged_at=_naive_utc(2026, 9, 29, 22, 32, 10),
-    )
+    async def insert_one(self, doc):
+        key = repr(doc["_id"])
+        if key in self.docs:
+            raise DuplicateKeyError("duplicate key")
+        self.docs[key] = dict(doc)
+
+    async def update_one(self, update_filter, update):
+        if self.before_update is not None:
+            await self.before_update(update_filter)
+
+        doc = self.docs.get(repr(update_filter["_id"]))
+        if doc is None:
+            return
+        condition = update_filter.get("updated_at")
+        if condition is not None and not doc["updated_at"] <= condition["$lte"]:
+            return
+        doc.update(update["$set"])
 
 
 @pytest.fixture
-def stored(monkeypatch):
-    model = _merged_model()
+def collection(monkeypatch):
+    fake = _FakeCollection()
 
     async def find_pull_request(owner, repo, number):
-        return model
+        doc = fake.docs.get(repr({"org_id": owner, "repo_name": repo, "pull_request": number}))
+        return None if doc is None else PullRequestModel.model_validate_doc(doc)
 
-    async def update_pull_request(pr_model):
-        pass
-
+    engine = mock.Mock()
+    engine.get_collection.return_value = fake
+    monkeypatch.setattr(type(service.mongo), "odm", mock.PropertyMock(return_value=engine))
     monkeypatch.setattr(service, "find_pull_request", find_pull_request)
-    monkeypatch.setattr(service, "update_pull_request", update_pull_request)
-    return model
+    return fake
 
 
-async def test_stale_snapshot_does_not_reopen_merged_pull_request(stored):
+_OPENED = _pull_request("open", "2026-09-29T22:31:28Z")
+_MERGED = _pull_request("closed", "2026-09-29T22:32:10Z", "2026-09-29T22:32:10Z")
+_MERGED_AT = datetime(2026, 9, 29, 22, 32, 10, tzinfo=UTC)
+
+
+async def test_stale_snapshot_does_not_reopen_merged_pull_request(collection):
+    await service.update_or_create_pull_request("org", ".eclipsefdn", _MERGED, apply_status=ApplyStatus.COMPLETED)
+
     # snapshot taken when the PR was opened, saved by a long-running task after the merge
-    stale = _pull_request("open", "2026-09-29T22:31:28Z")
-
-    result = await service.update_or_create_pull_request("org", ".eclipsefdn", stale, in_sync=False)
+    result = await service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, in_sync=False)
 
     assert result.status == PullRequestStatus.MERGED
-    assert result.merged_at == _naive_utc(2026, 9, 29, 22, 32, 10)
-    assert result.updated_at == _naive_utc(2026, 9, 29, 22, 32, 10)
+    assert result.merged_at == _MERGED_AT
+    assert result.updated_at == _MERGED_AT
+    assert result.apply_status == ApplyStatus.COMPLETED
     # task specific results are still recorded
     assert result.in_sync is False
 
 
-async def test_newer_snapshot_updates_pull_request(stored):
-    stored.status = PullRequestStatus.CLOSED
-    stored.merged_at = None
+async def test_stale_snapshot_saved_concurrently_does_not_reopen_merged_pull_request(collection):
+    await service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED)
 
+    stale_read_done = asyncio.Event()
+    merge_stored = asyncio.Event()
+
+    async def before_update(update_filter):
+        # suspend the task holding the outdated snapshot after it read the pull request
+        # and until the merge has been stored by another task
+        if asyncio.current_task() is stale and not merge_stored.is_set():
+            stale_read_done.set()
+            await merge_stored.wait()
+
+    collection.before_update = before_update
+
+    stale = asyncio.create_task(service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, in_sync=False))
+    await asyncio.wait_for(stale_read_done.wait(), timeout=5)
+
+    await service.update_or_create_pull_request("org", ".eclipsefdn", _MERGED, apply_status=ApplyStatus.COMPLETED)
+    merge_stored.set()
+
+    result = await stale
+
+    assert result.status == PullRequestStatus.MERGED
+    assert result.merged_at == _MERGED_AT
+    assert result.in_sync is False
+
+
+async def test_concurrent_creation_of_pull_request(collection):
+    await asyncio.gather(
+        service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, valid=True),
+        service.update_or_create_pull_request("org", ".eclipsefdn", _OPENED, in_sync=True),
+    )
+
+    result = await service.find_pull_request("org", ".eclipsefdn", 25)
+
+    assert len(collection.docs) == 1
+    assert result is not None
+    assert result.status == PullRequestStatus.OPEN
+    assert result.valid is True
+    assert result.in_sync is True
+
+
+async def test_newer_snapshot_updates_pull_request(collection):
+    closed = _pull_request("closed", "2026-09-29T22:40:00Z")
     reopened = _pull_request("open", "2026-09-29T23:00:00Z")
 
+    await service.update_or_create_pull_request("org", ".eclipsefdn", closed)
     result = await service.update_or_create_pull_request("org", ".eclipsefdn", reopened)
 
     assert result.status == PullRequestStatus.OPEN
