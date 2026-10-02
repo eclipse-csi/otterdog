@@ -77,3 +77,23 @@ config:
 | description | optional  | Description of the blueprint as displayed in the dashboard |
 | type        | mandatory | Type of the blueprint                                      |
 | config      | mandatory | Custom configuration dependent on the `type` of blueprint  |
+
+Every `config` additionally accepts the following settings that control the remediation pull request:
+
+| Setting   | Necessity | Value type   | Description                                                                                   |
+|-----------|-----------|--------------|-----------------------------------------------------------------------------------------------|
+| labels    | optional  | list[string] | labels added to the PR, in addition to `otterdog` and `blueprint:<id>` which are always added |
+| reviewers | optional  | list[string] | team slugs requested as reviewers                                                             |
+| assignees | optional  | list[string] | users assigned to the PR                                                                      |
+
+## Remediation pull requests
+
+A remediation pull request carries the labels `otterdog` and `blueprint:<id>` (adding labels needs the GitHub App
+permission `Issues: Read & Write`). Its body lists the blueprint, the files it touches, whether each file was written
+from the blueprint or kept as edited on the branch, the blueprint *revision* the content was rendered from, and the
+comment commands available on the pull request, see [comment commands](commands.md).
+
+The revision is a digest of the blueprint's configuration. It is stored with the remediation when all files were
+written, so `/otterdog status` can flag pull requests whose content is older than the current blueprint. Non-strict
+files are written again on every evaluation as long as the branch only carries otterdog commits; once a maintainer
+has pushed to the branch they are kept as edited.

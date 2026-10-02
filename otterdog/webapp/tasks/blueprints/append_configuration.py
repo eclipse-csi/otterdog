@@ -16,7 +16,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file, query_json, render_chevron
 from otterdog.webapp.blueprints.append_configuration import AppendConfigurationBlueprint
 from otterdog.webapp.db.models import ConfigurationModel
-from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
+from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult, RemediationFile
 
 
 @dataclass(repr=False)
@@ -131,15 +131,19 @@ class AppendConfigurationTask(BlueprintTask):
                 "Updating configuration",
             )
 
+        result.content_written = True
+        files = [RemediationFile(config_path)]
+
         existing_pr_number = await self._find_existing_pull_request(default_branch)
         if existing_pr_number is not None:
             result.remediation_pr = existing_pr_number
+            await self._update_existing_pull_request(existing_pr_number, files)
             return
 
         pr_title = f"chore(otterdog): updating configuration due to blueprint `{self.blueprint.id}`"
 
         reviewers = [slugify(self._render_configuration_snippet(r)) for r in self.blueprint.reviewers]
-        result.remediation_pr = await self._create_pull_request(pr_title, default_branch, reviewers)
+        result.remediation_pr = await self._create_pull_request(pr_title, default_branch, reviewers, files)
 
     def __repr__(self) -> str:
         return f"AppendConfigurationTask(repo='{self.org_id}/{self.repo_name}', blueprint='{self.blueprint.id}')"

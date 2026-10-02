@@ -1062,6 +1062,7 @@ async def update_or_create_blueprint_status(
     blueprint_id: str,
     status: BlueprintStatus | None = None,
     remediation_pr: int | None = None,
+    remediation_revision: str | None = None,
 ) -> None:
     blueprint_status_model = await find_blueprint_status(owner, repo_name, blueprint_id)
     if blueprint_status_model is None:
@@ -1073,6 +1074,11 @@ async def update_or_create_blueprint_status(
         blueprint_status_model.status = status
 
     blueprint_status_model.remediation_pr = remediation_pr
+
+    if remediation_pr is None:
+        blueprint_status_model.remediation_revision = None
+    elif remediation_revision is not None:
+        blueprint_status_model.remediation_revision = remediation_revision
 
     await mongo.odm.save(blueprint_status_model)
 

@@ -283,6 +283,8 @@ class BlueprintStatusModel(Model):
     updated_at: datetime = Field(index=True, default_factory=current_utc_time)
     status: BlueprintStatus = Field(default=BlueprintStatus.NOT_CHECKED)
     remediation_pr: int | None = Field(index=True, default=None)
+    # revision of the blueprint whose content was last written to the remediation branch
+    remediation_revision: str | None = None
 
 
 class ScorecardId(EmbeddedModel):

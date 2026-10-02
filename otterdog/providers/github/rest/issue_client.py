@@ -51,3 +51,30 @@ class IssueClient(RestClient):
             )
         except GitHubException as ex:
             raise RuntimeError(f"failed updating issue comment:\n{ex}") from ex
+
+    async def add_labels(self, org_id: str, repo_name: str, issue_number: int, labels: list[str]) -> None:
+        """Adds labels to an issue or pull request, labels that do not exist in the repo are created."""
+        if len(labels) == 0:
+            return
+
+        _logger.debug("adding labels %s to issue '%s' in repo '%s/%s'", labels, issue_number, org_id, repo_name)
+
+        try:
+            await self.requester.request_json(
+                "POST", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/labels", data={"labels": labels}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed adding labels to issue:\n{ex}") from ex
+
+    async def add_assignees(self, org_id: str, repo_name: str, issue_number: int, assignees: list[str]) -> None:
+        if len(assignees) == 0:
+            return
+
+        _logger.debug("adding assignees %s to issue '%s' in repo '%s/%s'", assignees, issue_number, org_id, repo_name)
+
+        try:
+            await self.requester.request_json(
+                "POST", f"/repos/{org_id}/{repo_name}/issues/{issue_number}/assignees", data={"assignees": assignees}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed adding assignees to issue:\n{ex}") from ex

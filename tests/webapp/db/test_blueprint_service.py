@@ -114,3 +114,55 @@ async def test_changing_type_replaces_model():
     assert saved.id.blueprint_type == "scorecard_integration"
     assert saved.id.blueprint_id == "codeql"
     assert saved.recheck_needed is True
+
+
+def test_revision_is_stable_and_changes_with_content():
+    revision = _blueprint().revision
+    assert _blueprint(content="other").revision != revision
+    # the description is not part of the content
+    assert _blueprint(description="other").revision == revision
+    # neither are settings that only decorate the pull request
+    labelled = read_blueprint(
+        BLUEPRINT_PATH,
+        {
+            "id": "codeql",
+            "type": "required_file",
+            "config": {
+                "labels": ["x"],
+                "reviewers": ["t"],
+                "files": [{"path": ".github/workflows/codeql.yml", "content": "old content", "strict": True}],
+            },
+        },
+    )
+    assert labelled.revision == revision
+    assert len(revision) == 12
+
+
+async def test_status_revision_follows_written_content():
+    from otterdog.webapp.db.models import BlueprintStatus, BlueprintStatusId, BlueprintStatusModel
+    from otterdog.webapp.db.service import update_or_create_blueprint_status
+
+    stored = BlueprintStatusModel(
+        id=BlueprintStatusId(org_id="osgi", repo_name="r", blueprint_id="codeql"),
+        status=BlueprintStatus.REMEDIATION_PREPARED,
+        remediation_pr=5,
+        remediation_revision="old",
+    )
+
+    with (
+        patch("otterdog.webapp.db.service.find_blueprint_status", AsyncMock(return_value=stored)),
+        patch("otterdog.webapp.db.service.mongo") as mongo,
+    ):
+        mongo.odm.save = AsyncMock()
+
+        # content not written in this run: the revision is kept
+        await update_or_create_blueprint_status("osgi", "r", "codeql", BlueprintStatus.REMEDIATION_PREPARED, 5, None)
+        assert stored.remediation_revision == "old"
+
+        # content written: the revision follows
+        await update_or_create_blueprint_status("osgi", "r", "codeql", BlueprintStatus.REMEDIATION_PREPARED, 5, "new")
+        assert stored.remediation_revision == "new"
+
+        # no pull request any more: no revision either
+        await update_or_create_blueprint_status("osgi", "r", "codeql", BlueprintStatus.RECHECK, None)
+        assert stored.remediation_revision is None

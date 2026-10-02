@@ -158,8 +158,17 @@ async def test_branch_without_own_commits_behind_default_is_reset(task):
     )
 
 
-async def test_up_to_date_branch_with_own_commits_is_left_alone(task):
+async def test_up_to_date_branch_with_only_otterdog_commits_is_fresh_without_reset(task):
+    # nothing to preserve, so every file (also non-strict ones) is written again, but no reset is needed
     reset, rest_api = await _sync(task, {"status": "ahead", "behind_by": 0, "commits": [_commit("otterdog[bot]")]})
+
+    assert reset is True
+    rest_api.reference.update_reference.assert_not_awaited()
+    rest_api.repo.merge_branch.assert_not_awaited()
+
+
+async def test_up_to_date_branch_with_maintainer_commits_is_left_alone(task):
+    reset, rest_api = await _sync(task, {"status": "ahead", "behind_by": 0, "commits": [_commit("alice")]})
 
     assert reset is False
     rest_api.reference.update_reference.assert_not_awaited()

@@ -8,14 +8,16 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from otterdog.models.github_organization import GitHubOrganization
 
@@ -40,6 +42,13 @@ class Blueprint(ABC, BaseModel):
     name: str | None
     description: str | None
 
+    # applied to remediation pull requests, in addition to the labels `otterdog` and `blueprint:<id>`
+    labels: list[str] = Field(default_factory=list)
+    # team slugs requested as reviewers of remediation pull requests
+    reviewers: list[str] = Field(default_factory=list)
+    # users assigned to remediation pull requests
+    assignees: list[str] = Field(default_factory=list)
+
     @cached_property
     def logger(self) -> Logger:
         return getLogger(__name__)
@@ -51,6 +60,18 @@ class Blueprint(ABC, BaseModel):
     @property
     def config(self) -> dict[str, Any]:
         return self.model_dump(exclude={"id", "path", "name", "description"})
+
+    # settings that only decorate the remediation pull request and do not change its content
+    PULL_REQUEST_SETTINGS: ClassVar[frozenset[str]] = frozenset({"labels", "reviewers", "assignees", "status_workflow"})
+
+    @property
+    def revision(self) -> str:
+        """
+        A short, stable digest of the blueprint's content. Stored with a remediation when its files are
+        written, so a pull request carrying outdated content can be recognised later. Settings that only
+        decorate the pull request (labels, reviewers, ...) do not change the revision.
+        """
+        return blueprint_revision({k: v for k, v in self.config.items() if k not in self.PULL_REQUEST_SETTINGS})
 
     async def _get_repositories(self, config_model: ConfigurationModel) -> list[Repository]:
         github_organization = GitHubOrganization.from_model_data(config_model.config)
@@ -125,6 +146,11 @@ class Blueprint(ABC, BaseModel):
 
     async def collect_auxiliary_data(self, installation_id: int, github_id: str, repo_name: str) -> None:
         return
+
+
+def blueprint_revision(config: dict[str, Any]) -> str:
+    digest = hashlib.sha256(json.dumps(config, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    return digest[:12]
 
 
 def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:

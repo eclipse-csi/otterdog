@@ -107,7 +107,8 @@ async def sync_branch_with_default_branch(
     - a branch carrying commits of maintainers gets the default branch merged in to preserve
       their edits, a conflicting merge is left alone and logged
 
-    :return: True if the branch was reset and all files must be written again
+    :return: True if the branch carries no maintainer commits (fresh, reset or otterdog-only) and
+             all files must be written again, False if maintainer edits have to be preserved
     """
     log = logger if logger is not None else _logger
     comparison = await rest_api.commit.compare(org_id, repo_name, default_branch, branch_name)
@@ -121,16 +122,19 @@ async def sync_branch_with_default_branch(
             await reset_branch_to_default_branch(rest_api, org_id, repo_name, branch_name, default_branch)
         return True
 
+    if all(is_otterdog_commit(commit, bot_login) for commit in own_commits):
+        # nothing a maintainer wrote can be lost: reset a stale branch, and in any case report the
+        # branch as fresh so that every file (also non-strict ones) is written with the current content
+        if behind_by > 0:
+            log.info(
+                f"resetting stale branch '{branch_name}' in repo '{org_id}/{repo_name}', "
+                f"{behind_by} commit(s) behind '{default_branch}' and only otterdog commits"
+            )
+            await reset_branch_to_default_branch(rest_api, org_id, repo_name, branch_name, default_branch)
+        return True
+
     if behind_by == 0:
         return False
-
-    if all(is_otterdog_commit(commit, bot_login) for commit in own_commits):
-        log.info(
-            f"resetting stale branch '{branch_name}' in repo '{org_id}/{repo_name}', "
-            f"{behind_by} commit(s) behind '{default_branch}' and only otterdog commits"
-        )
-        await reset_branch_to_default_branch(rest_api, org_id, repo_name, branch_name, default_branch)
-        return True
 
     merged = await rest_api.repo.merge_branch(
         org_id,
