@@ -13,6 +13,7 @@ import pytest
 from jsonbender import bend
 from pretend import stub
 
+from otterdog.models import FailureType, ValidationContext
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repo_ruleset import RepositoryRuleset
 from otterdog.models.ruleset import Ruleset, StatusCheckSettings
@@ -76,10 +77,22 @@ class TestRuleset:
                         "app_slug": "github-actions",
                         "bypass_mode": "pull_request",
                     },
+                    {
+                        "actor_type": "User",
+                        "actor_id": 321,
+                        "user_login": "alice",
+                        "bypass_mode": "pull_request",
+                    },
                     {"actor_type": "OrganizationAdmin", "actor_id": 0, "bypass_mode": "always"},
                     {"actor_type": "RepositoryRole", "actor_id": 1, "bypass_mode": "always"},
                 ],
-                ["@test-org/dev-team", "github-actions:pull_request", "#OrganizationAdmin", "#maintain"],
+                [
+                    "@test-org/dev-team",
+                    "github-actions:pull_request",
+                    "@alice:pull_request",
+                    "#OrganizationAdmin",
+                    "#maintain",
+                ],
                 [],
             ),
             (
@@ -207,6 +220,96 @@ class TestRuleset:
         bypass_actors_result = result["bypass_actors"]
 
         assert bypass_actors_result == [], "Missing bypass_actors key should default to empty list"
+
+    def test_get_mapping_from_provider_user_without_login_is_skipped(self):
+        data = self.create_ruleset_data(
+            [
+                {"actor_type": "User", "actor_id": 321, "bypass_mode": "always"},
+                {"actor_type": "User", "actor_id": 123, "user_login": "alice", "bypass_mode": "always"},
+            ]
+        )
+
+        mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        assert bend(mapping, data)["bypass_actors"] == ["@alice"]
+
+    @staticmethod
+    def _successful_actor_provider():
+        user_calls = []
+        team_calls = []
+        app_calls = []
+
+        async def get_user_ids(_login):
+            user_calls.append(_login)
+            return 321, "user-node-id"
+
+        async def get_team_ids(_slug):
+            team_calls.append(_slug)
+            return 456, "team-node-id"
+
+        async def get_app_ids(_slug):
+            app_calls.append(_slug)
+            return 999, "app-node-id"
+
+        return (
+            stub(
+                rest_api=stub(
+                    user=stub(get_user_ids=get_user_ids),
+                    team=stub(get_team_ids=get_team_ids),
+                    app=stub(get_app_ids=get_app_ids),
+                )
+            ),
+            user_calls,
+            team_calls,
+            app_calls,
+        )
+
+    @pytest.mark.parametrize(
+        "actor,expected_type,expected_id,expected_mode",
+        [
+            ("@alice", "User", 321, "always"),
+            ("@alice:pull_request", "User", 321, "pull_request"),
+            ("@acme/backend", "Team", 456, "always"),
+            ("dependabot", "Integration", 999, "always"),
+        ],
+    )
+    async def test_get_mapping_to_provider_bypass_actor(self, actor, expected_type, expected_id, expected_mode):
+        provider, user_calls, team_calls, app_calls = self._successful_actor_provider()
+        mapping = await Ruleset.get_mapping_to_provider("test-org", {"bypass_actors": [actor]}, provider)
+
+        if actor.startswith("@alice"):
+            assert user_calls == ["alice"]
+        elif actor.startswith("@acme/backend"):
+            assert team_calls == ["acme/backend"]
+        else:
+            assert app_calls == ["dependabot"]
+
+        assert bend(mapping, {"bypass_actors": [actor]})["bypass_actors"] == [
+            {"actor_id": expected_id, "actor_type": expected_type, "bypass_mode": expected_mode}
+        ]
+
+    async def test_get_mapping_to_provider_mixed_bypass_actors(self):
+        provider, _user_calls, _team_calls, _app_calls = self._successful_actor_provider()
+        data = {"bypass_actors": ["#Maintain", "@acme/backend:pull_request", "@alice", "dependabot"]}
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = await Ruleset.get_mapping_to_provider("test-org", data, provider)
+
+        assert bend(mapping, data)["bypass_actors"] == [
+            {"actor_id": 2, "actor_type": "RepositoryRole", "bypass_mode": "always"},
+            {"actor_id": 456, "actor_type": "Team", "bypass_mode": "pull_request"},
+            {"actor_id": 321, "actor_type": "User", "bypass_mode": "always"},
+            {"actor_id": 999, "actor_type": "Integration", "bypass_mode": "always"},
+        ]
+
+    async def test_get_mapping_to_provider_unresolved_user_fails(self):
+        async def get_user_ids(login):
+            raise RuntimeError("user not found")
+
+        provider = stub(rest_api=stub(user=stub(get_user_ids=get_user_ids)))
+
+        with pytest.raises(RuntimeError, match="user not found"):
+            await Ruleset.get_mapping_to_provider("test-org", {"bypass_actors": ["@alice"]}, provider)
 
     @pytest.mark.parametrize(
         "conditions,remove_conditions",
@@ -418,3 +521,57 @@ class TestStatusCheckSettings:
         result = bend(mapping, data)
 
         assert result["required_status_checks"] == [{"context": "build"}]
+
+
+class TestRulesetValidation:
+    def create_ruleset(self, required_status_checks) -> RepositoryRuleset:
+        return RepositoryRuleset.from_model_data(
+            {
+                "name": "main",
+                "enforcement": "active",
+                "target": "branch",
+                "include_refs": ["~DEFAULT_BRANCH"],
+                "exclude_refs": [],
+                "bypass_actors": [],
+                "requires_deployments": False,
+                "required_deployment_environments": [],
+                "required_status_checks": required_status_checks,
+            }
+        )
+
+    def validate(self, ruleset: RepositoryRuleset) -> list[str]:
+        context = ValidationContext(
+            root_object=stub(settings=stub(plan="free")),
+            secret_resolver=stub(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+        repository = stub(get_model_header=lambda _: 'repository[name="test-repo"]')
+
+        ruleset.validate(context, repository)
+
+        return [message for failure_type, message in context.validation_failures if failure_type == FailureType.ERROR]
+
+    def test_validate_required_status_checks_without_strict(self):
+        # a ruleset extended with 'required_status_checks+:' without being based on
+        # orgs.newRepoRuleset does not set 'strict', which used to fail only at apply time.
+        ruleset = self.create_ruleset({"status_checks": ["check-approvals"]})
+
+        errors = self.validate(ruleset)
+
+        assert len(errors) == 1
+        assert "has not set required parameter 'required_status_checks.strict'" in errors[0]
+
+    def test_validate_required_status_checks_with_strict(self):
+        ruleset = self.create_ruleset(
+            {"do_not_enforce_on_create": False, "strict": False, "status_checks": ["check-approvals"]}
+        )
+
+        assert self.validate(ruleset) == []
+
+    def test_validate_without_required_status_checks(self):
+        ruleset = self.create_ruleset(None)
+
+        assert self.validate(ruleset) == []

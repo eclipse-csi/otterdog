@@ -451,6 +451,9 @@ class Ruleset(ModelObject, abc.ABC):
         if is_set_and_present(self.required_pull_request):
             self.required_pull_request.validate(context, parent_object)
 
+        if is_set_and_present(self.required_status_checks):
+            self.required_status_checks.validate(context, parent_object)
+
         if is_set_and_present(self.required_merge_queue):
             self.required_merge_queue.validate(context, parent_object)
 
@@ -542,6 +545,12 @@ class Ruleset(ModelObject, abc.ABC):
                         _logger.warning("fail to map team actor '%s', skipping", actor.get("actor_id", "unknown"))
                         continue
                     transformed_actor = f"@{team_slug}"
+                elif actor_type == "User":
+                    user_login = actor.get("user_login")
+                    if user_login is None:
+                        _logger.warning("fail to map user actor '%s', skipping", actor.get("actor_id", "unknown"))
+                        continue
+                    transformed_actor = f"@{user_login}"
                 elif actor_type == "Integration":
                     app_slug = actor.get("app_slug")
                     if app_slug is None:
@@ -644,9 +653,13 @@ class Ruleset(ModelObject, abc.ABC):
                     if actor_id == "1":
                         actor_type = "OrganizationAdmin"
                 elif actor.startswith("@"):
-                    team, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
-                    actor_type = "Team"
-                    actor_id = (await provider.rest_api.team.get_team_ids(team))[0]
+                    actor_name, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
+                    if "/" in actor_name:
+                        actor_type = "Team"
+                        actor_id = (await provider.rest_api.team.get_team_ids(actor_name))[0]
+                    else:
+                        actor_type = "User"
+                        actor_id = (await provider.rest_api.user.get_user_ids(actor_name))[0]
                 else:
                     app, bypass_mode = extract_actor_and_bypass_mode(actor)
                     actor_type = "Integration"
