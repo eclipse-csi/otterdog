@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pydantic import Field
 from quart import current_app
 
 from otterdog.webapp.blueprints import Blueprint, BlueprintType, RepoSelector
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 class ScorecardIntegrationBlueprint(Blueprint):
     repo_selector: RepoSelector | None = None
     scorecard_action: str = "ossf/scorecard-action"
+    scorecard_workflow_refs: list[str] = Field(default_factory=list)
     workflow_name: str = "scorecard-analysis.yml"
     workflow_content: str
 

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -15,7 +16,7 @@ from typing import TYPE_CHECKING
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import render_chevron
 from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
-from otterdog.webapp.tasks.blueprints.pinning.actions import ActionRef, GitHubAction
+from otterdog.webapp.tasks.blueprints.pinning.actions import ActionRef, GitHubAction, ReusableWorkflow
 from otterdog.webapp.tasks.blueprints.pinning.workflow_file import WorkflowFile
 
 if TYPE_CHECKING:
@@ -65,18 +66,53 @@ class CheckScorecardIntegrationTask(BlueprintTask):
 
             try:
                 workflow_content = await rest_api.content.get_content(self.org_id, self.repo_name, workflow_path)
-                workflow = WorkflowFile(workflow_content)
-                referenced_actions = set(workflow.get_used_actions())
-                for action in referenced_actions:
-                    action_ref = ActionRef.of_pattern(action)
-                    if isinstance(action_ref, GitHubAction):
-                        referenced_action = f"{action_ref.owner}/{action_ref.repo}"
-                        if referenced_action == self.blueprint.scorecard_action:
-                            return True
+                if await self._uses_scorecard_action(WorkflowFile(workflow_content), follow_reusable=True):
+                    return True
             except RuntimeError:
                 continue
 
         return False
+
+    async def _uses_scorecard_action(self, workflow: WorkflowFile, follow_reusable: bool) -> bool:
+        """
+        Checks whether the workflow uses the scorecard action directly, or via a reusable workflow
+        that either is listed in `scorecard_workflow_refs` or itself uses the scorecard action.
+        """
+        for action in set(workflow.get_used_actions()):
+            action_ref = ActionRef.of_pattern(action)
+            if self._is_scorecard_action(action_ref):
+                return True
+            if follow_reusable and await self._is_scorecard_reusable_workflow(action_ref):
+                return True
+
+        return False
+
+    def _is_scorecard_action(self, action_ref: ActionRef) -> bool:
+        return (
+            isinstance(action_ref, GitHubAction)
+            and f"{action_ref.owner}/{action_ref.repo}" == self.blueprint.scorecard_action
+        )
+
+    async def _is_scorecard_reusable_workflow(self, action_ref: ActionRef) -> bool:
+        if not isinstance(action_ref, ReusableWorkflow):
+            return False
+
+        if self._is_allowed_scorecard_workflow(action_ref):
+            return True
+
+        if action_ref.owner is None or action_ref.repo is None:
+            return False
+
+        referenced_workflow = await action_ref.get_workflow_file(await self.rest_api)
+
+        # only follow one level of reusable workflows
+        return referenced_workflow is not None and await self._uses_scorecard_action(
+            referenced_workflow, follow_reusable=False
+        )
+
+    def _is_allowed_scorecard_workflow(self, action_ref: ReusableWorkflow) -> bool:
+        reference = repr(action_ref)
+        return any(re.fullmatch(pattern, reference) is not None for pattern in self.blueprint.scorecard_workflow_refs)
 
     def _render_content(self, content: str) -> str:
         context = {
