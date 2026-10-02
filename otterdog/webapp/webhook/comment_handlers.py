@@ -199,3 +199,28 @@ class ValidateCommentHandler(CommentHandler):
                 log_level,
             )
         )
+
+
+class RecheckCommentHandler(CommentHandler):
+    """`/otterdog recheck [<blueprint-id>]`: force an evaluation of blueprints."""
+
+    @property
+    def scope(self) -> CommentScope:
+        return CommentScope.ANY
+
+    def _create_pattern(self) -> re.Pattern:
+        return re.compile(r"/otterdog\s+recheck(?:\s+(?P<blueprint_id>[\w.-]+))?\s*$")
+
+    def process(self, match: re.Match, event: IssueCommentEvent) -> None:
+        from otterdog.webapp.tasks.blueprints.recheck import RecheckBlueprintsTask
+
+        self.schedule_task(
+            RecheckBlueprintsTask(
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
+                event.repository.name,
+                event.issue.number,
+                event.sender.login,
+                match.group("blueprint_id"),
+            )
+        )

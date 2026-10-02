@@ -914,6 +914,18 @@ async def get_blueprints(owner: str) -> list[BlueprintModel]:
     )
 
 
+async def get_blueprints_for_command(owner: str, blueprint_id: str | None) -> tuple[list[BlueprintModel], list[str]]:
+    """
+    Returns the blueprints of an organization a comment command acts on, and all known ids.
+    With a blueprint id only that blueprint is returned, an unknown id yields an empty list.
+    """
+    models = await get_blueprints(owner)
+    known_ids = [model.id.blueprint_id for model in models]
+    if blueprint_id is not None:
+        models = [model for model in models if model.id.blueprint_id == blueprint_id]
+    return models, known_ids
+
+
 async def get_blueprints_by_last_checked_time(limit: int) -> list[BlueprintModel]:
     return await mongo.odm.find(
         BlueprintModel,

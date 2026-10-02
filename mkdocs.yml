@@ -81,6 +81,7 @@ nav:
         - Pin Workflow: reference/blueprints/pin-workflow.md
         - Append Configuration: reference/blueprints/append-configuration.md
         - OSSF Scorecard Integration: reference/blueprints/scorecard-integration.md
+        - Comment Commands: reference/blueprints/commands.md
 
     - CLI Operations:
         - reference/operations/index.md

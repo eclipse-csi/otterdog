@@ -59,6 +59,20 @@ class Blueprint(ABC, BaseModel):
     @abstractmethod
     def _matches(self, repo: Repository) -> bool: ...
 
+    def matches_repo_name(self, config_model: ConfigurationModel, repo_name: str) -> bool:
+        """Checks whether the blueprint applies to the given repository of the organization."""
+        github_organization = GitHubOrganization.from_model_data(config_model.config)
+        repo = github_organization.get_repository(repo_name)
+        return repo is not None and repo.archived is False and self._matches(repo)
+
+    async def matching_repositories(self, config_model: ConfigurationModel) -> list[str]:
+        """Returns the names of all non-archived repositories this blueprint applies to."""
+        return [
+            repo.name
+            for repo in await self._get_repositories(config_model)
+            if repo.archived is False and self._matches(repo)
+        ]
+
     async def evaluate(self, installation_id: int, github_id: str, recheck: bool = False) -> None:
         from otterdog.webapp.db.models import BlueprintStatus
         from otterdog.webapp.db.service import (

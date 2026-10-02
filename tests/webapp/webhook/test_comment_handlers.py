@@ -21,6 +21,7 @@ from otterdog.webapp.webhook.comment_handlers import (
     DoneCommentHandler,
     HelpCommentHandler,
     MergeCommentHandler,
+    RecheckCommentHandler,
     TeamInfoCommentHandler,
     ValidateCommentHandler,
 )
@@ -206,3 +207,30 @@ class CommentScopeTest(unittest.TestCase):
 
         scope_value = scope
         assert ScopedHandler().applies_to(is_pull_request, is_config_repo) is expected
+
+
+class RecheckCommentHandlerTest(CommentHandlerTest[RecheckCommentHandler]):
+    @property
+    def handler(self) -> CommentHandler:
+        return RecheckCommentHandler()
+
+    @parameterized.expand(
+        [
+            ("/otterdog recheck", True),
+            ("/otterdog recheck codeql", True),
+            ("/otterdog recheck require-repo.files_v2", True),
+            ("/otterdog recheck codeql scorecard", False),
+            ("   /otterdog recheck", False),
+            ("/recheck", False),
+            ("/otterdog rechec", False),
+        ]
+    )
+    def test_matches(self, test_input, expected):
+        self._test_matches(test_input, expected)
+
+    def test_scope_is_any(self):
+        assert self.handler.scope == CommentScope.ANY
+
+    def test_blueprint_id_is_captured(self):
+        assert self.handler.matches("/otterdog recheck codeql").group("blueprint_id") == "codeql"
+        assert self.handler.matches("/otterdog recheck").group("blueprint_id") is None
