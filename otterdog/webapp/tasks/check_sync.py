@@ -34,9 +34,7 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest
 
 if TYPE_CHECKING:
-    from otterdog.models import LivePatch
-    from otterdog.operations.diff_operation import DiffStatus
-    from otterdog.operations.validate import ValidationStatus
+    from otterdog.operations.diff_operation import DiffResult
 
 
 @dataclass(repr=False)
@@ -162,11 +160,9 @@ class CheckConfigurationInSyncTask(InstallationBasedTask, Task[bool]):
 
             config_in_sync = True
 
-            def sync_callback(
-                org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-            ):
+            def sync_callback(result: DiffResult):
                 nonlocal config_in_sync
-                config_in_sync = diff_status.total_changes(True) == 0
+                config_in_sync = result.diff_status.total_changes(True) == 0
 
             otterdog_config = await get_otterdog_config()
             operation.set_callback(sync_callback)

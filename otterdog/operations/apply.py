@@ -21,8 +21,7 @@ if TYPE_CHECKING:
     from otterdog.config import OrganizationConfig, OtterdogConfig
     from otterdog.models import ModelObject
 
-    from .diff_operation import DiffStatus
-    from .validate import ValidationStatus
+    from .diff_operation import DiffResult
 
 
 class ApplyOperation(PlanOperation):
@@ -94,21 +93,19 @@ class ApplyOperation(PlanOperation):
         )
         return modified
 
-    async def handle_finish(
-        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-    ) -> int:
+    async def handle_finish(self, result: DiffResult) -> int:
         self.printer.println()
 
-        if diff_status.total_changes(self._delete_resources) == 0:
+        if result.diff_status.total_changes(self._delete_resources) == 0:
             self.printer.println("No changes required.")
-            if not self._delete_resources and diff_status.deletions > 0:
+            if not self._delete_resources and result.diff_status.deletions > 0:
                 self.printer.println(
-                    f"{diff_status.deletions} resource(s) would be deleted with flag '--delete-resources'."
+                    f"{result.diff_status.deletions} resource(s) would be deleted with flag '--delete-resources'."
                 )
             return 0
 
         if not self._force_processing:
-            if diff_status.deletions > 0 and not self._delete_resources:
+            if result.diff_status.deletions > 0 and not self._delete_resources:
                 self.printer.println("No resource will be removed, use flag '--delete-resources' to delete them.\n")
 
             self.printer.println(
@@ -132,8 +129,8 @@ class ApplyOperation(PlanOperation):
         # - second: remaining patches
         # this is necessary as readonly resources can't be modified afterward, so we perform first
         # any necessary modification on them, and make them readonly at the end
-        patches_ordered_by_readonly_status = [p for p in patches if p.changes_object_to_readonly is False] + [
-            p for p in patches if p.changes_object_to_readonly is True
+        patches_ordered_by_readonly_status = [p for p in result.patches if p.changes_object_to_readonly is False] + [
+            p for p in result.patches if p.changes_object_to_readonly is True
         ]
 
         with Progress(console=self.printer.console) as progress:
@@ -144,7 +141,7 @@ class ApplyOperation(PlanOperation):
                     continue
                 else:
                     try:
-                        await patch.apply(org_id, self.gh_client)
+                        await patch.apply(result.org_id, self.gh_client)
                     except RuntimeError as ex:
                         errors += 1
                         self.printer.println()
@@ -157,13 +154,13 @@ class ApplyOperation(PlanOperation):
         self.printer.println("\nDone.")
 
         self.printer.println(
-            f"\n[bold]Executed plan:[/] {diff_status.additions} added, "
-            f"{diff_status.differences} changed, "
-            f"{diff_status.deletions} {delete_snippet}.",
+            f"\n[bold]Executed plan:[/] {result.diff_status.additions} added, "
+            f"{result.diff_status.differences} changed, "
+            f"{result.diff_status.deletions} {delete_snippet}.",
             highlight=True,
         )
 
-        add_patches = [p for p in patches if p.patch_type == LivePatchType.ADD]
+        add_patches = [p for p in result.patches if p.patch_type == LivePatchType.ADD]
         if len(add_patches) > 0:
             self.execute_custom_hook_if_present_with_patches(self.org_config, add_patches, "post-add-objects-hook.py")
 
