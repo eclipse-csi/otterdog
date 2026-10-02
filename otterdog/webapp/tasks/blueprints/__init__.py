@@ -18,7 +18,8 @@ from quart import render_template
 from otterdog.webapp.db.models import BlueprintStatus, TaskModel
 from otterdog.webapp.db.service import find_blueprint_status, update_or_create_blueprint_status
 from otterdog.webapp.tasks import InstallationBasedTask, Task
-from otterdog.webapp.utils import get_base_url
+from otterdog.webapp.tasks.blueprints.branches import branch_name_for, sync_branch_with_default_branch
+from otterdog.webapp.utils import get_app_bot_login, get_base_url
 
 if TYPE_CHECKING:
     from otterdog.webapp.blueprints import Blueprint
@@ -38,7 +39,7 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
 
     @cached_property
     def branch_name(self) -> str:
-        return f"otterdog/blueprint/{self.blueprint.id}"
+        return branch_name_for(self.blueprint.id)
 
     def create_task_model(self):
         return TaskModel(
@@ -56,7 +57,9 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             return False
 
         # the stored status might have been lost (e.g. removed while the blueprints could not be fetched,
-        # or a fresh database), so also check GitHub whether a remediation PR has been dismissed before
+        # or a fresh database), or the webhook closing the PR might have been missed, so also check GitHub
+        # whether the latest remediation PR has been dismissed. A status that was explicitly reset, e.g. by
+        # `/otterdog recreate`, no longer references that PR and is trusted.
         try:
             dismissed_pr_number = await self._find_dismissed_pull_request()
         except RuntimeError as ex:
@@ -67,7 +70,9 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             )
             return False
 
-        if dismissed_pr_number is not None:
+        if dismissed_pr_number is not None and (
+            blueprint_status is None or blueprint_status.remediation_pr == dismissed_pr_number
+        ):
             self.logger.info(
                 f"Blueprint '{self.blueprint.id}' dismissed for repo '{self.org_id}/{self.repo_name}' "
                 f"as PR#{dismissed_pr_number} was closed without merging, skipping"
@@ -141,64 +146,15 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
         return await self._sync_branch_with_default_branch(default_branch)
 
     async def _sync_branch_with_default_branch(self, default_branch: str) -> bool:
-        """
-        Brings an existing remediation branch up to date with the default branch.
-
-        - a branch without own commits, or whose commits were all made by otterdog, is reset to
-          the head of the default branch, so stale commits disappear and the files are rewritten
-        - a branch carrying commits of maintainers gets the default branch merged in to preserve
-          their edits, a conflicting merge is left alone and logged
-
-        :return: True if the branch was reset and all files must be written again
-        """
-        rest_api = await self.rest_api
-        comparison = await rest_api.commit.compare(self.org_id, self.repo_name, default_branch, self.branch_name)
-
-        behind_by = comparison.get("behind_by", 0)
-        own_commits = comparison.get("commits", [])
-
-        if len(own_commits) == 0:
-            # identical to the default branch (or behind it), nothing to preserve
-            if behind_by > 0:
-                await self._reset_branch_to_default_branch(default_branch)
-            return True
-
-        if behind_by == 0:
-            return False
-
-        if all(_is_bot_commit(commit) for commit in own_commits):
-            self.logger.info(
-                f"resetting stale branch '{self.branch_name}' in repo '{self.org_id}/{self.repo_name}', "
-                f"{behind_by} commit(s) behind '{default_branch}' and only otterdog commits"
-            )
-            await self._reset_branch_to_default_branch(default_branch)
-            return True
-
-        merged = await rest_api.repo.merge_branch(
+        """See `branches.sync_branch_with_default_branch`."""
+        return await sync_branch_with_default_branch(
+            await self.rest_api,
             self.org_id,
             self.repo_name,
             self.branch_name,
             default_branch,
-            f"Merge branch '{default_branch}' into {self.branch_name}",
-        )
-
-        if merged is False:
-            self.logger.warning(
-                f"branch '{self.branch_name}' in repo '{self.org_id}/{self.repo_name}' conflicts with "
-                f"'{default_branch}' and carries commits of maintainers, leaving it untouched"
-            )
-
-        return False
-
-    async def _reset_branch_to_default_branch(self, default_branch: str) -> None:
-        rest_api = await self.rest_api
-        default_branch_data = await rest_api.reference.get_branch_reference(self.org_id, self.repo_name, default_branch)
-        await rest_api.reference.update_reference(
-            self.org_id,
-            self.repo_name,
-            self.branch_name,
-            default_branch_data["object"]["sha"],
-            force=True,
+            await get_app_bot_login(),
+            self.logger,
         )
 
     async def _create_branch_if_needed(self, default_branch: str) -> bool:
@@ -292,10 +248,3 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             )
 
         return pull_request_number
-
-
-def _is_bot_commit(commit: dict) -> bool:
-    """Commits created by otterdog through the contents API are authored by the GitHub App's bot user."""
-    author = commit.get("author") or {}
-    committer = commit.get("committer") or {}
-    return author.get("type") == "Bot" or committer.get("type") == "Bot"

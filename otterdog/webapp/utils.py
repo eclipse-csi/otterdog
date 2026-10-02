@@ -72,6 +72,19 @@ def get_rest_api_for_app() -> RestApi:
     return RestApi(app_auth(github_app_id, github_app_private_key), get_github_cache())
 
 
+_APP_BOT_LOGIN: str | None = None
+
+
+async def get_app_bot_login() -> str:
+    """The login commits made with an installation token are attributed to, e.g. `otterdog[bot]`."""
+    global _APP_BOT_LOGIN
+    if _APP_BOT_LOGIN is None:
+        async with get_rest_api_for_app() as rest_api:
+            app = await rest_api.app.get_authenticated_app()
+        _APP_BOT_LOGIN = f"{app['slug']}[bot]"
+    return _APP_BOT_LOGIN
+
+
 async def get_token_for_installation(installation_id: int) -> tuple[str, datetime]:
     redis = get_redis()
 

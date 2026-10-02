@@ -115,18 +115,23 @@ async def test_skips_when_pull_requests_cannot_be_retrieved(task):
     update_status.assert_not_awaited()
 
 
-def _commit(author_type: str | None) -> dict:
-    return {"sha": "abc", "author": {"type": author_type} if author_type else None, "committer": None}
+def _commit(login: str | None) -> dict:
+    return {"sha": "abc", "author": {"login": login, "type": "Bot"} if login else None, "committer": None}
 
 
 async def _sync(task, comparison: dict, merged: bool = True):
     rest_api = MagicMock()
     rest_api.commit.compare = AsyncMock(return_value=comparison)
+    rest_api.commit.get_git_commit = AsyncMock(return_value={"sha": "default-sha", "tree": {"sha": "tree-sha"}})
+    rest_api.commit.create_git_commit = AsyncMock(return_value={"sha": "empty-sha"})
     rest_api.repo.merge_branch = AsyncMock(return_value=merged)
     rest_api.reference.get_branch_reference = AsyncMock(return_value={"object": {"sha": "default-sha"}})
     rest_api.reference.update_reference = AsyncMock()
 
-    with patch("otterdog.webapp.tasks.get_rest_api_for_installation", AsyncMock(return_value=rest_api)):
+    with (
+        patch("otterdog.webapp.tasks.get_rest_api_for_installation", AsyncMock(return_value=rest_api)),
+        patch("otterdog.webapp.tasks.blueprints.get_app_bot_login", AsyncMock(return_value="otterdog[bot]")),
+    ):
         reset = await task._sync_branch_with_default_branch("main")
 
     return reset, rest_api
@@ -144,13 +149,17 @@ async def test_branch_without_own_commits_behind_default_is_reset(task):
     reset, rest_api = await _sync(task, {"status": "behind", "behind_by": 3, "commits": []})
 
     assert reset is True
+    # the branch is reset onto an empty commit on top of the default branch, never onto its head itself,
+    # as GitHub closes a pull request whose head becomes an ancestor of its base
+    rest_api.commit.create_git_commit.assert_awaited_once()
+    assert rest_api.commit.create_git_commit.await_args.args[3:5] == ("tree-sha", ["default-sha"])
     rest_api.reference.update_reference.assert_awaited_once_with(
-        "my-org", ".otterdog", "otterdog/blueprint/add-dot-github-repo", "default-sha", force=True
+        "my-org", ".otterdog", "otterdog/blueprint/add-dot-github-repo", "empty-sha", force=True
     )
 
 
 async def test_up_to_date_branch_with_own_commits_is_left_alone(task):
-    reset, rest_api = await _sync(task, {"status": "ahead", "behind_by": 0, "commits": [_commit("Bot")]})
+    reset, rest_api = await _sync(task, {"status": "ahead", "behind_by": 0, "commits": [_commit("otterdog[bot]")]})
 
     assert reset is False
     rest_api.reference.update_reference.assert_not_awaited()
@@ -159,7 +168,7 @@ async def test_up_to_date_branch_with_own_commits_is_left_alone(task):
 
 async def test_stale_branch_with_only_otterdog_commits_is_reset(task):
     # regression: remediation branches were never brought up to date and their PRs conflicted forever
-    comparison = {"status": "diverged", "behind_by": 5, "commits": [_commit("Bot"), _commit("Bot")]}
+    comparison = {"status": "diverged", "behind_by": 5, "commits": [_commit("otterdog[bot]"), _commit("otterdog[bot]")]}
     reset, rest_api = await _sync(task, comparison)
 
     assert reset is True
@@ -167,8 +176,22 @@ async def test_stale_branch_with_only_otterdog_commits_is_reset(task):
     rest_api.repo.merge_branch.assert_not_awaited()
 
 
+async def test_stale_branch_with_commits_of_another_bot_is_not_reset(task):
+    # dependabot, renovate etc. are bots too, their commits are not otterdog's and must be preserved
+    comparison = {
+        "status": "diverged",
+        "behind_by": 5,
+        "commits": [_commit("otterdog[bot]"), _commit("dependabot[bot]")],
+    }
+    reset, rest_api = await _sync(task, comparison, merged=True)
+
+    assert reset is False
+    rest_api.reference.update_reference.assert_not_awaited()
+    rest_api.repo.merge_branch.assert_awaited_once()
+
+
 async def test_stale_branch_with_maintainer_commits_gets_default_branch_merged(task):
-    comparison = {"status": "diverged", "behind_by": 5, "commits": [_commit("Bot"), _commit("User")]}
+    comparison = {"status": "diverged", "behind_by": 5, "commits": [_commit("otterdog[bot]"), _commit("alice")]}
     reset, rest_api = await _sync(task, comparison, merged=True)
 
     assert reset is False
@@ -183,3 +206,25 @@ async def test_conflicting_branch_with_maintainer_commits_is_not_reset(task):
 
     assert reset is False
     rest_api.reference.update_reference.assert_not_awaited()
+
+
+async def test_proceeds_when_status_was_reset_although_latest_pr_is_closed(task):
+    # `/otterdog recreate` resets the status and detaches it from the closed PR, the evaluation must run
+    stored = SimpleNamespace(status=BlueprintStatus.RECHECK, remediation_pr=None)
+    result, update_status, _ = await _pre_execute(
+        task, stored, [_pr(12, "closed", merged=False, created_at="2026-09-23T12:50:06Z")]
+    )
+
+    assert result is True
+    update_status.assert_not_awaited()
+
+
+async def test_skips_when_stored_status_still_refers_to_the_closed_pr(task):
+    # the webhook closing PR#12 was missed, the stored status still references it
+    stored = SimpleNamespace(status=BlueprintStatus.REMEDIATION_PREPARED, remediation_pr=12)
+    result, update_status, _ = await _pre_execute(
+        task, stored, [_pr(12, "closed", merged=False, created_at="2026-09-23T12:50:06Z")]
+    )
+
+    assert result is False
+    update_status.assert_awaited_once_with("my-org", ".otterdog", "add-dot-github-repo", BlueprintStatus.DISMISSED, 12)

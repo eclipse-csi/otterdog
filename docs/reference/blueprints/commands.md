@@ -32,3 +32,36 @@ Examples:
 Otterdog replies with the blueprints and repositories it scheduled. Remediation pull requests are opened or updated
 in the background; follow them on the dashboard. A blueprint dismissed for a repository stays dismissed, see
 `/otterdog recreate`.
+
+## `/otterdog rebase`
+
+Scope: pull request, on a remediation pull request (branch `otterdog/blueprint/<id>`). Brings the branch up to date
+with the default branch and writes the blueprint's current files on top:
+
+- a branch whose commits were all made by otterdog is reset to the default branch, stale commits disappear
+- a branch with commits of maintainers gets the default branch merged in, their edits are preserved
+
+```text
+/otterdog rebase
+```
+
+## `/otterdog recreate`
+
+Scope: pull request, on a remediation pull request, open or closed. Discards the branch, recreates it from the
+default branch with the current blueprint content and reuses the pull request, reopening it if it was closed. A
+dismissal of the blueprint for this repository is cleared. The resulting diff contains only differences against the
+current default branch.
+
+```text
+/otterdog recreate
+```
+
+## `/otterdog ignore`
+
+Scope: pull request, on a remediation pull request. Dismisses the blueprint for this repository explicitly and closes
+the pull request. This is the same state a pull request reaches when it is closed without merging, but the comment
+makes the intent visible. `/otterdog recreate` reinstates the blueprint.
+
+```text
+/otterdog ignore
+```

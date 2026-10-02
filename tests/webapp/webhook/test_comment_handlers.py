@@ -20,8 +20,11 @@ from otterdog.webapp.webhook.comment_handlers import (
     CommentScope,
     DoneCommentHandler,
     HelpCommentHandler,
+    IgnoreCommentHandler,
     MergeCommentHandler,
+    RebaseCommentHandler,
     RecheckCommentHandler,
+    RecreateCommentHandler,
     TeamInfoCommentHandler,
     ValidateCommentHandler,
 )
@@ -234,3 +237,25 @@ class RecheckCommentHandlerTest(CommentHandlerTest[RecheckCommentHandler]):
     def test_blueprint_id_is_captured(self):
         assert self.handler.matches("/otterdog recheck codeql").group("blueprint_id") == "codeql"
         assert self.handler.matches("/otterdog recheck").group("blueprint_id") is None
+
+
+class RemediationCommandHandlersTest(unittest.TestCase):
+    @parameterized.expand(
+        [
+            (RebaseCommentHandler, "/otterdog rebase", True),
+            (RebaseCommentHandler, "/otterdog rebase now", False),
+            (RebaseCommentHandler, "/otterdog rebas", False),
+            (RecreateCommentHandler, "/otterdog recreate", True),
+            (RecreateCommentHandler, "/otterdog recreate  ", True),
+            (RecreateCommentHandler, "/otterdog recreated", False),
+            (IgnoreCommentHandler, "/otterdog ignore", True),
+            (IgnoreCommentHandler, "/ignore", False),
+        ]
+    )
+    def test_matches(self, handler_class, test_input, expected):
+        match = handler_class().matches(test_input)
+        assert (match is not None) is expected
+
+    def test_scope_is_pull_request(self):
+        for handler_class in (RebaseCommentHandler, RecreateCommentHandler, IgnoreCommentHandler):
+            assert handler_class().scope == CommentScope.PULL_REQUEST

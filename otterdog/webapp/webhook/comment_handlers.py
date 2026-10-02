@@ -224,3 +224,56 @@ class RecheckCommentHandler(CommentHandler):
                 match.group("blueprint_id"),
             )
         )
+
+
+class RemediationCommandHandler(CommentHandler, ABC):
+    """Base for commands acting on a remediation pull request of a blueprint."""
+
+    @property
+    def scope(self) -> CommentScope:
+        return CommentScope.PULL_REQUEST
+
+    @property
+    @abstractmethod
+    def command(self) -> str: ...
+
+    def _create_pattern(self) -> re.Pattern:
+        return re.compile(rf"/otterdog\s+{self.command}\s*$")
+
+    def process(self, match: re.Match, event: IssueCommentEvent) -> None:
+        from otterdog.webapp.tasks.blueprints.remediation_command import RemediationCommand, RemediationCommandTask
+
+        self.schedule_task(
+            RemediationCommandTask(
+                unwrap(event.installation).id,
+                unwrap(event.organization).login,
+                event.repository.name,
+                event.issue.number,
+                event.sender.login,
+                RemediationCommand(self.command),
+            )
+        )
+
+
+class RebaseCommentHandler(RemediationCommandHandler):
+    """`/otterdog rebase`: bring the remediation branch up to date and rewrite the blueprint's files."""
+
+    @property
+    def command(self) -> str:
+        return "rebase"
+
+
+class RecreateCommentHandler(RemediationCommandHandler):
+    """`/otterdog recreate`: recreate the remediation branch and reuse or reopen the pull request."""
+
+    @property
+    def command(self) -> str:
+        return "recreate"
+
+
+class IgnoreCommentHandler(RemediationCommandHandler):
+    """`/otterdog ignore`: dismiss the blueprint for this repository explicitly."""
+
+    @property
+    def command(self) -> str:
+        return "ignore"

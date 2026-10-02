@@ -11,19 +11,19 @@ If a blueprint is defined for an organization, `otterdog` will check if the matc
 comply to the configuration of that blueprint. If this is not the case, a PR will be created to remediate the situation, e.g. by adding a file or updating
 its contents. The committers of an organization still need to manually merge the PR but are able to edit it prior to merging.
 
-If such a remediation PR gets closed without being merged, the associated blueprint for that repository is put into state `DISMISSED`,
-and not further checks will be performed for that pair of blueprint / repository. In order to reinstate the checks, the PR needs to be reopened.
-Before remediating, `otterdog` also checks the latest PR of the blueprint branch (`otterdog/blueprint/<id>`) on GitHub: if it was closed
-without being merged, the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated, even if the
-stored status got lost.
+If such a remediation PR gets closed without being merged, or `/otterdog ignore` is commented on it, the associated blueprint for that
+repository is put into state `DISMISSED`, and no further checks will be performed for that pair of blueprint / repository. In order to
+reinstate the checks, comment `/otterdog recreate` on the PR, or reopen it. Before remediating, `otterdog` also checks the latest PR of
+the blueprint branch (`otterdog/blueprint/<id>`) on GitHub: if it was closed without being merged and the stored status still refers to
+it (or got lost), the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated by accident.
 
 ## Remediation branches
 
 Remediation pull requests use the branch `otterdog/blueprint/<id>`. Before writing content, otterdog brings an
 existing branch up to date with the default branch:
 
-- a branch whose commits were all made by otterdog is reset to the head of the default branch and its files are
-  written again, so stale commits disappear
+- a branch whose commits were all made by otterdog (its bot user, not other bots) is reset onto the head of the
+  default branch and its files are written again, so stale commits disappear
 - a branch carrying commits of maintainers gets the default branch merged in, so their edits are preserved; a
   conflicting merge is left untouched and logged
 
