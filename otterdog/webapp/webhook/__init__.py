@@ -13,6 +13,7 @@ from quart import Response, current_app
 
 from otterdog.utils import expect_type
 from otterdog.webapp.blueprints import create_blueprint_from_model, is_blueprint_path
+from otterdog.webapp.db.models import BlueprintStatus
 from otterdog.webapp.db.service import (
     find_blueprint,
     get_blueprints_status_for_repo,
@@ -291,12 +292,18 @@ async def on_push_received(data):
                     repo_name,
                 ).execute()
 
-            # check any blueprint that matches the repo that just got a new push on the default branch
+            # check any blueprint that matches the repo that just got a new push on the default branch:
+            # either a managed path was touched, or an open remediation PR exists whose branch has to
+            # be brought up to date with the default branch
             for blueprint_status_model in await get_blueprints_status_for_repo(owner, repo_name):
                 blueprint_model = await find_blueprint(owner, blueprint_status_model.id.blueprint_id)
                 if blueprint_model is not None:
                     blueprint_instance = create_blueprint_from_model(blueprint_model)
-                    if blueprint_instance.should_reevaluate(event.commits):
+                    has_open_remediation = (
+                        blueprint_status_model.status == BlueprintStatus.REMEDIATION_PREPARED
+                        and blueprint_status_model.remediation_pr is not None
+                    )
+                    if blueprint_instance.should_reevaluate(event.commits) or has_open_remediation:
                         await blueprint_instance.evaluate_repo(installation_id, owner, repo_name)
 
         current_app.add_background_task(fetch_config_and_check_blueprints_if_needed)

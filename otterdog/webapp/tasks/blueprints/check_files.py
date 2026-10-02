@@ -92,7 +92,7 @@ class CheckFilesTask(BlueprintTask):
         rest_api = await self.rest_api
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
 
-        branch_created = await self._create_branch_if_needed(default_branch)
+        branch_created = await self._prepare_branch(default_branch)
 
         # update content in the branch if necessary
         for file, content in files_needing_update:

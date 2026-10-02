@@ -127,6 +127,80 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
                 result_or_exception.remediation_pr,
             )
 
+    async def _prepare_branch(self, default_branch: str) -> bool:
+        """
+        Makes sure the remediation branch exists and is up to date with the default branch.
+
+        :param default_branch: the name of the default branch
+        :return: True if the branch was created or reset to the default branch and therefore
+                 carries no content yet, i.e. every file must be written, False otherwise
+        """
+        if await self._create_branch_if_needed(default_branch) is True:
+            return True
+
+        return await self._sync_branch_with_default_branch(default_branch)
+
+    async def _sync_branch_with_default_branch(self, default_branch: str) -> bool:
+        """
+        Brings an existing remediation branch up to date with the default branch.
+
+        - a branch without own commits, or whose commits were all made by otterdog, is reset to
+          the head of the default branch, so stale commits disappear and the files are rewritten
+        - a branch carrying commits of maintainers gets the default branch merged in to preserve
+          their edits, a conflicting merge is left alone and logged
+
+        :return: True if the branch was reset and all files must be written again
+        """
+        rest_api = await self.rest_api
+        comparison = await rest_api.commit.compare(self.org_id, self.repo_name, default_branch, self.branch_name)
+
+        behind_by = comparison.get("behind_by", 0)
+        own_commits = comparison.get("commits", [])
+
+        if len(own_commits) == 0:
+            # identical to the default branch (or behind it), nothing to preserve
+            if behind_by > 0:
+                await self._reset_branch_to_default_branch(default_branch)
+            return True
+
+        if behind_by == 0:
+            return False
+
+        if all(_is_bot_commit(commit) for commit in own_commits):
+            self.logger.info(
+                f"resetting stale branch '{self.branch_name}' in repo '{self.org_id}/{self.repo_name}', "
+                f"{behind_by} commit(s) behind '{default_branch}' and only otterdog commits"
+            )
+            await self._reset_branch_to_default_branch(default_branch)
+            return True
+
+        merged = await rest_api.repo.merge_branch(
+            self.org_id,
+            self.repo_name,
+            self.branch_name,
+            default_branch,
+            f"Merge branch '{default_branch}' into {self.branch_name}",
+        )
+
+        if merged is False:
+            self.logger.warning(
+                f"branch '{self.branch_name}' in repo '{self.org_id}/{self.repo_name}' conflicts with "
+                f"'{default_branch}' and carries commits of maintainers, leaving it untouched"
+            )
+
+        return False
+
+    async def _reset_branch_to_default_branch(self, default_branch: str) -> None:
+        rest_api = await self.rest_api
+        default_branch_data = await rest_api.reference.get_branch_reference(self.org_id, self.repo_name, default_branch)
+        await rest_api.reference.update_reference(
+            self.org_id,
+            self.repo_name,
+            self.branch_name,
+            default_branch_data["object"]["sha"],
+            force=True,
+        )
+
     async def _create_branch_if_needed(self, default_branch: str) -> bool:
         """
         Create a new branch for the associated blueprint if it does not exist yet.
@@ -218,3 +292,10 @@ class BlueprintTask(InstallationBasedTask, Task[CheckResult], ABC):
             )
 
         return pull_request_number
+
+
+def _is_bot_commit(commit: dict) -> bool:
+    """Commits created by otterdog through the contents API are authored by the GitHub App's bot user."""
+    author = commit.get("author") or {}
+    committer = commit.get("committer") or {}
+    return author.get("type") == "Bot" or committer.get("type") == "Bot"

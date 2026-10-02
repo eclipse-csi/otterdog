@@ -75,7 +75,7 @@ class PinWorkflowTask(BlueprintTask):
         rest_api = await self.rest_api
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
 
-        await self._create_branch_if_needed(default_branch)
+        await self._prepare_branch(default_branch)
 
         for workflow_path, (_, pinned_lines) in pinned_workflows.items():
             content = "".join(pinned_lines)

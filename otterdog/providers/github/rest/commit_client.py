@@ -66,3 +66,15 @@ class CommitClient(RestClient):
             raise RuntimeError(f"failed creating commit status for '{org_id}/{repo_name}/{sha}'\n{status}: {body}")
 
         _logger.debug("created commit status for sha '%s' in repo '%s/%s'", sha, org_id, repo_name)
+
+    async def compare(self, org_id: str, repo_name: str, base: str, head: str) -> dict[str, Any]:
+        """
+        Compares two commits / branches, see https://docs.github.com/en/rest/commits/commits#compare-two-commits.
+        The result contains 'status' (identical, ahead, behind, diverged), 'ahead_by', 'behind_by' and 'commits'.
+        """
+        _logger.debug("comparing '%s...%s' in repo '%s/%s'", base, head, org_id, repo_name)
+
+        try:
+            return await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/compare/{base}...{head}")
+        except GitHubException as ex:
+            raise RuntimeError(f"failed comparing '{base}...{head}' in repo '{org_id}/{repo_name}':\n{ex}") from ex

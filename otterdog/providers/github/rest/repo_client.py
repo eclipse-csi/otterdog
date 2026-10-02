@@ -49,6 +49,28 @@ class RepoClient(RestClient):
         repo_data = await self.get_simple_repo_data(org_id, repo_name)
         return repo_data["default_branch"]
 
+    async def merge_branch(self, org_id: str, repo_name: str, base: str, head: str, message: str) -> bool:
+        """
+        Merges `head` into `base`, see https://docs.github.com/en/rest/branches/branches#merge-a-branch.
+
+        :return: True if merged or already up to date, False if the merge conflicts
+        """
+        _logger.debug("merging '%s' into '%s' in repo '%s/%s'", head, base, org_id, repo_name)
+
+        data = {"base": base, "head": head, "commit_message": message}
+        status, body = await self.requester.request_raw(
+            "POST", f"/repos/{org_id}/{repo_name}/merges", data=json.dumps(data)
+        )
+
+        if status in (201, 204):
+            return True
+        elif status == 409:
+            return False
+        else:
+            raise RuntimeError(
+                f"failed merging '{head}' into '{base}' in repo '{org_id}/{repo_name}'\n{status}: {body}"
+            )
+
     async def get_collaborator_permission(self, org_id: str, repo_name: str, user: str) -> str:
         """
         Returns the effective permission of a user on a repository: 'admin', 'write', 'read' or 'none'.

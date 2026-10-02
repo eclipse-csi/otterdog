@@ -17,6 +17,20 @@ Before remediating, `otterdog` also checks the latest PR of the blueprint branch
 without being merged, the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated, even if the
 stored status got lost.
 
+## Remediation branches
+
+Remediation pull requests use the branch `otterdog/blueprint/<id>`. Before writing content, otterdog brings an
+existing branch up to date with the default branch:
+
+- a branch whose commits were all made by otterdog is reset to the head of the default branch and its files are
+  written again, so stale commits disappear
+- a branch carrying commits of maintainers gets the default branch merged in, so their edits are preserved; a
+  conflicting merge is left untouched and logged
+
+A push to the default branch of a repository with an open remediation pull request triggers this update, so the pull
+request stays mergeable. `/otterdog rebase` and `/otterdog recreate` trigger it on demand, see
+[comment commands](commands.md).
+
 ## Check frequency
 
 Blueprints are evaluated when `/internal/check` is called, every 5 minutes by default (`policies.schedule` in the Helm chart).

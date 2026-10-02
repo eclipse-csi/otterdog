@@ -99,7 +99,7 @@ class AppendConfigurationTask(BlueprintTask):
             rest_api = await self.rest_api
 
             default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
-            await self._create_branch_if_needed(default_branch)
+            await self._prepare_branch(default_branch)
 
             config_path = f"otterdog/{self.org_id}.jsonnet"
             current_configuration = await rest_api.content.get_content(self.org_id, self.repo_name, config_path)
