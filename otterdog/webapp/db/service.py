@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
+from datetime import UTC, datetime
 from logging import getLogger
 from typing import TYPE_CHECKING, Any
 
@@ -49,8 +50,6 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from odmantic.query import QueryExpression
 
     from otterdog.config import OtterdogConfig
@@ -527,7 +526,10 @@ async def update_or_create_pull_request(
             closed_at=pull_request.closed_at,
             merged_at=pull_request.merged_at,
         )
-    else:
+    elif not _is_outdated(pull_request.updated_at, pr_model.updated_at):
+        # tasks may run for a long time with a snapshot of the pull request taken
+        # when they were scheduled, do not let such a snapshot revert a newer state,
+        # e.g. turning an already merged pull request back to open.
         pr_model.draft = pull_request.draft
         pr_model.status = pull_request_status
         pr_model.created_at = pull_request.created_at
@@ -558,6 +560,14 @@ async def update_or_create_pull_request(
 
     await update_pull_request(pr_model)
     return pr_model
+
+
+def _is_outdated(candidate: datetime, current: datetime) -> bool:
+    def _as_naive_utc(moment: datetime) -> datetime:
+        # mongo returns naive datetimes in UTC while GitHub payloads are timezone aware
+        return moment if moment.tzinfo is None else moment.astimezone(UTC).replace(tzinfo=None)
+
+    return _as_naive_utc(candidate) < _as_naive_utc(current)
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:
