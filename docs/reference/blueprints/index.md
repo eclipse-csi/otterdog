@@ -11,11 +11,25 @@ If a blueprint is defined for an organization, `otterdog` will check if the matc
 comply to the configuration of that blueprint. If this is not the case, a PR will be created to remediate the situation, e.g. by adding a file or updating
 its contents. The committers of an organization still need to manually merge the PR but are able to edit it prior to merging.
 
-If such a remediation PR gets closed without being merged, the associated blueprint for that repository is put into state `DISMISSED`,
-and not further checks will be performed for that pair of blueprint / repository. In order to reinstate the checks, the PR needs to be reopened.
-Before remediating, `otterdog` also checks the latest PR of the blueprint branch (`otterdog/blueprint/<id>`) on GitHub: if it was closed
-without being merged, the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated, even if the
-stored status got lost.
+If such a remediation PR gets closed without being merged, or `/otterdog ignore` is commented on it, the associated blueprint for that
+repository is put into state `DISMISSED`, and no further checks will be performed for that pair of blueprint / repository. In order to
+reinstate the checks, comment `/otterdog recreate` on the PR, or reopen it. Before remediating, `otterdog` also checks the latest PR of
+the blueprint branch (`otterdog/blueprint/<id>`) on GitHub: if it was closed without being merged and the stored status still refers to
+it (or got lost), the blueprint is put into state `DISMISSED` again, so a dismissed remediation PR is never recreated by accident.
+
+## Remediation branches
+
+Remediation pull requests use the branch `otterdog/blueprint/<id>`. Before writing content, otterdog brings an
+existing branch up to date with the default branch:
+
+- a branch whose commits were all made by otterdog (its bot user, not other bots) is reset onto the head of the
+  default branch and its files are written again, so stale commits disappear
+- a branch carrying commits of maintainers gets the default branch merged in, so their edits are preserved; a
+  conflicting merge is left untouched and logged
+
+A push to the default branch of a repository with an open remediation pull request triggers this update, so the pull
+request stays mergeable. `/otterdog rebase` and `/otterdog recreate` trigger it on demand, see
+[comment commands](commands.md).
 
 ## Check frequency
 
@@ -63,3 +77,24 @@ config:
 | description | optional  | Description of the blueprint as displayed in the dashboard |
 | type        | mandatory | Type of the blueprint                                      |
 | config      | mandatory | Custom configuration dependent on the `type` of blueprint  |
+
+Every `config` additionally accepts the following settings that control the remediation pull request:
+
+| Setting   | Necessity | Value type   | Description                                                                                   |
+|-----------|-----------|--------------|-----------------------------------------------------------------------------------------------|
+| labels    | optional  | list[string] | labels added to the PR, in addition to `otterdog` and `blueprint:<id>` which are always added |
+| reviewers | optional  | list[string] | team slugs requested as reviewers                                                             |
+| assignees | optional  | list[string] | users assigned to the PR                                                                      |
+| status_workflow | optional | string \| list[string] | workflow(s) whose jobs `/otterdog status` reports, by file name or workflow name; defaults to the workflows the blueprint manages, or all |
+
+## Remediation pull requests
+
+A remediation pull request carries the labels `otterdog` and `blueprint:<id>` (adding labels needs the GitHub App
+permission `Issues: Read & Write`). Its body lists the blueprint, the files it touches, whether each file was written
+from the blueprint or kept as edited on the branch, the blueprint *revision* the content was rendered from, and the
+comment commands available on the pull request, see [comment commands](commands.md).
+
+The revision is a digest of the blueprint's configuration. It is stored with the remediation when all files were
+written, so `/otterdog status` can flag pull requests whose content is older than the current blueprint. Non-strict
+files are written again on every evaluation as long as the branch only carries otterdog commits; once a maintainer
+has pushed to the branch they are kept as edited.

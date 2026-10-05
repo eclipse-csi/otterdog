@@ -13,6 +13,7 @@ from quart import Response, current_app
 
 from otterdog.utils import expect_type
 from otterdog.webapp.blueprints import create_blueprint_from_model, is_blueprint_path
+from otterdog.webapp.db.models import BlueprintStatus
 from otterdog.webapp.db.service import (
     find_blueprint,
     get_blueprints_status_for_repo,
@@ -38,9 +39,15 @@ from .comment_handlers import (
     ApplyCommentHandler,
     CheckSyncCommentHandler,
     CommentHandler,
+    CreateBlueprintCommentHandler,
     DoneCommentHandler,
     HelpCommentHandler,
+    IgnoreCommentHandler,
     MergeCommentHandler,
+    RebaseCommentHandler,
+    RecheckCommentHandler,
+    RecreateCommentHandler,
+    StatusCommentHandler,
     TeamInfoCommentHandler,
     ValidateCommentHandler,
 )
@@ -66,6 +73,12 @@ comment_handlers: list[CommentHandler] = [
     ApplyCommentHandler(),
     MergeCommentHandler(),
     ValidateCommentHandler(),
+    RecheckCommentHandler(),
+    RebaseCommentHandler(),
+    RecreateCommentHandler(),
+    IgnoreCommentHandler(),
+    StatusCommentHandler(),
+    CreateBlueprintCommentHandler(),
 ]
 
 logger = getLogger(__name__)
@@ -232,19 +245,31 @@ async def on_issue_comment_received(data):
     if event.installation is None or event.organization is None:
         return success()
 
-    # currently we only handle comments to pull requests
-    if event.issue.pull_request is None:
+    if event.action not in ["created", "edited"]:
         return success()
 
-    if not await targets_config_repo(event.repository.name, event.installation.id):
+    # comments by the app itself never trigger a command
+    if event.sender.type.lower() == "bot":
         return success()
 
-    if event.action in ["created", "edited"]:
-        for handler in comment_handlers:
-            match = handler.matches(event.comment.body)
-            if match is not None:
+    is_pull_request = event.issue.pull_request is not None
+    is_config_repo = await targets_config_repo(event.repository.name, event.installation.id)
+
+    for handler in comment_handlers:
+        match = handler.matches(event.comment.body)
+        if match is not None:
+            if handler.applies_to(is_pull_request, is_config_repo):
                 handler.process(match, event)
-                break
+            else:
+                logger.debug(
+                    "ignoring command '%s' in '%s/%s#%d', handler scope '%s' does not apply",
+                    match.group(0),
+                    event.organization.login,
+                    event.repository.name,
+                    event.issue.number,
+                    handler.scope,
+                )
+            break
 
     return success()
 
@@ -277,12 +302,18 @@ async def on_push_received(data):
                     repo_name,
                 ).execute()
 
-            # check any blueprint that matches the repo that just got a new push on the default branch
+            # check any blueprint that matches the repo that just got a new push on the default branch:
+            # either a managed path was touched, or an open remediation PR exists whose branch has to
+            # be brought up to date with the default branch
             for blueprint_status_model in await get_blueprints_status_for_repo(owner, repo_name):
                 blueprint_model = await find_blueprint(owner, blueprint_status_model.id.blueprint_id)
                 if blueprint_model is not None:
                     blueprint_instance = create_blueprint_from_model(blueprint_model)
-                    if blueprint_instance.should_reevaluate(event.commits):
+                    has_open_remediation = (
+                        blueprint_status_model.status == BlueprintStatus.REMEDIATION_PREPARED
+                        and blueprint_status_model.remediation_pr is not None
+                    )
+                    if blueprint_instance.should_reevaluate(event.commits) or has_open_remediation:
                         await blueprint_instance.evaluate_repo(installation_id, owner, repo_name)
 
         current_app.add_background_task(fetch_config_and_check_blueprints_if_needed)

@@ -41,6 +41,13 @@ class RequiredFileBlueprint(Blueprint):
     def required_paths(self) -> list[str]:
         return [x.path for x in self.files]
 
+    def managed_workflows(self) -> list[str]:
+        return [
+            path.rsplit("/", 1)[-1]
+            for path in self.required_paths
+            if path.startswith(".github/workflows/") and path.endswith((".yml", ".yaml"))
+        ]
+
     def _matches(self, repo: Repository) -> bool:
         if self.repo_selector is None:
             return True
