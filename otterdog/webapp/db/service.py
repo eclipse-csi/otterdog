@@ -13,6 +13,7 @@ from logging import getLogger
 from typing import TYPE_CHECKING, Any
 
 from odmantic import query
+from pymongo.errors import DuplicateKeyError
 from quart import current_app
 
 from otterdog.utils import unwrap
@@ -514,50 +515,68 @@ async def update_or_create_pull_request(
     has_required_approvals: bool | None = None,
     apply_status: ApplyStatus | None = None,
 ) -> PullRequestModel:
-    pull_request_status = PullRequestStatus[pull_request.get_pr_status()]
+    task_fields: dict[str, Any] = {
+        "valid": valid,
+        "in_sync": in_sync,
+        "requires_manual_apply": requires_manual_apply,
+        "supports_auto_merge": supports_auto_merge,
+        "author_can_auto_merge": author_can_auto_merge,
+        "has_required_approvals": has_required_approvals,
+        "apply_status": apply_status,
+    }
+    task_fields = {k: v for k, v in task_fields.items() if v is not None}
 
-    pr_model = await find_pull_request(owner, repo, pull_request.number)
-    if pr_model is None:
-        pr_model = PullRequestModel(  # type: ignore
-            id=PullRequestId(org_id=owner, repo_name=repo, pull_request=pull_request.number),
-            draft=pull_request.draft,
-            status=pull_request_status,
-            created_at=pull_request.created_at,
-            updated_at=pull_request.updated_at,
-            closed_at=pull_request.closed_at,
-            merged_at=pull_request.merged_at,
-        )
-    else:
-        pr_model.draft = pull_request.draft
-        pr_model.status = pull_request_status
-        pr_model.created_at = pull_request.created_at
-        pr_model.updated_at = pull_request.updated_at
-        pr_model.closed_at = pull_request.closed_at
-        pr_model.merged_at = pull_request.merged_at
+    pr_model = PullRequestModel(  # type: ignore
+        id=PullRequestId(org_id=owner, repo_name=repo, pull_request=pull_request.number),
+        draft=pull_request.draft,
+        status=PullRequestStatus[pull_request.get_pr_status()],
+        created_at=pull_request.created_at,
+        updated_at=pull_request.updated_at,
+        closed_at=pull_request.closed_at,
+        merged_at=pull_request.merged_at,
+        **task_fields,
+    )
+    doc = pr_model.model_dump_doc()
+    collection = mongo.odm.get_collection(PullRequestModel)
 
-    if apply_status is not None:
-        pr_model.apply_status = apply_status
+    if await find_pull_request(owner, repo, pull_request.number) is None:
+        try:
+            await collection.insert_one(doc)
+            return pr_model
+        except DuplicateKeyError:
+            # created concurrently by another task, update it instead
+            pass
 
-    if valid is not None:
-        pr_model.valid = valid
+    # tasks may run for a long time with a snapshot of the pull request taken when
+    # they were scheduled, do not let such a snapshot revert a newer state, e.g. turning
+    # an already merged pull request back to open. The condition is evaluated by mongo
+    # so that it also holds when several tasks update the same pull request concurrently.
+    status_rank = _PULL_REQUEST_STATUS_ORDER.index(pr_model.status)
+    await collection.update_one(
+        {
+            "_id": doc["_id"],
+            "$or": [
+                {"updated_at": {"$lt": doc["updated_at"]}},
+                # GitHub timestamps have a precision of one second and can not order snapshots
+                # taken within the same second, never go back in the lifecycle in that case.
+                {
+                    "updated_at": doc["updated_at"],
+                    "status": {"$in": [s.value for s in _PULL_REQUEST_STATUS_ORDER[: status_rank + 1]]},
+                },
+            ],
+        },
+        {"$set": {k: doc[k] for k in _PULL_REQUEST_LIFECYCLE_FIELDS}},
+    )
 
-    if in_sync is not None:
-        pr_model.in_sync = in_sync
+    # results of the task are independent of the snapshot and always recorded
+    if task_fields:
+        await collection.update_one({"_id": doc["_id"]}, {"$set": {k: doc[k] for k in task_fields}})
 
-    if requires_manual_apply is not None:
-        pr_model.requires_manual_apply = requires_manual_apply
+    return unwrap(await find_pull_request(owner, repo, pull_request.number))
 
-    if supports_auto_merge is not None:
-        pr_model.supports_auto_merge = supports_auto_merge
 
-    if author_can_auto_merge is not None:
-        pr_model.author_can_auto_merge = author_can_auto_merge
-
-    if has_required_approvals is not None:
-        pr_model.has_required_approvals = has_required_approvals
-
-    await update_pull_request(pr_model)
-    return pr_model
+_PULL_REQUEST_LIFECYCLE_FIELDS = ("draft", "status", "created_at", "updated_at", "closed_at", "merged_at")
+_PULL_REQUEST_STATUS_ORDER = (PullRequestStatus.OPEN, PullRequestStatus.CLOSED, PullRequestStatus.MERGED)
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:
