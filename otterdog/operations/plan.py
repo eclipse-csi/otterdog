@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING
 
 from otterdog.models.webhook import Webhook
 
-from .diff_operation import DiffOperation, DiffStatus
+from .diff_operation import DiffOperation, DiffResult
 
 if TYPE_CHECKING:
     from typing import Any
 
     from otterdog.config import OtterdogConfig
-    from otterdog.models import LivePatch, ModelObject
+    from otterdog.models import ModelObject
     from otterdog.utils import Change, IndentingPrinter
 
     from .validate import ValidationStatus
@@ -125,15 +125,13 @@ class PlanOperation(DiffOperation):
 
         return super().handle_validation_status(validation_status)
 
-    async def handle_finish(
-        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-    ) -> int:
-        if validation_status.errors == 0:
+    async def handle_finish(self, result: DiffResult) -> int:
+        if result.validation_status.errors == 0:
             self.printer.println(
-                f"\n[bold]Plan[/]: {diff_status.additions} to add, "
-                f"{diff_status.differences} to change, "
-                f"{diff_status.deletions} to delete.",
+                f"\n[bold]Plan[/]: {result.diff_status.additions} to add, "
+                f"{result.diff_status.differences} to change, "
+                f"{result.diff_status.deletions} to delete.",
                 highlight=True,
             )
 
-        return validation_status.errors
+        return result.validation_status.errors

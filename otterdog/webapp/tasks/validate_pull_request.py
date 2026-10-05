@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from quart import current_app, render_template
 
-from otterdog.models import LivePatch, LivePatchType
+from otterdog.models import LivePatchType
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import TaskModel
@@ -30,8 +30,7 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 if TYPE_CHECKING:
-    from otterdog.operations.diff_operation import DiffStatus
-    from otterdog.operations.validate import ValidationStatus
+    from otterdog.operations.diff_operation import DiffResult
     from otterdog.providers.github.rest import RestApi
 
 
@@ -161,9 +160,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 otterdog_config = await get_otterdog_config()
                 cost_policy = otterdog_config.cost_policy
 
-                def callback(
-                    org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-                ):
+                def callback(result: DiffResult):
+                    patches = result.patches
                     validation_result.requires_secrets = any(x.requires_secrets() for x in patches)
                     validation_result.requires_web_ui = any(x.requires_web_ui() for x in patches)
                     validation_result.cost_related = any(x.is_cost_related(cost_policy) for x in patches)

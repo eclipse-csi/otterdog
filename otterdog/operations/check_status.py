@@ -11,14 +11,15 @@ from __future__ import annotations
 from json import dumps as json_dumps
 from typing import TYPE_CHECKING
 
-from .diff_operation import DiffOperation, DiffStatus
+from .diff_operation import DiffOperation
 
 if TYPE_CHECKING:
     from typing import Any
 
-    from otterdog.models import LivePatch, ModelObject
+    from otterdog.models import ModelObject
     from otterdog.utils import Change
 
+    from .diff_operation import DiffResult
     from .validate import ValidationStatus
 
 
@@ -47,32 +48,30 @@ class CheckStatusOperation(DiffOperation):
     def resolve_secrets(self) -> bool:
         return False
 
-    async def handle_finish(
-        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-    ) -> int:
-        is_archived = await self.gh_client.rest_api.org.is_archived(org_id)
+    async def handle_finish(self, result: DiffResult) -> int:
+        is_archived = await self.gh_client.rest_api.org.is_archived(result.org_id)
         org_status = {
-            "org_id": org_id,
+            "org_id": result.org_id,
             "is_archived": is_archived,
             "validation_status": {
-                "is_valid": validation_status.total_notices() == 0,
-                "infos": validation_status.infos,
-                "warnings": validation_status.warnings,
-                "errors": validation_status.errors,
+                "is_valid": result.validation_status.total_notices() == 0,
+                "infos": result.validation_status.infos,
+                "warnings": result.validation_status.warnings,
+                "errors": result.validation_status.errors,
             },
             "sync_status": {
-                "in_sync": validation_status.total_notices() == 0 and not patches,
-                "additions": diff_status.additions,
-                "changes": diff_status.differences,
-                "deletions": diff_status.deletions,
+                "in_sync": result.validation_status.total_notices() == 0 and not result.patches,
+                "additions": result.diff_status.additions,
+                "changes": result.diff_status.differences,
+                "deletions": result.diff_status.deletions,
             },
         }
         self.orgs_status.append(org_status)
 
         self.printer.println(
             f"Archived: {is_archived}\n"
-            f"Validation status: {validation_status.total_notices() == 0}\n"
-            f"Synchronization status: {validation_status.total_notices() == 0 and not patches}"
+            f"Validation status: {result.validation_status.total_notices() == 0}\n"
+            f"Synchronization status: {result.validation_status.total_notices() == 0 and not result.patches}"
         )
 
         return 0
