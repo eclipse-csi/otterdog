@@ -56,7 +56,10 @@ class PullRequestSettings(EmbeddedModelObject):
     requires_last_push_approval: bool = dataclasses.field(default=False)
     requires_review_thread_resolution: bool = dataclasses.field(default=False)
     # GitHub's default when the parameter is omitted: all three methods allowed.
-    allowed_merge_methods: list[str] = dataclasses.field(default_factory=lambda: ["merge", "squash", "rebase"])
+    # As it is usually narrowed, it replaces its default in a patch instead of extending it.
+    allowed_merge_methods: list[str] = dataclasses.field(
+        default_factory=VALID_MERGE_METHODS.copy, metadata={"replace_on_patch": True}
+    )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         for key in self.keys(False):

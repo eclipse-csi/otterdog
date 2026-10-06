@@ -24,7 +24,7 @@ from otterdog.logging import _print_message, get_logger, is_info_enabled
 
 if TYPE_CHECKING:
     from argparse import Namespace
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
 
 T = TypeVar("T")
 
@@ -171,8 +171,14 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
 
 
 def write_patch_object_as_json(
-    diff_object: dict[str, Any], printer: IndentingPrinter, close_object: bool = True
+    diff_object: dict[str, Any],
+    printer: IndentingPrinter,
+    close_object: bool = True,
+    replace_keys: Collection[str] = (),
 ) -> None:
+    # Lists are appended to their default value, except the ones in replace_keys
+    # which are written as a whole and replace their default value.
+
     # Local helper function to safely quote keys for jsonnet output.
     # jsonnet allows unquoted keys only if they match ^[A-Za-z_][A-Za-z0-9_]*$.
     def quote_key(key: str) -> str:
@@ -191,7 +197,7 @@ def write_patch_object_as_json(
             continue
 
         if isinstance(value, list):
-            printer.println(f"{key}+: [")
+            printer.println(f"{key}{'' if key in replace_keys else '+'}: [")
             printer.level_up()
             num_items = len(value)
             for index, item in enumerate(value):
