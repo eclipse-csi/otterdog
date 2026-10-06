@@ -115,8 +115,8 @@
                   <div class="tab-pane" id="pr-stats" role="tabpanel" aria-labelledby="stats-pr-tab">
                     <div class="row g-2 align-items-end mb-3">
                       <div class="col-auto">
-                        <fieldset id="stats-interval">
-                          <legend class="col-form-label mb-1 p-0" style="font-size: 1rem;">Interval</legend>
+                        <fieldset id="stats-interval" class="border-0 p-0 m-0">
+                          <legend class="col-form-label fw-bold mb-1 p-0" style="font-size: 1rem;">Interval</legend>
                           <div class="btn-group btn-group-sm d-block">
                             <button type="button" class="btn btn-outline-primary" data-interval="day"
                                     aria-pressed="false">Day</button>
@@ -128,8 +128,8 @@
                         </fieldset>
                       </div>
                       <div class="col-auto">
-                        <label class="mb-1" for="stats-range">Range</label>
-                        <select class="form-control form-control-sm" id="stats-range">
+                        <label class="fw-bold mb-1" for="stats-range">Range</label>
+                        <select class="form-select form-select-sm" id="stats-range">
                           <option value="7d">Last 7 days</option>
                           <option value="14d">Last 14 days</option>
                           <option value="30d">Last 30 days</option>
@@ -140,7 +140,7 @@
                         </select>
                       </div>
                       <div class="col-auto">
-                        <label class="mb-1" for="stats-org">Organization</label>
+                        <label class="fw-bold mb-1" for="stats-org">Organization</label>
                         <input class="form-control form-control-sm" id="stats-org" list="stats-org-list"
                                type="search" autocomplete="off" placeholder="All organizations"
                                title="Type a GitHub organization or a project name, leave empty for all">
@@ -333,7 +333,7 @@
                         <label class="mb-1 text-muted" for="stats-effort-per-pr">
                           <small>Assumed effort per pull request</small>
                         </label>
-                        <select class="form-control form-control-sm" id="stats-effort-per-pr">
+                        <select class="form-select form-select-sm" id="stats-effort-per-pr">
                           <option value="5">5 minutes</option>
                           <option value="10" selected>10 minutes</option>
                           <option value="15">15 minutes</option>

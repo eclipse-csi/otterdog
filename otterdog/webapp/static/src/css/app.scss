@@ -10,6 +10,9 @@ $link-hover-decoration: underline;
 // AdminLTE 3 highlights the active sidebar entry with the primary color
 $lte-sidebar-menu-active-bg-dark: $primary;
 $lte-sidebar-menu-active-color-dark: #fff;
+// and the active entry of a submenu with a light background
+$lte-sidebar-submenu-active-bg-dark: rgba(255, 255, 255, .9);
+$lte-sidebar-submenu-active-color-dark: #343a40;
 
 @import "admin-lte/src/scss/adminlte";
 
@@ -20,4 +23,37 @@ $lte-sidebar-menu-active-color-dark: #fff;
 
 .app-content-header h1 {
   font-size: 1.8rem;
+}
+
+// AdminLTE 3 shows the links of colored card headers in the header text color
+.card[class*="card-"]:not(.card-outline) > .card-header a:not(.btn) {
+  color: var(--lte-card-variant-color);
+}
+
+// AdminLTE 3 marks the active tab of an outline tabs card with the card color
+.card.card-outline-tabs > .card-header a.active,
+.card.card-outline-tabs > .card-header a.active:hover {
+  border-top: 3px solid var(--lte-card-variant-bg);
+}
+
+// AdminLTE 3 vertical tabs, separated from their content on the right rather than below
+.nav-tabs.flex-column {
+  border-bottom: 0;
+  border-right: var(--bs-border-width) solid var(--bs-border-color);
+
+  .nav-link {
+    margin-right: calc(-1 * var(--bs-border-width));
+    margin-bottom: 0;
+    border-radius: var(--bs-border-radius) 0 0 var(--bs-border-radius);
+
+    &:hover,
+    &:focus {
+      border-color: var(--bs-secondary-bg) transparent var(--bs-secondary-bg) var(--bs-secondary-bg);
+    }
+  }
+
+  .nav-link.active,
+  .nav-item.show .nav-link {
+    border-color: var(--bs-border-color) transparent var(--bs-border-color) var(--bs-border-color);
+  }
 }
