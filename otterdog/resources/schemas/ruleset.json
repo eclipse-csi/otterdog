@@ -59,7 +59,9 @@
         "requires_review_thread_resolution": { "type": "boolean" },
         "allowed_merge_methods": {
           "type": "array",
-          "items": { "type": "string", "enum": ["merge", "squash", "rebase"] }
+          "items": { "type": "string", "enum": ["merge", "squash", "rebase"] },
+          "minItems": 1,
+          "uniqueItems": true
         }
       },
       "additionalProperties": false
