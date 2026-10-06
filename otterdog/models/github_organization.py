@@ -58,7 +58,7 @@ from otterdog.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Iterator
+    from collections.abc import AsyncIterator, Callable, Iterable, Iterator
     from re import Pattern
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
@@ -266,6 +266,7 @@ class GitHubOrganization:
     @staticmethod
     def _validate_org_config(data: dict[str, Any]) -> None:
         from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import best_match
         from referencing import Registry, Resource
         from referencing.exceptions import NoSuchResource
 
@@ -293,7 +294,35 @@ class GitHubOrganization:
                     blocking_errors.append(error)
 
             if blocking_errors:
-                raise blocking_errors[0]
+                # an error of an 'anyOf' schema only states that no alternative matched,
+                # report the most relevant error of its alternatives instead.
+                messages = []
+                for error in blocking_errors:
+                    cause = best_match([error])
+                    path = GitHubOrganization._format_config_path(data, cause.absolute_path)
+                    messages.append(f"invalid value at '{path}': {cause.message}")
+
+                raise RuntimeError("\n".join(messages)) from blocking_errors[0]
+
+    @staticmethod
+    def _format_config_path(data: Any, path: Iterable[str | int]) -> str:
+        """
+        Formats the path of a value in the configuration, identifying list items by their name if available,
+        e.g. 'repositories[name="my-repo"].rulesets[name="main"].required_pull_request'.
+        """
+        result = ""
+        for element in path:
+            if isinstance(element, int):
+                data = data[element]
+                if isinstance(data, dict) and "name" in data:
+                    result += f'[name="{data["name"]}"]'
+                else:
+                    result += f"[{element}]"
+            else:
+                data = data[element]
+                result += f".{element}" if result else element
+
+        return result
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None

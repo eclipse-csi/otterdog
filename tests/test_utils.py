@@ -27,6 +27,7 @@ from otterdog.utils import (
     restrict_jsonnet_imports,
     snake_to_camel_case,
     snake_to_normal_case,
+    write_patch_object_as_json,
 )
 
 
@@ -60,6 +61,19 @@ def test_patch_to_other():
     assert patch_to_other([1], [1]) == (False, None)
     assert patch_to_other([1, 2], [1]) == (True, [2])
     assert patch_to_other([1, 2], [2, 1]) == (False, None)
+
+
+def test_write_patch_object_as_json_replace_keys():
+    output = StringIO()
+
+    write_patch_object_as_json(
+        {"appended": ["a"], "replaced": ["b"]}, IndentingPrinter(output), replace_keys={"replaced"}
+    )
+
+    jsonnet = output.getvalue()
+    assert "appended+: [" in jsonnet
+    assert "replaced: [" in jsonnet
+    assert "replaced+:" not in jsonnet
 
 
 def test_snake_to_camel_case():
