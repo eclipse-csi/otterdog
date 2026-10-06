@@ -4,7 +4,7 @@
       <!-- Left navbar links -->
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button"><i class="fas fa-bars"></i></a>
+          <button type="button" class="nav-link" data-lte-toggle="sidebar" aria-label="Toggle sidebar"><i class="fas fa-bars" aria-hidden="true"></i></button>
         </li>
         <li class="nav-item d-none d-md-block">
           <a href="/index" class="nav-link">Home</a>
@@ -14,8 +14,8 @@
       <ul class="navbar-nav ms-auto">
         {% if current_user.is_authenticated %}
         <li class="nav-item dropdown user-menu">
-          <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
-            <img src="https://avatars.githubusercontent.com/{{ current_user.username }}" class="user-image rounded-circle shadow" alt="User Image">
+          <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" aria-label="{{ current_user.username }}">
+            <img src="https://avatars.githubusercontent.com/{{ current_user.username }}" class="user-image rounded-circle shadow" alt="">
             <span class="d-none d-md-inline">{{ current_user.username }}</span>
           </a>
           <div class="dropdown-menu dropdown-menu-end">
