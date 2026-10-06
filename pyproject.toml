@@ -91,7 +91,7 @@ poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 quart                = "^0.22"
 quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
-pymongo              = "==4.18.1"
+pymongo              = "==4.18.2"
 pydantic             = "^2.7"
 odmantic             = "^1.1.0"
 quart-auth           = "^0.12"
@@ -105,10 +105,10 @@ python-slugify       = "^9.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = ">=0.16.8"
-prek = ">=0.5.3"
+prek = ">=0.5.4"
 
 [tool.poetry.group.test.dependencies]
-tox = ">=4.63.0"
+tox = ">=4.64.4"
 pytest = ">=9.0.3"
 pytest-asyncio = ">=0.24"
 parameterized  = ">=0.9"
