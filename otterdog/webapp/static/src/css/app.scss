@@ -1,0 +1,23 @@
+// AdminLTE 3 palette, so that the dashboard keeps its colors with AdminLTE 4 / Bootstrap 5
+$primary: #007bff;
+$success: #28a745;
+$info: #17a2b8;
+// AdminLTE 3 puts white text on info and success, Bootstrap 5 does so only below this contrast ratio
+$min-contrast-ratio: 3;
+// AdminLTE 3 links are not underlined
+$link-decoration: none;
+$link-hover-decoration: underline;
+// AdminLTE 3 highlights the active sidebar entry with the primary color
+$lte-sidebar-menu-active-bg-dark: $primary;
+$lte-sidebar-menu-active-color-dark: #fff;
+
+@import "admin-lte/src/scss/adminlte";
+
+// AdminLTE 3 spaced the cards and used a smaller page title
+.card {
+  margin-bottom: 1rem;
+}
+
+.app-content-header h1 {
+  font-size: 1.8rem;
+}

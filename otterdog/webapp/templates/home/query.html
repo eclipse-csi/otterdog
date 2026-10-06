@@ -194,7 +194,7 @@ query {
 
         if ('settings' in project.config) {
           $("<div />", {
-            "class": "col-12 bg-info",
+            "class": "col-12 text-bg-info",
             text: JSON.stringify(project.config.settings)
           }).appendTo(body);
           containsResults = true;
@@ -203,7 +203,7 @@ query {
         if ('repositories' in project.config) {
           for (var repo of project.config.repositories) {
             $("<div />", {
-              "class": "col-12 bg-success",
+              "class": "col-12 text-bg-success",
               text: JSON.stringify(repo)
             }).appendTo(body);
             containsResults = true;
@@ -221,7 +221,7 @@ query {
       clearResults();
 
       var card = $("<div />", {
-          "class": "card bg-warning",
+          "class": "card text-bg-warning",
         });
 
       if (Array.isArray(text)) {

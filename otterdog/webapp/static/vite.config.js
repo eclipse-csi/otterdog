@@ -22,7 +22,6 @@ export default defineConfig({
             targets: [
                 vendorFile("jquery/dist/jquery.min.js", "jquery"),
                 vendorFile("bootstrap/dist/js/bootstrap.bundle.min.js", "bootstrap"),
-                vendorFile("bootstrap/dist/css/bootstrap.min.css", "bootstrap"),
                 vendorFile("chart.js/dist/chart.umd.js", "chartjs"),
                 vendorFile("jsgrid/dist/jsgrid.min.(js|css)", "jsgrid"),
                 vendorFile("jsgrid/dist/jsgrid-theme.min.css", "jsgrid"),
@@ -41,6 +40,16 @@ export default defineConfig({
             ]
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                loadPaths: [path.join(__dirname, "node_modules")],
+                // Bootstrap and AdminLTE still rely on @import and the global Sass functions
+                quietDeps: true,
+                silenceDeprecations: ["import", "global-builtin", "color-functions", "if-function"],
+            },
+        },
+    },
     resolve: {
         alias: [
             {find: "#", replacement: path.join(__dirname, "node_modules")},
@@ -60,7 +69,7 @@ export default defineConfig({
             "src/js/app.js",
             "src/js/editor.js",
             "src/js/highlight.js",
-            "src/css/app.css",
+            "src/css/app.scss",
             "src/css/editor.css",
             "src/css/highlight.css",
           ],

@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "husky": "^9.0.11",
+    "sass-embedded": "^1.105.1",
     "vite": "^8.1.5",
     "vite-plugin-static-copy": "^4.1.1"
   },

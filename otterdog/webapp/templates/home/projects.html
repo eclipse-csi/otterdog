@@ -44,7 +44,7 @@
             <div class="card">
               {% if installation_status|status == 'success' %}
               <a class="text-reset" href="/projects/{{ project_name }}">
-                <div class="card-header bg-{{ installation_status|status }}">
+                <div class="card-header text-bg-{{ installation_status|status }}">
                   <h3 class="card-title">{{ project_name }}</h3>
                   <div class="float-end">
                     <i class="fas fa-arrow-circle-right"></i>
@@ -53,7 +53,7 @@
               </a>
               {% else %}
               <a class="text-reset" href="#">
-                <div class="card-header bg-{{ installation_status|status }}">
+                <div class="card-header text-bg-{{ installation_status|status }}">
                   <h3 class="card-title">{{ project_name }}</h3>
                 </div>
               </a>
