@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
+    versioning-strategy: "increase"
     schedule:
       interval: "weekly"
     cooldown:
@@ -15,5 +16,13 @@ updates:
       github-actions:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/otterdog/webapp/static"
+    versioning-strategy: "increase"
+    schedule:
+      interval: "weekly"
     cooldown:
       default-days: 7
