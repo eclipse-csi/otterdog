@@ -53,8 +53,32 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
         data["settings"]["plan"] = 123
 
-        with self.assertRaises(jsonschema.exceptions.ValidationError):
+        with self.assertRaises(RuntimeError) as context:
             GitHubOrganization.from_model_data(data)
+
+        assert str(context.exception) == "invalid value at 'settings.plan': 123 is not of type 'string'"
+        assert isinstance(context.exception.__cause__, jsonschema.exceptions.ValidationError)
+
+    def test_load_from_model_reports_invalid_value_of_any_of_schema(self):
+        # 'required_pull_request' is either a pull request or null: the error must
+        # name the invalid nested value, not only state that no alternative matched.
+        data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
+        repo = data["repositories"][0]
+        repo["rulesets"] = [
+            {
+                "name": "main",
+                "required_pull_request": {"required_approving_review_count": 1, "allowed_merge_methods": "test"},
+            }
+        ]
+
+        with self.assertRaises(RuntimeError) as context:
+            GitHubOrganization.from_model_data(data)
+
+        # the incomplete ruleset reports its missing required properties as well.
+        assert (
+            f'invalid value at \'repositories[name="{repo["name"]}"].rulesets[name="main"]'
+            ".required_pull_request.allowed_merge_methods': 'test' is not of type 'array'"
+        ) in str(context.exception).splitlines()
 
     async def _validate_code_scanning_repository(self, get_repos, aliases=None):
         organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)

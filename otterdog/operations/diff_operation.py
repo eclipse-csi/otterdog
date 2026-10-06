@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 import aiofiles.ospath
+from rich.markup import escape
 
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
@@ -184,7 +185,7 @@ class DiffOperation(Operation):
         try:
             expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{e!s}")
+            self.printer.print_error(f"failed to load configuration\n{escape(str(e))}")
             return None
 
         diff_status = DiffStatus()

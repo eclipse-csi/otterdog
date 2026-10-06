@@ -7,17 +7,19 @@
 #  *******************************************************************************
 
 import logging
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
 from jsonbender import bend
 from pretend import stub
 
+from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, ValidationContext
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repo_ruleset import RepositoryRuleset
-from otterdog.models.ruleset import Ruleset, StatusCheckSettings
-from otterdog.utils import Change
+from otterdog.models.ruleset import PullRequestSettings, Ruleset, StatusCheckSettings
+from otterdog.utils import Change, IndentingPrinter
 
 
 class TestRuleset:
@@ -575,3 +577,206 @@ class TestRulesetValidation:
         ruleset = self.create_ruleset(None)
 
         assert self.validate(ruleset) == []
+
+
+class TestPullRequestSettings:
+    org_id = "test-org"
+
+    def create_ruleset_data_with_pull_request_rule(self, parameters):
+        return {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [{"type": "pull_request", "parameters": parameters}],
+        }
+
+    def make_validation_context(self):
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+
+        return ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+
+    def test_from_provider_reads_allowed_merge_methods(self):
+        data = self.create_ruleset_data_with_pull_request_rule(
+            {
+                "required_approving_review_count": 1,
+                "dismiss_stale_reviews_on_push": False,
+                "require_code_owner_review": False,
+                "require_last_push_approval": False,
+                "required_review_thread_resolution": True,
+                "allowed_merge_methods": ["merge"],
+            }
+        )
+
+        ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+
+        assert ruleset.required_pull_request is not None
+        assert ruleset.required_pull_request.allowed_merge_methods == ["merge"]
+
+    def test_from_provider_defaults_to_all_merge_methods_when_absent(self):
+        # Older provider payloads may omit the parameter; GitHub treats an
+        # omitted parameter as "all methods allowed".
+        data = self.create_ruleset_data_with_pull_request_rule(
+            {
+                "required_approving_review_count": 1,
+                "dismiss_stale_reviews_on_push": False,
+                "require_code_owner_review": False,
+                "require_last_push_approval": False,
+                "required_review_thread_resolution": True,
+            }
+        )
+
+        ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+
+        assert ruleset.required_pull_request is not None
+        assert ruleset.required_pull_request.allowed_merge_methods == ["merge", "squash", "rebase"]
+
+    def test_from_model_defaults_to_all_merge_methods_when_omitted(self):
+        # A jsonnet template predating the parameter must keep validating and
+        # write GitHub's default, so declaring nothing changes nothing.
+        settings = PullRequestSettings.from_model_data({"required_approving_review_count": 0})
+
+        assert settings.allowed_merge_methods == ["merge", "squash", "rebase"]
+
+    async def test_get_mapping_to_provider_includes_allowed_merge_methods(self):
+        data = {
+            "required_approving_review_count": 0,
+            "dismisses_stale_reviews": False,
+            "requires_code_owner_review": False,
+            "requires_last_push_approval": False,
+            "requires_review_thread_resolution": True,
+            "allowed_merge_methods": ["merge"],
+        }
+
+        mapping = await PullRequestSettings.get_mapping_to_provider(self.org_id, data, stub())
+        result = bend(mapping, data)
+
+        assert result["allowed_merge_methods"] == ["merge"]
+        assert result["required_review_thread_resolution"] is True
+
+    @pytest.mark.parametrize(
+        "allowed_merge_methods,expected_failures",
+        [
+            (["merge"], 0),
+            (["merge", "squash", "rebase"], 0),
+            ([], 1),
+            (["fast-forward"], 1),
+            (["merge", "fast-forward", "octopus"], 2),
+        ],
+        ids=["single_method", "all_methods", "empty_list", "unknown_method", "mixed_valid_invalid"],
+    )
+    def test_validate_allowed_merge_methods(self, allowed_merge_methods, expected_failures):
+        settings = PullRequestSettings.from_model_data(
+            {
+                "required_approving_review_count": 0,
+                "allowed_merge_methods": allowed_merge_methods,
+            }
+        )
+        context = self.make_validation_context()
+        parent = stub(get_model_header=lambda parent_object: 'repo_ruleset[name="test-ruleset"]')
+
+        settings.validate(context, parent)
+
+        assert len(context.validation_failures) == expected_failures
+
+    def create_live_ruleset(self, allowed_merge_methods) -> RepositoryRuleset:
+        return RepositoryRuleset.from_provider_data(
+            self.org_id,
+            self.create_ruleset_data_with_pull_request_rule(
+                {
+                    "required_approving_review_count": 1,
+                    "dismiss_stale_reviews_on_push": False,
+                    "require_code_owner_review": False,
+                    "require_last_push_approval": False,
+                    "required_review_thread_resolution": False,
+                    "allowed_merge_methods": allowed_merge_methods,
+                }
+            ),
+        )
+
+    def create_configured_ruleset(self, required_pull_request) -> RepositoryRuleset:
+        return RepositoryRuleset.from_model_data(
+            {
+                "name": "test-ruleset",
+                "enforcement": "active",
+                "target": "branch",
+                "include_refs": ["refs/heads/main"],
+                "exclude_refs": [],
+                "bypass_actors": [],
+                "requires_deployments": False,
+                "required_deployment_environments": [],
+                "required_pull_request": required_pull_request,
+            }
+        )
+
+    def test_diff_reports_narrowed_live_allowed_merge_methods(self):
+        # a configuration predating the parameter against a live ruleset narrowed by hand
+        expected = self.create_configured_ruleset({"required_approving_review_count": 1})
+        current = self.create_live_ruleset(["merge"])
+
+        diff = expected.get_difference_from(current)
+
+        assert "required_pull_request" in diff
+        assert diff["required_pull_request"].from_value["allowed_merge_methods"] == ["merge"]
+        assert diff["required_pull_request"].to_value["allowed_merge_methods"] == ["merge", "squash", "rebase"]
+
+    def test_diff_ignores_order_of_allowed_merge_methods(self):
+        expected = self.create_configured_ruleset(
+            {"required_approving_review_count": 1, "allowed_merge_methods": ["squash", "merge"]}
+        )
+        current = self.create_live_ruleset(["merge", "squash"])
+
+        diff = expected.get_difference_from(current)
+
+        assert "required_pull_request" not in diff
+
+    @pytest.mark.parametrize(
+        "allowed_merge_methods,default_merge_methods,expected_patch",
+        [
+            (["merge"], ["merge", "squash", "rebase"], {"allowed_merge_methods": ["merge"]}),
+            (["merge"], ["squash"], {"allowed_merge_methods": ["merge"]}),
+            (["merge", "squash"], ["squash"], {"allowed_merge_methods": ["merge", "squash"]}),
+            (["rebase", "squash", "merge"], ["merge", "squash", "rebase"], {}),
+        ],
+        ids=["narrowed", "disjoint", "widened", "same_methods_in_other_order"],
+    )
+    def test_get_patch_to_replaces_allowed_merge_methods(
+        self, allowed_merge_methods, default_merge_methods, expected_patch
+    ):
+        # the patch must hold the whole list: the items missing from the default
+        # cannot express a value that narrows it.
+        settings = PullRequestSettings.from_model_data(
+            {"required_approving_review_count": 0, "allowed_merge_methods": allowed_merge_methods}
+        )
+        default = PullRequestSettings.from_model_data(
+            {"required_approving_review_count": 0, "allowed_merge_methods": default_merge_methods}
+        )
+
+        assert settings.get_patch_to(default) == expected_patch
+
+    def test_to_jsonnet_replaces_default_allowed_merge_methods(self):
+        # 'otterdog import' of a narrowed ruleset must not append to the default
+        # ('allowed_merge_methods+:'), which would widen it again on the next apply.
+        current = self.create_live_ruleset(["merge"])
+        default = self.create_configured_ruleset({"required_approving_review_count": 1})
+        jsonnet_config = stub(
+            create_repo_ruleset=JsonnetConfig.create_repo_ruleset,
+            create_pull_request=JsonnetConfig.create_pull_request,
+        )
+        output = StringIO()
+
+        current.to_jsonnet(IndentingPrinter(output), jsonnet_config, stub(), False, default)
+
+        jsonnet = output.getvalue()
+        assert "required_pull_request+:" in jsonnet
+        assert "allowed_merge_methods: [" in jsonnet
+        assert "allowed_merge_methods+:" not in jsonnet

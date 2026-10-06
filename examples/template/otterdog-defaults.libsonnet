@@ -160,6 +160,7 @@ local newPullRequest() = {
   requires_last_push_approval: false,
   requires_review_thread_resolution: false,
   dismisses_stale_reviews: false,
+  allowed_merge_methods: ["merge", "squash", "rebase"],
 };
 
 # Function to create status checks with default settings.
