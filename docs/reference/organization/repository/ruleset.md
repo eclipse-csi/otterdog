@@ -58,13 +58,13 @@ orgs.newStatusChecks() {
 
 ### Pull Request Settings
 
-| Key                                 | Value    | Description                                                                                                       | Notes                               |
-|-------------------------------------|----------|-------------------------------------------------------------------------------------------------------------------|-------------------------------------|
-| _required_approving_review_count_   | integer  | The number or approvals required before a pull request can be merged                                              | Allowed values in the range [0, 10] |
-| _dismisses_stale_reviews_           | boolean  | If enabled, dismiss approved reviews automatically when a new commit is pushed                                    |                                     |
-| _requires_code_owner_review_        | boolean  | If enabled, require an approved review in pull requests including files with a designated code owner              |                                     |
-| _requires_last_push_approval_       | boolean  | Whether the most recent push must be approved by someone other than the person who pushed it                      |                                     |
-| _requires_review_thread_resolution_ | boolean  | If enabled, all conversations on code must be resolved before a pull request can be merged into a matching branch |                                     |
+| Key                                 | Value        | Description                                                                                                       | Notes                                                                                                                        |
+|-------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| _required_approving_review_count_   | integer      | The number or approvals required before a pull request can be merged                                              | Allowed values in the range [0, 10]                                                                                          |
+| _dismisses_stale_reviews_           | boolean      | If enabled, dismiss approved reviews automatically when a new commit is pushed                                    |                                                                                                                              |
+| _requires_code_owner_review_        | boolean      | If enabled, require an approved review in pull requests including files with a designated code owner              |                                                                                                                              |
+| _requires_last_push_approval_       | boolean      | Whether the most recent push must be approved by someone other than the person who pushed it                      |                                                                                                                              |
+| _requires_review_thread_resolution_ | boolean      | If enabled, all conversations on code must be resolved before a pull request can be merged into a matching branch |                                                                                                                              |
 | _allowed_merge_methods_             | list[string] | The merge methods that are allowed when merging a pull request into a matching branch                             | Allowed values: `merge`, `squash`, `rebase`; defaults to all three, matching GitHub's behavior when the parameter is omitted |
 
 #### Jsonnet Function
