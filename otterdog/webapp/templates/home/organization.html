@@ -28,16 +28,16 @@
 {% block content %}
 
   <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
+  <div class="app-main">
     <!-- Content Header (Page header) -->
-    <section class="content-header">
+    <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1>{{ project_name }}</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">{{ project_name }}</li>
             </ol>
@@ -48,7 +48,7 @@
     </section>
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           <!-- /.col -->
@@ -57,40 +57,40 @@
               <div class="card-header p-0 border-bottom-0">
                 <ul class="nav nav-tabs" id="organization-tabs" role="tablist">
                   <li class="nav-item">
-                    <a class="nav-link active" id="overview-tab" data-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
+                    <a class="nav-link active" id="overview-tab" data-bs-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="policies-tab" data-toggle="pill" href="#policies" role="tab" aria-controls="policies" aria-selected="false">Policies</a>
+                    <a class="nav-link" id="policies-tab" data-bs-toggle="pill" href="#policies" role="tab" aria-controls="policies" aria-selected="false">Policies</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="blueprints-tab" data-toggle="pill" href="#blueprints" role="tab" aria-controls="blueprints" aria-selected="false">Blueprints</a>
+                    <a class="nav-link" id="blueprints-tab" data-bs-toggle="pill" href="#blueprints" role="tab" aria-controls="blueprints" aria-selected="false">Blueprints</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="settings-tab" data-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
+                    <a class="nav-link" id="settings-tab" data-bs-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="roles-tab" data-toggle="pill" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
+                    <a class="nav-link" id="roles-tab" data-bs-toggle="pill" href="#roles" role="tab" aria-controls="roles" aria-selected="false">Roles</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="teams-tab" data-toggle="pill" href="#teams" role="tab" aria-controls="teams" aria-selected="false">Teams</a>
+                    <a class="nav-link" id="teams-tab" data-bs-toggle="pill" href="#teams" role="tab" aria-controls="teams" aria-selected="false">Teams</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="custom-properties-tab" data-toggle="pill" href="#custom-properties" role="tab" aria-controls="custom-properties" aria-selected="false">Custom Properties</a>
+                    <a class="nav-link" id="custom-properties-tab" data-bs-toggle="pill" href="#custom-properties" role="tab" aria-controls="custom-properties" aria-selected="false">Custom Properties</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="secrets-tab" data-toggle="pill" href="#secrets" role="tab" aria-controls="secrets" aria-selected="false">Secrets</a>
+                    <a class="nav-link" id="secrets-tab" data-bs-toggle="pill" href="#secrets" role="tab" aria-controls="secrets" aria-selected="false">Secrets</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="variables-tab" data-toggle="pill" href="#variables" role="tab" aria-controls="variables" aria-selected="false">Variables</a>
+                    <a class="nav-link" id="variables-tab" data-bs-toggle="pill" href="#variables" role="tab" aria-controls="variables" aria-selected="false">Variables</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="webhooks-tab" data-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
+                    <a class="nav-link" id="webhooks-tab" data-bs-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="rulesets-tab" data-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
+                    <a class="nav-link" id="rulesets-tab" data-bs-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="repositories-tab" data-toggle="pill" href="#repositories" role="tab" aria-controls="repositories" aria-selected="false">Repositories</a>
+                    <a class="nav-link" id="repositories-tab" data-bs-toggle="pill" href="#repositories" role="tab" aria-controls="repositories" aria-selected="false">Repositories</a>
                   </li>
                 </ul>
               </div>
@@ -109,51 +109,51 @@
                                 <li class="nav-item">
                                   <a href="{{ project_url }}" class="nav-link" target="_blank">
                                     Project
-                                    <span class="float-right">{{ project_name }}</span>
+                                    <span class="float-end">{{ project_name }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="https://github.com/{{ github_id }}" class="nav-link" target="_blank">
                                     GitHub Org
-                                    <span class="float-right">{{ github_id }}</span>
+                                    <span class="float-end">{{ github_id }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="{{ base_template.url }}" class="nav-link" target="_blank">
                                     Default Config
-                                    <span class="float-right">{{ base_template.ref }}</span>
+                                    <span class="float-end">{{ base_template.ref }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#settings" class="nav-link tab-link">
                                     {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                                    2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                                    2FA enforced <span class="float-end badge text-bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#workflow-settings" class="nav-link tab-link">
                                     {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                                    Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                                    Default workflow permissions <span class="float-end badge text-bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#secrets" class="nav-link tab-link">
-                                    Secrets <span class="float-right badge bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
+                                    Secrets <span class="float-end badge text-bg-{{ config.secrets|length_to_color}}">{{ config.secrets|length }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#variables" class="nav-link tab-link">
-                                    Variables <span class="float-right badge bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
+                                    Variables <span class="float-end badge text-bg-{{ config.variables|length_to_color}}">{{ config.variables|length }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#webhooks" class="nav-link tab-link">
-                                    Webhooks <span class="float-right badge bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
+                                    Webhooks <span class="float-end badge text-bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#repositories" class="nav-link tab-link">
-                                    Repositories <span class="float-right badge bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
+                                    Repositories <span class="float-end badge text-bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
                                   </a>
                                 </li>
                               </ul>
@@ -220,7 +220,7 @@
                           {% for policy in policies %}
                           {% set policy_id = policy.id %}
                           {% set id = 'policy-' ~ loop.index %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ policy_id.policy_type }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-bs-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ policy_id.policy_type }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -293,7 +293,7 @@
                           {% for blueprint in blueprints %}
                           {% set blueprint_id = blueprint.id %}
                           {% set id = 'blueprint-' ~ blueprint_id.blueprint_id %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ blueprint_id.blueprint_id }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-bs-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ blueprint_id.blueprint_id }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -319,11 +319,11 @@
                               </div>
                             </div>
                             <div class="card card-primary collapsed-card">
-                              <div class="card-header" data-card-widget="collapse">
+                              <div class="card-header" data-lte-toggle="card-collapse">
                                 <h3 class="card-title">Config</h3>
                                 <div class="card-tools" style="margin: 0px;">
-                                  <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fas fa-plus"></i>
+                                  <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse">
+                                    <i data-lte-icon="expand" class="fas fa-plus"></i><i data-lte-icon="collapse" class="fas fa-minus"></i>
                                   </button>
                                 </div>
                               </div>
@@ -332,11 +332,11 @@
                               </div>
                             </div>
                             <div class="card card-info">
-                              <div class="card-header" data-card-widget="collapse">
+                              <div class="card-header" data-lte-toggle="card-collapse">
                                 <h3 class="card-title">Status</h3>
                                 <div class="card-tools" style="margin: 0px;">
-                                  <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                                    <i class="fas fa-minus"></i>
+                                  <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse">
+                                    <i data-lte-icon="expand" class="fas fa-plus"></i><i data-lte-icon="collapse" class="fas fa-minus"></i>
                                   </button>
                                 </div>
                               </div>
@@ -612,7 +612,7 @@
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rulesets-tabs" role="tablist" aria-orientation="vertical">
                           {% for ruleset in config.rulesets %}
                           {% set ruleset_id = 'ruleset-' ~ loop.index %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-bs-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -720,7 +720,7 @@
                                 <span title="Scorecard" class="badge" style="background-color:{{ result.score | scorecard_badge_color}}; color: white;">{{ result.score }}</span>
                               </a>
                               {% else %}
-                              <span title="Scorecard" class="badge bg-secondary">N/A</span>
+                              <span title="Scorecard" class="badge text-bg-secondary">N/A</span>
                               {% endif %}
                             </td>
                           </tr>
@@ -764,6 +764,14 @@
       };
     });
 
+    function showTab(selector) {
+      // show the tab without going through its click handler, so the history is left untouched
+      var tab = document.querySelector(selector);
+      if (tab) {
+        bootstrap.Tab.getOrCreateInstance(tab).show();
+      }
+    }
+
     function enableTabFromHash() {
       var hash = window.location.hash;
       if (!hash) {
@@ -771,10 +779,10 @@
       }
 
       if (hash.startsWith('#blueprint-')) {
-          $('[data-toggle="pill"][href="#blueprints"]').trigger('click', false);
+          showTab('[data-bs-toggle="pill"][href="#blueprints"]');
       }
 
-      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+      showTab('[data-bs-toggle="pill"][href="' + hash + '"]');
     }
 
     $(".nav-tabs").find("li a").each(function(key, val) {
@@ -796,7 +804,7 @@
       event.preventDefault();
 
       // `this` is the clicked <a> tag
-      $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
+      $('[data-bs-toggle="pill"][href="' + this.hash + '"]').get(0)?.click();
     });
 
     function drawSecretScanningChart() {

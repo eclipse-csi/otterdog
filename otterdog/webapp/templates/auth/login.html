@@ -3,7 +3,7 @@
 {% block title %} Login {% endblock %}
 
 <!-- Element injected in the BODY element -->
-{% block body_class %} login-page {% endblock body_class %}
+{% block body_class %} login-page bg-body-secondary {% endblock body_class %}
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
@@ -28,7 +28,7 @@
 
         <div class="text-center">
           <div class="text-center mx-auto">
-            <a href="{{url_for('auth_blueprint.login_github')}}" class="btn btn-github btn-lg">
+            <a href="{{url_for('auth_blueprint.login_github')}}" class="btn btn-dark btn-lg">
                 <i class="fab fa-github"></i> GitHub
             </a>
           </div>

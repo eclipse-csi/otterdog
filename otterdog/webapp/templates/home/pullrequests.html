@@ -67,16 +67,16 @@
 {% block content %}
 
   <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
+  <div class="app-main">
     <!-- Content Header (Page header) -->
-    <section class="content-header">
+    <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1>Pull Requests</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">Pull Requests</li>
             </ol>
@@ -86,7 +86,7 @@
     </section>
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           <div class="col-md-12">
@@ -94,13 +94,13 @@
               <div class="card-header p-0 border-bottom-0">
                 <ul class="nav nav-tabs" id="pr-tabs" role="tablist">
                   <li class="nav-item">
-                    <a class="nav-link active" id="open-pr-tab" data-toggle="pill" href="#open-prs" role="tab" aria-controls="open-prs" aria-selected="true">Open</a>
+                    <a class="nav-link active" id="open-pr-tab" data-bs-toggle="pill" href="#open-prs" role="tab" aria-controls="open-prs" aria-selected="true">Open</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="merged-pr-tab" data-toggle="pill" href="#merged-prs" role="tab" aria-controls="merged-prs" aria-selected="false">Merged</a>
+                    <a class="nav-link" id="merged-pr-tab" data-bs-toggle="pill" href="#merged-prs" role="tab" aria-controls="merged-prs" aria-selected="false">Merged</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="stats-pr-tab" data-toggle="pill" href="#pr-stats" role="tab" aria-controls="pr-stats" aria-selected="false">Statistics</a>
+                    <a class="nav-link" id="stats-pr-tab" data-bs-toggle="pill" href="#pr-stats" role="tab" aria-controls="pr-stats" aria-selected="false">Statistics</a>
                   </li>
                 </ul>
               </div>
@@ -113,7 +113,7 @@
                     <div id="mergedPullRequestsGrid"></div>
                   </div>
                   <div class="tab-pane" id="pr-stats" role="tabpanel" aria-labelledby="stats-pr-tab">
-                    <div class="form-row align-items-end mb-3">
+                    <div class="row g-2 align-items-end mb-3">
                       <div class="col-auto">
                         <fieldset id="stats-interval">
                           <legend class="col-form-label mb-1 p-0" style="font-size: 1rem;">Interval</legend>
@@ -192,7 +192,7 @@
                         <div class="stats-tile">
                           <div class="stats-tile-label text-muted">
                             <span class="stats-dot" style="background-color: #c07600;"></span>Still open now
-                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                                title="Pull requests that are open right now, whatever the selected range."></i>
                           </div>
                           <div class="stats-tile-value" id="stats-still-open">0</div>
@@ -202,7 +202,7 @@
                         <div class="stats-tile">
                           <div class="stats-tile-label text-muted">
                             Auto-merge rate
-                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                                title="Share of the merged pull requests that the app merged itself, in response to /otterdog merge."></i>
                           </div>
                           <div class="stats-tile-value" id="stats-auto-merge-rate">&mdash;</div>
@@ -212,7 +212,7 @@
                         <div class="stats-tile">
                           <div class="stats-tile-label text-muted">
                             Cycle time (median)
-                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                                title="Delay between opening and merging a pull request. Half of them were merged faster than this."></i>
                           </div>
                           <div class="stats-tile-value" id="stats-cycle-time-median">&mdash;</div>
@@ -222,7 +222,7 @@
                         <div class="stats-tile">
                           <div class="stats-tile-label text-muted">
                             Cycle time (p90)
-                            <i class="fas fa-info-circle" data-toggle="tooltip"
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                                title="Delay between opening and merging a pull request. Nine out of ten were merged faster than this."></i>
                           </div>
                           <div class="stats-tile-value" id="stats-cycle-time-p90">&mdash;</div>
@@ -236,15 +236,15 @@
                     <details class="mb-2" id="stats-chart-data">
                       <summary class="text-muted"><small>View the chart data as a table</small></summary>
                       <table class="table table-sm mt-2">
-                        <caption class="sr-only">Pull requests opened, merged and closed per period</caption>
+                        <caption class="visually-hidden">Pull requests opened, merged and closed per period</caption>
                         <thead>
                           <tr>
                             <th scope="col">Period</th>
-                            <th scope="col" class="text-right">Opened</th>
-                            <th scope="col" class="text-right">Merged manually</th>
-                            <th scope="col" class="text-right">Auto-merged</th>
-                            <th scope="col" class="text-right">Closed without merge</th>
-                            <th scope="col" class="text-right">Still open</th>
+                            <th scope="col" class="text-end">Opened</th>
+                            <th scope="col" class="text-end">Merged manually</th>
+                            <th scope="col" class="text-end">Auto-merged</th>
+                            <th scope="col" class="text-end">Closed without merge</th>
+                            <th scope="col" class="text-end">Still open</th>
                           </tr>
                         </thead>
                         <tbody id="stats-chart-data-rows"></tbody>
@@ -256,15 +256,15 @@
                       <div class="col-md-4">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
                           Open PR aging
-                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                          <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                              title="Age of the pull requests that are open right now, whatever the selected range."></i>
                         </h6>
                         <table class="table table-sm mb-2">
                           <thead>
                             <tr>
                               <th scope="col">Age</th>
-                              <th scope="col" class="text-right">Open</th>
-                              <th scope="col"><span class="sr-only">Share of the open pull requests</span></th>
+                              <th scope="col" class="text-end">Open</th>
+                              <th scope="col"><span class="visually-hidden">Share of the open pull requests</span></th>
                             </tr>
                           </thead>
                           <tbody id="stats-aging-buckets"></tbody>
@@ -277,7 +277,7 @@
                           <thead>
                             <tr>
                               <th scope="col">Pull request</th>
-                              <th scope="col" class="text-right">Age</th>
+                              <th scope="col" class="text-end">Age</th>
                             </tr>
                           </thead>
                           <tbody id="stats-oldest-open"></tbody>
@@ -289,15 +289,15 @@
                       <div class="col-md-7">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
                           Cycle time by merge type
-                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                          <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                              title="Delay between opening and merging, kept apart because the two populations are not comparable."></i>
                         </h6>
                         <table class="table table-sm mb-3">
                           <thead>
                             <tr>
                               <th scope="col">Metric</th>
-                              <th scope="col" class="text-right">Auto-merge</th>
-                              <th scope="col" class="text-right">Manual merge</th>
+                              <th scope="col" class="text-end">Auto-merge</th>
+                              <th scope="col" class="text-end">Manual merge</th>
                             </tr>
                           </thead>
                           <tbody id="stats-cycle-times"></tbody>
@@ -305,15 +305,15 @@
 
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
                           Wait time
-                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                          <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                              title="How long requests waited. Cycle time only knows the merged ones; this also counts those closed without a merge and those still open, which count the time waited so far."></i>
                         </h6>
                         <table class="table table-sm mb-3">
                           <thead>
                             <tr>
                               <th scope="col">Metric</th>
-                              <th scope="col" class="text-right">Merged only</th>
-                              <th scope="col" class="text-right">All requests</th>
+                              <th scope="col" class="text-end">Merged only</th>
+                              <th scope="col" class="text-end">All requests</th>
                             </tr>
                           </thead>
                           <tbody id="stats-wait-times"></tbody>
@@ -322,7 +322,7 @@
                       <div class="col-md-5">
                         <h6 class="text-muted text-uppercase" style="font-size: .75rem;">
                           Time saved through automation
-                          <i class="fas fa-info-circle" data-toggle="tooltip"
+                          <i class="fas fa-info-circle" data-bs-toggle="tooltip"
                              title="An estimate, not a measurement: the number of pull requests the app merged times an assumed manual effort per pull request."></i>
                         </h6>
                         <div class="stats-tile mb-2">
@@ -349,9 +349,9 @@
                           <thead>
                             <tr>
                               <th scope="col">Organization</th>
-                              <th scope="col" class="text-right">Merged</th>
-                              <th scope="col" class="text-right">Auto-merged</th>
-                              <th scope="col" class="text-right">Rate</th>
+                              <th scope="col" class="text-end">Merged</th>
+                              <th scope="col" class="text-end">Auto-merged</th>
+                              <th scope="col" class="text-end">Rate</th>
                             </tr>
                           </thead>
                           <tbody id="stats-organizations"></tbody>
@@ -366,7 +366,7 @@
                           <thead>
                             <tr>
                               <th scope="col">User</th>
-                              <th scope="col" class="text-right">Opened</th>
+                              <th scope="col" class="text-end">Opened</th>
                             </tr>
                           </thead>
                           <tbody id="stats-top-openers"></tbody>
@@ -378,7 +378,7 @@
                           <thead>
                             <tr>
                               <th scope="col">User</th>
-                              <th scope="col" class="text-right">Closed</th>
+                              <th scope="col" class="text-end">Closed</th>
                             </tr>
                           </thead>
                           <tbody id="stats-top-closers"></tbody>
@@ -419,13 +419,21 @@
       };
     });
 
+    function showTab(selector) {
+      // show the tab without going through its click handler, so the history is left untouched
+      var tab = document.querySelector(selector);
+      if (tab) {
+        bootstrap.Tab.getOrCreateInstance(tab).show();
+      }
+    }
+
     function enableTabFromHash() {
       var hash = window.location.hash;
       if (!hash) {
         hash = "#open-prs";
       }
 
-      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+      showTab('[data-bs-toggle="pill"][href="' + hash + '"]');
     }
 
     $(".nav-tabs").find("li a").each(function(key, val) {
@@ -573,7 +581,9 @@
     var pullRequestActivityChart = null;
     var pullRequestStatisticsLoaded = false;
 
-    $('[data-toggle="tooltip"]').tooltip();
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
 
     $('#stats-pr-tab').on('shown.bs.tab', function() {
       if (pullRequestStatisticsLoaded) {
@@ -819,7 +829,7 @@
         body.append(
           $("<tr>")
             .append($("<td>", {text: bucket.label, style: "width: 40%;"}))
-            .append($("<td>", {"class": "text-right", style: "width: 15%;", text: bucket.count.toLocaleString()}))
+            .append($("<td>", {"class": "text-end", style: "width: 15%;", text: bucket.count.toLocaleString()}))
             .append($("<td>").append($("<span>", {
               "class": "stats-aging-bar",
               style: "width: " + width + "%;",
@@ -851,17 +861,17 @@
         }));
 
         if (pullRequest.draft) {
-          title.append($("<span>", {"class": "badge badge-secondary ml-1", text: "draft"}));
+          title.append($("<span>", {"class": "badge text-bg-secondary ms-1", text: "draft"}));
         }
 
         if (pullRequest.author) {
-          title.append($("<span>", {"class": "text-muted ml-1", text: "by " + pullRequest.author}));
+          title.append($("<span>", {"class": "text-muted ms-1", text: "by " + pullRequest.author}));
         }
 
         oldestBody.append(
           $("<tr>")
             .append(title)
-            .append($("<td>", {"class": "text-right", text: formatAge(pullRequest.age_days)}))
+            .append($("<td>", {"class": "text-end", text: formatAge(pullRequest.age_days)}))
         );
       });
     }
@@ -883,8 +893,8 @@
         body.append(
           $("<tr>")
             .append($("<td>", {text: row[0]}))
-            .append($("<td>", {"class": "text-right"}).html(row[1]))
-            .append($("<td>", {"class": "text-right"}).html(row[2]))
+            .append($("<td>", {"class": "text-end"}).html(row[1]))
+            .append($("<td>", {"class": "text-end"}).html(row[2]))
         );
       });
     }
@@ -982,11 +992,11 @@
         body.append(
           $("<tr>")
             .append($("<th>", {scope: "row", text: label}))
-            .append($("<td>", {"class": "text-right", text: opened[index].toLocaleString()}))
-            .append($("<td>", {"class": "text-right", text: merged[index].toLocaleString()}))
-            .append($("<td>", {"class": "text-right", text: autoMerged[index].toLocaleString()}))
-            .append($("<td>", {"class": "text-right", text: closed[index].toLocaleString()}))
-            .append($("<td>", {"class": "text-right", text: stillOpen[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: opened[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: merged[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: autoMerged[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: closed[index].toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: stillOpen[index].toLocaleString()}))
         );
       });
     }
@@ -1030,9 +1040,9 @@
               href: "https://github.com/" + organization.org_id,
               text: organization.org_id
             })))
-            .append($("<td>", {"class": "text-right", text: organization.merged.toLocaleString()}))
-            .append($("<td>", {"class": "text-right", text: organization.auto_merged.toLocaleString()}))
-            .append($("<td>", {"class": "text-right"}).html(
+            .append($("<td>", {"class": "text-end", text: organization.merged.toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: organization.auto_merged.toLocaleString()}))
+            .append($("<td>", {"class": "text-end"}).html(
               formatAutoMergeRate(organization.auto_merged, organization.merged)
             ))
         );
@@ -1056,13 +1066,13 @@
         }));
 
         if (contributor.bot) {
-          name.append($("<span>", {"class": "badge badge-secondary ml-1", text: "bot"}));
+          name.append($("<span>", {"class": "badge text-bg-secondary ms-1", text: "bot"}));
         }
 
         body.append(
           $("<tr>")
             .append(name)
-            .append($("<td>", {"class": "text-right", text: contributor.count.toLocaleString()}))
+            .append($("<td>", {"class": "text-end", text: contributor.count.toLocaleString()}))
         );
       });
     }

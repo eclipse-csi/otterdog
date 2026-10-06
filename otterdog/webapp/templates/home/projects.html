@@ -12,17 +12,17 @@
 
 {% block content %}
 
-  <div class="content-wrapper">
+  <div class="app-main">
 
     <!-- Content Header (Page header) -->
-    <div class="content-header">
+    <div class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1 class="m-0 text-dark">{{ title }}</h1>
           </div><!-- /.col -->
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">{{ title }}</li>
             </ol>
@@ -33,7 +33,7 @@
     <!-- /.content-header -->
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           {% for installation in installations %}
@@ -46,7 +46,7 @@
               <a class="text-reset" href="/projects/{{ project_name }}">
                 <div class="card-header bg-{{ installation_status|status }}">
                   <h3 class="card-title">{{ project_name }}</h3>
-                  <div class="float-right">
+                  <div class="float-end">
                     <i class="fas fa-arrow-circle-right"></i>
                   </div>
                 </div>
@@ -69,18 +69,18 @@
                   <li class="nav-item">
                     <a href="/projects/{{ project_name }}#settings" class="nav-link">
                       {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                      2FA enforced <span class="float-right badge bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                      2FA enforced <span class="float-end badge text-bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
                     </a>
                   </li>
                   <li class="nav-item">
                     <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
                       {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                      Default workflow permissions <span class="float-right badge bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                      Default workflow permissions <span class="float-end badge text-bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
                     </a>
                   </li>
                   <li class="nav-item">
                     <a href="/projects/{{ project_name }}#repositories" class="nav-link">
-                      Repositories <span class="float-right badge bg-primary">{{ config.repositories|length }}</span>
+                      Repositories <span class="float-end badge text-bg-primary">{{ config.repositories|length }}</span>
                     </a>
                   </li>
                   {% endif %}
