@@ -9,8 +9,8 @@
 {% block stylesheets %}
   {{ super() }}
   <!-- jsGrid -->
-  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
-  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid-theme.min.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -84,7 +84,7 @@
   {{ super() }}
 
   <!-- jsGrid -->
-  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+  <script src="{{ asset('vendor/jsgrid/jsgrid.min.js') }}"></script>
 
   <!-- page script -->
   <script>

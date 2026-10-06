@@ -7,7 +7,7 @@
 
 {% block headscripts %}
   {{ super() }}
-  <script src="/assets/vendor/marked/marked.min.js"></script>
+  <script src="{{ asset('vendor/marked/marked.min.js') }}"></script>
 {% endblock headscripts %}
 
 <!-- Specific Page CSS goes HERE  -->
@@ -749,7 +749,7 @@
 {% block javascripts %}
   {{ super() }}
   <!-- Chart.js -->
-  <script src="/assets/vendor/chartjs/chart.umd.js"></script>
+  <script src="{{ asset('vendor/chartjs/chart.umd.js') }}"></script>
   <script type="module" src="{{ asset('js/highlight.js') }}"></script>
 
   <script type="module">

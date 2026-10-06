@@ -9,8 +9,8 @@
 {% block stylesheets %}
   {{ super() }}
   <!-- DataTables -->
-  <link rel="stylesheet" href="/assets/vendor/datatables/dataTables.bootstrap5.min.css">
-  <link rel="stylesheet" href="/assets/vendor/datatables/responsive.bootstrap5.min.css">
+  <link rel="stylesheet" href="{{ asset('vendor/datatables/dataTables.bootstrap5.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/datatables/responsive.bootstrap5.min.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -85,10 +85,10 @@
 {% block javascripts %}
   {{ super() }}
  <!-- DataTables -->
-  <script src="/assets/vendor/datatables/dataTables.min.js"></script>
-  <script src="/assets/vendor/datatables/dataTables.bootstrap5.min.js"></script>
-  <script src="/assets/vendor/datatables/dataTables.responsive.min.js"></script>
-  <script src="/assets/vendor/datatables/responsive.bootstrap5.min.js"></script>
+  <script src="{{ asset('vendor/datatables/dataTables.min.js') }}"></script>
+  <script src="{{ asset('vendor/datatables/dataTables.bootstrap5.min.js') }}"></script>
+  <script src="{{ asset('vendor/datatables/dataTables.responsive.min.js') }}"></script>
+  <script src="{{ asset('vendor/datatables/responsive.bootstrap5.min.js') }}"></script>
 
   <!-- page script -->
   <script>

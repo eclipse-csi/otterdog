@@ -7,12 +7,12 @@
 
 {% block headscripts %}
   {{ super() }}
-  <script src="/assets/vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.js"></script>
-  <script src="/assets/vendor/codemirror-mode-jsonnet/third_party/CodeMirror/addon/edit/matchbrackets.js"></script>
-  <script src="/assets/vendor/codemirror-mode-jsonnet/jsonnet.js"></script>
+  <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.js') }}"></script>
+  <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/addon/edit/matchbrackets.js') }}"></script>
+  <script src="{{ asset('vendor/codemirror-mode-jsonnet/jsonnet.js') }}"></script>
 
   <!-- Executing Jsonnet -->
-  <script src="/assets/third_party/js/wasm_exec.js"></script>
+  <script src="{{ asset('third_party/js/wasm_exec.js') }}"></script>
   <script>
       if (!WebAssembly.instantiateStreaming) {
           // This function was observed to be missing on Safari 14.
@@ -22,30 +22,39 @@
           };
       }
       const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("/assets/third_party/js/libjsonnet.wasm"), go.importObject).then((result) => {
+      WebAssembly.instantiateStreaming(fetch("{{ asset('third_party/js/libjsonnet.wasm') }}"), go.importObject).then((result) => {
           go.run(result.instance);
 
-          var editor = $('#playground-jsonnet').next('.CodeMirror')[0].CodeMirror;
-          let old = editor.getValue();
-          editor.setValue('{}');
-          setTimeout(function(){
-             editor.setValue(old);
-          }, 50);
+          // the module may be ready before the page, and so before the editor and jQuery
+          function reevaluate() {
+              var editor = $('#playground-jsonnet').next('.CodeMirror')[0].CodeMirror;
+              let old = editor.getValue();
+              editor.setValue('{}');
+              setTimeout(function(){
+                 editor.setValue(old);
+              }, 50);
+          }
+
+          if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', reevaluate);
+          } else {
+              reevaluate();
+          }
       });
   </script>
-  <script src="/assets/third_party/js/demo.js"></script>
+  <script src="{{ asset('third_party/js/demo.js') }}"></script>
 {% endblock headscripts %}
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   <!-- jsonnet.org stylesheet -->
-  <link rel="stylesheet" type="text/css" href="/assets/third_party/css/doc.css" />
-  <link rel="stylesheet" href="/assets/third_party/css/desktop.css">
+  <link rel="stylesheet" type="text/css" href="{{ asset('third_party/css/doc.css') }}" />
+  <link rel="stylesheet" href="{{ asset('third_party/css/desktop.css') }}">
 
   {{ super() }}
 
   <!-- CodeMirror -->
-  <link rel="stylesheet" href="/assets/vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.css">
+  <link rel="stylesheet" href="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -92,7 +101,7 @@
                   </textarea>
                   {% endfor %}
                 </div>
-                <div class="bigarrow">➡</div>
+                <div class="bigarrow"><i class="fas fa-arrow-right"></i></div>
                 <div class="tab-window-output" id="output">
                   <div class="tab-header">
                     <div class=selected onclick="tab_output_click(this, 'json-output')">output.json</div>

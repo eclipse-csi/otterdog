@@ -15,7 +15,7 @@
   <!-- Google Font: Source Sans 3 -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,700;1,400&display=fallback">
   <!-- Font Awesome -->
-  <link rel="stylesheet" href="/assets/vendor/fontawesome-free/css/all.min.css">
+  <link rel="stylesheet" href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}">
   <!-- Theme style, includes Bootstrap 5 -->
   <link rel="stylesheet" href="{{ asset('css/app.scss') }}">
   {% endblock stylesheets %}
@@ -28,9 +28,9 @@
   <!-- Specific Page JS goes HERE  -->
   {% block javascripts %}
     <!-- jQuery -->
-    <script src="/assets/vendor/jquery/jquery.min.js"></script>
+    <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <!-- Bootstrap 5 -->
-    <script src="/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
     <!-- AdminLTE App -->
     <script type="module" src="{{ asset('js/app.js') }}"></script>
   {% endblock javascripts %}
