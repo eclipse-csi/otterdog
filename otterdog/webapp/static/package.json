@@ -19,7 +19,7 @@
     "bootstrap": "^4.6.2",
     "chart.js": "^4.4.2",
     "codemirror": "^5.65.16",
-    "codemirror-graphql": "^2.0.10",
+    "codemirror-graphql": "^2.2.9",
     "codemirror-mode-jsonnet": "^1.0.0",
     "jquery": "^3.7.1",
     "jquery-ui-dist": "^1.13.2",
