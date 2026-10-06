@@ -104,7 +104,7 @@ semver               = "^3.1"
 python-slugify       = "^9.1"
 
 [tool.poetry.group.dev.dependencies]
-ruff = ">=0.16.8"
+ruff = ">=0.16.9"
 prek = ">=0.5.4"
 
 [tool.poetry.group.test.dependencies]
