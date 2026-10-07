@@ -12,17 +12,17 @@
 
 {% block content %}
 
-  <div class="content-wrapper">
+  <div class="app-main">
 
     <!-- Content Header (Page header) -->
-    <div class="content-header">
+    <div class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1 class="m-0 text-dark">Dashboard</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">Dashboard</li>
             </ol>
@@ -33,77 +33,65 @@
     <!-- /.content-header -->
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <!-- Small boxes (Stat box) -->
         <div class="row">
           <div class="col-lg-2">
-            <div class="small-box bg-info">
+            <div class="small-box text-bg-info">
               <div class="inner">
                 <h3>{{ installations|length }}</h3>
                 <p>GitHub Organizations</p>
               </div>
-              <div class="icon">
-                <i class="fas fa-sitemap"></i>
-              </div>
-              <a href="/admin/organizations" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              <i class="small-box-icon fas fa-sitemap"></i>
+              <a href="/admin/organizations" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <div class="col-lg-2">
-            <div class="small-box bg-warning">
+            <div class="small-box text-bg-warning">
               <div class="inner">
                 <h3>{{ open_pull_request_count }}</h3>
                 <p>Open Pull Requests</p>
               </div>
-              <div class="icon">
-                <i class="fas fa-code-pull-request"></i>
-              </div>
-              <a href="/admin/pullrequests#open-prs" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              <i class="small-box-icon fas fa-code-pull-request"></i>
+              <a href="/admin/pullrequests#open-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <div class="col-lg-2">
-            <div class="small-box bg-success">
+            <div class="small-box text-bg-success">
               <div class="inner">
                 <h3>{{ merged_pull_request_count }}</h3>
                 <p>Merged Pull Requests</p>
               </div>
-              <div class="icon">
-                <i class="fas fa-code-merge"></i>
-              </div>
-              <a href="/admin/pullrequests#merged-prs" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              <i class="small-box-icon fas fa-code-merge"></i>
+              <a href="/admin/pullrequests#merged-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
             </div>
           </div>
           <div class="col-lg-2">
-            <div class="small-box bg-info">
+            <div class="small-box text-bg-info">
               <div class="inner">
                 <h3>{{ total_repository_count }}</h3>
                 <p>Total Repositories</p>
               </div>
-              <div class="icon">
-                <i class="fab fa-github"></i>
-              </div>
+              <i class="small-box-icon fab fa-github"></i>
             </div>
           </div>
           <div class="col-lg-2">
-            <div class="small-box bg-success">
+            <div class="small-box text-bg-success">
               <div class="inner">
                 <h3>{{ active_repository_count }}</h3>
                 <p>Active Repositories</p>
               </div>
-              <div class="icon">
-                <i class="fab fa-github"></i>
-              </div>
+              <i class="small-box-icon fab fa-github"></i>
             </div>
           </div>
           <div class="col-lg-2">
-            <div class="small-box bg-secondary">
+            <div class="small-box text-bg-secondary">
               <div class="inner">
                 <h3>{{ archived_repository_count }}</h3>
                 <p>Archived Repositories</p>
               </div>
-              <div class="icon">
-                <i class="fab fa-github"></i>
-              </div>
+              <i class="small-box-icon fab fa-github"></i>
             </div>
           </div>
         </div>
@@ -232,7 +220,7 @@
 {% block javascripts %}
   {{ super() }}
   <!-- Chart.js -->
-  <script src="/assets/vendor/chartjs/chart.umd.js"></script>
+  <script src="{{ asset('vendor/chartjs/chart.umd.js') }}"></script>
 
   <script type="module">
     // the statistics are read from GitHub and may need a moment the very first time, so give up

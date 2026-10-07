@@ -23,16 +23,16 @@
 {% block content %}
 
   <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
+  <div class="app-main">
     <!-- Content Header (Page header) -->
-    <section class="content-header">
+    <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1>Repository {{ repo_name }}</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}">{{ project_name }}</a></li>
               <li class="breadcrumb-item active">{{ repo_name }}</li>
@@ -44,7 +44,7 @@
     </section>
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           <!-- /.col -->
@@ -53,28 +53,28 @@
               <div class="card-header p-0 border-bottom-0">
                 <ul class="nav nav-tabs" id="repository-tabs" role="tablist">
                   <li class="nav-item">
-                    <a class="nav-link active" id="overview-tab" data-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
+                    <a class="nav-link active" id="overview-tab" data-bs-toggle="pill" href="#overview" role="tab" aria-controls="overview" aria-selected="true">Overview</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="settings-tab" data-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
+                    <a class="nav-link" id="settings-tab" data-bs-toggle="pill" href="#settings" role="tab" aria-controls="settings" aria-selected="false">Settings</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="secrets-tab" data-toggle="pill" href="#secrets" role="tab" aria-controls="secrets" aria-selected="false">Secrets</a>
+                    <a class="nav-link" id="secrets-tab" data-bs-toggle="pill" href="#secrets" role="tab" aria-controls="secrets" aria-selected="false">Secrets</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="variables-tab" data-toggle="pill" href="#variables" role="tab" aria-controls="variables" aria-selected="false">Variables</a>
+                    <a class="nav-link" id="variables-tab" data-bs-toggle="pill" href="#variables" role="tab" aria-controls="variables" aria-selected="false">Variables</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="webhooks-tab" data-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
+                    <a class="nav-link" id="webhooks-tab" data-bs-toggle="pill" href="#webhooks" role="tab" aria-controls="webhooks" aria-selected="false">Webhooks</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="environments-tab" data-toggle="pill" href="#environments" role="tab" aria-controls="environments" aria-selected="false">Environments</a>
+                    <a class="nav-link" id="environments-tab" data-bs-toggle="pill" href="#environments" role="tab" aria-controls="environments" aria-selected="false">Environments</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="branch-protection-rules-tab" data-toggle="pill" href="#branch-protection-rules" role="tab" aria-controls="branch-protection-rules" aria-selected="false">Branch Protection Rules</a>
+                    <a class="nav-link" id="branch-protection-rules-tab" data-bs-toggle="pill" href="#branch-protection-rules" role="tab" aria-controls="branch-protection-rules" aria-selected="false">Branch Protection Rules</a>
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" id="rulesets-tab" data-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
+                    <a class="nav-link" id="rulesets-tab" data-bs-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
                   </li>
                 </ul>
               </div>
@@ -86,17 +86,17 @@
                       <li class="nav-item">
                         <a href="https://github.com/{{ github_id }}/{{ repo_name }}" class="nav-link">
                           Repository
-                          <span class="float-right">{{ repo_name }}</span>
+                          <span class="float-end">{{ repo_name }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         {% if scorecard_result %}
                         <a href="https://scorecard.dev/viewer/?uri=github.com/{{ github_id }}/{{ repo_name }}" class="nav-link" target="_blank">
-                          OSSF Scorecard <span class="float-right badge" style="background-color:{{ scorecard_result.score | scorecard_badge_color }}; color: white;">{{ scorecard_result.score }}</span>
+                          OSSF Scorecard <span class="float-end badge" style="background-color:{{ scorecard_result.score | scorecard_badge_color }}; color: white;">{{ scorecard_result.score }}</span>
                         </a>
                         {% else %}
                         <a href="#" class="nav-link tab-link" target="_blank">
-                          OSSF Scorecard <span class="float-right badge badge-secondary">N/A</span>
+                          OSSF Scorecard <span class="float-end badge text-bg-secondary">N/A</span>
                         </a>
                         {% endif %}
                       </li>
@@ -104,38 +104,38 @@
                       <li class="nav-item">
                         <a href="#settings" class="nav-link tab-link">
                           {% set private_vulnerability_reporting_enabled = repo_config.private_vulnerability_reporting_enabled %}
-                          Private Vulnerability Reporting <span class="float-right badge bg-{{ 'success' if private_vulnerability_reporting_enabled == true else 'danger' }}">{{ private_vulnerability_reporting_enabled }}</span>
+                          Private Vulnerability Reporting <span class="float-end badge text-bg-{{ 'success' if private_vulnerability_reporting_enabled == true else 'danger' }}">{{ private_vulnerability_reporting_enabled }}</span>
                         </a>
                       </li>
                       {% endif %}
                       <li class="nav-item">
                         <a href="#secrets" class="nav-link tab-link">
-                          Secrets <span class="float-right badge bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>
+                          Secrets <span class="float-end badge text-bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#variables" class="nav-link tab-link">
-                          Variables <span class="float-right badge bg-{{ repo_config.variables|length_to_color}}">{{ repo_config.variables|length }}</span>
+                          Variables <span class="float-end badge text-bg-{{ repo_config.variables|length_to_color}}">{{ repo_config.variables|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#webhooks" class="nav-link tab-link">
-                          Webhooks <span class="float-right badge bg-{{ repo_config.webhooks|length_to_color}}">{{ repo_config.webhooks|length }}</span>
+                          Webhooks <span class="float-end badge text-bg-{{ repo_config.webhooks|length_to_color}}">{{ repo_config.webhooks|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#environments" class="nav-link tab-link">
-                          Environments <span class="float-right badge bg-{{ repo_config.environments|length_to_color}}">{{ repo_config.environments|length }}</span>
+                          Environments <span class="float-end badge text-bg-{{ repo_config.environments|length_to_color}}">{{ repo_config.environments|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#branch-protection-rules" class="nav-link tab-link">
-                          Branch Protection Rules <span class="float-right badge bg-{{ repo_config.branch_protection_rules|length_to_color}}">{{ repo_config.branch_protection_rules|length }}</span>
+                          Branch Protection Rules <span class="float-end badge text-bg-{{ repo_config.branch_protection_rules|length_to_color}}">{{ repo_config.branch_protection_rules|length }}</span>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="#rulesets" class="nav-link tab-link">
-                          Rulesets <span class="float-right badge bg-{{ repo_config.rulesets|length_to_color}}">{{ repo_config.rulesets|length }}</span>
+                          Rulesets <span class="float-end badge text-bg-{{ repo_config.rulesets|length_to_color}}">{{ repo_config.rulesets|length }}</span>
                         </a>
                       </li>
                     </ul>
@@ -252,7 +252,7 @@
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="environments-tabs" role="tablist" aria-orientation="vertical">
                           {% for env in repo_config.environments %}
                           {% set env_id = 'env-' ~ loop.index %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ env_id }}-tab" data-toggle="pill" href="#{{ env_id }}" role="tab" aria-controls="{{ env_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ env.name }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ env_id }}-tab" data-bs-toggle="pill" href="#{{ env_id }}" role="tab" aria-controls="{{ env_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ env.name }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -274,7 +274,7 @@
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rules-tabs" role="tablist" aria-orientation="vertical">
                           {% for bpr in repo_config.branch_protection_rules %}
                           {% set id = 'rule-' ~ loop.index %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ bpr.pattern }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-bs-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ bpr.pattern }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -296,7 +296,7 @@
                         <div class="nav flex-column nav-tabs nav-tabs-left h-100" id="rulesets-tabs" role="tablist" aria-orientation="vertical">
                           {% for ruleset in repo_config.rulesets %}
                           {% set ruleset_id = 'ruleset-' ~ loop.index %}
-                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
+                          <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ ruleset_id }}-tab" data-bs-toggle="pill" href="#{{ ruleset_id }}" role="tab" aria-controls="{{ ruleset_id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ ruleset.name }}</a>
                           {% endfor %}
                         </div>
                       </div>
@@ -341,12 +341,20 @@
       };
     });
 
+    function showTab(selector) {
+      // show the tab without going through its click handler, so the history is left untouched
+      var tab = document.querySelector(selector);
+      if (tab) {
+        bootstrap.Tab.getOrCreateInstance(tab).show();
+      }
+    }
+
     function enableTabFromHash() {
       var hash = window.location.hash;
       if (!hash) {
         hash = "#overview";
       }
-      $('[data-toggle="pill"][href="' + hash + '"]').trigger('click', false);
+      showTab('[data-bs-toggle="pill"][href="' + hash + '"]');
     }
 
     $(".nav-tabs").find("li a").each(function(key, val) {
@@ -368,7 +376,7 @@
       event.preventDefault();
 
       // `this` is the clicked <a> tag
-      $('[data-toggle="pill"][href="' + this.hash + '"]').trigger('click');
+      $('[data-bs-toggle="pill"][href="' + this.hash + '"]').get(0)?.click();
     });
   </script>
 {% endblock javascripts %}

@@ -22,17 +22,16 @@ export default defineConfig({
             targets: [
                 vendorFile("jquery/dist/jquery.min.js", "jquery"),
                 vendorFile("bootstrap/dist/js/bootstrap.bundle.min.js", "bootstrap"),
-                vendorFile("bootstrap/dist/css/bootstrap.min.css", "bootstrap"),
                 vendorFile("chart.js/dist/chart.umd.js", "chartjs"),
                 vendorFile("jsgrid/dist/jsgrid.min.(js|css)", "jsgrid"),
                 vendorFile("jsgrid/dist/jsgrid-theme.min.css", "jsgrid"),
                 vendorFile("moment/min/moment.min.js", "moment"),
-                vendorFile("datatables.net/js/jquery.dataTables.min.js", "datatables"),
-                vendorFile("datatables.net-bs4/css/dataTables.bootstrap4.min.css", "datatables"),
-                vendorFile("datatables.net-bs4/js/dataTables.bootstrap4.min.js", "datatables"),
+                vendorFile("datatables.net/js/dataTables.min.js", "datatables"),
+                vendorFile("datatables.net-bs5/css/dataTables.bootstrap5.min.css", "datatables"),
+                vendorFile("datatables.net-bs5/js/dataTables.bootstrap5.min.js", "datatables"),
                 vendorFile("datatables.net-responsive/js/dataTables.responsive.min.js", "datatables"),
-                vendorFile("datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js", "datatables"),
-                vendorFile("datatables.net-responsive-bs4/css/responsive.bootstrap4.min.css", "datatables"),
+                vendorFile("datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js", "datatables"),
+                vendorFile("datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css", "datatables"),
                 vendorFile("marked/marked.min.js", "marked"),
                 // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
                 vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
@@ -41,6 +40,16 @@ export default defineConfig({
             ]
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                loadPaths: [path.join(__dirname, "node_modules")],
+                // Bootstrap and AdminLTE still rely on @import and the global Sass functions
+                quietDeps: true,
+                silenceDeprecations: ["import", "global-builtin", "color-functions", "if-function"],
+            },
+        },
+    },
     resolve: {
         alias: [
             {find: "#", replacement: path.join(__dirname, "node_modules")},
@@ -60,7 +69,7 @@ export default defineConfig({
             "src/js/app.js",
             "src/js/editor.js",
             "src/js/highlight.js",
-            "src/css/app.css",
+            "src/css/app.scss",
             "src/css/editor.css",
             "src/css/highlight.css",
           ],

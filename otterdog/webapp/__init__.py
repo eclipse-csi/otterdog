@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import functools
+import hashlib
 import json
 import os
 from datetime import datetime
@@ -113,14 +115,28 @@ def create_app(app_config: AppConfig):
 
         app.logger.warning("no manifest file found at '%s', assets are served unhashed", manifest_path)
 
+    @functools.cache
+    def content_hash(file_path: str) -> str | None:
+        try:
+            with open(os.path.join(app.static_folder, file_path), "rb") as content:  # type: ignore[arg-type]
+                return hashlib.sha256(content.read()).hexdigest()[:8]
+        except OSError:
+            return None
+
     @app.context_processor
     def context_processor():
         def asset(file_path):
-            try:
+            if file_path in manifest:
                 return f"/assets/{manifest[file_path]['file']}"
-            except:  # noqa
-                app.logger.error(f"did not find asset {file_path}")
-                return f"/assets/{file_path}"
+
+            # files copied as is (vendor and third party ones) keep their name across versions,
+            # the hash of their content makes browsers fetch them again once they change
+            file_hash = content_hash(file_path)
+            if file_hash is not None:
+                return f"/assets/{file_path}?v={file_hash}"
+
+            app.logger.error(f"did not find asset {file_path}")
+            return f"/assets/{file_path}"
 
         return {"asset": asset}
 

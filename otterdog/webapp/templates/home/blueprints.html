@@ -9,23 +9,23 @@
 {% block stylesheets %}
   {{ super() }}
   <!-- jsGrid -->
-  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid.min.css">
-  <link rel="stylesheet" href="/assets/vendor/jsgrid/jsgrid-theme.min.css">
+  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid-theme.min.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
 
   <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
+  <div class="app-main">
     <!-- Content Header (Page header) -->
-    <section class="content-header">
+    <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1>Blueprints</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">Blueprints</li>
             </ol>
@@ -35,7 +35,7 @@
     </section>
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           <div class="col-12">
@@ -84,7 +84,7 @@
   {{ super() }}
 
   <!-- jsGrid -->
-  <script src="/assets/vendor/jsgrid/jsgrid.min.js"></script>
+  <script src="{{ asset('vendor/jsgrid/jsgrid.min.js') }}"></script>
 
   <!-- page script -->
   <script>

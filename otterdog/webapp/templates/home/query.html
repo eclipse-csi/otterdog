@@ -18,17 +18,17 @@
 
 {% block content %}
 
-  <div class="content-wrapper">
+  <div class="app-main">
 
     <!-- Content Header (Page header) -->
-    <div class="content-header">
+    <div class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1 class="m-0 text-dark">Query</h1>
           </div><!-- /.col -->
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active">Query</li>
             </ol>
@@ -39,13 +39,13 @@
     <!-- /.content-header -->
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="row">
           <div class="card col-9">
             <form id="query-form">
               <div class="card-body">
-                <div class="form-group">
+                <div class="mb-3">
                   <textarea class="form-control" rows="10" id="query-textarea" placeholder="Enter ...">
 query {
   projects(filter: "config.settings.two_factor_requirement = false") {
@@ -66,9 +66,8 @@ query {
               </div>
               <!-- /.card-body -->
               <div class="card-footer">
-                <div class="row">
+                <div class="d-flex align-items-center gap-2">
                   <button type="submit" class="btn btn-primary">Query</button>
-                  &nbsp;
                   <div id="loading"></div>
                 </div>
               </div>
@@ -124,7 +123,7 @@ query {
         })
 
         $("<span />", {
-          "class": "sr-only",
+          "class": "visually-hidden",
           text: "Loading..."
         }).appendTo(spinner);
 
@@ -182,7 +181,7 @@ query {
 
         title.appendTo(header);
 
-        $('<div class="card-tools"><button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button></div>').appendTo(header);
+        $('<div class="card-tools"><button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"><i data-lte-icon="expand" class="fas fa-plus"></i><i data-lte-icon="collapse" class="fas fa-minus"></i></button></div>').appendTo(header);
 
         var body = $("<div />", {
           "class": "card-body"
@@ -194,7 +193,7 @@ query {
 
         if ('settings' in project.config) {
           $("<div />", {
-            "class": "col-12 bg-info",
+            "class": "col-12 text-bg-info",
             text: JSON.stringify(project.config.settings)
           }).appendTo(body);
           containsResults = true;
@@ -203,7 +202,7 @@ query {
         if ('repositories' in project.config) {
           for (var repo of project.config.repositories) {
             $("<div />", {
-              "class": "col-12 bg-success",
+              "class": "col-12 text-bg-success",
               text: JSON.stringify(repo)
             }).appendTo(body);
             containsResults = true;
@@ -221,7 +220,7 @@ query {
       clearResults();
 
       var card = $("<div />", {
-          "class": "card bg-warning",
+          "class": "card text-bg-warning",
         });
 
       if (Array.isArray(text)) {

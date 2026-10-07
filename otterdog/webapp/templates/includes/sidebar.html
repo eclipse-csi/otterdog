@@ -1,34 +1,31 @@
   <!-- Main Sidebar Container -->
-  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+  <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
     <!-- Brand Logo -->
-    <a href="/" class="brand-link">
-      <i class="fas fa-otter"></i>
-      <span class="brand-text font-weight-light">Otterdog</span>
-    </a>
+    <div class="sidebar-brand">
+      <a href="/" class="brand-link">
+        <i class="fas fa-otter"></i>
+        <span class="brand-text fw-light">Otterdog</span>
+      </a>
+    </div>
+
+    <!-- SidebarSearch Form, outside the sidebar wrapper so it stays put while the menu scrolls -->
+    <div class="sidebar-search" role="search">
+      <label for="sidebar-search-input" class="visually-hidden">Filter menu</label>
+      <input type="search" id="sidebar-search-input" class="form-control form-control-sm" placeholder="Search"
+             autocomplete="off" data-lte-toggle="sidebar-search">
+      <p class="fs-7 text-secondary mt-2 mb-0" data-lte-search-empty role="status" hidden>No element found!</p>
+    </div>
 
     <!-- Sidebar -->
-    <div class="sidebar">
-      <!-- SidebarSearch Form -->
-      <div class="form-inline">
-        <div class="input-group" data-widget="sidebar-search">
-          <input class="form-control form-control-sidebar" type="search" placeholder="Search" aria-label="Search">
-          <div class="input-group-append">
-            <button class="btn btn-sidebar">
-              <i class="fas fa-search fa-fw"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
+    <div class="sidebar-wrapper">
       <!-- Sidebar Menu -->
-      <nav class="mt-2">
-        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="true">
+      <nav class="mt-2" aria-label="Main navigation">
+        <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" data-accordion="true">
           <li class="nav-item">
             <a href="/index" class="nav-link {% if 'index' in segments %} active {% endif %}">
               <i class="nav-icon fas fa-tachometer-alt"></i>
               <p>
                 Dashboard
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -39,7 +36,6 @@
               <i class="nav-icon fas fa-house-user"></i>
               <p>
                 My Projects
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -50,7 +46,6 @@
               <i class="nav-icon fas fa-globe"></i>
               <p>
                 All Projects
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -60,7 +55,6 @@
               <i class="nav-icon fas fa-star"></i>
               <p>
                 OSSF Scorecard
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -70,7 +64,6 @@
               <i class="nav-icon fa-brands fa-searchengin"></i>
               <p>
                 Query
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -78,12 +71,12 @@
           <li class="nav-header">PROJECTS</li>
             {% for nav_level1, value_level1 in projects|dictsort %}
             {% if value_level1|is_dict %}
-            <li class="nav-item has-treeview {% if segments[1] and segments[1].startswith(nav_level1) %} menu-open {% endif %}">
+            <li class="nav-item {% if segments[1] and segments[1].startswith(nav_level1) %} menu-open {% endif %}">
               <a href="#" class="nav-link {% if segments[1] and segments[1].startswith(nav_level1) %} active {% endif %}">
                 <i class="nav-icon fas fa-sitemap"></i>
-                <p class="font-weight-bold">
+                <p class="fw-bold">
                   {{ nav_level1 }}
-                  <i class="right fas fa-angle-left"></i>
+                  <i class="nav-arrow fas fa-angle-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
@@ -93,7 +86,6 @@
                     <i class="nav-icon fab fa-square-github"></i>
                     <p>
                       {{ value_level2.project_name|short_name }}
-                      <i class="fas nav-icon"></i>
                     </p>
                   </a>
                 </li>
@@ -110,7 +102,6 @@
               <i class="nav-icon fas fa-table"></i>
               <p>
                 GitHub Orgs
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -119,7 +110,6 @@
               <i class="nav-icon fas fa-code-pull-request"></i>
               <p>
                 Pull Requests
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -128,7 +118,6 @@
               <i class="nav-icon fas fa-clipboard-check"></i>
               <p>
                 Policies
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -137,7 +126,6 @@
               <i class="nav-icon fas fa-clipboard-check"></i>
               <p>
                 Blueprints
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -146,7 +134,6 @@
               <i class="nav-icon fas fa-clipboard-list"></i>
               <p>
                 Tasks
-                <i class="fas nav-icon"></i>
               </p>
             </a>
           </li>
@@ -156,12 +143,3 @@
     </div>
     <!-- /.sidebar -->
   </aside>
-
-
-  {% block javascripts %}
-
-  <!-- page script -->
-  <script>
-  </script>
-
-{% endblock javascripts %}

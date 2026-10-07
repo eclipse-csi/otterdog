@@ -23,16 +23,16 @@
 {% block content %}
 
   <!-- Content Wrapper. Contains page content -->
-  <div class="content-wrapper">
+  <div class="app-main">
     <!-- Content Header (Page header) -->
-    <section class="content-header">
+    <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
             <h1>Default configuration @ {{ project_name }}</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
+            <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
               <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}">{{ project_name }}</a></li>
               <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}/default-config">Defaults</a></li>
@@ -44,7 +44,7 @@
     </section>
 
     <!-- Main content -->
-    <section class="content">
+    <section class="app-content">
       <div class="container-fluid">
         <div class="card card-primary card-outline">
           <div class="card-body">
@@ -54,7 +54,7 @@
                   {% for element in default_elements %}
                   {% set id = element['id'] %}
                   {% set name = element['name'] %}
-                  <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ name }}</a>
+                  <a class="nav-link {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}-tab" data-bs-toggle="pill" href="#{{ id }}" role="tab" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.index == 1 else 'false' }}">{{ name }}</a>
                   {% endfor %}
                 </div>
               </div>
@@ -63,7 +63,7 @@
                   {% for element in default_elements %}
                   {% set id = element['id'] %}
                   {% set content = element['content'] %}
-                  <div class="tab-pane text-left {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
+                  <div class="tab-pane text-start {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
                       <pre><code class="language-yaml">
 {{ content }}
                       </code></pre>
