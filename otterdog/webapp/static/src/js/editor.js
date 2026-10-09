@@ -6,11 +6,11 @@ import { graphql } from 'cm6-graphql';
 export function createGraphQLEditor(element, schema) {
 
   // Construct a schema, using GraphQL schema language
-  var gqlSchema = buildSchema(schema);
+  const gqlSchema = buildSchema(schema);
 
   // basicSetup provides autocompletion (Ctrl-Space) and the lint
   // keymap, graphql() the language, completions and lint source
-  var editor = new EditorView({
+  const editor = new EditorView({
     doc: element.value,
     extensions: [basicSetup, graphql(gqlSchema)]
   });
