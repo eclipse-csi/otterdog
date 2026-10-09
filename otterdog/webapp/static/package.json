@@ -18,7 +18,7 @@
     "@fortawesome/fontawesome-free": "^6.5.1",
     "admin-lte": "^4.9.1",
     "bootstrap": "^5.3.8",
-    "chart.js": "^4.4.2",
+    "chart.js": "^4.5.1",
     "cm6-graphql": "^0.2.2",
     "codemirror": "^6.0.2",
     "codemirror-mode-jsonnet": "^1.0.0",
