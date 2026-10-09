@@ -70,7 +70,6 @@ export default defineConfig({
             "src/js/editor.js",
             "src/js/highlight.js",
             "src/css/app.scss",
-            "src/css/editor.css",
             "src/css/highlight.css",
           ],
         },
