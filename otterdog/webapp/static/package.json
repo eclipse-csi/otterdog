@@ -19,7 +19,7 @@
     "admin-lte": "^4.9.1",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.4.2",
-    "codemirror": "^5.65.16",
+    "codemirror": "^6.0.2",
     "codemirror-graphql": "^2.2.9",
     "codemirror-mode-jsonnet": "^1.0.0",
     "datatables.net": "^3.1.3",
