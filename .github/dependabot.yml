@@ -5,6 +5,13 @@ updates:
     versioning-strategy: "increase"
     schedule:
       interval: "weekly"
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     cooldown:
       default-days: 7
 
