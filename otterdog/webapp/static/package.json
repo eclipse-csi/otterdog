@@ -15,7 +15,7 @@
     "vite-plugin-static-copy": "^4.1.1"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^6.5.1",
+    "@fortawesome/fontawesome-free": "^7.3.1",
     "admin-lte": "^4.9.1",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.4.2",
