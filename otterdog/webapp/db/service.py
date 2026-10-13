@@ -11,9 +11,9 @@ from __future__ import annotations
 import dataclasses
 from asyncio import Semaphore
 from logging import getLogger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from odmantic import query
+from odmantic import Model, query
 from pymongo.errors import DuplicateKeyError
 from quart import current_app
 
@@ -53,7 +53,7 @@ from .models import (
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from odmantic.query import QueryExpression
+    from odmantic.query import QueryExpression, SortExpression
 
     from otterdog.config import OtterdogConfig
     from otterdog.webapp.blueprints import Blueprint
@@ -422,12 +422,37 @@ async def get_tasks(limit: int) -> list[TaskModel]:
     return await mongo.odm.find(TaskModel, limit=limit, sort=query.desc(TaskModel.created_at))
 
 
-async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int]:
+ModelT = TypeVar("ModelT", bound=Model)
+
+
+async def _find_paged(
+    model: type[ModelT],
+    scope: list[QueryExpression],
+    filters: list[QueryExpression],
+    skip: int,
+    limit: int,
+    sort: SortExpression,
+) -> tuple[list[ModelT], int, int]:
+    """
+    Finds a page of the documents of a model in the given scope that match the given filters.
+
+    Returns the documents of the page, the number of documents matching the filters and the total
+    number of documents in the scope, which only has to be counted on its own when filtering.
+    """
+
+    documents = await mongo.odm.find(model, *scope, *filters, skip=skip, limit=limit, sort=sort)
+    count = await mongo.odm.count(model, *scope, *filters)
+    total = await mongo.odm.count(model, *scope) if filters else count
+    return documents, count, total
+
+
+async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field = "created_at"
     sort_order = "desc"
 
+    scope: list[QueryExpression] = []
     queries: list[QueryExpression] = []
 
     for k, v in params.items():
@@ -451,16 +476,7 @@ async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int]
     )
 
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            TaskModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(TaskModel, *queries),
-    )
+    return await _find_paged(TaskModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
 async def get_configurations() -> list[ConfigurationModel]:
@@ -650,13 +666,14 @@ def _merged_pull_requests_query() -> QueryExpression:
     )
 
 
-async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
+async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "created_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [_open_or_incomplete_pull_requests_query()]
+    scope: list[QueryExpression] = [_open_or_incomplete_pull_requests_query()]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -703,25 +720,17 @@ async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[Pul
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            PullRequestModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(PullRequestModel, *queries),
-    )
+    return await _find_paged(PullRequestModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
-async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
+async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "merged_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [_merged_pull_requests_query()]
+    scope: list[QueryExpression] = [_merged_pull_requests_query()]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -763,16 +772,7 @@ async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[P
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            PullRequestModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(PullRequestModel, *queries),
-    )
+    return await _find_paged(PullRequestModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
 async def cleanup_pull_requests(valid_orgs: list[str]) -> None:
@@ -1090,13 +1090,14 @@ async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
     await mongo.odm.save(blueprint_status)
 
 
-async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int]:
+async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "updated_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.REMEDIATION_PREPARED)]
+    scope: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.REMEDIATION_PREPARED)]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -1138,25 +1139,17 @@ async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tupl
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            BlueprintStatusModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(BlueprintStatusModel, *queries),
-    )
+    return await _find_paged(BlueprintStatusModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
-async def get_dismissed_blueprints_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int]:
+async def get_dismissed_blueprints_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "updated_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.DISMISSED)]
+    scope: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.DISMISSED)]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -1198,16 +1191,7 @@ async def get_dismissed_blueprints_paged(params: dict[str, str]) -> tuple[list[B
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            BlueprintStatusModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(BlueprintStatusModel, *queries),
-    )
+    return await _find_paged(BlueprintStatusModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
 async def cleanup_blueprints_status(valid_orgs: list[str]) -> None:
@@ -1269,12 +1253,13 @@ async def update_or_create_scorecard_result(
     await mongo.odm.save(scorecard_result_model)
 
 
-async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[ScorecardResultModel], int]:
+async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[ScorecardResultModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "score"
     sort_order = "desc"
 
+    scope: list[QueryExpression] = []
     queries: list[QueryExpression] = []
 
     for k, v in params.items():
@@ -1313,13 +1298,4 @@ async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[Scor
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            ScorecardResultModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(ScorecardResultModel, *queries),
-    )
+    return await _find_paged(ScorecardResultModel, scope, queries, skip=skip, limit=page_size, sort=sort)

@@ -2,7 +2,8 @@
 //
 // These endpoints take the parameters of jsGrid, which rendered these tables before:
 // pageIndex, pageSize, sortField, sortOrder and the value of each filter keyed by its field,
-// a nested field like id.org_id being sent as id[org_id]. They return {data, itemsCount}.
+// a nested field like id.org_id being sent as id[org_id]. They return {data, itemsCount, totalCount},
+// itemsCount being the number of items matching the filters and totalCount the one without filters.
 //
 // DataTables is loaded as a vendor script by the pages using this module.
 
@@ -43,8 +44,8 @@ function loadPage(url, columns) {
       }
     });
 
-    const draw = (data, count) =>
-      callback({ draw: request.draw, data: data, recordsTotal: count, recordsFiltered: count });
+    const draw = (data, count, total) =>
+      callback({ draw: request.draw, data: data, recordsTotal: total, recordsFiltered: count });
 
     fetch(url + "?" + params)
       .then((response) => {
@@ -53,10 +54,10 @@ function loadPage(url, columns) {
         }
         return response.json();
       })
-      .then((response) => draw(response.data, response.itemsCount))
+      .then((response) => draw(response.data, response.itemsCount, response.totalCount))
       .catch((error) => {
         console.error("failed to load '" + url + "':", error);
-        draw([], 0);
+        draw([], 0, 0);
       });
   };
 }
