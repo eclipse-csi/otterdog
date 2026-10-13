@@ -495,7 +495,7 @@ class Repository(ModelObject):
                         FailureType.ERROR,
                         f"invalid permission '{v}' "
                         f"for team '{k}', allowed values are "
-                        f"('read/pull' | 'triage' | 'write/push' | 'maintain' | 'admin').",
+                        f"('pull' | 'triage' | 'push' | 'maintain' | 'admin').",
                     )
 
         for webhook in self.webhooks:
