@@ -57,3 +57,8 @@ $lte-sidebar-submenu-active-color-dark: #343a40;
     border-color: var(--bs-border-color) transparent var(--bs-border-color) var(--bs-border-color);
   }
 }
+
+// wide tables, like the one of the scorecards, scroll horizontally rather than overflowing their card
+.dt-container .dt-layout-table > .dt-layout-full {
+  overflow-x: auto;
+}
