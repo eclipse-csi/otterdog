@@ -23,8 +23,6 @@ export default defineConfig({
                 vendorFile("jquery/dist/jquery.min.js", "jquery"),
                 vendorFile("bootstrap/dist/js/bootstrap.bundle.min.js", "bootstrap"),
                 vendorFile("chart.js/dist/chart.umd.js", "chartjs"),
-                vendorFile("jsgrid/dist/jsgrid.min.(js|css)", "jsgrid"),
-                vendorFile("jsgrid/dist/jsgrid-theme.min.css", "jsgrid"),
                 vendorFile("moment/min/moment.min.js", "moment"),
                 vendorFile("datatables.net/js/dataTables.min.js", "datatables"),
                 vendorFile("datatables.net-bs5/css/dataTables.bootstrap5.min.css", "datatables"),
@@ -67,6 +65,7 @@ export default defineConfig({
           preserveEntrySignatures: 'exports-only',
           input: [
             "src/js/app.js",
+            "src/js/datagrid.js",
             "src/js/editor.js",
             "src/js/highlight.js",
             "src/css/app.scss",
