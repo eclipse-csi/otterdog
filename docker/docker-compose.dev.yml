@@ -1,5 +1,7 @@
 services:
   webapp:
+    environment:
+      HYPERCORN_WORKERS: 1
     volumes:
       - ../docker/hypercorn-cfg-dev.toml:/app/hypercorn-cfg.toml
       - ../otterdog:/app/otterdog

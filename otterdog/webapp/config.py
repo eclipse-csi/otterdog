@@ -52,6 +52,19 @@ def validate_required_settings(config_cls: type) -> None:
             raise ValueError(f"{name} must not be empty")
 
 
+# Settings that must be at least 1: they size a concurrency limit, which would block
+# everything waiting on it forever with a value of 0.
+POSITIVE_INT_SETTINGS = ("MAX_CONCURRENT_INSTALLATION_TASKS",)
+
+
+def validate_positive_settings(config_cls: type) -> None:
+    """Raise a ValueError if any setting in POSITIVE_INT_SETTINGS is lower than 1 on config_cls."""
+    for name in POSITIVE_INT_SETTINGS:
+        value = getattr(config_cls, name, None)
+        if not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be at least 1, got {value!r}")
+
+
 class AppConfig:
     QUART_APP = "otterdog.webapp"
 
@@ -107,12 +120,19 @@ class AppConfig:
     # Calls to /internal/check within that interval skip the blueprint.
     BLUEPRINT_CHECK_INTERVAL = config("BLUEPRINT_CHECK_INTERVAL", default=3600, cast=int)
 
+    # Maximum number of tasks refreshing the data of installations (configuration, pull requests,
+    # policies and blueprints) running concurrently in each worker process of the webapp, e.g. when
+    # calling /internal/init, which is handled by a single worker. Higher values speed up the refresh
+    # at the cost of memory usage and load on GitHub. Must be at least 1.
+    MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=10, cast=int)
+
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")
 
 
 validate_required_settings(AppConfig)
+validate_positive_settings(AppConfig)
 
 
 class ProductionConfig(AppConfig):
@@ -140,6 +160,7 @@ class TestingConfig(AppConfig):
 
 
 validate_required_settings(TestingConfig)
+validate_positive_settings(TestingConfig)
 
 
 # Load all possible configurations

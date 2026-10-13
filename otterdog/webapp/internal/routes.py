@@ -10,12 +10,10 @@ from quart import current_app
 
 from otterdog.webapp.blueprints import create_blueprint_from_model
 from otterdog.webapp.db.service import (
-    get_active_installations,
     get_blueprints_by_last_checked_time,
     get_installation_by_github_id,
     logger,
     save_blueprint,
-    update_data_for_installation,
     update_installations_from_config,
 )
 from otterdog.webapp.statistics import refresh_organization_digests
@@ -40,10 +38,7 @@ async def init():
     config = await refresh_otterdog_config()
     policies = await refresh_global_policies()
     blueprints = await refresh_global_blueprints()
-    await update_installations_from_config(config, policies, blueprints)
-
-    for installation in await get_active_installations():
-        await update_data_for_installation(installation)
+    await update_installations_from_config(config, policies, blueprints, force_update_data=True)
 
     # refreshed in the background, the statistics page then never waits for GitHub itself
     current_app.add_background_task(refresh_organization_digests)
