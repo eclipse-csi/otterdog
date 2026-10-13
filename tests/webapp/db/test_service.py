@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
+
 import pytest
 
 from otterdog.config import OtterdogConfig
@@ -39,6 +41,29 @@ async def test_update_installations(app):
 
         assert await get_all_installations_count() == 1
         assert (await get_installations())[0].github_id == "OtterdogTest2"
+
+
+async def test_installation_tasks_are_bounded(app):
+    from otterdog.webapp.db.service import _execute_installation_task
+
+    max_concurrent_tasks = 3
+    app.config["MAX_CONCURRENT_INSTALLATION_TASKS"] = max_concurrent_tasks
+
+    running = 0
+    max_running = 0
+
+    class _Task:
+        async def execute(self) -> None:
+            nonlocal running, max_running
+            running += 1
+            max_running = max(max_running, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+
+    async with app.app_context():
+        await asyncio.gather(*[_execute_installation_task(_Task()) for _ in range(3 * max_concurrent_tasks)])
+
+    assert max_running == max_concurrent_tasks
 
 
 def _get_config_file(filename: str) -> str:

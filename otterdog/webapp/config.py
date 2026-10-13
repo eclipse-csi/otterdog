@@ -107,6 +107,11 @@ class AppConfig:
     # Calls to /internal/check within that interval skip the blueprint.
     BLUEPRINT_CHECK_INTERVAL = config("BLUEPRINT_CHECK_INTERVAL", default=3600, cast=int)
 
+    # Maximum number of tasks refreshing the data of installations (configuration, pull requests,
+    # policies and blueprints) running concurrently, e.g. when calling /internal/init. Higher values
+    # speed up the refresh at the cost of memory usage and load on GitHub. Must be at least 1.
+    MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=20, cast=int)
+
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")

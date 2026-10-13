@@ -278,6 +278,13 @@ This initialization will:
     default. Calling `/internal/init` daily keeps the statistics fresh without anybody ever
     waiting for GitHub while browsing them.
 
+!!! note
+
+    The initialization refreshes the configuration, pull requests, policies and blueprints of
+    every organization in background tasks. At most `MAX_CONCURRENT_INSTALLATION_TASKS` of these
+    tasks, 20 by default, run concurrently to bound the memory usage of the webapp and the load
+    on GitHub, so the initialization of a deployment with many organizations takes a while.
+
 ### Updating the Deployment
 
 To upgrade to the latest chart or image version:

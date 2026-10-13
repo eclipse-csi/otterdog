@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
+from asyncio import Semaphore
 from logging import getLogger
 from typing import TYPE_CHECKING, Any
 
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
     from otterdog.config import OtterdogConfig
     from otterdog.webapp.blueprints import Blueprint
     from otterdog.webapp.policies import Policy
+    from otterdog.webapp.tasks import Task
     from otterdog.webapp.webhook.github_models import PullRequest
 
 logger = getLogger(__name__)
@@ -111,6 +113,7 @@ async def update_installations_from_config(
     global_policies: list[Policy],
     global_blueprints: list[Blueprint],
     update_installations: bool = True,
+    force_update_data: bool = False,
 ) -> None:
     logger.info("updating installations from otterdog config")
 
@@ -181,7 +184,7 @@ async def update_installations_from_config(
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations(global_policies, global_blueprints, projects_to_update)
+        await update_app_installations(global_policies, global_blueprints, projects_to_update, force_update_data)
 
 
 async def cleanup_data() -> None:
@@ -208,6 +211,7 @@ async def update_app_installations(
     global_policies: list[Policy],
     global_blueprints: list[Blueprint],
     project_names_to_force_update: set[str] | None = None,
+    force_update_data: bool = False,
 ) -> None:
     logger.info("updating app installations")
 
@@ -263,8 +267,12 @@ async def update_app_installations(
 
     for installation in active_installations:
         configuration_model = await get_configuration_by_github_id(installation.github_id)
-        if configuration_model is None or (
-            project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
+        if (
+            force_update_data
+            or configuration_model is None
+            or (
+                project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
+            )
         ):
             await update_data_for_installation(installation)
         else:
@@ -305,6 +313,25 @@ async def add_app_installation(
     await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
 
 
+def _schedule_installation_task(task: Task) -> None:
+    current_app.add_background_task(_execute_installation_task, task)
+
+
+async def _execute_installation_task(task: Task) -> None:
+    async with _get_installation_task_semaphore():
+        await task.execute()
+
+
+def _get_installation_task_semaphore() -> Semaphore:
+    # refreshing the data of all installations schedules several tasks per installation at once,
+    # bound the number of these tasks running concurrently to limit the memory usage and the load on GitHub
+    semaphore = current_app.extensions.get("installation_task_semaphore")
+    if semaphore is None:
+        semaphore = Semaphore(current_app.config["MAX_CONCURRENT_INSTALLATION_TASKS"])
+        current_app.extensions["installation_task_semaphore"] = semaphore
+    return semaphore
+
+
 async def update_data_for_installation(installation: InstallationModel) -> None:
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
     from otterdog.webapp.tasks.fetch_config import FetchConfigTask
@@ -318,7 +345,7 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
         config_repo,
     )
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchConfigTask(
             installation.installation_id,
             installation.github_id,
@@ -326,7 +353,7 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
         )
     )
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchAllPullRequestsTask(
             installation.installation_id,
             installation.github_id,
@@ -345,7 +372,7 @@ async def update_policies_and_blueprints_for_installation(
 
     config_repo = unwrap(installation.config_repo)
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchPoliciesTask(
             installation.installation_id,
             installation.github_id,
@@ -354,7 +381,7 @@ async def update_policies_and_blueprints_for_installation(
         )
     )
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchBlueprintsTask(
             installation.installation_id,
             installation.github_id,
