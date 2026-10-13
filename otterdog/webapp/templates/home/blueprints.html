@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/datagrid.html" import paged_table %}
 
 {% block title %} Blueprints {% endblock %}
 
@@ -13,6 +14,8 @@
 {% endblock stylesheets %}
 
 {% block content %}
+
+  {% set blueprint_titles = ["GitHub Organization", "Repo name", "Blueprint ID", "Update Time", "Status", "Remediation PR"] %}
 
   <!-- Content Wrapper. Contains page content -->
   <div class="app-main">
@@ -44,7 +47,7 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="blueprintsWithRemediations" class="table table-bordered table-hover"></table>
+                {{ paged_table("blueprintsWithRemediations", blueprint_titles) }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -61,7 +64,7 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="dismissedBlueprints" class="table table-bordered table-hover"></table>
+                {{ paged_table("dismissedBlueprints", blueprint_titles) }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -88,39 +91,19 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, escapeHtml} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, escapeHtml, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
 
     var columns = [
-      { data: "id.org_id", title: "GitHub Organization", filter: "text",
-        render: display(function(value) {
-          return '<a href="https://github.com/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-        })
-      },
-      { data: "id.repo_name", title: "Repo name", filter: "text",
-        render: display(function(value, item) {
-          return '<a href="https://github.com/' + escapeHtml(item.id.org_id) + '/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-        })
-      },
-      { data: "id.blueprint_id", title: "Blueprint ID", filter: "text",
+      { data: "id.org_id", filter: "text", render: organizationLink },
+      { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
+      { data: "id.blueprint_id", filter: "text",
         render: display(function(value, item) {
           return '<a href="/organizations/' + escapeHtml(item.id.org_id) + '#blueprint-' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
         })
       },
-      { data: "updated_at", title: "Update Time", filter: "text" },
-      { data: "status", title: "Status", filter: "text", className: "text-center",
-        render: display(function(value) {
-          return escapeHtml(value.toUpperCase());
-        })
-      },
-      { data: "remediation_pr", title: "Remediation PR", filter: "number", className: "text-center",
-        render: display(function(value, item) {
-          if (value > 0) {
-            return '<a href="https://github.com/' + escapeHtml(item.id.org_id) + '/' + escapeHtml(item.id.repo_name) + '/pull/' + value + '">#' + value + '</a>';
-          } else {
-            return "N/A";
-          }
-        })
-      }
+      { data: "updated_at", filter: "text" },
+      { data: "status", filter: "text", className: "text-center", render: upperCase },
+      { data: "remediation_pr", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") }
     ];
 
     createPagedTable("#blueprintsWithRemediations", {

@@ -5,6 +5,7 @@
 // a nested field like id.org_id being sent as id[org_id]. They return {data, itemsCount, totalCount},
 // itemsCount being the number of items matching the filters and totalCount the one without filters.
 //
+// The header of a table, with the title of each column, is part of its markup (see includes/datagrid.html),
 // DataTables is loaded as a vendor script by the pages using this module.
 
 const DataTable = window.DataTable;
@@ -22,6 +23,29 @@ export function display(render) {
 export const checkbox = display((value) =>
   '<input class="form-check-input" type="checkbox" disabled' + (value ? " checked" : "") + ">"
 );
+
+export const upperCase = display((value) => escapeHtml(value.toUpperCase()));
+
+const gitHubLink = (path, text) =>
+  '<a href="https://github.com/' + escapeHtml(path) + '">' + escapeHtml(text) + "</a>";
+
+export const organizationLink = display((value) => gitHubLink(value, value));
+
+// renders a repository as a link to GitHub, the organization being read from the given field of the row
+export function repositoryLink(organizationField) {
+  const organization = DataTable.util.get(organizationField);
+  return display((value, row) => gitHubLink(organization(row) + "/" + value, value));
+}
+
+// renders the number of a pull request as a link to GitHub, the organization and repository being
+// read from the given fields of the row
+export function pullRequestLink(organizationField, repositoryField) {
+  const organization = DataTable.util.get(organizationField);
+  const repository = DataTable.util.get(repositoryField);
+  return display((value, row) =>
+    value > 0 ? gitHubLink(organization(row) + "/" + repository(row) + "/pull/" + value, "#" + value) : "N/A"
+  );
+}
 
 const parameterName = (field) => field.replace(/\.([^.]+)/g, "[$1]");
 
@@ -62,7 +86,7 @@ function loadPage(url, columns) {
   };
 }
 
-function filterControl(column) {
+function filterControl(column, title) {
   let control;
 
   switch (column.filter) {
@@ -85,24 +109,21 @@ function filterControl(column) {
       return null;
   }
 
-  control.setAttribute("aria-label", "Filter by " + column.title);
+  control.setAttribute("aria-label", "Filter by " + title);
   return control;
 }
 
 // adds a row with the filter of each column below their title
 function addFilterRow(table, columns) {
-  const header = table.createTHead();
-  const titles = header.insertRow();
-  const filters = header.insertRow();
+  const titles = table.tHead.rows[0].cells;
+  const filters = table.tHead.insertRow();
 
-  return columns.map((column) => {
-    titles.appendChild(document.createElement("th"));
-
+  return columns.map((column, index) => {
     const cell = document.createElement("th");
     cell.dataset.dtOrder = "disable";
     filters.appendChild(cell);
 
-    const control = filterControl(column);
+    const control = filterControl(column, titles[index].textContent.trim());
     if (control) {
       cell.appendChild(control);
     }

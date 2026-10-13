@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/datagrid.html" import paged_table %}
 
 {% block title %} Pull Requests {% endblock %}
 
@@ -106,10 +107,10 @@
               <div class="card-body">
                 <div class="tab-content" id="pr-tabContent">
                   <div class="tab-pane show active" id="open-prs" role="tabpanel" aria-labelledby="open-pr-tab">
-                    <table id="openPullRequests" class="table table-bordered table-hover"></table>
+                    {{ paged_table("openPullRequests", ["GitHub Organization", "Repo name", "Pull Request", "Create Time", "Status", "Draft", "In-Sync", "Requires Manual", "Supports auto-merge", "Approved"]) }}
                   </div>
                   <div class="tab-pane" id="merged-prs" role="tabpanel" aria-labelledby="merged-pr-tab">
-                    <table id="mergedPullRequests" class="table table-bordered table-hover"></table>
+                    {{ paged_table("mergedPullRequests", ["GitHub Organization", "Repo name", "Pull Request", "Merge Time", "Status", "Applied"]) }}
                   </div>
                   <div class="tab-pane" id="pr-stats" role="tabpanel" aria-labelledby="stats-pr-tab">
                     <div class="row g-2 align-items-end mb-3">
@@ -411,53 +412,33 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, checkbox, display, escapeHtml} from '{{ asset('js/datagrid.js') }}';
-
-    var renderOrganization = display(function(value) {
-      return '<a href="https://github.com/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-    });
-
-    var renderRepository = display(function(value, item) {
-      return '<a href="https://github.com/' + escapeHtml(item.id.org_id) + '/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-    });
-
-    var renderPullRequest = display(function(value, item) {
-      if (value > 0) {
-        return '<a href="https://github.com/' + escapeHtml(item.id.org_id) + '/' + escapeHtml(item.id.repo_name) + '/pull/' + value + '">#' + value + '</a>';
-      } else {
-        return "N/A";
-      }
-    });
-
-    var renderUpperCase = display(function(value) {
-      return escapeHtml(value.toUpperCase());
-    });
+    import {createPagedTable, checkbox, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
 
     createPagedTable("#openPullRequests", {
       url: "/api/pullrequests/open",
       columns: [
-        { data: "id.org_id", title: "GitHub Organization", filter: "text", render: renderOrganization },
-        { data: "id.repo_name", title: "Repo name", filter: "text", render: renderRepository },
-        { data: "id.pull_request", title: "Pull Request", filter: "number", className: "text-center", render: renderPullRequest },
-        { data: "created_at", title: "Create Time", filter: "text", className: "text-center" },
-        { data: "status", title: "Status", filter: "text", className: "text-center", render: renderUpperCase },
-        { data: "draft", title: "Draft", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "in_sync", title: "In-Sync", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "requires_manual_apply", title: "Requires Manual", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "supports_auto_merge", title: "Supports auto-merge", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "has_required_approvals", title: "Approved", filter: "boolean", className: "text-center", render: checkbox }
+        { data: "id.org_id", filter: "text", render: organizationLink },
+        { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
+        { data: "id.pull_request", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") },
+        { data: "created_at", filter: "text", className: "text-center" },
+        { data: "status", filter: "text", className: "text-center", render: upperCase },
+        { data: "draft", filter: "boolean", className: "text-center", render: checkbox },
+        { data: "in_sync", filter: "boolean", className: "text-center", render: checkbox },
+        { data: "requires_manual_apply", filter: "boolean", className: "text-center", render: checkbox },
+        { data: "supports_auto_merge", filter: "boolean", className: "text-center", render: checkbox },
+        { data: "has_required_approvals", filter: "boolean", className: "text-center", render: checkbox }
       ]
     });
 
     createPagedTable("#mergedPullRequests", {
       url: "/api/pullrequests/merged",
       columns: [
-        { data: "id.org_id", title: "GitHub Organization", filter: "text", render: renderOrganization },
-        { data: "id.repo_name", title: "Repo name", filter: "text", render: renderRepository },
-        { data: "id.pull_request", title: "Pull Request", filter: "number", className: "text-center", render: renderPullRequest },
-        { data: "merged_at", title: "Merge Time", filter: "text", className: "text-center" },
-        { data: "status", title: "Status", filter: "text", className: "text-center", render: renderUpperCase },
-        { data: "apply_status", title: "Applied", filter: "text", className: "text-center", render: renderUpperCase }
+        { data: "id.org_id", filter: "text", render: organizationLink },
+        { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
+        { data: "id.pull_request", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") },
+        { data: "merged_at", filter: "text", className: "text-center" },
+        { data: "status", filter: "text", className: "text-center", render: upperCase },
+        { data: "apply_status", filter: "text", className: "text-center", render: upperCase }
       ]
     });
   </script>

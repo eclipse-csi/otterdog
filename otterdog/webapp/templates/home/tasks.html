@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/datagrid.html" import paged_table %}
 
 {% block title %} Executed Tasks {% endblock %}
 
@@ -44,7 +45,7 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="tasks" class="table table-bordered table-hover"></table>
+                {{ paged_table("tasks", ["Type", "GitHub Organization", "Repo name", "Pull Request", "Status", "Log", "Cache Usage", "Remaining Rate Limit", "Creation Time", "Update Time"]) }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -71,7 +72,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, escapeHtml} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
 
     var renderDate = display(function(value) {
       return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
@@ -80,36 +81,16 @@
     createPagedTable("#tasks", {
       url: "/api/tasks",
       columns: [
-        { data: "type", title: "Type", filter: "text" },
-        { data: "org_id", title: "GitHub Organization", filter: "text",
-          render: display(function(value) {
-            return '<a href="https://github.com/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-          })
-        },
-        { data: "repo_name", title: "Repo name", filter: "text",
-          render: display(function(value, item) {
-            return '<a href="https://github.com/' + escapeHtml(item.org_id) + '/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-          })
-        },
-        { data: "pull_request", title: "Pull Request", filter: "number", className: "text-center",
-          render: display(function(value, item) {
-            if (value > 0) {
-              return '<a href="https://github.com/' + escapeHtml(item.org_id) + '/' + escapeHtml(item.repo_name) + '/pull/' + value + '">#' + value + '</a>';
-            } else {
-              return "N/A";
-            }
-          })
-        },
-        { data: "status", title: "Status", filter: "text", className: "text-center",
-          render: display(function(value) {
-            return escapeHtml(value.toUpperCase());
-          })
-        },
-        { data: "log", title: "Log", filter: "text" },
-        { data: "cache_stats", title: "Cache Usage", filter: "text" },
-        { data: "rate_limit_remaining", title: "Remaining Rate Limit", filter: "text" },
-        { data: "created_at", title: "Creation Time", render: renderDate },
-        { data: "updated_at", title: "Update Time", render: renderDate }
+        { data: "type", filter: "text" },
+        { data: "org_id", filter: "text", render: organizationLink },
+        { data: "repo_name", filter: "text", render: repositoryLink("org_id") },
+        { data: "pull_request", filter: "number", className: "text-center", render: pullRequestLink("org_id", "repo_name") },
+        { data: "status", filter: "text", className: "text-center", render: upperCase },
+        { data: "log", filter: "text" },
+        { data: "cache_stats", filter: "text" },
+        { data: "rate_limit_remaining", filter: "text" },
+        { data: "created_at", render: renderDate },
+        { data: "updated_at", render: renderDate }
       ]
     });
   </script>

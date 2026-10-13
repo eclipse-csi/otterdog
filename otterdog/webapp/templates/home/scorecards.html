@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/datagrid.html" import paged_table %}
 
 {% block title %} OSSF Scorecard Checks {% endblock %}
 
@@ -53,7 +54,12 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <table id="scorecards" class="table table-sm table-bordered table-hover"></table>
+                {{ paged_table("scorecards", [
+                     "GitHub Organization", "Repo name", "Overall Score", "Signed Releases", "Workflows",
+                     "Branch Protections", "Code Reviews", "Maintained", "Token Permissions", "Binary Artifacts",
+                     "Dependency Update Tool", "Vuln", "Packaging", "Security Policy", "Static Code Analysis",
+                     "Pinned Dependencies", "CI Tests", "Contributors", "License"
+                   ], extra_class="table-sm") }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -79,7 +85,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, escapeHtml} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, escapeHtml, organizationLink, repositoryLink} from '{{ asset('js/datagrid.js') }}';
 
     var renderScore = function(value) {
       if (value < 0) {
@@ -118,17 +124,9 @@
     var scorecards = createPagedTable("#scorecards", {
       url: "/api/scorecard/results",
       columns: [
-        { data: "id.org_id", title: "GitHub Organization", filter: "text",
-          render: display(function(value) {
-            return '<a href="https://github.com/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-          })
-        },
-        { data: "id.repo_name", title: "Repo name", filter: "text",
-          render: display(function(value, item) {
-            return '<a href="https://github.com/' + escapeHtml(item.id.org_id) + '/' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
-          })
-        },
-        { data: "score", title: "Overall Score", className: "text-center",
+        { data: "id.org_id", filter: "text", render: organizationLink },
+        { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
+        { data: "score", className: "text-center",
           // a link, so that the scorecard can also be opened with the keyboard
           render: display(function(value, item) {
             return '<a href="' + escapeHtml(scorecardUrl(item)) + '" target="_blank" rel="noopener" title="View the scorecard">' +
@@ -136,22 +134,22 @@
               '<span class="visually-hidden">, view the scorecard</span></a>';
           })
         },
-        { data: "Signed-Releases", title: "Signed Releases", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Dangerous-Workflow", title: "Workflows", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Branch-Protection", title: "Branch Protections", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Code-Review", title: "Code Reviews", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Maintained", title: "Maintained", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Token-Permissions", title: "Token Permissions", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Binary-Artifacts", title: "Binary Artifacts", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Dependency-Update-Tool", title: "Dependency Update Tool", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Vulnerabilities", title: "Vuln", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Packaging", title: "Packaging", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Security-Policy", title: "Security Policy", orderable: false, className: "text-center", render: renderCheck },
-        { data: "SAST", title: "Static Code Analysis", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Pinned-Dependencies", title: "Pinned Dependencies", orderable: false, className: "text-center", render: renderCheck },
-        { data: "CI-Tests", title: "CI Tests", orderable: false, className: "text-center", render: renderCheck },
-        { data: "Contributors", title: "Contributors", orderable: false, className: "text-center", render: renderCheck },
-        { data: "License", title: "License", orderable: false, className: "text-center", render: renderCheck }
+        { data: "Signed-Releases", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Dangerous-Workflow", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Branch-Protection", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Code-Review", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Maintained", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Token-Permissions", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Binary-Artifacts", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Dependency-Update-Tool", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Vulnerabilities", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Packaging", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Security-Policy", orderable: false, className: "text-center", render: renderCheck },
+        { data: "SAST", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Pinned-Dependencies", orderable: false, className: "text-center", render: renderCheck },
+        { data: "CI-Tests", orderable: false, className: "text-center", render: renderCheck },
+        { data: "Contributors", orderable: false, className: "text-center", render: renderCheck },
+        { data: "License", orderable: false, className: "text-center", render: renderCheck }
       ]
     });
 
