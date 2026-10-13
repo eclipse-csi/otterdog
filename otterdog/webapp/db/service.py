@@ -324,7 +324,8 @@ async def _execute_installation_task(task: Task) -> None:
 
 def _get_installation_task_semaphore() -> Semaphore:
     # refreshing the data of all installations schedules several tasks per installation at once,
-    # bound the number of these tasks running concurrently to limit the memory usage and the load on GitHub
+    # bound the number of these tasks running concurrently to limit the memory usage and the load on GitHub,
+    # the bound applies per worker process, a refresh of all installations being handled by a single worker
     semaphore = current_app.extensions.get("installation_task_semaphore")
     if semaphore is None:
         semaphore = Semaphore(current_app.config["MAX_CONCURRENT_INSTALLATION_TASKS"])
