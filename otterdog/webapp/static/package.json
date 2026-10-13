@@ -27,7 +27,7 @@
     "datatables.net-responsive": "^4.1.1",
     "datatables.net-responsive-bs5": "^4.1.1",
     "highlight.js": "^11.12.0",
-    "jquery": "^3.7.1",
+    "jquery": "^4.0.0",
     "marked": "^15.0.0",
     "moment": "^2.31.0"
   }
