@@ -103,6 +103,10 @@
         }
     }
 
+    var scorecardUrl = function(item) {
+      return 'https://scorecard.dev/viewer/?uri=github.com/' + item.id.org_id + '/' + item.id.repo_name;
+    }
+
     var renderCheck = display(function(value) {
       // not every check might have been run for a repo
       if (value === undefined || value === null) {
@@ -125,8 +129,11 @@
           })
         },
         { data: "score", title: "Overall Score", className: "text-center",
-          render: display(function(value) {
-            return "<span class='badge' style='background-color:" + renderColor(value) + ";color: white;'>" + renderScore(value) + "</span>";
+          // a link, so that the scorecard can also be opened with the keyboard
+          render: display(function(value, item) {
+            return '<a href="' + escapeHtml(scorecardUrl(item)) + '" target="_blank" rel="noopener" title="View the scorecard">' +
+              "<span class='badge' style='background-color:" + renderColor(value) + ";color: white;'>" + renderScore(value) + "</span>" +
+              '<span class="visually-hidden">, view the scorecard</span></a>';
           })
         },
         { data: "Signed-Releases", title: "Signed Releases", orderable: false, className: "text-center", render: renderCheck },
@@ -149,14 +156,14 @@
     });
 
     scorecards.on("click", "tbody tr", function(event) {
-      // the links of a row lead to GitHub
+      // the links of a row open their own destination
       if (event.target.closest("a")) {
         return;
       }
 
       var item = scorecards.row(this).data();
       if (item) {
-        window.open('https://scorecard.dev/viewer/?uri=github.com/' + item.id.org_id + '/' + item.id.repo_name, '_blank').focus();
+        window.open(scorecardUrl(item), '_blank').focus();
       }
     });
   </script>
