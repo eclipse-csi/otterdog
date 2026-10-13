@@ -30,7 +30,7 @@ export default defineConfig({
                 vendorFile("datatables.net-responsive/js/dataTables.responsive.min.js", "datatables"),
                 vendorFile("datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js", "datatables"),
                 vendorFile("datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css", "datatables"),
-                vendorFile("marked/marked.min.js", "marked"),
+                vendorFile("marked/lib/marked.umd.js", "marked"),
                 // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
                 vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
                 // preserves the package's internal directory structure, so strip only the node_modules/ prefix
