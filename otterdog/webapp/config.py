@@ -124,7 +124,7 @@ class AppConfig:
     # policies and blueprints) running concurrently in each worker process of the webapp, e.g. when
     # calling /internal/init, which is handled by a single worker. Higher values speed up the refresh
     # at the cost of memory usage and load on GitHub. Must be at least 1.
-    MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=20, cast=int)
+    MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=10, cast=int)
 
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
