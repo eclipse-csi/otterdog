@@ -12,7 +12,7 @@ import pytest
 from odmantic import query
 
 from otterdog.webapp.db import service
-from otterdog.webapp.db.models import PullRequestModel, TaskModel
+from otterdog.webapp.db.models import BlueprintStatus, BlueprintStatusModel, PullRequestModel, TaskModel
 
 
 @pytest.fixture
@@ -46,3 +46,61 @@ async def test_paged_total_ignores_the_filters_but_not_the_scope(odm):
         mock.call(PullRequestModel, scope, org_filter),
         mock.call(PullRequestModel, scope),
     ]
+
+
+async def test_paged_merged_pull_requests_have_their_own_scope_and_order(odm):
+    odm.count.side_effect = [0]
+
+    await service.get_merged_pull_requests_paged({})
+
+    odm.find.assert_awaited_once_with(
+        PullRequestModel,
+        service._merged_pull_requests_query(),
+        skip=0,
+        limit=20,
+        sort=query.desc(PullRequestModel.merged_at),
+    )
+
+
+async def test_paged_pull_requests_filter_booleans_and_sort_by_id(odm):
+    odm.count.side_effect = [1, 2]
+
+    await service.get_open_pull_requests_paged(
+        {"draft": "true", "id[pull_request]": "25", "sortField": "id.pull_request", "sortOrder": "asc"}
+    )
+
+    odm.find.assert_awaited_once_with(
+        PullRequestModel,
+        service._open_or_incomplete_pull_requests_query(),
+        query.eq(PullRequestModel.draft, True),
+        query.match(PullRequestModel.id.pull_request, 25),
+        skip=0,
+        limit=20,
+        sort=query.asc(PullRequestModel.id.pull_request),
+    )
+
+
+async def test_paged_pull_requests_reject_unknown_id_fields(odm):
+    with pytest.raises(RuntimeError, match="unexpected id field 'unknown'"):
+        await service.get_open_pull_requests_paged({"id[unknown]": "x"})
+
+
+@pytest.mark.parametrize(
+    ("get_blueprints_paged", "status"),
+    [
+        (service.get_blueprints_with_remediations_paged, BlueprintStatus.REMEDIATION_PREPARED),
+        (service.get_dismissed_blueprints_paged, BlueprintStatus.DISMISSED),
+    ],
+)
+async def test_paged_blueprints_are_scoped_by_status(odm, get_blueprints_paged, status):
+    odm.count.side_effect = [0]
+
+    await get_blueprints_paged({})
+
+    odm.find.assert_awaited_once_with(
+        BlueprintStatusModel,
+        query.match(BlueprintStatusModel.status, status),
+        skip=0,
+        limit=20,
+        sort=query.desc(BlueprintStatusModel.updated_at),
+    )
