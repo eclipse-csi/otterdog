@@ -79,13 +79,7 @@ def _prepare_task(task, monkeypatch, org_config, rest_api):
     )
 
 
-async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path):
-    """
-    The sync-check task turns a plan with changes into an out-of-sync result and a comment.
-    """
-    diff_status = DiffStatus()
-    diff_status.additions = 1
-    result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
+async def _execute_check_sync_task(monkeypatch, tmp_path, result):
     rest_api = pretend.stub(issue=pretend.stub(create_comment=AsyncMock()))
     org_config = _organization_config(tmp_path)
     task = CheckConfigurationInSyncTask(1, "test-org", "repo", 42)
@@ -112,7 +106,17 @@ async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch,
         AsyncMock(return_value=[]),
     )
 
-    task_result = await task.execute()
+    return await task.execute(), rest_api
+
+
+async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path):
+    """
+    The sync-check task turns a plan with changes into an out-of-sync result and a comment.
+    """
+    diff_status = DiffStatus()
+    diff_status.additions = 1
+    result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
+    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
 
     assert task_result is False
     rest_api.issue.create_comment.assert_awaited_once()
@@ -132,33 +136,7 @@ async def test_check_sync_reports_managed_team_permission_removal_as_drift(monke
     diff_status = DiffStatus()
     diff_status.differences = len(changes)
     result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
-    rest_api = pretend.stub(issue=pretend.stub(create_comment=AsyncMock()))
-    org_config = _organization_config(tmp_path)
-    task = CheckConfigurationInSyncTask(1, "test-org", "repo", 42)
-    _prepare_task(task, monkeypatch, org_config, rest_api)
-
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.PlanOperation",
-        _operation_factory(result, "PlanOperation"),
-    )
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.fetch_config_from_github",
-        AsyncMock(),
-    )
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.get_otterdog_config",
-        AsyncMock(return_value=pretend.stub()),
-    )
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.render_template",
-        AsyncMock(return_value="out-of-sync comment"),
-    )
-    monkeypatch.setattr(
-        "otterdog.webapp.tasks.check_sync.get_full_admin_team_slugs",
-        AsyncMock(return_value=[]),
-    )
-
-    task_result = await task.execute()
+    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
 
     assert task_result is False
     rest_api.issue.create_comment.assert_awaited_once()
