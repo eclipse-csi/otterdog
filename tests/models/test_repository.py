@@ -392,3 +392,50 @@ class TestRepository:
         )
 
         assert repo._org_enforces_immutable_releases(org_settings) is expected
+
+    @staticmethod
+    def _generate_immutable_releases_change(
+        repository_test, current_enforced, expected_enforced, current_enabled, expected_enabled
+    ):
+        from otterdog.models import LivePatchContext
+        from otterdog.models.organization_settings import OrganizationSettings
+
+        org_settings_data = repository_test.load_json_resource("otterdog-org-settings.json")
+        current_org_settings = OrganizationSettings.from_model_data(org_settings_data)
+        current_org_settings.immutable_releases_enforced_repositories = current_enforced
+        expected_org_settings = OrganizationSettings.from_model_data(org_settings_data)
+        expected_org_settings.immutable_releases_enforced_repositories = expected_enforced
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.immutable_releases_enabled = current_enabled
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.immutable_releases_enabled = expected_enabled
+
+        context = LivePatchContext("test-org", "", False, False, "*", current_org_settings, expected_org_settings)
+        patches = []
+        Repository.generate_live_patch(expected, current, None, context, patches.append)
+
+        changes = [
+            patch.changes["immutable_releases_enabled"]
+            for patch in patches
+            if isinstance(patch.expected_object, Repository) and "immutable_releases_enabled" in patch.changes
+        ]
+        return changes[0] if len(changes) > 0 else None
+
+    @pytest.mark.parametrize("expected_enabled", [True, False])
+    def test_live_patch_applies_immutable_releases_when_org_stops_enforcing(self, repository_test, expected_enabled):
+        # while enforced by the organization, immutable releases are reported as enabled for the repository,
+        # the configured value needs to be applied even if equal, to be kept once the enforcement is removed.
+        change = self._generate_immutable_releases_change(repository_test, "all", "none", True, expected_enabled)
+
+        assert change == Change(True, expected_enabled)
+
+    def test_live_patch_ignores_immutable_releases_while_org_enforces(self, repository_test):
+        change = self._generate_immutable_releases_change(repository_test, "all", "all", True, False)
+
+        assert change is None
+
+    def test_live_patch_ignores_immutable_releases_when_not_retrieved(self, repository_test):
+        change = self._generate_immutable_releases_change(repository_test, "all", "none", UNSET, True)
+
+        assert change is None
