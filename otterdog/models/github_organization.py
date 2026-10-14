@@ -590,7 +590,8 @@ class GitHubOrganization:
             return self.settings
 
         # repository names are case-insensitive on GitHub, and a renamed repository is still known under its aliases:
-        # use the name retrieved from GitHub for any configured name designating the same repository.
+        # use the name retrieved from GitHub for any configured name designating the same repository, and keep
+        # each repository only once as GitHub does.
         names_by_alias = {name.lower(): repo.name for repo in self.repositories for name in repo.get_all_names()}
 
         def resolve(name: str) -> str:
@@ -598,10 +599,12 @@ class GitHubOrganization:
 
         current_names_by_repo = {resolve(name): name for name in current_names}
 
+        selected_names_by_repo: dict[str, str] = {}
+        for name in expected_names:
+            selected_names_by_repo.setdefault(resolve(name), current_names_by_repo.get(resolve(name), name))
+
         settings = copy.copy(self.settings)
-        settings.immutable_releases_selected_repositories = [
-            current_names_by_repo.get(resolve(name), name) for name in expected_names
-        ]
+        settings.immutable_releases_selected_repositories = list(selected_names_by_repo.values())
         return settings
 
     @classmethod

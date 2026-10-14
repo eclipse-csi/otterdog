@@ -215,6 +215,15 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
 
         assert "immutable_releases_selected_repositories" not in changes
 
+    def test_live_patch_ignores_immutable_releases_repositories_selected_several_times(self):
+        changes, _ = self._generate_immutable_releases_settings_changes(
+            lambda name: [name, name.upper(), "previous-name"],
+            lambda name: [name],
+            aliases=["previous-name"],
+        )
+
+        assert "immutable_releases_selected_repositories" not in changes
+
     def test_live_patch_reports_added_immutable_releases_repositories(self):
         changes, repository_name = self._generate_immutable_releases_settings_changes(
             lambda name: [name.upper(), "other-repo"],
