@@ -9,10 +9,12 @@
 from __future__ import annotations
 
 import dataclasses
+from asyncio import Semaphore
 from logging import getLogger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from odmantic import query
+from odmantic import Model, query
+from pymongo.errors import DuplicateKeyError
 from quart import current_app
 
 from otterdog.utils import unwrap
@@ -51,11 +53,12 @@ from .models import (
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from odmantic.query import QueryExpression
+    from odmantic.query import QueryExpression, SortExpression
 
     from otterdog.config import OtterdogConfig
     from otterdog.webapp.blueprints import Blueprint
     from otterdog.webapp.policies import Policy
+    from otterdog.webapp.tasks import Task
     from otterdog.webapp.webhook.github_models import PullRequest
 
 logger = getLogger(__name__)
@@ -110,6 +113,7 @@ async def update_installations_from_config(
     global_policies: list[Policy],
     global_blueprints: list[Blueprint],
     update_installations: bool = True,
+    force_update_data: bool = False,
 ) -> None:
     logger.info("updating installations from otterdog config")
 
@@ -142,6 +146,8 @@ async def update_installations_from_config(
                     github_id=github_id,
                     config_repo=org_config.config_repo,
                     base_template=org_config.base_template,
+                    approval_teams=org_config.approval_teams,
+                    admin_teams=org_config.admin_teams,
                 )
 
                 projects_to_update.add(project_name)
@@ -158,10 +164,17 @@ async def update_installations_from_config(
                     model.config_repo = org_config.config_repo
                     projects_to_update.add(project_name)
 
+                if model.approval_teams != org_config.approval_teams:
+                    model.approval_teams = org_config.approval_teams
+                    projects_to_update.add(project_name)
+
+                if model.admin_teams != org_config.admin_teams:
+                    model.admin_teams = org_config.admin_teams
+                    projects_to_update.add(project_name)
+
             await session.save(model)
 
-            if github_id in existing_installations:
-                existing_installations.remove(github_id)
+            existing_installations.discard(github_id)
 
         # remove all remaining installations which are not present in the otterdog config
         for github_id in existing_installations:
@@ -171,7 +184,7 @@ async def update_installations_from_config(
     await cleanup_data()
 
     if update_installations is True:
-        await update_app_installations(global_policies, global_blueprints, projects_to_update)
+        await update_app_installations(global_policies, global_blueprints, projects_to_update, force_update_data)
 
 
 async def cleanup_data() -> None:
@@ -185,15 +198,34 @@ async def cleanup_data() -> None:
     await cleanup_blueprints_status(valid_orgs)
 
 
+def _abbreviate(values: list[str], limit: int = 20) -> str:
+    """Joins values for a log message, keeping a long list from flooding the log."""
+
+    if len(values) <= limit:
+        return ", ".join(values)
+
+    return ", ".join(values[:limit]) + f", ... and {len(values) - limit} more"
+
+
 async def update_app_installations(
     global_policies: list[Policy],
     global_blueprints: list[Blueprint],
     project_names_to_force_update: set[str] | None = None,
+    force_update_data: bool = False,
 ) -> None:
     logger.info("updating app installations")
 
     rest_api = get_rest_api_for_app()
     all_installations = await rest_api.app.get_app_installations()
+
+    logger.info("the github app is installed for %d organization(s)", len(all_installations))
+    if len(all_installations) == 0:
+        logger.warning(
+            "the github app is not installed for any organization, no data will be fetched, "
+            "check that GITHUB_APP_ID refers to the app that is installed"
+        )
+
+    unknown_organizations: list[str] = []
 
     async with mongo.odm.session() as session:
         for app_installation in all_installations:
@@ -204,17 +236,50 @@ async def update_app_installations(
 
             model = await get_installation_by_github_id(github_id)
             if model is not None:
+                logger.info(
+                    "updating installation for org '%s': id=%d, status=%s",
+                    github_id,
+                    int(installation_id),
+                    installation_status.value,
+                )
+
                 model.installation_id = int(installation_id)
                 model.installation_status = installation_status
 
                 await session.save(model)
+            else:
+                unknown_organizations.append(github_id)
 
-    for installation in await get_active_installations():
+    if unknown_organizations:
+        # the github id is the primary key of the installation model and thus matched
+        # case-sensitively, a mismatch in the otterdog config goes unnoticed otherwise
+        logger.warning(
+            "the github app is installed for %d organization(s) that the otterdog config does not define, "
+            "ignoring them, note that the github id is matched case-sensitively: %s",
+            len(unknown_organizations),
+            _abbreviate(sorted(unknown_organizations)),
+        )
+
+    active_installations = await get_active_installations()
+    logger.info("found %d active installation(s)", len(active_installations))
+    if len(active_installations) == 0:
+        logger.warning("no active installation found, no configuration or pull request data will be fetched")
+
+    for installation in active_installations:
         configuration_model = await get_configuration_by_github_id(installation.github_id)
-        if configuration_model is None or (
-            project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
+        if (
+            force_update_data
+            or configuration_model is None
+            or (
+                project_names_to_force_update is not None and installation.project_name in project_names_to_force_update
+            )
         ):
             await update_data_for_installation(installation)
+        else:
+            logger.debug(
+                "configuration for org '%s' is already present, skipping fetching of its data",
+                installation.github_id,
+            )
 
         await update_policies_and_blueprints_for_installation(installation, global_policies, global_blueprints)
 
@@ -248,13 +313,40 @@ async def add_app_installation(
     await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
 
 
+def _schedule_installation_task(task: Task) -> None:
+    current_app.add_background_task(_execute_installation_task, task)
+
+
+async def _execute_installation_task(task: Task) -> None:
+    async with _get_installation_task_semaphore():
+        await task.execute()
+
+
+def _get_installation_task_semaphore() -> Semaphore:
+    # refreshing the data of all installations schedules several tasks per installation at once,
+    # bound the number of these tasks running concurrently to limit the memory usage and the load on GitHub,
+    # the bound applies per worker process, a refresh of all installations being handled by a single worker
+    semaphore = current_app.extensions.get("installation_task_semaphore")
+    if semaphore is None:
+        semaphore = Semaphore(current_app.config["MAX_CONCURRENT_INSTALLATION_TASKS"])
+        current_app.extensions["installation_task_semaphore"] = semaphore
+    return semaphore
+
+
 async def update_data_for_installation(installation: InstallationModel) -> None:
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
     from otterdog.webapp.tasks.fetch_config import FetchConfigTask
 
     config_repo = unwrap(installation.config_repo)
 
-    current_app.add_background_task(
+    logger.info(
+        "scheduling fetching of the configuration and pull requests for org '%s' from repo '%s/%s'",
+        installation.github_id,
+        installation.github_id,
+        config_repo,
+    )
+
+    _schedule_installation_task(
         FetchConfigTask(
             installation.installation_id,
             installation.github_id,
@@ -262,7 +354,7 @@ async def update_data_for_installation(installation: InstallationModel) -> None:
         )
     )
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchAllPullRequestsTask(
             installation.installation_id,
             installation.github_id,
@@ -281,7 +373,7 @@ async def update_policies_and_blueprints_for_installation(
 
     config_repo = unwrap(installation.config_repo)
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchPoliciesTask(
             installation.installation_id,
             installation.github_id,
@@ -290,7 +382,7 @@ async def update_policies_and_blueprints_for_installation(
         )
     )
 
-    current_app.add_background_task(
+    _schedule_installation_task(
         FetchBlueprintsTask(
             installation.installation_id,
             installation.github_id,
@@ -330,12 +422,37 @@ async def get_tasks(limit: int) -> list[TaskModel]:
     return await mongo.odm.find(TaskModel, limit=limit, sort=query.desc(TaskModel.created_at))
 
 
-async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int]:
+ModelT = TypeVar("ModelT", bound=Model)
+
+
+async def _find_paged(
+    model: type[ModelT],
+    scope: list[QueryExpression],
+    filters: list[QueryExpression],
+    skip: int,
+    limit: int,
+    sort: SortExpression,
+) -> tuple[list[ModelT], int, int]:
+    """
+    Finds a page of the documents of a model in the given scope that match the given filters.
+
+    Returns the documents of the page, the number of documents matching the filters and the total
+    number of documents in the scope, which only has to be counted on its own when filtering.
+    """
+
+    documents = await mongo.odm.find(model, *scope, *filters, skip=skip, limit=limit, sort=sort)
+    count = await mongo.odm.count(model, *scope, *filters)
+    total = await mongo.odm.count(model, *scope) if filters else count
+    return documents, count, total
+
+
+async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field = "created_at"
     sort_order = "desc"
 
+    scope: list[QueryExpression] = []
     queries: list[QueryExpression] = []
 
     for k, v in params.items():
@@ -359,16 +476,7 @@ async def get_tasks_paged(params: dict[str, str]) -> tuple[list[TaskModel], int]
     )
 
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            TaskModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(TaskModel, *queries),
-    )
+    return await _find_paged(TaskModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
 async def get_configurations() -> list[ConfigurationModel]:
@@ -451,50 +559,68 @@ async def update_or_create_pull_request(
     has_required_approvals: bool | None = None,
     apply_status: ApplyStatus | None = None,
 ) -> PullRequestModel:
-    pull_request_status = PullRequestStatus[pull_request.get_pr_status()]
+    task_fields: dict[str, Any] = {
+        "valid": valid,
+        "in_sync": in_sync,
+        "requires_manual_apply": requires_manual_apply,
+        "supports_auto_merge": supports_auto_merge,
+        "author_can_auto_merge": author_can_auto_merge,
+        "has_required_approvals": has_required_approvals,
+        "apply_status": apply_status,
+    }
+    task_fields = {k: v for k, v in task_fields.items() if v is not None}
 
-    pr_model = await find_pull_request(owner, repo, pull_request.number)
-    if pr_model is None:
-        pr_model = PullRequestModel(  # type: ignore
-            id=PullRequestId(org_id=owner, repo_name=repo, pull_request=pull_request.number),
-            draft=pull_request.draft,
-            status=pull_request_status,
-            created_at=pull_request.created_at,
-            updated_at=pull_request.updated_at,
-            closed_at=pull_request.closed_at,
-            merged_at=pull_request.merged_at,
-        )
-    else:
-        pr_model.draft = pull_request.draft
-        pr_model.status = pull_request_status
-        pr_model.created_at = pull_request.created_at
-        pr_model.updated_at = pull_request.updated_at
-        pr_model.closed_at = pull_request.closed_at
-        pr_model.merged_at = pull_request.merged_at
+    pr_model = PullRequestModel(  # type: ignore
+        id=PullRequestId(org_id=owner, repo_name=repo, pull_request=pull_request.number),
+        draft=pull_request.draft,
+        status=PullRequestStatus[pull_request.get_pr_status()],
+        created_at=pull_request.created_at,
+        updated_at=pull_request.updated_at,
+        closed_at=pull_request.closed_at,
+        merged_at=pull_request.merged_at,
+        **task_fields,
+    )
+    doc = pr_model.model_dump_doc()
+    collection = mongo.odm.get_collection(PullRequestModel)
 
-    if apply_status is not None:
-        pr_model.apply_status = apply_status
+    if await find_pull_request(owner, repo, pull_request.number) is None:
+        try:
+            await collection.insert_one(doc)
+            return pr_model
+        except DuplicateKeyError:
+            # created concurrently by another task, update it instead
+            pass
 
-    if valid is not None:
-        pr_model.valid = valid
+    # tasks may run for a long time with a snapshot of the pull request taken when
+    # they were scheduled, do not let such a snapshot revert a newer state, e.g. turning
+    # an already merged pull request back to open. The condition is evaluated by mongo
+    # so that it also holds when several tasks update the same pull request concurrently.
+    status_rank = _PULL_REQUEST_STATUS_ORDER.index(pr_model.status)
+    await collection.update_one(
+        {
+            "_id": doc["_id"],
+            "$or": [
+                {"updated_at": {"$lt": doc["updated_at"]}},
+                # GitHub timestamps have a precision of one second and can not order snapshots
+                # taken within the same second, never go back in the lifecycle in that case.
+                {
+                    "updated_at": doc["updated_at"],
+                    "status": {"$in": [s.value for s in _PULL_REQUEST_STATUS_ORDER[: status_rank + 1]]},
+                },
+            ],
+        },
+        {"$set": {k: doc[k] for k in _PULL_REQUEST_LIFECYCLE_FIELDS}},
+    )
 
-    if in_sync is not None:
-        pr_model.in_sync = in_sync
+    # results of the task are independent of the snapshot and always recorded
+    if task_fields:
+        await collection.update_one({"_id": doc["_id"]}, {"$set": {k: doc[k] for k in task_fields}})
 
-    if requires_manual_apply is not None:
-        pr_model.requires_manual_apply = requires_manual_apply
+    return unwrap(await find_pull_request(owner, repo, pull_request.number))
 
-    if supports_auto_merge is not None:
-        pr_model.supports_auto_merge = supports_auto_merge
 
-    if author_can_auto_merge is not None:
-        pr_model.author_can_auto_merge = author_can_auto_merge
-
-    if has_required_approvals is not None:
-        pr_model.has_required_approvals = has_required_approvals
-
-    await update_pull_request(pr_model)
-    return pr_model
+_PULL_REQUEST_LIFECYCLE_FIELDS = ("draft", "status", "created_at", "updated_at", "closed_at", "merged_at")
+_PULL_REQUEST_STATUS_ORDER = (PullRequestStatus.OPEN, PullRequestStatus.CLOSED, PullRequestStatus.MERGED)
 
 
 async def update_pull_request(pull_request: PullRequestModel) -> None:
@@ -540,13 +666,45 @@ def _merged_pull_requests_query() -> QueryExpression:
     )
 
 
-async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
+def _pull_request_id_field(name: str) -> Any:
+    """Returns the field of the id of pull requests with the given name, e.g. org_id."""
+
+    match name:
+        case "org_id":
+            return PullRequestModel.id.org_id
+        case "repo_name":
+            return PullRequestModel.id.repo_name
+        case "pull_request":
+            return PullRequestModel.id.pull_request
+        case _:
+            raise RuntimeError(f"unexpected id field '{name}'")
+
+
+def _pull_request_filter(name: str, value: str) -> QueryExpression:
+    """Returns the query filtering pull requests by the value of a field, e.g. id[org_id] or draft."""
+
+    if name.startswith("id["):
+        field = _pull_request_id_field(name[3:-1])
+        # the number of a pull request is stored as an int
+        return query.match(field, int(value) if name == "id[pull_request]" else value)  # type: ignore[arg-type]
+
+    # boolean values are sent as either "true" or "false"
+    if value.lower() in ("true", "false"):
+        return query.eq(PullRequestModel.__dict__[name], value.lower() == "true")
+
+    return query.match(PullRequestModel.__dict__[name], value)
+
+
+async def _get_pull_requests_paged(
+    params: dict[str, str],
+    scope: QueryExpression,
+    sort_field_name: str,
+) -> tuple[list[PullRequestModel], int, int]:
     page_index = 1
     page_size = 20
-    sort_field_name = "created_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [_open_or_incomplete_pull_requests_query()]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -560,109 +718,24 @@ async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[Pul
                 sort_order = v
             case _:
                 if v:
-                    if k.startswith("id["):
-                        match k:
-                            case "id[org_id]":
-                                queries.append(query.match(PullRequestModel.id.org_id, v))
-                            case "id[repo_name]":
-                                queries.append(query.match(PullRequestModel.id.repo_name, v))
-                            case "id[pull_request]":
-                                queries.append(query.match(PullRequestModel.id.pull_request, int(v)))  # type: ignore
-                            case _:
-                                raise RuntimeError(f"unexpected query field '{k}'")
-                    else:
-                        # js grid send either "true" or "false" for boolean values
-                        # need to convert it to a bool value in python
-                        if v.lower() in ("true", "false"):
-                            queries.append(query.eq(PullRequestModel.__dict__[k], v.lower() == "true"))
-                        else:
-                            queries.append(query.match(PullRequestModel.__dict__[k], v))
+                    queries.append(_pull_request_filter(k, v))
 
     if sort_field_name.startswith("id."):
-        match sort_field_name:
-            case "id.org_id":
-                sort_field = PullRequestModel.id.org_id
-            case "id.repo_name":
-                sort_field = PullRequestModel.id.repo_name
-            case "id.pull_request":
-                sort_field = PullRequestModel.id.pull_request  # type: ignore
-            case _:
-                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
+        sort_field = _pull_request_id_field(sort_field_name[3:])
     else:
         sort_field = PullRequestModel.__dict__[sort_field_name]
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            PullRequestModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(PullRequestModel, *queries),
-    )
+    return await _find_paged(PullRequestModel, [scope], queries, skip=skip, limit=page_size, sort=sort)
 
 
-async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int]:
-    page_index = 1
-    page_size = 20
-    sort_field_name = "merged_at"
-    sort_order = "desc"
+async def get_open_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int, int]:
+    return await _get_pull_requests_paged(params, _open_or_incomplete_pull_requests_query(), "created_at")
 
-    queries: list[QueryExpression] = [_merged_pull_requests_query()]
 
-    for k, v in params.items():
-        match k:
-            case "pageIndex":
-                page_index = int(v)
-            case "pageSize":
-                page_size = int(v)
-            case "sortField":
-                sort_field_name = v
-            case "sortOrder":
-                sort_order = v
-            case _:
-                if v:
-                    if k.startswith("id["):
-                        match k:
-                            case "id[org_id]":
-                                queries.append(query.match(PullRequestModel.id.org_id, v))
-                            case "id[repo_name]":
-                                queries.append(query.match(PullRequestModel.id.repo_name, v))
-                            case "id[pull_request]":
-                                queries.append(query.match(PullRequestModel.id.pull_request, int(v)))  # type: ignore
-                            case _:
-                                raise RuntimeError(f"unexpected query field '{k}'")
-                    else:
-                        queries.append(query.match(PullRequestModel.__dict__[k], v))
-
-    if sort_field_name.startswith("id."):
-        match sort_field_name:
-            case "id.org_id":
-                sort_field = PullRequestModel.id.org_id
-            case "id.repo_name":
-                sort_field = PullRequestModel.id.repo_name
-            case "id.pull_request":
-                sort_field = PullRequestModel.id.pull_request  # type: ignore
-            case _:
-                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
-    else:
-        sort_field = PullRequestModel.__dict__[sort_field_name]
-
-    sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
-    skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            PullRequestModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(PullRequestModel, *queries),
-    )
+async def get_merged_pull_requests_paged(params: dict[str, str]) -> tuple[list[PullRequestModel], int, int]:
+    return await _get_pull_requests_paged(params, _merged_pull_requests_query(), "merged_at")
 
 
 async def cleanup_pull_requests(valid_orgs: list[str]) -> None:
@@ -980,13 +1053,17 @@ async def save_blueprint_status(blueprint_status: BlueprintStatusModel) -> None:
     await mongo.odm.save(blueprint_status)
 
 
-async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int]:
+async def _get_blueprints_paged(
+    params: dict[str, str],
+    status: BlueprintStatus,
+) -> tuple[list[BlueprintStatusModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "updated_at"
     sort_order = "desc"
 
-    queries: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.REMEDIATION_PREPARED)]
+    scope: list[QueryExpression] = [query.match(BlueprintStatusModel.status, status)]
+    queries: list[QueryExpression] = []
 
     for k, v in params.items():
         match k:
@@ -1028,76 +1105,15 @@ async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tupl
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            BlueprintStatusModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(BlueprintStatusModel, *queries),
-    )
+    return await _find_paged(BlueprintStatusModel, scope, queries, skip=skip, limit=page_size, sort=sort)
 
 
-async def get_dismissed_blueprints_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int]:
-    page_index = 1
-    page_size = 20
-    sort_field_name = "updated_at"
-    sort_order = "desc"
+async def get_blueprints_with_remediations_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int, int]:
+    return await _get_blueprints_paged(params, BlueprintStatus.REMEDIATION_PREPARED)
 
-    queries: list[QueryExpression] = [query.match(BlueprintStatusModel.status, BlueprintStatus.DISMISSED)]
 
-    for k, v in params.items():
-        match k:
-            case "pageIndex":
-                page_index = int(v)
-            case "pageSize":
-                page_size = int(v)
-            case "sortField":
-                sort_field_name = v
-            case "sortOrder":
-                sort_order = v
-            case _:
-                if v:
-                    if k.startswith("id["):
-                        match k:
-                            case "id[org_id]":
-                                queries.append(query.match(BlueprintStatusModel.id.org_id, v))
-                            case "id[repo_name]":
-                                queries.append(query.match(BlueprintStatusModel.id.repo_name, v))
-                            case "id[blueprint_id]":
-                                queries.append(query.match(BlueprintStatusModel.id.blueprint_id, v))
-                            case _:
-                                raise RuntimeError(f"unexpected query field '{k}'")
-                    else:
-                        queries.append(query.match(BlueprintStatusModel.__dict__[k], v))
-
-    if sort_field_name.startswith("id."):
-        match sort_field_name:
-            case "id.org_id":
-                sort_field = BlueprintStatusModel.id.org_id
-            case "id.repo_name":
-                sort_field = BlueprintStatusModel.id.repo_name
-            case "id.blueprint_id":
-                sort_field = BlueprintStatusModel.id.blueprint_id
-            case _:
-                raise RuntimeError(f"unexpected sort field '{sort_field_name}'")
-    else:
-        sort_field = BlueprintStatusModel.__dict__[sort_field_name]
-
-    sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
-    skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            BlueprintStatusModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(BlueprintStatusModel, *queries),
-    )
+async def get_dismissed_blueprints_paged(params: dict[str, str]) -> tuple[list[BlueprintStatusModel], int, int]:
+    return await _get_blueprints_paged(params, BlueprintStatus.DISMISSED)
 
 
 async def cleanup_blueprints_status(valid_orgs: list[str]) -> None:
@@ -1159,12 +1175,13 @@ async def update_or_create_scorecard_result(
     await mongo.odm.save(scorecard_result_model)
 
 
-async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[ScorecardResultModel], int]:
+async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[ScorecardResultModel], int, int]:
     page_index = 1
     page_size = 20
     sort_field_name = "score"
     sort_order = "desc"
 
+    scope: list[QueryExpression] = []
     queries: list[QueryExpression] = []
 
     for k, v in params.items():
@@ -1203,13 +1220,4 @@ async def get_scorecard_results_paged(params: dict[str, str]) -> tuple[list[Scor
 
     sort = query.desc(sort_field) if sort_order == "desc" else query.asc(sort_field)
     skip = (page_index - 1) * page_size
-    return (
-        await mongo.odm.find(
-            ScorecardResultModel,
-            *queries,
-            skip=skip,
-            limit=page_size,
-            sort=sort,
-        ),
-        await mongo.odm.count(ScorecardResultModel, *queries),
-    )
+    return await _find_paged(ScorecardResultModel, scope, queries, skip=skip, limit=page_size, sort=sort)

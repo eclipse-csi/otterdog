@@ -14,19 +14,17 @@
   {% endblock headscripts %}
 
   {% block stylesheets %}
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Google Font: Source Sans 3 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,700;1,400&display=fallback">
   <!-- Font Awesome -->
-  <link rel="stylesheet" href="/assets/vendor/fontawesome-free/css/all.min.css">
-  <!-- Bootstrap 4 -->
-  <link rel="stylesheet" href="/assets/vendor/bootstrap/bootstrap.min.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+  <link rel="stylesheet" href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}">
+  <!-- Theme style, includes Bootstrap 5 -->
+  <link rel="stylesheet" href="{{ asset('css/app.scss') }}">
   {% endblock stylesheets %}
 
 </head>
-<body class="hold-transition {% block body_class %}{% endblock body_class %}">
-<div class="wrapper">
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary {% block body_class %}{% endblock body_class %}">
+<div class="app-wrapper">
 
     {% include 'includes/navigation.html' %}
 
@@ -36,20 +34,14 @@
 
     {% include 'includes/footer.html' %}
 
-    <!-- Control Sidebar -->
-    <aside class="control-sidebar control-sidebar-dark">
-        <!-- Control sidebar content goes here -->
-    </aside>
-    <!-- /.control-sidebar -->
-
 </div>
-<!-- ./wrapper -->
+<!-- ./app-wrapper -->
 
 {% block javascripts %}
   <!-- jQuery -->
-  <script src="/assets/vendor/jquery/jquery.min.js"></script>
-  <!-- Bootstrap 4 -->
-  <script src="/assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
+  <!-- Bootstrap 5 -->
+  <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
   <!-- AdminLTE App -->
   <script type="module" src="{{ asset('js/app.js') }}"></script>
 {% endblock javascripts %}

@@ -45,12 +45,11 @@ class _AppAuth(AuthImpl):
         Create a JWT authenticating as a GitHub App. See
         https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
         """
-        from jwt import JWT, jwk_from_pem
-        from jwt.utils import get_int_from_datetime
+        import jwt
 
         # Open PEM
         with open(self.private_key, "rb") as pem_file:
-            signing_key = jwk_from_pem(pem_file.read())
+            signing_key = pem_file.read()
 
         # use a start time slightly in the past
         start_time = datetime.now(UTC) - timedelta(seconds=10)
@@ -58,12 +57,12 @@ class _AppAuth(AuthImpl):
         expire_time = start_time + timedelta(minutes=10)
 
         payload = {
-            "iat": get_int_from_datetime(start_time),
-            "exp": get_int_from_datetime(expire_time),
+            "iat": int(start_time.timestamp()),
+            "exp": int(expire_time.timestamp()),
             "iss": self.app_id,
         }
 
-        return JWT().encode(payload, signing_key, alg="RS256"), start_time, expire_time
+        return jwt.encode(payload, signing_key, algorithm="RS256"), start_time, expire_time
 
     def get_jwt(self) -> str:
         now = datetime.now(UTC)

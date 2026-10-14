@@ -12,6 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from aiofiles import open, tempfile
+from rich.markup import escape
 
 from otterdog.models import PatchContext
 from otterdog.models.github_organization import GitHubOrganization
@@ -54,7 +55,7 @@ class CanonicalDiffOperation(Operation):
         try:
             organization = GitHubOrganization.load_from_file(github_id, org_file_name)
         except RuntimeError as ex:
-            self.printer.print_error(f"failed to load configuration: {ex!s}")
+            self.printer.print_error(f"failed to load configuration: {escape(str(ex))}")
             return 1
 
         async with open(org_file_name) as file:

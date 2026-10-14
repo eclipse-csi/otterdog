@@ -33,3 +33,10 @@ class Variable(ModelObject, abc.ABC):
                 f"{self.get_model_header(parent_object)} starts with prefix 'GITHUB_', "
                 f"which is not allowed for variables.",
             )
+
+        if self.name != self.name.upper():
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'name' of value '{self.name}' "
+                f"which is not uppercase, while only uppercase names are allowed for variables.",
+            )

@@ -14,6 +14,7 @@ from os import path
 from typing import TYPE_CHECKING
 
 from aiofiles import open, os, ospath
+from rich.markup import escape
 
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import IndentingPrinter, is_set_and_valid
@@ -70,7 +71,7 @@ class ShowOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {ex!s}")
+                self.printer.print_error(f"failed to load configuration: {escape(str(ex))}")
                 return 1
 
             if not self.markdown:

@@ -34,17 +34,17 @@ class PassVault(CredentialProvider):
         twofa_seed_pattern: str | None = None,
         api_token_pattern: str | None = None,
     ):
-        _logger.debug("accessing pass vault")
-        status, output = getstatusoutput("pass ls")  # noqa: S605, S607
-        if status != 0:
-            raise RuntimeError(f"could not access pass vault:\n{output}")
-
         self._password_store_dir = password_store_dir
         if password_store_dir:
             import os
 
             _logger.debug("setting password store dir to '%s'", password_store_dir)
             os.environ["PASSWORD_STORE_DIR"] = password_store_dir
+
+        _logger.debug("accessing pass vault")
+        status, output = getstatusoutput("pass ls")  # noqa: S605, S607
+        if status != 0:
+            raise RuntimeError(f"could not access pass vault:\n{output}")
 
         self._username_pattern = username_pattern
         self._password_pattern = password_pattern

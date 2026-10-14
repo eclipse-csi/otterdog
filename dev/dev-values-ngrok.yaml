@@ -1,0 +1,11 @@
+ingress:
+  enabled: true
+  className: ngrok
+  ingressClassName: ngrok
+  defaultBackend:
+    enabled: true
+
+config:
+  # Log at INFO level, like in production. The chart only passes this flag to the webapp,
+  # which logs at DEBUG level when it is enabled.
+  debug: false

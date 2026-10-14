@@ -22,6 +22,7 @@ from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
 from otterdog import resources
 from otterdog.logging import get_logger
 from otterdog.models import (
+    EmbeddedModelObject,
     FailureType,
     LivePatchContext,
     LivePatchHandler,
@@ -32,13 +33,14 @@ from otterdog.models import (
 from otterdog.models.branch_protection_rule import BranchProtectionRule
 from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
+from otterdog.models.environment_secret import EnvironmentSecret
+from otterdog.models.environment_variable import EnvironmentVariable
 from otterdog.models.organization_role import OrganizationRole
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.organization_secret import OrganizationSecret
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.models.organization_variable import OrganizationVariable
 from otterdog.models.organization_webhook import OrganizationWebhook
-from otterdog.models.organization_workflow_settings import OrganizationWorkflowSettings
 from otterdog.models.repo_ruleset import RepositoryRuleset
 from otterdog.models.repo_secret import RepositorySecret
 from otterdog.models.repo_variable import RepositoryVariable
@@ -46,10 +48,17 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
-from otterdog.utils import IndentingPrinter, associate_by_key, debug_times, is_set_and_present, jsonnet_evaluate_file
+from otterdog.utils import (
+    IndentingPrinter,
+    associate_by_key,
+    debug_times,
+    is_set_and_present,
+    is_set_and_valid,
+    jsonnet_evaluate_file,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Iterator
+    from collections.abc import AsyncIterator, Callable, Iterable, Iterator
     from re import Pattern
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
@@ -58,6 +67,18 @@ if TYPE_CHECKING:
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
 _logger = get_logger(__name__)
+
+
+def _configured_keys(model_object: EmbeddedModelObject) -> set[str]:
+    """
+    Returns the field names of an embedded model object that have a real, non-null value.
+
+    Unlike ``keys()``, this also excludes fields that are set to ``None`` because the jsonnet
+    default template declares them as ``null`` (jsonnet object inheritance means every derived
+    object ends up with that key present, even when not explicitly configured).
+    """
+    keys = model_object.keys()
+    return {k for k in keys if is_set_and_valid(model_object.__getattribute__(k))}
 
 
 @dataclasses.dataclass
@@ -205,7 +226,7 @@ class GitHubOrganization:
             for ruleset in self.rulesets:
                 ruleset.validate(context, self)
 
-        # Run synchronous validations and collect repos needing API codescaning validation
+        # Run synchronous validations and collect repos needing API code scanning validation
         repos_needing_codescaning_language_validation = []
         for repo in self.repositories:
             repo.validate(context, self)
@@ -213,19 +234,39 @@ class GitHubOrganization:
                 repos_needing_codescaning_language_validation.append(repo)
 
         if repos_needing_codescaning_language_validation and context.provider is not None:
-            import asyncio
+            existing_repositories: set[str] | None
+            try:
+                # repository names are case-insensitive on GitHub
+                existing_repositories = {name.lower() for name in await context.provider.get_repos(self.github_id)}
+            except Exception as e:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"could not retrieve repositories to validate code scanning languages: {e}",
+                )
+                existing_repositories = None
 
-            tasks = [
-                repo.validate_code_scanning_languages(context, self)
-                for repo in repos_needing_codescaning_language_validation
-            ]
-            await asyncio.gather(*tasks)
+            if existing_repositories is not None:
+                repos_to_validate = []
+                for repo in repos_needing_codescaning_language_validation:
+                    # take aliases into account, a renamed repository still exists under its previous name
+                    if not any(name.lower() in existing_repositories for name in repo.get_all_names()):
+                        context.add_failure(
+                            FailureType.ERROR,
+                            f"{repo.get_model_header()} has 'code_scanning_default_languages' configured "
+                            "while the repository does not yet exist.",
+                        )
+                    else:
+                        repos_to_validate.append(repo)
+
+                tasks = [repo.validate_code_scanning_languages(context, self) for repo in repos_to_validate]
+                await asyncio.gather(*tasks)
 
         return context
 
     @staticmethod
     def _validate_org_config(data: dict[str, Any]) -> None:
         from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import best_match
         from referencing import Registry, Resource
         from referencing.exceptions import NoSuchResource
 
@@ -241,7 +282,47 @@ class GitHubOrganization:
 
             registry = Registry(retrieve=retrieve_from_filesystem)  # type: ignore
             validator = Draft202012Validator(_ORG_SCHEMA, registry=registry)
-            validator.validate(data)
+
+            blocking_errors = []
+            for error in validator.iter_errors(data):
+                if error.validator == "additionalProperties":
+                    _logger.warning(
+                        "ignoring unknown properties found while validating organization config: %s",
+                        error.message,
+                    )
+                else:
+                    blocking_errors.append(error)
+
+            if blocking_errors:
+                # an error of an 'anyOf' schema only states that no alternative matched,
+                # report the most relevant error of its alternatives instead.
+                messages = []
+                for error in blocking_errors:
+                    cause = best_match([error])
+                    path = GitHubOrganization._format_config_path(data, cause.absolute_path)
+                    messages.append(f"invalid value at '{path}': {cause.message}")
+
+                raise RuntimeError("\n".join(messages)) from blocking_errors[0]
+
+    @staticmethod
+    def _format_config_path(data: Any, path: Iterable[str | int]) -> str:
+        """
+        Formats the path of a value in the configuration, identifying list items by their name if available,
+        e.g. 'repositories[name="my-repo"].rulesets[name="main"].required_pull_request'.
+        """
+        result = ""
+        for element in path:
+            if isinstance(element, int):
+                data = data[element]
+                if isinstance(data, dict) and "name" in data:
+                    result += f'[name="{data["name"]}"]'
+                else:
+                    result += f"[{element}]"
+            else:
+                data = data[element]
+                result += f".{element}" if result else element
+
+        return result
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject | None]]:
         yield self.settings, None
@@ -515,6 +596,7 @@ class GitHubOrganization:
         concurrency: int | None = None,
         repo_filter: str | None = None,
         exclude_teams: Pattern | None = None,
+        expected_org: GitHubOrganization | None = None,
     ) -> GitHubOrganization:
         import asyncer
 
@@ -529,18 +611,24 @@ class GitHubOrganization:
             #        for now this is the same for organization settings, but there might be cases where it is different.
             default_settings = jsonnet_config.default_org_config["settings"]
             included_keys = set(default_settings.keys())
+            workflow_included_keys: set[str] | None
+            if expected_org is None:
+                # no expected config to compare against (e.g. import): fetch everything
+                workflow_included_keys = None
+            else:
+                default_workflows = default_settings.get("workflows") or {}
+                workflow_included_keys = {k for k, v in default_workflows.items() if v is not None}
+                workflow_included_keys.update(_configured_keys(expected_org.settings.workflows))
             github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
-            if "workflows" in included_keys:
-                github_settings["workflows"] = await provider.get_org_workflow_settings(github_id)
+            # for import (no expected config) always fetch workflow settings, even if the
+            # default template doesn't define a "workflows" section
+            if "workflows" in included_keys or expected_org is None:
+                github_settings["workflows"] = await provider.get_org_workflow_settings(
+                    github_id, included_keys=workflow_included_keys
+                )
 
             settings = OrganizationSettings.from_provider_data(github_id, github_settings)
-
-            if "workflows" in included_keys:
-                github_org_workflow_data = await provider.get_org_workflow_settings(github_id)
-                settings.workflows = OrganizationWorkflowSettings.from_provider_data(
-                    github_id, github_org_workflow_data
-                )
 
             if "custom_properties" in included_keys:
                 github_custom_properties = await provider.get_org_custom_properties(github_id)
@@ -616,8 +704,10 @@ class GitHubOrganization:
 
         @debug_times("rulesets")
         async def _load_rulesets() -> None:
-            if jsonnet_config.default_org_ruleset_config is not None and org.settings.plan == "enterprise":
+            if jsonnet_config.default_org_ruleset_config is not None:
+                _logger.debug("loading org rulesets for org '%s' (plan=%s)", github_id, org.settings.plan)
                 github_rulesets = await provider.get_org_rulesets(github_id)
+                await _enrich_user_bypass_actors(github_rulesets, provider)
                 for ruleset in github_rulesets:
                     r = OrganizationRuleset.from_provider_data(github_id, ruleset)
 
@@ -642,12 +732,12 @@ class GitHubOrganization:
             if jsonnet_config.default_repo_config is not None:
                 async for repo in _load_repos_from_provider(
                     github_id,
-                    org.settings,
                     provider,
                     jsonnet_config,
                     app_installations,
                     concurrency,
                     repo_filter,
+                    expected_org,
                 ):
                     org.add_repository(repo)
             else:
@@ -665,15 +755,32 @@ class GitHubOrganization:
         return org
 
 
+async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: GitHubProvider) -> None:
+    user_ids = {
+        actor["actor_id"]
+        for ruleset in rulesets
+        for actor in ruleset.get("bypass_actors", [])
+        if actor.get("actor_type") == "User" and actor.get("actor_id") is not None
+    }
+    if not user_ids:
+        return
+
+    user_logins = await provider.get_user_logins(user_ids)
+    for ruleset in rulesets:
+        for actor in ruleset.get("bypass_actors", []):
+            if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
+                actor["user_login"] = user_logins[actor["actor_id"]]
+
+
 async def _process_single_repo(
     gh_client: GitHubProvider,
     github_id: str,
-    org_settings: OrganizationSettings,
     repo_name: str,
     jsonnet_config: JsonnetConfig,
     teams: dict[str, Any],
     repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
+    expected_org: GitHubOrganization | None = None,
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
@@ -682,7 +789,19 @@ async def _process_single_repo(
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
     is_private = github_repo_data.get("private", False)
-    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(github_id, repo_name, is_private=is_private)
+    expected_repo = expected_org.get_repository(repo_name) if expected_org is not None else None
+    workflow_included_keys: set[str] | None
+    if expected_org is None:
+        # no expected config to compare against (e.g. import): fetch everything
+        workflow_included_keys = None
+    else:
+        default_repo_workflows = jsonnet_config.default_repo_config.get("workflows") or {}
+        workflow_included_keys = {k for k, v in default_repo_workflows.items() if v is not None}
+        if expected_repo is not None:
+            workflow_included_keys.update(_configured_keys(expected_repo.workflows))
+    github_repo_workflow_data = await rest_api.repo.get_workflow_settings(
+        github_id, repo_name, is_private=is_private, included_keys=workflow_included_keys
+    )
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
     if repo_permissions is not None:
         repo_permission = repo_permissions.get(repo_name, [])
@@ -698,9 +817,7 @@ async def _process_single_repo(
     else:
         _logger.debug("not reading branch protection rules, no default config available")
 
-    if jsonnet_config.default_repo_ruleset_config is not None and (
-        repo.private is False or org_settings.plan == "enterprise"
-    ):
+    if jsonnet_config.default_repo_ruleset_config is not None:
         # get rulesets of the repo
         rulesets = await rest_api.repo.get_rulesets(github_id, repo_name)
         for github_ruleset in rulesets:
@@ -716,6 +833,8 @@ async def _process_single_repo(
                     actor_id = str(actor.get("actor_id", 0))
                     if actor_id in teams:
                         actor["team_slug"] = teams[actor_id]
+
+            await _enrich_user_bypass_actors([github_ruleset], gh_client)
 
             for rule in github_ruleset.get("rules", []):
                 if rule.get("type", None) == "required_status_checks":
@@ -757,7 +876,26 @@ async def _process_single_repo(
         # get environments of the repo
         environments = await rest_api.repo.get_environments(github_id, repo_name)
         for github_environment in environments:
-            repo.add_environment(Environment.from_provider_data(github_id, github_environment))
+            env = Environment.from_provider_data(github_id, github_environment)
+            env.repo_name = repo_name
+
+            if jsonnet_config.default_environment_secret_config is not None:
+                # get secrets of the environment
+                env_secrets = await rest_api.repo.get_environment_secrets(github_id, repo_name, env.name)
+                for github_secret in env_secrets:
+                    env.add_secret(EnvironmentSecret.from_provider_data(github_id, github_secret))
+            else:
+                _logger.debug("not reading environment secrets, no default config available")
+
+            if jsonnet_config.default_environment_variable_config is not None:
+                # get variables of the environment
+                env_variables = await rest_api.repo.get_environment_variables(github_id, repo_name, env.name)
+                for github_variable in env_variables:
+                    env.add_variable(EnvironmentVariable.from_provider_data(github_id, github_variable))
+            else:
+                _logger.debug("not reading environment variables, no default config available")
+
+            repo.add_environment(env)
     else:
         _logger.debug("not reading environments, no default config available")
 
@@ -792,12 +930,12 @@ def build_repo_permissions(teams: list[dict[str, Any]]) -> dict[str, list[dict[s
 
 async def _load_repos_from_provider(
     github_id: str,
-    org_settings: OrganizationSettings,
     provider: GitHubProvider,
     jsonnet_config: JsonnetConfig,
     app_installations: dict[str, str],
     concurrency: int | None = None,
     repo_filter: str | None = None,
+    expected_org: GitHubOrganization | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 
@@ -822,12 +960,12 @@ async def _load_repos_from_provider(
             return await _process_single_repo(
                 provider,
                 github_id,
-                org_settings,
                 repo_name,
                 jsonnet_config,
                 teams,
                 repo_permissions,
                 app_installations,
+                expected_org,
             )
 
     if concurrency is not None:

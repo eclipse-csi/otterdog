@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from quart import current_app, render_template
 
-from otterdog.models import LivePatch, LivePatchType
+from otterdog.models import LivePatchType
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import TaskModel
@@ -30,18 +30,24 @@ from otterdog.webapp.utils import (
 from otterdog.webapp.webhook.github_models import PullRequest, Repository
 
 if TYPE_CHECKING:
-    from otterdog.operations.diff_operation import DiffStatus
-    from otterdog.operations.validate import ValidationStatus
+    from otterdog.operations.diff_operation import DiffResult
     from otterdog.providers.github.rest import RestApi
 
 
 @dataclass
 class ValidationResult:
+    """Validation output and safety gates for applying a pull request.
+
+    Cost-related changes are tracked separately because they require designated
+    review and must not be auto-merged, even when they need no manual UI work.
+    """
+
     plan_output: str = ""
     validation_success: bool = False
     touches_non_configuration: bool = False
     requires_secrets: bool | None = None
     requires_web_ui: bool | None = None
+    cost_related: bool | None = None
     includes_deletions: bool | None = None
 
 
@@ -151,15 +157,16 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
                 printer = IndentingPrinter(output, log_level=self.log_level, output_for_github=True)
                 operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
 
-                def callback(
-                    org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-                ):
+                otterdog_config = await get_otterdog_config()
+                cost_policy = otterdog_config.cost_policy
+
+                def callback(result: DiffResult):
+                    patches = result.patches
                     validation_result.requires_secrets = any(x.requires_secrets() for x in patches)
                     validation_result.requires_web_ui = any(x.requires_web_ui() for x in patches)
+                    validation_result.cost_related = any(x.is_cost_related(cost_policy) for x in patches)
 
                     validation_result.includes_deletions = any(x.patch_type == LivePatchType.REMOVE for x in patches)
-
-                otterdog_config = await get_otterdog_config()
 
                 operation.set_callback(callback)
                 operation.init(otterdog_config, printer)
@@ -186,18 +193,21 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
 
             warnings = []
             if validation_result.requires_secrets:
-                warnings.append("some of requested changes require secrets, need to apply these changes manually")
+                warnings.append("some of the requested changes require secrets, need to apply these changes manually")
             if validation_result.requires_web_ui:
                 warnings.append(
-                    "some of requested changes require accessing the Web UI, need to apply these changes manually"
+                    "some of the requested changes require accessing the Web UI, need to apply these changes manually"
                 )
+            if validation_result.cost_related:
+                # Cost changes need review even when the change itself is API-applicable.
+                warnings.append("some of the requested changes may incur costs, need review by the designated team")
 
             comment = await render_template(
                 "comment/validation_comment.txt",
                 sha=self._pull_request.head.sha,
                 result=escape_for_github(validation_result.plan_output),
                 warnings=warnings,
-                admin_teams=get_full_admin_team_slugs(self.org_id),
+                admin_teams=await get_full_admin_team_slugs(self.org_id),
             )
 
             await self.minimize_outdated_comments(
@@ -263,16 +273,24 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             self.repo_name,
             self._pull_request,
             valid=validation_result.validation_success,
-            requires_manual_apply=validation_result.requires_secrets or validation_result.requires_web_ui,
+            requires_manual_apply=(validation_result.requires_secrets or validation_result.requires_web_ui),
             supports_auto_merge=not (
                 validation_result.requires_secrets
                 or validation_result.requires_web_ui
+                # Cost-affecting changes require explicit review before merging.
+                or validation_result.cost_related
                 or validation_result.includes_deletions
                 or validation_result.touches_non_configuration
             ),
         )
 
-        if pull_request_model.can_be_automerged():
+        if await pull_request_model.can_be_automerged():
+            self.logger.info(
+                "pull request #%d of repo '%s/%s' can be automerged, scheduling automerge task",
+                self.pull_request_number,
+                self.org_id,
+                self.repo_name,
+            )
             self.schedule_automerge_task(self.org_id, self.repo_name, self.pull_request_number)
 
     async def _get_pull_request_files(self, rest_api: RestApi) -> list[str]:

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 from asyncio import CancelledError
@@ -43,6 +44,8 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
 class GitHubProvider:
     def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
+        self._user_logins: dict[int, str] = {}
+        self._user_login_lock = asyncio.Lock()
 
         if credentials is not None:
             self._init_clients()
@@ -142,8 +145,8 @@ class GitHubProvider:
         if len(web_fields) > 0:
             await self.web_client.update_org_settings(org_id, web_fields)
 
-    async def get_org_workflow_settings(self, org_id: str) -> dict[str, Any]:
-        return await self.rest_api.org.get_workflow_settings(org_id)
+    async def get_org_workflow_settings(self, org_id: str, included_keys: set[str] | None = None) -> dict[str, Any]:
+        return await self.rest_api.org.get_workflow_settings(org_id, included_keys=included_keys)
 
     async def update_org_workflow_settings(self, org_id: str, workflow_settings: dict[str, Any]) -> None:
         await self.rest_api.org.update_workflow_settings(org_id, workflow_settings)
@@ -360,8 +363,12 @@ class GitHubProvider:
     async def delete_repo_environment(self, org_id: str, repo_name: str, env_name: str) -> None:
         await self.rest_api.repo.delete_environment(org_id, repo_name, env_name)
 
-    async def get_repo_workflow_settings(self, org_id: str, repo_name: str, is_private: bool = False) -> dict[str, Any]:
-        return await self.rest_api.repo.get_workflow_settings(org_id, repo_name, is_private=is_private)
+    async def get_repo_workflow_settings(
+        self, org_id: str, repo_name: str, is_private: bool = False, included_keys: set[str] | None = None
+    ) -> dict[str, Any]:
+        return await self.rest_api.repo.get_workflow_settings(
+            org_id, repo_name, is_private=is_private, included_keys=included_keys
+        )
 
     async def update_repo_workflow_settings(
         self, org_id: str, repo_name: str, workflow_settings: dict[str, Any], is_private: bool = False
@@ -422,6 +429,36 @@ class GitHubProvider:
     async def delete_repo_variable(self, org_id: str, repo_name: str, variable_name: str) -> None:
         await self.rest_api.repo.delete_variable(org_id, repo_name, variable_name)
 
+    async def get_environment_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_environment_secrets(org_id, repo_name, env_name)
+
+    async def update_environment_secret(
+        self, org_id: str, repo_name: str, env_name: str, secret_name: str, secret: dict[str, Any]
+    ) -> None:
+        if len(secret) > 0:
+            await self.rest_api.repo.update_environment_secret(org_id, repo_name, env_name, secret_name, secret)
+
+    async def add_environment_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_environment_secret(org_id, repo_name, env_name, data)
+
+    async def delete_environment_secret(self, org_id: str, repo_name: str, env_name: str, secret_name: str) -> None:
+        await self.rest_api.repo.delete_environment_secret(org_id, repo_name, env_name, secret_name)
+
+    async def get_environment_variables(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
+        return await self.rest_api.repo.get_environment_variables(org_id, repo_name, env_name)
+
+    async def update_environment_variable(
+        self, org_id: str, repo_name: str, env_name: str, variable_name: str, variable: dict[str, Any]
+    ) -> None:
+        if len(variable) > 0:
+            await self.rest_api.repo.update_environment_variable(org_id, repo_name, env_name, variable_name, variable)
+
+    async def add_environment_variable(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
+        await self.rest_api.repo.add_environment_variable(org_id, repo_name, env_name, data)
+
+    async def delete_environment_variable(self, org_id: str, repo_name: str, env_name: str, variable_name: str) -> None:
+        await self.rest_api.repo.delete_environment_variable(org_id, repo_name, env_name, variable_name)
+
     async def get_team_permissions(self, org_id: str) -> list[dict[str, Any]]:
         return await self.graphql_client.get_team_permissions(org_id)
 
@@ -478,6 +515,17 @@ class GitHubProvider:
 
     async def get_app_ids(self, app_names: set[str]) -> dict[str, str]:
         return {app_name: (await self.rest_api.app.get_app_ids(app_name))[0] for app_name in app_names}
+
+    async def get_user_logins(self, user_ids: set[int]) -> dict[int, str]:
+        async with self._user_login_lock:
+            missing_user_ids = user_ids - self._user_logins.keys()
+            for user_id in missing_user_ids:
+                try:
+                    self._user_logins[user_id] = await self.rest_api.user.get_user_login(user_id)
+                except RuntimeError as ex:
+                    _logger.warning("failed to resolve login for user id '%s': %s", user_id, ex)
+
+        return {user_id: self._user_logins[user_id] for user_id in user_ids if user_id in self._user_logins}
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return await self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)

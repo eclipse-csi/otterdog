@@ -90,7 +90,7 @@ class TestRepository:
         assert provider_data.get("description") is None
         assert provider_data["immutable_releases_enabled"] is True
 
-        assert query_json("security_and_analysis.secret_scanning.status", provider_data) or "" == "enabled"
+        assert (query_json("security_and_analysis.secret_scanning.status", provider_data) or "") == "enabled"
 
     async def test_changes_to_provider(self, repository_test):
         current = Repository.from_model_data(repository_test.model_data)
@@ -106,7 +106,7 @@ class TestRepository:
         assert len(provider_data) == 3
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data["has_wiki"] is True
-        assert query_json("security_and_analysis.secret_scanning.status", provider_data) or "" == "enabled"
+        assert (query_json("security_and_analysis.secret_scanning.status", provider_data) or "") == "enabled"
 
     def test_patch(self, repository_test):
         current = Repository.from_model_data(repository_test.model_data)

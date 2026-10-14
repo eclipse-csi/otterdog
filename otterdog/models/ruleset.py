@@ -48,11 +48,18 @@ _logger = get_logger(__name__)
 
 @dataclasses.dataclass
 class PullRequestSettings(EmbeddedModelObject):
+    VALID_MERGE_METHODS: ClassVar[list[str]] = ["merge", "squash", "rebase"]
+
     required_approving_review_count: int
-    dismisses_stale_reviews: bool
-    requires_code_owner_review: bool
-    requires_last_push_approval: bool
-    requires_review_thread_resolution: bool
+    dismisses_stale_reviews: bool = dataclasses.field(default=False)
+    requires_code_owner_review: bool = dataclasses.field(default=False)
+    requires_last_push_approval: bool = dataclasses.field(default=False)
+    requires_review_thread_resolution: bool = dataclasses.field(default=False)
+    # GitHub's default when the parameter is omitted: all three methods allowed.
+    # As it is usually narrowed, it replaces its default in a patch instead of extending it.
+    allowed_merge_methods: list[str] = dataclasses.field(
+        default_factory=VALID_MERGE_METHODS.copy, metadata={"replace_on_patch": True}
+    )
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         for key in self.keys(False):
@@ -73,6 +80,23 @@ class PullRequestSettings(EmbeddedModelObject):
                     f"'{self.required_approving_review_count}' while only integers in the range [0, 10] are allowed.",
                 )
 
+        if is_set_and_valid(self.allowed_merge_methods):
+            if len(self.allowed_merge_methods) == 0:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header(parent_object)} has an empty "
+                    f"'required_pull_request.allowed_merge_methods' while at least one merge method must be allowed.",
+                )
+
+            for method in self.allowed_merge_methods:
+                if method not in self.VALID_MERGE_METHODS:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{parent_object.get_model_header(parent_object)} has "
+                        f"'required_pull_request.allowed_merge_methods' containing value '{method}' "
+                        f"while only values in {self.VALID_MERGE_METHODS} are allowed.",
+                    )
+
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_pull_request}"
 
@@ -87,6 +111,7 @@ class PullRequestSettings(EmbeddedModelObject):
                 "requires_code_owner_review": OptionalS("require_code_owner_review", default=UNSET),
                 "requires_last_push_approval": OptionalS("require_last_push_approval", default=UNSET),
                 "requires_review_thread_resolution": OptionalS("required_review_thread_resolution", default=UNSET),
+                "allowed_merge_methods": OptionalS("allowed_merge_methods", default=UNSET),
             }
         )
 
@@ -181,7 +206,7 @@ class StatusCheckSettings(EmbeddedModelObject):
                     if ":" in check:
                         app_slug, _context = re.split(":", check, maxsplit=1)
 
-                        if app_slug != "any" and " " not in app_slug:
+                        if app_slug != "any" and " " not in app_slug and not app_slug.isdigit():
                             app_slugs.add(app_slug)
 
                 return await provider.get_app_ids(app_slugs)
@@ -205,6 +230,8 @@ class StatusCheckSettings(EmbeddedModelObject):
 
             if app_slug is None:
                 return {"context": context}
+            elif app_slug.isdigit():
+                return {"integration_id": int(app_slug), "context": context}
             else:
                 return {"integration_id": app_ids[app_slug], "context": context}
 
@@ -359,7 +386,6 @@ class Ruleset(ModelObject, abc.ABC):
     _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-
         org_settings = cast("GitHubOrganization", context.root_object).settings
 
         if is_set_and_valid(self.target):
@@ -450,6 +476,9 @@ class Ruleset(ModelObject, abc.ABC):
         if is_set_and_present(self.required_pull_request):
             self.required_pull_request.validate(context, parent_object)
 
+        if is_set_and_present(self.required_status_checks):
+            self.required_status_checks.validate(context, parent_object)
+
         if is_set_and_present(self.required_merge_queue):
             self.required_merge_queue.validate(context, parent_object)
 
@@ -495,12 +524,16 @@ class Ruleset(ModelObject, abc.ABC):
 
         mapping.update(
             {
-                "include_refs": OptionalS("conditions", "ref_name", "include", default=[]),
-                "exclude_refs": OptionalS("conditions", "ref_name", "exclude", default=[]),
+                # GitHub can return a disabled ruleset with conditions=null, leaving the nested ref paths absent.
+                # Normalize absent/null filters to lists so live data can be compared with configured refs.
+                "include_refs": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("ref_name") or {}).get("include") or []),
+                "exclude_refs": OptionalS("conditions", default={})
+                >> F(lambda conditions: ((conditions or {}).get("ref_name") or {}).get("exclude") or []),
             }
         )
 
-        rules = data.get("rules", [])
+        rules = data.get("rules") or []
 
         def check_simple_rule(prop_key: str, rule_type: str, value_if_rule_is_present: bool) -> None:
             if any((_ := rule) for rule in rules if rule["type"] == rule_type):
@@ -537,6 +570,12 @@ class Ruleset(ModelObject, abc.ABC):
                         _logger.warning("fail to map team actor '%s', skipping", actor.get("actor_id", "unknown"))
                         continue
                     transformed_actor = f"@{team_slug}"
+                elif actor_type == "User":
+                    user_login = actor.get("user_login")
+                    if user_login is None:
+                        _logger.warning("fail to map user actor '%s', skipping", actor.get("actor_id", "unknown"))
+                        continue
+                    transformed_actor = f"@{user_login}"
                 elif actor_type == "Integration":
                     app_slug = actor.get("app_slug")
                     if app_slug is None:
@@ -561,14 +600,14 @@ class Ruleset(ModelObject, abc.ABC):
 
         # required pull request
         if any((found := rule) for rule in rules if rule["type"] == "pull_request"):
-            parameters = found.get("parameters", {})
+            parameters = found.get("parameters") or {}
             mapping["required_pull_request"] = K(PullRequestSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_pull_request"] = K(None)
 
         # required status checks
         if any((found := rule) for rule in rules if rule["type"] == "required_status_checks"):
-            parameters = found.get("parameters", {})
+            parameters = found.get("parameters") or {}
             mapping["required_status_checks"] = K(StatusCheckSettings.from_provider_data(org_id, parameters))
         else:
             mapping["required_status_checks"] = K(None)
@@ -576,7 +615,7 @@ class Ruleset(ModelObject, abc.ABC):
         # required deployments
         if any((found := rule) for rule in rules if rule["type"] == "required_deployments"):
             mapping["requires_deployments"] = K(True)
-            deployment_environments = found.get("parameters", {}).get("required_deployment_environments", [])
+            deployment_environments = (found.get("parameters") or {}).get("required_deployment_environments", [])
             mapping["required_deployment_environments"] = K(deployment_environments)
         else:
             mapping["requires_deployments"] = K(False)
@@ -584,7 +623,7 @@ class Ruleset(ModelObject, abc.ABC):
 
         # required merge queue
         if any((found := rule) for rule in rules if rule["type"] == "merge_queue"):
-            merge_queue_parameters = found.get("parameters", {})
+            merge_queue_parameters = found.get("parameters") or {}
             mapping["required_merge_queue"] = K(MergeQueueSettings.from_provider_data(org_id, merge_queue_parameters))
         else:
             mapping["required_merge_queue"] = K(None)
@@ -639,9 +678,13 @@ class Ruleset(ModelObject, abc.ABC):
                     if actor_id == "1":
                         actor_type = "OrganizationAdmin"
                 elif actor.startswith("@"):
-                    team, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
-                    actor_type = "Team"
-                    actor_id = (await provider.rest_api.team.get_team_ids(team))[0]
+                    actor_name, bypass_mode = extract_actor_and_bypass_mode(actor[1:])
+                    if "/" in actor_name:
+                        actor_type = "Team"
+                        actor_id = (await provider.rest_api.team.get_team_ids(actor_name))[0]
+                    else:
+                        actor_type = "User"
+                        actor_id = (await provider.rest_api.user.get_user_ids(actor_name))[0]
                 else:
                     app, bypass_mode = extract_actor_and_bypass_mode(actor)
                     actor_type = "Integration"
@@ -778,7 +821,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_pull_request_config = cast("Ruleset", default_object).required_pull_request
             if default_pull_request_config is None:
                 default_pull_request_config = PullRequestSettings.from_model_data(
-                    jsonnet_config.default_pull_request_config
+                    jsonnet_config.default_pull_request_config or {}
                 )
                 embedded_extend = False
             else:
@@ -800,7 +843,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_merge_queue_config = cast("Ruleset", default_object).required_merge_queue
             if default_merge_queue_config is None:
                 default_merge_queue_config = MergeQueueSettings.from_model_data(
-                    jsonnet_config.default_merge_queue_config
+                    jsonnet_config.default_merge_queue_config or {}
                 )
                 embedded_extend = False
             else:
@@ -822,7 +865,7 @@ class Ruleset(ModelObject, abc.ABC):
             default_status_check_config = cast("Ruleset", default_object).required_status_checks
             if default_status_check_config is None:
                 default_status_check_config = StatusCheckSettings.from_model_data(
-                    jsonnet_config.default_status_checks_config
+                    jsonnet_config.default_status_checks_config or {}
                 )
                 embedded_extend = False
             else:

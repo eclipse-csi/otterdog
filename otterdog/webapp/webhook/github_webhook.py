@@ -74,7 +74,10 @@ class GitHubWebhook:
         if not isinstance(digest, str):
             digest = str(digest)
 
+        delivery_id = request.headers.get("X-Github-Delivery")
+
         if len(sig_parts) < 2 or sig_parts[0] != "sha1" or not hmac.compare_digest(sig_parts[1], digest):
+            self._logger.warning("rejecting webhook delivery %s: invalid signature", delivery_id)
             abort(400, "Invalid signature")
 
         event_type = _get_header("X-Github-Event")
@@ -85,22 +88,63 @@ class GitHubWebhook:
         elif content_type == "application/json":
             data = await request.get_json()
         else:
+            self._logger.warning(
+                "rejecting webhook delivery %s for event '%s': unknown content type '%s'",
+                delivery_id,
+                event_type,
+                content_type,
+            )
             abort(415, f"Unknown content type {content_type}")
 
         if data is None:
+            self._logger.warning("rejecting webhook delivery %s for event '%s': empty body", delivery_id, event_type)
             abort(400, "Request body must contain data")
 
         if _log_event(event_type, data):
-            self._logger.info(
-                "%s (%s)",
-                _format_event(event_type, data),
-                _get_header("X-Github-Delivery"),
-            )
+            self._logger.info("%s (%s)", self._format_event(event_type, data, delivery_id), delivery_id)
 
         for hook in self._hooks.get(event_type, []):
-            await hook(data)
+            try:
+                await hook(data)
+            except Exception:
+                # the traceback is logged by quart when the exception is propagated,
+                # add the context of the event it relates to
+                self._logger.error(
+                    "failed to process webhook delivery %s for event '%s' in hook '%s': %s",
+                    delivery_id,
+                    event_type,
+                    getattr(hook, "__qualname__", repr(hook)),
+                    _describe_event(data),
+                )
+                raise
 
         return "", 204
+
+    def _format_event(self, event_type, data, delivery_id) -> str:
+        """
+        Returns a human readable description of an event, used for logging purposes only.
+
+        Formatting must never prevent an event from being processed: payloads can lack fields
+        used by the description or contain null values for them.
+        """
+        description = EVENT_DESCRIPTIONS.get(event_type)
+        if description is None:
+            return event_type
+
+        try:
+            return description.format(**data)
+        except (KeyError, IndexError, TypeError, AttributeError, ValueError) as ex:
+            # missing fields are expected for some events, anything else hints at an unexpected payload
+            self._logger.log(
+                logging.DEBUG if isinstance(ex, KeyError) else logging.WARNING,
+                "could not format webhook delivery %s for event '%s' (%s: %s): %s",
+                delivery_id,
+                event_type,
+                type(ex).__name__,
+                ex,
+                _describe_event(data),
+            )
+            return event_type
 
 
 def _get_header(key):
@@ -117,7 +161,7 @@ EVENT_DESCRIPTIONS = {
     "create": "{sender[login]} created {ref_type} ({ref}) in {repository[full_name]}",
     "delete": "{sender[login]} deleted {ref_type} ({ref}) in {repository[full_name]}",
     "deployment": "{sender[login]} deployed {deployment[ref]} to {deployment[environment]} in {repository[full_name]}",
-    "deployment_status": "deployment of {deployement[ref]} to "
+    "deployment_status": "deployment of {deployment[ref]} to "
     "{deployment[environment]} "
     "{deployment_status[state]} in "
     "{repository[full_name]}",
@@ -162,8 +206,21 @@ def _log_event(event_type, data) -> bool:
     return event_filter(data)
 
 
-def _format_event(event_type, data):
-    try:
-        return EVENT_DESCRIPTIONS[event_type].format(**data)
-    except KeyError:
-        return event_type
+def _describe_event(data) -> str:
+    """Returns a short summary of an event payload to help debugging, without dumping the whole payload."""
+    if not isinstance(data, dict):
+        return f"payload of type '{type(data).__name__}'"
+
+    def _get(*keys):
+        value = data
+        for key in keys:
+            if not isinstance(value, dict):
+                return None
+            value = value.get(key)
+        return value
+
+    return (
+        f"action={_get('action')!r}, repository={_get('repository', 'full_name')!r}, "
+        f"sender={_get('sender', 'login')!r}, installation={_get('installation', 'id')!r}, "
+        f"null fields={sorted(key for key, value in data.items() if value is None)}"
+    )

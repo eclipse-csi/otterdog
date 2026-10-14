@@ -7,12 +7,19 @@
 #  *******************************************************************************
 
 import logging
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
 from jsonbender import bend
+from pretend import stub
 
-from otterdog.models.ruleset import Ruleset
+from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import FailureType, ValidationContext
+from otterdog.models.organization_ruleset import OrganizationRuleset
+from otterdog.models.repo_ruleset import RepositoryRuleset
+from otterdog.models.ruleset import PullRequestSettings, Ruleset, StatusCheckSettings
+from otterdog.utils import Change, IndentingPrinter
 
 
 class TestRuleset:
@@ -72,10 +79,22 @@ class TestRuleset:
                         "app_slug": "github-actions",
                         "bypass_mode": "pull_request",
                     },
+                    {
+                        "actor_type": "User",
+                        "actor_id": 321,
+                        "user_login": "alice",
+                        "bypass_mode": "pull_request",
+                    },
                     {"actor_type": "OrganizationAdmin", "actor_id": 0, "bypass_mode": "always"},
                     {"actor_type": "RepositoryRole", "actor_id": 1, "bypass_mode": "always"},
                 ],
-                ["@test-org/dev-team", "github-actions:pull_request", "#OrganizationAdmin", "#maintain"],
+                [
+                    "@test-org/dev-team",
+                    "github-actions:pull_request",
+                    "@alice:pull_request",
+                    "#OrganizationAdmin",
+                    "#maintain",
+                ],
                 [],
             ),
             (
@@ -204,6 +223,155 @@ class TestRuleset:
 
         assert bypass_actors_result == [], "Missing bypass_actors key should default to empty list"
 
+    def test_get_mapping_from_provider_user_without_login_is_skipped(self):
+        data = self.create_ruleset_data(
+            [
+                {"actor_type": "User", "actor_id": 321, "bypass_mode": "always"},
+                {"actor_type": "User", "actor_id": 123, "user_login": "alice", "bypass_mode": "always"},
+            ]
+        )
+
+        mapping = Ruleset.get_mapping_from_provider(self.org_id, data)
+
+        assert bend(mapping, data)["bypass_actors"] == ["@alice"]
+
+    @staticmethod
+    def _successful_actor_provider():
+        user_calls = []
+        team_calls = []
+        app_calls = []
+
+        async def get_user_ids(_login):
+            user_calls.append(_login)
+            return 321, "user-node-id"
+
+        async def get_team_ids(_slug):
+            team_calls.append(_slug)
+            return 456, "team-node-id"
+
+        async def get_app_ids(_slug):
+            app_calls.append(_slug)
+            return 999, "app-node-id"
+
+        return (
+            stub(
+                rest_api=stub(
+                    user=stub(get_user_ids=get_user_ids),
+                    team=stub(get_team_ids=get_team_ids),
+                    app=stub(get_app_ids=get_app_ids),
+                )
+            ),
+            user_calls,
+            team_calls,
+            app_calls,
+        )
+
+    @pytest.mark.parametrize(
+        "actor,expected_type,expected_id,expected_mode",
+        [
+            ("@alice", "User", 321, "always"),
+            ("@alice:pull_request", "User", 321, "pull_request"),
+            ("@acme/backend", "Team", 456, "always"),
+            ("dependabot", "Integration", 999, "always"),
+        ],
+    )
+    async def test_get_mapping_to_provider_bypass_actor(self, actor, expected_type, expected_id, expected_mode):
+        provider, user_calls, team_calls, app_calls = self._successful_actor_provider()
+        mapping = await Ruleset.get_mapping_to_provider("test-org", {"bypass_actors": [actor]}, provider)
+
+        if actor.startswith("@alice"):
+            assert user_calls == ["alice"]
+        elif actor.startswith("@acme/backend"):
+            assert team_calls == ["acme/backend"]
+        else:
+            assert app_calls == ["dependabot"]
+
+        assert bend(mapping, {"bypass_actors": [actor]})["bypass_actors"] == [
+            {"actor_id": expected_id, "actor_type": expected_type, "bypass_mode": expected_mode}
+        ]
+
+    async def test_get_mapping_to_provider_mixed_bypass_actors(self):
+        provider, _user_calls, _team_calls, _app_calls = self._successful_actor_provider()
+        data = {"bypass_actors": ["#Maintain", "@acme/backend:pull_request", "@alice", "dependabot"]}
+
+        with patch.object(Ruleset, "_roles", self.roles):
+            mapping = await Ruleset.get_mapping_to_provider("test-org", data, provider)
+
+        assert bend(mapping, data)["bypass_actors"] == [
+            {"actor_id": 2, "actor_type": "RepositoryRole", "bypass_mode": "always"},
+            {"actor_id": 456, "actor_type": "Team", "bypass_mode": "pull_request"},
+            {"actor_id": 321, "actor_type": "User", "bypass_mode": "always"},
+            {"actor_id": 999, "actor_type": "Integration", "bypass_mode": "always"},
+        ]
+
+    async def test_get_mapping_to_provider_unresolved_user_fails(self):
+        async def get_user_ids(login):
+            raise RuntimeError("user not found")
+
+        provider = stub(rest_api=stub(user=stub(get_user_ids=get_user_ids)))
+
+        with pytest.raises(RuntimeError, match="user not found"):
+            await Ruleset.get_mapping_to_provider("test-org", {"bypass_actors": ["@alice"]}, provider)
+
+    @pytest.mark.parametrize(
+        "conditions,remove_conditions",
+        [
+            # GitHub may return null at any level or omit the conditions key altogether.
+            (None, False),
+            ({"ref_name": None}, False),
+            ({"ref_name": {"include": None, "exclude": None}}, False),
+            (None, True),
+        ],
+        ids=["null_conditions", "null_ref_name", "null_ref_lists", "missing_conditions"],
+    )
+    def test_disabled_ruleset_with_null_ref_conditions_can_be_diffed(self, conditions, remove_conditions):
+        """Disabled ruleset responses can omit ref conditions at any level; treat them as empty when diffing config."""
+        data = self.create_ruleset_data([])
+        data["enforcement"] = "disabled"
+        if remove_conditions:
+            data.pop("conditions")
+        else:
+            data["conditions"] = conditions
+
+        live_ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+        expected_ruleset = RepositoryRuleset.from_model_data(
+            {
+                "name": "test-ruleset",
+                "target": "branch",
+                "enforcement": "disabled",
+                "include_refs": ["refs/heads/main"],
+            }
+        )
+
+        assert live_ruleset.include_refs == []
+        assert live_ruleset.exclude_refs == []
+        assert expected_ruleset.get_difference_from(live_ruleset)["include_refs"] == Change([], ["refs/heads/main"])
+
+    @pytest.mark.parametrize(
+        "conditions,remove_conditions",
+        [
+            (None, False),
+            ({"repository_name": None}, False),
+            ({"repository_name": {"include": None, "exclude": None, "protected": None}}, False),
+            (None, True),
+        ],
+        ids=["null_conditions", "null_repository_name", "null_repository_name_filters", "missing_conditions"],
+    )
+    def test_disabled_org_ruleset_with_null_conditions_can_be_loaded(self, conditions, remove_conditions):
+        """Organization rulesets must tolerate missing or null repository-name conditions."""
+        data = self.create_ruleset_data([])
+        data["enforcement"] = "disabled"
+        if remove_conditions:
+            data.pop("conditions")
+        else:
+            data["conditions"] = conditions
+
+        live_ruleset = OrganizationRuleset.from_provider_data(self.org_id, data)
+
+        assert live_ruleset.include_repo_names == []
+        assert live_ruleset.exclude_repo_names == []
+        assert live_ruleset.protect_repo_names is False
+
     def test_get_mapping_from_provider_with_rules(self):
         data = {
             "id": 123,
@@ -317,3 +485,298 @@ class TestRuleset:
         result = bend(mapping, data)
 
         assert result["required_merge_queue"] is not None
+
+
+class TestStatusCheckSettings:
+    def make_provider(self, app_ids: dict[str, int] | None = None):
+        async def get_app_ids(app_slugs):
+            return {slug: app_ids[slug] for slug in app_slugs}
+
+        return stub(get_app_ids=get_app_ids)
+
+    async def test_get_mapping_to_provider_numeric_integration_id(self):
+        # a status check reported only by integration_id (no app_slug) is imported
+        # as a bare numeric token, e.g. "15368:Test Summary"; apply must use it
+        # directly instead of resolving it as an app slug via GET /apps/{id}.
+        data = {"status_checks": ["15368:Test Summary"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 15368, "context": "Test Summary"}]
+
+    async def test_get_mapping_to_provider_app_slug(self):
+        data = {"status_checks": ["github-actions:build"], "strict": True}
+        provider = self.make_provider(app_ids={"github-actions": 123})
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"integration_id": 123, "context": "build"}]
+
+    async def test_get_mapping_to_provider_any(self):
+        data = {"status_checks": ["any:build"], "strict": True}
+        provider = self.make_provider()
+
+        mapping = await StatusCheckSettings.get_mapping_to_provider("test-org", data, provider)
+        result = bend(mapping, data)
+
+        assert result["required_status_checks"] == [{"context": "build"}]
+
+
+class TestRulesetValidation:
+    def create_ruleset(self, required_status_checks) -> RepositoryRuleset:
+        return RepositoryRuleset.from_model_data(
+            {
+                "name": "main",
+                "enforcement": "active",
+                "target": "branch",
+                "include_refs": ["~DEFAULT_BRANCH"],
+                "exclude_refs": [],
+                "bypass_actors": [],
+                "requires_deployments": False,
+                "required_deployment_environments": [],
+                "required_status_checks": required_status_checks,
+            }
+        )
+
+    def validate(self, ruleset: RepositoryRuleset) -> list[str]:
+        context = ValidationContext(
+            root_object=stub(settings=stub(plan="free")),
+            secret_resolver=stub(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+        repository = stub(get_model_header=lambda _: 'repository[name="test-repo"]')
+
+        ruleset.validate(context, repository)
+
+        return [message for failure_type, message in context.validation_failures if failure_type == FailureType.ERROR]
+
+    def test_validate_required_status_checks_without_strict(self):
+        # a ruleset extended with 'required_status_checks+:' without being based on
+        # orgs.newRepoRuleset does not set 'strict', which used to fail only at apply time.
+        ruleset = self.create_ruleset({"status_checks": ["check-approvals"]})
+
+        errors = self.validate(ruleset)
+
+        assert len(errors) == 1
+        assert "has not set required parameter 'required_status_checks.strict'" in errors[0]
+
+    def test_validate_required_status_checks_with_strict(self):
+        ruleset = self.create_ruleset(
+            {"do_not_enforce_on_create": False, "strict": False, "status_checks": ["check-approvals"]}
+        )
+
+        assert self.validate(ruleset) == []
+
+    def test_validate_without_required_status_checks(self):
+        ruleset = self.create_ruleset(None)
+
+        assert self.validate(ruleset) == []
+
+
+class TestPullRequestSettings:
+    org_id = "test-org"
+
+    def create_ruleset_data_with_pull_request_rule(self, parameters):
+        return {
+            "id": 123,
+            "name": "test-ruleset",
+            "enforcement": "active",
+            "target": "branch",
+            "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
+            "bypass_actors": [],
+            "rules": [{"type": "pull_request", "parameters": parameters}],
+        }
+
+    def make_validation_context(self):
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+
+        return ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+
+    def test_from_provider_reads_allowed_merge_methods(self):
+        data = self.create_ruleset_data_with_pull_request_rule(
+            {
+                "required_approving_review_count": 1,
+                "dismiss_stale_reviews_on_push": False,
+                "require_code_owner_review": False,
+                "require_last_push_approval": False,
+                "required_review_thread_resolution": True,
+                "allowed_merge_methods": ["merge"],
+            }
+        )
+
+        ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+
+        assert ruleset.required_pull_request is not None
+        assert ruleset.required_pull_request.allowed_merge_methods == ["merge"]
+
+    def test_from_provider_defaults_to_all_merge_methods_when_absent(self):
+        # Older provider payloads may omit the parameter; GitHub treats an
+        # omitted parameter as "all methods allowed".
+        data = self.create_ruleset_data_with_pull_request_rule(
+            {
+                "required_approving_review_count": 1,
+                "dismiss_stale_reviews_on_push": False,
+                "require_code_owner_review": False,
+                "require_last_push_approval": False,
+                "required_review_thread_resolution": True,
+            }
+        )
+
+        ruleset = RepositoryRuleset.from_provider_data(self.org_id, data)
+
+        assert ruleset.required_pull_request is not None
+        assert ruleset.required_pull_request.allowed_merge_methods == ["merge", "squash", "rebase"]
+
+    def test_from_model_defaults_to_all_merge_methods_when_omitted(self):
+        # A jsonnet template predating the parameter must keep validating and
+        # write GitHub's default, so declaring nothing changes nothing.
+        settings = PullRequestSettings.from_model_data({"required_approving_review_count": 0})
+
+        assert settings.allowed_merge_methods == ["merge", "squash", "rebase"]
+
+    async def test_get_mapping_to_provider_includes_allowed_merge_methods(self):
+        data = {
+            "required_approving_review_count": 0,
+            "dismisses_stale_reviews": False,
+            "requires_code_owner_review": False,
+            "requires_last_push_approval": False,
+            "requires_review_thread_resolution": True,
+            "allowed_merge_methods": ["merge"],
+        }
+
+        mapping = await PullRequestSettings.get_mapping_to_provider(self.org_id, data, stub())
+        result = bend(mapping, data)
+
+        assert result["allowed_merge_methods"] == ["merge"]
+        assert result["required_review_thread_resolution"] is True
+
+    @pytest.mark.parametrize(
+        "allowed_merge_methods,expected_failures",
+        [
+            (["merge"], 0),
+            (["merge", "squash", "rebase"], 0),
+            ([], 1),
+            (["fast-forward"], 1),
+            (["merge", "fast-forward", "octopus"], 2),
+        ],
+        ids=["single_method", "all_methods", "empty_list", "unknown_method", "mixed_valid_invalid"],
+    )
+    def test_validate_allowed_merge_methods(self, allowed_merge_methods, expected_failures):
+        settings = PullRequestSettings.from_model_data(
+            {
+                "required_approving_review_count": 0,
+                "allowed_merge_methods": allowed_merge_methods,
+            }
+        )
+        context = self.make_validation_context()
+        parent = stub(get_model_header=lambda parent_object: 'repo_ruleset[name="test-ruleset"]')
+
+        settings.validate(context, parent)
+
+        assert len(context.validation_failures) == expected_failures
+
+    def create_live_ruleset(self, allowed_merge_methods) -> RepositoryRuleset:
+        return RepositoryRuleset.from_provider_data(
+            self.org_id,
+            self.create_ruleset_data_with_pull_request_rule(
+                {
+                    "required_approving_review_count": 1,
+                    "dismiss_stale_reviews_on_push": False,
+                    "require_code_owner_review": False,
+                    "require_last_push_approval": False,
+                    "required_review_thread_resolution": False,
+                    "allowed_merge_methods": allowed_merge_methods,
+                }
+            ),
+        )
+
+    def create_configured_ruleset(self, required_pull_request) -> RepositoryRuleset:
+        return RepositoryRuleset.from_model_data(
+            {
+                "name": "test-ruleset",
+                "enforcement": "active",
+                "target": "branch",
+                "include_refs": ["refs/heads/main"],
+                "exclude_refs": [],
+                "bypass_actors": [],
+                "requires_deployments": False,
+                "required_deployment_environments": [],
+                "required_pull_request": required_pull_request,
+            }
+        )
+
+    def test_diff_reports_narrowed_live_allowed_merge_methods(self):
+        # a configuration predating the parameter against a live ruleset narrowed by hand
+        expected = self.create_configured_ruleset({"required_approving_review_count": 1})
+        current = self.create_live_ruleset(["merge"])
+
+        diff = expected.get_difference_from(current)
+
+        assert "required_pull_request" in diff
+        assert diff["required_pull_request"].from_value["allowed_merge_methods"] == ["merge"]
+        assert diff["required_pull_request"].to_value["allowed_merge_methods"] == ["merge", "squash", "rebase"]
+
+    def test_diff_ignores_order_of_allowed_merge_methods(self):
+        expected = self.create_configured_ruleset(
+            {"required_approving_review_count": 1, "allowed_merge_methods": ["squash", "merge"]}
+        )
+        current = self.create_live_ruleset(["merge", "squash"])
+
+        diff = expected.get_difference_from(current)
+
+        assert "required_pull_request" not in diff
+
+    @pytest.mark.parametrize(
+        "allowed_merge_methods,default_merge_methods,expected_patch",
+        [
+            (["merge"], ["merge", "squash", "rebase"], {"allowed_merge_methods": ["merge"]}),
+            (["merge"], ["squash"], {"allowed_merge_methods": ["merge"]}),
+            (["merge", "squash"], ["squash"], {"allowed_merge_methods": ["merge", "squash"]}),
+            (["rebase", "squash", "merge"], ["merge", "squash", "rebase"], {}),
+        ],
+        ids=["narrowed", "disjoint", "widened", "same_methods_in_other_order"],
+    )
+    def test_get_patch_to_replaces_allowed_merge_methods(
+        self, allowed_merge_methods, default_merge_methods, expected_patch
+    ):
+        # the patch must hold the whole list: the items missing from the default
+        # cannot express a value that narrows it.
+        settings = PullRequestSettings.from_model_data(
+            {"required_approving_review_count": 0, "allowed_merge_methods": allowed_merge_methods}
+        )
+        default = PullRequestSettings.from_model_data(
+            {"required_approving_review_count": 0, "allowed_merge_methods": default_merge_methods}
+        )
+
+        assert settings.get_patch_to(default) == expected_patch
+
+    def test_to_jsonnet_replaces_default_allowed_merge_methods(self):
+        # 'otterdog import' of a narrowed ruleset must not append to the default
+        # ('allowed_merge_methods+:'), which would widen it again on the next apply.
+        current = self.create_live_ruleset(["merge"])
+        default = self.create_configured_ruleset({"required_approving_review_count": 1})
+        jsonnet_config = stub(
+            create_repo_ruleset=JsonnetConfig.create_repo_ruleset,
+            create_pull_request=JsonnetConfig.create_pull_request,
+        )
+        output = StringIO()
+
+        current.to_jsonnet(IndentingPrinter(output), jsonnet_config, stub(), False, default)
+
+        jsonnet = output.getvalue()
+        assert "required_pull_request+:" in jsonnet
+        assert "allowed_merge_methods: [" in jsonnet
+        assert "allowed_merge_methods+:" not in jsonnet

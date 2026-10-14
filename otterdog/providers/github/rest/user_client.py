@@ -26,3 +26,12 @@ class UserClient(RestClient):
             return response["id"], response["node_id"]
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving user node id:\n{ex}") from ex
+
+    async def get_user_login(self, account_id: int) -> str:
+        _logger.debug("retrieving user login for user id '%s'", account_id)
+
+        try:
+            response = await self.requester.request_json("GET", f"/user/{account_id}")
+            return response["login"]
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving user login:\n{ex}") from ex

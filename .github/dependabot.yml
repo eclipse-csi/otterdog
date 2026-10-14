@@ -1,5 +1,20 @@
 version: 2
 updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    versioning-strategy: "increase"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    cooldown:
+      default-days: 7
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -8,5 +23,24 @@ updates:
       github-actions:
         patterns:
           - "*"
+    ignore:
+      # gh-aw lock files are generated: update them with `gh aw compile`, not Dependabot
+      - dependency-name: "github/gh-aw-actions/*" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/otterdog/webapp/static"
+    versioning-strategy: "increase"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  # the base images of the Dockerfile are pinned by tag and digest, keep both up to date
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
     cooldown:
       default-days: 7

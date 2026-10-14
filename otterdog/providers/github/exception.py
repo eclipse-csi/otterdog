@@ -29,6 +29,22 @@ class GitHubException(Exception):
         return f"Exception while accessing '{self.url}': (status={self.status}, body={self.data})"
 
 
+class RateLimitExceededException(Exception):
+    """Raised when github refuses a request because the rate limit of the caller is exhausted."""
+
+    def __init__(self, message: str, reset_at: str | None = None):
+        self.__message = message
+        self.__reset_at = reset_at
+
+    @property
+    def reset_at(self) -> str | None:
+        return self.__reset_at
+
+    def __str__(self):
+        suffix = f", resets at {self.reset_at}" if self.reset_at is not None else ""
+        return f"{self.__message}{suffix}"
+
+
 class BadCredentialsException(Exception):
     def __init__(self, url: str, message: str):
         self.__url = url

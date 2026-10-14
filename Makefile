@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -33,7 +33,8 @@ endif
 	poetry sync
 	poetry run python -m playwright install firefox
 
-	test -f $(OTTERDOG_LINK) || ln -s $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK)
+	@[ "$$(readlink -f $(OTTERDOG_LINK) 2>/dev/null)" = "$(OTTERDOG_SCRIPT)" ] \
+		|| { ln -sf $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK); echo "Updated symlink: $(OTTERDOG_LINK) -> $(OTTERDOG_SCRIPT)"; }
 
 test:  ## Run tests with coverage
 	poetry run pytest -rs tests --cov=otterdog --cov-report=term --cov-report=html
@@ -70,15 +71,37 @@ init-minikube:
 		fi; \
 	fi
 
-dev-webapp:  ## Run full stack development (includes webapp)
-	$(MAKE) init-minikube
+dev-webapp: init-minikube clean-ingress-finalizers ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev
+	skaffold dev --filename=dev/skaffold.yaml --profile dev --cleanup=false
 
-dev-webapp-tunnel:  ## Run full stack development (includes webapp)
-	$(MAKE) init-minikube
+clean-ingress-finalizers:  ## Remove finalizers from stuck ingress objects and wait for namespace deletion
+	@if kubectl get namespace otterdog -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Terminating; then \
+	  echo "Namespace otterdog stuck in Terminating, cleaning up..."; \
+	  kubectl get ingress -n otterdog -o name 2>/dev/null | \
+	    xargs --no-run-if-empty -I{} kubectl patch {} -n otterdog \
+	    -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true; \
+	  kubectl wait --for=delete namespace/otterdog --timeout=30s 2>/dev/null || true; \
+	fi
+
+clean-tailscale-proxies:  ## Delete stale tailscale proxy StatefulSets
+	@kubectl delete statefulsets -n tailscale --all --ignore-not-found 2>/dev/null || true
+
+dev-webapp-tunnel: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel --cleanup=false
+
+dev-webapp-tunnel-local: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-local --cleanup=false
+
+dev-webapp-ngrok: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=true
+
+dev-webapp-ngrok-local: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok, using local Helm chart checkout
+	eval $$(minikube -p minikube docker-env)
+	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok-local --cleanup=false
 
 check:  ## Run all pre-commit checks
 	poetry run prek -a

@@ -86,7 +86,7 @@ class RetrieveTeamMembershipTask(InstallationBasedTask, Task[None]):
             team_data = await graphql_api.get_team_membership(self.org_id, user)
             team_membership = [team["name"] for team in team_data]
             teams = [(team, f"https://github.com/orgs/{self.org_id}/teams/{team}") for team in team_membership]
-            author_can_auto_merge = contains_eligible_team_for_auto_merge(team_membership)
+            author_can_auto_merge = await contains_eligible_team_for_auto_merge(team_membership, self.org_id)
         else:
             teams = []
             author_can_auto_merge = False

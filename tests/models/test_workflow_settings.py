@@ -9,8 +9,9 @@
 import pytest
 from pretend import stub
 
+from otterdog.models import CostPolicy
 from otterdog.models.workflow_settings import WorkflowSettings
-from otterdog.utils import UNSET
+from otterdog.utils import UNSET, Change
 
 
 # Subclass to test abstract WorkflowSettings logic.
@@ -29,6 +30,7 @@ def workflow_settings():
         default_workflow_permissions="read",
         actions_can_approve_pull_request_reviews=True,
         fork_pr_approval_policy="first_time_contributors",
+        max_cache_size_gb=10,
     )
 
 
@@ -86,3 +88,22 @@ class TestWorkflowSettingsMapping:
         data = {}
         mapping = await TestWorkflowSettings.get_mapping_to_provider("test-id", data, provider)
         assert "approval_policy" not in mapping
+
+    def test_cache_size_changes_are_cost_related(self, workflow_settings):
+        assert workflow_settings.changes_are_cost_related({"max_cache_size_gb": Change(10, 50)})
+
+    def test_default_cache_size_is_not_cost_related(self, workflow_settings):
+        assert not workflow_settings.is_cost_related(CostPolicy())
+
+    def test_unset_cache_size_is_not_cost_related(self, workflow_settings):
+        workflow_settings.max_cache_size_gb = UNSET
+        assert not workflow_settings.is_cost_related(CostPolicy())
+
+    def test_cache_size_above_default_is_cost_related(self, workflow_settings):
+        workflow_settings.max_cache_size_gb = 50
+        assert workflow_settings.is_cost_related(CostPolicy())
+
+    def test_cache_size_uses_configured_free_limit(self, workflow_settings):
+        workflow_settings.max_cache_size_gb = 50
+        assert not workflow_settings.is_cost_related(CostPolicy(free_max_cache_size_gb=50))
+        assert workflow_settings.is_cost_related(CostPolicy(free_max_cache_size_gb=5))

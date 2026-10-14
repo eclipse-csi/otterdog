@@ -1,0 +1,42 @@
+query($endCursor: String, $owner: String!, $repo: String!, $baseRef: String!) {
+  rateLimit {
+    remaining
+    resetAt
+  }
+  repository(name: $repo, owner: $owner) {
+    pullRequests(first: 100, after: $endCursor, baseRefName: $baseRef, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number
+        title
+        url
+        isDraft
+        createdAt
+        updatedAt
+        closedAt
+        mergedAt
+        author {
+          login
+          __typename
+        }
+        mergedBy {
+          login
+          __typename
+        }
+        timelineItems(last: 1, itemTypes: [CLOSED_EVENT]) {
+          nodes {
+            ... on ClosedEvent {
+              actor {
+                login
+                __typename
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

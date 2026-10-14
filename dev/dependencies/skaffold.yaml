@@ -5,8 +5,6 @@ metadata:
 manifests:
   rawYaml:
   - ./k8s/namespace.yaml
-  - ./k8s/mongodb/*
-  - ./k8s/valkey/*
 
 deploy:
   kubectl: {}

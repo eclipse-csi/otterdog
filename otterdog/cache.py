@@ -21,8 +21,6 @@ _logger = get_logger(__name__)
 
 
 def get_github_cache() -> CacheStrategy:
-    global _GITHUB_CACHE
-
     _logger.trace("using %s as GitHub cache strategy", _GITHUB_CACHE)
     return _GITHUB_CACHE
 

@@ -9,9 +9,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 import aiofiles.ospath
+from rich.markup import escape
 
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
@@ -42,10 +44,20 @@ class DiffStatus:
             return self.additions + self.differences
 
 
+@dataclass
+class DiffResult:
+    """
+    The complete result of comparing one desired organization with GitHub.
+    """
+
+    org_id: str
+    diff_status: DiffStatus
+    validation_status: ValidationStatus
+    patches: list[LivePatch]
+
+
 class CallbackFn(Protocol):
-    def __call__(
-        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-    ) -> None: ...
+    def __call__(self, result: DiffResult) -> None: ...
 
 
 class DiffOperation(Operation):
@@ -120,7 +132,16 @@ class DiffOperation(Operation):
             return 1
 
         try:
-            return await self._generate_diff_internal(org_config)
+            result = await self._generate_diff_internal(org_config)
+            if result is None:
+                return 1
+
+            status = await self.handle_finish(result)
+
+            if self._callback is not None:
+                self._callback(result)
+
+            return status
         except RuntimeError as e:
             self.printer.print_error(f"planning aborted: {e!s}")
             return 1
@@ -144,7 +165,10 @@ class DiffOperation(Operation):
     def resolve_secrets(self) -> bool:
         return True
 
-    async def _generate_diff_internal(self, org_config: OrganizationConfig) -> int:
+    async def _generate_diff_internal(self, org_config: OrganizationConfig) -> DiffResult | None:
+        """
+        Build the diff result, or return ``None`` after reporting a user-facing failure.
+        """
         github_id = org_config.github_id
         jsonnet_config = org_config.jsonnet_config
         await jsonnet_config.init_template()
@@ -156,13 +180,13 @@ class DiffOperation(Operation):
             self.printer.print_error(
                 f"configuration file '{org_file_name}' does not yet exist, run fetch-config or import first."
             )
-            return 1
+            return None
 
         try:
             expected_org = self.load_expected_org(github_id, org_file_name)
         except RuntimeError as e:
-            self.printer.print_error(f"failed to load configuration\n{e!s}")
-            return 1
+            self.printer.print_error(f"failed to load configuration\n{escape(str(e))}")
+            return None
 
         diff_status = DiffStatus()
         live_patches = []
@@ -170,10 +194,10 @@ class DiffOperation(Operation):
         validation_status = await self.validate(expected_org, jsonnet_config)
         if self.handle_validation_status(validation_status):
             try:
-                current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config)
+                current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config, expected_org)
             except RuntimeError as e:
                 self.printer.print_error(f"failed to load current configuration\n{e!s}")
-                return 1
+                return None
 
             expected_org, current_org = self.preprocess_orgs(expected_org, current_org)
 
@@ -222,12 +246,7 @@ class DiffOperation(Operation):
                     if live_patch.expected_object is not None:
                         live_patch.expected_object.resolve_secrets(self.credential_resolver.get_secret)
 
-        status = await self.handle_finish(github_id, diff_status, validation_status, live_patches)
-
-        if self._callback is not None:
-            self._callback(github_id, diff_status, validation_status, live_patches)
-
-        return status
+        return DiffResult(github_id, diff_status, validation_status, live_patches)
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name)
@@ -246,7 +265,11 @@ class DiffOperation(Operation):
         return True
 
     async def load_current_org(
-        self, project_name: str, github_id: str, jsonnet_config: JsonnetConfig
+        self,
+        project_name: str,
+        github_id: str,
+        jsonnet_config: JsonnetConfig,
+        expected_org: GitHubOrganization | None = None,
     ) -> GitHubOrganization:
         return await GitHubOrganization.load_from_provider(
             project_name,
@@ -257,6 +280,7 @@ class DiffOperation(Operation):
             self.concurrency,
             self.repo_filter,
             exclude_teams=self.config.exclude_teams_pattern,
+            expected_org=expected_org,
         )
 
     def preprocess_orgs(
@@ -292,6 +316,4 @@ class DiffOperation(Operation):
     ) -> int: ...
 
     @abstractmethod
-    async def handle_finish(
-        self, org_id: str, diff_status: DiffStatus, validation_status: ValidationStatus, patches: list[LivePatch]
-    ) -> int: ...
+    async def handle_finish(self, result: DiffResult) -> int: ...

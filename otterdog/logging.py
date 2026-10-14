@@ -193,6 +193,7 @@ def _print_message(msg: str, color: str, level: str, console: Console, custom_pr
 
     table = Table(show_header=False, show_footer=False, show_lines=False, box=box, border_style=color)
     table.add_column("severity", justify="left", style=color)
-    table.add_column("message", justify="left", no_wrap=False)
+    # fold words exceeding the width, e.g. long config paths, instead of truncating them.
+    table.add_column("message", justify="left", no_wrap=False, overflow="fold")
     table.add_row(level + ":", msg)
     console.print(table)

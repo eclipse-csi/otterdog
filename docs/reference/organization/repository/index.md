@@ -43,6 +43,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _secret_scanning_push_protection_         | string                                                    | If secret scanning push protection is "enabled" or "disabled"                           |                                                                                                                                                                                            |
 | _squash_merge_commit_message_             | string                                                    | Can be PR_BODY, COMMIT_MESSAGES, or BLANK for a default squash merge commit message     |                                                                                                                                                                                            |
 | _squash_merge_commit_title_               | string                                                    | Can be PR_TITLE or COMMIT_OR_PR_TITLE for a default squash merge commit title           |                                                                                                                                                                                            |
+| _team_permissions_                        | dict\[string, string\]                                    | Permissions granted to organization teams on this repository                            | see [Team Permissions](#team-permissions) for details                                                                                                                                      |
 | _template_repository_                     | string or null                                            | The template repository to use when creating the repo                                   | read-only, only considered during creation                                                                                                                                                 |
 | _forked_repository_                       | string or null                                            | The repository to fork when creating the repo                                           | only considered during creation                                                                                                                                                            |
 | _fork_default_branch_only_                | boolean                                                   | When creating a fork, whether only the default branch will be included in the fork      | only considered during creation                                                                                                                                                            |
@@ -52,8 +53,9 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _webhooks_                                | list\[[Webhook](webhook.md)\]                             | webhooks defined for this repo, see section above for details                           |                                                                                                                                                                                            |
 | _secrets_                                 | list\[[RepositorySecret](secret.md)\]                     | secrets defined for this repo, see section below for details                            |                                                                                                                                                                                            |
 | _variables_                               | list\[[RepositoryVariable](variable.md)\]                 | variables defined for this repo, see section below for details                          |                                                                                                                                                                                            |
-| _environments_                            | list\[[Environment](environment.md)\]                     | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
+| _environments_                            | list\[[Environment](environment/index.md)\]               | environments defined for this repo, see section below for details                       |                                                                                                                                                                                            |
 | _branch_protection_rules_                 | list\[[BranchProtectionRule](branch-protection-rule.md)\] | branch protection rules of the repo, see section below for details                      |                                                                                                                                                                                            |
+| _rulesets_                                | list\[[RepositoryRuleset](ruleset.md)\]                   | rulesets of the repo, see section below for details                                     |                                                                                                                                                                                            |
 
 ## Embedded Models
 
@@ -62,6 +64,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | Key                                        | Value        | Description                                                        | Notes                                                                                             |
 |--------------------------------------------|--------------|--------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
 | _enabled_                                  | boolean      | If GitHub actions are enabled for this repository                  |                                                                                                   |
+| _max_cache_size_gb_                        | integer      | Maximum total size of all GitHub Actions caches, in GB             |                                                                                                   |
 | _allowed_actions_                          | string       | Defines which type of GitHub Actions are permitted to run          | `all`, `local_only` or `selected`                                                                 |
 | _allow_github_owned_actions_               | boolean      | If GitHub owned actions are permitted to run                       | Only taken into account when `allowed_actions` is set to `selected`                               |
 | _allow_verified_creator_actions_           | boolean      | If GitHub Actions from verified creators are permitted to run      | Only taken into account when `allowed_actions` is set to `selected`                               |
@@ -70,6 +73,44 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _actions_can_approve_pull_request_reviews_ | boolean      | If actions can approve and merge pull requests                     |                                                                                                   |
 | _fork_pr_approval_policy_                  | string       | Controls when fork PR workflows require approval from a maintainer | `first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors` |
 
+Increasing the cache size limit may incur costs.
+Changes to the limit are flagged for designated review and are not eligible for automatic merging.
+
+## Team Permissions
+
+The `team_permissions` property maps the slug of an organization team to the permission this team has
+on the repository:
+
+``` jsonnet
+team_permissions: {
+  'committers': 'push',
+  'project-leads': 'maintain',
+},
+```
+
+| Permission | GitHub role | Description                                                                     |
+|------------|-------------|---------------------------------------------------------------------------------|
+| `pull`     | Read        | Can read and clone the repository, open and comment on issues and pull requests |
+| `triage`   | Triage      | Can manage issues and pull requests without write access                        |
+| `push`     | Write       | Can read, clone and push to the repository                                      |
+| `maintain` | Maintain    | Can manage the repository without access to sensitive or destructive actions    |
+| `admin`    | Admin       | Full access to the repository, including sensitive and destructive actions      |
+
+Teams are referenced by their slug (e.g. a team named `Project Leads` has the slug `project-leads`), not by their
+display name. The team must exist in the organization, e.g. defined via [orgs.newTeam](../team.md).
+
+!!! note
+
+    Team permissions are only managed when the default repository configuration of the template defines
+    `team_permissions`, e.g. `team_permissions: {}`. Otherwise, `otterdog` does not retrieve the current team
+    permissions from GitHub and any `team_permissions` set on a repository are ignored.
+
+!!! warning
+
+    Once managed, `team_permissions` is authoritative: any team that has access to the repository on GitHub
+    but is not listed will have its access removed. With `team_permissions: {}` as default value, this applies
+    to every repository that does not explicitly declare its teams. Run `otterdog plan` to review such removals
+    before applying. Permissions of individual collaborators are not affected.
 
 ## Jsonnet Function
 
@@ -102,6 +143,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 - disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
 - specifying a `template_repository` and `forked_repository` at the same time triggers an error
 - specifying a non-empty list of `allow_action_patterns` while `allowed_actions` is not set to `selected`, triggers a warning
+- specifying a permission in `team_permissions` other than `pull`, `triage`, `push`, `maintain` or `admin` triggers an error
 
 !!! tip
 
@@ -136,10 +178,14 @@ Definition of a Repository for a GitHub organization, the following properties a
           web_commit_signoff_required: false,
           workflows+: {
             enabled: false,
+            max_cache_size_gb: 50,
           },
           branch_protection_rules: [
             orgs.newBranchProtectionRule('main'),
           ],
+          team_permissions: {
+            'committers': 'push',
+          },
         },
     }
     ```

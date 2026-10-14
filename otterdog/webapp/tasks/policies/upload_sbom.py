@@ -75,11 +75,11 @@ class UploadSBOMTask(PolicyTask):
             bom_file_name = os.path.join(tmp_dir, "bom.json")
             metadata_file_name = os.path.join(tmp_dir, "metadata.json")
 
-            with open(bom_file_name) as bom_file:
-                bom = json.load(bom_file)
+            async with aiofiles.open(bom_file_name) as bom_file:
+                bom = json.loads(await bom_file.read())
 
-            with open(metadata_file_name) as metadata_file:
-                metadata = Metadata.model_validate(json.load(metadata_file))
+            async with aiofiles.open(metadata_file_name) as metadata_file:
+                metadata = Metadata.model_validate(json.loads(await metadata_file.read()))
 
             await self._upload_bom(bom, metadata)
 

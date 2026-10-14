@@ -13,9 +13,9 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, Literal, TextIO, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
 from rich.console import Console
@@ -24,7 +24,7 @@ from otterdog.logging import _print_message, get_logger, is_info_enabled
 
 if TYPE_CHECKING:
     from argparse import Namespace
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
 
 T = TypeVar("T")
 
@@ -93,7 +93,7 @@ def expect_type(value: Any, expected_type: type[T]) -> T:
     if isinstance(value, expected_type):
         return value
     else:
-        raise ValueError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
+        raise TypeError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
 
 
 @dataclass
@@ -171,8 +171,13 @@ def _diff_list(list1: list[T], list2: list[T]) -> list[T]:
 
 
 def write_patch_object_as_json(
-    diff_object: dict[str, Any], printer: IndentingPrinter, close_object: bool = True
+    diff_object: dict[str, Any],
+    printer: IndentingPrinter,
+    close_object: bool = True,
+    replace_keys: Collection[str] = (),
 ) -> None:
+    # Lists are appended to their default value, except the ones in replace_keys
+    # which are written as a whole and replace their default value.
 
     # Local helper function to safely quote keys for jsonnet output.
     # jsonnet allows unquoted keys only if they match ^[A-Za-z_][A-Za-z0-9_]*$.
@@ -192,7 +197,7 @@ def write_patch_object_as_json(
             continue
 
         if isinstance(value, list):
-            printer.println(f"{key}+: [")
+            printer.println(f"{key}{'' if key in replace_keys else '+'}: [")
             printer.level_up()
             num_items = len(value)
             for index, item in enumerate(value):
@@ -406,11 +411,11 @@ class restrict_jsonnet_imports:  # noqa: N801
         self._base_dir = base_dir
         self._token: contextvars.Token[str | None] | None = None
 
-    def __enter__(self) -> restrict_jsonnet_imports:
+    def __enter__(self) -> Self:
         self._token = _jsonnet_import_root.set(self._base_dir)
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         if self._token is not None:
             _jsonnet_import_root.reset(self._token)
             self._token = None
@@ -602,8 +607,8 @@ class PrettyFormatter:
         self.types[obj] = callback
 
     def format(self, value, **args):
-        for key in args:
-            setattr(self, key, args[key])
+        for key, val in args.items():
+            setattr(self, key, val)
         formatter = self.types[type(value) if type(value) in self.types else object]
         return formatter(self, value, self.indent)
 
@@ -697,10 +702,10 @@ def debug_times(category: str):
 
             @functools.wraps(func)
             async def wrapper_timed(*args, **kwargs):
-                start = datetime.now()
+                start = datetime.now(UTC)
                 _logger.debug(f"{category}: starting ...")
                 value = await func(*args, **kwargs)
-                end = datetime.now()
+                end = datetime.now(UTC)
                 _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
                 return value
 
@@ -709,10 +714,10 @@ def debug_times(category: str):
 
             @functools.wraps(func)
             def wrapper_timed(*args, **kwargs):
-                start = datetime.now()
+                start = datetime.now(UTC)
                 _logger.debug(f"{category}: starting ...")
                 value = func(*args, **kwargs)
-                end = datetime.now()
+                end = datetime.now(UTC)
                 _logger.debug(f"{category}: complete after {(end - start).total_seconds()}s")
                 return value
 

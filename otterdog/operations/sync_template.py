@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
+
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
 from otterdog.utils import associate_by_key, is_set_and_present
@@ -57,7 +59,7 @@ class SyncTemplateOperation(Operation):
             try:
                 organization = GitHubOrganization.load_from_file(github_id, org_file_name)
             except RuntimeError as ex:
-                self.printer.print_error(f"failed to load configuration: {ex!s}")
+                self.printer.print_error(f"failed to load configuration: {escape(str(ex))}")
                 return 1
 
             try:

@@ -118,7 +118,7 @@ It is required if you are the integration with GitHub ([Create a GitHub app](htt
 **Webhook**
 
 - [X] Active
-- Webhook url: `<OTTERDOG-WEBAPP>`
+- Webhook url: `<OTTERDOG-WEBAPP>/github-webhook/receive`
 - Secret: Choose the secret
 
 Add the following permissions and events:
@@ -132,6 +132,7 @@ Repository Permissions
 | Administration       | Read & Write |
 | Commit statuses      | Read & Write |
 | Contents             | Read & Write |
+| Custom properties    | Read & Write |
 | Environments         | Read & Write |
 | Issues               | Read only    |
 | Metadata             | Read only    |
@@ -148,6 +149,7 @@ Organization Permissions
 |-----------------------------|--------------|
 | Administration              | Read & Write |
 | Custom Organization Roles   | Read & Write |
+| Custom properties           | Admin        |
 | Members                     | Read only    |
 | Plan                        | Read only    |
 | Secrets                     | Read & Write |
@@ -164,6 +166,11 @@ Events
 | Push                    |
 | Workflow job            |
 | Workflow run            |
+
+!!! note
+    When permissions are added to an existing GitHub App, each installation keeps its previous
+    permissions until an organization owner accepts the new ones in the organization settings
+    (`Settings` > `GitHub Apps` > `Configure` > `Review request`).
 
 <!--github-app-end-->
 
@@ -213,27 +220,20 @@ Create a `values.yaml` file to define your deployment configuration:
 This is an example
 
 ```yaml
-ghproxy:
-  redisAddress: otterdog-valkey-primary.default.svc.cluster.local:6379
-
 config:
   configOwner: "<ORGANIZATION>"
-  configToken: "<GITHUB TOKEN (BASE64)>"
+  configToken: "<GITHUB TOKEN>"
   configRepo: "otterdog-configs"
   configPath: "otterdog.json"
-  mongoUri: "mongodb://root:secret@otterdog-mongodb.default.svc.cluster.local:27017/otterdog"
-  redisUri: "redis://otterdog-valkey-primary.default.svc.cluster.local:6379"
-  ghProxyUri: "http://otterdog-ghproxy.default.svc.cluster.local:8888"
   dependencyTrackUrl: "https://otterdog-dt.default.svc.cluster"
   dependencyTrackToken: "faketoken"
 
 github:
-  webhookSecret: "<WEBHOOK SECRET (BASE64)>"
+  webhookSecret: "<WEBHOOK SECRET>"
   appId: "<GITHUB APP ID>"
-  appPrivateKey: "<GITHUB APP PRIVATE KEY (BASE64)>"
+  appPrivateKey: "<GITHUB APP PRIVATE KEY>"
   webhookValidationContext: "otterdog/otterdog-validation"
   webhookSyncContext: "otterdog/otterdog-sync"
-
 ```
 
 
@@ -253,22 +253,42 @@ kubectl get svc
 kubectl get ingress
 ```
 
-
 ### Init Otterdog
 
-After deploying Otterdog, you must initialize the webapp by calling the initialization endpoint:
+After deployment, Otterdog initializes itself automatically with a helm hook, but this can also be done manually by calling the initialization endpoint::
 
 ```bash
 curl https://<your-otterdog-address>/internal/init
 ```
 
-This initialization step is **required** and will:
+This initialization will:
 - Fetch the Otterdog configuration from the GitHub repository
 - Sync the current state from GitHub
 - Set up the initial data structures in MongoDB
+- Refresh, in the background, the per organization pull request digests backing the statistics
 
-**Note**: Make sure this endpoint is called after the deployment is complete and all services (MongoDB, Redis/Valkey, and GHProxy) are running.
+!!! note
 
+    Refreshing the pull request digests queries GitHub once per organization, so a deployment
+    with many organizations makes the initialization consume a noticeable part of the GitHub
+    rate limit. The refresh stops on its own once the remaining quota gets low, and the
+    statistics then report the organizations it could not read.
+
+    The digests are cached in Redis for `PULL_REQUEST_STATISTICS_CACHE_TTL` seconds, one day by
+    default. Calling `/internal/init` daily keeps the statistics fresh without anybody ever
+    waiting for GitHub while browsing them.
+
+!!! note
+
+    The initialization refreshes the configuration, pull requests, policies and blueprints of
+    every organization in background tasks. At most `MAX_CONCURRENT_INSTALLATION_TASKS` of these
+    tasks, 10 by default, run concurrently to bound the memory usage of the webapp and the load
+    on GitHub, so the initialization of a deployment with many organizations takes a while.
+
+    The limit applies to each worker process of the webapp, 4 by default, set by the
+    `HYPERCORN_WORKERS` environment variable. An initialization is handled by a single worker,
+    but refreshes triggered at the same time in different workers, e.g. an initialization and a
+    push to the otterdog configuration repository, run up to this many tasks each.
 
 ### Updating the Deployment
 
@@ -286,7 +306,6 @@ helm upgrade eclipse-csi otterdog -f values.yaml
     ```bash
     curl https://<your-otterdog-address>/internal/init
     ```
-
 
 ### Uninstalling Otterdog
 

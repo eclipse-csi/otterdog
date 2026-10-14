@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING
 
@@ -16,10 +17,12 @@ from aiohttp.client import ClientSession, ClientTimeout, TCPConnector
 from aiohttp_retry import ExponentialRetry, RetryClient
 
 from otterdog.logging import get_logger, is_trace_enabled
+from otterdog.providers.github.exception import RateLimitExceededException
 from otterdog.providers.github.stats import RequestStatistics
 from otterdog.utils import query_json
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import Any
 
     from otterdog.providers.github.auth import AuthStrategy
@@ -39,6 +42,10 @@ class GraphQLClient:
         }
 
         self._statistics = RequestStatistics()
+
+        # updated from every response that asks for it, see rate_limit_remaining
+        self._rate_limit_remaining: int | None = None
+        self._rate_limit_reset_at: str | None = None
 
         self._cache_strategy = cache_strategy
 
@@ -71,6 +78,16 @@ class GraphQLClient:
     @property
     def statistics(self) -> RequestStatistics:
         return self._statistics
+
+    @property
+    def rate_limit_remaining(self) -> int | None:
+        """Number of graphql points left, as reported by the last response that included it."""
+
+        return self._rate_limit_remaining
+
+    @property
+    def rate_limit_reset_at(self) -> str | None:
+        return self._rate_limit_reset_at
 
     async def get_branch_protection_rule_id(self, org_id: str, repo_name: str, pattern: str) -> str:
         _logger.debug(f"getting branch protection rule id for pattern '{pattern}' at repo '{org_id}/{repo_name}'")
@@ -289,12 +306,49 @@ class GraphQLClient:
 
         return teams
 
+    async def get_pull_requests(
+        self,
+        org_id: str,
+        repo_name: str,
+        base_ref: str,
+        updated_since: datetime | None = None,
+        rate_limit_reserve: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieves the pull requests targeting the given base ref, in descending order of their
+        update time.
+
+        If updated_since is given, pagination stops as soon as a page only contains pull requests
+        that have not been updated since then. As any pull request that has been opened, merged or
+        closed after that point in time has been updated as well, no pull request that was active
+        within that time frame gets lost.
+        """
+
+        _logger.debug("retrieving pull requests for repo '%s/%s'", org_id, repo_name)
+
+        variables = {"owner": org_id, "repo": repo_name, "baseRef": base_ref}
+
+        def outdated(pull_requests: list[dict[str, Any]]) -> bool:
+            if updated_since is None:
+                return False
+            return all(datetime.fromisoformat(x["updatedAt"]) < updated_since for x in pull_requests)
+
+        return await self._run_paged_query(
+            variables,
+            "get-pull-requests.gql",
+            "data.repository.pullRequests",
+            stop_after=outdated,
+            rate_limit_reserve=rate_limit_reserve,
+        )
+
     async def _run_paged_query(
         self,
         input_variables: dict[str, Any],
         query_file: str,
         prefix_selector: str = "data.repository.branchProtectionRules",
         selector_type: str = ".nodes",
+        stop_after: Callable[[list[dict[str, Any]]], bool] | None = None,
+        rate_limit_reserve: int | None = None,
     ) -> list[dict[str, Any]]:
         _logger.debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
@@ -314,15 +368,25 @@ class GraphQLClient:
             if is_trace_enabled():
                 _logger.trace("graphql result = %s", json.dumps(json_data, indent=2))
 
+            self._update_rate_limit(json_data)
+
+            # a rate limited response commonly comes back as a 200 carrying both data and errors,
+            # so the errors have to be looked at before the data is traversed
+            self._raise_if_rate_limited(json_data)
+
             if status < 400 and "data" in json_data:
                 rules_result = query_json(prefix_selector + selector_type, json_data)
 
-                for rule in rules_result:
-                    result.append(rule)
+                result.extend(rules_result)
 
                 page_info = query_json(prefix_selector + ".pageInfo", json_data)
 
-                if page_info["hasNextPage"]:
+                if stop_after is not None and stop_after(rules_result):
+                    finished = True
+                elif page_info["hasNextPage"]:
+                    # a page that completes the query is always welcome, but fetching a further
+                    # one has to leave enough quota for the requests that matter more
+                    self._raise_if_below_rate_limit_reserve(rate_limit_reserve)
                     end_cursor = page_info["endCursor"]
                 else:
                     finished = True
@@ -330,6 +394,36 @@ class GraphQLClient:
                 raise RuntimeError(f"failed running graphql query '{query_file}': {body}")
 
         return result
+
+    def _update_rate_limit(self, json_data: dict[str, Any]) -> None:
+        rate_limit = (json_data.get("data") or {}).get("rateLimit")
+        if rate_limit is None:
+            return
+
+        self._rate_limit_remaining = rate_limit.get("remaining")
+        self._rate_limit_reset_at = rate_limit.get("resetAt")
+
+    def _raise_if_below_rate_limit_reserve(self, reserve: int | None) -> None:
+        remaining = self._rate_limit_remaining
+
+        if reserve is not None and remaining is not None and remaining < reserve:
+            raise RateLimitExceededException(
+                f"only {remaining} graphql points left, which is below the reserve of {reserve}",
+                self.rate_limit_reset_at,
+            )
+
+    def _raise_if_rate_limited(self, json_data: dict[str, Any]) -> None:
+        """
+        Turns a rate limit rejection into a dedicated exception.
+
+        Callers querying many repositories need to tell an exhausted quota, which will make every
+        further request of that installation fail as well, apart from an error affecting a single
+        repository.
+        """
+
+        message = rate_limit_error_message(json_data)
+        if message is not None:
+            raise RateLimitExceededException(message, self.rate_limit_reset_at)
 
     async def _request_raw(self, method: str, query: str, variables: dict[str, Any]) -> tuple[int, str]:
         _logger.trace("'%s', query = %s, variables = %s", method, query[0:300] + "...", variables)
@@ -384,6 +478,16 @@ class GraphQLClient:
                 raise RuntimeError(f"unsupported actor '{actor}'")
 
         return result
+
+
+def rate_limit_error_message(json_data: dict[str, Any]) -> str | None:
+    """Returns the message of a RATE_LIMITED error of a graphql response, if it carries one."""
+
+    for error in json_data.get("errors") or []:
+        if error.get("type") == "RATE_LIMITED":
+            return error.get("message") or "rate limit exceeded"
+
+    return None
 
 
 @cache

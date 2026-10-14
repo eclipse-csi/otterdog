@@ -2,7 +2,7 @@
 This Pull Request is eligible for auto-merging as it passed the following checks:
 
 - valid configuration
-- approved by a project lead
+- approved by a member of {{ team_description }}
 - does not require any secrets
 - does not update settings only accessible via the GitHub Web UI
 - does not remove any resource

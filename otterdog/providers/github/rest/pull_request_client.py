@@ -64,6 +64,7 @@ class PullRequestClient(RestClient):
         repo_name: str,
         state: str = "all",
         base_ref: str | None = None,
+        head_ref: str | None = None,
     ) -> list[dict[str, Any]]:
         _logger.debug("getting pull requests from repo '%s/%s'", org_id, repo_name)
 
@@ -72,6 +73,10 @@ class PullRequestClient(RestClient):
 
             if base_ref is not None:
                 params.update({"base": base_ref})
+
+            if head_ref is not None:
+                # GitHub expects the head branch qualified by its owner, i.e. "owner:branch"
+                params.update({"head": f"{org_id}:{head_ref}"})
 
             return await self.requester.request_paged_json("GET", f"/repos/{org_id}/{repo_name}/pulls", params=params)
         except GitHubException as ex:

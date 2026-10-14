@@ -66,7 +66,7 @@ class RepositoryWebhookTest(ModelTest):
         assert provider_data["active"] is True
         assert provider_data["events"] == ["push"]
 
-        assert query_json("config.secret", provider_data) or "" == ""
+        assert (query_json("config.secret", provider_data) or "") == ""
         assert query_json("config.url", provider_data) == "https://www.example.org"
         assert query_json("config.insecure_ssl", provider_data) == "0"
         assert query_json("config.content_type", provider_data) == "form"

@@ -12,13 +12,14 @@ from io import StringIO
 from quart import render_template
 
 from otterdog.operations.local_apply import LocalApplyOperation
-from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports
+from otterdog.utils import IndentingPrinter, LogLevel, restrict_jsonnet_imports, unwrap
 from otterdog.webapp.db.models import ApplyStatus, TaskModel
 from otterdog.webapp.db.service import find_pull_request, update_pull_request
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import (
     escape_for_github,
     fetch_config_from_github,
+    find_base_commit_sha,
     get_admin_teams,
     get_full_admin_team_slugs,
     get_otterdog_config,
@@ -107,7 +108,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
 
         if self.author is not None:
             rest_api = await self.rest_api
-            admin_teams = get_admin_teams()
+            admin_teams = await get_admin_teams(self.org_id)
             is_admin = False
             for admin_team in admin_teams:
                 if await rest_api.team.is_user_member_of_team(self.org_id, admin_team, self.author):
@@ -115,21 +116,22 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                     break
 
             if not is_admin:
+                full_admin_team_slugs = await get_full_admin_team_slugs(self.org_id)
                 comment = await render_template(
-                    "comment/wrong_team_apply_comment.txt", admin_teams=get_full_admin_team_slugs(self.org_id)
+                    "comment/wrong_team_apply_comment.txt", admin_teams=full_admin_team_slugs
                 )
                 await rest_api.issue.create_comment(self.org_id, self.repo_name, str(self.pull_request_number), comment)
 
                 self.logger.error(
                     f"apply for pull request #{self.pull_request_number} triggered by user '{self.author}' "
-                    f"who is not a member of the admin team, skipping"
+                    f"who is not a member of {full_admin_team_slugs}, skipping"
                 )
 
                 return False
 
         return True
 
-    async def _post_execute(self, result_or_exception: ApplyResult | None | Exception) -> None:
+    async def _post_execute(self, result_or_exception: ApplyResult | Exception | None) -> None:
         if isinstance(result_or_exception, Exception):
             self._pr_model.apply_status = ApplyStatus.FAILED
         elif result_or_exception is None:
@@ -160,13 +162,13 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self._pull_request.merge_commit_sha,
             )
 
-            merge_commit = await rest_api.commit.get_commit(
+            parent_commit = await find_base_commit_sha(
+                rest_api,
                 self.org_id,
                 self.repo_name,
-                self._pull_request.merge_commit_sha,
+                self.pull_request_number,
+                unwrap(self._pull_request.merge_commit_sha),
             )
-            parents = merge_commit["parents"]
-            parent_commit = parents[0]["sha"] if len(parents) == 1 else "HEAD~1"
 
             base_file = org_config.jsonnet_config.org_config_file + "-BASE"
             await fetch_config_from_github(
@@ -227,7 +229,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 output=escape_for_github(apply_result.apply_output),
                 success=apply_result.apply_success,
                 partial=apply_result.partial,
-                admin_teams=get_full_admin_team_slugs(self.org_id),
+                admin_teams=await get_full_admin_team_slugs(self.org_id),
             )
 
             await rest_api.issue.create_comment(self.org_id, org_config.config_repo, pull_request_number, result)

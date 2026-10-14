@@ -9,7 +9,60 @@
 import os
 import secrets
 
-from decouple import config  # type: ignore
+from decouple import config as _decouple_config  # type: ignore
+
+
+def config(*args, **kwargs):
+    """Wrapper around decouple's config() that strips leading/trailing whitespace from string values."""
+    value = _decouple_config(*args, **kwargs)
+    return value.strip() if isinstance(value, str) else value
+
+
+# Settings that must never resolve to an empty value: they are either used
+# to build outgoing requests/identifiers (URLs, hostnames, commit status
+# contexts) or are otherwise required for the application to function.
+REQUIRED_NON_EMPTY_SETTINGS = (
+    "BASE_URL",
+    "ASSETS_ROOT",
+    "APP_ROOT",
+    "MONGO_URI",
+    "REDIS_URI",
+    "GHPROXY_URI",
+    "GITHUB_ADMIN_TEAMS",
+    "GITHUB_APPROVAL_TEAMS",
+    "GITHUB_WEBHOOK_ENDPOINT",
+    "GITHUB_WEBHOOK_VALIDATION_CONTEXT",
+    "GITHUB_WEBHOOK_SYNC_CONTEXT",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+    "PROJECTS_BASE_URL",
+    "DEPENDENCY_TRACK_URL",
+    "DEPENDENCY_TRACK_TOKEN",
+    "OTTERDOG_CONFIG_OWNER",
+    "OTTERDOG_CONFIG_REPO",
+    "OTTERDOG_CONFIG_PATH",
+    "OTTERDOG_CONFIG_TOKEN",
+)
+
+
+def validate_required_settings(config_cls: type) -> None:
+    """Raise a ValueError if any setting in REQUIRED_NON_EMPTY_SETTINGS is empty on config_cls."""
+    for name in REQUIRED_NON_EMPTY_SETTINGS:
+        if not getattr(config_cls, name, None):
+            raise ValueError(f"{name} must not be empty")
+
+
+# Settings that must be at least 1: they size a concurrency limit, which would block
+# everything waiting on it forever with a value of 0.
+POSITIVE_INT_SETTINGS = ("MAX_CONCURRENT_INSTALLATION_TASKS",)
+
+
+def validate_positive_settings(config_cls: type) -> None:
+    """Raise a ValueError if any setting in POSITIVE_INT_SETTINGS is lower than 1 on config_cls."""
+    for name in POSITIVE_INT_SETTINGS:
+        value = getattr(config_cls, name, None)
+        if not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be at least 1, got {value!r}")
 
 
 class AppConfig:
@@ -40,6 +93,10 @@ class AppConfig:
         SECRET_KEY = secrets.token_hex(16)
 
     GITHUB_ADMIN_TEAMS = config("GITHUB_ADMIN_TEAMS", default="otterdog-admins")
+    # Comma-separated list of entries matched (via re.search) against a user's team slugs to
+    # decide whether their approval satisfies the "required approvals" check for auto-merge.
+    # Each entry can be a plain team slug or a regex, e.g. "project-leads,.*-committers$".
+    GITHUB_APPROVAL_TEAMS = config("GITHUB_APPROVAL_TEAMS", default="project-leads$")
     GITHUB_WEBHOOK_ENDPOINT = config("GITHUB_WEBHOOK_ENDPOINT", default="/github-webhook/receive")
     GITHUB_WEBHOOK_SECRET = config("GITHUB_WEBHOOK_SECRET", default=None)
     GITHUB_WEBHOOK_VALIDATION_CONTEXT = config("GITHUB_WEBHOOK_VALIDATION_CONTEXT", default="otterdog-validate")
@@ -53,9 +110,29 @@ class AppConfig:
     GITHUB_APP_ID = config("GITHUB_APP_ID")
     GITHUB_APP_PRIVATE_KEY = config("GITHUB_APP_PRIVATE_KEY")
 
+    # Number of seconds the per organization pull request digests, read from GitHub, are kept
+    # in redis. Every interval and time range of the statistics is derived from them, so this
+    # is how stale the statistics may get. Set to 0 to disable caching, which makes every page
+    # load query GitHub again.
+    PULL_REQUEST_STATISTICS_CACHE_TTL = config("PULL_REQUEST_STATISTICS_CACHE_TTL", default=86400, cast=int)
+
+    # Minimum number of seconds between two evaluations of the same blueprint for an organization.
+    # Calls to /internal/check within that interval skip the blueprint.
+    BLUEPRINT_CHECK_INTERVAL = config("BLUEPRINT_CHECK_INTERVAL", default=3600, cast=int)
+
+    # Maximum number of tasks refreshing the data of installations (configuration, pull requests,
+    # policies and blueprints) running concurrently in each worker process of the webapp, e.g. when
+    # calling /internal/init, which is handled by a single worker. Higher values speed up the refresh
+    # at the cost of memory usage and load on GitHub. Must be at least 1.
+    MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=10, cast=int)
+
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")
+
+
+validate_required_settings(AppConfig)
+validate_positive_settings(AppConfig)
 
 
 class ProductionConfig(AppConfig):
@@ -80,6 +157,10 @@ class TestingConfig(AppConfig):
     DB_ROOT = os.path.join(APP_ROOT, "db")
 
     MONGO_URI = "mongodb://localhost:27017/otterdog"
+
+
+validate_required_settings(TestingConfig)
+validate_positive_settings(TestingConfig)
 
 
 # Load all possible configurations
