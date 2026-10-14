@@ -182,6 +182,30 @@ class TestOrgClientImmutableReleases:
         assert result["immutable_releases_enforced_repositories"] == "none"
         assert result["immutable_releases_selected_repositories"] == []
 
+    @pytest.mark.parametrize("status", [402, 403])
+    async def test_get_settings_leaves_immutable_releases_unset_when_not_accessible(self, status):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                raise GitHubException(url, status, "Forbidden")
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=mock_request_json)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result == {"billing_email": "billing@example.com"}
+
 
 class TestOrgClientForkPrApprovalPolicy:
     async def test_get_fork_pr_approval_policy_success(self):

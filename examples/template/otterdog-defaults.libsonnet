@@ -48,6 +48,9 @@ local newRepo(name) = {
 
   web_commit_signoff_required: true,
 
+  # ignored when the organization enforces immutable releases for the repository
+  immutable_releases_enabled: false,
+
   # security analysis
   secret_scanning: "enabled",
   secret_scanning_push_protection: "enabled",
@@ -353,6 +356,12 @@ local newOrg(name, id=name) = {
 
     # Disable default code security configurations
     default_code_security_configurations_disabled: true,
+
+    # Repositories that must use immutable releases.
+    # Can be one of: all, none, selected
+    immutable_releases_enforced_repositories: "none",
+    # Only taken into account when 'immutable_releases_enforced_repositories' is set to 'selected'
+    immutable_releases_selected_repositories: [],
 
     ## Admin repository permissions
 

@@ -65,16 +65,7 @@ class OrgClient(RestClient):
             "immutable_releases_selected_repositories",
         }
         if len(included_keys.intersection(immutable_releases_keys)) > 0:
-            immutable_releases = await self._get_immutable_releases_settings(org_id)
-            enforced_repositories = immutable_releases["enforced_repositories"]
-            settings["immutable_releases_enforced_repositories"] = enforced_repositories
-
-            if enforced_repositories == "selected":
-                settings["immutable_releases_selected_repositories"] = [
-                    repo["name"] for repo in await self._get_selected_repositories_for_immutable_releases(org_id)
-                ]
-            else:
-                settings["immutable_releases_selected_repositories"] = []
+            await self._fill_immutable_releases_settings(org_id, settings)
 
         result = {}
         for k, v in settings.items():
@@ -124,7 +115,23 @@ class OrgClient(RestClient):
 
         _logger.debug("updated %d setting(s)", changes)
 
-    async def _get_immutable_releases_settings(self, org_id: str) -> dict[str, Any]:
+    async def _fill_immutable_releases_settings(self, org_id: str, settings: dict[str, Any]) -> None:
+        immutable_releases = await self._get_immutable_releases_settings(org_id)
+        if immutable_releases is None:
+            # leave the settings unset, they will not be taken into account when computing changes
+            return
+
+        enforced_repositories = immutable_releases["enforced_repositories"]
+        settings["immutable_releases_enforced_repositories"] = enforced_repositories
+
+        if enforced_repositories == "selected":
+            settings["immutable_releases_selected_repositories"] = [
+                repo["name"] for repo in await self._get_selected_repositories_for_immutable_releases(org_id)
+            ]
+        else:
+            settings["immutable_releases_selected_repositories"] = []
+
+    async def _get_immutable_releases_settings(self, org_id: str) -> dict[str, Any] | None:
         _logger.debug("retrieving immutable release settings for org '%s'", org_id)
 
         try:
@@ -133,6 +140,14 @@ class OrgClient(RestClient):
             if ex.status == 404:
                 _logger.debug("immutable releases not available for org '%s', treating as disabled", org_id)
                 return {"enforced_repositories": "none"}
+            if ex.status in (402, 403):
+                _logger.warning(
+                    "immutable release settings for org '%s' not available (status=%s), "
+                    "any configured setting will not be validated",
+                    org_id,
+                    ex.status,
+                )
+                return None
             raise RuntimeError(f"failed retrieving immutable release settings for org '{org_id}':\n{ex}") from ex
 
     async def _update_immutable_releases_settings(self, org_id: str, data: dict[str, Any]) -> None:

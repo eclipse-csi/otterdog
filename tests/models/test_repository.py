@@ -368,3 +368,27 @@ class TestRepository:
         ]
         assert len(failures) == 1
         assert "members_can_create_private_pages' is disabled" in failures[0][1]
+
+    @pytest.mark.parametrize(
+        "enforced_repositories,selected_repositories,aliases,expected",
+        [
+            ("all", [], [], True),
+            ("none", ["otterdog-defaults"], [], False),
+            ("selected", ["otterdog-defaults"], [], True),
+            ("selected", ["Otterdog-Defaults"], [], True),
+            ("selected", ["old-name"], ["old-name"], True),
+            ("selected", ["other-repo"], [], False),
+        ],
+    )
+    def test_org_enforces_immutable_releases(
+        self, repository_test, enforced_repositories, selected_repositories, aliases, expected
+    ):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.aliases = aliases
+
+        org_settings = pretend.stub(
+            immutable_releases_enforced_repositories=enforced_repositories,
+            immutable_releases_selected_repositories=selected_repositories,
+        )
+
+        assert repo._org_enforces_immutable_releases(org_settings) is expected

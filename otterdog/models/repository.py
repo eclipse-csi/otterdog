@@ -323,11 +323,14 @@ class Repository(ModelObject):
         if org_settings.immutable_releases_enforced_repositories == "all":
             return True
 
-        return (
-            org_settings.immutable_releases_enforced_repositories == "selected"
-            and is_set_and_valid(org_settings.immutable_releases_selected_repositories)
-            and self.name in org_settings.immutable_releases_selected_repositories
-        )
+        if org_settings.immutable_releases_enforced_repositories != "selected" or not is_set_and_valid(
+            org_settings.immutable_releases_selected_repositories
+        ):
+            return False
+
+        # repository names are case-insensitive on GitHub, also take aliases of a renamed repository into account
+        selected_repositories = {name.lower() for name in org_settings.immutable_releases_selected_repositories}
+        return any(name.lower() in selected_repositories for name in self.get_all_names())
 
     def requires_language_validation(self) -> bool:
         return (
