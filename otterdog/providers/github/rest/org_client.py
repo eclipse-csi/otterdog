@@ -79,6 +79,9 @@ class OrgClient(RestClient):
         _logger.debug("updating settings for org '%s'", org_id)
         changes = len(data)
 
+        # settings that are not part of the organization resource, they are updated via dedicated endpoints
+        security_managers = data.pop("security_managers", None)
+        default_code_security_configuration_disabled = data.pop("default_code_security_configurations_disabled", None)
         immutable_releases_enforced_repositories = data.pop("immutable_releases_enforced_repositories", None)
         immutable_releases_selected_repositories = data.pop("immutable_releases_selected_repositories", None)
 
@@ -88,11 +91,10 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed to update settings for org '{org_id}':\n{ex}") from ex
 
-        if "security_managers" in data:
-            await self.update_security_managers(org_id, data["security_managers"])
+        if security_managers is not None:
+            await self.update_security_managers(org_id, security_managers)
 
-        if "default_code_security_configurations_disabled" in data:
-            default_code_security_configuration_disabled = data["default_code_security_configurations_disabled"]
+        if default_code_security_configuration_disabled is not None:
             if default_code_security_configuration_disabled is True:
                 await self._disable_default_code_security_configurations(org_id)
             else:

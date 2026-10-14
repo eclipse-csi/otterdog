@@ -63,6 +63,50 @@ class TestRestClientOptionalJson:
             )
 
 
+class TestOrgClientUpdateSettings:
+    async def test_update_settings_excludes_settings_with_dedicated_endpoints_from_patch(self):
+        async def mock_request_json(method, url, data):
+            return {}
+
+        async def mock_update_security_managers(org_id, security_managers): ...
+
+        async def mock_disable_default_code_security_configurations(org_id): ...
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(mock_request_json))
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+        org_client.update_security_managers = pretend.call_recorder(mock_update_security_managers)
+        org_client._disable_default_code_security_configurations = pretend.call_recorder(
+            mock_disable_default_code_security_configurations
+        )
+
+        await org_client.update_settings(
+            "org",
+            {
+                "billing_email": "billing@example.com",
+                "security_managers": [],
+                "default_code_security_configurations_disabled": True,
+            },
+        )
+
+        assert mock_requester.request_json.calls == [
+            pretend.call("PATCH", "/orgs/org", {"billing_email": "billing@example.com"})
+        ]
+        assert org_client.update_security_managers.calls == [pretend.call("org", [])]
+        assert org_client._disable_default_code_security_configurations.calls == [pretend.call("org")]
+
+    async def test_update_settings_skips_patch_without_organization_resource_settings(self):
+        async def mock_update_security_managers(org_id, security_managers): ...
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(lambda *args: None))
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+        org_client.update_security_managers = pretend.call_recorder(mock_update_security_managers)
+
+        await org_client.update_settings("org", {"security_managers": ["@org/security"]})
+
+        assert mock_requester.request_json.calls == []
+        assert org_client.update_security_managers.calls == [pretend.call("org", ["@org/security"])]
+
+
 class TestOrgClientImmutableReleases:
     async def test_get_settings_includes_immutable_release_settings(self):
         async def mock_request_json(method, url):
