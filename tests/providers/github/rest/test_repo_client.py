@@ -5,6 +5,7 @@ import pytest
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.repo_client import RepoClient
+from otterdog.providers.github.rest.requester import Requester
 
 
 class TestRepoClientCodeScanningConfig:
@@ -138,6 +139,137 @@ class TestRepoClientUpdateRepo:
 
         assert repo_client.requester.request_json.calls == [
             pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
+        ]
+
+    async def test_update_repo_with_immutable_releases_after_rename(self):
+        async def mock_request_json(method, url, data=None):
+            return data or {}
+
+        async def mock_request_raw(method, url):
+            return (204, "")
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(
+                request_json=pretend.call_recorder(mock_request_json),
+                request_raw=pretend.call_recorder(mock_request_raw),
+            )
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        update_data = {"name": "new-repo-name", "immutable_releases_enabled": True}
+
+        await repo_client.update_repo("test-org", "old-repo-name", update_data)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("PATCH", "/repos/test-org/old-repo-name", {"name": "new-repo-name"}),
+        ]
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("PUT", "/repos/test-org/new-repo-name/immutable-releases"),
+        ]
+
+
+class TestRepoClientImmutableReleases:
+    async def test_fill_immutable_releases_enabled(self):
+        async def mock_request_raw(method, url):
+            return (200, json.dumps({"enabled": True, "enforced_by_owner": False}))
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/immutable-releases")
+        ]
+        assert repo_data["immutable_releases_enabled"] is True
+
+    async def test_fill_immutable_releases_disabled(self):
+        async def mock_request_raw(method, url):
+            return (404, "Not Found")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/immutable-releases")
+        ]
+        assert repo_data["immutable_releases_enabled"] is False
+
+    async def test_fill_immutable_releases_reads_enabled_flag(self):
+        async def mock_request_raw(method, url):
+            return (200, json.dumps({"enabled": False, "enforced_by_owner": False}))
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_data["immutable_releases_enabled"] is False
+
+    @pytest.mark.parametrize("status", [402, 403])
+    async def test_fill_immutable_releases_leaves_setting_unset_when_unavailable(self, status):
+        async def mock_request_raw(method, url):
+            return (status, "feature unavailable")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert "immutable_releases_enabled" not in repo_data
+
+    async def test_fill_immutable_releases_leaves_setting_unset_on_missing_scopes(self):
+        async def mock_request_raw(method, url):
+            # the requester raises an exception for a 403 caused by missing OAuth scopes
+            Requester._check_permissions(
+                url, 403, "Forbidden", {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"}
+            )
+            raise AssertionError("expected InsufficientPermissionsException")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert "immutable_releases_enabled" not in repo_data
+
+    async def test_fill_immutable_releases_raises_on_unexpected_status(self):
+        async def mock_request_raw(method, url):
+            return (500, "Internal Server Error")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        with pytest.raises(RuntimeError, match="failed retrieving immutable release settings"):
+            await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+
+class TestRepoClientGetRepoIds:
+    async def test_get_repo_ids(self):
+        async def mock_request_json(method, url):
+            return {"id": {"/repos/test-org/repo1": 1, "/repos/test-org/repo2": 2}[url]}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        assert await repo_client.get_repo_ids("test-org", ["repo1", "repo2"]) == [1, 2]
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("GET", "/repos/test-org/repo1"),
+            pretend.call("GET", "/repos/test-org/repo2"),
         ]
 
 

@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/datagrid.html" import paged_table %}
 
 {% block title %} Executed Tasks {% endblock %}
 
@@ -8,9 +9,8 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
-  <!-- jsGrid -->
-  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('vendor/jsgrid/jsgrid-theme.min.css') }}">
+  <!-- DataTables -->
+  <link rel="stylesheet" href="{{ asset('vendor/datatables/dataTables.bootstrap5.min.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -45,7 +45,7 @@
               </div>
               <!-- /.card-header -->
               <div class="card-body">
-                <div id="taskGrid"></div>
+                {{ paged_table("tasks", ["Type", "GitHub Organization", "Repo name", "Pull Request", "Status", "Log", "Cache Usage", "Remaining Rate Limit", "Creation Time", "Update Time"]) }}
               </div>
               <!-- /.card-body -->
             </div>
@@ -65,89 +65,33 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
-  <!-- jsGrid -->
   <script src="{{ asset('vendor/moment/moment.min.js') }}"></script>
-  <script src="{{ asset('vendor/jsgrid/jsgrid.min.js') }}"></script>
+  <!-- DataTables -->
+  <script src="{{ asset('vendor/datatables/dataTables.min.js') }}"></script>
+  <script src="{{ asset('vendor/datatables/dataTables.bootstrap5.min.js') }}"></script>
 
   <!-- page script -->
-  <script>
-    var DateField = function (config) {
-      jsGrid.Field.call(this, config);
-    };
+  <script type="module">
+    import {createPagedTable, display, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
 
-    DateField.prototype = new jsGrid.Field({
-      sorter: function (date1, date2) {
-        return moment(date1) - moment(date2);
-      },
-      itemTemplate: function (value) {
-        return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
-      },
+    var renderDate = display(function(value) {
+      return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
     });
 
-    jsGrid.fields.date = DateField;
-
-    $(function () {
-      $("#taskGrid").jsGrid({
-          height: "auto",
-          width: "100%",
-
-          pageSize: 20,
-
-          filtering: true,
-          sorting: true,
-          paging: true,
-          pageLoading: true,
-          autoload: true,
-
-          controller: {
-              loadData: function(filter) {
-                  var d = $.Deferred();
-
-                  $.ajax({
-                      url: "/api/tasks",
-                      data: filter,
-                      dataType: "json"
-                  }).done(function(response) {
-                      d.resolve(response);
-                  });
-
-                  return d.promise();
-              }
-          },
-
-          fields: [
-              { name: "type", title: "Type", type: "text" },
-              { name: "org_id", title: "GitHub Organization", type: "text", width: 70,
-                itemTemplate: function(value, item) {
-                  return "<a href='https://github.com/" + value + "'>" + value + "</a>";
-                }
-              },
-              { name: "repo_name", title: "Repo name", type: "text", width: 50,
-                itemTemplate: function(value, item) {
-                  return "<a href='https://github.com/" + item.org_id + "/" + value + "'>" + value + "</a>";
-                }
-              },
-              { name: "pull_request", title: "Pull Request", type: "number", align: "center", width: 50,
-                itemTemplate: function(value, item) {
-                  if (value > 0) {
-                    return "<a href='https://github.com/" + item.org_id + "/" + item.repo_name + "/pull/" + value + "'>#" + value + "</a>";
-                  } else {
-                    return "N/A";
-                  }
-                }
-              },
-              { name: "status", title: "Status", type: "text", align: "center", width: 40,
-                itemTemplate: function(value) {
-                 return value.toUpperCase();
-                }
-              },
-              { name: "log", title: "Log", type: "text" },
-              { name: "cache_stats", title: "Cache Usage", type: "text" },
-              { name: "rate_limit_remaining", title: "Remaining Rate Limit", type: "text" },
-              { name: "created_at", title: "Creation Time", type: "date", width: 60 },
-              { name: "updated_at", title: "Update Time", type: "date", width: 60 }
-          ]
-      });
+    createPagedTable("#tasks", {
+      url: "/api/tasks",
+      columns: [
+        { data: "type", filter: "text" },
+        { data: "org_id", filter: "text", render: organizationLink },
+        { data: "repo_name", filter: "text", render: repositoryLink("org_id") },
+        { data: "pull_request", filter: "number", className: "text-center", render: pullRequestLink("org_id", "repo_name") },
+        { data: "status", filter: "text", className: "text-center", render: upperCase },
+        { data: "log", filter: "text" },
+        { data: "cache_stats", filter: "text" },
+        { data: "rate_limit_remaining", filter: "text" },
+        { data: "created_at", render: renderDate },
+        { data: "updated_at", render: renderDate }
+      ]
     });
   </script>
 

@@ -9,14 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "husky": "^9.0.11",
+    "husky": "^9.1.7",
     "sass-embedded": "^1.105.1",
-    "vite": "^8.3.2",
+    "vite": "^8.3.3",
     "vite-plugin-static-copy": "^4.1.1"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",
-    "admin-lte": "^4.9.1",
+    "admin-lte": "^4.10.0",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",
     "cm6-graphql": "^0.2.2",
@@ -27,10 +27,8 @@
     "datatables.net-responsive": "^4.1.1",
     "datatables.net-responsive-bs5": "^4.1.1",
     "highlight.js": "^11.12.0",
-    "jquery": "^3.7.1",
-    "jquery-ui-dist": "^1.13.2",
-    "jsgrid": "^1.5.3",
-    "marked": "^15.0.0",
+    "jquery": "^4.0.0",
+    "marked": "^18.1.0",
     "moment": "^2.31.0"
   }
 }

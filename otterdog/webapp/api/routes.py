@@ -61,22 +61,22 @@ async def project(project_name: str):
 
 @blueprint.route("/tasks")
 async def tasks():
-    paged_tasks, count = await get_tasks_paged(request.args.to_dict())
-    result = {"data": [x.model_dump(exclude={"id"}) for x in paged_tasks], "itemsCount": count}
+    paged_tasks, count, total = await get_tasks_paged(request.args.to_dict())
+    result = {"data": [x.model_dump(exclude={"id"}) for x in paged_tasks], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 
 @blueprint.route("/pullrequests/open")
 async def open_pullrequests():
-    paged_pull_requests, count = await get_open_pull_requests_paged(request.args.to_dict())
-    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
+    paged_pull_requests, count, total = await get_open_pull_requests_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 
 @blueprint.route("/pullrequests/merged")
 async def merged_pullrequests():
-    paged_pull_requests, count = await get_merged_pull_requests_paged(request.args.to_dict())
-    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count}
+    paged_pull_requests, count, total = await get_merged_pull_requests_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_pull_requests], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 
@@ -141,21 +141,21 @@ async def pullrequest_statistics_progress():
 
 @blueprint.route("/blueprints/remediations")
 async def blueprints_with_remediations():
-    paged_blueprints, count = await get_blueprints_with_remediations_paged(request.args.to_dict())
-    result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count}
+    paged_blueprints, count, total = await get_blueprints_with_remediations_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 
 @blueprint.route("/blueprints/dismissed")
 async def dismissed_blueprints():
-    paged_blueprints, count = await get_dismissed_blueprints_paged(request.args.to_dict())
-    result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count}
+    paged_blueprints, count, total = await get_dismissed_blueprints_paged(request.args.to_dict())
+    result = {"data": [x.model_dump() for x in paged_blueprints], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 
 @blueprint.route("/scorecard/results")
 async def scorecard_results():
-    paged_scorecard_results, count = await get_scorecard_results_paged(request.args.to_dict())
+    paged_scorecard_results, count, total = await get_scorecard_results_paged(request.args.to_dict())
 
     def json_transform(m):
         json = m.model_dump()
@@ -163,7 +163,7 @@ async def scorecard_results():
             json.update({check["name"]: check["score"]})
         return json
 
-    result = {"data": [json_transform(x) for x in paged_scorecard_results], "itemsCount": count}
+    result = {"data": [json_transform(x) for x in paged_scorecard_results], "itemsCount": count, "totalCount": total}
     return jsonify(result)
 
 

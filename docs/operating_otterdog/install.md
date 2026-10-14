@@ -278,6 +278,18 @@ This initialization will:
     default. Calling `/internal/init` daily keeps the statistics fresh without anybody ever
     waiting for GitHub while browsing them.
 
+!!! note
+
+    The initialization refreshes the configuration, pull requests, policies and blueprints of
+    every organization in background tasks. At most `MAX_CONCURRENT_INSTALLATION_TASKS` of these
+    tasks, 10 by default, run concurrently to bound the memory usage of the webapp and the load
+    on GitHub, so the initialization of a deployment with many organizations takes a while.
+
+    The limit applies to each worker process of the webapp, 4 by default, set by the
+    `HYPERCORN_WORKERS` environment variable. An initialization is handled by a single worker,
+    but refreshes triggered at the same time in different workers, e.g. an initialization and a
+    push to the otterdog configuration repository, run up to this many tasks each.
+
 ### Updating the Deployment
 
 To upgrade to the latest chart or image version:

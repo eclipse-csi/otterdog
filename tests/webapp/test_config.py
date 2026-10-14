@@ -9,9 +9,11 @@
 import pytest
 
 from otterdog.webapp.config import (
+    POSITIVE_INT_SETTINGS,
     REQUIRED_NON_EMPTY_SETTINGS,
     TestingConfig,
     config,
+    validate_positive_settings,
     validate_required_settings,
 )
 
@@ -59,3 +61,21 @@ def test_validate_required_settings_rejects_missing_attribute():
 
     with pytest.raises(ValueError, match=name):
         validate_required_settings(config_cls)
+
+
+def test_positive_settings_are_valid_on_testing_config():
+    # guards against typos in POSITIVE_INT_SETTINGS not matching a real config attribute
+    validate_positive_settings(TestingConfig)
+
+
+def test_validate_positive_settings_accepts_one():
+    validate_positive_settings(type("StubConfig", (), dict.fromkeys(POSITIVE_INT_SETTINGS, 1)))
+
+
+@pytest.mark.parametrize("invalid_value", [0, -1, None])
+def test_validate_positive_settings_rejects_values_below_one(invalid_value):
+    name = POSITIVE_INT_SETTINGS[0]
+    config_cls = type("StubConfig", (), {name: invalid_value})
+
+    with pytest.raises(ValueError, match=name):
+        validate_positive_settings(config_cls)

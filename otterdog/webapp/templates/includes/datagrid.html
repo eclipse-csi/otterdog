@@ -1,0 +1,15 @@
+{#
+  Table paged, sorted and filtered server side with createPagedTable() of static/src/js/datagrid.js,
+  given the title of each of its columns, the row of filters being added below them by the script.
+#}
+{% macro paged_table(id, titles, extra_class="") %}
+<table id="{{ id }}" class="table {{ extra_class }} table-bordered table-hover">
+  <thead>
+    <tr>
+      {% for title in titles %}
+      <th>{{ title }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+</table>
+{% endmacro %}

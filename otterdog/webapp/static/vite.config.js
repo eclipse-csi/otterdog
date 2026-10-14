@@ -23,8 +23,6 @@ export default defineConfig({
                 vendorFile("jquery/dist/jquery.min.js", "jquery"),
                 vendorFile("bootstrap/dist/js/bootstrap.bundle.min.js", "bootstrap"),
                 vendorFile("chart.js/dist/chart.umd.js", "chartjs"),
-                vendorFile("jsgrid/dist/jsgrid.min.(js|css)", "jsgrid"),
-                vendorFile("jsgrid/dist/jsgrid-theme.min.css", "jsgrid"),
                 vendorFile("moment/min/moment.min.js", "moment"),
                 vendorFile("datatables.net/js/dataTables.min.js", "datatables"),
                 vendorFile("datatables.net-bs5/css/dataTables.bootstrap5.min.css", "datatables"),
@@ -32,7 +30,7 @@ export default defineConfig({
                 vendorFile("datatables.net-responsive/js/dataTables.responsive.min.js", "datatables"),
                 vendorFile("datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js", "datatables"),
                 vendorFile("datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css", "datatables"),
-                vendorFile("marked/marked.min.js", "marked"),
+                vendorFile("marked/lib/marked.umd.js", "marked"),
                 // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
                 vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
                 // preserves the package's internal directory structure, so strip only the node_modules/ prefix
@@ -67,6 +65,7 @@ export default defineConfig({
           preserveEntrySignatures: 'exports-only',
           input: [
             "src/js/app.js",
+            "src/js/datagrid.js",
             "src/js/editor.js",
             "src/js/highlight.js",
             "src/css/app.scss",

@@ -17,4 +17,4 @@ set -o pipefail
 # exits if any of your variables is not set
 set -o nounset
 
-exec .venv/bin/hypercorn --config hypercorn-cfg.toml otterdog.app
+exec .venv/bin/hypercorn --config hypercorn-cfg.toml --workers "${HYPERCORN_WORKERS}" otterdog.app
