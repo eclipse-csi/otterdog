@@ -9,8 +9,9 @@
 from collections.abc import Mapping
 from typing import Any
 
+from otterdog.credentials.inmemory_provider import InMemoryVault
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject
+from otterdog.models import FailureType, ModelObject, ValidationContext
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.utils import UNSET, Change
 
@@ -154,3 +155,28 @@ class OrganizationSettingsTest(ModelTest):
         assert diff["default_repository_permission"] == Change(
             other.default_repository_permission, current.default_repository_permission
         )
+
+    def test_validate_immutable_releases(self):
+        # the model data selects 'otterdog-defaults' for immutable releases
+        for enforced_repositories, expected_failure_types in [
+            ("selected", []),
+            ("all", [FailureType.WARNING]),
+            ("some", [FailureType.ERROR, FailureType.WARNING]),
+        ]:
+            with self.subTest(enforced_repositories=enforced_repositories):
+                settings = OrganizationSettings.from_model_data(self.model_data)
+                settings.immutable_releases_enforced_repositories = enforced_repositories
+
+                context = ValidationContext(
+                    root_object=None,
+                    secret_resolver=InMemoryVault(),
+                    template_dir="",
+                    org_members=set(),
+                    default_team_names=set(),
+                    exclude_teams_pattern=None,
+                )
+
+                settings.validate(context, None)
+
+                failure_types = [t for t, message in context.validation_failures if "immutable_releases" in message]
+                assert failure_types == expected_failure_types

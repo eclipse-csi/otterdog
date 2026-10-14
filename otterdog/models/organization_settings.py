@@ -134,27 +134,7 @@ class OrganizationSettings(ModelObject):
                 "enabling 'members_can_create_private_pages' requires an 'enterprise' plan.",
             )
 
-        if is_set_and_valid(self.immutable_releases_enforced_repositories):
-            if self.immutable_releases_enforced_repositories not in {"all", "none", "selected"}:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"'immutable_releases_enforced_repositories' has value "
-                    f"'{self.immutable_releases_enforced_repositories}', "
-                    f"while only values ('all' | 'none' | 'selected') are allowed.",
-                )
-
-            if (
-                self.immutable_releases_enforced_repositories != "selected"
-                and is_set_and_valid(self.immutable_releases_selected_repositories)
-                and len(self.immutable_releases_selected_repositories) > 0
-            ):
-                context.add_failure(
-                    FailureType.WARNING,
-                    f"'immutable_releases_enforced_repositories' is set to "
-                    f"'{self.immutable_releases_enforced_repositories}', "
-                    f"but 'immutable_releases_selected_repositories' is set to "
-                    f"'{self.immutable_releases_selected_repositories}', setting will be ignored.",
-                )
+        self._validate_immutable_releases(context)
 
         if is_set_and_valid(self.default_repository_permission):
             if self.default_repository_permission not in {
@@ -175,6 +155,31 @@ class OrganizationSettings(ModelObject):
 
         if is_set_and_present(self.workflows):
             self.workflows.validate(context, self)
+
+    def _validate_immutable_releases(self, context: ValidationContext) -> None:
+        if not is_set_and_valid(self.immutable_releases_enforced_repositories):
+            return
+
+        if self.immutable_releases_enforced_repositories not in {"all", "none", "selected"}:
+            context.add_failure(
+                FailureType.ERROR,
+                f"'immutable_releases_enforced_repositories' has value "
+                f"'{self.immutable_releases_enforced_repositories}', "
+                f"while only values ('all' | 'none' | 'selected') are allowed.",
+            )
+
+        if (
+            self.immutable_releases_enforced_repositories != "selected"
+            and is_set_and_valid(self.immutable_releases_selected_repositories)
+            and len(self.immutable_releases_selected_repositories) > 0
+        ):
+            context.add_failure(
+                FailureType.WARNING,
+                f"'immutable_releases_enforced_repositories' is set to "
+                f"'{self.immutable_releases_enforced_repositories}', "
+                f"but 'immutable_releases_selected_repositories' is set to "
+                f"'{self.immutable_releases_selected_repositories}', setting will be ignored.",
+            )
 
     def get_model_objects(self) -> Iterator[tuple[ModelObject, ModelObject]]:
         if is_set_and_present(self.custom_properties):
