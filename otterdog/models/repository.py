@@ -1286,6 +1286,7 @@ class Repository(ModelObject):
                     cast("OrganizationSettings", context.current_org_settings)
                 )
                 and not expected_object._org_enforces_immutable_releases(expected_org_settings)
+                and is_set_and_valid(raw_current_object.immutable_releases_enabled)
                 and is_set_and_valid(coerced_object.immutable_releases_enabled)
             ):
                 modified_repo["immutable_releases_enabled"] = Change(

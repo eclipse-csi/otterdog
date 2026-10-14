@@ -70,12 +70,17 @@ class TestOrgClientImmutableReleases:
                 return {"billing_email": "billing@example.com"}
             if url == "/orgs/org/settings/immutable-releases":
                 return {"enforced_repositories": "selected"}
-            if url == "/orgs/org/settings/immutable-releases/repositories":
-                return {"repositories": [{"name": "repo1"}, {"name": "repo2"}]}
 
             raise AssertionError(f"unexpected call {method} {url}")
 
-        mock_requester = pretend.stub(request_json=pretend.call_recorder(mock_request_json))
+        async def mock_request_paged_json(method, url, entries_key=None):
+            assert url == "/orgs/org/settings/immutable-releases/repositories"
+            return [{"name": "repo1"}, {"name": "repo2"}]
+
+        mock_requester = pretend.stub(
+            request_json=pretend.call_recorder(mock_request_json),
+            request_paged_json=pretend.call_recorder(mock_request_paged_json),
+        )
         mock_restapi = pretend.stub(requester=mock_requester)
         org_client = OrgClient(mock_restapi)
 
@@ -93,6 +98,9 @@ class TestOrgClientImmutableReleases:
             "immutable_releases_enforced_repositories": "selected",
             "immutable_releases_selected_repositories": ["repo1", "repo2"],
         }
+        assert mock_requester.request_paged_json.calls == [
+            pretend.call("GET", "/orgs/org/settings/immutable-releases/repositories", entries_key="repositories")
+        ]
 
     async def test_update_settings_updates_immutable_release_policy(self):
         async def mock_request_raw(method, url, data):
@@ -104,13 +112,14 @@ class TestOrgClientImmutableReleases:
             }
             return (200, "")
 
-        async def mock_get_simple_repo_data(org_id, repo_name):
-            return {"id": 1 if repo_name == "repo1" else 2}
+        async def mock_get_repo_ids(org_id, repo_names):
+            assert repo_names == ["repo1", "repo2"]
+            return [1, 2]
 
         mock_requester = pretend.stub(request_raw=pretend.call_recorder(mock_request_raw))
         mock_restapi = pretend.stub(
             requester=mock_requester,
-            repo=pretend.stub(get_simple_repo_data=mock_get_simple_repo_data),
+            repo=pretend.stub(get_repo_ids=mock_get_repo_ids),
         )
         org_client = OrgClient(mock_restapi)
 
@@ -129,15 +138,15 @@ class TestOrgClientImmutableReleases:
             assert json.loads(data) == {"selected_repository_ids": [7]}
             return (204, "")
 
-        async def mock_get_simple_repo_data(org_id, repo_name):
+        async def mock_get_repo_ids(org_id, repo_names):
             assert org_id == "org"
-            assert repo_name == "repo1"
-            return {"id": 7}
+            assert repo_names == ["repo1"]
+            return [7]
 
         mock_requester = pretend.stub(request_raw=pretend.call_recorder(mock_request_raw))
         mock_restapi = pretend.stub(
             requester=mock_requester,
-            repo=pretend.stub(get_simple_repo_data=mock_get_simple_repo_data),
+            repo=pretend.stub(get_repo_ids=mock_get_repo_ids),
         )
         org_client = OrgClient(mock_restapi)
 

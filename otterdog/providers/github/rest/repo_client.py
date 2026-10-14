@@ -43,6 +43,13 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving simple repo data for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+    async def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[int]:
+        repo_ids = []
+        for repo_name in repo_names:
+            repo_data = await self.get_simple_repo_data(org_id, repo_name)
+            repo_ids.append(repo_data["id"])
+        return repo_ids
+
     async def get_default_branch(self, org_id: str, repo_name: str) -> str:
         _logger.debug("retrieving default branch for repo '%s/%s'", org_id, repo_name)
 
@@ -645,9 +652,19 @@ class RepoClient(RestClient):
 
         status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
         if status == 200:
-            repo_data["immutable_releases_enabled"] = True
+            repo_data["immutable_releases_enabled"] = json.loads(body).get("enabled", True)
         elif status == 404:
+            # GitHub answers with 404 when immutable releases are disabled for the repo
             repo_data["immutable_releases_enabled"] = False
+        elif status in (402, 403):
+            # leave the setting unset, it will not be taken into account when computing changes
+            _logger.warning(
+                "immutable release settings for repo '%s/%s' not available (status=%s), "
+                "any configured setting will not be validated",
+                org_id,
+                repo_name,
+                status,
+            )
         else:
             raise RuntimeError(
                 f"failed retrieving immutable release settings for repo '{org_id}/{repo_name}': {status}: {body}"

@@ -200,6 +200,33 @@ class TestRepoClientImmutableReleases:
         ]
         assert repo_data["immutable_releases_enabled"] is False
 
+    async def test_fill_immutable_releases_reads_enabled_flag(self):
+        async def mock_request_raw(method, url):
+            return (200, json.dumps({"enabled": False, "enforced_by_owner": False}))
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert repo_data["immutable_releases_enabled"] is False
+
+    @pytest.mark.parametrize("status", [402, 403])
+    async def test_fill_immutable_releases_leaves_setting_unset_when_unavailable(self, status):
+        async def mock_request_raw(method, url):
+            return (status, "feature unavailable")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert "immutable_releases_enabled" not in repo_data
+
     async def test_fill_immutable_releases_raises_on_unexpected_status(self):
         async def mock_request_raw(method, url):
             return (500, "Internal Server Error")
@@ -211,6 +238,21 @@ class TestRepoClientImmutableReleases:
 
         with pytest.raises(RuntimeError, match="failed retrieving immutable release settings"):
             await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+
+class TestRepoClientGetRepoIds:
+    async def test_get_repo_ids(self):
+        async def mock_request_json(method, url):
+            return {"id": {"/repos/test-org/repo1": 1, "/repos/test-org/repo2": 2}[url]}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        assert await repo_client.get_repo_ids("test-org", ["repo1", "repo2"]) == [1, 2]
+        assert repo_client.requester.request_json.calls == [
+            pretend.call("GET", "/repos/test-org/repo1"),
+            pretend.call("GET", "/repos/test-org/repo2"),
+        ]
 
 
 class TestRepoClientForkPrApprovalPolicy:

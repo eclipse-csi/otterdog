@@ -111,7 +111,7 @@ class OrgClient(RestClient):
             immutable_release_data = {"enforced_repositories": immutable_releases_enforced_repositories}
 
             if immutable_releases_enforced_repositories == "selected":
-                immutable_release_data["selected_repository_ids"] = await self._get_repo_ids(
+                immutable_release_data["selected_repository_ids"] = await self.rest_api.repo.get_repo_ids(
                     org_id, immutable_releases_selected_repositories or []
                 )
 
@@ -119,19 +119,10 @@ class OrgClient(RestClient):
         elif immutable_releases_selected_repositories is not None:
             await self._update_selected_repositories_for_immutable_releases(
                 org_id,
-                await self._get_repo_ids(org_id, immutable_releases_selected_repositories),
+                await self.rest_api.repo.get_repo_ids(org_id, immutable_releases_selected_repositories),
             )
 
         _logger.debug("updated %d setting(s)", changes)
-
-    async def _get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[int]:
-        result = []
-
-        for repo_name in repo_names:
-            repo_data = await self.rest_api.repo.get_simple_repo_data(org_id, repo_name)
-            result.append(repo_data["id"])
-
-        return result
 
     async def _get_immutable_releases_settings(self, org_id: str) -> dict[str, Any]:
         _logger.debug("retrieving immutable release settings for org '%s'", org_id)
@@ -162,10 +153,9 @@ class OrgClient(RestClient):
         _logger.debug("retrieving selected repositories for immutable release settings of org '%s'", org_id)
 
         try:
-            response = await self.requester.request_json(
-                "GET", f"/orgs/{org_id}/settings/immutable-releases/repositories"
+            return await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/settings/immutable-releases/repositories", entries_key="repositories"
             )
-            return response["repositories"]
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving selected repositories for immutable release settings:\n{ex}") from ex
 
