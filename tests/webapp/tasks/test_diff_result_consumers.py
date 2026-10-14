@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock
 import pretend
 
 from otterdog.models import CostPolicy, LivePatchType
+from otterdog.models.repository import Repository
 from otterdog.operations.diff_operation import DiffResult, DiffStatus
 from otterdog.operations.validate import ValidationStatus
 from otterdog.webapp.webhook import CheckConfigurationInSyncTask, ValidatePullRequestTask
@@ -78,13 +79,7 @@ def _prepare_task(task, monkeypatch, org_config, rest_api):
     )
 
 
-async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path):
-    """
-    The sync-check task turns a plan with changes into an out-of-sync result and a comment.
-    """
-    diff_status = DiffStatus()
-    diff_status.additions = 1
-    result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
+async def _execute_check_sync_task(monkeypatch, tmp_path, result):
     rest_api = pretend.stub(issue=pretend.stub(create_comment=AsyncMock()))
     org_config = _organization_config(tmp_path)
     task = CheckConfigurationInSyncTask(1, "test-org", "repo", 42)
@@ -111,7 +106,37 @@ async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch,
         AsyncMock(return_value=[]),
     )
 
-    task_result = await task.execute()
+    return await task.execute(), rest_api
+
+
+async def test_check_sync_task_reports_out_of_sync_result_from_plan(monkeypatch, tmp_path):
+    """
+    The sync-check task turns a plan with changes into an out-of-sync result and a comment.
+    """
+    diff_status = DiffStatus()
+    diff_status.additions = 1
+    result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
+    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
+
+    assert task_result is False
+    rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_check_sync_reports_managed_team_permission_removal_as_drift(monkeypatch, tmp_path, repository_test):
+    """
+    A still-present GitHub permission makes the sync check report drift when configuration removes its team.
+    """
+    expected = Repository.from_model_data(repository_test.model_data)
+    current = Repository.from_model_data(repository_test.model_data)
+    expected.set_team_permissions({"committers": "push"})
+    current.set_team_permissions({"committers": "push", "contributors": "push"})
+    changes = expected.get_difference_from(current)
+    assert "team_permissions" in changes
+
+    diff_status = DiffStatus()
+    diff_status.differences = len(changes)
+    result = DiffResult("test-org", diff_status, ValidationStatus(), [object()])
+    task_result, rest_api = await _execute_check_sync_task(monkeypatch, tmp_path, result)
 
     assert task_result is False
     rest_api.issue.create_comment.assert_awaited_once()

@@ -45,6 +45,7 @@ def test_is_different_ignoring_order():
 
     assert is_different_ignoring_order({"a": 1}, {"a": 1}) is False
     assert is_different_ignoring_order({"a": 1}, {"b": 1}) is True
+    assert is_different_ignoring_order({}, {"a": 1}) is True
     assert is_different_ignoring_order({"a": 1, "b": 2}, {"b": 2, "a": 1}) is False
 
     assert is_different_ignoring_order({"a"}, {"a"}) is False
