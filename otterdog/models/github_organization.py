@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import dataclasses
 import json
 import os
@@ -596,12 +597,12 @@ class GitHubOrganization:
             return names_by_alias.get(name.lower(), name).lower()
 
         current_names_by_repo = {resolve(name): name for name in current_names}
-        return dataclasses.replace(
-            self.settings,
-            immutable_releases_selected_repositories=[
-                current_names_by_repo.get(resolve(name), name) for name in expected_names
-            ],
-        )
+
+        settings = copy.copy(self.settings)
+        settings.immutable_releases_selected_repositories = [
+            current_names_by_repo.get(resolve(name), name) for name in expected_names
+        ]
+        return settings
 
     @classmethod
     def load_from_file(cls, github_id: str, config_file: str) -> GitHubOrganization:

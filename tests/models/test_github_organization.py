@@ -193,6 +193,9 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         )
         expected_org.generate_live_patch(current_org, context, lambda patch: None)
 
+        # the expected configuration itself must be left untouched
+        assert expected_org.settings.immutable_releases_selected_repositories == expected_selected(repository.name)
+
         return context.modified_org_settings, repository.name
 
     def test_live_patch_matches_immutable_releases_repositories_case_insensitively(self):
