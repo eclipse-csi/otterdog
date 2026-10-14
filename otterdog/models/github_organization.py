@@ -557,7 +557,13 @@ class GitHubOrganization:
     ) -> None:
         OrganizationRole.generate_live_patch_of_list(self.roles, current_organization.roles, None, context, handler)
         Team.generate_live_patch_of_list(self.teams, current_organization.teams, None, context, handler)
-        OrganizationSettings.generate_live_patch(self.settings, current_organization.settings, None, context, handler)
+        OrganizationSettings.generate_live_patch(
+            self._settings_with_normalized_repository_names(current_organization.settings),
+            current_organization.settings,
+            None,
+            context,
+            handler,
+        )
         OrganizationWebhook.generate_live_patch_of_list(
             self.webhooks, current_organization.webhooks, None, context, handler
         )
@@ -572,6 +578,29 @@ class GitHubOrganization:
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
+        )
+
+    def _settings_with_normalized_repository_names(
+        self, current_settings: OrganizationSettings
+    ) -> OrganizationSettings:
+        expected_names = self.settings.immutable_releases_selected_repositories
+        current_names = current_settings.immutable_releases_selected_repositories
+        if not is_set_and_valid(expected_names) or not is_set_and_valid(current_names):
+            return self.settings
+
+        # repository names are case-insensitive on GitHub, and a renamed repository is still known under its aliases:
+        # use the name retrieved from GitHub for any configured name designating the same repository.
+        names_by_alias = {name.lower(): repo.name for repo in self.repositories for name in repo.get_all_names()}
+
+        def resolve(name: str) -> str:
+            return names_by_alias.get(name.lower(), name).lower()
+
+        current_names_by_repo = {resolve(name): name for name in current_names}
+        return dataclasses.replace(
+            self.settings,
+            immutable_releases_selected_repositories=[
+                current_names_by_repo.get(resolve(name), name) for name in expected_names
+            ],
         )
 
     @classmethod

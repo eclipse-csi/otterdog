@@ -14,7 +14,7 @@ import jsonschema
 import pretend
 
 from otterdog.config import OtterdogConfig
-from otterdog.models import FailureType
+from otterdog.models import FailureType, LivePatchContext
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file
 
@@ -170,3 +170,54 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             "while the repository does not yet exist" in message for _, message in context.validation_failures
         )
         assert get_languages_calls == []
+
+    def _generate_immutable_releases_settings_changes(self, expected_selected, current_selected, aliases=None):
+        expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+
+        repository = expected_org.repositories[0]
+        repository.aliases = aliases or []
+
+        for org, selected in ((expected_org, expected_selected), (current_org, current_selected)):
+            org.settings.immutable_releases_enforced_repositories = "selected"
+            org.settings.immutable_releases_selected_repositories = selected(repository.name)
+
+        context = LivePatchContext(
+            org_id=self.TEST_ORG,
+            repo_filter="",
+            update_webhooks=False,
+            update_secrets=False,
+            update_filter="*",
+            current_org_settings=current_org.settings,
+            expected_org_settings=expected_org.settings,
+        )
+        expected_org.generate_live_patch(current_org, context, lambda patch: None)
+
+        return context.modified_org_settings, repository.name
+
+    def test_live_patch_matches_immutable_releases_repositories_case_insensitively(self):
+        changes, _ = self._generate_immutable_releases_settings_changes(
+            lambda name: [name.upper()],
+            lambda name: [name],
+        )
+
+        assert "immutable_releases_selected_repositories" not in changes
+
+    def test_live_patch_matches_immutable_releases_repositories_by_alias(self):
+        changes, _ = self._generate_immutable_releases_settings_changes(
+            lambda name: ["previous-name"],
+            lambda name: [name],
+            aliases=["previous-name"],
+        )
+
+        assert "immutable_releases_selected_repositories" not in changes
+
+    def test_live_patch_reports_added_immutable_releases_repositories(self):
+        changes, repository_name = self._generate_immutable_releases_settings_changes(
+            lambda name: [name.upper(), "other-repo"],
+            lambda name: [name],
+        )
+
+        # the configured name of an already selected repository is replaced by the name retrieved from GitHub
+        change = changes["immutable_releases_selected_repositories"]
+        assert sorted(change.to_value) == sorted([repository_name, "other-repo"])
