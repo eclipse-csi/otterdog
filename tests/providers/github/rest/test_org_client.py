@@ -13,6 +13,7 @@ import pytest
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.org_client import OrgClient
+from otterdog.providers.github.rest.requester import Requester
 
 
 class TestRestClientOptionalJson:
@@ -61,6 +62,220 @@ class TestRestClientOptionalJson:
                 "/orgs/org/actions/cache/storage-limit",
                 feature_description="cache size for org 'org'",
             )
+
+
+class TestOrgClientUpdateSettings:
+    async def test_update_settings_excludes_settings_with_dedicated_endpoints_from_patch(self):
+        async def mock_request_json(method, url, data):
+            return {}
+
+        async def mock_update_security_managers(org_id, security_managers): ...
+
+        async def mock_disable_default_code_security_configurations(org_id): ...
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(mock_request_json))
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+        org_client.update_security_managers = pretend.call_recorder(mock_update_security_managers)
+        org_client._disable_default_code_security_configurations = pretend.call_recorder(
+            mock_disable_default_code_security_configurations
+        )
+
+        await org_client.update_settings(
+            "org",
+            {
+                "billing_email": "billing@example.com",
+                "security_managers": [],
+                "default_code_security_configurations_disabled": True,
+            },
+        )
+
+        assert mock_requester.request_json.calls == [
+            pretend.call("PATCH", "/orgs/org", {"billing_email": "billing@example.com"})
+        ]
+        assert org_client.update_security_managers.calls == [pretend.call("org", [])]
+        assert org_client._disable_default_code_security_configurations.calls == [pretend.call("org")]
+
+    async def test_update_settings_skips_patch_without_organization_resource_settings(self):
+        async def mock_update_security_managers(org_id, security_managers): ...
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(lambda *args: None))
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+        org_client.update_security_managers = pretend.call_recorder(mock_update_security_managers)
+
+        await org_client.update_settings("org", {"security_managers": ["@org/security"]})
+
+        assert mock_requester.request_json.calls == []
+        assert org_client.update_security_managers.calls == [pretend.call("org", ["@org/security"])]
+
+
+class TestOrgClientImmutableReleases:
+    async def test_get_settings_includes_immutable_release_settings(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                return {"enforced_repositories": "selected"}
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        async def mock_request_paged_json(method, url, entries_key=None):
+            assert url == "/orgs/org/settings/immutable-releases/repositories"
+            return [{"name": "repo1"}, {"name": "repo2"}]
+
+        mock_requester = pretend.stub(
+            request_json=pretend.call_recorder(mock_request_json),
+            request_paged_json=pretend.call_recorder(mock_request_paged_json),
+        )
+        mock_restapi = pretend.stub(requester=mock_requester)
+        org_client = OrgClient(mock_restapi)
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result == {
+            "billing_email": "billing@example.com",
+            "immutable_releases_enforced_repositories": "selected",
+            "immutable_releases_selected_repositories": ["repo1", "repo2"],
+        }
+        assert mock_requester.request_paged_json.calls == [
+            pretend.call("GET", "/orgs/org/settings/immutable-releases/repositories", entries_key="repositories")
+        ]
+
+    async def test_update_settings_updates_immutable_release_policy(self):
+        async def mock_request_raw(method, url, data):
+            assert method == "PUT"
+            assert url == "/orgs/org/settings/immutable-releases"
+            assert json.loads(data) == {
+                "enforced_repositories": "selected",
+                "selected_repository_ids": [1, 2],
+            }
+            return (200, "")
+
+        async def mock_get_repo_ids(org_id, repo_names):
+            assert repo_names == ["repo1", "repo2"]
+            return [1, 2]
+
+        mock_requester = pretend.stub(request_raw=pretend.call_recorder(mock_request_raw))
+        mock_restapi = pretend.stub(
+            requester=mock_requester,
+            repo=pretend.stub(get_repo_ids=mock_get_repo_ids),
+        )
+        org_client = OrgClient(mock_restapi)
+
+        await org_client.update_settings(
+            "org",
+            {
+                "immutable_releases_enforced_repositories": "selected",
+                "immutable_releases_selected_repositories": ["repo1", "repo2"],
+            },
+        )
+
+    async def test_update_settings_updates_only_selected_repositories(self):
+        async def mock_request_raw(method, url, data):
+            assert method == "PUT"
+            assert url == "/orgs/org/settings/immutable-releases/repositories"
+            assert json.loads(data) == {"selected_repository_ids": [7]}
+            return (204, "")
+
+        async def mock_get_repo_ids(org_id, repo_names):
+            assert org_id == "org"
+            assert repo_names == ["repo1"]
+            return [7]
+
+        mock_requester = pretend.stub(request_raw=pretend.call_recorder(mock_request_raw))
+        mock_restapi = pretend.stub(
+            requester=mock_requester,
+            repo=pretend.stub(get_repo_ids=mock_get_repo_ids),
+        )
+        org_client = OrgClient(mock_restapi)
+
+        await org_client.update_settings(
+            "org",
+            {
+                "immutable_releases_selected_repositories": ["repo1"],
+            },
+        )
+
+    async def test_get_settings_falls_back_when_immutable_releases_not_available(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                raise GitHubException(url, 404, "Not Found")
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=pretend.call_recorder(mock_request_json))
+        mock_restapi = pretend.stub(requester=mock_requester)
+        org_client = OrgClient(mock_restapi)
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result["immutable_releases_enforced_repositories"] == "none"
+        assert result["immutable_releases_selected_repositories"] == []
+
+    @pytest.mark.parametrize("status", [402, 403])
+    async def test_get_settings_leaves_immutable_releases_unset_when_not_accessible(self, status):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                raise GitHubException(url, status, "Forbidden")
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=mock_request_json)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result == {"billing_email": "billing@example.com"}
+
+    async def test_get_settings_leaves_immutable_releases_unset_on_missing_scopes(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                # the requester raises an exception for a 403 caused by missing OAuth scopes
+                Requester._check_permissions(
+                    url, 403, "Forbidden", {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"}
+                )
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=mock_request_json)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result == {"billing_email": "billing@example.com"}
 
 
 class TestOrgClientForkPrApprovalPolicy:

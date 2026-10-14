@@ -9,8 +9,9 @@
 from collections.abc import Mapping
 from typing import Any
 
+from otterdog.credentials.inmemory_provider import InMemoryVault
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import ModelObject
+from otterdog.models import FailureType, ModelObject, ValidationContext
 from otterdog.models.organization_settings import OrganizationSettings
 from otterdog.utils import UNSET, Change
 
@@ -50,6 +51,8 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.default_repository_permission == "read"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
+        assert settings.immutable_releases_enforced_repositories == "selected"
+        assert settings.immutable_releases_selected_repositories == ["otterdog-defaults"]
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -81,6 +84,8 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.default_branch_name == "main"
         assert settings.two_factor_requirement is False
         assert settings.web_commit_signoff_required is False
+        assert settings.immutable_releases_enforced_repositories == "selected"
+        assert settings.immutable_releases_selected_repositories == ["otterdog-defaults"]
         assert settings.members_can_create_private_repositories is False
         assert settings.members_can_create_public_repositories is True
         assert settings.members_can_fork_private_repositories is True
@@ -103,8 +108,10 @@ class OrganizationSettingsTest(ModelTest):
 
         provider_data = await settings.to_provider_data(self.org_id, self.provider)
 
-        assert len(provider_data) == 25
+        assert len(provider_data) == 27
         assert provider_data["billing_email"] == settings.billing_email
+        assert provider_data["immutable_releases_enforced_repositories"] == "selected"
+        assert provider_data["immutable_releases_selected_repositories"] == ["otterdog-defaults"]
 
     async def test_changes_to_provider(self):
         current = OrganizationSettings.from_model_data(self.model_data)
@@ -148,3 +155,28 @@ class OrganizationSettingsTest(ModelTest):
         assert diff["default_repository_permission"] == Change(
             other.default_repository_permission, current.default_repository_permission
         )
+
+    def test_validate_immutable_releases(self):
+        # the model data selects 'otterdog-defaults' for immutable releases
+        for enforced_repositories, expected_failure_types in [
+            ("selected", []),
+            ("all", [FailureType.WARNING]),
+            ("some", [FailureType.ERROR, FailureType.WARNING]),
+        ]:
+            with self.subTest(enforced_repositories=enforced_repositories):
+                settings = OrganizationSettings.from_model_data(self.model_data)
+                settings.immutable_releases_enforced_repositories = enforced_repositories
+
+                context = ValidationContext(
+                    root_object=None,
+                    secret_resolver=InMemoryVault(),
+                    template_dir="",
+                    org_members=set(),
+                    default_team_names=set(),
+                    exclude_teams_pattern=None,
+                )
+
+                settings.validate(context, None)
+
+                failure_types = [t for t, message in context.validation_failures if "immutable_releases" in message]
+                assert failure_types == expected_failure_types
