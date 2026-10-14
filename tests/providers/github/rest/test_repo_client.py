@@ -5,6 +5,7 @@ import pytest
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.repo_client import RepoClient
+from otterdog.providers.github.rest.requester import Requester
 
 
 class TestRepoClientCodeScanningConfig:
@@ -217,6 +218,23 @@ class TestRepoClientImmutableReleases:
     async def test_fill_immutable_releases_leaves_setting_unset_when_unavailable(self, status):
         async def mock_request_raw(method, url):
             return (status, "feature unavailable")
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        repo_data = {}
+
+        await repo_client._fill_immutable_releases("test-org", "test-repo", repo_data)
+
+        assert "immutable_releases_enabled" not in repo_data
+
+    async def test_fill_immutable_releases_leaves_setting_unset_on_missing_scopes(self):
+        async def mock_request_raw(method, url):
+            # the requester raises an exception for a 403 caused by missing OAuth scopes
+            Requester._check_permissions(
+                url, 403, "Forbidden", {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"}
+            )
+            raise AssertionError("expected InsufficientPermissionsException")
 
         mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
         repo_client = RepoClient(mocked_restapi)

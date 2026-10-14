@@ -9,7 +9,7 @@
 import json
 from typing import Any
 
-from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 from otterdog.utils import get_logger
 
 from . import RestApi, RestClient, encrypt_value
@@ -138,7 +138,8 @@ class OrgClient(RestClient):
 
         try:
             return await self.requester.request_json("GET", f"/orgs/{org_id}/settings/immutable-releases")
-        except GitHubException as ex:
+        except (GitHubException, InsufficientPermissionsException) as ex:
+            # a 403 caused by missing OAuth scopes is raised as InsufficientPermissionsException
             if ex.status == 404:
                 _logger.debug("immutable releases not available for org '%s', treating as disabled", org_id)
                 return {"enforced_repositories": "none"}

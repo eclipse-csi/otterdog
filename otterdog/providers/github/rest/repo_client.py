@@ -19,7 +19,7 @@ import aiofiles
 import chevron
 
 from otterdog.logging import is_trace_enabled
-from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
 from otterdog.utils import (
     associate_by_key,
@@ -650,7 +650,12 @@ class RepoClient(RestClient):
     async def _fill_immutable_releases(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         _logger.debug("retrieving immutable release settings for '%s/%s'", org_id, repo_name)
 
-        status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
+        try:
+            status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/immutable-releases")
+        except InsufficientPermissionsException as ex:
+            # a 403 caused by missing OAuth scopes is raised by the requester instead of being returned
+            status, body = ex.status, str(ex)
+
         if status == 200:
             repo_data["immutable_releases_enabled"] = json.loads(body).get("enabled", True)
         elif status == 404:

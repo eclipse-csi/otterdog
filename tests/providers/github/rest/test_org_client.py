@@ -13,6 +13,7 @@ import pytest
 
 from otterdog.providers.github.exception import GitHubException
 from otterdog.providers.github.rest.org_client import OrgClient
+from otterdog.providers.github.rest.requester import Requester
 
 
 class TestRestClientOptionalJson:
@@ -233,6 +234,32 @@ class TestOrgClientImmutableReleases:
                 return {"billing_email": "billing@example.com"}
             if url == "/orgs/org/settings/immutable-releases":
                 raise GitHubException(url, status, "Forbidden")
+
+            raise AssertionError(f"unexpected call {method} {url}")
+
+        mock_requester = pretend.stub(request_json=mock_request_json)
+        org_client = OrgClient(pretend.stub(requester=mock_requester))
+
+        result = await org_client.get_settings(
+            "org",
+            {
+                "billing_email",
+                "immutable_releases_enforced_repositories",
+                "immutable_releases_selected_repositories",
+            },
+        )
+
+        assert result == {"billing_email": "billing@example.com"}
+
+    async def test_get_settings_leaves_immutable_releases_unset_on_missing_scopes(self):
+        async def mock_request_json(method, url):
+            if url == "/orgs/org":
+                return {"billing_email": "billing@example.com"}
+            if url == "/orgs/org/settings/immutable-releases":
+                # the requester raises an exception for a 403 caused by missing OAuth scopes
+                Requester._check_permissions(
+                    url, 403, "Forbidden", {"X-OAuth-Scopes": "repo", "X-Accepted-OAuth-Scopes": "admin:org"}
+                )
 
             raise AssertionError(f"unexpected call {method} {url}")
 
