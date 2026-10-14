@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
+    CostPolicy,
     FailureType,
     LivePatch,
     LivePatchContext,
@@ -208,6 +209,17 @@ class Repository(ModelObject):
     @property
     def model_object_name(self) -> str:
         return "repository"
+
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
+        """Private repositories can incur costs when they are created."""
+        return self.private is True or super().is_cost_related(cost_policy)
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Mark a change from public to private as potentially cost-increasing."""
+        private_change = changes.get("private")
+        return (
+            private_change is not None and private_change.from_value is False and private_change.to_value is True
+        ) or super().changes_are_cost_related(changes)
 
     def __post_init__(self) -> None:
         super().__post_init__()
