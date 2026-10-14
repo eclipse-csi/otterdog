@@ -132,6 +132,43 @@ class TestRepository:
         assert diff["name"] == Change(other.name, current.name)
         assert diff["has_wiki"] == Change(other.has_wiki, current.has_wiki)
 
+    def test_private_repository_creation_is_cost_related(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.private = True
+
+        patch = LivePatch.of_addition(repo, None, pretend.stub())
+
+        assert patch.is_cost_related()
+
+    def test_public_repository_creation_is_not_cost_related(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+
+        patch = LivePatch.of_addition(repo, None, pretend.stub())
+
+        assert not patch.is_cost_related()
+
+    def test_public_to_private_conversion_is_cost_related(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.private = True
+
+        changes = expected.get_difference_from(current)
+        patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
+
+        assert patch.is_cost_related()
+
+    @pytest.mark.parametrize("private", [False, True])
+    def test_unrelated_repository_change_is_not_cost_related(self, repository_test, private):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.private = current.private = private
+        expected.has_issues = False
+
+        changes = expected.get_difference_from(current)
+        patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
+
+        assert not patch.is_cost_related()
+
     @pytest.mark.parametrize(
         "gh_pages_source_path, gh_pages_source_branch, expected_changes",
         [
