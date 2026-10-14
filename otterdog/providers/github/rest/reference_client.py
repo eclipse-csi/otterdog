@@ -53,6 +53,17 @@ class ReferenceClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed creating reference:\n{ex}") from ex
 
+    async def update_reference(self, org_id: str, repo_name: str, ref: str, sha: str, force: bool = False) -> None:
+        _logger.debug(
+            "updating reference '%s' to sha '%s' in repo '%s/%s' (force=%s)", ref, sha, org_id, repo_name, force
+        )
+
+        try:
+            data = {"sha": sha, "force": force}
+            await self.requester.request_json("PATCH", f"/repos/{org_id}/{repo_name}/git/refs/heads/{ref}", data=data)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed updating reference '{ref}':\n{ex}") from ex
+
     async def delete_reference(self, org_id: str, repo_name: str, ref: str) -> bool:
         _logger.debug("deleting reference with name '%s' in repo '%s/%s'", ref, org_id, repo_name)
 

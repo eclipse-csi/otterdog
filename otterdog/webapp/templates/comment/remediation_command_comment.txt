@@ -1,0 +1,25 @@
+<!-- Otterdog Comment: blueprint-{{ command }} -->
+{%- if result.outcome == "permission_denied" %}
+@{{ author }} you need write access to this repository to run `/otterdog {{ command }}`.
+{%- elif result.outcome == "not_a_remediation_pr" %}
+`/otterdog {{ command }}` only works on remediation pull requests of blueprints (branch `otterdog/blueprint/<id>`).
+{%- elif result.outcome == "unknown_blueprint" %}
+The blueprint `{{ result.blueprint_id }}` no longer exists in the configuration repository, nothing to do.
+{%- elif result.outcome == "dismissed" %}
+The blueprint `{{ result.blueprint_id }}` is dismissed for this repository, or this pull request is closed.
+Use `/otterdog recreate` to reinstate it and recreate the pull request.
+{%- elif result.outcome == "already_dismissed" %}
+The blueprint `{{ result.blueprint_id }}` is already dismissed for this repository.
+Use `/otterdog recreate` to reinstate it.
+{%- elif result.outcome == "rebased" %}
+{% if result.branch_reset -%}
+The branch was reset to the default branch and the files of blueprint `{{ result.blueprint_id }}` are being written again.
+{%- else -%}
+The default branch was merged into this branch and the files of blueprint `{{ result.blueprint_id }}` are being refreshed. Edits made on this branch are preserved.
+{%- endif %}
+{%- elif result.outcome == "recreated" %}
+The branch was recreated from the default branch{% if result.pull_request_reopened %}, this pull request was reopened{% endif %} and the files of blueprint `{{ result.blueprint_id }}` are being written again. Any dismissal of the blueprint for this repository has been cleared.
+{%- elif result.outcome == "ignored" %}
+The blueprint `{{ result.blueprint_id }}` has been dismissed for this repository by @{{ author }}.
+No further remediation pull requests will be created. Use `/otterdog recreate` on this pull request to reinstate it.
+{%- endif %}

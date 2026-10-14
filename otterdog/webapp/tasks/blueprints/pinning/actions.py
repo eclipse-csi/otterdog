@@ -83,12 +83,13 @@ class ReusableWorkflow(ActionRef):
             if version is None:
                 version = await rest_api.repo.get_default_branch(self.owner, self.repo)
 
-            status, content = await rest_api.content.get_content(self.owner, self.repo, self.file_path, version)
-            if status == 200:
-                return WorkflowFile(content)
-            else:
-                _logger.debug(f"received status '{status}' while retrieving workflow '{self!r}'")
+            try:
+                content = await rest_api.content.get_content(self.owner, self.repo, self.file_path, version)
+            except RuntimeError as ex:
+                _logger.debug(f"failed retrieving workflow '{self!r}'", exc_info=ex)
                 return None
+
+            return WorkflowFile(content)
         else:
             async with aiofiles.open(self.file_path) as file:
                 return WorkflowFile(await file.read())

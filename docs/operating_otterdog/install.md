@@ -123,6 +123,10 @@ It is required if you are the integration with GitHub ([Create a GitHub app](htt
 
 Add the following permissions and events:
 
+!!! note
+    `Issues: Read & Write` is needed so that otterdog can answer comment commands on issues and label
+    remediation pull requests of blueprints. With `Read only`, commands still work on pull requests.
+
 
 Repository Permissions
 
@@ -134,7 +138,7 @@ Repository Permissions
 | Contents             | Read & Write |
 | Custom properties    | Read & Write |
 | Environments         | Read & Write |
-| Issues               | Read only    |
+| Issues               | Read & Write |
 | Metadata             | Read only    |
 | Pages                | Read & Write |
 | Pull requests        | Read & Write |

@@ -8,14 +8,16 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from functools import cached_property
 from logging import Logger, getLogger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from otterdog.models.github_organization import GitHubOrganization
 
@@ -40,6 +42,26 @@ class Blueprint(ABC, BaseModel):
     name: str | None
     description: str | None
 
+    # applied to remediation pull requests, in addition to the labels `otterdog` and `blueprint:<id>`
+    labels: list[str] = Field(default_factory=list)
+    # team slugs requested as reviewers of remediation pull requests
+    reviewers: list[str] = Field(default_factory=list)
+    # users assigned to remediation pull requests
+    assignees: list[str] = Field(default_factory=list)
+    # workflow(s) whose jobs `/otterdog status` reports, by file name or workflow name;
+    # defaults to the workflows managed by the blueprint, or all workflows of the repository
+    status_workflow: str | list[str] | None = None
+
+    @property
+    def status_workflows(self) -> list[str]:
+        if self.status_workflow is None:
+            return []
+        return [self.status_workflow] if isinstance(self.status_workflow, str) else list(self.status_workflow)
+
+    def managed_workflows(self) -> list[str]:
+        """File names of workflows under `.github/workflows` that this blueprint writes, if any."""
+        return []
+
     @cached_property
     def logger(self) -> Logger:
         return getLogger(__name__)
@@ -52,12 +74,38 @@ class Blueprint(ABC, BaseModel):
     def config(self) -> dict[str, Any]:
         return self.model_dump(exclude={"id", "path", "name", "description"})
 
+    # settings that only decorate the remediation pull request and do not change its content
+    PULL_REQUEST_SETTINGS: ClassVar[frozenset[str]] = frozenset({"labels", "reviewers", "assignees", "status_workflow"})
+
+    @property
+    def revision(self) -> str:
+        """
+        A short, stable digest of the blueprint's content. Stored with a remediation when its files are
+        written, so a pull request carrying outdated content can be recognised later. Settings that only
+        decorate the pull request (labels, reviewers, ...) do not change the revision.
+        """
+        return blueprint_revision({k: v for k, v in self.config.items() if k not in self.PULL_REQUEST_SETTINGS})
+
     async def _get_repositories(self, config_model: ConfigurationModel) -> list[Repository]:
         github_organization = GitHubOrganization.from_model_data(config_model.config)
         return github_organization.repositories
 
     @abstractmethod
     def _matches(self, repo: Repository) -> bool: ...
+
+    def matches_repo_name(self, config_model: ConfigurationModel, repo_name: str) -> bool:
+        """Checks whether the blueprint applies to the given repository of the organization."""
+        github_organization = GitHubOrganization.from_model_data(config_model.config)
+        repo = github_organization.get_repository(repo_name)
+        return repo is not None and repo.archived is False and self._matches(repo)
+
+    async def matching_repositories(self, config_model: ConfigurationModel) -> list[str]:
+        """Returns the names of all non-archived repositories this blueprint applies to."""
+        return [
+            repo.name
+            for repo in await self._get_repositories(config_model)
+            if repo.archived is False and self._matches(repo)
+        ]
 
     async def evaluate(self, installation_id: int, github_id: str, recheck: bool = False) -> None:
         from otterdog.webapp.db.models import BlueprintStatus
@@ -111,6 +159,11 @@ class Blueprint(ABC, BaseModel):
 
     async def collect_auxiliary_data(self, installation_id: int, github_id: str, repo_name: str) -> None:
         return
+
+
+def blueprint_revision(config: dict[str, Any]) -> str:
+    digest = hashlib.sha256(json.dumps(config, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    return digest[:12]
 
 
 def read_blueprint(path: str, content: dict[str, Any]) -> Blueprint:

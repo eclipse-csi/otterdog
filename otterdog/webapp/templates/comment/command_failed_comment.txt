@@ -1,0 +1,7 @@
+<!-- Otterdog Comment: command-failed -->
+@{{ author }} `/otterdog {{ command }}` failed with an unexpected error, nothing was changed by this command.
+An administrator can find the details in the otterdog logs (task `{{ task }}`).
+
+```
+{{ error }}
+```

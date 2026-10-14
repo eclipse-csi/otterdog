@@ -1,0 +1,33 @@
+<!-- Otterdog Comment: blueprint-create -->
+{%- if result.permission_denied %}
+@{{ author }} you need write access to this repository to create a blueprint.
+{%- elif result.unknown_type is not none %}
+Unknown blueprint type `{{ result.unknown_type }}`. Valid types:
+{% for type in result.valid_types %}
+- `{{ type }}`
+{%- endfor %}
+
+Example: `/otterdog create blueprint required_file --from .github/workflows/build.yml`
+{%- elif result.invalid_id is not none %}
+`{{ result.invalid_id }}` is not a valid blueprint id: use letters, digits, `.`, `_` and `-` only, e.g. `require-build`.
+{%- elif result.missing_files | length > 0 %}
+The following file(s) do not exist in this repository: {% for path in result.missing_files %}`{{ path }}`{% if not loop.last %}, {% endif %}{% endfor %}.
+{%- elif result.validation_error is not none %}
+The scaffolded blueprint does not validate: {{ result.validation_error }}
+{%- elif result.already_exists %}
+A blueprint `{{ result.blueprint_id }}` already exists at `{{ result.file_path }}` in the configuration repository.
+Pass another id with `--id <id>`.
+{%- elif result.pull_request_error is not none %}
+Wrote `{{ result.file_path }}` to branch `{{ result.branch_name }}` of the configuration repository, but could not open a pull request: {{ result.pull_request_error }}
+A pull request for that branch probably exists already, check it or open one manually.
+{%- else %}
+Opened {{ result.pull_request_url }} adding `{{ result.file_path }}` (type `{{ blueprint_type }}`).
+{% if result.files | length > 0 %}
+Files taken from this repository: {% for path in result.files %}`{{ path }}`{% if not loop.last %}, {% endif %}{% endfor %}.
+{%- endif %}
+{%- if result.name_pattern is not none %}
+Repository selector: `{{ result.name_pattern }}`. Widen it in the pull request once the blueprint works for this repository.
+{%- else %}
+No repository selector: the blueprint applies to every repository of the organization. Consider narrowing it in the pull request.
+{%- endif %}
+{%- endif %}

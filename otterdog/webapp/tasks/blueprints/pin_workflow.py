@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult
+from otterdog.webapp.tasks.blueprints import BlueprintTask, CheckResult, RemediationFile
 from otterdog.webapp.tasks.blueprints.pinning.actions import ActionRef
 from otterdog.webapp.tasks.blueprints.pinning.workflow_file import WorkflowFile
 
@@ -75,7 +75,7 @@ class PinWorkflowTask(BlueprintTask):
         rest_api = await self.rest_api
         default_branch = await rest_api.repo.get_default_branch(self.org_id, self.repo_name)
 
-        await self._create_branch_if_needed(default_branch)
+        await self._prepare_branch(default_branch)
 
         for workflow_path, (_, pinned_lines) in pinned_workflows.items():
             content = "".join(pinned_lines)
@@ -88,13 +88,17 @@ class PinWorkflowTask(BlueprintTask):
                 f"Pinning workflow {workflow_path}",
             )
 
+        result.content_written = True
+        files = [RemediationFile(path) for path in pinned_workflows]
+
         existing_pr_number = await self._find_existing_pull_request(default_branch)
         if existing_pr_number is not None:
             result.remediation_pr = existing_pr_number
+            await self._update_existing_pull_request(existing_pr_number, files)
             return
 
         pr_title = f"chore(otterdog): pinning workflows due to blueprint `{self.blueprint.id}`"
-        result.remediation_pr = await self._create_pull_request(pr_title, default_branch)
+        result.remediation_pr = await self._create_pull_request(pr_title, default_branch, files=files)
 
     async def _pin_workflow(self, workflow: WorkflowFile) -> tuple[bool, list[str]]:
         rest_api = await self.rest_api

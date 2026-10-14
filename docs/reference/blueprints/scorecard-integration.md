@@ -15,6 +15,7 @@ will also correct the comment to the tag / branch that matches the used commit h
 |------------------|-----------|--------------------------------|------------------------------------------------------------------------------|
 | repo_selector    | optional  | [RepoSelector](#repo-selector) | If omitted, all repos are matched                                            |
 | scorecard_action | optional  | string                         | the name of scorecard action to search for, default: 'ossf/scorecard-action' |
+| scorecard_workflow_refs | optional | list[string]            | regular expressions matching reusable workflows (`owner/repo/path@ref`) that count as a Scorecard integration without being inspected, e.g. `eclipse-csi/workflows/.github/workflows/scorecard.yml@.*` |
 | workflow_name    | optional  | string                         | the name of the workflow to be added, default: 'scorecard-analysis.yml'      |
 | workflow_content | mandatory | string                         | the workflow content to be added if no scorecard action can be found         |
 
@@ -26,6 +27,12 @@ The pattern is expected to be in [python regular expression format](https://docs
 | Setting      | Necessity  | Value type             |
 |--------------|------------|------------------------|
 | name_pattern | mandatory  | list[string] \| string |
+
+### Reusable workflows
+
+A repository that calls a central reusable workflow which in turn runs the scorecard action is also considered
+as integrated: the referenced workflow is fetched and inspected one level deep. Workflows listed in
+`scorecard_workflow_refs` are accepted without being fetched, which also covers private or unreachable repositories.
 
 ### Templating
 

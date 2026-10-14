@@ -2,4 +2,6 @@
 The blueprint `{{ blueprint_id }}` has been dismissed for this repo.
 
 > [!TIP]
-> To re-enable the blueprint for this repo, re-open the pull request (branch might need to be restored first).
+> To re-enable the blueprint for this repo, comment `/otterdog recreate` on this pull request:
+> the branch is recreated from the default branch and the pull request reopened.
+> Re-opening the pull request manually also works (the branch might need to be restored first).

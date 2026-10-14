@@ -386,6 +386,62 @@ def list_blueprints(organizations: list[str], blueprint_id):
     _execute_operation(organizations, ListBlueprintsOperation(blueprint_id))
 
 
+@cli.command(context_settings=_CONTEXT_SETTINGS)
+@click.option(
+    "-t",
+    "--type",
+    "blueprint_type",
+    required=True,
+    help="blueprint type: required_file, pin_workflow, append_configuration or scorecard_integration",
+)
+@click.option("-b", "--blueprint-id", required=True, help="blueprint id, also the file name")
+@click.option("-f", "--filter", "name_pattern", required=False, help="regex for repo_selector.name_pattern")
+@click.option(
+    "--from",
+    "from_paths",
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="local file to include as content, its path relative to --root becomes the path in the blueprint",
+)
+@click.option("--root", default=".", show_default=True, help="directory the --from paths are relative to")
+@click.option("-o", "--output", default=".", show_default=True, help="config repo checkout to write into")
+@click.option("--force", is_flag=True, default=False, help="overwrite an existing blueprint file")
+def create_blueprint(blueprint_type, blueprint_id, name_pattern, from_paths, root, output, force):
+    """
+    Scaffolds a blueprint definition at otterdog/blueprints/<id>.yml and validates it.
+    """
+    from otterdog.webapp.blueprints.scaffold import (
+        UnknownBlueprintTypeError,
+        blueprint_file_path,
+        render_blueprint_yaml,
+        scaffold_blueprint,
+    )
+
+    files = {}
+    for local_path in from_paths:
+        relative_path = os.path.relpath(local_path, root).replace(os.sep, "/")
+        with open(local_path, encoding="utf-8") as file:
+            files[relative_path] = file.read()
+
+    try:
+        data = scaffold_blueprint(blueprint_type, blueprint_id, name_pattern, files)
+    except UnknownBlueprintTypeError as ex:
+        print_error(str(ex))
+        sys.exit(1)
+    except ValueError as ex:
+        print_error(str(ex))
+        sys.exit(1)
+
+    target = Path(output) / blueprint_file_path(blueprint_id)
+    if target.exists() and not force:
+        print_error(f"'{target}' already exists, use --force to overwrite")
+        sys.exit(1)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_blueprint_yaml(data), encoding="utf-8")
+    click.echo(f"wrote {target}")
+
+
 @cli.command(cls=StdCommand)
 @click.option("-b", "--blueprint-id", required=False, help="blueprint id")
 def approve_blueprints(organizations: list[str], blueprint_id):

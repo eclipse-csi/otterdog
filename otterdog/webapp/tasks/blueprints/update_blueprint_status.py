@@ -19,6 +19,7 @@ from otterdog.webapp.tasks import (
     InstallationBasedTask,
     Task,
 )
+from otterdog.webapp.utils import current_utc_time
 from otterdog.webapp.webhook.github_models import PullRequest
 
 
@@ -62,6 +63,7 @@ class UpdateBlueprintStatusTask(InstallationBasedTask, Task[None]):
                     blueprint_status.status = BlueprintStatus.DISMISSED
                     await self._add_comment_to_pr(blueprint_status.id.blueprint_id)
 
+            blueprint_status.updated_at = current_utc_time()
             await save_blueprint_status(blueprint_status)
 
     async def _add_comment_to_pr(self, blueprint_id: str) -> None:

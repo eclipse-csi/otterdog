@@ -1,0 +1,39 @@
+{{ header }}
+{%- if result.permission_denied %}
+@{{ author }} you need write access to this repository to request the blueprint status.
+{%- elif result.unknown_blueprint_id is not none %}
+Unknown blueprint id `{{ result.unknown_blueprint_id }}`. Blueprints defined for `{{ org_id }}`:
+{% for blueprint_id in result.known_blueprint_ids %}
+- `{{ blueprint_id }}`
+{%- endfor %}
+{%- else %}
+## Blueprint status for `{{ org_id }}`
+{% if result.workflow_filter or result.label_filter or result.status_filter %}
+Filters:{% if result.workflow_filter %} workflow `{{ result.workflow_filter }}`{% endif %}{% if result.label_filter %} label `{{ result.label_filter }}`{% endif %}{% if result.status_filter %} job status `{{ result.status_filter }}`{% endif %}
+{% endif %}
+{%- for report in result.reports %}
+### [{{ report.blueprint_name if report.blueprint_name else report.blueprint_id }}]({{ report.blueprint_url }}) (`{{ report.blueprint_id }}`)
+{% if report.rows | length == 0 %}
+No repository matches{% if result.label_filter or result.status_filter %} the filters{% endif %}.
+{% else %}
+| Repository | Blueprint status | Remediation PR | Labels | Jobs on default branch |
+|------------|------------------|----------------|--------|------------------------|
+{%- for row in report.rows %}
+| [{{ row.repo_name }}]({{ row.repo_url }}) | `{{ row.status }}`{% if row.checked_at %} ({{ row.checked_at }}){% endif %} | {% if row.pull_request is not none %}[#{{ row.pull_request }}]({{ row.pull_request_url or row.repo_url ~ '/pull/' ~ row.pull_request }}){% if row.pull_request_state %} `{{ row.pull_request_state }}`{% endif %}{% if row.mergeable_state %} `{{ row.mergeable_state }}`{% endif %}{% if row.outdated %} **outdated**{% endif %}{% else %}–{% endif %} | {% for label in row.labels %}`{{ label }}`{% if not loop.last %} {% endif %}{% else %}–{% endfor %} | {% for job in row.jobs %}{% if job.url %}[`{{ job.text }}`]({{ job.url }}){% else %}`{{ job.text }}`{% endif %}{% if not loop.last %}<br>{% endif %}{% else %}–{% endfor %} |
+{%- endfor %}
+{% endif %}
+{%- endfor %}
+Job labels carry GitHub's own `conclusion` (`success`, `failure`, `cancelled`, `skipped`, `timed_out`, `action_required`, `neutral`, `stale`) or, while not completed, its `status` (`queued`, `in_progress`, `waiting`, `pending`, `requested`); `no_run` means the workflow never ran on the default branch. **outdated** marks a pull request whose content is older than the current blueprint, `/otterdog rebase` or `/otterdog recreate` on it refreshes it.
+
+<details>
+<summary>Commands</summary>
+
+- `/otterdog status [<blueprint-id>]` – update this comment
+- `/otterdog status <blueprint-id> --workflow <file-or-name>` – only the jobs of that workflow
+- `/otterdog status <blueprint-id> --label <label>` – only repositories whose pull request carries that label
+- `/otterdog status <blueprint-id> --status failure` – only repositories with a job in that GitHub status
+- `/otterdog recheck [<blueprint-id>]` – re-evaluate now, ignoring the check interval
+</details>
+
+Dashboard: {{ dashboard_url }}
+{%- endif %}

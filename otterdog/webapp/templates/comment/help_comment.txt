@@ -22,4 +22,10 @@ You can trigger otterdog actions by commenting on this PR:
 - `/otterdog merge` merges and applies the changes if the PR is eligible for auto-merging (only accessible for the author)
 - `/otterdog done` notifies the self-service bot that a required manual apply operation has been performed (only accessible for members of the admin team(s) `{{ admin_teams|join(', ') }}`)
 - `/otterdog apply` re-apply a previously failed attempt (only accessible for members of the admin team(s) `{{ admin_teams|join(', ') }}`)
+
+Blueprint commands (write access required, also available on issues and in other repositories):
+
+- `/otterdog recheck [<blueprint-id>]` re-evaluates blueprints now, ignoring the check interval
+- `/otterdog status [<blueprint-id>] [--workflow <name>] [--label <label>] [--status <status>]` reports blueprint, pull request and job status per repository
+- `/otterdog create blueprint <type> [--id <id>] [--from <path>]... [--filter <regex>]` scaffolds a blueprint and opens a pull request for it
 </details>
