@@ -72,6 +72,7 @@ include = [
     "docker",
     "docs",
     "examples",
+    { path = "otterdog/resources/defaults", format = ["sdist", "wheel"] },
     "mkdocs.yml",
     "otterdog.sh",
     "poetry.lock",
