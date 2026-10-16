@@ -253,8 +253,12 @@ def test_explicit_upstream_template_url_keeps_its_configured_path(tmp_path):
     )
 
 
-async def test_legacy_template_forwarders_work_when_only_the_template_directory_is_vendored(tmp_path):
-    """Custom template initialization copies the selected subdirectory, not the package resources."""
+async def test_explicit_legacy_template_url_loads_standalone_defaults(tmp_path):
+    """The published example remains usable when explicitly selected as a base template."""
+    import json
+
+    import rjsonnet
+
     jsonnet_config = JsonnetConfig(
         "sample",
         str(tmp_path),
@@ -265,6 +269,10 @@ async def test_legacy_template_forwarders_work_when_only_the_template_directory_
     await jsonnet_config.init_template()
     config_file = Path(jsonnet_config.org_config_file)
     config_file.write_text(f"({jsonnet_config.import_statement}).newOrg('sample', 'sample')\n")
+
+    # Older clients evaluate vendored templates without the package import callback.
+    standalone_defaults = json.loads(rjsonnet.evaluate_file(str(config_file)))
+    assert standalone_defaults["settings"]["default_repository_permission"] == "read"
 
     with restrict_jsonnet_imports(jsonnet_config.org_dir):
         organization = GitHubOrganization.load_from_file("sample", str(config_file))

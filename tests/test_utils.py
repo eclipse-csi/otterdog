@@ -243,6 +243,16 @@ def test_evaluate_without_restricting_import(tmp_path: Path):
     assert result["outside"] == "payload"
 
 
+def test_importstr_preserves_original_line_endings(tmp_path: Path):
+    imported_file = tmp_path / "secret.txt"
+    original_content = "first\r\nsecond\rthird\n"
+    imported_file.write_bytes(original_content.encode("utf-8"))
+
+    result = jsonnet_evaluate_snippet(f'{{ secret: importstr "{imported_file}" }}')
+
+    assert result["secret"] == original_content
+
+
 _long_string = "Too long to fit console width"
 
 

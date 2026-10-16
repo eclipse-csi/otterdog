@@ -440,7 +440,7 @@ def _make_jsonnet_import_callback(allowed_root: str | None) -> Callable[[str, st
         resolved = candidate.resolve()
         if allowed_root is not None and not any(resolved.is_relative_to(root) for root in roots):
             raise RuntimeError(f"import of '{rel}' is not allowed")
-        return str(resolved), resolved.read_text(encoding="utf-8")
+        return str(resolved), resolved.read_bytes().decode("utf-8")
 
     return callback
 
