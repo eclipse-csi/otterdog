@@ -482,3 +482,32 @@ class TestRepoClientGitHubPagesCustomDomain:
 
         with pytest.raises(RuntimeError, match="failed to update github pages custom domain"):
             await repo_client._update_github_pages_config("test-org", "test-repo", {"cname": "docs.example.org"})
+
+    async def test_update_custom_domain_of_organization_site(self):
+        current_config = {"build_type": "legacy", "cname": None, "https_enforced": True}
+        repo_client = self._create_client({"GET": (200, json.dumps(current_config)), "PUT": (204, "")})
+
+        await repo_client._update_github_pages_config(
+            "test-org", "test-org.github.io", {"cname": "docs.example.org", "https_enforced": True}
+        )
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-org.github.io/pages"),
+            pretend.call("GET", "/repos/test-org/test-org.github.io/pages"),
+            pretend.call(
+                "PUT", "/repos/test-org/test-org.github.io/pages", data=json.dumps({"cname": "docs.example.org"})
+            ),
+            pretend.call("PUT", "/repos/test-org/test-org.github.io/pages", data=json.dumps({"https_enforced": True})),
+        ]
+
+    async def test_custom_domain_of_organization_site_already_up_to_date(self):
+        current_config = {"build_type": "legacy", "cname": "docs.example.org", "https_enforced": True}
+        repo_client = self._create_client({"GET": (200, json.dumps(current_config))})
+
+        await repo_client._update_github_pages_config(
+            "test-org", "test-org.github.io", {"cname": "docs.example.org", "https_enforced": True}
+        )
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-org.github.io/pages"),
+        ]

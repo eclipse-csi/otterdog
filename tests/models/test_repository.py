@@ -10,7 +10,8 @@ import pretend
 import pytest
 
 from otterdog.models.repository import LivePatch, Repository
-from otterdog.utils import UNSET, Change, query_json
+from otterdog.utils import UNSET, Change, jsonnet_evaluate_snippet, query_json
+from tests.models import _EXAMPLE_CONFIG
 
 
 class TestRepository:
@@ -632,3 +633,31 @@ class TestRepository:
         else:
             assert len(failures) == 1
             assert error in failures[0][1]
+
+    @pytest.mark.parametrize(
+        "cname, https_enforced, expected_patch",
+        [
+            (None, True, {}),
+            (None, False, {}),
+            ("csi.eclipse.dev", True, {"gh_pages_cname": "csi.eclipse.dev"}),
+            (
+                "csi.eclipse.dev",
+                False,
+                {"gh_pages_cname": "csi.eclipse.dev", "gh_pages_https_enforced": False},
+            ),
+        ],
+    )
+    def test_gh_pages_custom_domain_patch_to_example_config(
+        self, repository_test, cname, https_enforced, expected_patch
+    ):
+        # the patch to the default config is what gets rendered when importing a configuration
+        snippet = f"(import '{_EXAMPLE_CONFIG}').{repository_test.template_function}('default')"
+        default = Repository.from_model_data(jsonnet_evaluate_snippet(snippet))
+        current = Repository.from_model_data(jsonnet_evaluate_snippet(snippet))
+        current.gh_pages_build_type = "workflow"
+        current.gh_pages_cname = cname
+        current.gh_pages_https_enforced = https_enforced
+
+        patch = current.get_patch_to(default)
+
+        assert {k: v for k, v in patch.items() if k in Repository._gh_pages_domain_properties} == expected_patch

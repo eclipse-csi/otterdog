@@ -71,6 +71,10 @@ local newRepo(name) = {
   gh_pages_source_branch: null,
   gh_pages_source_path: null,
   gh_pages_visibility: "public",
+  # custom domain of the GitHub Pages site, null to use the default github.io domain
+  gh_pages_cname: null,
+  # only taken into account when a custom domain is set
+  gh_pages_https_enforced: true,
 
   # Custom Properties
   custom_properties: {},
