@@ -67,7 +67,7 @@ Then create the file `otterdog.json` in this repository with all the required se
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<Github Username>/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+            "base_template": "https://github.com/<Github Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },
@@ -276,7 +276,7 @@ Example of `otterdog.json`
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<GitHub Username>/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+            "base_template": "https://github.com/<GitHub Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },
