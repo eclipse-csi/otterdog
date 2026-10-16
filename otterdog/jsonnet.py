@@ -9,6 +9,7 @@
 import os
 from asyncio import Lock
 from functools import cached_property
+from pathlib import Path
 from shutil import ignore_patterns
 from typing import Any
 
@@ -52,7 +53,7 @@ class JsonnetConfig:
         self,
         org_id: str,
         base_dir: str,
-        base_template_url: str,
+        base_template_url: str | None,
         local_only: bool,
         org_dir: str | None = None,
     ):
@@ -60,12 +61,18 @@ class JsonnetConfig:
         self._base_dir = base_dir
         self._base_org_dir = org_dir if org_dir is not None else base_dir
 
-        repo_url, file, ref = parse_template_url(base_template_url)
-
-        self._base_template_repo_url = repo_url
-        self._base_template_repo_name = os.path.basename(repo_url)
-        self._base_template_file = file
-        self._base_template_ref = ref
+        self._using_bundled_template = base_template_url is None
+        if base_template_url is None:
+            self._base_template_repo_url = None
+            self._base_template_repo_name = "otterdog"
+            self._base_template_file = "otterdog-defaults.libsonnet"
+            self._base_template_ref = "bundled"
+        else:
+            repo_url, file, ref = parse_template_url(base_template_url)
+            self._base_template_repo_url = repo_url
+            self._base_template_repo_name = os.path.basename(repo_url)
+            self._base_template_file = file
+            self._base_template_ref = ref
 
         self._local_only = local_only
 
@@ -99,7 +106,7 @@ class JsonnetConfig:
         if self._initialized is True:
             return
 
-        if not self._local_only:
+        if not self._local_only and not self._using_bundled_template:
             await self._init_base_template()
 
         template_file = self.template_file
@@ -327,11 +334,13 @@ class JsonnetConfig:
 
     @property
     def template_dir(self) -> str:
-        return os.path.join(
-            self.org_dir,
-            "vendor",
-            self._base_template_repo_name,
-        )
+        if self._using_bundled_template:
+            return str(self._bundled_template_dir)
+        return os.path.join(self.org_dir, "vendor", self._base_template_repo_name)
+
+    @property
+    def _bundled_template_dir(self) -> Path:
+        return Path(__file__).resolve().parent / "resources" / "defaults"
 
     @property
     def template_file(self) -> str:
@@ -367,6 +376,8 @@ class JsonnetConfig:
 
     @property
     def import_statement(self) -> str:
+        if self._using_bundled_template:
+            return "import 'otterdog:defaults'"
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_base_template(self) -> None:
@@ -376,22 +387,25 @@ class JsonnetConfig:
         from aioshutil import copytree, rmtree
 
         _logger.debug("initializing base template '%s@%s'", self._base_template_repo_url, self._base_template_ref)
-        template_owner, template_repository = parse_github_url(self._base_template_repo_url)
+        base_template_repo_url = self._base_template_repo_url
+        if base_template_repo_url is None:
+            raise RuntimeError("missing URL for configured base template")
+        template_owner, template_repository = parse_github_url(base_template_repo_url)
 
         async with _template_lock:
             # cache the template repo with the requested ref in the 'templates' directory
             template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
 
             if not await exists(f"{template_dir}/.git"):
-                _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
-                with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
+                _logger.debug("cloning base template from url '%s'", base_template_repo_url)
+                with git.Repo.clone_from(base_template_repo_url, template_dir) as repo:
                     repo.git.checkout(self._base_template_ref)
             else:
                 with git.Repo(template_dir) as repo:
                     if not repo.head.is_detached:
                         _logger.debug(
                             "pulling changes from base template url '%s' with ref '%s'",
-                            self._base_template_repo_url,
+                            base_template_repo_url,
                             repo.head.ref,
                         )
                         repo.remotes.origin.pull()
