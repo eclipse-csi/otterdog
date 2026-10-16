@@ -476,3 +476,159 @@ class TestRepository:
         change = self._generate_immutable_releases_change(repository_test, "all", "none", UNSET, True)
 
         assert change is None
+
+    def test_load_gh_pages_custom_domain_from_provider(self, repository_test):
+        provider_data = repository_test.provider_data
+        provider_data["gh_pages"] = {
+            "build_type": "workflow",
+            "cname": "docs.example.org",
+            "https_enforced": False,
+            "public": True,
+        }
+
+        repo = Repository.from_provider_data(repository_test.org_id, provider_data)
+
+        assert repo.gh_pages_build_type == "workflow"
+        assert repo.gh_pages_cname == "docs.example.org"
+        assert repo.gh_pages_https_enforced is False
+
+    async def test_gh_pages_custom_domain_to_provider(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = "docs.example.org"
+        repo.gh_pages_https_enforced = True
+
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+        assert "gh_pages_cname" not in provider_data
+        assert "gh_pages_https_enforced" not in provider_data
+        assert provider_data["gh_pages"] == {
+            "build_type": "legacy",
+            "source": {"branch": "gh-pages", "path": "/"},
+            "cname": "docs.example.org",
+            "https_enforced": True,
+        }
+
+    async def test_gh_pages_https_enforced_ignored_for_default_domain(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = None
+        repo.gh_pages_https_enforced = False
+
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+        assert provider_data["gh_pages"]["cname"] is None
+        assert "https_enforced" not in provider_data["gh_pages"]
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_cname = None
+        current.gh_pages_https_enforced = True
+
+        assert repo.get_difference_from(current) == {}
+
+    def test_gh_pages_custom_domain_ignored_when_disabled(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.gh_pages_build_type = "disabled"
+        expected.gh_pages_cname = None
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_build_type = "disabled"
+        current.gh_pages_cname = "docs.example.org"
+
+        assert expected.get_difference_from(current) == {}
+
+    @pytest.mark.parametrize(
+        "current_cname, expected_cname, expected_changes",
+        [
+            (
+                None,
+                "docs.example.org",
+                {
+                    "gh_pages_cname": Change(None, "docs.example.org"),
+                    "gh_pages_https_enforced": Change(True, True),
+                },
+            ),
+            (
+                "docs.example.org",
+                None,
+                {
+                    "gh_pages_cname": Change("docs.example.org", None),
+                },
+            ),
+        ],
+    )
+    def test__include_gh_pages_patch_required_properties_custom_domain(
+        self,
+        repository_test,
+        current_cname,
+        expected_cname,
+        expected_changes,
+    ):
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.gh_pages_cname = expected_cname
+        expected.gh_pages_https_enforced = True
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_cname = current_cname
+        current.gh_pages_https_enforced = True
+
+        test_livepatch = LivePatch(
+            patch_type=3,
+            expected_object=expected,
+            current_object=current,
+            changes=expected.get_difference_from(current),
+            parent_object=None,
+            forced_update=False,
+            fn=pretend.stub(),
+            changes_object_to_readonly=False,
+        )
+        expected._include_gh_pages_patch_required_properties(test_livepatch)
+
+        assert test_livepatch.changes == expected_changes
+
+    @pytest.mark.parametrize(
+        "cname, error",
+        [
+            ("docs.example.org", None),
+            ("Example.ORG", None),
+            ("my-project.eclipse.dev", None),
+            ("example", "not a valid domain name"),
+            ("https://docs.example.org", "not a valid domain name"),
+            ("docs.example.org/path", "not a valid domain name"),
+            ("-docs.example.org", "not a valid domain name"),
+            ("eclipse-csi.github.io", "can not be a 'github.io' domain"),
+        ],
+    )
+    def test_gh_pages_cname_validation(self, repository_test, cname, error):
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+        from otterdog.models import FailureType, ValidationContext
+
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = cname
+
+        context = ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+        org = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="free",
+                members_can_fork_private_repositories=True,
+                members_can_create_private_pages=False,
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        repo.validate(context, org)
+
+        failures = [f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_cname" in f[1]]
+        if error is None:
+            assert failures == []
+        else:
+            assert len(failures) == 1
+            assert error in failures[0][1]

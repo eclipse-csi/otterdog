@@ -412,3 +412,73 @@ class TestRepoClientForkPrApprovalPolicy:
         # Assert the fork PR approval policy was NOT fetched
         assert not called
         assert "approval_policy" not in result
+
+
+class TestRepoClientGitHubPagesCustomDomain:
+    @staticmethod
+    def _create_client(responses):
+        async def mock_request_raw(method, url, data=None):
+            return responses[method]
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=pretend.call_recorder(mock_request_raw)))
+        return RepoClient(mocked_restapi)
+
+    async def test_update_custom_domain_of_existing_site(self):
+        repo_client = self._create_client({"GET": (200, "{}"), "PUT": (204, "")})
+
+        await repo_client._update_github_pages_config(
+            "test-org", "test-repo", {"cname": "docs.example.org", "https_enforced": True}
+        )
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/pages"),
+            pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"cname": "docs.example.org"})),
+            pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"https_enforced": True})),
+        ]
+
+    async def test_remove_custom_domain(self):
+        repo_client = self._create_client({"GET": (200, "{}"), "PUT": (204, "")})
+
+        await repo_client._update_github_pages_config("test-org", "test-repo", {"cname": None})
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/pages"),
+            pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"cname": None})),
+        ]
+
+    async def test_create_site_with_custom_domain(self):
+        repo_client = self._create_client({"GET": (404, "Not Found"), "POST": (201, "{}"), "PUT": (204, "")})
+
+        await repo_client._update_github_pages_config(
+            "test-org",
+            "test-repo",
+            {"build_type": "workflow", "cname": "docs.example.org", "https_enforced": True},
+        )
+
+        assert repo_client.requester.request_raw.calls == [
+            pretend.call("GET", "/repos/test-org/test-repo/pages"),
+            pretend.call("POST", "/repos/test-org/test-repo/pages", data=json.dumps({"build_type": "workflow"})),
+            pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"cname": "docs.example.org"})),
+            pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"https_enforced": True})),
+        ]
+
+    async def test_https_enforced_failure_only_warns(self):
+        async def mock_request_raw(method, url, data=None):
+            if method == "GET":
+                return 200, "{}"
+            if data is not None and "https_enforced" in json.loads(data):
+                return 404, '{"message": "The certificate does not exist yet"}'
+            return 204, ""
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
+        repo_client = RepoClient(mocked_restapi)
+
+        await repo_client._update_github_pages_config(
+            "test-org", "test-repo", {"cname": "docs.example.org", "https_enforced": True}
+        )
+
+    async def test_custom_domain_failure_raises(self):
+        repo_client = self._create_client({"GET": (200, "{}"), "PUT": (422, "invalid domain")})
+
+        with pytest.raises(RuntimeError, match="failed to update github pages custom domain"):
+            await repo_client._update_github_pages_config("test-org", "test-repo", {"cname": "docs.example.org"})
