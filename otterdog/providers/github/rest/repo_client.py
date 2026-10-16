@@ -603,18 +603,21 @@ class RepoClient(RestClient):
             status, body = await self.requester.request_raw(
                 "PUT", f"/repos/{org_id}/{repo_name}/pages", data=json.dumps({"https_enforced": https_enforced})
             )
-            if status != 204:
-                # HTTPS can only be enforced once GitHub has issued the certificate for the custom domain,
-                # which can take a while after the domain has been configured.
+            if status == 204:
+                _logger.debug("updated github pages https enforcement for repo '%s' to '%s'", repo_name, https_enforced)
+            elif status == 404 and "certificate does not exist yet" in body.lower():
+                # the https enforcement can only be changed once GitHub has issued the certificate
+                # for the custom domain, which can take a while after the domain has been configured.
                 _logger.warning(
-                    "failed to update https enforcement of github pages for repo '%s/%s', the certificate "
-                    "for the custom domain might not be issued yet, re-run apply later: %s",
+                    "could not update https enforcement of github pages for repo '%s/%s' as the certificate "
+                    "for the custom domain has not been issued yet, re-run apply later",
                     org_id,
                     repo_name,
-                    body,
                 )
             else:
-                _logger.debug("updated github pages https enforcement for repo '%s' to '%s'", repo_name, https_enforced)
+                raise RuntimeError(
+                    f"failed to update github pages https enforcement for repo '{repo_name}': {status}: {body}"
+                )
 
     async def _fill_code_scanning_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         _logger.debug("retrieving code scanning config for '%s/%s'", org_id, repo_name)

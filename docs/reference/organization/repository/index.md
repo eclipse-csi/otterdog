@@ -166,9 +166,9 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
     It is recommended to also [verify the domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages)
     for the organization to prevent domain takeovers.
 
-    HTTPS can only be enforced once GitHub has issued a certificate for the custom domain, which can take some time
-    after the domain has been configured. Until then, applying `gh_pages_https_enforced` will only log a warning and
-    the change will be retried on the next apply.
+    The HTTPS enforcement can only be changed once GitHub has issued a certificate for the custom domain, which can
+    take some time after the domain has been configured. Until then, GitHub rejects any change to
+    `gh_pages_https_enforced`, otterdog only logs a warning in that case and the change will be retried on the next apply.
 
     When building GitHub Pages from a branch (`legacy` build type), GitHub stores the custom domain in a `CNAME` file
     at the root of the publishing source. If that file gets removed, e.g. by a workflow overwriting the branch, the

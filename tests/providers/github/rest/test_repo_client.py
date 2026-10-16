@@ -462,20 +462,52 @@ class TestRepoClientGitHubPagesCustomDomain:
             pretend.call("PUT", "/repos/test-org/test-repo/pages", data=json.dumps({"https_enforced": True})),
         ]
 
-    async def test_https_enforced_failure_only_warns(self):
+    @staticmethod
+    def _create_https_client(https_response):
         async def mock_request_raw(method, url, data=None):
             if method == "GET":
                 return 200, "{}"
             if data is not None and "https_enforced" in json.loads(data):
-                return 404, '{"message": "The certificate does not exist yet"}'
+                return https_response
             return 204, ""
 
         mocked_restapi = pretend.stub(requester=pretend.stub(request_raw=mock_request_raw))
-        repo_client = RepoClient(mocked_restapi)
+        return RepoClient(mocked_restapi)
+
+    @pytest.mark.parametrize("https_enforced", [True, False])
+    async def test_https_enforced_with_pending_certificate_only_warns(self, https_enforced, caplog):
+        body = json.dumps(
+            {
+                "message": "The certificate does not exist yet",
+                "documentation_url": "https://docs.github.com/rest/pages/pages#update-information-about-a-apiname-pages-site",
+                "status": "404",
+            }
+        )
+        repo_client = self._create_https_client((404, body))
 
         await repo_client._update_github_pages_config(
-            "test-org", "test-repo", {"cname": "docs.example.org", "https_enforced": True}
+            "test-org", "test-repo", {"cname": "docs.example.org", "https_enforced": https_enforced}
         )
+
+        assert "the certificate for the custom domain has not been issued yet" in caplog.text
+
+    @pytest.mark.parametrize("https_enforced", [True, False])
+    @pytest.mark.parametrize(
+        "status,body",
+        [
+            (404, '{"message": "Not Found"}'),
+            (422, '{"message": "Validation Failed"}'),
+            (500, "Internal Server Error"),
+            (503, "Service Unavailable"),
+        ],
+    )
+    async def test_https_enforced_failure_raises(self, https_enforced, status, body):
+        repo_client = self._create_https_client((status, body))
+
+        with pytest.raises(RuntimeError, match="failed to update github pages https enforcement"):
+            await repo_client._update_github_pages_config(
+                "test-org", "test-repo", {"cname": "docs.example.org", "https_enforced": https_enforced}
+            )
 
     async def test_custom_domain_failure_raises(self):
         repo_client = self._create_client({"GET": (200, "{}"), "PUT": (422, "invalid domain")})
