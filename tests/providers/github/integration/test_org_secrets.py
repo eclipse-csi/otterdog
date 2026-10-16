@@ -6,8 +6,10 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import pytest
 
 from otterdog.models.organization_secret import OrganizationSecret
+from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 
 from .conftest import GitHubProviderTestKit
 from .helpers.model import ModelForContext
@@ -41,7 +43,6 @@ async def generate_patch_and_run_it(
 # ---------------------------------------------------------------------------
 # CRUD operations for OrganizationSecret
 
-# Note: currently only actions secrets are supported, not Dependabot secrets.
 # ---------------------------------------------------------------------------
 
 
@@ -83,6 +84,7 @@ async def test_read(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
         f"/orgs/{ORG_ID}/actions/secrets",
+        request_params={"per_page": "100"},
         response_json={
             "total_count": 2,
             "secrets": [
@@ -113,6 +115,7 @@ async def test_read(github: GitHubProviderTestKit):
     github.http.expect(
         "GET",
         f"/orgs/{ORG_ID}/actions/secrets/ORG_SECRET_SELECTED/repositories",
+        request_params={"per_page": "100"},
         response_json={
             "total_count": 1,
             "repositories": [{"name": "selected-repo"}],
@@ -146,6 +149,37 @@ async def test_read(github: GitHubProviderTestKit):
             selected_repositories=[],
         ),
     ]
+
+
+@pytest.mark.parametrize("status", [403, 404])
+@pytest.mark.parametrize("selected_repositories", [False, True])
+async def test_read_permission_failures_abort_organization_actions_import(
+    github: GitHubProviderTestKit, status: int, selected_repositories: bool
+):
+    """Unreadable secrets or repository selections must not become empty imported data."""
+    path = f"/orgs/{ORG_ID}/actions/secrets"
+    if selected_repositories:
+        github.http.expect(
+            "GET",
+            path,
+            request_params={"per_page": "100"},
+            response_json={"secrets": [{"name": "ORG_SECRET_SELECTED", "visibility": "selected"}]},
+        )
+        path += "/ORG_SECRET_SELECTED/repositories"
+
+    github.http.expect(
+        "GET",
+        path,
+        request_params={"per_page": "100"},
+        response_status=status,
+        response_text="insufficient permissions",
+    )
+
+    with pytest.raises(RuntimeError, match="failed retrieving organization_actions secrets") as error:
+        await github.provider.get_org_secrets(ORG_ID)
+
+    assert isinstance(error.value.__cause__, (GitHubException, InsufficientPermissionsException))
+    assert error.value.__cause__.status == status
 
 
 async def test_update(github: GitHubProviderTestKit):
