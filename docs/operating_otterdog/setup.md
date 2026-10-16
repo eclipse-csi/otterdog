@@ -4,13 +4,13 @@
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
-- define a default configuration to use, or use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) right away
+- define a default configuration to use, or use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) right away
 - create a `otterdog.json` file that contains a list of GitHub organizations to manager and their respective credentials
 - start managing your organizations using the cli
 
 ### Default configuration
 
-The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
+The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
 However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
 
 ### Otterdog configuration
@@ -21,7 +21,7 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
 {
   "defaults": {
     "jsonnet": {
-      "base_template": "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+      "base_template": "https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     }
   },
