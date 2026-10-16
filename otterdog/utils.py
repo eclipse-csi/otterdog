@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import contextvars
 import json
-import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
@@ -383,14 +383,13 @@ class restrict_jsonnet_imports:  # noqa: N801
 
     While active, jsonnet_evaluate_file / jsonnet_evaluate_snippet install an
     import_callback that rejects any import (absolute or relative) whose
-    real path resolves outside ``base_dir``. The restriction propagates
-    transparently across ``await`` boundaries via a ``ContextVar``.
+    real path resolves outside ``base_dir`` or the packaged Jsonnet defaults. The
+    restriction propagates transparently across ``await`` boundaries via a ``ContextVar``.
 
-    Legitimate org configurations only import from the vendored template
-    directory under ``org_dir`` (e.g. ``vendor/<template-repo>/...``), so
-    scoping imports to the org config directory matches the expected
-    operational layout. The canonical pattern when invoking an operation
-    that may evaluate jsonnet is::
+    Org configurations import either bundled defaults or vendored custom
+    templates under ``org_dir`` (e.g. ``vendor/<template-repo>/...``).
+    Both locations are allowed; other filesystem paths are rejected. The canonical
+    pattern when invoking an operation that may evaluate jsonnet is::
 
         try:
             with restrict_jsonnet_imports(org_config.jsonnet_config.org_dir):
@@ -421,29 +420,33 @@ class restrict_jsonnet_imports:  # noqa: N801
             self._token = None
 
 
-def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, str | None]]:
-    real_root = os.path.realpath(allowed_root)
+# Package imports use an explicit namespace so missing custom template files are
+# never silently replaced with standard defaults.
+_BUNDLED_JSONNET_DIR = Path(__file__).resolve().parent / "resources" / "defaults"
+_BUNDLED_JSONNET_IMPORTS = {
+    "otterdog:defaults": _BUNDLED_JSONNET_DIR / "otterdog-defaults.libsonnet",
+    "otterdog:functions": _BUNDLED_JSONNET_DIR / "otterdog-functions.libsonnet",
+}
+
+
+def _make_jsonnet_import_callback(allowed_root: str | None) -> Callable[[str, str], tuple[str, str | None]]:
+    roots = [_BUNDLED_JSONNET_DIR]
+    if allowed_root is not None:
+        roots.append(Path(allowed_root).resolve())
 
     def callback(base: str, rel: str) -> tuple[str, str | None]:
-        candidate = rel if os.path.isabs(rel) else os.path.join(base, rel)
-        # resolve symlinks and ".." traversal before the containment check
-        resolved = os.path.realpath(candidate)
-        try:
-            common = os.path.commonpath([resolved, real_root])
-        except ValueError:
-            raise RuntimeError(f"import of '{rel}' is not allowed") from None
-        if common != real_root:
+        candidate = _BUNDLED_JSONNET_IMPORTS.get(rel, Path(base) / rel)
+        # Resolve symlinks and parent traversal before checking containment.
+        resolved = candidate.resolve()
+        if allowed_root is not None and not any(resolved.is_relative_to(root) for root in roots):
             raise RuntimeError(f"import of '{rel}' is not allowed")
-        with open(resolved, "rb") as f:
-            return resolved, f.read().decode("utf-8")
+        return str(resolved), resolved.read_text(encoding="utf-8")
 
     return callback
 
 
 def _jsonnet_kwargs(import_base_dir: str | None) -> dict[str, Any]:
     base = import_base_dir if import_base_dir is not None else _jsonnet_import_root.get()
-    if base is None:
-        return {}
     return {"import_callback": _make_jsonnet_import_callback(base)}
 
 

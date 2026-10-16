@@ -8,12 +8,15 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from shutil import copytree
 from tempfile import TemporaryDirectory
 
 import pytest
 
 from otterdog.config import OrganizationConfig, OtterdogConfig, load_json_or_jsonnet
 from otterdog.jsonnet import JsonnetConfig
+from otterdog.models.github_organization import GitHubOrganization
+from otterdog.utils import restrict_jsonnet_imports
 
 # Type alias for the temporary file creation function
 CreateTmpFile = Callable[[str, str], Path]
@@ -224,7 +227,7 @@ async def test_organization_config_factory_accepts_missing_base_template(tmp_pat
     )
 
 
-async def test_legacy_upstream_defaults_url_uses_bundled_template(tmp_path):
+def test_explicit_upstream_template_url_keeps_its_configured_path(tmp_path):
     legacy_base_template = "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main"
     config = OtterdogConfig.from_dict(
         {
@@ -235,66 +238,87 @@ async def test_legacy_upstream_defaults_url_uses_bundled_template(tmp_path):
         str(tmp_path),
     )
     organization = config.get_organization_config("sample")
-    jsonnet_config = organization.jsonnet_config
-
-    await jsonnet_config.init_template()
 
     assert organization.base_template == legacy_base_template
-    assert jsonnet_config.base_template_repo_name == "otterdog"
-    assert Path(jsonnet_config.template_file).is_relative_to(Path(__file__).parents[1] / "otterdog")
-    assert (
-        jsonnet_config.default_org_config_for_org_id("sample", "sample")["settings"]["default_repository_permission"]
-        == "read"
+    assert organization.jsonnet_config.base_template_file_name == "examples/template/otterdog-defaults.libsonnet"
+    assert organization.jsonnet_config.template_file == str(
+        Path(tmp_path)
+        / "orgs"
+        / "sample"
+        / "vendor"
+        / "otterdog"
+        / "examples"
+        / "template"
+        / "otterdog-defaults.libsonnet"
     )
 
 
-async def test_local_mode_preserves_existing_vendor_files_for_bundled_defaults(tmp_path):
-    config = OtterdogConfig.from_dict(
-        {"organizations": [{"name": "sample", "github_id": "sample"}]}, True, str(tmp_path)
+async def test_legacy_template_forwarders_work_when_only_the_template_directory_is_vendored(tmp_path):
+    """Custom template initialization copies the selected subdirectory, not the package resources."""
+    jsonnet_config = JsonnetConfig(
+        "sample",
+        str(tmp_path),
+        "https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+        local_only=True,
     )
-    jsonnet_config = config.get_organization_config("sample").jsonnet_config
-    template_dir = Path(jsonnet_config.org_dir) / "vendor" / "otterdog"
-    template_dir.mkdir(parents=True)
-    template_file = template_dir / "otterdog-defaults.libsonnet"
-    template_file.write_text("local custom = 'keep'; { newOrg(name, id): { settings: { value: custom } } }\n")
-    user_file = Path(jsonnet_config.org_dir) / "vendor" / "user-template" / "custom.libsonnet"
-    user_file.parent.mkdir(parents=True)
-    user_file.write_text("{ value: 'keep' }\n")
-
+    copytree(Path(__file__).parents[1] / "examples" / "template", Path(jsonnet_config.template_file).parent)
     await jsonnet_config.init_template()
+    config_file = Path(jsonnet_config.org_config_file)
+    config_file.write_text(f"({jsonnet_config.import_statement}).newOrg('sample', 'sample')\n")
 
-    assert template_file.read_text().startswith("local custom = 'keep'")
-    assert user_file.read_text() == "{ value: 'keep' }\n"
-    assert jsonnet_config.default_org_config_for_org_id("sample", "sample")["settings"]["value"] == "keep"
+    with restrict_jsonnet_imports(jsonnet_config.org_dir):
+        organization = GitHubOrganization.load_from_file("sample", str(config_file))
+        defaults = jsonnet_config.default_org_config
+
+    assert organization.settings.default_repository_permission == "read"
+    assert defaults["settings"]["default_repository_permission"] == "read"
 
 
-async def test_local_mode_uses_bundled_defaults_without_initialization_side_effects(tmp_path):
-    jsonnet_config = JsonnetConfig("sample", str(tmp_path), None, local_only=True)
-
+@pytest.mark.parametrize("local_mode", [False, True])
+async def test_bundled_defaults_load_without_writing_vendor_files(tmp_path, local_mode):
+    jsonnet_config = JsonnetConfig("sample", str(tmp_path), None, local_only=local_mode)
     await jsonnet_config.init_template()
-
     assert list(tmp_path.iterdir()) == []
-    assert Path(jsonnet_config.template_file).is_relative_to(Path(__file__).parents[1] / "otterdog")
-    assert (
-        jsonnet_config.default_org_config_for_org_id("sample", "sample")["settings"]["default_repository_permission"]
-        == "read"
+
+    config_file = Path(jsonnet_config.org_config_file)
+    config_file.parent.mkdir(parents=True)
+    config_file.write_text(f"({jsonnet_config.import_statement}).newOrg('sample', 'sample')\n")
+
+    with restrict_jsonnet_imports(jsonnet_config.org_dir):
+        organization = GitHubOrganization.load_from_file("sample", str(config_file))
+        defaults = jsonnet_config.default_org_config_for_org_id("sample", "sample")
+
+    assert organization.github_id == "sample"
+    assert organization.settings.default_repository_permission == "read"
+    assert defaults["settings"]["default_repository_permission"] == "read"
+    assert not (Path(jsonnet_config.org_dir) / "vendor").exists()
+
+
+async def test_missing_custom_template_is_not_replaced_with_bundled_defaults(tmp_path):
+    jsonnet_config = JsonnetConfig(
+        "sample", str(tmp_path), "https://github.com/example/custom#custom.libsonnet@main", local_only=True
     )
+    config_file = Path(jsonnet_config.org_config_file)
+    config_file.parent.mkdir(parents=True)
+    config_file.write_text(f"({jsonnet_config.import_statement}).newOrg('sample', 'sample')\n")
+
+    with (
+        restrict_jsonnet_imports(jsonnet_config.org_dir),
+        pytest.raises(RuntimeError, match="failed to evaluate jsonnet file"),
+    ):
+        GitHubOrganization.load_from_file("sample", str(config_file))
 
 
-async def test_bundled_initialization_preserves_existing_vendor_files(tmp_path):
+async def test_bundled_defaults_leave_existing_vendor_files_untouched(tmp_path):
     jsonnet_config = JsonnetConfig("sample", str(tmp_path), None, local_only=False)
-    custom_file = Path(jsonnet_config.org_dir) / "vendor" / "otterdog" / "custom.libsonnet"
-    custom_file.parent.mkdir(parents=True)
-    custom_file.write_text("{ custom: true }\n")
-    sibling_file = Path(jsonnet_config.org_dir) / "vendor" / "user-template" / "custom.libsonnet"
-    sibling_file.parent.mkdir(parents=True)
-    sibling_file.write_text("{ value: 'keep' }\n")
+    vendor_file = Path(jsonnet_config.org_dir) / "vendor" / "otterdog" / "otterdog-defaults.libsonnet"
+    vendor_file.parent.mkdir(parents=True)
+    vendor_file.write_text("{ custom: true }\n")
 
     await jsonnet_config.init_template()
 
-    assert custom_file.read_text() == "{ custom: true }\n"
-    assert sibling_file.read_text() == "{ value: 'keep' }\n"
-    assert Path(jsonnet_config.template_file).is_file()
+    assert vendor_file.read_text() == "{ custom: true }\n"
+    assert jsonnet_config.default_org_config["settings"]["default_repository_permission"] == "read"
 
 
 async def test_global_and_organization_base_template_overrides_are_evaluated(tmp_path):

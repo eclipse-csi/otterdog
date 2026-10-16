@@ -195,6 +195,19 @@ def test_jsonnet_import_callback_resolves_symlinks(tmp_path: Path):
         callback("", str(link))
 
 
+def test_bundled_import_cannot_escape_package_directory(tmp_path: Path):
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+    bundled_file, _ = callback("", "otterdog:defaults")
+
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback(str(Path(bundled_file).parent), "../../utils.py")
+
+
+@pytest.mark.parametrize("name", ["defaults", "functions"])
+def test_bundled_imports_resolve_without_import_restrictions(name):
+    assert jsonnet_evaluate_snippet(f"{{ type: std.type(import 'otterdog:{name}') }}") == {"type": "object"}
+
+
 def test_evaluate_with_restrict_import(tmp_path: Path):
     root = tmp_path / "root"
     root.mkdir()

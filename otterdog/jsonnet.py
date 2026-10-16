@@ -21,12 +21,6 @@ from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_ur
 
 _template_lock = Lock()
 _logger = get_logger(__name__)
-# Keep configs using the previously documented upstream path working after the file move.
-_LEGACY_DEFAULTS_TEMPLATE = (
-    "https://github.com/eclipse-csi/otterdog",
-    "examples/template/otterdog-defaults.libsonnet",
-    "main",
-)
 
 
 class JsonnetConfig:
@@ -67,21 +61,14 @@ class JsonnetConfig:
         self._base_dir = base_dir
         self._base_org_dir = org_dir if org_dir is not None else base_dir
 
-        parsed_template = parse_template_url(base_template_url) if base_template_url is not None else None
-        is_legacy_default = (
-            parsed_template is not None
-            and (parsed_template[0].lower(), parsed_template[1], parsed_template[2]) == _LEGACY_DEFAULTS_TEMPLATE
-        )
-        self._using_bundled_template = base_template_url is None or is_legacy_default
-        if self._using_bundled_template:
+        self._using_bundled_template = base_template_url is None
+        if base_template_url is None:
             self._base_template_repo_url = None
             self._base_template_repo_name = "otterdog"
             self._base_template_file = "otterdog-defaults.libsonnet"
             self._base_template_ref = "bundled"
         else:
-            if parsed_template is None:
-                raise RuntimeError("missing URL for configured base template")
-            repo_url, file, ref = parsed_template
+            repo_url, file, ref = parse_template_url(base_template_url)
             self._base_template_repo_url = repo_url
             self._base_template_repo_name = os.path.basename(repo_url)
             self._base_template_file = file
@@ -119,7 +106,7 @@ class JsonnetConfig:
         if self._initialized is True:
             return
 
-        if not self._local_only:
+        if not self._local_only and not self._using_bundled_template:
             await self._init_base_template()
 
         template_file = self.template_file
@@ -347,14 +334,9 @@ class JsonnetConfig:
 
     @property
     def template_dir(self) -> str:
-        vendor_template_dir = os.path.join(
-            self.org_dir,
-            "vendor",
-            self._base_template_repo_name,
-        )
-        if self._using_bundled_template and self._local_only and not os.path.exists(vendor_template_dir):
+        if self._using_bundled_template:
             return str(self._bundled_template_dir)
-        return vendor_template_dir
+        return os.path.join(self.org_dir, "vendor", self._base_template_repo_name)
 
     @property
     def _bundled_template_dir(self) -> Path:
@@ -394,6 +376,8 @@ class JsonnetConfig:
 
     @property
     def import_statement(self) -> str:
+        if self._using_bundled_template:
+            return "import 'otterdog:defaults'"
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_base_template(self) -> None:
@@ -401,15 +385,6 @@ class JsonnetConfig:
         from aiofiles.os import makedirs
         from aiofiles.ospath import exists
         from aioshutil import copytree, rmtree
-
-        if self._using_bundled_template:
-            if not await exists(self.org_dir):
-                await makedirs(self.org_dir)
-            vendor_dir = f"{self.org_dir}/vendor"
-            if not await exists(vendor_dir):
-                await makedirs(vendor_dir)
-            await copytree(str(self._bundled_template_dir), self.template_dir, dirs_exist_ok=True)
-            return
 
         _logger.debug("initializing base template '%s@%s'", self._base_template_repo_url, self._base_template_ref)
         base_template_repo_url = self._base_template_repo_url

@@ -10,7 +10,7 @@ To start using the cli part of `otterdog` right away on a specific organization 
 
 ### Default configuration
 
-When no `base_template` is configured, Otterdog uses the standard defaults bundled with the installed version. Set `defaults.jsonnet.base_template` to use custom shared defaults, or set `base_template` on an individual organization to override it there.
+When no `base_template` is configured, Otterdog uses the standard defaults bundled with the installed version. Generated organization files use `import 'otterdog:defaults'` to load these directly from the package, without creating vendor files. Set `defaults.jsonnet.base_template` to use custom shared defaults, or set `base_template` on an individual organization to override it there.
 
 ### Otterdog configuration
 
