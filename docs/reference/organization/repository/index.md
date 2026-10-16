@@ -27,6 +27,8 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _dependabot_alerts_enabled_               | boolean                                                   | If the repo has dependabot alerts enabled                                               |                                                                                                                                                                                            |
 | _dependabot_security_updates_enabled_     | boolean                                                   | If the repo has dependabot security updates enabled                                     |                                                                                                                                                                                            |
 | _gh_pages_build_type_                     | string                                                    | If the repo has GitHub Pages enabled                                                    | `disabled`, `legacy` or `workflow`. Build-type `legacy` refers to building from a branch                                                                                                   |
+| _gh_pages_cname_                          | string or null                                            | The custom domain of the GitHub Pages site                                              | `null` to use the default `github.io` domain. The DNS records for the domain have to be configured separately                                                                              |
+| _gh_pages_https_enforced_                 | boolean                                                   | If HTTPS is enforced for the GitHub Pages site                                          | only taken into account when `gh_pages_cname` is set, HTTPS is always enforced for the default `github.io` domain                                                                          |
 | _gh_pages_source_branch_                  | string or null                                            | The branch from which GitHub Pages should be built                                      | only taken into account when `gh_pages_build_type` is set to `legacy`                                                                                                                      |
 | _gh_pages_source_path_                    | string or null                                            | The folder from which GitHub Pages should be built                                      | only taken into account when `gh_pages_build_type` is set to `legacy`                                                                                                                      |
 | _gh_pages_visibility_                     | string                                                    | The visibility of the GitHub Pages site                                                 | `public` or `private`. Only available for private repositories in enterprise organizations with `members_can_create_private_pages` enabled                                                 |
@@ -144,6 +146,7 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
 - specifying a `template_repository` and `forked_repository` at the same time triggers an error
 - specifying a non-empty list of `allow_action_patterns` while `allowed_actions` is not set to `selected`, triggers a warning
 - specifying a permission in `team_permissions` other than `pull`, `triage`, `push`, `maintain` or `admin` triggers an error
+- specifying a `gh_pages_cname` that is not a valid domain name or that is a `github.io` domain triggers an error
 
 !!! tip
 
@@ -155,6 +158,21 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
 
     When enabling GitHub Pages by setting `gh_pages_build_type` to either `legacy` or `workflow`, you should also
     define a `github-pages` environment, as it will be created automatically by GitHub.
+
+!!! note
+
+    Setting `gh_pages_cname` only configures the custom domain on GitHub, the DNS records of the domain need to be
+    configured separately, see [configuring a custom domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
+    It is recommended to also [verify the domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages)
+    for the organization to prevent domain takeovers.
+
+    The HTTPS enforcement can only be changed once GitHub has issued a certificate for the custom domain, which can
+    take some time after the domain has been configured. Until then, GitHub rejects any change to
+    `gh_pages_https_enforced`, otterdog only logs a warning in that case and the change will be retried on the next apply.
+
+    When building GitHub Pages from a branch (`legacy` build type), GitHub stores the custom domain in a `CNAME` file
+    at the root of the publishing source. If that file gets removed, e.g. by a workflow overwriting the branch, the
+    custom domain will be removed as well.
 
 !!! warning
 

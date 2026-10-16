@@ -102,6 +102,8 @@ class Repository(ModelObject):
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
     gh_pages_visibility: str
+    gh_pages_cname: str | None
+    gh_pages_https_enforced: bool
 
     custom_properties: dict[str, str | list[str]] | None
 
@@ -168,6 +170,13 @@ class Repository(ModelObject):
         "gh_pages_source_branch",
         "gh_pages_source_path",
         "gh_pages_visibility",
+        "gh_pages_cname",
+        "gh_pages_https_enforced",
+    ]
+
+    _gh_pages_domain_properties: ClassVar[list[str]] = [
+        "gh_pages_cname",
+        "gh_pages_https_enforced",
     ]
 
     _gh_pages_legacy_properties: ClassVar[list[str]] = [
@@ -636,6 +645,20 @@ class Repository(ModelObject):
                         f"but the organization setting 'members_can_create_private_pages' is disabled.",
                     )
 
+        if self.gh_pages_build_type != "disabled" and is_set_and_present(self.gh_pages_cname):
+            if not self._valid_domain_name(self.gh_pages_cname):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_cname' set to "
+                    f"value '{self.gh_pages_cname}', which is not a valid domain name.",
+                )
+            elif self.gh_pages_cname.lower().endswith(".github.io"):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_cname' set to "
+                    f"value '{self.gh_pages_cname}', but a custom domain can not be a 'github.io' domain.",
+                )
+
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
                 context.add_failure(
@@ -761,6 +784,15 @@ class Repository(ModelObject):
     def _valid_topic(topic, search=re.compile(r"[^a-z0-9\-]").search):
         return not bool(search(topic))
 
+    @staticmethod
+    def _valid_domain_name(
+        domain_name: str,
+        match=re.compile(
+            r"(?=.{1,253}$)([a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9\-]{0,61}[a-z0-9]", re.IGNORECASE
+        ).fullmatch,
+    ) -> bool:
+        return bool(match(domain_name))
+
     @classmethod
     def _valid_code_scanning_language(cls, language: str):
         return language in cls._valid_code_scanning_languages
@@ -781,6 +813,10 @@ class Repository(ModelObject):
         if self.gh_pages_build_type == "workflow":
             if field.name in self._gh_pages_legacy_properties:
                 return False
+
+        # HTTPS is always enforced for the default github.io domain, it can only be changed for a custom domain
+        if self.gh_pages_cname is None and field.name == "gh_pages_https_enforced":
+            return False
 
         if self.code_scanning_default_setup_enabled is False:
             if field.name in self._code_scanning_properties:
@@ -808,6 +844,9 @@ class Repository(ModelObject):
         if self.gh_pages_build_type == "workflow":
             if field.name in self._gh_pages_legacy_properties:
                 return False
+
+        if self.gh_pages_cname is None and field.name == "gh_pages_https_enforced":
+            return False
 
         if self.code_scanning_default_setup_enabled is False:
             if field.name in self._code_scanning_properties:
@@ -909,6 +948,8 @@ class Repository(ModelObject):
                         K(UNSET),
                     ),
                 ),
+                "gh_pages_cname": OptionalS("gh_pages", "cname", default=None),
+                "gh_pages_https_enforced": OptionalS("gh_pages", "https_enforced", default=UNSET),
             }
         )
 
@@ -1026,6 +1067,15 @@ class Repository(ModelObject):
             if len(gh_pages_legacy_mapping) > 0:
                 gh_pages_mapping["source"] = gh_pages_legacy_mapping
 
+        for domain_prop in cls._gh_pages_domain_properties:
+            if domain_prop in data:
+                mapping.pop(domain_prop)
+                gh_pages_mapping[domain_prop.removeprefix("gh_pages_")] = S(domain_prop)
+
+        # HTTPS enforcement can not be changed when using the default github.io domain
+        if data.get("gh_pages_cname", UNSET) is None:
+            gh_pages_mapping.pop("https_enforced", None)
+
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
@@ -1033,6 +1083,7 @@ class Repository(ModelObject):
             "gh_pages_source_branch",
             "gh_pages_source_path",
             "gh_pages_visibility",
+            *cls._gh_pages_domain_properties,
         ]:
             if prop in mapping:
                 mapping.pop(prop)
@@ -1413,6 +1464,9 @@ class Repository(ModelObject):
         """
         Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
         the patch contains gh_pages change.
+
+        When the custom domain changes, GitHub has to issue a new certificate and might reset
+        the HTTPS enforcement, so the gh_pages_https_enforced setting is applied again.
         """
         if patch.changes:
             gh_pages_source_branch_present = "gh_pages_source_branch" in patch.changes
@@ -1425,6 +1479,16 @@ class Repository(ModelObject):
             if gh_pages_source_branch_present and not gh_pages_source_path_present:
                 gh_pages_source_path = cast("Repository", patch.current_object).gh_pages_source_path
                 patch.changes["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
+
+            if "gh_pages_cname" in patch.changes and "gh_pages_https_enforced" not in patch.changes:
+                expected_object = cast("Repository", patch.expected_object)
+                if is_set_and_present(expected_object.gh_pages_cname) and is_set_and_valid(
+                    expected_object.gh_pages_https_enforced
+                ):
+                    gh_pages_https_enforced = cast("Repository", patch.current_object).gh_pages_https_enforced
+                    patch.changes["gh_pages_https_enforced"] = Change(
+                        gh_pages_https_enforced, expected_object.gh_pages_https_enforced
+                    )
 
         return patch
 

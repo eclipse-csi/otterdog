@@ -547,6 +547,10 @@ class RepoClient(RestClient):
             if status != 204 and status != 404:
                 raise RuntimeError(f"failed to disable github pages for repo '{repo_name}': {body}")
         else:
+            # the custom domain settings are not supported when creating the pages site,
+            # update them separately once the site config has been applied.
+            domain_settings: dict[str, Any] = {k: gh_pages.pop(k) for k in ("cname", "https_enforced") if k in gh_pages}
+
             gh_pages_data: list[tuple[str, str, int]] = []
             # first check if the pages config already exists:
             status, _ = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/pages")
@@ -570,7 +574,7 @@ class RepoClient(RestClient):
 
                 if len(gh_pages_data) == 0:
                     gh_pages_data.append((json.dumps(gh_pages), "POST", 201))
-            else:
+            elif len(gh_pages) > 0:
                 gh_pages_data.append((json.dumps(gh_pages), "PUT", 204))
 
             for data, method, status_code in gh_pages_data:
@@ -580,6 +584,40 @@ class RepoClient(RestClient):
                     raise RuntimeError(f"failed to update github pages config for repo '{repo_name}': {body}")
 
                 _logger.debug("updated github pages config for repo '%s'", repo_name)
+
+            await self._update_github_pages_domain(org_id, repo_name, domain_settings)
+
+    async def _update_github_pages_domain(self, org_id: str, repo_name: str, domain_settings: dict[str, Any]) -> None:
+        if "cname" in domain_settings:
+            cname = domain_settings["cname"]
+            status, body = await self.requester.request_raw(
+                "PUT", f"/repos/{org_id}/{repo_name}/pages", data=json.dumps({"cname": cname})
+            )
+            if status != 204:
+                raise RuntimeError(f"failed to update github pages custom domain for repo '{repo_name}': {body}")
+
+            _logger.debug("updated github pages custom domain for repo '%s' to '%s'", repo_name, cname)
+
+        if "https_enforced" in domain_settings:
+            https_enforced = domain_settings["https_enforced"]
+            status, body = await self.requester.request_raw(
+                "PUT", f"/repos/{org_id}/{repo_name}/pages", data=json.dumps({"https_enforced": https_enforced})
+            )
+            if status == 204:
+                _logger.debug("updated github pages https enforcement for repo '%s' to '%s'", repo_name, https_enforced)
+            elif status == 404 and "certificate does not exist yet" in body.lower():
+                # the https enforcement can only be changed once GitHub has issued the certificate
+                # for the custom domain, which can take a while after the domain has been configured.
+                _logger.warning(
+                    "could not update https enforcement of github pages for repo '%s/%s' as the certificate "
+                    "for the custom domain has not been issued yet, re-run apply later",
+                    org_id,
+                    repo_name,
+                )
+            else:
+                raise RuntimeError(
+                    f"failed to update github pages https enforcement for repo '{repo_name}': {status}: {body}"
+                )
 
     async def _fill_code_scanning_config(self, org_id: str, repo_name: str, repo_data: dict[str, Any]) -> None:
         _logger.debug("retrieving code scanning config for '%s/%s'", org_id, repo_name)
