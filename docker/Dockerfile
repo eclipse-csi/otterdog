@@ -14,7 +14,7 @@ COPY ./otterdog /app/otterdog
 RUN npm run build
 
 # build otterdog using a python environment
-FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464 AS builder-python3
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder-python3
 
 ARG version=0.0.0.dev0
 
@@ -49,7 +49,7 @@ RUN poetry build && \
     poetry install --only-root
 
 # create the final image having python3.12 as base
-FROM python:3.12-slim@sha256:cab2dbf575e971934a81e4622f5aba17aa7929719bd7e31033a3a83b97fd0464
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
