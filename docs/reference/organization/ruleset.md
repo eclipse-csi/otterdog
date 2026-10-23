@@ -23,15 +23,12 @@ Definition of an `Organization Ruleset`, the following properties are supported:
 | _required_pull_request_            | [PullRequestSettings](#pull-request-settings) or null | If specified, requires a pull request before merging. All commits must be made to a non-protected branch and submitted via a pull request before they can be merged into matching branches |                                                                                                                                 |
 | _required_merge_queue_             | [MergeQueueSettings](#merge-queue-settings) or null   | If specified, merges must be performed via a merge queue                                                                                                                                   |                                                                                                                                 |
 
-Rulesets can be used for use-cases (e.g. to support auto merging of pull requests) that can not be modelled with Branch Protection Rules:
-
-- define a set of required status checks
-- define a set of users that can bypass pull requests
-
-Branch Protection Rules always consider the required status checks, even when directly pushing to the branch, e.g. when no pull request
-is required, or you can push due to a bypass allowance. This can be modelled with Rulesets though, as the bypass actors as defined for a Ruleset
-are taken into account for all settings (except `allows_force_pushes`), while the bypass allowance for Branch Protection Rules only apply for
-pull requests in general.
+Rulesets support use-cases that can not be modelled with Branch Protection Rules, e.g. bypass actors that are
+exempted from all rules of a ruleset, while the bypass allowances of a Branch Protection Rule only lift the pull
+request requirement and required status checks still apply. See
+[Rulesets or branch protection rules](../../userguide/guides/rulesets-vs-branch-protection.md) for a comparison and the
+features of rulesets that are not supported, and [Protecting branches](../../userguide/guides/branch-protection.md) for
+examples.
 
 ## Jsonnet Function
 
@@ -102,6 +99,7 @@ orgs.newMergeQueue() {
 
 - setting `enforcement` to `evaluate` for an organization on a non `enterprise` plan triggers an error
 - setting `target` must be one of `branch`, `tag` or `push`, any other value triggers an error
+- defining organization rulesets for an organization on a non `enterprise` plan triggers an error
 
 ## Example usage
 

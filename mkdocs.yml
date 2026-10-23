@@ -97,12 +97,33 @@ nav:
     - Renaming of Resources: userguide/renaming.md
     - Removal of Resources: userguide/removal.md
     - Unsupported Settings: userguide/unsupported.md
+    - Configuration Guides:
+      - userguide/guides/index.md
+      - Inherited and explicit values: userguide/guides/inheritance.md
+      - Reusing configuration with Jsonnet: userguide/guides/reusable-configuration.md
+      - Protecting branches: userguide/guides/branch-protection.md
+      - Organization-wide rulesets: userguide/guides/organization-rulesets.md
+      - Rulesets or branch protection rules: userguide/guides/rulesets-vs-branch-protection.md
+      - Migrating to rulesets: userguide/guides/migrating-to-rulesets.md
+      - Protecting tags and releases: userguide/guides/tag-protection.md
+      - Securing GitHub Actions: userguide/guides/github-actions.md
+      - Repository security features: userguide/guides/repository-security.md
+      - Secrets and variables: userguide/guides/secrets-and-variables.md
+      - Deployment environments: userguide/guides/environments.md
+      - Webhooks: userguide/guides/webhooks.md
+      - Organization settings and member privileges: userguide/guides/organization-settings.md
+      - Teams and access: userguide/guides/teams-and-access.md
+      - Pull requests and merging: userguide/guides/pull-requests.md
+      - Repository features and metadata: userguide/guides/repository-features.md
+      - Common repository patterns: userguide/guides/repository-patterns.md
+      - Troubleshooting: userguide/guides/troubleshooting.md
 
 - Operating Otterdog:
     - operating_otterdog/index.md
     - operating_otterdog/install.md
     - operating_otterdog/setup.md
     - operating_otterdog/usage.md
+    - operating_otterdog/organization-policies.md
 
 - Developing Otterdog:
     - Overview: developing_otterdog/index.md
