@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve docs-serve-dev docs-serve-tunnel docs-serve-ngrok playground-examples help
+.PHONY: init test check clean build-image init-minikube check-kube-context dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve docs-serve-dev docs-serve-tunnel docs-serve-ngrok playground-examples help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -12,6 +12,8 @@ OTTERDOG_DEV_URL ?= http://localhost:5000
 # `make dev-webapp*` links its examples to it
 DOCS_DEV_ADDR ?= 127.0.0.1:8000
 DOCS_DEV_URL ?= http://$(DOCS_DEV_ADDR)/
+# kubectl context of the minikube cluster, the only context the development targets may deploy to
+MINIKUBE_CONTEXT := minikube
 
 all: help
 
@@ -76,12 +78,22 @@ init-minikube:
 			sleep 3; \
 		fi; \
 	fi
+	@$(MAKE) --no-print-directory check-kube-context
+
+check-kube-context:  ## Fail if the current kubectl context is not the one of minikube
+	@current="$$(kubectl config current-context 2>/dev/null)"; \
+	if [ "$$current" != "$(MINIKUBE_CONTEXT)" ]; then \
+		echo "Error: the current kubectl context is '$${current:-<none>}' instead of '$(MINIKUBE_CONTEXT)'."; \
+		echo "The development targets deploy to the current context, switch to minikube first:"; \
+		echo "  kubectl config use-context $(MINIKUBE_CONTEXT)"; \
+		exit 1; \
+	fi
 
 dev-webapp: init-minikube clean-ingress-finalizers ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
 	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev --cleanup=false
 
-clean-ingress-finalizers:  ## Remove finalizers from stuck ingress objects and wait for namespace deletion
+clean-ingress-finalizers: check-kube-context  ## Remove finalizers from stuck ingress objects and wait for namespace deletion
 	@if kubectl get namespace otterdog -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Terminating; then \
 	  echo "Namespace otterdog stuck in Terminating, cleaning up..."; \
 	  kubectl get ingress -n otterdog -o name 2>/dev/null | \
@@ -90,7 +102,7 @@ clean-ingress-finalizers:  ## Remove finalizers from stuck ingress objects and w
 	  kubectl wait --for=delete namespace/otterdog --timeout=30s 2>/dev/null || true; \
 	fi
 
-clean-tailscale-proxies:  ## Delete stale tailscale proxy StatefulSets
+clean-tailscale-proxies: check-kube-context  ## Delete stale tailscale proxy StatefulSets
 	@kubectl delete statefulsets -n tailscale --all --ignore-not-found 2>/dev/null || true
 
 dev-webapp-tunnel: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)

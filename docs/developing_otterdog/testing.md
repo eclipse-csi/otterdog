@@ -119,6 +119,12 @@ helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 make dev-webapp
 ```
 
+!!! note
+
+    The `make dev-webapp*` targets deploy to the current kubectl context. They stop with an error if this context is
+    not `minikube`, e.g. after working with another cluster, to prevent deploying the development environment to it.
+    Switch back with `kubectl config use-context minikube`, or check the context with `make check-kube-context`.
+
 If you want use the integration with GitHub, you can use tailscale or ngrok to expose your development environment. Pick one:
 
 * [Setup a tailscale tunnel](#setup-a-tailscale-to-enable-github-webhooks-to-your-development-environment)
