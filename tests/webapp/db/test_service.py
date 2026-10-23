@@ -153,6 +153,58 @@ async def test_installation_tasks_are_bounded(app):
     assert max_running == max_concurrent_tasks
 
 
+def _required_file_blueprint(description: str, content: str):
+    from otterdog.webapp.blueprints import create_blueprint
+
+    return create_blueprint(
+        "required_file",
+        "require-dependabot",
+        "otterdog/blueprints/require_dependabot.yml",
+        "Require Dependabot",
+        description,
+        {"files": [{"path": ".github/dependabot.yml", "content": content, "strict": True}]},
+    )
+
+
+@pytest.fixture
+def stored_blueprint(monkeypatch):
+    """
+    The stored model of a blueprint, which update_or_create_blueprint looks up and saves in place.
+    """
+
+    from otterdog.webapp.db.models import BlueprintId, BlueprintModel
+
+    blueprint = _required_file_blueprint("old description", "version: 2")
+    blueprint_model = BlueprintModel(
+        id=BlueprintId(org_id="OtterdogTest", blueprint_type=blueprint.type.value, blueprint_id=blueprint.id),
+        path=blueprint.path,
+        name=blueprint.name,
+        description=blueprint.description,
+        recheck_needed=False,
+        config=blueprint.config,
+    )
+
+    monkeypatch.setattr(service, "find_blueprint", mock.AsyncMock(return_value=blueprint_model))
+    monkeypatch.setattr(service, "save_blueprint", mock.AsyncMock())
+    return blueprint_model
+
+
+async def test_update_or_create_blueprint_updates_config_along_with_description(stored_blueprint):
+    blueprint = _required_file_blueprint("new description", "version: 2\nupdates: []")
+
+    assert await service.update_or_create_blueprint("OtterdogTest", blueprint) is True
+    assert stored_blueprint.description == "new description"
+    assert stored_blueprint.config == blueprint.config
+
+
+async def test_update_or_create_blueprint_keeps_pending_recheck(stored_blueprint):
+    stored_blueprint.recheck_needed = True
+    blueprint = _required_file_blueprint("old description", "version: 2")
+
+    assert await service.update_or_create_blueprint("OtterdogTest", blueprint) is True
+    assert stored_blueprint.recheck_needed is True
+
+
 def _get_config_file(filename: str) -> str:
     import os
 
