@@ -52,6 +52,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
@@ -89,14 +90,12 @@ poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
 
 [tool.poetry.group.app.dependencies]
 quart                = "^0.22"
-quart-flask-patch    = "^0.3"
 python-decouple      = "^3.8"
 pymongo              = "==4.18.3"
 pydantic             = "^2.14"
 odmantic             = "^1.1.0"
 quart-auth           = "^0.12"
 quart-redis          = "^3.0"
-github-flask         = "^3.2"
 aiohttp-client-cache = {version=">=0.15.0", extras=["redis"]}
 ariadne              = "^1.1"
 pyyaml               = "^6.0"
@@ -213,7 +212,7 @@ ignore = [
 
 [tool.tox]
 requires = ["tox>=4.22"]
-env_list = ["3.11", "3.12", "3.13"]
+env_list = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.tox.env_run_base]
 description = "Run tests under {base_python}"
