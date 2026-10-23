@@ -68,6 +68,7 @@ export default defineConfig({
             "src/js/datagrid.js",
             "src/js/editor.js",
             "src/js/highlight.js",
+            "src/js/playground.js",
             "src/css/app.scss",
             "src/css/highlight.css",
           ],

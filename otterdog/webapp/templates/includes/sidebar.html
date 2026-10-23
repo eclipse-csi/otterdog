@@ -68,6 +68,15 @@
             </a>
           </li>
 
+          <li class="nav-item">
+            <a href="/playground" class="nav-link {% if segments and segments[0] == 'playground' %} active {% endif %}">
+              <i class="nav-icon fas fa-code"></i>
+              <p>
+                Playground
+              </p>
+            </a>
+          </li>
+
           <li class="nav-header">PROJECTS</li>
             {% for nav_level1, value_level1 in projects|dictsort %}
             {% if value_level1|is_dict %}

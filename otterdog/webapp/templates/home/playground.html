@@ -1,6 +1,6 @@
 {% extends "layouts/base.html" %}
 
-{% block title %} Profile {% endblock %}
+{% block title %} Playground {% endblock %}
 
 <!-- Element injected in the BODY element -->
 {% block body_class %} sidebar-mini {% endblock body_class %}
@@ -10,51 +10,309 @@
   <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.js') }}"></script>
   <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/addon/edit/matchbrackets.js') }}"></script>
   <script src="{{ asset('vendor/codemirror-mode-jsonnet/jsonnet.js') }}"></script>
-
-  <!-- Executing Jsonnet -->
-  <script src="{{ asset('third_party/js/wasm_exec.js') }}"></script>
-  <script>
-      if (!WebAssembly.instantiateStreaming) {
-          // This function was observed to be missing on Safari 14.
-          WebAssembly.instantiateStreaming = async (resp, importObject) => {
-             const source = await (await resp).arrayBuffer();
-             return await WebAssembly.instantiate(source, importObject);
-          };
-      }
-      const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("{{ asset('third_party/js/libjsonnet.wasm') }}"), go.importObject).then((result) => {
-          go.run(result.instance);
-
-          // the module may be ready before the page, and so before the editor and jQuery
-          function reevaluate() {
-              var editor = $('#playground-jsonnet').next('.CodeMirror')[0].CodeMirror;
-              let old = editor.getValue();
-              editor.setValue('{}');
-              setTimeout(function(){
-                 editor.setValue(old);
-              }, 50);
-          }
-
-          if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', reevaluate);
-          } else {
-              reevaluate();
-          }
-      });
-  </script>
-  <script src="{{ asset('third_party/js/demo.js') }}"></script>
 {% endblock headscripts %}
 
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
-  <!-- jsonnet.org stylesheet -->
-  <link rel="stylesheet" type="text/css" href="{{ asset('third_party/css/doc.css') }}" />
-  <link rel="stylesheet" href="{{ asset('third_party/css/desktop.css') }}">
-
   {{ super() }}
 
   <!-- CodeMirror -->
   <link rel="stylesheet" href="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.css') }}">
+
+  <style>
+    :root {
+      --playground-height: max(24rem, calc(100vh - 18rem));
+    }
+    .playground-layout {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .playground-examples {
+      flex: 0 0 300px;
+      max-width: 300px;
+      position: sticky;
+      top: 1rem;
+    }
+    .playground-examples-list {
+      max-height: calc(var(--playground-height) + 1rem);
+      overflow-y: auto;
+      /* keep the content clear of the scrollbar, also for overlay scrollbars */
+      padding-right: 0.75rem;
+      scrollbar-gutter: stable;
+    }
+    .playground-editor {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .playground-panes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .playground-pane {
+      flex: 1 1 360px;
+      min-width: 0;
+      margin-bottom: 0;
+    }
+    /* the tabs stay on one line, so that the editors of both panes are aligned */
+    .playground-pane .nav-tabs {
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    .playground-documents {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+    }
+    /* the documents share the width like the tabs of a browser, and scroll once at their minimal width */
+    .playground-document {
+      position: relative;
+      flex: 0 1 auto;
+      min-width: 7rem;
+    }
+    .playground-document .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      width: 100%;
+      max-width: 16rem;
+      overflow: hidden;
+    }
+    .playground-document-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* an example opened as preview is replaced by the next one, unless it is modified */
+    .playground-document-preview .playground-document-label {
+      font-style: italic;
+    }
+    .playground-pane .playground-document-closable .nav-link {
+      padding-right: 1.75rem;
+    }
+    .playground-document-close {
+      position: absolute;
+      top: 50%;
+      right: 0.5rem;
+      transform: translateY(-50%);
+      width: 0.5rem;
+      height: 0.5rem;
+      padding: 0.25rem;
+      background-size: 0.5rem;
+    }
+    .playground-document-modified,
+    .playground-files-error {
+      font-size: 0.625rem;
+      line-height: 1;
+    }
+    .playground-files-error {
+      color: var(--bs-danger);
+    }
+    .playground-input-header .dropdown-toggle {
+      max-width: 15rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .playground-input-header .dropdown-item {
+      white-space: normal;
+    }
+    /* the examples collapse to a narrow bar, leaving the space to the editors */
+    .playground-examples-collapsed .playground-examples {
+      flex: 0 0 auto;
+      width: auto;
+      align-self: stretch;
+      margin-bottom: 0;
+    }
+    .playground-examples-collapsed .playground-examples .card-body {
+      display: none;
+    }
+    .playground-examples-collapsed .playground-examples .card-header {
+      flex: 1 1 auto;
+      flex-direction: column-reverse;
+      justify-content: flex-end;
+      padding: 0.5rem 0.25rem;
+      border-bottom: 0;
+      cursor: pointer;
+    }
+    .playground-examples-collapsed .playground-examples .card-title {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+    .playground-examples-collapsed .playground-examples .btn-tool {
+      margin: 0 !important;
+    }
+    .playground-pane .nav-link {
+      padding: 0.375rem 0.625rem;
+      font-size: 0.875rem;
+      white-space: nowrap;
+    }
+    .playground-pane .tab-content > .playground-pane-body {
+      height: var(--playground-height);
+    }
+    .playground-pane .tab-content > .playground-pane-body.active {
+      display: flex;
+      flex-direction: column;
+    }
+    /* the editors fill the space left by the toolbars of their pane */
+    .playground-code {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .playground-code > .CodeMirror {
+      position: absolute;
+      inset: 0;
+      height: auto;
+    }
+    .playground-error-line {
+      background: var(--bs-danger-bg-subtle);
+    }
+    .playground-error-mark {
+      text-decoration: underline wavy var(--bs-danger);
+      text-decoration-skip-ink: none;
+    }
+    /* explicit values identical to the default configuration, which can be removed */
+    .playground-default-value {
+      opacity: 0.55;
+      text-decoration: underline dotted var(--bs-secondary-color);
+      text-underline-offset: 3px;
+    }
+    .playground-find-match {
+      background: rgba(255, 193, 7, 0.35);
+    }
+    .playground-find-current {
+      background: rgba(255, 152, 0, 0.75);
+    }
+    .playground-error,
+    .playground-changes {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+    }
+    .playground-error pre {
+      white-space: pre-wrap;
+      color: var(--bs-danger-text-emphasis);
+    }
+    /* changes grouped by section and element of the configuration, a row for each changed property */
+    .playground-changes {
+      font-size: 0.8125rem;
+    }
+    .playground-changes .badge {
+      font-size: 0.6875rem;
+    }
+    .playground-changes-section + .playground-changes-section {
+      margin-top: 0.75rem;
+    }
+    .playground-changes-section-header {
+      display: flex;
+      align-items: center;
+      padding: 0.25rem 0;
+      margin-bottom: 0.25rem;
+      border-bottom: 1px solid var(--bs-border-color);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--bs-secondary-color);
+    }
+    .playground-change-group > summary {
+      padding: 0.125rem 0;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+    .playground-change-content {
+      margin-left: 0.3rem;
+      padding-left: 0.9rem;
+      border-left: 1px solid var(--bs-border-color);
+    }
+    .playground-change-rows {
+      display: grid;
+      grid-template-columns: 1rem minmax(6rem, max-content) minmax(0, 1fr);
+      column-gap: 0.5rem;
+      row-gap: 0.125rem;
+      padding: 0.125rem 0;
+    }
+    .playground-change-group > summary,
+    .playground-change-key,
+    .playground-change-value {
+      font-family: var(--bs-font-monospace);
+    }
+    .playground-change-values {
+      overflow-wrap: anywhere;
+    }
+    .playground-change-value {
+      padding: 0 0.25rem;
+      border-radius: 0.25rem;
+    }
+    .playground-change-value-added {
+      background: var(--bs-success-bg-subtle);
+      color: var(--bs-success-text-emphasis);
+    }
+    .playground-change-value-removed {
+      background: var(--bs-danger-bg-subtle);
+      color: var(--bs-danger-text-emphasis);
+    }
+    .playground-change-symbol {
+      display: inline-block;
+      width: 1rem;
+      font-family: var(--bs-font-monospace);
+      font-weight: 700;
+      text-align: center;
+    }
+    .playground-change-symbol.playground-change-added {
+      color: var(--bs-success);
+    }
+    .playground-change-symbol.playground-change-removed {
+      color: var(--bs-danger);
+    }
+    .playground-change-symbol.playground-change-changed {
+      color: var(--bs-warning-text-emphasis);
+    }
+    .playground-change-badge {
+      margin-left: 0.5rem;
+      font-family: var(--bs-body-font-family);
+      font-weight: 500;
+    }
+    .playground-change-badge.playground-change-added {
+      background: var(--bs-success-bg-subtle);
+      color: var(--bs-success-text-emphasis);
+    }
+    .playground-change-badge.playground-change-removed {
+      background: var(--bs-danger-bg-subtle);
+      color: var(--bs-danger-text-emphasis);
+    }
+    .playground-change-badge.playground-change-changed {
+      background: var(--bs-warning-bg-subtle);
+      color: var(--bs-warning-text-emphasis);
+    }
+    @media (max-width: 991.98px) {
+      .playground-layout {
+        flex-direction: column;
+      }
+      .playground-examples {
+        position: static;
+        max-width: none;
+        width: 100%;
+      }
+      .playground-examples-list {
+        max-height: 16rem;
+      }
+      .playground-examples-collapsed .playground-examples .card-header {
+        flex-direction: row;
+        padding: 0.5rem 1rem;
+      }
+      .playground-examples-collapsed .playground-examples .card-title {
+        writing-mode: horizontal-tb;
+        transform: none;
+      }
+      .playground-examples-collapsed .playground-examples .btn-tool {
+        margin-left: auto !important;
+      }
+      .playground-examples .btn-tool .fas {
+        transform: rotate(90deg);
+      }
+    }
+  </style>
 {% endblock stylesheets %}
 
 {% block content %}
@@ -71,8 +329,12 @@
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">
               <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              {% if project_name %}
               <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}">{{ project_name }}</a></li>
               <li class="breadcrumb-item active"><a href="/projects/{{ project_name }}/playground">Playground</a></li>
+              {% else %}
+              <li class="breadcrumb-item active"><a href="/playground">Playground</a></li>
+              {% endif %}
             </ol>
           </div>
         </div>
@@ -83,57 +345,291 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <div class="row">
-          <div class="col-md-12">
-            <div class="inverse hgroup">
-              <div class=hgroup-inline>
-                <div class="tab-window-input" id="input">
-                  <div class="tab-header">
+        <div class="playground-layout">
+          <script>
+            // collapsed before the first rendering, the state being restored by js/playground.js
+            try {
+              if (localStorage.getItem('playground-examples-collapsed') === 'true') {
+                document.currentScript.parentElement.classList.add('playground-examples-collapsed');
+              }
+            } catch (e) {
+              // no storage, e.g. in a private window
+            }
+          </script>
+          <aside class="playground-examples card card-primary card-outline" aria-labelledby="playground-examples-title">
+            <div class="card-header d-flex align-items-center gap-2" id="playground-examples-header">
+              <h3 class="card-title mb-0" id="playground-examples-title">Examples</h3>
+              <button type="button" class="btn btn-tool ms-auto" id="playground-examples-toggle" aria-expanded="true"
+                      aria-controls="playground-examples-body" title="Hide the examples">
+                <i class="fas fa-angles-left" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="card-body p-2" id="playground-examples-body">
+              <input type="search" class="form-control form-control-sm mb-2" id="playground-examples-filter"
+                     placeholder="Filter examples" aria-label="Filter examples" autocomplete="off">
+              <div class="playground-examples-list">
+                {% if organization %}
+                <div class="playground-examples-group" data-title="{{ organization.name }}">
+                  <div class="d-flex align-items-center gap-2 mt-2 mb-1">
+                    <span class="fw-bold small text-secondary text-uppercase">{{ organization.name }}</span>
+                    <a href="{{ organization.url }}" target="_blank" rel="noopener" class="small flex-shrink-0"
+                       title="Open the configuration on GitHub"
+                       aria-label="Open the configuration of {{ organization.name }} on GitHub"><i class="fab fa-github"></i></a>
                   </div>
-                  <textarea id='playground-jsonnet'>
+                  <div class="list-group list-group-flush">
+                    <button type="button" class="list-group-item list-group-item-action py-1 px-2 small playground-example"
+                            data-organization="true">
+                      Current configuration
+                    </button>
+                  </div>
+                </div>
+                {% endif %}
+                {% for page in examples %}
+                {% set page_index = loop.index0 %}
+                <div class="playground-examples-group" data-title="{{ page.title }}">
+                  <div class="d-flex align-items-center gap-2 mt-2 mb-1">
+                    <span class="fw-bold small text-secondary text-uppercase">{{ page.title }}</span>
+                    <a href="{{ documentation_url }}{{ page.path }}" target="_blank" rel="noopener" class="small flex-shrink-0"
+                       title="Read the guide" aria-label="Read the guide {{ page.title }}"><i class="fas fa-book"></i></a>
+                  </div>
+                  <div class="list-group list-group-flush">
+                    {% for example in page.examples %}
+                    <button type="button" class="list-group-item list-group-item-action py-1 px-2 small playground-example"
+                            data-page="{{ page_index }}" data-example="{{ loop.index0 }}">
+                      {{ example.title }}{% if example.variant %} ({{ example.variant }}){% endif %}
+                    </button>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+                <output class="d-block small text-secondary mt-2 mb-0 d-none" id="playground-examples-empty">
+                  No example found.
+                </output>
+              </div>
+            </div>
+          </aside>
+
+          <div class="playground-editor">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="playground-reset" disabled
+                      title="Discard your changes to the shown document">
+                <i class="fas fa-rotate-left" aria-hidden="true"></i> Reset
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="playground-copy-link"
+                      title="Copy a link opening the playground with its current content">
+                <i class="fas fa-link" aria-hidden="true"></i> <span>Copy link</span>
+              </button>
+              {% if organization %}
+              <button type="button" class="btn btn-sm btn-outline-primary" id="playground-propose" disabled
+                      title="Propose your changes to the configuration of {{ organization.name }} as a pull request from your GitHub account">
+                <i class="fas fa-code-pull-request" aria-hidden="true"></i> Propose on GitHub
+              </button>
+              {% endif %}
+              {% if templates %}
+              <label class="small text-secondary ms-2" for="playground-template">Default configuration:</label>
+              <select class="form-select form-select-sm w-auto" id="playground-template" autocomplete="off"
+                      title="Default configuration the playground is evaluated with">
+                {% for template in templates %}
+                <option value="{{ template.value }}"{% if template.selected %} selected{% endif %}>{{ template.label }}</option>
+                {% endfor %}
+              </select>
+              <a href="{{ default_configuration.url }}" target="_blank" rel="noopener" class="small">
+                <i class="fab fa-github"></i> {{ default_configuration.label }}</a>
+              {% elif default_configuration %}
+              <span class="small text-secondary ms-2">
+                Default configuration:
+                <a href="{{ default_configuration.url }}" target="_blank" rel="noopener">
+                  <i class="fab fa-github"></i> {{ default_configuration.label }}</a>
+              </span>
+              {% endif %}
+            </div>
+            <div class="playground-panes">
+              <div class="card card-primary card-outline card-outline-tabs playground-pane">
+                {# the file imported by the playground first, then the ones it imports #}
+                {% set template_files = jsonnet_files|selectattr('filename', 'equalto', default_config)|list
+                                        + jsonnet_files|rejectattr('filename', 'equalto', default_config)|list %}
+                <div class="card-header p-0 border-bottom-0 d-flex playground-input-header">
+                  <!-- documents opened in the editor: the configuration of the organization, the snippet, examples -->
+                  <ul class="nav nav-tabs flex-grow-1 playground-documents" id="playground-documents" role="tablist"
+                      aria-label="Documents"></ul>
+                  <ul class="nav nav-tabs flex-shrink-0">
+                    <li class="nav-item dropdown">
+                      <button type="button" class="nav-link dropdown-toggle" id="playground-files-toggle"
+                              data-bs-toggle="dropdown" aria-expanded="false"
+                              title="Read-only files of the default configuration">
+                        <i class="fas fa-lock fa-xs" aria-hidden="true"></i>
+                        <span id="playground-files-label">Default configuration</span>
+                        <span class="playground-files-error d-none" aria-label="contains the error">●</span>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        {% for jsonnet_file in template_files %}
+                        <li>
+                          <button type="button" class="dropdown-item playground-file-item" data-file="{{ jsonnet_file.filename }}">
+                            <span class="d-block">{{ jsonnet_file.filename.split('/')|last }}</span>
+                            <small class="d-block text-secondary playground-file-role"></small>
+                          </button>
+                        </li>
+                        {% endfor %}
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+                <div class="tab-content">
+                  <div class="tab-pane active playground-pane-body" id="playground-input-0" role="tabpanel"
+                       data-file="playground.jsonnet">
+                    <div class="playground-code">
+                      <textarea id="playground-jsonnet" aria-label="Configuration evaluated by the playground">
 {% include 'jsonnet/playground.jsonnet' %}
-                  </textarea>
-                  {% for jsonnet_file in jsonnet_files %}
-                  {% set id = jsonnet_file['id'] %}
-                  {% set content = jsonnet_file['content'] %}
-                  <textarea id='{{ id }}'>
-{{ content }}
-                  </textarea>
+                      </textarea>
+                    </div>
+                  </div>
+                  {% for jsonnet_file in template_files %}
+                  <div class="tab-pane playground-pane-body" id="playground-input-{{ loop.index }}" role="tabpanel"
+                       data-file="{{ jsonnet_file.filename }}" aria-label="{{ jsonnet_file.filename }} (read-only)">
+                    <div class="d-flex flex-wrap align-items-center column-gap-3 px-2 py-1 border-bottom small text-secondary">
+                      <span class="text-nowrap"><i class="fas fa-lock fa-xs" aria-hidden="true"></i> read-only</span>
+                      <code class="text-truncate mw-100" title="Path to import the file">{{ jsonnet_file.filename }}</code>
+                      <span class="text-nowrap playground-file-role"></span>
+                      {% if jsonnet_file.url %}
+                      <a href="{{ jsonnet_file.url }}" target="_blank" rel="noopener" class="ms-auto text-nowrap"
+                         title="Open the file on GitHub"><i class="fab fa-github"></i> GitHub</a>
+                      {% endif %}
+                    </div>
+                    <div class="playground-code playground-template-file"></div>
+                  </div>
                   {% endfor %}
                 </div>
-                <div class="bigarrow"><i class="fas fa-arrow-right"></i></div>
-                <div class="tab-window-output" id="output">
-                  <div class="tab-header">
-                    <div class=selected onclick="tab_output_click(this, 'json-output')">output.json</div>
-                  </div>
-                  <textarea readonly class="selected code-json" id="json-output">
-                  </textarea>
+              </div>
+
+              <div class="card card-primary card-outline card-outline-tabs playground-pane">
+                <div class="card-header p-0 border-bottom-0 d-flex align-items-center">
+                  <ul class="nav nav-tabs" id="playground-output-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button type="button" class="nav-link active" id="playground-output-tab" data-bs-toggle="tab"
+                              data-bs-target="#playground-output-pane" role="tab" aria-controls="playground-output-pane"
+                              aria-selected="true">output.json</button>
+                    </li>
+                    {% if organization %}
+                    <li class="nav-item" role="presentation">
+                      <button type="button" class="nav-link" id="playground-changes-tab" data-bs-toggle="tab"
+                              data-bs-target="#playground-changes-pane" role="tab" aria-controls="playground-changes-pane"
+                              aria-selected="false"
+                              title="Changes compared to the current configuration of {{ organization.name }}">
+                        Changes <span class="badge text-bg-secondary d-none" id="playground-changes-count"></span>
+                      </button>
+                    </li>
+                    {% endif %}
+                  </ul>
+                  <span class="ms-auto me-2 small text-secondary text-truncate" id="playground-status" role="status"
+                        aria-live="polite"></span>
                 </div>
-                <script>
-                  demo(
-                    'input',
-                    {
-                      'playground-jsonnet': 'playground.jsonnet',
-                      {% for jsonnet_file in jsonnet_files %}
-                      {% set id = jsonnet_file['id'] %}
-                      {% set filename = jsonnet_file['filename'] %}
-                      '{{ id }}': '{{ filename }}',
-                      {% endfor %}
-                    },
-                    'playground.jsonnet',
-                    'output',
-                    false,
-                    false
-                  );
-                </script>
-                <div style="clear: both"></div>
+                <div class="tab-content">
+                  <div class="tab-pane active playground-pane-body" id="playground-output-pane" role="tabpanel"
+                       aria-labelledby="playground-output-tab">
+                    <div class="d-flex flex-wrap gap-2 p-2 border-bottom">
+                      <select class="form-select form-select-sm w-auto mw-100" id="playground-output-view"
+                              aria-label="Part of the output to show" disabled>
+                        <option value="">Whole output</option>
+                      </select>
+                      <div class="input-group input-group-sm flex-nowrap w-auto flex-grow-1">
+                        <input type="search" class="form-control" id="playground-output-find" placeholder="Find in the output"
+                               aria-label="Find in the output" autocomplete="off" disabled>
+                        <span class="input-group-text" id="playground-output-find-count" aria-live="polite"></span>
+                        <button type="button" class="btn btn-outline-secondary" id="playground-output-find-previous"
+                                title="Previous match (Shift+Enter)" aria-label="Previous match" disabled>
+                          <i class="fas fa-chevron-up" aria-hidden="true"></i></button>
+                        <button type="button" class="btn btn-outline-secondary" id="playground-output-find-next"
+                                title="Next match (Enter)" aria-label="Next match" disabled>
+                          <i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+                      </div>
+                    </div>
+                    <div class="playground-code" id="playground-output"></div>
+                    <div class="playground-error p-2 d-none" id="playground-error">
+                      <pre class="mb-0"></pre>
+                    </div>
+                  </div>
+                  {% if organization %}
+                  <div class="tab-pane playground-pane-body" id="playground-changes-pane" role="tabpanel"
+                       aria-labelledby="playground-changes-tab">
+                    <div class="playground-changes p-2" id="playground-changes"></div>
+                  </div>
+                  {% endif %}
+                </div>
               </div>
             </div>
           </div>
-        </div><!-- /.row -->
+        </div>
       </div><!-- /.container-fluid -->
     </section>
     <!-- /.content -->
   </div>
 
 {% endblock content %}
+
+{% block javascripts %}
+  {{ super() }}
+
+  <div class="modal fade" id="playground-overwrite-modal" tabindex="-1" aria-labelledby="playground-overwrite-title"
+       aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="playground-overwrite-title">Discard your changes?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-0" id="playground-overwrite-message"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="playground-overwrite-confirm">Replace</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if organization %}
+  <div class="modal fade" id="playground-propose-modal" tabindex="-1" aria-labelledby="playground-propose-title"
+       aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="playground-propose-title">Propose your changes on GitHub</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="playground-propose-copied"></p>
+          <ol class="mb-0">
+            <li>Open the configuration in the editor of GitHub{% if not organization.edit_url %}, and click on the
+              pencil to edit it{% endif %}.</li>
+            <li>Replace its content with the copied one: <kbd>Ctrl</kbd>+<kbd>A</kbd>, then <kbd>Ctrl</kbd>+<kbd>V</kbd>
+              (<kbd>⌘</kbd> instead of <kbd>Ctrl</kbd> on macOS).</li>
+            <li>Click on <em>Commit changes…</em>, create a new branch and click on <em>Propose changes</em> to create
+              the pull request from your account. GitHub forks the repository if you cannot push to it.</li>
+          </ol>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <a class="btn btn-primary" id="playground-propose-open" href="{{ organization.edit_url or organization.url }}"
+             target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> Open the editor of GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% set playground_data = {
+    'defaultConfig': default_config,
+    'defaultConfiguration': default_configuration.label if default_configuration else default_config,
+    'templateFiles': jsonnet_files,
+    'examples': examples,
+    'organization': organization|default(none),
+  } %}
+  <script type="application/json" id="playground-data">{{ playground_data|tojson }}</script>
+  <!-- rendered after the scripts of the layout, as it depends on bootstrap -->
+  <script type="module">
+    import {createPlayground} from '{{ asset('js/playground.js') }}';
+
+    createPlayground(JSON.parse(document.getElementById('playground-data').textContent));
+  </script>
+{% endblock javascripts %}

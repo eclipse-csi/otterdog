@@ -6,10 +6,14 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import functools
 import json
 import os.path
+import posixpath
+import re
 from collections.abc import Mapping, MutableMapping
 from typing import Any
+from urllib.parse import quote
 
 from quart import (
     current_app,
@@ -22,9 +26,11 @@ from quart import (
 from quart_auth import current_user, login_required
 from werkzeug.routing import BuildError
 
+import otterdog
+from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import PrettyFormatter, associate_by_key
+from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
 from otterdog.webapp.db.service import (
     find_scorecard_result,
     get_active_installations,
@@ -42,7 +48,7 @@ from otterdog.webapp.db.service import (
     get_statistics,
 )
 from otterdog.webapp.tasks import get_organization_config
-from otterdog.webapp.utils import get_project_base_url, get_temporary_base_directory
+from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get_temporary_base_directory
 
 from . import blueprint
 
@@ -394,6 +400,51 @@ def _evaluate_default(jsonnet_config: JsonnetConfig, function: str) -> dict[str,
         raise RuntimeError(f"failed to evaluate snippet: {ex}") from ex
 
 
+# the example template of otterdog, which the configuration guides of the documentation are validated with,
+# it is part of the sources of otterdog but not of its package
+EXAMPLE_TEMPLATE = "example"
+_EXAMPLE_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(otterdog.__file__)), "examples", "template")
+_EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
+
+
+@blueprint.route("/playground")
+async def global_playground():
+    import aiofiles
+
+    otterdog_config = await get_otterdog_config()
+
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return await render_template("home/page-404.html"), 404
+
+    # the global playground can also use the example template of otterdog instead of the one of the instance
+    example_template = await _example_template()
+    templates = None
+    if example_template is not None:
+        selected = request.args.get("template") == EXAMPLE_TEMPLATE
+        templates = [
+            {"value": "", "label": "This instance", "selected": not selected},
+            {"value": EXAMPLE_TEMPLATE, "label": "Otterdog example", "selected": selected},
+        ]
+        if selected:
+            return await _render_playground(example_template, None, templates=templates)
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = OrganizationConfig.of(
+            "playground",
+            "playground",
+            otterdog_config.default_config_repo,
+            base_template,
+            {"provider": "inmemory", "api_token": ""},
+            base_dir,
+            work_dir,
+        )
+
+        return await _render_playground(await _instance_template(org_config), None, templates=templates)
+
+
 @blueprint.route("/projects/<project_name>/playground")
 async def playground(project_name: str):
     import aiofiles
@@ -402,33 +453,125 @@ async def playground(project_name: str):
     if installation is None:
         return await render_template("home/page-404.html"), 404
 
-    jsonnet_files = []
-
     base_dir = get_temporary_base_directory()
     async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
         org_config = await get_organization_config(installation, "", base_dir, work_dir)
 
-        jsonnet_config = org_config.jsonnet_config
-        await jsonnet_config.init_template()
+        # the playground starts with the current configuration of the organization, once it has been fetched
+        organization = None
+        config = await get_configuration_by_project_name(project_name)
+        if config is not None and config.jsonnet is not None:
+            # the stored sha is the one of the file, not of a commit: link the default branch,
+            # whose configuration is fetched again on each push to the configuration repository
+            repo_url = f"https://github.com/{config.github_id}/{org_config.config_repo}"
+            path = f"otterdog/{config.github_id}.jsonnet"
+            organization = {
+                "name": project_name,
+                "jsonnet": config.jsonnet,
+                "url": f"{repo_url}/blob/HEAD/{path}",
+                # the editor of GitHub needs a branch, known once the configuration has been fetched again
+                "edit_url": None if config.branch is None else f"{repo_url}/edit/{quote(config.branch)}/{path}",
+            }
 
-        async for jsonnet_file in jsonnet_config.jsonnet_template_files():
-            async with aiofiles.open(jsonnet_file) as f:
-                filename = os.path.basename(jsonnet_file)
-                file_id = os.path.splitext(filename)[0]
-                jsonnet_files.append(
-                    {
-                        "id": file_id,
-                        "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{filename}",
-                        "content": await f.read(),
-                    }
-                )
+        return await _render_playground(await _instance_template(org_config), project_name, organization)
 
+
+async def _render_playground(
+    template: dict[str, Any],
+    project_name: str | None,
+    organization: dict[str, str | None] | None = None,
+    templates: list[dict[str, Any]] | None = None,
+) -> str:
     return await render_home_template(
         "playground.html",
         project_name=project_name,
-        jsonnet_files=jsonnet_files,
-        default_config=f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
+        jsonnet_files=template["files"],
+        default_config=template["default_config"],
+        default_configuration=template["link"],
+        templates=templates,
+        examples=_playground_examples(),
+        documentation_url=current_app.config["DOCUMENTATION_URL"],
+        organization=organization,
     )
+
+
+async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
+    import aiofiles
+
+    jsonnet_config = org_config.jsonnet_config
+    await jsonnet_config.init_template()
+
+    # the files of the template are next to its default configuration in its repository
+    repo_url, file, ref = parse_template_url(org_config.base_template)
+    directory = posixpath.dirname(file)
+
+    files = []
+    async for jsonnet_file in jsonnet_config.jsonnet_template_files():
+        name = os.path.basename(jsonnet_file)
+        async with aiofiles.open(jsonnet_file) as f:
+            files.append(
+                {
+                    "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{name}",
+                    "content": await f.read(),
+                    "url": f"{repo_url}/blob/{ref}/{posixpath.join(directory, name)}",
+                }
+            )
+
+    return {
+        "files": files,
+        "default_config": f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
+        "link": _default_configuration_link(org_config.base_template),
+    }
+
+
+async def _example_template() -> dict[str, Any] | None:
+    import aiofiles
+    import aiofiles.os
+
+    if not await aiofiles.os.path.isfile(os.path.join(_EXAMPLE_TEMPLATE_DIR, _EXAMPLE_TEMPLATE_FILE)):
+        return None
+
+    # link the template of the running release, development versions are built from the main branch
+    ref = f"v{otterdog.__version__}" if re.fullmatch(r"\d+\.\d+\.\d+", otterdog.__version__) else "main"
+    url = f"https://github.com/eclipse-csi/otterdog/blob/{ref}/examples/template"
+
+    # vendored like the default configurations used in the documentation
+    files = []
+    for name in sorted(await aiofiles.os.listdir(_EXAMPLE_TEMPLATE_DIR)):
+        if name.endswith(".libsonnet"):
+            async with aiofiles.open(os.path.join(_EXAMPLE_TEMPLATE_DIR, name)) as f:
+                files.append(
+                    {
+                        "filename": f"vendor/otterdog-defaults/{name}",
+                        "content": await f.read(),
+                        "url": f"{url}/{name}",
+                    }
+                )
+
+    return {
+        "files": files,
+        "default_config": f"vendor/otterdog-defaults/{_EXAMPLE_TEMPLATE_FILE}",
+        "link": {
+            "url": f"{url}/{_EXAMPLE_TEMPLATE_FILE}",
+            "label": f"eclipse-csi/otterdog/examples/template/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
+        },
+    }
+
+
+def _default_configuration_link(base_template: str) -> dict[str, str]:
+    # the base template has the format https://github.com/<owner>/<repo>#<file>@<ref>
+    repo_url, file, ref = parse_template_url(base_template)
+    return {
+        "url": f"{repo_url}/blob/{ref}/{file}",
+        "label": f"{repo_url.removeprefix('https://github.com/')}/{file}@{ref}",
+    }
+
+
+@functools.cache
+def _playground_examples() -> list[dict[str, Any]]:
+    # generated from the configuration guides of the documentation with `make playground-examples`
+    with open(os.path.join(os.path.dirname(__file__), "playground-examples.json")) as file:
+        return json.load(file)["pages"]
 
 
 @blueprint.route("/projects/<project_name>/repos/<repo_name>")

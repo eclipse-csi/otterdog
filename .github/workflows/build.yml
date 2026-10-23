@@ -63,6 +63,10 @@ jobs:
           npm ci --ignore-scripts
           npm run build
 
+      - name: Test webapp scripts
+        working-directory: otterdog/webapp/static
+        run: npm test
+
       # Run tests
       - name: Run tests
         run: |

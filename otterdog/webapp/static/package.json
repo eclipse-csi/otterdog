@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite build --mode development",
     "build": "vite build",
+    "test": "node --test \"src/js/**/*.test.js\"",
     "preview": "vite preview"
   },
   "devDependencies": {

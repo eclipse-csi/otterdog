@@ -38,7 +38,17 @@ To see the values that actually apply, use the following operations:
   for example explicit values that are identical to the inherited ones
 
 The Playground of the otterdog dashboard can also be used to evaluate a snippet against the default configuration,
-e.g. with the link below each example of these guides.
+e.g. with the link below each example of these guides. It highlights the explicit values that are identical to the
+values of the default configuration, e.g. `has_wiki: true` while `orgs.newRepo` already returns `has_wiki: true`:
+these lines can be removed, the values are inherited. Only literal values are compared, e.g. `true` or `"main"`, not
+values computed from variables or functions.
+
+!!! note
+
+    The values are compared with the default configuration of otterdog, i.e. the `base_template` of the
+    organization, not with the defaults of GitHub. Otterdog applies the values of its default configuration: a value
+    that equals the default of GitHub but differs from the default configuration is required, e.g.
+    `allow_merge_commit: true` when the default configuration disables merge commits.
 
 ## The default configuration also defines what is managed
 
