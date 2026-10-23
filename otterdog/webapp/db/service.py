@@ -951,7 +951,6 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
             config=blueprint.config,
         )
     else:
-        recheck = False
 
         def update_if_changed(obj: BlueprintModel, attr: str, value: Any) -> bool:
             if obj.__getattribute__(attr) != value:
@@ -960,12 +959,16 @@ async def update_or_create_blueprint(owner: str, blueprint: Blueprint) -> bool:
             else:
                 return False
 
-        recheck = recheck or update_if_changed(blueprint_model, "path", blueprint.path)
-        recheck = recheck or update_if_changed(blueprint_model, "name", blueprint.name)
-        recheck = recheck or update_if_changed(blueprint_model, "description", blueprint.description)
-        recheck = recheck or update_if_changed(blueprint_model, "config", blueprint.config)
+        # every attribute must be updated, so do not short-circuit on the first change
+        changed = [
+            update_if_changed(blueprint_model, "path", blueprint.path),
+            update_if_changed(blueprint_model, "name", blueprint.name),
+            update_if_changed(blueprint_model, "description", blueprint.description),
+            update_if_changed(blueprint_model, "config", blueprint.config),
+        ]
 
-        blueprint_model.recheck_needed = recheck
+        # keep a recheck that is still pending from a previous update
+        blueprint_model.recheck_needed = blueprint_model.recheck_needed or any(changed)
 
     await save_blueprint(blueprint_model)
     return blueprint_model.recheck_needed
