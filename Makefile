@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve playground-examples help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -113,8 +113,11 @@ clean-webapp:  ## Clean Web App the development environment
 docs:  ## Generate documentation
 	poetry run mkdocs build
 
-docs-serve:
+docs-serve:  ## Serve the documentation, Playground links target $OTTERDOG_URL (default: https://otterdog.eclipse.org)
 	poetry run mkdocs serve --livereload
+
+playground-examples:  ## Update the examples listed by the Playground from the configuration guides
+	poetry run python docs/hooks/playground.py
 
 help:  ## Show this help
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

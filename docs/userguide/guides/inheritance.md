@@ -37,6 +37,9 @@ To see the values that actually apply, use the following operations:
 - `canonical-diff` compares a configuration with the canonical form that `import` would write, which reveals
   for example explicit values that are identical to the inherited ones
 
+The Playground of the otterdog dashboard can also be used to evaluate a snippet against the default configuration,
+e.g. with the link below each example of these guides.
+
 ## The default configuration also defines what is managed
 
 The default configuration does not only provide default values. Otterdog only retrieves, compares and applies the

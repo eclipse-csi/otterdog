@@ -84,6 +84,25 @@ differently, than you might be used from GitHub):
 make docs-serve
 ```
 
+Complete jsonnet examples, i.e. examples that define an organization with `orgs.newOrg` without omitting content
+with `...` or using placeholders like `<github-id>`, get a link that opens them in the Playground of an otterdog
+dashboard. The link is added by the hook `docs/hooks/playground.py`, the url of the dashboard is set by the
+environment variable `OTTERDOG_URL` (`https://otterdog.eclipse.org` by default, an empty value omits the links):
+
+```bash
+OTTERDOG_URL=https://otterdog.example.org make docs-serve
+```
+
+The jsonnet examples of the [Configuration Guides](../userguide/guides/index.md) must be complete: the test
+`tests/test_docs_examples.py` validates each of them against the example default configuration.
+
+The Playground of the dashboard lists these examples from a catalog generated from the guides. After adding or
+changing an example, update the catalog, otherwise `tests/test_docs_playground_hook.py` fails:
+
+```bash
+make playground-examples
+```
+
 
 ## Commit and push your changes
 

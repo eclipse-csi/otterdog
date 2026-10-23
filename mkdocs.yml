@@ -166,9 +166,18 @@ markdown_extensions:
 
 watch: []
 
+hooks:
+- docs/hooks/playground.py
+
+extra:
+  # url of the otterdog dashboard whose playground is linked below complete jsonnet examples,
+  # set the environment variable OTTERDOG_URL to an empty value to omit these links
+  otterdog_url: !ENV [OTTERDOG_URL, "https://otterdog.eclipse.org"]
+
 plugins:
 - include-markdown
 - search
 - exclude:
     glob:
     - __pycache__/*
+    - hooks/*
