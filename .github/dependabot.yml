@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      # security updates ignore the other groups, bundle them in a single PR
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       python-minor-patch:
         patterns:
           - "*"
