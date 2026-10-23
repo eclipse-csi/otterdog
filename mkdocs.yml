@@ -59,7 +59,7 @@ nav:
           - Repository Secret: reference/organization/repository/secret.md
           - Repository Variable: reference/organization/repository/variable.md
           - Environment:
-            - reference/organization/repository/index.md
+            - reference/organization/repository/environment/index.md
             - Environment Secret: reference/organization/repository/environment/secret.md
             - Environment Variable: reference/organization/repository/environment/variable.md
           - Branch Protection Rule: reference/organization/repository/branch-protection-rule.md

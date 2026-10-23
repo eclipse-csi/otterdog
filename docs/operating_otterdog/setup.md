@@ -88,7 +88,7 @@ The GitHub api token needs to have the following scopes enabled:
 * admin:org_hook
 * delete_repo
 
-The credentials can be stored in different providers (bitwarden, pass, env).
+The credentials can be stored in different providers (bitwarden, pass, vault, env).
 
 #### Bitwarden
 
@@ -182,6 +182,54 @@ As the `password_store_dir` might be different on different machines, you can al
   }
 }
 ```
+
+#### HashiCorp Vault
+
+When using a **HashiCorp Vault** to store the credentials, the secrets are read from a KV version 2 secrets engine.
+Each credential is referenced as `<path/to/secret>/<field>`, the last component being the name of the field:
+
+```json
+{
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
+        "provider": "vault",
+        "api_token": "<path/to/secret>/<field>",
+        "username": "<path/to/secret>/<field>",
+        "password": "<path/to/secret>/<field>",
+        "twofa_seed": "<path/to/secret>/<field>"
+      }
+    }
+  ]
+}
+```
+
+The connection to the Vault is configured in the `defaults`:
+
+```json
+{
+  "defaults": {
+    "vault": {
+      "vault_addr": "https://vault.example.org",
+      "mount_point": "<kv mount point>",
+      "verify_ssl": true
+    }
+  }
+}
+```
+
+| Key                  | Description                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------|
+| `vault_addr`         | the address of the Vault, defaults to the environment variable `VAULT_ADDR`                                       |
+| `vault_token`        | the token to use, defaults to the environment variable `VAULT_TOKEN`, then to the file `~/.vault-token`; if no valid token is found, otterdog asks to log in interactively |
+| `mount_point`        | the mount point of the KV secrets engine, it is recommended to always set it                                      |
+| `verify_ssl`         | whether to verify the TLS certificate of the Vault, disabled by default; enable it, or set `ca_cert`              |
+| `ca_cert`            | path to a CA certificate bundle used to verify the TLS certificate of the Vault                                   |
+| `client_cert`        | path to a client certificate for mutual TLS                                                                       |
+| `batch_mode`         | if `true`, fail instead of asking to log in interactively, e.g. in automation                                     |
+| `api_token_pattern`, `username_pattern`, `password_pattern`, `twofa_seed_pattern` | patterns of the credential paths used when an organization does not specify them, `{0}` is replaced by the name of the organization |
 
 #### Environment based credentials
 

@@ -43,12 +43,12 @@ orgs.newEnvironment('<name>') {
               prevent_self_review: true,
               wait_timer: 30,
               secrets+: [
-                orgs.newEnvironmentSecret('TEST_SECRET') {
+                orgs.newEnvSecret('TEST_SECRET') {
                   value: "pass:path/to/secret",
                 },
               ],
               variables+: [
-                orgs.newEnvironmentVariable('TEST_VARIABLE') {
+                orgs.newEnvVariable('TEST_VARIABLE') {
                   value: "TESTVALUE",
                 },
               ],

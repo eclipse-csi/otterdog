@@ -1,9 +1,9 @@
 # Scorecard Integration
 
-This blueprint type ensure that a workflow is present that performs .
+This blueprint type ensures that matching repositories run an [OpenSSF Scorecard](https://scorecard.dev/) analysis.
 
-Furthermore, if actions are already pinned but the corresponding version in the comment does not matchup, this blueprint
-will also correct the comment to the tag / branch that matches the used commit hash.
+If none of the workflows of a repository uses the configured scorecard action, this blueprint creates a pull request
+that adds a workflow with the configured content.
 
 ## Configuration
 

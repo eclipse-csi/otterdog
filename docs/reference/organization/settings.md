@@ -62,8 +62,6 @@ Changes to the limit are flagged for designated review and are not eligible for 
 
 ## Validation rules
 
-- enabling either `dependabot_alerts_enabled_for_new_repositories` or `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependency_graph_enabled_for_new_repositories`
-- enabling `dependabot_security_updates_enabled_for_new_repositories` also requires enabling `dependabot_alerts_enabled_for_new_repositories`
 - enabling `has_discussions` also requires setting `discussion_source_repository` to a valid repository to host the discussions
 - specifying a non-empty list of `immutable_releases_selected_repositories` while `immutable_releases_enforced_repositories` is not set to `selected`, triggers a warning
 - specifying a non-empty list of `selected_repositories` while `enabled_repositories` is not set to `selected`, triggers a warning
