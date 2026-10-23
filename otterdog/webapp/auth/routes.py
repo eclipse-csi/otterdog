@@ -6,15 +6,27 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import secrets
+from logging import getLogger
 from typing import Any
+from urllib.parse import urlencode
 
-from quart import redirect, render_template, url_for
+import aiohttp
+from quart import current_app, redirect, render_template, request, session, url_for
 from quart_auth import current_user, login_user, logout_user
 
-from otterdog.webapp import oauth_github
 from otterdog.webapp.db.models import UserModel
 
 from . import User, blueprint
+
+logger = getLogger(__name__)
+
+_GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
+_GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
+_GITHUB_USER_URL = "https://api.github.com/user"
+
+# session key of the state of a pending authorization on GitHub
+_OAUTH_STATE_KEY = "github_oauth_state"
 
 # Login
 
@@ -28,7 +40,13 @@ async def login_view():
 
 @blueprint.route("/github")
 async def login_github():
-    return oauth_github.authorize()
+    # GitHub sends the state back unchanged, the callback only accepts the one stored
+    # in the session of the user, which protects the login against cross-site request forgery
+    state = secrets.token_urlsafe(32)
+    session[_OAUTH_STATE_KEY] = state
+
+    params = {"client_id": current_app.config["GITHUB_CLIENT_ID"], "state": state}
+    return redirect(f"{_GITHUB_AUTHORIZE_URL}?{urlencode(params)}")
 
 
 @blueprint.route("/logout")
@@ -38,29 +56,28 @@ async def logout():
 
 
 @blueprint.route("/github/authorized")
-@oauth_github.authorized_handler  # type: ignore
-async def authorized(oauth_token):
+async def authorized():
     next_url = url_for("home_blueprint.index")
-    if oauth_token is None:
+
+    # the state is only valid for a single authorization
+    expected_state = session.pop(_OAUTH_STATE_KEY, None)
+    state = request.args.get("state")
+    code = request.args.get("code")
+
+    if (
+        expected_state is None
+        or state is None
+        or not secrets.compare_digest(state.encode(), expected_state.encode())
+        or code is None
+    ):
+        logger.warning("rejecting GitHub authorization callback: missing or unexpected state or code")
         return redirect(next_url)
 
-    import aiohttp
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as http_session:
+        oauth_token = await _retrieve_access_token(http_session, code)
+        account_info = None if oauth_token is None else await _retrieve_github_user(http_session, oauth_token)
 
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {oauth_token}",
-    }
-
-    async with (
-        aiohttp.ClientSession() as session,
-        session.get(
-            "https://api.github.com/user", headers=headers, timeout=aiohttp.ClientTimeout(total=10)
-        ) as response,
-    ):
-        response_ok = response.ok
-        account_info = await response.json() if response_ok else None
-
-    if response_ok:
+    if account_info is not None:
         node_id = account_info["node_id"]
         username = account_info["login"]
         email = account_info["email"]
@@ -94,6 +111,44 @@ async def authorized(oauth_token):
         login_user(user)
 
     return redirect(next_url)
+
+
+async def _retrieve_access_token(http_session: aiohttp.ClientSession, code: str) -> str | None:
+    data = {
+        "client_id": current_app.config["GITHUB_CLIENT_ID"],
+        "client_secret": current_app.config["GITHUB_CLIENT_SECRET"],
+        "code": code,
+    }
+
+    async with http_session.post(
+        _GITHUB_ACCESS_TOKEN_URL, data=data, headers={"Accept": "application/json"}
+    ) as response:
+        if not response.ok:
+            logger.warning("failed to retrieve GitHub access token: HTTP %d", response.status)
+            return None
+
+        token_data = await response.json()
+
+    # GitHub reports an invalid or expired code with a successful response
+    access_token = token_data.get("access_token")
+    if access_token is None:
+        logger.warning("failed to retrieve GitHub access token: %s", token_data.get("error"))
+
+    return access_token
+
+
+async def _retrieve_github_user(http_session: aiohttp.ClientSession, oauth_token: str) -> dict[str, Any] | None:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {oauth_token}",
+    }
+
+    async with http_session.get(_GITHUB_USER_URL, headers=headers) as response:
+        if not response.ok:
+            logger.warning("failed to retrieve GitHub user: HTTP %d", response.status)
+            return None
+
+        return await response.json()
 
 
 def _retrieve_eclipse_user(github_id: str) -> dict[str, Any] | None:

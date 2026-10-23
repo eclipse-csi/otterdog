@@ -26,7 +26,7 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     POETRY_VERSION=2.4.1 \
     POETRY_HOME='/usr/local' \
     POETRY_INSTALLER_ONLY_BINARY=:all: \
-    POETRY_INSTALLER_NO_BINARY=github-flask,jsonbender \
+    POETRY_INSTALLER_NO_BINARY=jsonbender \
     POETRY_DYNAMIC_VERSIONING_BYPASS=$version
 
 # copy only dependency manifests first so `poetry install` layer stays
@@ -48,7 +48,7 @@ COPY ./docker/init-webapp ./docker/init-webapp
 RUN poetry build && \
     poetry install --only-root
 
-# create the final image having python3.12 as base
+# create the final image having python3.14 as base
 FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
 
 RUN apt-get update \
