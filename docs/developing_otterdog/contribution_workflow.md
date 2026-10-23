@@ -93,6 +93,9 @@ environment variable `OTTERDOG_URL` (`https://otterdog.eclipse.org` by default, 
 OTTERDOG_URL=https://otterdog.example.org make docs-serve
 ```
 
+To target the webapp of your development environment, use `make docs-serve-dev`, `make docs-serve-tunnel` or
+`make docs-serve-ngrok`, see [Test the Playground with the documentation](testing.md#optional-test-the-playground-with-the-documentation).
+
 The jsonnet examples of the [Configuration Guides](../userguide/guides/index.md) must be complete: the test
 `tests/test_docs_examples.py` validates each of them against the example default configuration.
 

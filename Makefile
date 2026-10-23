@@ -1,4 +1,4 @@
-.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve playground-examples help
+.PHONY: init test check clean build-image init-minikube dev-webapp dev-webapp-ts dev-webapp-tunnel dev-webapp-tunnel-local dev-webapp-ngrok dev-webapp-ngrok-local clean-ingress-finalizers clean-tailscale-proxies clean-webapp docs docs-serve docs-serve-dev docs-serve-tunnel docs-serve-ngrok playground-examples help
 
 PIPX := $(shell command -v pipx --version 2> /dev/null)
 POETRY := $(shell command -v poetry 2> /dev/null)
@@ -6,6 +6,12 @@ OTTERDOG_SCRIPT := $(realpath ./otterdog.sh)
 OTTERDOG_TS_CLEAN_SCRIPT := $(realpath ./dev/scripts/remove-ts-machines.sh)
 OTTERDOG_LINK := ~/.local/bin/otterdog
 VERSION := $(shell poetry version -s)
+# url of the webapp started with `make dev-webapp`, reachable after `kubectl port-forward -n otterdog deploy/otterdog 5000:5000`
+OTTERDOG_DEV_URL ?= http://localhost:5000
+# address of the documentation served with `make docs-serve*`, the Playground of the webapp started with
+# `make dev-webapp*` links its examples to it
+DOCS_DEV_ADDR ?= 127.0.0.1:8000
+DOCS_DEV_URL ?= http://$(DOCS_DEV_ADDR)/
 
 all: help
 
@@ -73,7 +79,7 @@ init-minikube:
 
 dev-webapp: init-minikube clean-ingress-finalizers ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev --cleanup=false
+	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev --cleanup=false
 
 clean-ingress-finalizers:  ## Remove finalizers from stuck ingress objects and wait for namespace deletion
 	@if kubectl get namespace otterdog -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Terminating; then \
@@ -89,19 +95,19 @@ clean-tailscale-proxies:  ## Delete stale tailscale proxy StatefulSets
 
 dev-webapp-tunnel: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel --cleanup=false
+	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel --cleanup=false
 
 dev-webapp-tunnel-local: init-minikube clean-ingress-finalizers clean-tailscale-proxies  ## Run full stack development (includes webapp)
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-local --cleanup=false
+	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev-tunnel-local --cleanup=false
 
 dev-webapp-ngrok: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=true
+	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok --cleanup=true
 
 dev-webapp-ngrok-local: init-minikube clean-ingress-finalizers  ## Run full stack development (includes webapp), exposed via ngrok, using local Helm chart checkout
 	eval $$(minikube -p minikube docker-env)
-	skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok-local --cleanup=false
+	DOCS_DEV_URL="$(DOCS_DEV_URL)" skaffold dev --filename=dev/skaffold.yaml --profile dev-ngrok-local --cleanup=false
 
 check:  ## Run all pre-commit checks
 	poetry run prek -a
@@ -114,7 +120,18 @@ docs:  ## Generate documentation
 	poetry run mkdocs build
 
 docs-serve:  ## Serve the documentation, Playground links target $OTTERDOG_URL (default: https://otterdog.eclipse.org)
-	poetry run mkdocs serve --livereload
+	poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+
+docs-serve-dev:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp` ($OTTERDOG_DEV_URL)
+	OTTERDOG_URL="$(OTTERDOG_DEV_URL)" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+
+docs-serve-tunnel:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp-tunnel*` (tailscale)
+	@if [ -z "$$TS_DNS" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi
+	OTTERDOG_URL="https://otterdog.$$TS_DNS" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+
+docs-serve-ngrok:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp-ngrok*`
+	@if [ -z "$$NGROK_DOMAIN" ]; then echo 'Error: NGROK_DOMAIN is not set'; exit 1; fi
+	OTTERDOG_URL="https://$$NGROK_DOMAIN" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
 
 playground-examples:  ## Update the examples listed by the Playground from the configuration guides
 	poetry run python docs/hooks/playground.py
