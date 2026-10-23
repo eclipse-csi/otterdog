@@ -70,6 +70,7 @@ nav:
            - Bypass Actor: reference/organization/repository/bypass-actor.md
            - Repo Name Matcher: reference/organization/repo-name-matcher.md
            - Ref Matcher: reference/organization/repository/ref-matcher.md
+           - Secret Value: reference/organization/secret-value.md
            - Status Check: reference/organization/repository/status-check.md
     - Policies:
         - reference/policies/index.md
