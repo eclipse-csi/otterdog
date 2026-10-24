@@ -269,7 +269,7 @@ async def get_organization_config(
         unwrap(org_model.project_name),
         org_model.github_id,
         unwrap(org_model.config_repo),
-        unwrap(org_model.base_template),
+        org_model.base_template,
         {"provider": "inmemory", "api_token": token},
         base_dir,
         work_dir,
