@@ -65,6 +65,17 @@ make test
 
 Note: Code coverage HTML is also available in `htmlcov/`
 
+The end-to-end tests of the Playground of the dashboard, in `tests/webapp/playground/`, run in Firefox with
+Playwright. They are skipped unless the assets of the webapp are built and Firefox is installed, which `make init`
+does:
+
+```bash
+(cd otterdog/webapp/static && npm ci && npm run build)
+poetry run pytest tests/webapp/playground
+```
+
+The scripts of the Playground also have unit tests, run with `npm test` in `otterdog/webapp/static`.
+
 ## Write docs
 
 Otterdog docs are built with [`mkdocs`](https://www.mkdocs.org/) and
