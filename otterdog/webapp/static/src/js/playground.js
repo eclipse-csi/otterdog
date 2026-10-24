@@ -14,11 +14,12 @@ import {completionExtensions} from "./playground/completion.js";
 import {createDefaultValues} from "./playground/defaults.js";
 import {createDocuments} from "./playground/documents.js";
 import {byId, flash, markCurrent} from "./playground/dom.js";
-import {editorExtensions, replaceContent} from "./playground/editors.js";
+import {editorExtensions, replaceContent, select} from "./playground/editors.js";
 import {createEvaluator, createScheduler, filesOf} from "./playground/evaluator.js";
 import {setupExamples} from "./playground/examples.js";
 import {createFiles} from "./playground/files.js";
-import {createOutput} from "./playground/output.js";
+import {repositoryCall} from "./playground/jsonnet.js";
+import {createOutput, viewId} from "./playground/output.js";
 import {
   MAIN_FILE,
   MAX_ENCODED_SNIPPET,
@@ -371,7 +372,24 @@ function openDocuments(p) {
   if (snippet !== null) {
     documents.add(snippet);
   }
+
+  // the playground of a project is opened at a repository from its page, e.g. '?repository=my-repo'
+  const repository = new URLSearchParams(window.location.search).get("repository");
+  if (repository !== null && p.organizationDocument !== null) {
+    p.organizationDocument.output = {...INITIAL_OUTPUT, view: viewId("repository", repository)};
+  }
   documents.activate(snippet ?? p.organizationDocument);
+  if (repository !== null && documents.active() === p.organizationDocument) {
+    selectRepository(p, repository);
+  }
+}
+
+// places the cursor at the call creating a repository in the configuration of the organization, if it is found
+function selectRepository(p, name) {
+  const call = repositoryCall(p.organizationDocument.code, name);
+  if (call !== null) {
+    select(p.editor, call.from, call.to);
+  }
 }
 
 function snippetDocument(p) {

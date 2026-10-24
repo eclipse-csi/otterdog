@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {completionContext, explicitValues, literalProperties, literalValue, mainCall, tokenize, topLevelLocals} from "./jsonnet.js";
+import {completionContext, explicitValues, literalProperties, literalValue, mainCall, repositoryCall, tokenize, topLevelLocals} from "./jsonnet.js";
 
 const SNIPPET = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
 local wiki = true;
@@ -159,4 +159,28 @@ test("literal values are read as json", () => {
   assert.equal(literalValue("2"), 2);
   assert.deepEqual(literalValue("[\"a\", null]"), ["a", null]);
   assert.equal(literalValue("{a: 1}"), undefined);
+});
+
+test("the call creating a repository is found", () => {
+  const code = `local orgs = import 'x.libsonnet';
+local newBinaryRepo(name) = orgs.newRepo(name + '-binaries');
+
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('website') { description: 'api' },
+    orgs.extendRepo('.github'),
+    newBinaryRepo('api'),
+    orgs.newRepo('api', org=$),
+  ],
+}`;
+  const callOf = (name) => {
+    const range = repositoryCall(code, name);
+    return range === null ? null : code.slice(range.from, range.to);
+  };
+
+  assert.equal(callOf("website"), "orgs.newRepo('website')");
+  assert.equal(callOf(".github"), "orgs.extendRepo('.github')");
+  // the first call creating it, not a description with the same text
+  assert.equal(callOf("api"), "newBinaryRepo('api')");
+  assert.equal(callOf("unknown"), null);
 });

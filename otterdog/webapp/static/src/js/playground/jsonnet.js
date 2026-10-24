@@ -116,6 +116,21 @@ export function mainCall(code) {
   return {name: name.text, from: text.length + alias.start, to: text.length + name.end};
 }
 
+// Returns the range {from, to} of the call creating a repository in the code, e.g. `orgs.newRepo('my-repo')`, null if
+// it is not found: the first call of a function whose name contains "repo", e.g. `newRepo`, `extendRepo` or a function
+// of the configuration like `newBinaryRepo`, with the name of the repository as first argument.
+export function repositoryCall(code, name) {
+  const tokens = tokenize(code);
+  const index = tokens.findIndex((token, at) => token.type === "string" && tokens[at - 1]?.text === "("
+    && /repo/i.test(tokens[at - 2]?.text ?? "") && literalValue(token.text) === name);
+  if (index === -1) {
+    return null;
+  }
+  const [alias, dot, call] = [tokens[index - 4], tokens[index - 3], tokens[index - 2]];
+  const end = tokens[index + 1]?.text === ")" ? tokens[index + 1] : tokens[index];
+  return {from: isFunctionOf(alias, dot, call) ? alias.start : call.start, to: end.end};
+}
+
 // the value of a literal, e.g. 1 for `1` or "my-repo" for `'my-repo'`, undefined if it cannot be read as json, e.g. an
 // object with unquoted names
 export function literalValue(text) {

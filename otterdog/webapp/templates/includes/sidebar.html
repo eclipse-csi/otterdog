@@ -76,6 +76,17 @@
               </p>
             </a>
           </li>
+
+          <li class="nav-item">
+            <a href="{{ documentation_url }}reference/" class="nav-link" target="_blank" rel="noopener">
+              <i class="nav-icon fas fa-book"></i>
+              <p>
+                Reference guide
+                <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+              </p>
+            </a>
+          </li>
+
           <li class="nav-header">PROJECTS</li>
             {% for nav_level1, value_level1 in projects|dictsort %}
             {% if value_level1|is_dict %}
