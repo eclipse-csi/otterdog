@@ -150,6 +150,12 @@
   display: flex;
   flex-direction: column;
 }
+/* a pane without tabs, e.g. the impact of an edited default configuration */
+.playground-pane > .playground-pane-body {
+  display: flex;
+  flex-direction: column;
+  height: var(--playground-height);
+}
 /* the editors fill the space left by the toolbars of their pane */
 .playground-code {
   position: relative;
@@ -260,6 +266,18 @@
   column-gap: 0.5rem;
   row-gap: 0.125rem;
   padding: 0.125rem 0;
+}
+/* the changes of the projects with an edited default configuration, grouped by property and values */
+.playground-impact-changes {
+  display: grid;
+  grid-template-columns: 1rem minmax(6rem, 1fr) fit-content(40%) max-content;
+  column-gap: 0.5rem;
+  row-gap: 0.125rem;
+  padding: 0.125rem 0;
+}
+/* the paths of the changes wrap, rather than their values */
+.playground-impact-changes .playground-change-key {
+  overflow-wrap: anywhere;
 }
 .playground-change-group > summary,
 .playground-change-key,

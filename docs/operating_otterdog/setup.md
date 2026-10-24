@@ -13,6 +13,14 @@ To start using the cli part of `otterdog` right away on a specific organization 
 The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
 However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
 
+A change of the default configuration applies to all the organizations using it. Its impact can be evaluated
+beforehand on the **Template impact** page of the administration of the otterdog dashboard: the files of the default
+configuration are edited there, and the configurations of the projects are evaluated with the edited files. The page
+groups the changes by property across the projects, e.g. `repositories[*].delete_branch_on_merge` changed from `true` to
+`false` in 807 repositories of 269 projects, and lists the projects whose configuration changes, with their changes,
+and the ones whose configuration fails to evaluate. The configurations are the ones fetched by the dashboard, and are
+evaluated in the browser.
+
 ### Otterdog configuration
 
 Create a `otterdog.json` file with the following content (replace bracketed values according to your setup):

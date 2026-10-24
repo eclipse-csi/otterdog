@@ -67,6 +67,7 @@ export default defineConfig({
             "src/js/editor.js",
             "src/js/highlight.js",
             "src/js/playground.js",
+            "src/js/template-impact.js",
             "src/css/app.scss",
             "src/css/highlight.css",
             "src/css/playground.css",

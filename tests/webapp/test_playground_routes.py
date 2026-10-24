@@ -384,3 +384,72 @@ async def test_global_playground_does_not_propose_changes(app):
     assert 'id="playground-propose"' not in html
     assert 'id="playground-propose-modal"' not in html
 
+
+async def test_configurations_of_the_projects_using_the_default_base_template(app, monkeypatch):
+    installations = [
+        pretend.stub(project_name="beta", github_id="beta-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="alpha", github_id="alpha-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="other", github_id="other-org", base_template="https://github.com/other/template"),
+        pretend.stub(project_name="new", github_id="new-org", base_template=_BASE_TEMPLATE),
+    ]
+    sources = mock.AsyncMock(return_value={"alpha-org": "orgs.newOrg('alpha', 'alpha-org')", "beta-org": None})
+    monkeypatch.setattr(
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+    )
+    monkeypatch.setattr(routes, "get_active_installations", mock.AsyncMock(return_value=installations))
+    monkeypatch.setattr(routes, "get_configuration_sources", sources)
+
+    async with app.test_request_context("/admin/template-impact/configurations"):
+        result = await routes.template_impact_configurations()
+
+    # only the sources of the projects using the default base template are loaded
+    (github_ids,) = sources.await_args.args
+    assert sorted(github_ids) == ["alpha-org", "beta-org", "new-org"]
+
+    # sorted by project, the configurations not fetched with their source yet being null
+    assert result == {
+        "projects": [
+            {"name": "alpha", "jsonnet": "orgs.newOrg('alpha', 'alpha-org')"},
+            {"name": "beta", "jsonnet": None},
+            {"name": "new", "jsonnet": None},
+        ]
+    }
+
+
+async def test_no_configurations_without_default_base_template(app, monkeypatch):
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/admin/template-impact/configurations"):
+        assert await routes.template_impact_configurations() == {"projects": []}
+
+
+async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_template(app, monkeypatch, tmp_path):
+    render_home_template = mock.AsyncMock(return_value="template impact")
+    instance_template = mock.AsyncMock(return_value=_TEMPLATE)
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+    )
+    monkeypatch.setattr(routes, "_instance_template", instance_template)
+    monkeypatch.setattr(routes, "render_home_template", render_home_template)
+
+    async with app.test_request_context("/admin/template-impact"):
+        assert await routes.template_impact() == "template impact"
+
+    (org_config,) = instance_template.await_args.args
+    assert org_config.base_template == _BASE_TEMPLATE
+    assert render_home_template.await_args.args == ("template-impact.html",)
+    assert render_home_template.await_args.kwargs == {
+        "jsonnet_files": _TEMPLATE["files"],
+        "default_config": _TEMPLATE["default_config"],
+        "default_configuration": _TEMPLATE["link"],
+    }
+
+
+async def test_no_impact_of_the_template_without_default_base_template(app, monkeypatch):
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/admin/template-impact"):
+        _, status = await routes.template_impact()
+
+    assert status == 404

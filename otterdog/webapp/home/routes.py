@@ -39,6 +39,7 @@ from otterdog.webapp.db.service import (
     get_blueprints,
     get_blueprints_status,
     get_configuration_by_project_name,
+    get_configuration_sources,
     get_configurations,
     get_installation_by_github_id,
     get_installation_by_project_name,
@@ -673,6 +674,53 @@ def _merge_policy_status(aggregate_status: MutableMapping[str, Any], org_status:
             aggregate_status[policy_type] = merge_dict(aggregate_status[policy_type], status)
         else:
             aggregate_status.update({policy_type: status})
+
+
+@blueprint.route("/admin/template-impact")
+async def template_impact():
+    """The impact of a change of the default base template on the projects using it, evaluated in the browser."""
+
+    otterdog_config = await get_otterdog_config()
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return await render_template(_PAGE_NOT_FOUND), 404
+
+    template = await _default_template(otterdog_config, base_template)
+    return await render_home_template(
+        "template-impact.html",
+        jsonnet_files=template["files"],
+        default_config=template["default_config"],
+        default_configuration=template["link"],
+    )
+
+
+@blueprint.route("/admin/template-impact/configurations")
+async def template_impact_configurations():
+    """
+    Returns the configurations of the projects using the default base template, which the page of the impact of the
+    template evaluates with the default configuration as published and as edited, to list the projects whose
+    configuration changes. The configuration of a project is null until it has been fetched with its jsonnet source.
+    """
+
+    otterdog_config = await get_otterdog_config()
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return {"projects": []}
+
+    installations = [
+        installation
+        for installation in await get_active_installations()
+        if installation.base_template == base_template and installation.project_name is not None
+    ]
+    sources = await get_configuration_sources([installation.github_id for installation in installations])
+    return {
+        "projects": [
+            {"name": installation.project_name, "jsonnet": sources.get(installation.github_id)}
+            for installation in sorted(installations, key=lambda installation: installation.project_name or "")
+        ]
+    }
 
 
 @blueprint.route("/admin/tasks")
