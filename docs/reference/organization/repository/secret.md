@@ -7,6 +7,8 @@ Definition of a `Secret` on repository level, the following properties are suppo
 
 The secret value can be resolved via a credential provider. The supported format is `<credential_provider>:<provider specific data>`.
 
+Secret names must be uppercase because GitHub normalizes secret names to uppercase.
+
 - Bitwarden: `bitwarden:<bitwarden item id>@<custom_field_key>`
 
     ``` json

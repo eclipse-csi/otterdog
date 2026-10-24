@@ -9,11 +9,11 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from otterdog.models import LivePatch, LivePatchType
 from otterdog.models.secret import Secret
-from otterdog.utils import expect_type, unwrap
+from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
@@ -34,35 +34,50 @@ class RepositorySecret(Secret):
         return f"orgs.{jsonnet_config.create_repo_secret}"
 
     @classmethod
+    def repository_name_from_patch(cls, patch: LivePatch[Self]) -> str:
+        """Return the repository name after validating a repository-secret patch parent.
+
+        Repository secrets cannot import ``Repository`` at module scope because the
+        repository model imports the secret model.  The model-object discriminator
+        gives us the same runtime validation without recreating that circular import.
+        """
+        parent_object = patch.parent_object
+        if parent_object is None or parent_object.model_object_name != "repository":
+            raise TypeError("repository secret patches require a repository parent")
+
+        repository_name = getattr(parent_object, "name", None)
+        if not isinstance(repository_name, str):
+            raise TypeError("repository secret patch parent must have a repository name")
+        return repository_name
+
+    @classmethod
     async def apply_live_patch(
         cls,
-        patch: LivePatch[RepositorySecret],
+        patch: LivePatch[Self],
         org_id: str,
         provider: GitHubProvider,
     ) -> None:
-        from .repository import Repository
-
-        repository = expect_type(patch.parent_object, Repository)
+        repository_name = cls.repository_name_from_patch(patch)
 
         match patch.patch_type:
             case LivePatchType.ADD:
                 await provider.add_repo_secret(
                     org_id,
-                    repository.name,
+                    repository_name,
                     await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )
 
             case LivePatchType.REMOVE:
                 await provider.delete_repo_secret(
                     org_id,
-                    repository.name,
+                    repository_name,
                     unwrap(patch.current_object).name,
                 )
 
             case LivePatchType.CHANGE:
                 await provider.update_repo_secret(
                     org_id,
-                    repository.name,
+                    repository_name,
                     unwrap(patch.current_object).name,
                     await unwrap(patch.expected_object).to_provider_data(org_id, provider),
                 )

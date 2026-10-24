@@ -41,7 +41,7 @@ def _pretty_json(obj: Mapping[str, object] | None) -> str | None:
 class FakeHttpResponse:
     """Fake aiohttp response object which will be filled by mocked data."""
 
-    def __init__(self, status: int, text: str, headers: dict | None = None):
+    def __init__(self, status: int, text: str, headers: dict | None = None, links: dict | None = None):
         if not headers:
             headers = {}
         if "x-ratelimit-remaining" not in headers:
@@ -49,7 +49,8 @@ class FakeHttpResponse:
 
         self.status = status
         self.headers = headers
-        self.links = None
+        # aiohttp exposes parsed RFC 5988 pagination links through ``links``.
+        self.links = links
         self.from_cache = False
 
         self._text = text
@@ -191,7 +192,10 @@ class HttpClientMock:
         request_json: dict[str, object] | None = None,
         request_params: dict[str, str | int | bool] | None = None,
         response_json: dict[str, object] | list[dict[str, object]] | None = None,
+        response_links: dict | None = None,
+        response_headers: dict | None = None,
     ) -> None:
+        """Register one strict request/response pair, including pagination links."""
         expected = HttpRequest(
             method=method.upper(),
             url=url,
@@ -204,4 +208,9 @@ class HttpClientMock:
                 raise ValueError("Cannot specify both response_text and response_json")
             response_text = jsonlib.dumps(response_json, ensure_ascii=False)
 
-        self.expected[expected] = FakeHttpResponse(status=response_status, text=response_text)
+        self.expected[expected] = FakeHttpResponse(
+            status=response_status,
+            text=response_text,
+            links=response_links,
+            headers=response_headers,
+        )
