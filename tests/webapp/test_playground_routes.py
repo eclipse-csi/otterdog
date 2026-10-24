@@ -187,6 +187,10 @@ async def test_render_playground_provides_the_template(app, monkeypatch):
     context = render_home_template.await_args.kwargs
     assert context["project_name"] is None
     assert context["examples"] == routes._playground_examples()
+    assert context["reference"] == routes._playground_reference()
+    # the schemas of otterdog, referencing each other by their file name
+    assert context["schemas"]["organization.json"]["properties"]["settings"] == {"$ref": "settings.json"}
+    assert "types.json" in context["schemas"]
     assert context["default_configuration"] == _TEMPLATE["link"]
     assert context["default_config"] == "vendor/otterdog-defaults/otterdog-defaults.libsonnet"
     assert context["jsonnet_files"] == _TEMPLATE["files"]
@@ -379,3 +383,4 @@ async def test_global_playground_does_not_propose_changes(app):
 
     assert 'id="playground-propose"' not in html
     assert 'id="playground-propose-modal"' not in html
+

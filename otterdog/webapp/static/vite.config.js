@@ -33,8 +33,6 @@ export default defineConfig({
                 vendorFile("marked/lib/marked.umd.js", "marked"),
                 // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
                 vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
-                // preserves the package's internal directory structure, so strip only the node_modules/ prefix
-                vendorFile("codemirror-mode-jsonnet", null, 1),
             ]
         }),
     ],
@@ -71,10 +69,11 @@ export default defineConfig({
             "src/js/playground.js",
             "src/css/app.scss",
             "src/css/highlight.css",
+            "src/css/playground.css",
           ],
           output: {
-            // the GraphQL editor of the query page bundles CodeMirror and GraphQL, split them
-            // into separate chunks, loaded by the editor chunk and cached independently
+            // CodeMirror, used by the GraphQL editor of the query page and by the playground, and GraphQL are split
+            // into separate chunks, loaded by the pages and cached independently
             codeSplitting: {
               groups: [
                 {

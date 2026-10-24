@@ -29,6 +29,9 @@ In the messages below, `<repository>` stands for the resource reported by `valid
 : The property is unknown to otterdog, usually because of a typo, e.g. `has_wikki` instead of `has_wiki`, and has no
   effect. Fix its name or remove it.
 
+The Playground of the otterdog dashboard checks the same schemas while a configuration is edited: it underlines the
+invalid values and the unknown properties in the editor, and lists them when their number is clicked in its status.
+
 ## Code scanning
 
 **`invalid value at '<path>.code_scanning_default_languages[<index>]': '<language>' is not one of [...]`**

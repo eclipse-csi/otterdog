@@ -1,5 +1,7 @@
-import {changeCount, changeTree, changeTypeOf, diffConfigurations, formatValue} from "./diff.js";
+import {changeCount, changeTree, changeTypeOf, diffConfigurations} from "./diff.js";
 import {actionLink, byId, element, icon} from "./dom.js";
+import {viewId} from "./output.js";
+import {formatValue, isScalar} from "./values.js";
 
 const MAX_CHANGES = 500;
 // more changes are collapsed, e.g. after loading an example in place of the configuration
@@ -58,15 +60,21 @@ function otherDocumentNote(name, showConfiguration) {
 }
 
 function changesContent(changes, context) {
+  return [summaryOf(changes, context.name), ...treeContent(changes, context)];
+}
+
+// Returns the changes grouped by section and element, e.g. the changes of the configuration of a project, without
+// links to the output.
+export const changeTreeContent = (changes) => treeContent(changes, {});
+
+// the groups of changes, expanded unless there are many changes, the sections and repositories that are part of the
+// output linking to it with context.showInOutput
+function treeContent(changes, context) {
   const shown = changes.slice(0, MAX_CHANGES);
   const sectionContext = {...context, open: shown.length <= MAX_EXPANDED_CHANGES};
   const sections = changeTree(shown).map(([section, node]) => changeSection(section, node, sectionContext));
   const more = changes.length - shown.length;
-  return [
-    summaryOf(changes, context.name),
-    ...sections,
-    ...(more > 0 ? [element("p", "small text-secondary mt-2 mb-0", "… and " + more + " more changes.")] : []),
-  ];
+  return [...sections, ...(more > 0 ? [element("p", "small text-secondary mt-2 mb-0", "… and " + more + " more changes.")] : [])];
 }
 
 // the number of changes by type, and links expanding or collapsing all the groups of changes
@@ -77,7 +85,7 @@ function summaryOf(changes, name) {
   for (const type of Object.keys(SYMBOLS)) {
     const count = changes.filter((change) => change.type === type).length;
     if (count > 0) {
-      summary.append(element("span", "badge playground-change-badge playground-change-" + type, SYMBOLS[type] + " " + count + " " + type));
+      summary.append(typeBadge(type, SYMBOLS[type] + " " + count + " " + type));
     }
   }
 
@@ -97,8 +105,8 @@ function changeSection(section, node, context) {
   const header = element("div", "playground-changes-section-header");
   header.append(element("span", null, title), " ", countBadge(node));
   // the sections that are part of the output link to it
-  if (section !== "" && context.value[section] !== null && typeof context.value[section] === "object") {
-    header.append(showLink("section:" + section, "the " + title.toLowerCase(), context));
+  if (context.showInOutput !== undefined && section !== "" && !isScalar(context.value[section])) {
+    header.append(showLink(viewId("section", section), "the " + title.toLowerCase(), context));
   }
 
   const container = element("section", "playground-changes-section");
@@ -136,13 +144,11 @@ function groupSummary(chain, context) {
     summary.append(...(node.kind === "" ? [] : [element("span", "text-secondary", node.kind), " "]));
     summary.append(element("span", "fw-semibold", node.label));
   });
-  summary.append(" ", last.change === null
-    ? countBadge(first)
-    : element("span", "badge playground-change-badge playground-change-" + last.change.type, last.change.type));
+  summary.append(" ", last.change === null ? countBadge(first) : typeBadge(last.change.type, last.change.type));
 
   // the repositories that are part of the output link to it
-  if (context.section === "repositories" && first.kind === "" && changeTypeOf(first) !== "removed") {
-    summary.append(showLink("repository:" + first.label, "the repository " + first.label, context));
+  if (context.showInOutput !== undefined && context.section === "repositories" && first.kind === "" && changeTypeOf(first) !== "removed") {
+    summary.append(showLink(viewId("repository", first.label), "the repository " + first.label, context));
   }
   return summary;
 }
@@ -164,18 +170,23 @@ function groupContent(group, node, context) {
 function changeRows(rows) {
   const grid = element("div", "playground-change-rows");
   for (const {key, change} of rows) {
-    const values = element("span", "playground-change-values");
-    if (change.type === "changed") {
-      values.append(valueOf(change.before, "removed"), element("span", "text-secondary", " → "), valueOf(change.after, "added"));
-    } else {
-      values.append(valueOf(change.value, change.type));
-    }
-    grid.append(symbolOf(change.type), element("span", "playground-change-key", key || "value"), values);
+    grid.append(symbolOf(change.type), element("span", "playground-change-key", key || "value"), changeValues(change));
   }
   return grid;
 }
 
-function symbolOf(type) {
+// the values of a change, before and after it
+export function changeValues(change) {
+  const values = element("span", "playground-change-values");
+  if (change.type === "changed") {
+    values.append(valueOf(change.before, "removed"), element("span", "text-secondary", " → "), valueOf(change.after, "added"));
+  } else {
+    values.append(valueOf(change.value, change.type));
+  }
+  return values;
+}
+
+export function symbolOf(type) {
   const symbol = element("span", "playground-change-symbol playground-change-" + type, SYMBOLS[type]);
   symbol.title = type;
   return symbol;
@@ -188,6 +199,10 @@ function valueOf(value, type) {
     result.title = text;
   }
   return result;
+}
+
+function typeBadge(type, text) {
+  return element("span", "badge playground-change-badge playground-change-" + type, text);
 }
 
 function countBadge(node) {

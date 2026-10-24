@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {encodeSnippet, errorLocations, normalizeSnippet, snippetOfHash} from "./snippets.js";
+import {distinctImports, encodeSnippet, errorLocations, normalizeSnippet, snippetOfHash} from "./snippets.js";
 
 const TEMPLATE_FILES = [
   "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
@@ -29,6 +29,58 @@ test("snippets import the default configuration", () => {
     normalizeSnippet("local orgs = import 'vendor/eclipse-defaults/otterdog-defaults.libsonnet';\nx", TEMPLATE_FILES, TEMPLATE_FILES[0]),
     "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\nx",
   );
+});
+
+test("only the imports of snippets are mapped to the default configuration, in both quote styles", () => {
+  const code = `local orgs = import "vendor/eclipse-defaults/otterdog-defaults.libsonnet";
+// import 'vendor/eclipse-defaults/otterdog-defaults.libsonnet'
+orgs.newOrg('a', 'b') {
+  settings+: {description: "Use import 'vendor/eclipse-defaults/otterdog-defaults.libsonnet'"},
+}`;
+  assert.equal(
+    normalizeSnippet(code, TEMPLATE_FILES, TEMPLATE_FILES[0]),
+    code.replace('"vendor/eclipse-defaults/', '"vendor/otterdog-defaults/'),
+  );
+
+  // an import being typed, or the text of a string, does not import the default configuration
+  for (const code of ["local orgs = import 'vendor/", "{a: \"import 'a.libsonnet'\"}"]) {
+    assert.equal(normalizeSnippet(code, TEMPLATE_FILES, TEMPLATE_FILES[0]), `local orgs = import '${TEMPLATE_FILES[0]}';\n\n${code}`);
+  }
+});
+
+test("further imports of a path are spelled differently, strings and comments being kept", () => {
+  const files = {
+    "playground.jsonnet": `local a = import 'a.libsonnet';
+local b = import "a.libsonnet"; // import 'a.libsonnet'
+{
+  a: "Use import 'a.libsonnet'",
+  b: importstr @'a.libsonnet',
+  c: |||
+    import 'a.libsonnet'
+  |||,
+}`,
+    "a.libsonnet": "{c: import 'a.libsonnet'}",
+  };
+  assert.deepEqual(distinctImports(files, "playground.jsonnet"), {
+    "playground.jsonnet": `local a = import 'a.libsonnet';
+local b = import "./a.libsonnet"; // import 'a.libsonnet'
+{
+  a: "Use import 'a.libsonnet'",
+  b: importstr @'././a.libsonnet',
+  c: |||
+    import 'a.libsonnet'
+  |||,
+}`,
+    "a.libsonnet": "{c: import './././a.libsonnet'}",
+  });
+});
+
+test("imports of a path spelled with './' are spelled differently too", () => {
+  const files = {"playground.jsonnet": "[import 'a.libsonnet', import './a.libsonnet', import 'a.libsonnet', import '././a.libsonnet']"};
+
+  assert.deepEqual(distinctImports(files, "playground.jsonnet"), {
+    "playground.jsonnet": "[import 'a.libsonnet', import './a.libsonnet', import '././a.libsonnet', import './././a.libsonnet']",
+  });
 });
 
 test("errors are located in the files", () => {

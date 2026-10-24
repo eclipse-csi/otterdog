@@ -12,6 +12,7 @@ import os.path
 import posixpath
 import re
 from collections.abc import Mapping, MutableMapping
+from importlib.resources import files
 from typing import Any
 from urllib.parse import quote
 
@@ -27,7 +28,8 @@ from quart_auth import current_user, login_required
 from werkzeug.routing import BuildError
 
 import otterdog
-from otterdog.config import OrganizationConfig
+from otterdog import resources
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
@@ -51,6 +53,8 @@ from otterdog.webapp.tasks import get_organization_config
 from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get_temporary_base_directory
 
 from . import blueprint
+
+_PAGE_NOT_FOUND = "home/page-404.html"
 
 
 @blueprint.route("/")
@@ -199,7 +203,7 @@ async def query():
 async def organization(org_name: str):
     installation = await get_installation_by_github_id(org_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
     else:
         return redirect(url_for(".project", project_name=installation.project_name))
 
@@ -208,7 +212,7 @@ async def organization(org_name: str):
 async def organization_catch_all_redirect(org_name: str, subpath: str):
     installation = await get_installation_by_github_id(org_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
     else:
         return redirect(url_for(".project", project_name=installation.project_name) + "/" + subpath)
 
@@ -219,7 +223,7 @@ async def project(project_name: str):
     config = await get_configuration_by_project_name(project_name)
 
     if config is None or installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     from otterdog.models.github_organization import GitHubOrganization
     from otterdog.webapp.db.service import get_policies
@@ -309,7 +313,7 @@ async def defaults(project_name: str):
 
     installation = await get_installation_by_project_name(project_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     default_elements = []
 
@@ -409,14 +413,12 @@ _EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
 
 @blueprint.route("/playground")
 async def global_playground():
-    import aiofiles
-
     otterdog_config = await get_otterdog_config()
 
     try:
         base_template = otterdog_config.default_base_template
     except RuntimeError:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     # the global playground can also use the example template of otterdog instead of the one of the instance
     example_template = await _example_template()
@@ -430,19 +432,7 @@ async def global_playground():
         if selected:
             return await _render_playground(example_template, None, templates=templates)
 
-    base_dir = get_temporary_base_directory()
-    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-        org_config = OrganizationConfig.of(
-            "playground",
-            "playground",
-            otterdog_config.default_config_repo,
-            base_template,
-            {"provider": "inmemory", "api_token": ""},
-            base_dir,
-            work_dir,
-        )
-
-        return await _render_playground(await _instance_template(org_config), None, templates=templates)
+    return await _render_playground(await _default_template(otterdog_config, base_template), None, templates=templates)
 
 
 @blueprint.route("/projects/<project_name>/playground")
@@ -451,7 +441,7 @@ async def playground(project_name: str):
 
     installation = await get_installation_by_project_name(project_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     base_dir = get_temporary_base_directory()
     async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
@@ -490,9 +480,30 @@ async def _render_playground(
         default_configuration=template["link"],
         templates=templates,
         examples=_playground_examples(),
+        reference=_playground_reference(),
+        schemas=_playground_schemas(),
         documentation_url=current_app.config["DOCUMENTATION_URL"],
         organization=organization,
     )
+
+
+async def _default_template(otterdog_config: OtterdogConfig, base_template: str) -> dict[str, Any]:
+    """Returns the files of the default base template of the instance, see _instance_template."""
+
+    import aiofiles
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = OrganizationConfig.of(
+            "playground",
+            "playground",
+            otterdog_config.default_config_repo,
+            base_template,
+            {"provider": "inmemory", "api_token": ""},
+            base_dir,
+            work_dir,
+        )
+        return await _instance_template(org_config)
 
 
 async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
@@ -574,12 +585,29 @@ def _playground_examples() -> list[dict[str, Any]]:
         return json.load(file)["pages"]
 
 
+@functools.cache
+def _playground_reference() -> dict[str, Any]:
+    # generated from the reference of the documentation with `make playground-examples`, describes the properties
+    # completed by the playground
+    with open(os.path.join(os.path.dirname(__file__), "playground-reference.json")) as file:
+        return json.load(file)
+
+
+@functools.cache
+def _playground_schemas() -> dict[str, Any]:
+    # the schemas otterdog validates configurations with, the playground validates the evaluated ones with them
+    schemas = files(resources).joinpath("schemas")
+    return {
+        schema.name: json.loads(schema.read_text()) for schema in schemas.iterdir() if schema.name.endswith(".json")
+    }
+
+
 @blueprint.route("/projects/<project_name>/repos/<repo_name>")
 async def repository(project_name: str, repo_name: str):
     config = await get_configuration_by_project_name(project_name)
 
     if config is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     from otterdog.models.github_organization import GitHubOrganization
 
@@ -587,7 +615,7 @@ async def repository(project_name: str, repo_name: str):
 
     repo_config = next(filter(lambda x: x.name == repo_name, github_organization.repositories), None)
     if repo_config is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     scorecard_result = await find_scorecard_result(config.github_id, repo_name)
 
@@ -659,7 +687,7 @@ async def route_template(template: str):
 
         return redirect(url_for(f".{endpoint}"))
     except BuildError:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
 
 @blueprint.errorhandler(401)

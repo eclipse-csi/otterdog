@@ -1,14 +1,12 @@
 // The changes between two evaluated configurations, and their grouping by section and element of the configuration.
 
+import {isObject, isScalar} from "./values.js";
+
 // properties identifying the elements of a list, e.g. the name of a repository or the url of a webhook
 const ELEMENT_KEYS = ["name", "pattern", "url", "login", "id"];
 
 // the organization and its settings first, then the other sections in the order of the configuration
 const SECTION_RANKS = {"": 0, settings: 1};
-
-export const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-
-const isScalar = (value) => value === null || typeof value !== "object";
 
 function isKeyOf(key, elements) {
   const values = elements.map((element) => (isObject(element) ? element[key] : undefined));
@@ -27,13 +25,18 @@ export function diffConfigurations(before, after) {
   return changes;
 }
 
-export function pathOf(segments) {
+function pathOf(segments) {
   return segments.map((segment, index) => {
     if (segment.name !== undefined) {
       return index === 0 ? segment.name : "." + segment.name;
     }
     return segment.values ? "[]" : "[" + segment.element + "]";
   }).join("");
+}
+
+// the path of a change for all the elements of the lists, e.g. 'repositories[*].has_wiki'
+export function patternOf(segments) {
+  return pathOf(segments.map((segment) => (segment.element === undefined ? segment : {element: "*"})));
 }
 
 function pushChange(changes, type, segments, values) {
@@ -163,9 +166,4 @@ export function changeTypeOf(node) {
     types.add(changeTypeOf(child));
   }
   return types.size === 1 ? [...types][0] : "changed";
-}
-
-export function formatValue(value) {
-  const text = JSON.stringify(value);
-  return text.length > 120 ? text.slice(0, 119) + "…" : text;
 }

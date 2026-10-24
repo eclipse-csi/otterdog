@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {changeCount, changeTree, diffConfigurations} from "./diff.js";
+import {changeCount, changeTree, diffConfigurations, patternOf} from "./diff.js";
 
 const BEFORE = {
   settings: {name: "x", web_commit_signoff_required: false},
@@ -99,4 +99,15 @@ test("changes are grouped by section and by element", () => {
       {label: "b", kind: "", count: 1, change: "removed", rows: [], children: []},
     ],
   });
+});
+
+test("the pattern of a change stands for all the elements of the lists", () => {
+  const [change] = diffConfigurations(
+    {repositories: [{name: "a", topics: ["x"], rulesets: [{name: "main", enforcement: "active"}]}]},
+    {repositories: [{name: "a", topics: ["x"], rulesets: [{name: "main", enforcement: "disabled"}]}]},
+  );
+
+  assert.equal(change.path, "repositories[a].rulesets[main].enforcement");
+  assert.equal(patternOf(change.segments), "repositories[*].rulesets[*].enforcement");
+  assert.equal(patternOf(diffConfigurations({topics: ["x"]}, {topics: ["x", "y"]})[0].segments), "topics[]");
 });

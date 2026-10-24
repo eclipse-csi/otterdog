@@ -1,15 +1,22 @@
 // The playground evaluates a configuration with the default configuration of an organization in the browser, the
 // content of the playground is never sent to the server. The page (templates/home/playground.html) renders its
-// markup and passes its data to createPlayground, CodeMirror 5 and Bootstrap are loaded as vendor scripts.
+// markup and passes its data to createPlayground, Bootstrap is loaded as vendor script and the editors use CodeMirror.
 //
 // The modules of playground/ implement the parts of the playground, this module connects them with the controls of
 // the page.
 
+import {openLintPanel} from "@codemirror/lint";
+import {Transaction} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+
 import {createChanges} from "./playground/changes.js";
-import {defaultsSnippet, explicitValues} from "./playground/defaults.js";
+import {completionExtensions} from "./playground/completion.js";
+import {createDefaultValues} from "./playground/defaults.js";
 import {createDocuments} from "./playground/documents.js";
-import {actionLink, byId, flash, markCurrent} from "./playground/dom.js";
-import {createEvaluator, createScheduler} from "./playground/evaluator.js";
+import {byId, flash, markCurrent} from "./playground/dom.js";
+import {editorExtensions, replaceContent} from "./playground/editors.js";
+import {createEvaluator, createScheduler, filesOf} from "./playground/evaluator.js";
+import {setupExamples} from "./playground/examples.js";
 import {createFiles} from "./playground/files.js";
 import {createOutput} from "./playground/output.js";
 import {
@@ -20,47 +27,40 @@ import {
   normalizeSnippet,
   snippetOfHash,
 } from "./playground/snippets.js";
+import {createValidation} from "./playground/validation.js";
 
-// delay after the last change before evaluating the playground again
+// delay after the last change typed before evaluating the playground again
 const EVALUATION_DELAY = 300;
-
-const EXAMPLES_COLLAPSED = "playground-examples-collapsed";
-
-const EDITOR_OPTIONS = {
-  mode: "jsonnet",
-  lineNumbers: true,
-  indentUnit: 2,
-  tabSize: 2,
-  matchBrackets: true,
-  scrollbarStyle: "native",
-};
-
-const INDENTATION_KEYS = {
-  Tab: (cm) => (cm.somethingSelected() ? cm.indentSelection("add") : cm.execCommand("insertSoftTab")),
-  "Shift-Tab": (cm) => cm.indentSelection("subtract"),
-};
 
 // the output of a document shown for the first time
 const INITIAL_OUTPUT = {view: "", scroll: {left: 0, top: 0}};
 
 export function createPlayground(data) {
-  const playground = connect(data);
-  setupExamples(playground);
-  setupReset(playground);
-  setupCopyLink(playground);
-  setupTemplateChoice(playground);
-  setupProposal(playground);
-  setupCollapsedExamples(playground);
-  openDocuments(playground);
+  const p = connect(data);
+  setupExamples({
+    buttons: p.exampleButtons,
+    examples: data.examples,
+    organization: p.organization,
+    open: (button, example) => p.documents.open(button, () => exampleDocument(p, button, example)),
+    // the editors take the space left
+    onResize: () => {
+      p.files.refresh();
+      p.output.refresh();
+    },
+  });
+  setupReset(p);
+  setupCopyLink(p);
+  setupTemplateChoice(p);
+  setupProposal(p);
+  openDocuments(p);
 }
 
 // creates the parts of the playground, connected through the returned object
 function connect(data) {
-  const textarea = byId("playground-jsonnet");
   const p = {
     data,
     organization: data.organization,
-    defaultContent: textarea.value.replace(/\s+$/, ""),
+    defaultContent: data.defaultSnippet.trimEnd(),
     normalize: (code) => normalizeSnippet(code, data.templateFiles.map((file) => file.filename), data.defaultConfig),
     exampleButtons: document.querySelectorAll(".playground-example"),
     organizationDocument: null,
@@ -70,20 +70,45 @@ function connect(data) {
     restoredOutput: null,
   };
 
-  p.editor = window.CodeMirror.fromTextArea(textarea, {...EDITOR_OPTIONS, extraKeys: INDENTATION_KEYS});
+  // the editor of the documents, which have its states
+  p.editor = new EditorView({parent: byId("playground-editor")});
   p.files = createFiles({
-    editor: p.editor,
+    view: p.editor,
     templateFiles: data.templateFiles,
     defaultConfig: data.defaultConfig,
-    editorOptions: EDITOR_OPTIONS,
     onShow: () => p.documents.render(),
   });
   p.output = createOutput(p.files);
   p.confirm = createConfirmation();
+  p.evaluate = evaluation(p);
+  p.validation = createValidation({
+    schemas: data.schemas,
+    dispatch: (d, spec) => p.documents.dispatch(d, spec),
+    showProblems: () => openLintPanel(p.editor),
+    showNote: (d, note) => d === p.documents.active() && p.output.setNote("problems", note),
+  });
+  p.defaultValues = createDefaultValues({
+    evaluate: p.evaluate,
+    label: data.defaultConfiguration,
+    dispatch: (d, spec) => p.documents.dispatch(d, spec),
+    goTo: (range) => p.files.goTo(MAIN_FILE, range),
+    showNote: (d, note) => d === p.documents.active() && p.output.setNote("defaults", note),
+  });
   p.documents = createDocuments({
-    editor: p.editor,
+    view: p.editor,
+    extensions: [
+      editorExtensions(),
+      completionExtensions({
+        evaluate: p.evaluate,
+        reference: data.reference,
+        documentationUrl: data.documentationUrl,
+        templateFiles: data.templateFiles,
+      }),
+      p.defaultValues.extension,
+    ],
     isEditorShown: () => p.files.shown() === MAIN_FILE,
     onActivate: (d, previous) => activated(p, d, previous),
+    onChange: (update) => changed(p, update),
     confirmClose: (d, close) => p.confirm("Closing the example \"" + d.label + "\" discards your changes to it.", "Close", close),
   });
   p.changes = createChanges({
@@ -91,21 +116,22 @@ function connect(data) {
     showInOutput: (view) => showInOutput(p, view),
     showConfiguration: () => p.documents.activate(p.organizationDocument),
   });
-  p.evaluate = evaluation(p);
   p.schedule = createScheduler(p.evaluate, {
     current: () => p.documents.active(),
     evaluating: () => p.output.setStatus("evaluating", "Evaluating…"),
     evaluated: (d) => d === p.organizationDocument && organizationEvaluated(p),
     show: (d) => showEvaluation(p, d),
   });
-
-  p.editor.on("change", (cm, change) => {
-    if (p.documents.update()) {
-      updateButtons(p);
-    }
-    p.schedule(change.origin === "setValue" ? 0 : EVALUATION_DELAY);
-  });
   return p;
+}
+
+// the changes typed are evaluated once typing pauses, the other ones, e.g. a reset, at once
+function changed(p, update) {
+  if (p.documents.update()) {
+    updateButtons(p);
+  }
+  const typed = update.transactions.some((transaction) => transaction.annotation(Transaction.userEvent) !== undefined);
+  p.schedule(typed ? EVALUATION_DELAY : 0);
 }
 
 // Returns a function evaluating a snippet with the files of the default configuration. The current configuration of
@@ -123,10 +149,6 @@ function evaluation(p) {
     .then((json) => (p.baseline = {value: JSON.parse(json)}), (e) => (p.baseline = {error: e.message}))
     .finally(() => renderChanges(p));
   return (code) => (code === baselineCode ? baselineJson : evaluate(code));
-}
-
-function filesOf(code, templateFiles) {
-  return Object.fromEntries([[MAIN_FILE, code], ...templateFiles.map((file) => [file.filename, file.content])]);
 }
 
 function activated(p, d, previous) {
@@ -150,75 +172,16 @@ function showEvaluation(p, d) {
   if (d.result.error === undefined) {
     p.files.clearErrors();
     p.output.showValue(d.result.value, d.result.duration, restored);
-    highlightDefaultValues(p, d);
+    p.validation.show(d, d.result.value);
+    p.defaultValues.highlight(d);
     return;
   }
 
-  clearDefaultValues(d);
+  p.validation.clear(d);
+  p.defaultValues.clear(d);
   const locations = errorLocations(d.result.error);
   p.files.markErrors(locations, d.result.error.split("\n")[0]);
   p.output.showError(d.result.error, locations);
-}
-
-// ---- explicit values identical to the values of the default configuration of otterdog (its base_template, e.g.
-// otterdog-defaults), not to the defaults of GitHub: these lines can be removed, the values are inherited
-
-async function highlightDefaultValues(p, d) {
-  const code = d.doc.getValue();
-  if (d.defaultValues?.code !== code) {
-    const ranges = await defaultValueRanges(p, code);
-    if (d.doc.getValue() !== code) {
-      // changed meanwhile, highlighted once evaluated again
-      return;
-    }
-    clearDefaultValues(d);
-    const title = "Same value as in the default configuration " + p.data.defaultConfiguration
-      + ": this line can be removed, the value is inherited.";
-    const mark = ({from, to}) => d.doc.markText(d.doc.posFromIndex(from), d.doc.posFromIndex(to), {className: "playground-default-value", title});
-    d.defaultValues = {code, next: 0, marks: ranges.map(mark)};
-  }
-  if (d === p.documents.active()) {
-    p.output.setNote(defaultValuesNote(p, d));
-  }
-}
-
-// the ranges of the explicit values that are identical to the default configuration
-async function defaultValueRanges(p, code) {
-  const values = explicitValues(code);
-  const snippet = defaultsSnippet(code, values);
-  if (snippet === null) {
-    return [];
-  }
-  try {
-    const identical = JSON.parse(await p.evaluate(snippet));
-    return values.filter((value, index) => identical[index] === true);
-  } catch (e) {
-    // e.g. a call of the default configuration that is not supported by the template, nothing is highlighted
-    return [];
-  }
-}
-
-function clearDefaultValues(d) {
-  d.defaultValues?.marks.forEach((mark) => mark.clear());
-  d.defaultValues = null;
-}
-
-// the number of values identical to the default configuration, going to the next one
-function defaultValuesNote(p, d) {
-  const {marks} = d.defaultValues;
-  if (marks.length === 0) {
-    return null;
-  }
-  const text = marks.length === 1 ? "1 value already set by the default configuration" : marks.length + " values already set by the default configuration";
-  const note = actionLink(text, "link-secondary", () => {
-    const location = marks[d.defaultValues.next++ % marks.length].find();
-    if (location !== undefined) {
-      p.files.goTo(MAIN_FILE, location);
-    }
-  });
-  note.title = "Values that the default configuration " + p.data.defaultConfiguration + " already sets, the defaults of GitHub"
-    + " are not taken into account: they are inherited, and these lines can be removed. Click to go to the next one.";
-  return note;
 }
 
 function organizationEvaluated(p) {
@@ -293,55 +256,13 @@ function createConfirmation() {
   };
 }
 
-// ---- examples: opened as documents, filtered by their title and content
-
-function setupExamples(p) {
-  for (const button of p.exampleButtons) {
-    button.addEventListener("click", () => p.documents.open(button, () => exampleDocument(p, button)));
-  }
-  const filter = byId("playground-examples-filter");
-  filter.addEventListener("input", () => filterExamples(p, filter.value.trim().toLowerCase()));
-}
-
-function exampleDocument(p, button) {
-  const example = exampleOf(p, button);
-  const page = button.closest(".playground-examples-group").dataset.title;
-  return p.documents.create("example", labelOf(example), page + ": " + labelOf(example), p.normalize(example.code), button);
-}
-
-function exampleOf(p, button) {
-  if (button.dataset.organization) {
-    return {title: "Current configuration", variant: null, code: p.organization.jsonnet};
-  }
-  return p.data.examples[button.dataset.page].examples[button.dataset.example];
-}
-
-const labelOf = (example) => (example.variant ? example.title + " (" + example.variant + ")" : example.title);
-
-function filterExamples(p, term) {
-  let visible = 0;
-  for (const group of document.querySelectorAll(".playground-examples-group")) {
-    const matching = [...group.querySelectorAll(".playground-example")].filter((button) => {
-      const example = exampleOf(p, button);
-      button.hidden = ![group.dataset.title, labelOf(example), example.code].some((text) => text.toLowerCase().includes(term));
-      return !button.hidden;
-    });
-    group.hidden = matching.length === 0;
-    visible += matching.length;
-  }
-  byId("playground-examples-empty").classList.toggle("d-none", visible > 0);
-}
-
 // ---- controls of the toolbar
 
 function setupReset(p) {
   byId("playground-reset").addEventListener("click", () => {
     const d = p.documents.active();
     p.confirm("Resetting restores " + restoredContentOf(p, d) + ", your changes will be lost.", "Reset", () => {
-      d.doc.setValue(d.original);
-      if (d === p.documents.active()) {
-        p.editor.scrollTo(0, 0);
-      }
+      p.documents.dispatch(d, {...replaceContent(d.state, d.original), effects: EditorView.scrollIntoView(0)});
     });
   });
 }
@@ -349,7 +270,7 @@ function setupReset(p) {
 function setupCopyLink(p) {
   const button = byId("playground-copy-link");
   button.addEventListener("click", async () => {
-    const encoded = encodeSnippet(p.editor.getValue());
+    const encoded = encodeSnippet(p.documents.active().code);
     if (encoded.length > MAX_ENCODED_SNIPPET) {
       flash(button, "fa-triangle-exclamation", "Too long for a link");
       return;
@@ -359,7 +280,7 @@ function setupCopyLink(p) {
     try {
       await navigator.clipboard.writeText(url);
       flash(button, "fa-check", "Link copied");
-    } catch (e) {
+    } catch {
       // e.g. no clipboard outside of secure contexts
       window.prompt("Copy the link to the playground:", url);
     }
@@ -377,7 +298,7 @@ function setupTemplateChoice(p) {
 
 function changeTemplate(p, template, cancel) {
   const url = templateUrl(template);
-  const code = p.editor.getValue();
+  const code = p.documents.active().code;
   const encoded = code === p.defaultContent ? "" : encodeSnippet(code);
   if (encoded.length > MAX_ENCODED_SNIPPET) {
     const message = "The shown document is too long to be kept when changing the default configuration, your changes will be lost.";
@@ -425,54 +346,17 @@ function setupProposal(p) {
 async function copyConfiguration(p) {
   const {name, jsonnet} = p.organization;
   // with the final new line of the file, trimmed by the playground
-  const content = p.organizationDocument.doc.getValue() + (jsonnet.endsWith("\n") ? "\n" : "");
+  const content = p.organizationDocument.code + (jsonnet.endsWith("\n") ? "\n" : "");
   try {
     await navigator.clipboard.writeText(content);
     return "The configuration of " + name + " has been copied with your changes.";
-  } catch (e) {
+  } catch {
     return "The configuration could not be copied, copy it from the tab " + name + " of the playground (Ctrl+A, then Ctrl+C).";
   }
 }
 
-// the examples collapse to leave the space to the editors, the browser remembering it
-function setupCollapsedExamples(p) {
-  const layout = document.querySelector(".playground-layout");
-  const toggle = byId("playground-examples-toggle");
-  const isCollapsed = () => layout.classList.contains(EXAMPLES_COLLAPSED);
-
-  const collapse = (collapsed) => {
-    layout.classList.toggle(EXAMPLES_COLLAPSED, collapsed);
-    toggle.setAttribute("aria-expanded", String(!collapsed));
-    toggle.title = collapsed ? "Show the examples" : "Hide the examples";
-    toggle.querySelector("i").className = "fas " + (collapsed ? "fa-angles-right" : "fa-angles-left");
-    // the editors take the space left
-    p.files.refresh();
-    p.output.refresh();
-  };
-  const switchCollapsed = () => {
-    collapse(!isCollapsed());
-    remember(EXAMPLES_COLLAPSED, isCollapsed());
-  };
-
-  collapse(isCollapsed());
-  toggle.addEventListener("click", (event) => {
-    event.stopPropagation();
-    switchCollapsed();
-  });
-  // the whole bar of the collapsed examples expands them
-  byId("playground-examples-header").addEventListener("click", () => isCollapsed() && switchCollapsed());
-}
-
-function remember(key, value) {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch (e) {
-    // no storage, e.g. in a private window
-  }
-}
-
-// ---- documents initially opened: the configuration of the organization and the snippet passed in the url,
-// otherwise the default snippet
+// ---- documents: the configuration of the organization and the snippet passed in the url, otherwise the default
+// snippet, are initially opened, the examples are opened from their list
 
 function openDocuments(p) {
   const {documents, organization} = p;
@@ -499,4 +383,8 @@ function snippetDocument(p) {
     return p.documents.create("snippet", MAIN_FILE, "Snippet of the playground", p.defaultContent);
   }
   return null;
+}
+
+function exampleDocument(p, button, example) {
+  return p.documents.create("example", example.label, example.title, p.normalize(example.code), button);
 }

@@ -1,40 +1,63 @@
 import {MAIN_FILE} from "./snippets.js";
 
-// Evaluates the files of the playground in a worker, see jsonnet-worker.js. Returns a function evaluating the files
-// {filename: content} to the json of the main file.
-export function createEvaluator() {
-  const worker = new Worker(new URL("./jsonnet-worker.js", import.meta.url));
+// The error of an evaluation that failed because of the evaluator, e.g. without memory left, rather than because of
+// the evaluated files.
+export class EvaluatorError extends Error {}
 
+// Evaluates the files of the playground in a worker, see jsonnet-worker.js. Returns a function evaluating the files
+// {filename: content} to the json of the main file. A worker that failed is replaced by a new one for the next
+// evaluations, the pending ones failing with an EvaluatorError.
+export function createEvaluator() {
   const pending = new Map();
+  let worker = null;
   let nextId = 0;
 
-  worker.onmessage = (event) => {
-    const {id, json, error} = event.data;
+  function start() {
+    worker = new Worker(new URL("./jsonnet-worker.js", import.meta.url));
+    worker.onmessage = (event) => settle(event.data);
+    worker.onerror = (event) => fail("the evaluator failed: " + event.message);
+  }
+
+  function settle({id, json, error, failed}) {
     const {resolve, reject} = pending.get(id);
     pending.delete(id);
-    if (error === undefined) {
+    if (failed) {
+      reject(new EvaluatorError(error));
+      fail(error);
+    } else if (error === undefined) {
       resolve(json);
     } else {
       reject(new Error(error));
     }
-  };
-  worker.onerror = (event) => {
+  }
+
+  function fail(message) {
+    worker.terminate();
+    worker = null;
     for (const {reject} of pending.values()) {
-      reject(new Error("the evaluator failed: " + event.message));
+      reject(new EvaluatorError(message));
     }
     pending.clear();
-  };
+  }
 
   return (files) => new Promise((resolve, reject) => {
+    if (worker === null) {
+      start();
+    }
     const id = nextId++;
     pending.set(id, {resolve, reject});
     worker.postMessage({id, filename: MAIN_FILE, files});
   });
 }
 
+// the files evaluated for a code with the files {filename, content} of a default configuration
+export function filesOf(code, templateFiles) {
+  return Object.fromEntries([[MAIN_FILE, code], ...templateFiles.map((file) => [file.filename, file.content])]);
+}
+
 // Evaluates the shown document once its content has not changed for a while, only its latest content being evaluated
-// after an evaluation that took longer. A document keeps its last evaluation, {code, value, duration} or
-// {code, error}, as long as its content does not change.
+// after an evaluation that took longer. A document keeps its last evaluation, see evaluationOf, as long as its content
+// does not change.
 //
 // Returns a function scheduling the evaluation after a delay, the callbacks being notified when an evaluation starts,
 // when a document has been evaluated, and when the evaluation of the shown document is to be shown.
@@ -49,21 +72,21 @@ export function createScheduler(evaluate, {current, evaluating, evaluated, show}
       return;
     }
 
-    const document = current();
-    const code = document.doc.getValue();
-    if (document.result?.code !== code) {
+    const d = current();
+    const code = d.code;
+    if (d.result?.code !== code) {
       running = true;
       evaluating();
-      document.result = await evaluationOf(evaluate, code);
+      d.result = await evaluationOf(evaluate, code);
       running = false;
-      evaluated(document);
+      evaluated(d);
     }
 
     if (rerun) {
       rerun = false;
       await run();
-    } else if (document === current()) {
-      show(document);
+    } else if (d === current()) {
+      show(d);
     }
   }
 
@@ -73,11 +96,12 @@ export function createScheduler(evaluate, {current, evaluating, evaluated, show}
   };
 }
 
-async function evaluationOf(evaluate, code) {
+// the evaluation of a code: {code, value, duration}, or {code, error, failed}, failed telling that the evaluator failed
+export async function evaluationOf(evaluate, code) {
   const start = performance.now();
   try {
     return {code, value: JSON.parse(await evaluate(code)), duration: performance.now() - start};
   } catch (e) {
-    return {code, error: e.message};
+    return {code, error: e.message, failed: e instanceof EvaluatorError};
   }
 }

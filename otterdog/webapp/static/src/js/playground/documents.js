@@ -1,18 +1,29 @@
+import {EditorState} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+
 import {byId, element, icon} from "./dom.js";
 
 const ICONS = {organization: "fa-building", snippet: "fa-file-code", example: "fa-book-open"};
 
 // The documents of the playground: the configuration of the organization, the snippet and the opened examples, each
-// one keeping its changes, history and evaluation. They share the editor of the playground, which shows the active one.
-// An example opened as preview is replaced by the next one opened, unless it was modified.
+// one keeping its content, history, marks and evaluation. Their states, with the given extensions, are shown by the
+// editor of the playground, which shows the active one. An example opened as preview is replaced by the next one
+// opened, unless it was modified.
 //
 // isEditorShown tells whether the editor is shown rather than a file of the default configuration, onActivate is
-// called with the activated document and the previous one, confirmClose with a modified example and its closing.
-export function createDocuments({editor, isEditorShown, onActivate, confirmClose}) {
-  const {CodeMirror} = window;
+// called with the activated document and the previous one, onChange with the update of the active document once its
+// content changed, and confirmClose with a modified example and its closing.
+export function createDocuments({view, extensions, isEditorShown, onActivate, onChange, confirmClose}) {
   const tabs = byId("playground-documents");
   const documents = [];
   let active = null;
+  // the state of the active document is the one of the editor
+  const followed = EditorView.updateListener.of((update) => {
+    active.state = update.state;
+    if (update.docChanged) {
+      onChange(update);
+    }
+  });
 
   function create(kind, label, title, content, button = null) {
     return {
@@ -20,13 +31,20 @@ export function createDocuments({editor, isEditorShown, onActivate, confirmClose
       label,
       title,
       original: content,
-      doc: new CodeMirror.Doc(content, "jsonnet"),
+      state: EditorState.create({doc: content, extensions: [extensions, followed]}),
+      get code() {
+        return this.state.doc.toString();
+      },
+      // the scroll position of the editor, restored once the document is shown again
+      scroll: null,
       // the button of the document in the list of examples
       button,
       preview: kind === "example",
       modified: false,
       // the last evaluation, see createScheduler
       result: null,
+      // the code whose values identical to the default configuration are marked, see createDefaultValues
+      defaultValues: null,
       // the view and position of the output, restored once the document is shown again
       output: null,
     };
@@ -41,10 +59,25 @@ export function createDocuments({editor, isEditorShown, onActivate, confirmClose
   function activate(d) {
     const previous = active;
     if (previous !== d) {
+      if (previous !== null) {
+        previous.scroll = view.scrollSnapshot();
+      }
       active = d;
-      editor.swapDoc(d.doc);
+      view.setState(d.state);
+      if (d.scroll !== null) {
+        view.dispatch({effects: d.scroll});
+      }
     }
     onActivate(d, previous);
+  }
+
+  // applies a transaction to a document, e.g. marking some of its values, through the editor if it is the active one
+  function dispatch(d, spec) {
+    if (d === active) {
+      view.dispatch(spec);
+    } else {
+      d.state = d.state.update(spec).state;
+    }
   }
 
   // activates the document of a button of the list of examples, opening it in place of the preview if needed
@@ -84,7 +117,7 @@ export function createDocuments({editor, isEditorShown, onActivate, confirmClose
 
   // follows the changes of the active document, returns whether it became modified or unmodified
   function update() {
-    const modified = active.doc.getValue() !== active.original;
+    const modified = active.code !== active.original;
     // a modified example is kept open, also once its changes are undone
     const preview = active.preview && !modified;
     const changed = modified !== active.modified || preview !== active.preview;
@@ -99,6 +132,7 @@ export function createDocuments({editor, isEditorShown, onActivate, confirmClose
     create,
     add: (d) => documents.push(d),
     activate,
+    dispatch,
     open,
     update,
     render,

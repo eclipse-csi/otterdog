@@ -1,0 +1,341 @@
+/* The playground: the list of examples, the editors of its documents and of the files of the default configuration,
+   and the output with the changes made to the configuration of the organization, see templates/home/playground.html */
+
+/* ---- layout: the examples, then the panes of the editors and of the output */
+
+:root {
+  --playground-height: max(24rem, calc(100vh - 18rem));
+}
+.playground-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.playground-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.playground-panes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.playground-pane {
+  flex: 1 1 360px;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+/* ---- examples */
+
+.playground-examples {
+  flex: 0 0 300px;
+  max-width: 300px;
+  position: sticky;
+  top: 1rem;
+}
+.playground-examples-list {
+  max-height: calc(var(--playground-height) + 1rem);
+  overflow-y: auto;
+  /* keep the content clear of the scrollbar, also for overlay scrollbars */
+  padding-right: 0.75rem;
+  scrollbar-gutter: stable;
+}
+/* the toggle of the examples at the end of their header */
+.playground-examples .btn-tool {
+  margin-left: auto;
+}
+/* the examples collapse to a narrow bar, leaving the space to the editors */
+.playground-examples-collapsed .playground-examples {
+  flex: 0 0 auto;
+  width: auto;
+  align-self: stretch;
+  margin-bottom: 0;
+}
+.playground-examples-collapsed .playground-examples .card-body {
+  display: none;
+}
+.playground-examples-collapsed .playground-examples .card-header {
+  flex: 1 1 auto;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 0;
+  cursor: pointer;
+}
+.playground-examples-collapsed .playground-examples .card-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.playground-examples-collapsed .playground-examples .btn-tool {
+  margin: 0;
+}
+
+/* ---- tabs: the documents and the files of the default configuration, the output and the changes */
+
+/* the tabs stay on one line, so that the editors of both panes are aligned */
+.playground-pane .nav-tabs {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.playground-pane .nav-link {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.playground-documents {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+/* the documents share the width like the tabs of a browser, and scroll once at their minimal width */
+.playground-document {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 7rem;
+}
+.playground-document .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  max-width: 16rem;
+  overflow: hidden;
+}
+.playground-document-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* an example opened as preview is replaced by the next one, unless it is modified */
+.playground-document-preview .playground-document-label {
+  font-style: italic;
+}
+.playground-pane .playground-document-closable .nav-link {
+  padding-right: 1.75rem;
+}
+.playground-document-close {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0.25rem;
+  background-size: 0.5rem;
+}
+.playground-document-modified,
+.playground-files-error {
+  font-size: 0.625rem;
+  line-height: 1;
+}
+.playground-files-error {
+  color: var(--bs-danger);
+}
+.playground-input-header .dropdown-toggle {
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playground-input-header .dropdown-item {
+  white-space: normal;
+}
+
+/* ---- editors */
+
+.playground-pane .tab-content > .playground-pane-body {
+  height: var(--playground-height);
+}
+.playground-pane .tab-content > .playground-pane-body.active {
+  display: flex;
+  flex-direction: column;
+}
+/* the editors fill the space left by the toolbars of their pane */
+.playground-code {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.playground-code > .cm-editor {
+  position: absolute;
+  inset: 0;
+}
+/* explicit values identical to the default configuration, which can be removed */
+.playground-default-value {
+  opacity: 0.55;
+  text-decoration: underline dotted var(--bs-secondary-color);
+  text-underline-offset: 3px;
+}
+
+/* ---- completions and descriptions of the functions and properties of the default configuration */
+
+.playground-code .cm-tooltip {
+  color: var(--bs-body-color);
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  box-shadow: var(--bs-box-shadow-sm);
+}
+.playground-code .cm-tooltip.cm-completionInfo {
+  padding: 0;
+}
+.playground-code .cm-completionDetail {
+  margin-left: 0.75rem;
+  font-style: normal;
+  color: var(--bs-secondary-color);
+}
+.playground-code .cm-tooltip-autocomplete li[aria-selected] .cm-completionDetail {
+  color: inherit;
+}
+.playground-tooltip {
+  max-width: 26rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--bs-body-font-family);
+  font-size: 0.8125rem;
+  white-space: normal;
+}
+.playground-tooltip-title {
+  font-family: var(--bs-font-monospace);
+  font-weight: 600;
+}
+.playground-tooltip-source {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
+/* ---- output: the matches of the find, or the error */
+
+.playground-find-match {
+  background: rgba(255, 193, 7, 0.35);
+}
+.playground-find-current {
+  background: rgba(255, 152, 0, 0.75);
+}
+.playground-error,
+.playground-changes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.playground-error pre {
+  white-space: pre-wrap;
+  color: var(--bs-danger-text-emphasis);
+}
+
+/* ---- changes grouped by section and element of the configuration, a row for each changed property */
+
+.playground-changes {
+  font-size: 0.8125rem;
+}
+.playground-changes .badge {
+  font-size: 0.6875rem;
+}
+.playground-changes-section + .playground-changes-section {
+  margin-top: 0.75rem;
+}
+.playground-changes-section-header {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.playground-change-group > summary {
+  padding: 0.125rem 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.playground-change-content {
+  margin-left: 0.3rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--bs-border-color);
+}
+.playground-change-rows {
+  display: grid;
+  grid-template-columns: 1rem minmax(6rem, max-content) minmax(0, 1fr);
+  column-gap: 0.5rem;
+  row-gap: 0.125rem;
+  padding: 0.125rem 0;
+}
+.playground-change-group > summary,
+.playground-change-key,
+.playground-change-value {
+  font-family: var(--bs-font-monospace);
+}
+.playground-change-values {
+  overflow-wrap: anywhere;
+}
+.playground-change-value {
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+}
+.playground-change-symbol {
+  display: inline-block;
+  width: 1rem;
+  font-family: var(--bs-font-monospace);
+  font-weight: 700;
+  text-align: center;
+}
+.playground-change-badge {
+  margin-left: 0.5rem;
+  font-family: var(--bs-body-font-family);
+  font-weight: 500;
+}
+/* the colors of the types of changes: symbols, badges and values */
+.playground-change-symbol.playground-change-added {
+  color: var(--bs-success);
+}
+.playground-change-symbol.playground-change-removed {
+  color: var(--bs-danger);
+}
+.playground-change-symbol.playground-change-changed {
+  color: var(--bs-warning-text-emphasis);
+}
+.playground-change-badge.playground-change-added,
+.playground-change-value-added {
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+}
+.playground-change-badge.playground-change-removed,
+.playground-change-value-removed {
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+}
+.playground-change-badge.playground-change-changed {
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+}
+
+/* ---- narrow screens: the examples above the editors, collapsing to a horizontal bar */
+
+@media (max-width: 991.98px) {
+  .playground-layout {
+    flex-direction: column;
+  }
+  .playground-examples {
+    position: static;
+    max-width: none;
+    width: 100%;
+  }
+  .playground-examples-list {
+    max-height: 16rem;
+  }
+  .playground-examples-collapsed .playground-examples .card-header {
+    flex-direction: row;
+    padding: 0.5rem 1rem;
+  }
+  .playground-examples-collapsed .playground-examples .card-title {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+  .playground-examples-collapsed .playground-examples .btn-tool {
+    margin-left: auto;
+  }
+  .playground-examples .btn-tool .fas {
+    transform: rotate(90deg);
+  }
+}

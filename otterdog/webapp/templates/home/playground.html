@@ -5,314 +5,11 @@
 <!-- Element injected in the BODY element -->
 {% block body_class %} sidebar-mini {% endblock body_class %}
 
-{% block headscripts %}
-  {{ super() }}
-  <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.js') }}"></script>
-  <script src="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/addon/edit/matchbrackets.js') }}"></script>
-  <script src="{{ asset('vendor/codemirror-mode-jsonnet/jsonnet.js') }}"></script>
-{% endblock headscripts %}
-
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
   {{ super() }}
 
-  <!-- CodeMirror -->
-  <link rel="stylesheet" href="{{ asset('vendor/codemirror-mode-jsonnet/third_party/CodeMirror/lib/codemirror.css') }}">
-
-  <style>
-    :root {
-      --playground-height: max(24rem, calc(100vh - 18rem));
-    }
-    .playground-layout {
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
-    }
-    .playground-examples {
-      flex: 0 0 300px;
-      max-width: 300px;
-      position: sticky;
-      top: 1rem;
-    }
-    .playground-examples-list {
-      max-height: calc(var(--playground-height) + 1rem);
-      overflow-y: auto;
-      /* keep the content clear of the scrollbar, also for overlay scrollbars */
-      padding-right: 0.75rem;
-      scrollbar-gutter: stable;
-    }
-    .playground-editor {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-    .playground-panes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    .playground-pane {
-      flex: 1 1 360px;
-      min-width: 0;
-      margin-bottom: 0;
-    }
-    /* the tabs stay on one line, so that the editors of both panes are aligned */
-    .playground-pane .nav-tabs {
-      flex-wrap: nowrap;
-      min-width: 0;
-    }
-    .playground-documents {
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: thin;
-    }
-    /* the documents share the width like the tabs of a browser, and scroll once at their minimal width */
-    .playground-document {
-      position: relative;
-      flex: 0 1 auto;
-      min-width: 7rem;
-    }
-    .playground-document .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      width: 100%;
-      max-width: 16rem;
-      overflow: hidden;
-    }
-    .playground-document-label {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    /* an example opened as preview is replaced by the next one, unless it is modified */
-    .playground-document-preview .playground-document-label {
-      font-style: italic;
-    }
-    .playground-pane .playground-document-closable .nav-link {
-      padding-right: 1.75rem;
-    }
-    .playground-document-close {
-      position: absolute;
-      top: 50%;
-      right: 0.5rem;
-      transform: translateY(-50%);
-      width: 0.5rem;
-      height: 0.5rem;
-      padding: 0.25rem;
-      background-size: 0.5rem;
-    }
-    .playground-document-modified,
-    .playground-files-error {
-      font-size: 0.625rem;
-      line-height: 1;
-    }
-    .playground-files-error {
-      color: var(--bs-danger);
-    }
-    .playground-input-header .dropdown-toggle {
-      max-width: 15rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .playground-input-header .dropdown-item {
-      white-space: normal;
-    }
-    /* the examples collapse to a narrow bar, leaving the space to the editors */
-    .playground-examples-collapsed .playground-examples {
-      flex: 0 0 auto;
-      width: auto;
-      align-self: stretch;
-      margin-bottom: 0;
-    }
-    .playground-examples-collapsed .playground-examples .card-body {
-      display: none;
-    }
-    .playground-examples-collapsed .playground-examples .card-header {
-      flex: 1 1 auto;
-      flex-direction: column-reverse;
-      justify-content: flex-end;
-      padding: 0.5rem 0.25rem;
-      border-bottom: 0;
-      cursor: pointer;
-    }
-    .playground-examples-collapsed .playground-examples .card-title {
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-    }
-    .playground-examples-collapsed .playground-examples .btn-tool {
-      margin: 0 !important;
-    }
-    .playground-pane .nav-link {
-      padding: 0.375rem 0.625rem;
-      font-size: 0.875rem;
-      white-space: nowrap;
-    }
-    .playground-pane .tab-content > .playground-pane-body {
-      height: var(--playground-height);
-    }
-    .playground-pane .tab-content > .playground-pane-body.active {
-      display: flex;
-      flex-direction: column;
-    }
-    /* the editors fill the space left by the toolbars of their pane */
-    .playground-code {
-      position: relative;
-      flex: 1 1 auto;
-      min-height: 0;
-    }
-    .playground-code > .CodeMirror {
-      position: absolute;
-      inset: 0;
-      height: auto;
-    }
-    .playground-error-line {
-      background: var(--bs-danger-bg-subtle);
-    }
-    .playground-error-mark {
-      text-decoration: underline wavy var(--bs-danger);
-      text-decoration-skip-ink: none;
-    }
-    /* explicit values identical to the default configuration, which can be removed */
-    .playground-default-value {
-      opacity: 0.55;
-      text-decoration: underline dotted var(--bs-secondary-color);
-      text-underline-offset: 3px;
-    }
-    .playground-find-match {
-      background: rgba(255, 193, 7, 0.35);
-    }
-    .playground-find-current {
-      background: rgba(255, 152, 0, 0.75);
-    }
-    .playground-error,
-    .playground-changes {
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow: auto;
-    }
-    .playground-error pre {
-      white-space: pre-wrap;
-      color: var(--bs-danger-text-emphasis);
-    }
-    /* changes grouped by section and element of the configuration, a row for each changed property */
-    .playground-changes {
-      font-size: 0.8125rem;
-    }
-    .playground-changes .badge {
-      font-size: 0.6875rem;
-    }
-    .playground-changes-section + .playground-changes-section {
-      margin-top: 0.75rem;
-    }
-    .playground-changes-section-header {
-      display: flex;
-      align-items: center;
-      padding: 0.25rem 0;
-      margin-bottom: 0.25rem;
-      border-bottom: 1px solid var(--bs-border-color);
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: var(--bs-secondary-color);
-    }
-    .playground-change-group > summary {
-      padding: 0.125rem 0;
-      cursor: pointer;
-      overflow-wrap: anywhere;
-    }
-    .playground-change-content {
-      margin-left: 0.3rem;
-      padding-left: 0.9rem;
-      border-left: 1px solid var(--bs-border-color);
-    }
-    .playground-change-rows {
-      display: grid;
-      grid-template-columns: 1rem minmax(6rem, max-content) minmax(0, 1fr);
-      column-gap: 0.5rem;
-      row-gap: 0.125rem;
-      padding: 0.125rem 0;
-    }
-    .playground-change-group > summary,
-    .playground-change-key,
-    .playground-change-value {
-      font-family: var(--bs-font-monospace);
-    }
-    .playground-change-values {
-      overflow-wrap: anywhere;
-    }
-    .playground-change-value {
-      padding: 0 0.25rem;
-      border-radius: 0.25rem;
-    }
-    .playground-change-value-added {
-      background: var(--bs-success-bg-subtle);
-      color: var(--bs-success-text-emphasis);
-    }
-    .playground-change-value-removed {
-      background: var(--bs-danger-bg-subtle);
-      color: var(--bs-danger-text-emphasis);
-    }
-    .playground-change-symbol {
-      display: inline-block;
-      width: 1rem;
-      font-family: var(--bs-font-monospace);
-      font-weight: 700;
-      text-align: center;
-    }
-    .playground-change-symbol.playground-change-added {
-      color: var(--bs-success);
-    }
-    .playground-change-symbol.playground-change-removed {
-      color: var(--bs-danger);
-    }
-    .playground-change-symbol.playground-change-changed {
-      color: var(--bs-warning-text-emphasis);
-    }
-    .playground-change-badge {
-      margin-left: 0.5rem;
-      font-family: var(--bs-body-font-family);
-      font-weight: 500;
-    }
-    .playground-change-badge.playground-change-added {
-      background: var(--bs-success-bg-subtle);
-      color: var(--bs-success-text-emphasis);
-    }
-    .playground-change-badge.playground-change-removed {
-      background: var(--bs-danger-bg-subtle);
-      color: var(--bs-danger-text-emphasis);
-    }
-    .playground-change-badge.playground-change-changed {
-      background: var(--bs-warning-bg-subtle);
-      color: var(--bs-warning-text-emphasis);
-    }
-    @media (max-width: 991.98px) {
-      .playground-layout {
-        flex-direction: column;
-      }
-      .playground-examples {
-        position: static;
-        max-width: none;
-        width: 100%;
-      }
-      .playground-examples-list {
-        max-height: 16rem;
-      }
-      .playground-examples-collapsed .playground-examples .card-header {
-        flex-direction: row;
-        padding: 0.5rem 1rem;
-      }
-      .playground-examples-collapsed .playground-examples .card-title {
-        writing-mode: horizontal-tb;
-        transform: none;
-      }
-      .playground-examples-collapsed .playground-examples .btn-tool {
-        margin-left: auto !important;
-      }
-      .playground-examples .btn-tool .fas {
-        transform: rotate(90deg);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="{{ asset('css/playground.css') }}">
 {% endblock stylesheets %}
 
 {% block content %}
@@ -347,7 +44,7 @@
       <div class="container-fluid">
         <div class="playground-layout">
           <script>
-            // collapsed before the first rendering, the state being restored by js/playground.js
+            // collapsed before the first rendering, see js/playground/examples.js
             try {
               if (localStorage.getItem('playground-examples-collapsed') === 'true') {
                 document.currentScript.parentElement.classList.add('playground-examples-collapsed');
@@ -359,7 +56,7 @@
           <aside class="playground-examples card card-primary card-outline" aria-labelledby="playground-examples-title">
             <div class="card-header d-flex align-items-center gap-2" id="playground-examples-header">
               <h3 class="card-title mb-0" id="playground-examples-title">Examples</h3>
-              <button type="button" class="btn btn-tool ms-auto" id="playground-examples-toggle" aria-expanded="true"
+              <button type="button" class="btn btn-tool" id="playground-examples-toggle" aria-expanded="true"
                       aria-controls="playground-examples-body" title="Hide the examples">
                 <i class="fas fa-angles-left" aria-hidden="true"></i>
               </button>
@@ -477,11 +174,7 @@
                 <div class="tab-content">
                   <div class="tab-pane active playground-pane-body" id="playground-input-0" role="tabpanel"
                        data-file="playground.jsonnet">
-                    <div class="playground-code">
-                      <textarea id="playground-jsonnet" aria-label="Configuration evaluated by the playground">
-{% include 'jsonnet/playground.jsonnet' %}
-                      </textarea>
-                    </div>
+                    <div class="playground-code" id="playground-editor"></div>
                   </div>
                   {% for jsonnet_file in template_files %}
                   <div class="tab-pane playground-pane-body" id="playground-input-{{ loop.index }}" role="tabpanel"
@@ -503,7 +196,7 @@
 
               <div class="card card-primary card-outline card-outline-tabs playground-pane">
                 <div class="card-header p-0 border-bottom-0 d-flex align-items-center">
-                  <ul class="nav nav-tabs" id="playground-output-tabs" role="tablist">
+                  <ul class="nav nav-tabs flex-shrink-0" id="playground-output-tabs" role="tablist">
                     <li class="nav-item" role="presentation">
                       <button type="button" class="nav-link active" id="playground-output-tab" data-bs-toggle="tab"
                               data-bs-target="#playground-output-pane" role="tab" aria-controls="playground-output-pane"
@@ -520,8 +213,7 @@
                     </li>
                     {% endif %}
                   </ul>
-                  <span class="ms-auto me-2 small text-secondary text-truncate" id="playground-status" role="status"
-                        aria-live="polite"></span>
+                  <output class="ms-auto ps-2 me-2 small text-secondary text-truncate" id="playground-status"></output>
                 </div>
                 <div class="tab-content">
                   <div class="tab-pane active playground-pane-body" id="playground-output-pane" role="tabpanel"
@@ -618,11 +310,16 @@
   </div>
   {% endif %}
 
+  {% set default_snippet %}{% include 'jsonnet/playground.jsonnet' %}{% endset %}
   {% set playground_data = {
+    'defaultSnippet': default_snippet,
     'defaultConfig': default_config,
     'defaultConfiguration': default_configuration.label if default_configuration else default_config,
     'templateFiles': jsonnet_files,
     'examples': examples,
+    'reference': reference|default({'objects': {}, 'functions': {}}),
+    'schemas': schemas|default({}),
+    'documentationUrl': documentation_url,
     'organization': organization|default(none),
   } %}
   <script type="application/json" id="playground-data">{{ playground_data|tojson }}</script>

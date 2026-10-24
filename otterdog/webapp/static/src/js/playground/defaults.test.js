@@ -1,68 +1,54 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {defaultsSnippet, explicitValues, tokenize} from "./defaults.js";
+import {defaultsSnippet, removableValues, withoutValues} from "./defaults.js";
+import {explicitValues, topLevelLocals} from "./jsonnet.js";
 
 const SNIPPET = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
-local wiki = true;
+local newBinaryRepo(name) = orgs.newRepo(name + '-binaries');
 
 orgs.newOrg('my-project', 'my-org') {
-  settings+: {
-    web_commit_signoff_required: true, // a comment with { a brace
-    description: "my { org",
-  },
   _repositories+:: [
     orgs.newRepo('my-repo') {
-      has_wiki: wiki,
       allow_merge_commit: true,
-      topics+: ["a"],
       workflows+: {
-        enabled: true,
+        enabled: false,
       },
-      rulesets: [
-        orgs.newRepoRuleset('main') {
-          required_pull_request+: {
-            required_approving_review_count: 2,
-          },
-          required_status_checks: null,
-        },
-      ],
     },
   ],
-}
-`;
+}`;
 
-test("strings and comments do not contain tokens", () => {
-  const tokens = tokenize("x: 'a { b', # c }\ny: |||\n  d }\n|||, // e }\nz: /* { */ 1");
-  assert.deepEqual(tokens.map((token) => token.text), ["x", ":", "'a { b'", ",", "y", ":", "|||\n  d }\n|||", ",", "z", ":", "1"]);
-});
+test("a snippet compares the values with the default configuration, with the local definitions of the code", () => {
+  const snippet = defaultsSnippet(SNIPPET, explicitValues(SNIPPET));
 
-test("literal values of the objects created by the default configuration are found", () => {
-  const values = explicitValues(SNIPPET);
-
-  assert.deepEqual(values.map(({call, path, value}) => [call, path.join("."), value]), [
-    ["orgs.newOrg('my-project', 'my-org')", "settings.web_commit_signoff_required", "true"],
-    ["orgs.newOrg('my-project', 'my-org')", "settings.description", "\"my { org\""],
-    ["orgs.newRepo('my-repo')", "allow_merge_commit", "true"],
-    ["orgs.newRepo('my-repo')", "workflows.enabled", "true"],
-    ["orgs.newRepoRuleset('main')", "required_pull_request.required_approving_review_count", "2"],
-    ["orgs.newRepoRuleset('main')", "required_status_checks", "null"],
-  ]);
-  // the range of a value is the one of its property, from its name to its value
-  assert.equal(SNIPPET.slice(values[2].from, values[2].to), "allow_merge_commit: true");
-});
-
-test("values computed from other values are not compared", () => {
-  const values = explicitValues("orgs.newRepo(name) { has_wiki: true }\norgs.newRepo('a') { has_wiki: wiki, x: std.length([]) }");
-
-  assert.deepEqual(values, []);
-});
-
-test("a snippet compares the values with the default configuration", () => {
-  const values = explicitValues(SNIPPET);
-  const snippet = defaultsSnippet(SNIPPET, values);
-
-  assert.ok(snippet.startsWith("local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n"));
+  assert.ok(snippet.startsWith(topLevelLocals(SNIPPET).text + "\n"));
   assert.ok(snippet.includes("  defaultsSame(orgs.newRepo('my-repo'), [\"allow_merge_commit\"], true),"));
+  assert.ok(snippet.includes("  defaultsSame(orgs.newRepo('my-repo'), [\"workflows\",\"enabled\"], false),"));
+});
+
+test("there is no snippet without value to compare", () => {
   assert.equal(defaultsSnippet("{}", []), null);
+});
+
+const CODE = "{a: 1, b: [], c: 3}";
+const field = (text) => ({from: CODE.indexOf(text), to: CODE.indexOf(text) + text.length});
+
+test("values are removed from the code with their comma", () => {
+  assert.equal(withoutValues(CODE, [field("a: 1")]), "{ b: [], c: 3}");
+  assert.equal(withoutValues(CODE, [field("c: 3"), field("a: 1")]), "{ b: [], }");
+});
+
+test("only the values that do not change the value of the code once removed can be removed", async () => {
+  // the value of the code is the one of its fields, b being computed otherwise in the context of the code
+  const evaluated = [];
+  const evaluate = async (code) => {
+    evaluated.push(code);
+    const fields = Object.entries({a: 1, b: [], c: 3}).filter(([name]) => code.includes(name + ":"));
+    return JSON.stringify({a: 1, b: ["computed"], c: 3, ...Object.fromEntries(fields)});
+  };
+  const expected = JSON.stringify({a: 1, b: [], c: 3});
+
+  assert.deepEqual(await removableValues(evaluate, CODE, [field("a: 1"), field("c: 3")], expected), [field("a: 1"), field("c: 3")]);
+  assert.equal(evaluated.length, 1, "the values are removed together");
+  assert.deepEqual(await removableValues(evaluate, CODE, [field("a: 1"), field("b: []"), field("c: 3")], expected), [field("a: 1"), field("c: 3")]);
 });

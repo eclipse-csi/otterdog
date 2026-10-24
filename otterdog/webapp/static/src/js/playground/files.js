@@ -1,5 +1,10 @@
-import {MAIN_FILE, baseName} from "./snippets.js";
+import {setDiagnostics} from "@codemirror/lint";
+import {EditorState} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+
 import {byId} from "./dom.js";
+import {editorExtensions, offsetOf, select} from "./editors.js";
+import {MAIN_FILE, baseName} from "./snippets.js";
 
 // The files of the playground: the editor of its documents, and the files of the default configuration shown read-only
 // in their own editor, listed in a menu with the files importing them.
@@ -22,9 +27,9 @@ function importsOf(file, templateFiles) {
     .filter((imported) => imported !== undefined && imported !== file.filename);
 }
 
-// Creates the editors of the files, onShow being called once another file is shown.
-export function createFiles({editor, templateFiles, defaultConfig, editorOptions, onShow}) {
-  const {CodeMirror} = window;
+// Creates the editors of the files, the editor of the documents being the one of the main file, onShow being called
+// once another file is shown.
+export function createFiles({view, templateFiles, defaultConfig, onShow}) {
   const toggle = byId("playground-files-toggle");
   const label = byId("playground-files-label");
   const errorSign = toggle.querySelector(".playground-files-error");
@@ -33,15 +38,17 @@ export function createFiles({editor, templateFiles, defaultConfig, editorOptions
   const files = new Map();
   for (const pane of document.querySelectorAll(".tab-pane[data-file]")) {
     const template = templateFiles.find((file) => file.filename === pane.dataset.file);
-    const fileEditor = template === undefined
-      ? editor
-      : CodeMirror(pane.querySelector(".playground-code"), {...editorOptions, value: template.content, readOnly: true});
-    files.set(pane.dataset.file, {editor: fileEditor, pane});
+    const fileView = template === undefined
+      ? view
+      : new EditorView({
+        parent: pane.querySelector(".playground-code"),
+        state: EditorState.create({doc: template.content, extensions: editorExtensions({readOnly: true})}),
+      });
+    files.set(pane.dataset.file, {view: fileView, pane});
   }
   showRoles(fileRoles(templateFiles, defaultConfig));
 
   let shown = MAIN_FILE;
-  let errorMarks = [];
 
   function show(filename) {
     shown = filename;
@@ -55,7 +62,7 @@ export function createFiles({editor, templateFiles, defaultConfig, editorOptions
     label.textContent = filename === MAIN_FILE ? "Default configuration" : baseName(filename);
     onShow();
     // editors in hidden panes are laid out once shown
-    files.get(filename).editor.refresh();
+    files.get(filename).view.requestMeasure();
   }
 
   // locations of errors may only have the name of a file, e.g. a file imported by the default configuration
@@ -67,42 +74,34 @@ export function createFiles({editor, templateFiles, defaultConfig, editorOptions
     return matching.length === 1 ? matching[0] : undefined;
   }
 
+  // shows a range {from, to} of a file, of offsets or of the positions {line, ch} of an error location
   function goTo(filename, location) {
     show(filename);
-    const fileEditor = files.get(filename).editor;
-    fileEditor.focus();
-    fileEditor.setSelection(location.from, location.to);
-    fileEditor.scrollIntoView({from: location.from, to: location.to}, 100);
+    const fileView = files.get(filename).view;
+    const [from, to] = [location.from, location.to].map((position) => offsetOfPosition(fileView.state.doc, position));
+    select(fileView, from, to);
   }
 
-  // highlights the first location of an error in each file, the closest one to the error
-  function markErrors(locations, title) {
+  // reports an error at its first location in each file, the closest one to the error
+  function markErrors(locations, message) {
     clearErrors();
     const marked = new Set();
     for (const location of locations) {
       const filename = fileOf(location);
       if (filename !== undefined && !marked.has(filename)) {
         marked.add(filename);
-        markError(files.get(filename).editor.getDoc(), location, title);
+        const fileView = files.get(filename).view;
+        const [from, to] = [location.from, location.to].map((position) => offsetOf(fileView.state.doc, position));
+        fileView.dispatch(setDiagnostics(fileView.state, [{from, to, severity: "error", source: "jsonnet", message}]));
       }
     }
     errorSign.classList.toggle("d-none", ![...marked].some((filename) => filename !== MAIN_FILE));
   }
 
-  function markError(doc, location, title) {
-    const line = doc.addLineClass(location.from.line, "background", "playground-error-line");
-    if (line !== null) {
-      const mark = doc.markText(location.from, location.to, {className: "playground-error-mark", title});
-      errorMarks.push({doc, line, mark});
-    }
-  }
-
   function clearErrors() {
-    for (const {doc, line, mark} of errorMarks) {
-      doc.removeLineClass(line, "background", "playground-error-line");
-      mark.clear();
+    for (const {view: fileView} of files.values()) {
+      fileView.dispatch(setDiagnostics(fileView.state, []));
     }
-    errorMarks = [];
     errorSign.classList.add("d-none");
   }
 
@@ -117,9 +116,11 @@ export function createFiles({editor, templateFiles, defaultConfig, editorOptions
     goTo,
     markErrors,
     clearErrors,
-    refresh: () => files.get(shown).editor.refresh(),
+    refresh: () => files.get(shown).view.requestMeasure(),
   };
 }
+
+const offsetOfPosition = (doc, position) => (typeof position === "number" ? position : offsetOf(doc, position));
 
 function showRoles(roles) {
   for (const element of document.querySelectorAll(".playground-file-role")) {

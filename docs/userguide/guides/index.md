@@ -15,7 +15,7 @@ documents every supported property, and link to it instead of repeating it.
   The default configuration of your organization may define different values, see
   [Inherited and explicit values](inheritance.md).
 - **Examples can be tried out**: the link below an example opens it in the Playground of the otterdog dashboard,
-  which also lists all examples of these guides.
+  which also lists all examples of these guides, and checks the values of the configuration like otterdog does.
   The link evaluates the example with the example default configuration. The Playground can also evaluate it with
   the default configuration of the otterdog instance, which may define other values, or not provide all of its
   functions.

@@ -1,10 +1,14 @@
+import {SearchCursor} from "@codemirror/search";
+import {EditorView} from "@codemirror/view";
+
 import {byId} from "./dom.js";
 
 const MAX_MATCHES = 10000;
 const MAX_MARKS = 1000;
 
-// Finds a text in the output, ignoring the case, Enter and Shift+Enter going to the next and previous match.
-export function createFind(editor) {
+// Finds a text in the output, ignoring the case, Enter and Shift+Enter going to the next and previous match. The
+// matches are marked with marks, see markField, which the state of the editor of the output must have.
+export function createFind(view, marks) {
   const input = byId("playground-output-find");
   const count = byId("playground-output-find-count");
   const previous = byId("playground-output-find-previous");
@@ -12,30 +16,23 @@ export function createFind(editor) {
 
   let matches = [];
   let current = -1;
-  let marks = [];
-  let currentMark = null;
 
   // finds the text again, e.g. in a new output, scrolling to the current match if asked
   function update(scroll) {
-    editor.operation(() => {
-      marks.forEach((mark) => mark.clear());
-      matches = matchesOf(editor, input.value.toLowerCase());
-      marks = matches.slice(0, MAX_MARKS).map((match) => editor.markText(match.from, match.to, {className: "playground-find-match"}));
-    });
+    matches = matchesOf(view.state.doc, input.value.toLowerCase());
     current = matches.length === 0 ? -1 : Math.min(Math.max(current, 0), matches.length - 1);
     showCurrent(scroll);
   }
 
+  // marks the matches, the current one apart so that it stands out
   function showCurrent(scroll) {
-    currentMark?.clear();
-    currentMark = null;
-    if (current >= 0) {
-      const {from, to} = matches[current];
-      currentMark = editor.markText(from, to, {className: "playground-find-current"});
-      if (scroll) {
-        editor.scrollIntoView({from, to}, 50);
-      }
+    const ranges = matches.slice(0, MAX_MARKS).filter((match, index) => index !== current)
+      .map(({from, to}) => ({from, to, className: "playground-find-match"}));
+    const effects = [marks.set(current < 0 ? ranges : [...ranges, {...matches[current], className: "playground-find-current"}])];
+    if (scroll && current >= 0) {
+      effects.push(EditorView.scrollIntoView(matches[current].from, {y: "center"}));
     }
+    view.dispatch({effects});
     count.textContent = countText(input.value, matches.length, current);
     previous.disabled = next.disabled = matches.length === 0;
   }
@@ -71,20 +68,16 @@ export function createFind(editor) {
   };
 }
 
-function matchesOf(editor, term) {
+function matchesOf(doc, term) {
   const matches = [];
   if (term === "") {
     return matches;
   }
 
-  let line = 0;
-  editor.eachLine((handle) => {
-    const text = handle.text.toLowerCase();
-    for (let ch = text.indexOf(term); ch !== -1 && matches.length < MAX_MATCHES; ch = text.indexOf(term, ch + term.length)) {
-      matches.push({from: {line, ch}, to: {line, ch: ch + term.length}});
-    }
-    line++;
-  });
+  const cursor = new SearchCursor(doc, term, 0, doc.length, (text) => text.toLowerCase());
+  while (matches.length < MAX_MATCHES && !cursor.next().done) {
+    matches.push({from: cursor.value.from, to: cursor.value.to});
+  }
   return matches;
 }
 
