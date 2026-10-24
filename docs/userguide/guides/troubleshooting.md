@@ -10,9 +10,28 @@ This page lists frequent messages of [`validate`](../../reference/operations/val
 In the messages below, `<repository>` stands for the resource reported by `validate`, e.g.
 `repository[name="my-repo"]`.
 
+## Values of the configuration
+
+**`invalid value at '<path>': <value> is not of type '<type>'`**
+
+: A value does not have the type that otterdog expects, e.g. `"0"` instead of `0` for
+  `required_approving_review_count`. Otterdog checks the configuration against its JSON schemas before any other
+  validation, and stops at such an error. Other messages of the same form report a missing property, or a property
+  that is not allowed at this place.
+
+**`invalid value at '<path>': '<value>' is not one of [...]`**
+
+: The property only accepts the listed values, e.g. `'TITLE'` instead of `'PR_TITLE'` for `merge_commit_title`. The
+  reference of the property lists the same values.
+
+**`ignoring unknown properties found while validating organization config: Additional properties are not allowed ('<property>' was unexpected)`** (Warning)
+
+: The property is unknown to otterdog, usually because of a typo, e.g. `has_wikki` instead of `has_wiki`, and has no
+  effect. Fix its name or remove it.
+
 ## Code scanning
 
-**`<repository> has defined an invalid code scanning language '<language>', only values (...) are allowed.`**
+**`invalid value at '<path>.code_scanning_default_languages[<index>]': '<language>' is not one of [...]`**
 
 : The value is not a CodeQL identifier, e.g. `java` or `typescript` instead of `java-kotlin` or
   `javascript-typescript`. Use one of the values listed in

@@ -9,7 +9,7 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "privacy": { "type": "string" },
+    "privacy": { "type": "string", "enum": ["secret", "visible"] },
     "notifications": { "type": "boolean" },
     "skip_members": { "type": "boolean" },
     "skip_non_organization_members": { "type": "boolean" }

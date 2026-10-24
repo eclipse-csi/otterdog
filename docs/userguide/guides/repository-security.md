@@ -97,8 +97,9 @@ that GitHub shows for a repository. Some identifiers cover several languages, wh
 | `swift`                 | Swift                                            | Swift                          |
 | `rust`                  | Rust                                             | Rust                           |
 
-Any other value is rejected by `validate`, e.g. `java`, `kotlin`, `javascript`, `typescript`, `c` or `cpp`, as well
-as languages that CodeQL does not analyze, e.g. PHP, Scala, Shell or Jsonnet. These values follow the
+Any other value is rejected as soon as the configuration is loaded, e.g. by `validate` or `plan`: `java`, `kotlin`,
+`javascript`, `typescript`, `c` or `cpp`, as well as languages that CodeQL does not analyze, e.g. PHP, Scala, Shell
+or Jsonnet. These values follow the
 [REST API for default setup](https://docs.github.com/en/rest/code-scanning/code-scanning#update-a-code-scanning-default-setup-configuration),
 which documents all of them except `rust`: CodeQL analyzes Rust in default setup since its general availability in
 October 2025, see the [GitHub changelog](https://github.blog/changelog/2025-10-14-codeql-scanning-rust-and-c-c-without-builds-is-now-generally-available).
