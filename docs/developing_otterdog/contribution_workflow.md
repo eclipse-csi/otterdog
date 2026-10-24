@@ -99,8 +99,10 @@ To target the webapp of your development environment, use `make docs-serve-dev`,
 The jsonnet examples of the [Configuration Guides](../userguide/guides/index.md) must be complete: the test
 `tests/test_docs_examples.py` validates each of them against the example default configuration.
 
-The Playground of the dashboard lists these examples from a catalog generated from the guides. After adding or
-changing an example, update the catalog, otherwise `tests/test_docs_playground_hook.py` fails:
+The Playground of the dashboard lists these examples from a catalog generated from the guides, and describes the
+properties that it completes from a catalog generated from the [Reference](../reference/index.md), i.e. from the
+property tables of its pages and from their "Jsonnet Function" sections. After changing an example or the reference,
+update both catalogs, otherwise `tests/test_docs_playground_hook.py` fails:
 
 ```bash
 make playground-examples

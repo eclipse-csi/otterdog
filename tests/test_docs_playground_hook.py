@@ -157,3 +157,37 @@ def test_playground_examples_catalog_is_up_to_date(hook):
     expected = hook.render_examples_catalog(_ROOT_DIR / "docs")
 
     assert hook.EXAMPLES_CATALOG.read_text() == expected, "run 'make playground-examples' to update the catalog"
+
+
+def test_extract_reference(hook):
+    reference = hook.extract_reference(_ROOT_DIR / "docs")
+
+    # the functions of the default configuration, named by the 'Jsonnet Function' sections
+    assert reference["functions"]["newRepo"] == "repository/index.md"
+    assert reference["functions"]["newPullRequest"] == "repository/ruleset.md#pull-request-settings"
+    assert reference["functions"]["extendRepo"] == "repository/index.md"
+
+    repository = reference["objects"]["repository/index.md"]
+    assert repository["title"] == "Repository"
+    assert repository["url"] == "reference/organization/repository/"
+    assert repository["properties"]["has_wiki"] == {"type": "boolean", "description": "If the repo has a wiki"}
+    # embedded models are linked by the properties containing them
+    assert repository["properties"]["workflows"]["object"] == "repository/index.md#workflow-settings"
+    assert "enabled" in reference["objects"]["repository/index.md#workflow-settings"]["properties"]
+
+    # pages without title get the one of the navigation, or of their section in the navigation
+    assert reference["objects"]["repository/webhook.md"]["title"] == "Repository Webhook"
+    assert reference["objects"]["repository/environment/index.md"]["title"] == "Environment"
+
+    # the organization is described by the annotations of its example
+    assert reference["objects"]["index.md"]["properties"]["settings"] == {
+        "type": "object",
+        "description": "Organization Settings",
+        "object": "settings.md",
+    }
+
+
+def test_playground_reference_catalog_is_up_to_date(hook):
+    expected = hook.render_reference_catalog(_ROOT_DIR / "docs")
+
+    assert hook.REFERENCE_CATALOG.read_text() == expected, "run 'make playground-examples' to update the catalog"
