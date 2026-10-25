@@ -37,6 +37,9 @@ profiles:
             valuesFiles: &dev-valuesFiles
               - ./dev/dev-values.yaml
               - ./values.yaml
+            setValueTemplates: &otterdog-setValues
+              # the Playground links its examples to the documentation served with `make docs-serve*`
+              config.documentationUrl: '{{ default "http://127.0.0.1:8000/" .DOCS_DEV_URL }}'
 
   - name: dev-local
     deploy:
@@ -46,6 +49,7 @@ profiles:
           - name: otterdog
             chartPath: ../helm-charts/charts/otterdog
             valuesFiles: *dev-valuesFiles
+            setValueTemplates: *otterdog-setValues
 
 
   # Local development with tailscale.
@@ -95,6 +99,7 @@ profiles:
               - ./values.yaml
             setValueTemplates: &otterdog-tunnel-setValues
               ingress.tls[0].hosts[0]: otterdog.{{.TS_DNS}}
+              config.documentationUrl: '{{ default "http://127.0.0.1:8000/" .DOCS_DEV_URL }}'
 
 
   # Same as "dev-tunnel" but uses the local Helm chart checkout for the otterdog release.
@@ -169,6 +174,7 @@ profiles:
               - ./dev/dev-values-ngrok.yaml
               - ./values.yaml
               - ./dev/.dev-values-ngrok-host.yaml
+            setValueTemplates: *otterdog-setValues
 
   # Same as "dev-ngrok" but uses the local Helm chart checkout for the otterdog release.
   - name: dev-ngrok-local
@@ -183,3 +189,4 @@ profiles:
             namespace: otterdog
             createNamespace: true
             valuesFiles: *ngrok-valuesFiles
+            setValueTemplates: *otterdog-setValues

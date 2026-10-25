@@ -2,7 +2,7 @@ import path from "path"
 import {defineConfig} from "vite"
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 
-const outRootDir = path.join(__dirname, "assets")
+const outRootDir = path.join(import.meta.dirname, "assets")
 const outVendorDir = "vendor"
 
 // Copies vendor file(s) into vendor/<folder>, stripping `stripBase` leading path
@@ -14,7 +14,7 @@ const vendorFile = (src, folder, stripBase = true) => ({
 })
 
 export default defineConfig({
-    root: path.join(__dirname, "./src/"),
+    root: path.join(import.meta.dirname, "./src/"),
     base: "/assets",
 
     plugins: [
@@ -33,15 +33,13 @@ export default defineConfig({
                 vendorFile("marked/lib/marked.umd.js", "marked"),
                 // preserves the css/ and webfonts/ subfolders, so strip only the node_modules/@fortawesome/fontawesome-free/ prefix
                 vendorFile("@fortawesome/fontawesome-free/(css|webfonts)/**/*", "fontawesome-free", 3),
-                // preserves the package's internal directory structure, so strip only the node_modules/ prefix
-                vendorFile("codemirror-mode-jsonnet", null, 1),
             ]
         }),
     ],
     css: {
         preprocessorOptions: {
             scss: {
-                loadPaths: [path.join(__dirname, "node_modules")],
+                loadPaths: [path.join(import.meta.dirname, "node_modules")],
                 // Bootstrap and AdminLTE still rely on @import and the global Sass functions
                 quietDeps: true,
                 silenceDeprecations: ["import", "global-builtin", "color-functions", "if-function"],
@@ -50,7 +48,7 @@ export default defineConfig({
     },
     resolve: {
         alias: [
-            {find: "#", replacement: path.join(__dirname, "node_modules")},
+            {find: "#", replacement: path.join(import.meta.dirname, "node_modules")},
         ]
     },
 
@@ -61,16 +59,35 @@ export default defineConfig({
         outDir: outRootDir,
         emptyOutDir: false,
         // copyPublicDir: false,
-        rollupOptions: {
+        rolldownOptions: {
           preserveEntrySignatures: 'exports-only',
           input: [
             "src/js/app.js",
             "src/js/datagrid.js",
             "src/js/editor.js",
             "src/js/highlight.js",
+            "src/js/playground.js",
+            "src/js/template-impact.js",
             "src/css/app.scss",
             "src/css/highlight.css",
+            "src/css/playground.css",
           ],
+          output: {
+            // CodeMirror, used by the GraphQL editor of the query page and by the playground, and GraphQL are split
+            // into separate chunks, loaded by the pages and cached independently
+            codeSplitting: {
+              groups: [
+                {
+                  name: "codemirror",
+                  test: /[\\/]node_modules[\\/](@codemirror|@lezer|codemirror|crelt|style-mod|w3c-keyname)[\\/]/,
+                },
+                {
+                  name: "graphql",
+                  test: /[\\/]node_modules[\\/](graphql|graphql-language-service|cm6-graphql|vscode-languageserver-types|nullthrows|picomatch-browser)[\\/]/,
+                },
+              ],
+            },
+          },
         },
     }
 })

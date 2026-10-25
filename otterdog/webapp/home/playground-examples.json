@@ -1,0 +1,496 @@
+{
+  "pages": [
+    {
+      "title": "Inherited and explicit values",
+      "path": "userguide/guides/inheritance/",
+      "examples": [
+        {
+          "title": "Where values come from",
+          "variant": null,
+          "anchor": "where-values-come-from",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      has_wiki: false,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Extending or replacing values",
+          "variant": null,
+          "anchor": "extending-or-replacing-values",
+          "code": "// a rule as it could be defined by the default configuration of your organization\nlocal newRule(pattern) = orgs.newBranchProtectionRule(pattern) {\n  required_approving_review_count: 1,\n  required_status_checks: [\n    \"license-check\",\n  ],\n};\n\norgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('extended-repo') {\n      branch_protection_rules: [\n        newRule('main') {\n          required_status_checks+: [\n            \"build\",\n          ],\n        },\n      ],\n    },\n    orgs.newRepo('replaced-repo') {\n      branch_protection_rules: [\n        newRule('main') {\n          required_status_checks: [\n            \"build\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Reusing configuration with Jsonnet",
+      "path": "userguide/guides/reusable-configuration/",
+      "examples": [
+        {
+          "title": "Functions for families of repositories",
+          "variant": null,
+          "anchor": "functions-for-families-of-repositories",
+          "code": "local newLibraryRepo(name) = orgs.newRepo(name) {\n  dependabot_security_updates_enabled: true,\n  private_vulnerability_reporting_enabled: true,\n  rulesets: [\n    orgs.newRepoRuleset('default-branch') {\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request+: {\n        required_approving_review_count: 1,\n      },\n      required_status_checks: null,\n    },\n  ],\n};\n\norgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    newLibraryRepo('library-a'),\n    newLibraryRepo('library-b') {\n      description: \"Library B\",\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Parameterized protections",
+          "variant": null,
+          "anchor": "parameterized-protections",
+          "code": "local defaultBranchRuleset(checks=[]) = orgs.newRepoRuleset('default-branch') {\n  include_refs+: [\n    \"~DEFAULT_BRANCH\",\n  ],\n  required_pull_request+: {\n    required_approving_review_count: 1,\n  },\n  required_status_checks:\n    if std.length(checks) > 0\n    then orgs.newStatusChecks() { status_checks: checks }\n    else null,\n};\n\nlocal maintenanceBranches = [\"1.x\", \"2.x\"];\n\norgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        defaultBranchRuleset([\"build\", \"test\"]),\n        orgs.newRepoRuleset('maintenance-branches') {\n          include_refs+: [\n            \"refs/heads/maintenance/%s\" % branch\n            for branch in maintenanceBranches\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n    orgs.newRepo('my-docs') {\n      rulesets: [\n        defaultBranchRuleset(),\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Organization-specific defaults",
+          "variant": null,
+          "anchor": "organization-specific-defaults",
+          "code": "local defaults = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\nlocal orgs = defaults + {\n  newRepo(name):: defaults.newRepo(name) {\n    dependabot_security_updates_enabled: true,\n  },\n};\n\norgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo'),\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Protecting branches",
+      "path": "userguide/guides/branch-protection/",
+      "examples": [
+        {
+          "title": "Prevent force pushes and deletions",
+          "variant": "Ruleset",
+          "anchor": "prevent-force-pushes-and-deletions",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Prevent force pushes and deletions",
+          "variant": "Branch protection rule",
+          "anchor": "prevent-force-pushes-and-deletions",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          requires_pull_request: false,\n          required_approving_review_count: null,\n          requires_status_checks: false,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require pull requests and reviews",
+          "variant": "Ruleset",
+          "anchor": "require-pull-requests-and-reviews",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n            dismisses_stale_reviews: true,\n            requires_last_push_approval: true,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require pull requests and reviews",
+          "variant": "Branch protection rule",
+          "anchor": "require-pull-requests-and-reviews",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          dismisses_stale_reviews: true,\n          require_last_push_approval: true,\n          requires_status_checks: false,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require status checks",
+          "variant": "Ruleset",
+          "anchor": "require-status-checks",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks+: {\n            strict: true,\n            status_checks+: [\n              \"build\",\n              \"test / unit-tests\",\n            ],\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require status checks",
+          "variant": "Branch protection rule",
+          "anchor": "require-status-checks",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          requires_status_checks: true,\n          requires_strict_status_checks: true,\n          required_status_checks+: [\n            \"build\",\n            \"test / unit-tests\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Protect maintenance and release branches",
+          "variant": "Ruleset",
+          "anchor": "protect-maintenance-and-release-branches",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('protected-branches') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n            \"refs/heads/release/*\",\n          ],\n          allows_creations: true,\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Protect maintenance and release branches",
+          "variant": "Branch protection rule",
+          "anchor": "protect-maintenance-and-release-branches",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          requires_status_checks: false,\n        },\n        orgs.newBranchProtectionRule('release/*') {\n          required_approving_review_count: 1,\n          requires_status_checks: false,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Allow automation to push",
+          "variant": "Ruleset",
+          "anchor": "allow-automation-to-push",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          bypass_actors+: [\n            \"my-release-app\",\n            \"@my-org/release-managers:pull_request\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Allow automation to push",
+          "variant": "Branch protection rule",
+          "anchor": "allow-automation-to-push",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          requires_status_checks: false,\n          bypass_pull_request_allowances+: [\n            \"my-release-app\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Read-only branches and mirrors",
+          "variant": "Ruleset",
+          "anchor": "read-only-branches-and-mirrors",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-mirror') {\n      rulesets: [\n        orgs.newRepoRuleset('read-only') {\n          include_refs+: [\n            \"~ALL\",\n          ],\n          allows_updates: false,\n          bypass_actors+: [\n            \"my-mirror-app\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Read-only branches and mirrors",
+          "variant": "Branch protection rule",
+          "anchor": "read-only-branches-and-mirrors",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-mirror') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          requires_pull_request: false,\n          required_approving_review_count: null,\n          requires_status_checks: false,\n          restricts_pushes: true,\n          push_restrictions+: [\n            \"my-mirror-app\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Organization-wide rulesets",
+      "path": "userguide/guides/organization-rulesets/",
+      "examples": [
+        {
+          "title": "Protect the default branch of all repositories",
+          "variant": null,
+          "anchor": "protect-the-default-branch-of-all-repositories",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('default-branch-baseline') {\n      include_repo_names+: [\n        \"~ALL\",\n      ],\n      exclude_repo_names+: [\n        \"sandbox-*\",\n      ],\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request: null,\n      required_status_checks: null,\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo'),\n    orgs.newRepo('sandbox-experiments'),\n  ],\n}\n"
+        },
+        {
+          "title": "Target repositories by name",
+          "variant": null,
+          "anchor": "target-repositories-by-name",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('libraries') {\n      include_repo_names+: [\n        \"lib-*\",\n      ],\n      protect_repo_names: true,\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request+: {\n        required_approving_review_count: 1,\n      },\n      required_status_checks: null,\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('lib-core'),\n    orgs.newRepo('lib-cli'),\n  ],\n}\n"
+        },
+        {
+          "title": "Prepare a ruleset before enforcing it",
+          "variant": null,
+          "anchor": "prepare-a-ruleset-before-enforcing-it",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('linear-history') {\n      enforcement: \"disabled\",\n      include_repo_names+: [\n        \"~ALL\",\n      ],\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      requires_linear_history: true,\n      required_pull_request: null,\n      required_status_checks: null,\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Rulesets or branch protection rules",
+      "path": "userguide/guides/rulesets-vs-branch-protection/",
+      "examples": [
+        {
+          "title": "Comparison",
+          "variant": null,
+          "anchor": "comparison",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('baseline') {\n      include_repo_names+: [\n        \"~ALL\",\n      ],\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request: null,\n      required_status_checks: null,\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks+: {\n            status_checks+: [\n              \"build\",\n            ],\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Migrating to rulesets",
+      "path": "userguide/guides/migrating-to-rulesets/",
+      "examples": [
+        {
+          "title": "Step 2: Add the rulesets",
+          "variant": "Before",
+          "anchor": "step-2-add-the-rulesets",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          dismisses_stale_reviews: true,\n          requires_strict_status_checks: true,\n          required_status_checks+: [\n            \"build\",\n          ],\n          requires_linear_history: true,\n          bypass_pull_request_allowances+: [\n            \"my-release-app\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Step 2: Add the rulesets",
+          "variant": "During the migration",
+          "anchor": "step-2-add-the-rulesets",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          dismisses_stale_reviews: true,\n          requires_strict_status_checks: true,\n          required_status_checks+: [\n            \"build\",\n          ],\n          requires_linear_history: true,\n          bypass_pull_request_allowances+: [\n            \"my-release-app\",\n          ],\n        },\n      ],\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          bypass_actors+: [\n            \"#RepositoryAdmin\",\n          ],\n          required_pull_request: null,\n          required_status_checks+: {\n            strict: true,\n            status_checks+: [\n              \"build\",\n            ],\n          },\n          requires_linear_history: true,\n        },\n        orgs.newRepoRuleset('default-branch-reviews') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          bypass_actors+: [\n            \"#RepositoryAdmin\",\n            \"my-release-app\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n            dismisses_stale_reviews: true,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Step 2: Add the rulesets",
+          "variant": "After",
+          "anchor": "step-2-add-the-rulesets",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          bypass_actors+: [\n            \"#RepositoryAdmin\",\n          ],\n          required_pull_request: null,\n          required_status_checks+: {\n            strict: true,\n            status_checks+: [\n              \"build\",\n            ],\n          },\n          requires_linear_history: true,\n        },\n        orgs.newRepoRuleset('default-branch-reviews') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          bypass_actors+: [\n            \"#RepositoryAdmin\",\n            \"my-release-app\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n            dismisses_stale_reviews: true,\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Protecting tags and releases",
+      "path": "userguide/guides/tag-protection/",
+      "examples": [
+        {
+          "title": "Prevent tags from being moved or deleted",
+          "variant": null,
+          "anchor": "prevent-tags-from-being-moved-or-deleted",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('tags') {\n          target: \"tag\",\n          include_refs+: [\n            \"~ALL\",\n          ],\n          allows_creations: true,\n          allows_updates: false,\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Restrict who can create release tags",
+          "variant": null,
+          "anchor": "restrict-who-can-create-release-tags",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('release-tags') {\n          target: \"tag\",\n          include_refs+: [\n            \"refs/tags/v*\",\n          ],\n          allows_creations: false,\n          allows_updates: false,\n          bypass_actors+: [\n            \"my-release-app\",\n            \"@my-org/release-managers\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Make releases immutable",
+          "variant": null,
+          "anchor": "make-releases-immutable",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    immutable_releases_enforced_repositories: \"selected\",\n    immutable_releases_selected_repositories+: [\n      \"my-library\",\n    ],\n  },\n  _repositories+:: [\n    orgs.newRepo('my-library'),\n    orgs.newRepo('my-tool') {\n      immutable_releases_enabled: true,\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Securing GitHub Actions",
+      "path": "userguide/guides/github-actions/",
+      "examples": [
+        {
+          "title": "Restrict the permissions of the GITHUB_TOKEN",
+          "variant": null,
+          "anchor": "restrict-the-permissions-of-the-github_token",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      default_workflow_permissions: \"read\",\n    },\n  },\n}\n"
+        },
+        {
+          "title": "Prevent workflows from approving pull requests",
+          "variant": null,
+          "anchor": "prevent-workflows-from-approving-pull-requests",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      actions_can_approve_pull_request_reviews: false,\n    },\n  },\n}\n"
+        },
+        {
+          "title": "Control which actions can run",
+          "variant": null,
+          "anchor": "control-which-actions-can-run",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      allowed_actions: \"selected\",\n      allow_github_owned_actions: true,\n      allow_verified_creator_actions: false,\n      allow_action_patterns+: [\n        \"my-org/*\",\n        \"example-owner/example-action@*\",\n      ],\n    },\n  },\n}\n"
+        },
+        {
+          "title": "Approve workflows from forks",
+          "variant": null,
+          "anchor": "approve-workflows-from-forks",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    workflows+: {\n      fork_pr_approval_policy: \"all_external_contributors\",\n    },\n  },\n}\n"
+        },
+        {
+          "title": "Disable GitHub Actions where it is not needed",
+          "variant": null,
+          "anchor": "disable-github-actions-where-it-is-not-needed",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-mirror') {\n      workflows+: {\n        enabled: false,\n      },\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Repository security features",
+      "path": "userguide/guides/repository-security/",
+      "examples": [
+        {
+          "title": "Repository security features",
+          "variant": null,
+          "anchor": "repository-security-features",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      dependabot_security_updates_enabled: true,\n      private_vulnerability_reporting_enabled: true,\n      code_scanning_default_setup_enabled: true,\n      code_scanning_default_languages+: [\n        \"actions\",\n        \"python\",\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Languages must be detected in the repository (1)",
+          "variant": null,
+          "anchor": "languages-must-be-detected-in-the-repository",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-new-repo') {\n      code_scanning_default_setup_enabled: true,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Languages must be detected in the repository (2)",
+          "variant": null,
+          "anchor": "languages-must-be-detected-in-the-repository",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      code_scanning_default_setup_enabled: true,\n      code_scanning_default_languages+: [\n        \"actions\",\n        \"java-kotlin\",\n        \"javascript-typescript\",\n      ],\n      code_scanning_default_query_suite: \"extended\",\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Organization settings related to security",
+          "variant": null,
+          "anchor": "organization-settings-related-to-security",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    security_managers+: [\n      \"security-team\",\n    ],\n  },\n  teams+: [\n    orgs.newTeam('security-team') {\n      description: \"Triages security alerts and vulnerability reports\",\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Secrets and variables",
+      "path": "userguide/guides/secrets-and-variables/",
+      "examples": [
+        {
+          "title": "Reference secret values, never write them",
+          "variant": null,
+          "anchor": "reference-secret-values-never-write-them",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  secrets+: [\n    orgs.newOrgSecret('SIGNING_KEY') {\n      value: \"pass:path/to/signing-key\",\n      visibility: \"selected\",\n      selected_repositories+: [\n        \"my-library\",\n      ],\n    },\n  ],\n  variables+: [\n    orgs.newOrgVariable('REGISTRY_URL') {\n      value: \"https://registry.example.org\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      secrets+: [\n        orgs.newRepoSecret('DOCS_DEPLOY_TOKEN') {\n          value: \"pass:path/to/docs-deploy-token\",\n        },\n      ],\n      environments+: [\n        orgs.newEnvironment('publish') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"tag:v*\",\n          ],\n          secrets+: [\n            orgs.newEnvSecret('REGISTRY_TOKEN') {\n              value: \"pass:path/to/registry-token\",\n            },\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Override a value for a repository or an environment",
+          "variant": null,
+          "anchor": "override-a-value-for-a-repository-or-an-environment",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  variables+: [\n    orgs.newOrgVariable('REGISTRY_URL') {\n      value: \"https://registry.example.org\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      variables+: [\n        orgs.newRepoVariable('REGISTRY_URL') {\n          value: \"https://staging.registry.example.org\",\n        },\n      ],\n      environments+: [\n        orgs.newEnvironment('release') {\n          variables+: [\n            orgs.newEnvVariable('REGISTRY_URL') {\n              value: \"https://registry.example.org\",\n            },\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Deployment environments",
+      "path": "userguide/guides/environments/",
+      "examples": [
+        {
+          "title": "Protect publishing credentials",
+          "variant": null,
+          "anchor": "protect-publishing-credentials",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      environments+: [\n        orgs.newEnvironment('release') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"tag:v*\",\n          ],\n          reviewers+: [\n            \"@my-org/release-managers\",\n          ],\n          prevent_self_review: true,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require a manual approval",
+          "variant": null,
+          "anchor": "require-a-manual-approval",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      environments+: [\n        orgs.newEnvironment('manual-approval') {\n          reviewers+: [\n            \"@my-org/maintainers\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "GitHub Pages",
+          "variant": null,
+          "anchor": "github-pages",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-website') {\n      gh_pages_build_type: \"workflow\",\n      environments+: [\n        orgs.newEnvironment('github-pages') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"main\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require a successful deployment before merging",
+          "variant": null,
+          "anchor": "require-a-successful-deployment-before-merging",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-service') {\n      environments+: [\n        orgs.newEnvironment('staging'),\n      ],\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_status_checks: null,\n          requires_deployments: true,\n          required_deployment_environments+: [\n            \"staging\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Webhooks",
+      "path": "userguide/guides/webhooks/",
+      "examples": [
+        {
+          "title": "Configure a secure webhook",
+          "variant": null,
+          "anchor": "configure-a-secure-webhook",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  webhooks+: [\n    orgs.newOrgWebhook('https://ci.example.org/github-webhook/') {\n      content_type: \"json\",\n      events+: [\n        \"pull_request\",\n        \"push\",\n      ],\n      secret: \"pass:path/to/ci-webhook-secret\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      webhooks+: [\n        orgs.newRepoWebhook('https://docs.example.org/hooks/my-repo') {\n          content_type: \"json\",\n          events+: [\n            \"push\",\n          ],\n          secret: \"pass:path/to/docs-webhook-secret\",\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Change the URL of a webhook",
+          "variant": null,
+          "anchor": "change-the-url-of-a-webhook",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  webhooks+: [\n    orgs.newOrgWebhook('https://ci.example.org/hooks/github') {\n      aliases: [\n        \"https://ci.example.org/github-webhook/\",\n      ],\n      content_type: \"json\",\n      events+: [\n        \"pull_request\",\n        \"push\",\n      ],\n      secret: \"pass:path/to/ci-webhook-secret\",\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Organization settings and member privileges",
+      "path": "userguide/guides/organization-settings/",
+      "examples": [
+        {
+          "title": "Restrict what members can do",
+          "variant": null,
+          "anchor": "restrict-what-members-can-do",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    members_can_create_teams: true,\n    members_can_delete_issues: true,\n  },\n}\n"
+        },
+        {
+          "title": "Require a sign-off for commits made in the web interface",
+          "variant": null,
+          "anchor": "require-a-sign-off-for-commits-made-in-the-web-interface",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    web_commit_signoff_required: true,\n  },\n  _repositories+:: [\n    orgs.newRepo('my-repo'),\n  ],\n}\n"
+        },
+        {
+          "title": "Classify repositories with custom properties",
+          "variant": null,
+          "anchor": "classify-repositories-with-custom-properties",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    custom_properties+: [\n      orgs.newCustomProperty('category') {\n        description: \"Category used to group repositories\",\n        value_type: \"single_select\",\n        allowed_values: [\n          \"library\",\n          \"tool\",\n          \"website\",\n          \"other\",\n        ],\n        required: true,\n        default_value: \"other\",\n      },\n    ],\n  },\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      custom_properties: {\n        category: \"library\",\n      },\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Teams and access",
+      "path": "userguide/guides/teams-and-access/",
+      "examples": [
+        {
+          "title": "Base permission",
+          "variant": null,
+          "anchor": "base-permission",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    default_repository_permission: \"none\",\n  },\n}\n"
+        },
+        {
+          "title": "Teams",
+          "variant": null,
+          "anchor": "teams",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  teams+: [\n    orgs.newTeam('maintainers') {\n      description: \"Maintainers of the project\",\n      members+: [\n        \"alice\",\n        \"bob\",\n      ],\n    },\n    orgs.newTeam('contributors') {\n      description: \"Contributors, managed in the GitHub web interface\",\n      skip_members: true,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Grant teams access to repositories",
+          "variant": null,
+          "anchor": "grant-teams-access-to-repositories",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  teams+: [\n    orgs.newTeam('maintainers'),\n    orgs.newTeam('documentation'),\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      team_permissions+: {\n        maintainers: \"maintain\",\n        documentation: \"triage\",\n      },\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Pull requests and merging",
+      "path": "userguide/guides/pull-requests/",
+      "examples": [
+        {
+          "title": "Choose the merge methods",
+          "variant": null,
+          "anchor": "choose-the-merge-methods",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      allow_merge_commit: false,\n      allow_rebase_merge: false,\n      allow_squash_merge: true,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Restrict the merge methods of protected branches",
+          "variant": null,
+          "anchor": "restrict-the-merge-methods-of-protected-branches",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      allow_merge_commit: true,\n      allow_squash_merge: true,\n      rulesets: [\n        orgs.newRepoRuleset('main') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            allowed_merge_methods: [\n              \"squash\",\n            ],\n          },\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Control the messages of merge and squash commits",
+          "variant": null,
+          "anchor": "control-the-messages-of-merge-and-squash-commits",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      squash_merge_commit_title: \"PR_TITLE\",\n      squash_merge_commit_message: \"PR_BODY\",\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Merge pull requests once their requirements are met",
+          "variant": null,
+          "anchor": "merge-pull-requests-once-their-requirements-are-met",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      allow_auto_merge: true,\n      allow_update_branch: true,\n      rulesets: [\n        orgs.newRepoRuleset('main') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_status_checks+: {\n            strict: true,\n            status_checks+: [\n              \"build\",\n            ],\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Merge pull requests through a queue",
+          "variant": null,
+          "anchor": "merge-pull-requests-through-a-queue",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('main') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_status_checks+: {\n            status_checks+: [\n              \"build\",\n            ],\n          },\n          required_merge_queue: orgs.newMergeQueue() {\n            merge_method: \"SQUASH\",\n            max_group_size: 3,\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Repository features and metadata",
+      "path": "userguide/guides/repository-features/",
+      "examples": [
+        {
+          "title": "Enable only the features that are used",
+          "variant": null,
+          "anchor": "enable-only-the-features-that-are-used",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      has_issues: true,\n      has_discussions: true,\n      has_wiki: false,\n      has_projects: false,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Discussions for the whole organization",
+          "variant": null,
+          "anchor": "discussions-for-the-whole-organization",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    has_discussions: true,\n    discussion_source_repository: \"my-org/.github\",\n  },\n  _repositories+:: [\n    orgs.newRepo('.github') {\n      has_discussions: true,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Describe repositories",
+          "variant": null,
+          "anchor": "describe-repositories",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      description: \"A library to parse configuration files\",\n      homepage: \"https://my-library.example.org\",\n      topics+: [\n        \"configuration\",\n        \"parser\",\n        \"java\",\n      ],\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Common repository patterns",
+      "path": "userguide/guides/repository-patterns/",
+      "examples": [
+        {
+          "title": "Websites with GitHub Pages",
+          "variant": null,
+          "anchor": "websites-with-github-pages",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-org.github.io') {\n      gh_pages_build_type: \"legacy\",\n      gh_pages_source_branch: \"main\",\n      gh_pages_source_path: \"/\",\n      environments+: [\n        orgs.newEnvironment('github-pages') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"main\",\n          ],\n        },\n      ],\n    },\n    orgs.newRepo('my-project') {\n      gh_pages_build_type: \"workflow\",\n      gh_pages_cname: \"docs.example.org\",\n      environments+: [\n        orgs.newEnvironment('github-pages') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"main\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "The .github repository",
+          "variant": null,
+          "anchor": "the-github-repository",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('.github') {\n      description: \"Default community health files\",\n      has_wiki: false,\n      has_projects: false,\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Read-only mirrors",
+          "variant": null,
+          "anchor": "read-only-mirrors",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-mirror') {\n      description: \"Read-only mirror, contributions are accepted at https://git.example.org/my-project\",\n      has_issues: false,\n      has_projects: false,\n      has_wiki: false,\n      workflows+: {\n        enabled: false,\n      },\n      rulesets: [\n        orgs.newRepoRuleset('read-only') {\n          include_refs+: [\n            \"~ALL\",\n          ],\n          allows_creations: false,\n          allows_updates: false,\n          allows_deletions: false,\n          bypass_actors+: [\n            \"my-mirror-app\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Templates and repositories created from a template",
+          "variant": null,
+          "anchor": "templates-and-repositories-created-from-a-template",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('project-template') {\n      is_template: true,\n    },\n    orgs.newRepo('my-new-project') {\n      template_repository: \"my-org/project-template\",\n      post_process_template_content+: [\n        \"README.md\",\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Forks",
+          "variant": null,
+          "anchor": "forks",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('upstream-library') {\n      forked_repository: \"example-owner/upstream-library\",\n    },\n  ],\n}\n"
+        }
+      ]
+    },
+    {
+      "title": "Organization-wide policies",
+      "path": "operating_otterdog/organization-policies/",
+      "examples": [
+        {
+          "title": "Exceptions",
+          "variant": null,
+          "anchor": "exceptions",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    // Exception to the organization-wide default: the project publishes its documentation\n    // from private repositories, which requires read access for all members.\n    default_repository_permission: \"read\",\n  },\n}\n"
+        }
+      ]
+    }
+  ]
+}

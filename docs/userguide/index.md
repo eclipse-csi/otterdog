@@ -17,6 +17,12 @@ The following guides provide concrete steps to perform in your otterdog configur
 - [Removing Resources](removal.md) - Step-by-step guide on how to remove resources.
 - [Renaming Resources](renaming.md) - How to rename resources without deleting and recreating them.
 
+## Configuration Guides
+
+The [Configuration Guides](guides/index.md) start from common needs, e.g. protecting branches and tags, securing
+GitHub Actions or managing secrets, and explain how to address them with otterdog, including the trade-offs and
+limitations to consider.
+
 ## Unsupported Features
 
 Not all GitHub organization features and settings can be managed using `otterdog`.

@@ -68,6 +68,25 @@
             </a>
           </li>
 
+          <li class="nav-item">
+            <a href="/playground" class="nav-link {% if segments and segments[0] == 'playground' %} active {% endif %}">
+              <i class="nav-icon fas fa-code"></i>
+              <p>
+                Playground
+              </p>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{{ documentation_url }}reference/" class="nav-link" target="_blank" rel="noopener">
+              <i class="nav-icon fas fa-book"></i>
+              <p>
+                Reference guide
+                <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+              </p>
+            </a>
+          </li>
+
           <li class="nav-header">PROJECTS</li>
             {% for nav_level1, value_level1 in projects|dictsort %}
             {% if value_level1|is_dict %}
@@ -126,6 +145,14 @@
               <i class="nav-icon fas fa-clipboard-check"></i>
               <p>
                 Blueprints
+              </p>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/admin/template-impact" class="nav-link {% if 'template-impact' in segments %} active {% endif %}">
+              <i class="nav-icon fas fa-code-compare"></i>
+              <p>
+                Template impact
               </p>
             </a>
           </li>

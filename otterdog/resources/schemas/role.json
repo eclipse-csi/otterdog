@@ -9,6 +9,6 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "base_role": { "type": "string" }
+    "base_role": { "type": "string", "enum": ["none", "read", "triage", "write", "maintain", "admin"] }
   }
 }

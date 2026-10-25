@@ -41,6 +41,8 @@ RUN poetry config virtualenvs.in-project true && \
 
 # now copy the actual source and build/install the root package
 COPY ./otterdog ./otterdog
+# the example template of otterdog, which the global playground can use
+COPY ./examples/template ./examples/template
 COPY ./docker/hypercorn-cfg.toml ./
 COPY ./docker/start-webapp ./docker/start-webapp
 COPY ./docker/init-webapp ./docker/init-webapp
@@ -59,6 +61,7 @@ RUN apt-get update \
 
 COPY --from=builder-python3 /app/.venv /app/.venv
 COPY --from=builder-python3 /app/otterdog /app/otterdog
+COPY --from=builder-python3 /app/examples/template /app/examples/template
 COPY --from=builder-python3 /app/docker/start-webapp /app/start-webapp
 COPY --from=builder-python3 /app/docker/init-webapp /app/init-webapp
 COPY --from=builder-python3 /app/hypercorn-cfg.toml /app/hypercorn-cfg.toml

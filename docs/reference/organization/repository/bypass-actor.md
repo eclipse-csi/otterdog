@@ -15,7 +15,12 @@ The following roles are currently supported:
 - RepositoryAdmin
 - OrganizationAdmin
 
-# Bypass Mode
+!!! note
+
+    Deploy keys cannot be specified as bypass actors. Secret teams cannot be used as bypass actors, as GitHub
+    only accepts visible teams, see [Granting bypass permissions](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#granting-bypass-permissions-for-your-branch-or-tag-ruleset).
+
+## Bypass Mode
 
 If not specified, the bypass mode will be set to `always` by default, meaning that the specified bypass actor
 can bypass the restrictions of the ruleset in any case.

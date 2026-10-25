@@ -28,8 +28,11 @@
     <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
-          <div class="col-sm-6">
-            <h1>Repository {{ repo_name }}</h1>
+          <div class="col-sm-6 d-flex flex-wrap align-items-center gap-2">
+            <h1 class="mb-0 me-2">Repository {{ repo_name }}</h1>
+            <a href="/projects/{{ project_name }}/playground?repository={{ repo_name|urlencode }}" class="btn btn-sm btn-primary"
+               title="Open the configuration of {{ project_name }} in the Playground at this repository">
+              <i class="fas fa-code" aria-hidden="true"></i> Edit in Playground</a>
           </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">

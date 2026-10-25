@@ -4,8 +4,8 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
-    "target": { "type": "string" },
-    "enforcement": { "type": "string" },
+    "target": { "type": "string", "enum": ["branch", "tag", "push"] },
+    "enforcement": { "type": "string", "enum": ["active", "disabled", "evaluate"] },
 
     "bypass_actors": {
       "type": "array",
@@ -93,7 +93,7 @@
     "merge_queue": {
       "type": "object",
       "properties": {
-        "merge_method": { "type": "string" },
+        "merge_method": { "type": "string", "enum": ["MERGE", "SQUASH", "REBASE"] },
         "build_concurrency": { "type": "integer" },
         "min_group_size": { "type": "integer" },
         "max_group_size": { "type": "integer" },

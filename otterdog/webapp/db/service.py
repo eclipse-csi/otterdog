@@ -483,6 +483,17 @@ async def get_configurations() -> list[ConfigurationModel]:
     return await mongo.odm.find(ConfigurationModel)
 
 
+async def get_configuration_sources(github_ids: list[str]) -> dict[str, str | None]:
+    """
+    Returns the jsonnet source of the configurations of organizations by their github id, null until a configuration
+    is fetched again, without loading the evaluated configurations, which are much larger.
+    """
+
+    collection = mongo.odm.get_collection(ConfigurationModel)
+    cursor = collection.find({"_id": {"$in": github_ids}}, {"jsonnet": True})
+    return {document["_id"]: document.get("jsonnet") async for document in cursor}
+
+
 async def get_configuration_by_github_id(github_id: str) -> ConfigurationModel | None:
     return await mongo.odm.find_one(ConfigurationModel, ConfigurationModel.github_id == github_id)
 

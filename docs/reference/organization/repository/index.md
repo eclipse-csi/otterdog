@@ -20,7 +20,7 @@ Definition of a Repository for a GitHub organization, the following properties a
 | _auto_init_                               | boolean                                                   | If the repository shall be auto-initialized during creation                             | only considered during creation                                                                                                                                                            |
 | _code_scanning_default_setup_enabled_     | boolean                                                   | If the repo has default code scanning enabled                                           |                                                                                                                                                                                            |
 | _code_scanning_default_query_suite_       | string                                                    | The query suite to use for default code scanning                                        | `default` or `extended`, only taken into account when `code_scanning_default_setup_enabled` is set to true                                                                                 |
-| _code_scanning_default_languages_         | list[string]                                              | The folder from which GitHub Pages should be built                                      | `actions`, `c-cpp`, `csharp`, `go`, `java-kotlin`, `javascript-typescript`, `python`, `ruby`, `swift` or `rust`, only taken into account when `code_scanning_default_setup_enabled` is set to true |
+| _code_scanning_default_languages_         | list[string]                                              | The languages to analyze with code scanning default setup                               | `actions`, `c-cpp`, `csharp`, `go`, `java-kotlin`, `javascript-typescript`, `python`, `ruby`, `swift` or `rust`, only taken into account when `code_scanning_default_setup_enabled` is set to true |
 | _custom_properties_                       | dict\[string, string \| list\[string\]\]                  | The custom properties to set for this repository                                        |                                                                                                                                                                                            |
 | _default_branch_                          | string                                                    | Name of the default branch                                                              |                                                                                                                                                                                            |
 | _delete_branch_on_merge_                  | boolean                                                   | If branches shall automatically be deleted after a merge                                |                                                                                                                                                                                            |
@@ -138,8 +138,6 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
 
 ## Validation rules
 
-- TODO: complete
-
 - specifying a description of more than 350 characters triggers an error (maximum supported length by GitHub)
 - specifying more than 20 topics triggers an error (maximum number of supported topics by GitHub)
 - disabling `has_discussions` while this repository is configured as source repository for discussion of this organization triggers an error
@@ -147,6 +145,8 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
 - specifying a non-empty list of `allow_action_patterns` while `allowed_actions` is not set to `selected`, triggers a warning
 - specifying a permission in `team_permissions` other than `pull`, `triage`, `push`, `maintain` or `admin` triggers an error
 - specifying a `gh_pages_cname` that is not a valid domain name or that is a `github.io` domain triggers an error
+- disabling `secret_scanning` while `secret_scanning_push_protection` is enabled triggers an error
+- specifying `code_scanning_default_languages` for a repository that does not exist yet, or with a language that is not detected in the repository, triggers an error
 
 !!! tip
 

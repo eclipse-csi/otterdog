@@ -63,6 +63,17 @@ jobs:
           npm ci --ignore-scripts
           npm run build
 
+      - name: Test webapp scripts
+        working-directory: otterdog/webapp/static
+        run: npm test
+
+      # The end-to-end tests of the playground run in Firefox, they are skipped without it: run them once
+      - name: Install Firefox for the end-to-end tests
+        if: matrix.python-version == '3.14'
+        run: |
+          source $VENV
+          python -m playwright install --with-deps firefox
+
       # Run tests
       - name: Run tests
         run: |

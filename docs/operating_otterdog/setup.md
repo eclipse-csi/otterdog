@@ -13,6 +13,14 @@ To start using the cli part of `otterdog` right away on a specific organization 
 The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
 However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
 
+A change of the default configuration applies to all the organizations using it. Its impact can be evaluated
+beforehand on the **Template impact** page of the administration of the otterdog dashboard: the files of the default
+configuration are edited there, and the configurations of the projects are evaluated with the edited files. The page
+groups the changes by property across the projects, e.g. `repositories[*].delete_branch_on_merge` changed from `true` to
+`false` in 807 repositories of 269 projects, and lists the projects whose configuration changes, with their changes,
+and the ones whose configuration fails to evaluate. The configurations are the ones fetched by the dashboard, and are
+evaluated in the browser.
+
 ### Otterdog configuration
 
 Create a `otterdog.json` file with the following content (replace bracketed values according to your setup):
@@ -88,7 +96,7 @@ The GitHub api token needs to have the following scopes enabled:
 * admin:org_hook
 * delete_repo
 
-The credentials can be stored in different providers (bitwarden, pass, env).
+The credentials can be stored in different providers (bitwarden, pass, vault, env).
 
 #### Bitwarden
 
@@ -182,6 +190,54 @@ As the `password_store_dir` might be different on different machines, you can al
   }
 }
 ```
+
+#### HashiCorp Vault
+
+When using a **HashiCorp Vault** to store the credentials, the secrets are read from a KV version 2 secrets engine.
+Each credential is referenced as `<path/to/secret>/<field>`, the last component being the name of the field:
+
+```json
+{
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "credentials": {
+        "provider": "vault",
+        "api_token": "<path/to/secret>/<field>",
+        "username": "<path/to/secret>/<field>",
+        "password": "<path/to/secret>/<field>",
+        "twofa_seed": "<path/to/secret>/<field>"
+      }
+    }
+  ]
+}
+```
+
+The connection to the Vault is configured in the `defaults`:
+
+```json
+{
+  "defaults": {
+    "vault": {
+      "vault_addr": "https://vault.example.org",
+      "mount_point": "<kv mount point>",
+      "verify_ssl": true
+    }
+  }
+}
+```
+
+| Key                  | Description                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------|
+| `vault_addr`         | the address of the Vault, defaults to the environment variable `VAULT_ADDR`                                       |
+| `vault_token`        | the token to use, defaults to the environment variable `VAULT_TOKEN`, then to the file `~/.vault-token`; if no valid token is found, otterdog asks to log in interactively |
+| `mount_point`        | the mount point of the KV secrets engine, it is recommended to always set it                                      |
+| `verify_ssl`         | whether to verify the TLS certificate of the Vault, disabled by default; enable it, or set `ca_cert`              |
+| `ca_cert`            | path to a CA certificate bundle used to verify the TLS certificate of the Vault                                   |
+| `client_cert`        | path to a client certificate for mutual TLS                                                                       |
+| `batch_mode`         | if `true`, fail instead of asking to log in interactively, e.g. in automation                                     |
+| `api_token_pattern`, `username_pattern`, `password_pattern`, `twofa_seed_pattern` | patterns of the credential paths used when an organization does not specify them, `{0}` is replaced by the name of the organization |
 
 #### Environment based credentials
 

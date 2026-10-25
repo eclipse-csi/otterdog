@@ -131,7 +131,8 @@ def create_app(app_config: AppConfig):
             app.logger.error(f"did not find asset {file_path}")
             return f"/assets/{file_path}"
 
-        return {"asset": asset}
+        # the documentation, linked by the menu
+        return {"asset": asset, "documentation_url": app.config["DOCUMENTATION_URL"]}
 
     set_github_cache(get_github_ghproxy_cache(app.config))
 

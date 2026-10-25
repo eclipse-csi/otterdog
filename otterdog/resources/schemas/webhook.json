@@ -13,8 +13,8 @@
       "items": { "type": "string" }
     },
     "url": { "type": "string" },
-    "content_type": { "type": "string" },
-    "insecure_ssl": { "type": "string" },
+    "content_type": { "type": "string", "enum": ["json", "form"] },
+    "insecure_ssl": { "type": "string", "enum": ["0", "1"] },
     "secret": { "$ref": "types.json#/$defs/string-or-null"}
   },
 

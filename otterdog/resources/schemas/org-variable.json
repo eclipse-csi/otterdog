@@ -4,7 +4,7 @@
   "$ref": "variable.json",
   "type": "object",
   "properties": {
-    "visibility": { "type": "string" },
+    "visibility": { "type": "string", "enum": ["public", "private", "selected"] },
     "selected_repositories": {
       "type": "array",
       "items": { "type": "string" }

@@ -119,6 +119,12 @@ helm repo add eclipse-csi https://eclipse-csi.github.io/helm-charts
 make dev-webapp
 ```
 
+!!! note
+
+    The `make dev-webapp*` targets deploy to the current kubectl context. They stop with an error if this context is
+    not `minikube`, e.g. after working with another cluster, to prevent deploying the development environment to it.
+    Switch back with `kubectl config use-context minikube`, or check the context with `make check-kube-context`.
+
 If you want use the integration with GitHub, you can use tailscale or ngrok to expose your development environment. Pick one:
 
 * [Setup a tailscale tunnel](#setup-a-tailscale-to-enable-github-webhooks-to-your-development-environment)
@@ -385,6 +391,49 @@ Click **Redeliver** on the most recent **ping** delivery to trigger a test event
 ```shell
 [2026-07-01 09:30:22.093  ] [9] [INFO] ping (3d5b7472-7522-11f1-9353-7f66c710a3db)
 ```
+
+#### [Optional] Test the Playground with the documentation
+
+The Playground of the webapp is available at `/playground`, it lists the examples of the Configuration Guides next
+to the editor. It evaluates them with the default configuration of the instance, or with the example template of
+otterdog (`examples/template`, `/playground?template=example`) which the examples are validated with. Complete
+examples of the documentation link to it with the example preloaded and the example template selected. To make these
+links target your development environment, serve the documentation with the target that matches the way you started
+the webapp, in a second terminal:
+
+| Webapp started with                              | Documentation served with | Playground links target                   |
+|--------------------------------------------------|---------------------------|-------------------------------------------|
+| `make dev-webapp`                                | `make docs-serve-dev`     | `$OTTERDOG_DEV_URL`, `http://localhost:5000` by default |
+| `make dev-webapp-tunnel`, `make dev-webapp-tunnel-local` | `make docs-serve-tunnel`  | `https://otterdog.$TS_DNS`        |
+| `make dev-webapp-ngrok`, `make dev-webapp-ngrok-local`   | `make docs-serve-ngrok`   | `https://$NGROK_DOMAIN`           |
+
+The webapp started with `make dev-webapp` is not exposed, forward its port first:
+
+```bash
+kubectl port-forward -n otterdog deploy/otterdog 5000:5000
+```
+
+Then open the documentation at `http://127.0.0.1:8000`, e.g. the
+[Configuration Guides](../userguide/guides/index.md), and follow the "Open in the Playground" link below an example.
+
+The webapp started with any `make dev-webapp*` target links the examples of its Playground to the documentation served
+with `make docs-serve*`, at `http://127.0.0.1:8000/` by default. Both take this address from the variable
+`DOCS_DEV_ADDR` of the `Makefile`, set it for both to serve the documentation on another port, e.g.:
+
+```bash
+make dev-webapp-ngrok DOCS_DEV_ADDR=127.0.0.1:8001
+make docs-serve-ngrok DOCS_DEV_ADDR=127.0.0.1:8001
+```
+
+The webapp gets this address as value `config.documentationUrl` of the Helm chart (environment variable
+`DOCUMENTATION_URL`), supported from version 1.6.0 of the chart: with an earlier chart, use the `-local` targets, which
+deploy the chart of a `helm-charts` checkout. Outside of development, the Playground links to
+`https://otterdog.readthedocs.io/en/latest/` unless `config.documentationUrl` is set.
+
+The Playground of a project starts with the current configuration of its organization, once the webapp fetched it
+again, e.g. after calling `/internal/init`. Its button "Propose on GitHub" copies the modified configuration and opens
+it in the editor of GitHub, where the user creates the pull request from their own account. It opens the editor on the
+default branch of the configuration repository, which is also known once the configuration has been fetched again.
 
 #### [Optional] Configure dependency track
 
