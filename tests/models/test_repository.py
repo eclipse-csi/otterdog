@@ -6,11 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from io import StringIO
+from unittest.mock import AsyncMock, call
+
 import pretend
 import pytest
 
 from otterdog.models.repository import LivePatch, Repository
-from otterdog.utils import UNSET, Change, jsonnet_evaluate_snippet, query_json
+
+from otterdog.operations.plan import PlanOperation
+from otterdog.utils import UNSET, Change, IndentingPrinter, jsonnet_evaluate_snippet, query_json
 from tests.models import _EXAMPLE_CONFIG
 
 
@@ -172,6 +177,59 @@ class TestRepository:
         patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
 
         assert not patch.is_cost_related()
+
+    @pytest.mark.parametrize(
+        ("desired_permissions", "deleted_teams"),
+        [({"committers": "push"}, ["contributors"]), ({}, ["committers", "contributors"])],
+    )
+    async def test_team_permission_removals_are_planned_and_applied(
+        self, repository_test, desired_permissions, deleted_teams
+    ):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.set_team_permissions(desired_permissions)
+        current.set_team_permissions({"committers": "push", "contributors": "push"})
+        changes = expected.get_difference_from(current)
+
+        assert changes["team_permissions"] == Change(current.team_permissions, desired_permissions)
+
+        provider = pretend.stub(
+            delete_team_permission=AsyncMock(),
+            update_team_permission=AsyncMock(),
+            add_team_permission=AsyncMock(),
+        )
+        patch = LivePatch.of_changes(expected, current, changes, None, False, expected.apply_live_patch)
+        await Repository._apply_team_permission_changes(provider, "test-org", expected.name, patch)
+
+        provider.delete_team_permission.assert_has_awaits(
+            [call("test-org", expected.name, team) for team in deleted_teams], any_order=True
+        )
+        assert provider.delete_team_permission.await_count == len(deleted_teams)
+        provider.update_team_permission.assert_not_awaited()
+        provider.add_team_permission.assert_not_awaited()
+
+    def test_unset_team_permissions_remain_unmanaged(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        current.set_team_permissions({"contributors": "push"})
+
+        assert "team_permissions" not in expected.get_difference_from(current)
+
+    def test_team_permission_removal_is_visible_in_plan(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.set_team_permissions({"committers": "push"})
+        current.set_team_permissions({"committers": "push", "contributors": "push"})
+        changes = expected.get_difference_from(current)
+        output = StringIO()
+        operation = PlanOperation(True, "*", False, False, False, "")
+        operation.init(pretend.stub(), IndentingPrinter(output, output_for_github=True))
+
+        changed_settings = operation.handle_modified_object("test-org", changes, False, current, expected)
+
+        assert changed_settings == 1
+        assert "team_permissions" in output.getvalue()
+        assert any(line.strip().startswith("- contributors") for line in output.getvalue().splitlines())
 
     @pytest.mark.parametrize(
         "gh_pages_source_path, gh_pages_source_branch, expected_changes",

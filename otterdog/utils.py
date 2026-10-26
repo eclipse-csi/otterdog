@@ -111,6 +111,10 @@ def is_different_ignoring_order(value: Any, other_value: Any) -> bool:
     if isinstance(value, list) and isinstance(other_value, list):
         return sorted(value) != sorted(other_value)
     elif isinstance(value, dict) and isinstance(other_value, dict):
+        # Compare keys first so removals are detected even when only one side has entries.
+        if value.keys() != other_value.keys():
+            return True
+
         for key, item_value in value.items():
             other_item_value = other_value.get(key, None)
             if isinstance(item_value, list) and isinstance(other_item_value, list):
