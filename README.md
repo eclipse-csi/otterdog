@@ -117,6 +117,8 @@ However, when named `otterdog.jsonnet` or `otterdog.json`, the cli tool will aut
 
 ### Environment Variables
 
+The full list of environment variables read by the cli is available in the [documentation](https://otterdog.readthedocs.io/en/latest/operating_otterdog/setup/#environment-variables).
+
 #### OTTERDOG_CONFIG_ROOT
 
 The `OTTERDOG_CONFIG_ROOT` environment variable allows you to specify a custom root directory for Otterdog configuration files and organization data. E.g: https://github.com/EclipseFdn/otterdog-configs
@@ -134,6 +136,19 @@ export OTTERDOG_CONFIG_ROOT=/path/to/config
 # Run otterdog commands - will automatically use the specified directory
 otterdog fetch-config eclipse-csi
 otterdog apply eclipse-csi
+```
+
+#### OTTERDOG_WEB_TIMEOUT
+
+The `OTTERDOG_WEB_TIMEOUT` environment variable sets the timeout in milliseconds (default: `10000`) used by the
+web client when loading GitHub pages and waiting for elements. Increase it on slow connections if you get errors like
+`Page.goto: Timeout 10000ms exceeded`.
+
+**Usage:**
+
+```bash
+export OTTERDOG_WEB_TIMEOUT=60000
+otterdog fetch-config eclipse-csi
 ```
 ### Credentials
 

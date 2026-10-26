@@ -291,3 +291,18 @@ Hint: You can combine this provider with GitHub Actions secrets to securely stor
     OTTER_TOTP_SEED: ${{ secrets.OTTER_TOTP_SEED }}
     OTTER_API_TOKEN: ${{ secrets.OTTER_API_TOKEN }}
 ```
+
+### Environment variables
+
+The cli of otterdog reads the following environment variables:
+
+| Variable               | Description                                                                                                                                                                                       |
+|------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `OTTERDOG_CONFIG_ROOT` | directory in which otterdog looks for `otterdog.jsonnet` or `otterdog.json` when no file is given with `--config`, and base directory of the `config_dir`; defaults to the current directory |
+| `OTTERDOG_WEB_TIMEOUT` | timeout in milliseconds to load a page of the GitHub web interface or to wait for one of its elements, defaults to `10000`; increase it on a slow connection                                   |
+| `VAULT_ADDR`           | address of the Vault when `vault_addr` is not set, see [HashiCorp Vault](#hashicorp-vault)                                                                                                       |
+| `VAULT_TOKEN`          | token to access the Vault when `vault_token` is not set, see [HashiCorp Vault](#hashicorp-vault)                                                                                                 |
+| `VAULT_USERNAME`       | username used to log in to the Vault interactively, asked for if not set                                                                                                                         |
+
+The names of the environment variables that contain the credentials of an organization are defined in the
+configuration, see [Environment based credentials](#environment-based-credentials).

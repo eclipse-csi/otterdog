@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from asyncio import gather, sleep, to_thread
 from contextlib import asynccontextmanager
@@ -31,8 +32,8 @@ _logger = logging.get_logger(__name__)
 
 
 class WebClient:
-    # use 10s as default timeout
-    _DEFAULT_TIMEOUT = 10000
+    # use 10s as default timeout, can be overridden via env variable OTTERDOG_WEB_TIMEOUT (in ms)
+    _DEFAULT_TIMEOUT = int(os.environ.get("OTTERDOG_WEB_TIMEOUT", "10000"))
     _REPO_DEFAULTS_PAGE_URL = "/settings/repository-defaults"
     _REPO_DEFAULTS_404_RETRIES = 5
     _REPO_DEFAULTS_404_RETRY_DELAY = 1
