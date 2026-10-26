@@ -77,19 +77,19 @@ Per organization
 ```
 
 Every HTTP request that is actually sent counts as one request, including every page of a paginated result,
-every retried attempt and every followed redirect. Retries, errors and cached responses are subsets of the requests,
+every retried attempt, every followed redirect and every request resent by the HTTP client on a new connection. Retries, errors and cached responses are subsets of the requests,
 the quota cost is measured apart:
 
 | Column     | Description                                                                                          |
 |------------|------------------------------------------------------------------------------------------------------|
 | Retries    | requests that repeat a failed attempt                                                                |
-| Errors     | requests that failed with an HTTP status >= 400, a network error or a timeout; for GraphQL also responses reporting errors in their body |
+| Errors     | requests that failed with an HTTP status >= 400, or a network error or timeout once sent; for GraphQL also responses reporting errors in their body |
 | Cached     | requests answered with `304 Not Modified` or served by a caching proxy                               |
 | Quota cost | points deducted from the GitHub rate limits, see [Quota cost and rate limits](#quota-cost-and-rate-limits) |
 
 A response that is served from the local cache without contacting GitHub is not a request. Neither is an attempt
-that fails before being sent, e.g. as it timed out or was interrupted while waiting for a free connection of the
-connection pool: such attempts are listed apart as `Not sent`. Many `404` errors are expected, as some settings are
+that fails before being sent, e.g. as no connection to GitHub could be established, or as it timed out or was
+interrupted while waiting for a free connection of the connection pool: such attempts are listed apart as `Not sent`. Many `404` errors are expected, as some settings are
 only available depending on the plan of an organization.
 
 Page loads of the GitHub web interface, used for settings that are not available via the api, are listed as

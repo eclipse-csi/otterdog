@@ -475,10 +475,10 @@ async def test_redirect_waiting_for_a_connection_is_not_sent():
     def params(**kwargs):
         return pretend.stub(method="GET", url=url, **kwargs)
 
-    # emits the trace events of aiohttp for a redirect, whose target times out waiting for a connection
+    # emits the trace events of aiohttp for a redirect, whose target times out before being sent
     with collect_api_usage(usage):
         await recorder._on_request_start(None, context, params())
-        await recorder._on_connection_obtained(None, context, params())
+        await recorder._on_request_sent(None, context, params())
         await recorder._on_request_response(None, context, params(response=pretend.stub(status=302, headers={})))
         await recorder._on_request_exception(None, context, params(exception=TimeoutError()))
 

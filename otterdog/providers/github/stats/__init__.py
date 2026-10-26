@@ -41,10 +41,9 @@ if TYPE_CHECKING:
         ClientResponse,
         ClientSession,
         TraceConfig,
-        TraceConnectionCreateStartParams,
-        TraceConnectionReuseconnParams,
         TraceRequestEndParams,
         TraceRequestExceptionParams,
+        TraceRequestHeadersSentParams,
         TraceRequestRedirectParams,
         TraceRequestStartParams,
     )
@@ -338,9 +337,8 @@ class RequestRecorder:
 
         trace_config = TraceConfig()
         trace_config.on_request_start.append(self._on_request_start)
-        # an attempt is only sent once it has left the queue of the connection pool
-        trace_config.on_connection_create_start.append(self._on_connection_obtained)
-        trace_config.on_connection_reuseconn.append(self._on_connection_obtained)
+        # an attempt is only a request once it has been transmitted, see _on_request_sent
+        trace_config.on_request_headers_sent.append(self._on_request_sent)
         trace_config.on_request_redirect.append(self._on_request_response)
         trace_config.on_request_end.append(self._on_request_response)
         trace_config.on_request_exception.append(self._on_request_exception)
@@ -441,19 +439,35 @@ class RequestRecorder:
                 )
             )
 
-            # the next request of a redirect has to obtain a connection on its own to be sent
-            context.left_queue = False
+            # the next request of a redirect is only sent once it has been transmitted on its own
+            context.sent = False
         except Exception:
             _logger.debug("failed to record request statistics", exc_info=True)
 
-    async def _on_connection_obtained(  # NOSONAR - aiohttp requires coroutines as trace callbacks
+    async def _on_request_sent(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
         session: ClientSession,
         context: SimpleNamespace,
-        params: TraceConnectionCreateStartParams | TraceConnectionReuseconnParams,
+        params: TraceRequestHeadersSentParams,
     ) -> None:
-        # the attempt has left the queue of the connection pool, it creates or reuses a connection
-        context.left_queue = True
+        try:
+            if getattr(context, "sent", False):
+                # aiohttp resends a request on a new connection once a persistent connection has been closed,
+                # the previous transmission failed without any response then
+                self.record(
+                    RequestOutcome(
+                        self._endpoint(context, params),
+                        retry=self._is_retry(context),
+                        error="network",
+                        unpriced=self._cost_in_body,
+                    )
+                )
+                context.retry = True
+
+            # the headers of the request have been transmitted to GitHub
+            context.sent = True
+        except Exception:
+            _logger.debug("failed to record request statistics", exc_info=True)
 
     async def _on_request_exception(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
@@ -464,9 +478,9 @@ class RequestRecorder:
         try:
             error, interrupted = _classify_failure(params.exception)
 
-            # an attempt that failed while waiting for a connection, e.g. as all connections of the pool
-            # are in use, has never been sent
-            if not getattr(context, "left_queue", False):
+            # an attempt that failed before being transmitted, e.g. while waiting for a free connection of
+            # the pool or while connecting to GitHub, is no request
+            if not getattr(context, "sent", False):
                 self._record_unsent_attempt(error if error is not None else "interrupted")
                 return
 
@@ -490,7 +504,10 @@ class RequestRecorder:
     @staticmethod
     def _endpoint(
         context: SimpleNamespace,
-        params: TraceRequestEndParams | TraceRequestRedirectParams | TraceRequestExceptionParams,
+        params: TraceRequestEndParams
+        | TraceRequestRedirectParams
+        | TraceRequestExceptionParams
+        | TraceRequestHeadersSentParams,
     ) -> str:
         # redirects keep the endpoint of the original request
         endpoint = getattr(context, "endpoint", None)

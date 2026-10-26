@@ -18,7 +18,7 @@ from collections import Counter
 
 import pytest
 import pytest_asyncio
-from aiohttp import ClientPayloadError, web
+from aiohttp import ClientError, ClientPayloadError, web
 from aiohttp.test_utils import TestServer
 
 from otterdog.providers.github.auth import token_auth
@@ -57,6 +57,7 @@ class _GitHubStub:
         self.app.router.add_get("/orgs/acme/slow", self.slow)
         self.app.router.add_get("/orgs/acme/truncated", self.truncated)
         self.app.router.add_get("/orgs/acme/slow-body", self.slow_body)
+        self.app.router.add_get("/orgs/acme/disconnect", self.disconnect)
         self.app.router.add_get("/meta", self.meta)
         self.app.router.add_get("/repos/acme/website/zipball/main", self.zipball)
         self.app.router.add_get("/download/website.zip", self.download)
@@ -122,6 +123,13 @@ class _GitHubStub:
         await asyncio.sleep(60)
         return response
 
+    async def disconnect(self, request: web.Request) -> web.Response:
+        # the request has been received, but the connection is closed without any response
+        self._hit(request)
+        if request.transport is not None:
+            request.transport.close()
+        return web.Response()
+
     async def meta(self, request: web.Request) -> web.Response:
         self._hit(request)
         await asyncio.sleep(0.01)
@@ -152,6 +160,11 @@ class _GitHubStub:
             return web.json_response(
                 {"data": {"deleteBranchProtectionRule": {"clientMutationId": None}}}, headers=headers
             )
+        elif "branchProtectionRules(first: 100" in query:
+            # the request has been received, but the connection is closed without any response
+            if request.transport is not None:
+                request.transport.close()
+            return web.Response()
         elif "teams(first: 100" in query:
             # the body of the response is cut off once its headers have been sent
             response = web.StreamResponse(headers={**headers, "Content-Length": "100"})
@@ -233,7 +246,7 @@ async def test_every_attempt_is_a_request(github, requester):
     assert usage.rest.quota_cost == {"core": 3}
 
 
-async def test_network_errors_are_requests():
+async def test_connection_failures_are_not_sent():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -247,13 +260,27 @@ async def test_network_errors_are_requests():
     finally:
         await requester.close()
 
-    assert usage.rest.total_requests == 3
-    assert usage.rest.retried_requests == 2
-    assert usage.rest.errors == {"network": 3}
-    assert len(usage.rest.quota_cost) == 0
+    # no request could be transmitted, as no connection could be established
+    assert usage.rest.total_requests == 0
+    assert usage.rest.error_count == 0
+    assert usage.rest.unsent_attempts == {"network": 3}
 
 
-async def test_graphql_network_errors_are_unpriced():
+async def test_network_errors_after_being_sent_are_requests(github, requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage), pytest.raises(ClientError):
+        await requester.request_raw("GET", "/orgs/acme/disconnect")
+
+    # aiohttp resends a GET request once a persistent connection has been closed, in each of the 3 attempts
+    assert github.hits["/orgs/acme/disconnect"] == 6
+    assert usage.rest.total_requests == 6
+    assert usage.rest.retried_requests == 5
+    assert usage.rest.errors == {"network": 6}
+    assert len(usage.rest.unsent_attempts) == 0
+
+
+async def test_graphql_connection_failures_are_not_sent():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -264,6 +291,21 @@ async def test_graphql_network_errors_are_unpriced():
     try:
         with collect_api_usage(usage), pytest.raises(OSError):
             await client.get_team_membership("acme", "octocat")
+    finally:
+        await client.close()
+
+    assert usage.graphql.total_requests == 0
+    assert usage.graphql.unpriced_requests == 0
+    assert usage.graphql.unsent_attempts == {"network": 3}
+
+
+async def test_graphql_network_errors_after_being_sent_are_unpriced(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage), pytest.raises(ClientError):
+            await client.get_branch_protection_rule_id("acme", "website", "main")
     finally:
         await client.close()
 
