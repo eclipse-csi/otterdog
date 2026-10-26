@@ -136,7 +136,7 @@ class _GitHubStub:
         self._hit(request)
         return web.Response(body=b"zip-content")
 
-    async def graphql(self, request: web.Request) -> web.Response:
+    async def graphql(self, request: web.Request) -> web.StreamResponse:
         self._hit(request)
         query = (await request.json())["query"]
         headers = {**_RATE_LIMIT_HEADERS, "x-ratelimit-resource": "graphql"}
@@ -152,6 +152,14 @@ class _GitHubStub:
             return web.json_response(
                 {"data": {"deleteBranchProtectionRule": {"clientMutationId": None}}}, headers=headers
             )
+        elif "teams(first: 100" in query:
+            # the body of the response is cut off once its headers have been sent
+            response = web.StreamResponse(headers={**headers, "Content-Length": "100"})
+            await response.prepare(request)
+            await response.write(b"{")
+            if request.transport is not None:
+                request.transport.close()
+            return response
         elif "pullRequests(first" in query:
             # keeps every connection of the client busy, its pool is limited to 10 connections
             if self.hits[request.path] >= 10:
@@ -243,6 +251,41 @@ async def test_network_errors_are_requests():
     assert usage.rest.retried_requests == 2
     assert usage.rest.errors == {"network": 3}
     assert len(usage.rest.quota_cost) == 0
+
+
+async def test_graphql_network_errors_are_unpriced():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(f"http://127.0.0.1:{port}"))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage), pytest.raises(OSError):
+            await client.get_team_membership("acme", "octocat")
+    finally:
+        await client.close()
+
+    assert usage.graphql.total_requests == 3
+    assert usage.graphql.errors == {"network": 3}
+    # the cost of a request is unknown, once it has been sent without receiving a response
+    assert usage.graphql.unpriced_requests == 3
+
+
+async def test_graphql_failure_while_reading_body_is_unpriced(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage), pytest.raises(ClientPayloadError):
+            await client.get_team_permissions("acme")
+    finally:
+        await client.close()
+
+    assert usage.graphql.total_requests == 1
+    assert usage.graphql.errors == {"network": 1}
+    assert usage.graphql.unpriced_requests == 1
 
 
 async def test_error_status_is_recorded(requester):
@@ -520,3 +563,18 @@ async def test_statistics_do_not_leak_secrets(requester):
     assert "secret-branch" not in serialized
     assert "acme" not in serialized
     assert "GET /orgs/{org}/missing" in serialized
+
+
+async def test_unreadable_graphql_body_is_unpriced():
+    client = GraphQLClient(token_auth(_TOKEN))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage):
+            client._record_response("query get-team-membership", "<html>bad gateway</html>", cached=False)
+            # a response served from the cache of a proxy costs nothing
+            client._record_response("query get-team-membership", "<html>bad gateway</html>", cached=True)
+    finally:
+        await client.close()
+
+    assert usage.graphql.unpriced_requests == 1

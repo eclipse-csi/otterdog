@@ -451,7 +451,7 @@ class GraphQLClient:
             trace_request_ctx={"endpoint": endpoint},
             **kwargs,
         ) as response:
-            with self._recorder.recording_body_failures(response.status):
+            with self._recorder.recording_body_failures(response):
                 text = await response.text()
 
             status = response.status
@@ -477,9 +477,12 @@ class GraphQLClient:
         try:
             json_data = json.loads(body)
         except ValueError:
-            return
+            json_data = None
 
         if not isinstance(json_data, dict):
+            # a body that can not be read does not report the cost either
+            if not cached:
+                self._recorder.record_unpriced_request()
             return
 
         if not cached:

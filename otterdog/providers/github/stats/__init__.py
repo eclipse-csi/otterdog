@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from aiohttp import (
+        ClientResponse,
         ClientSession,
         TraceConfig,
         TraceConnectionCreateStartParams,
@@ -147,12 +148,15 @@ class RequestStatistics:
         """Records an error carried by the body of a response that did not fail by its status."""
         self.errors[error] += 1
 
-    def record_failure(self, error: str | None, interrupted: bool) -> None:
+    def record_failure(self, error: str | None, interrupted: bool, unpriced: bool = False) -> None:
         """Records the failure of a request that has been recorded as successful, e.g. while reading its body."""
         if interrupted:
             self.interrupted_requests += 1
         elif error is not None:
             self.errors[error] += 1
+
+        if unpriced:
+            self.unpriced_requests += 1
 
     def record_unpriced_request(self) -> None:
         self.unpriced_requests += 1
@@ -363,7 +367,7 @@ class RequestRecorder:
             statistics.add_quota_cost(resource, cost, endpoint)
 
     @contextlib.contextmanager
-    def recording_body_failures(self, status: int) -> Iterator[None]:
+    def recording_body_failures(self, response: ClientResponse) -> Iterator[None]:
         """
         Records a failure while reading the body of a response, as its request has already been
         recorded once its headers were received.
@@ -375,10 +379,12 @@ class RequestRecorder:
             raise
         except BaseException as ex:
             # a failed status has already been recorded as error
-            if status < 400:
+            if response.status < 400:
                 error, interrupted = _classify_failure(ex)
+                # the cost would have been reported by the body, a response served by a proxy costs nothing
+                unpriced = self._cost_in_body and not is_proxy_cached(response.headers)
                 for statistics in self._targets():
-                    statistics.record_failure(error, interrupted)
+                    statistics.record_failure(error, interrupted, unpriced)
             raise
 
     def _targets(self) -> Iterator[RequestStatistics]:
@@ -434,6 +440,9 @@ class RequestRecorder:
                     rate_limit=rate_limit,
                 )
             )
+
+            # the next request of a redirect has to obtain a connection on its own to be sent
+            context.left_queue = False
         except Exception:
             _logger.debug("failed to record request statistics", exc_info=True)
 
@@ -467,6 +476,8 @@ class RequestRecorder:
                     retry=self._is_retry(context),
                     error=error,
                     interrupted=interrupted,
+                    # the cost of a request that has been sent is unknown, if reported by its body only
+                    unpriced=self._cost_in_body,
                 )
             )
         except Exception:
@@ -499,12 +510,16 @@ class RequestRecorder:
         if remaining is None or resource is None:
             return None
 
-        return RateLimit(
-            resource,
-            int(headers.get("x-ratelimit-limit", -1)),
-            int(remaining),
-            int(headers.get("x-ratelimit-reset", 0)),
-        )
+        try:
+            return RateLimit(
+                resource,
+                int(headers.get("x-ratelimit-limit", -1)),
+                int(remaining),
+                int(headers.get("x-ratelimit-reset", 0)),
+            )
+        except ValueError:
+            # a malformed header must not prevent recording the request itself
+            return None
 
 
 # collections whose next path segment identifies one of their items, e.g. /environments/{name}

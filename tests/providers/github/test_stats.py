@@ -8,10 +8,13 @@
 
 import asyncio
 import json
+from types import SimpleNamespace
 
+import pretend
 import pytest
 from importlib_resources import files
 from rich.console import Console
+from yarl import URL
 
 from otterdog import resources
 from otterdog.providers.github.stats import (
@@ -461,3 +464,39 @@ def test_every_graphql_query_reports_its_cost():
         content = query.read_text()
         assert "rateLimit {" in content, f"query '{query.name}' does not ask for its rateLimit"
         assert "cost" in content, f"query '{query.name}' does not report its cost"
+
+
+async def test_redirect_waiting_for_a_connection_is_not_sent():
+    recorder = RequestRecorder("rest", RequestStatistics(), charge_responses=True)
+    usage = ApiUsage()
+    url = URL("https://api.github.com/repos/acme/website/zipball/main")
+    context = SimpleNamespace(trace_request_ctx={"current_attempt": 1})
+
+    def params(**kwargs):
+        return pretend.stub(method="GET", url=url, **kwargs)
+
+    # emits the trace events of aiohttp for a redirect, whose target times out waiting for a connection
+    with collect_api_usage(usage):
+        await recorder._on_request_start(None, context, params())
+        await recorder._on_connection_obtained(None, context, params())
+        await recorder._on_request_response(None, context, params(response=pretend.stub(status=302, headers={})))
+        await recorder._on_request_exception(None, context, params(exception=TimeoutError()))
+
+    assert usage.rest.total_requests == 1
+    assert usage.rest.error_count == 0
+    assert usage.rest.unsent_attempts == {"timeout": 1}
+
+
+async def test_malformed_rate_limit_does_not_prevent_recording_the_request():
+    recorder = RequestRecorder("rest", RequestStatistics(), charge_responses=True, default_resource="core")
+    usage = ApiUsage()
+    url = URL("https://api.github.com/orgs/acme")
+    context = SimpleNamespace(trace_request_ctx={"current_attempt": 1})
+    response = pretend.stub(status=200, headers={"x-ratelimit-remaining": "n/a"})
+
+    with collect_api_usage(usage):
+        await recorder._on_request_start(None, context, pretend.stub(method="GET", url=url))
+        await recorder._on_request_response(None, context, pretend.stub(method="GET", url=url, response=response))
+
+    assert usage.rest.total_requests == 1
+    assert len(usage.rest.rate_limits) == 0

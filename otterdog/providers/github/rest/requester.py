@@ -84,7 +84,7 @@ class Requester:
         save_response = backend.save_response
 
         async def recording_save_response(response: ClientResponse, *args: Any, **kwargs: Any) -> None:
-            with self._recorder.recording_body_failures(response.status):
+            with self._recorder.recording_body_failures(response):
                 await save_response(response, *args, **kwargs)
 
         backend.save_response = recording_save_response  # type: ignore[method-assign]
@@ -196,7 +196,7 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            with self._recorder.recording_body_failures(response.status):
+            with self._recorder.recording_body_failures(response):
                 text = await response.text()
 
             status = response.status
@@ -241,7 +241,7 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            with self._recorder.recording_body_failures(response.status):
+            with self._recorder.recording_body_failures(response):
                 async for chunk, _ in response.content.iter_chunks():
                     yield chunk
 
