@@ -19,15 +19,20 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, async_playwright
 
 from otterdog import logging
+from otterdog.providers.github.stats import RequestOutcome, RequestRecorder, RequestStatistics
 from otterdog.utils import unwrap
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Any
 
+    from playwright.async_api import Browser, BrowserContext, Request, Response
+
     from otterdog.credentials import Credentials
 
 _logger = logging.get_logger(__name__)
+
+_PAGE_LOAD_ENDPOINT = "page load"
 
 
 class WebClient:
@@ -39,6 +44,13 @@ class WebClient:
 
     def __init__(self, credentials: Credentials):
         self.credentials = credentials
+
+        self._statistics = RequestStatistics()
+        self._recorder = RequestRecorder("web", self._statistics)
+
+    @property
+    def statistics(self) -> RequestStatistics:
+        return self._statistics
 
     @cached_property
     def web_settings_definition(self) -> dict[str, Any]:
@@ -69,13 +81,11 @@ class WebClient:
 
             context = await browser.new_context()
 
-            login_page = await context.new_page()
-            login_page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            login_page = await self._new_page(context)
             await self._login_if_required(login_page)
 
             async def process_page(page_url, page_def) -> dict[str, Any]:
-                page = await context.new_page()
-                page.set_default_timeout(self._DEFAULT_TIMEOUT)
+                page = await self._new_page(context)
                 return await self._retrieve_settings(org_id, page_url, page_def, included_keys, page)
 
             tasks = [process_page(page_url, page_def) for page_url, page_def in self._get_pages(included_keys)]
@@ -177,8 +187,7 @@ class WebClient:
                     "'otterdog install-deps'"
                 ).with_traceback(tb) from None
 
-            page = await browser.new_page()
-            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            page = await self._new_page(browser)
 
             await self._login_if_required(page)
             await self._update_settings(org_id, data, page)
@@ -266,8 +275,7 @@ class WebClient:
 
             context = await browser.new_context(no_viewport=True)
 
-            page = await context.new_page()
-            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            page = await self._new_page(context)
 
             # ensure that dialogs pop up
             page.on("dialog", lambda x: None)
@@ -298,8 +306,7 @@ class WebClient:
 
             context = await browser.new_context(no_viewport=True)
 
-            page = await context.new_page()
-            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            page = await self._new_page(context)
 
             await self._login_if_required(page)
 
@@ -331,8 +338,7 @@ class WebClient:
 
             context = await browser.new_context(no_viewport=True)
 
-            page = await context.new_page()
-            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            page = await self._new_page(context)
 
             await self._login_if_required(page)
 
@@ -371,8 +377,7 @@ class WebClient:
 
             context = await browser.new_context(no_viewport=True)
 
-            page = await context.new_page()
-            page.set_default_timeout(self._DEFAULT_TIMEOUT)
+            page = await self._new_page(context)
 
             await self._login_if_required(page)
 
@@ -544,6 +549,31 @@ class WebClient:
 
             _logger.log(log_level, f"saved page html to file '{html_file}' and screenshot to file '{screenshot_file}'")
 
+    async def _new_page(self, target: Browser | BrowserContext) -> Page:
+        page = await target.new_page()
+        page.set_default_timeout(self._DEFAULT_TIMEOUT)
+
+        # only page loads are of interest for the statistics, not the scripts or images they include
+        page.on("response", self._record_page_load)
+        page.on("requestfailed", self._record_failed_page_load)
+
+        return page
+
+    def _record_page_load(self, response: Response) -> None:
+        if response.request.is_navigation_request():
+            status = response.status
+            self._recorder.record(
+                RequestOutcome(
+                    _PAGE_LOAD_ENDPOINT,
+                    error=str(status) if status >= 400 else None,
+                    cached=status == 304,
+                )
+            )
+
+    def _record_failed_page_load(self, request: Request) -> None:
+        if request.is_navigation_request():
+            self._recorder.record(RequestOutcome(_PAGE_LOAD_ENDPOINT, error="network"))
+
     async def _goto(self, page: Page, url: str) -> None:
         """
         Load the given page url and check if it is loaded correctly.
@@ -553,6 +583,9 @@ class WebClient:
         max_retries = self._REPO_DEFAULTS_404_RETRIES
         max_attempts = max_retries + 1
         for retry_idx in range(max_attempts):
+            if retry_idx > 0:
+                self._recorder.record_retry()
+
             _logger.trace("loading page '%s'", url)
             response = await page.goto(url)
             response = unwrap(response)

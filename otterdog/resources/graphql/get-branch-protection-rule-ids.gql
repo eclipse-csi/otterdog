@@ -1,4 +1,9 @@
 query($endCursor: String, $organization: String!, $repository: String!) {
+  rateLimit {
+    cost
+    remaining
+    resetAt
+  }
   repository(owner: $organization, name: $repository) {
     branchProtectionRules(first: 100, after: $endCursor) {
       nodes {

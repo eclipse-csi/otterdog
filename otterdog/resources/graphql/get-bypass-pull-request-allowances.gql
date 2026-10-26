@@ -1,4 +1,9 @@
 query($endCursor: String, $branchProtectionRuleId: ID!) {
+  rateLimit {
+    cost
+    remaining
+    resetAt
+  }
   node(id: $branchProtectionRuleId) {
     ... on BranchProtectionRule {
       id

@@ -1,5 +1,6 @@
 query($endCursor: String, $owner: String!, $repo: String!, $baseRef: String!) {
   rateLimit {
+    cost
     remaining
     resetAt
   }

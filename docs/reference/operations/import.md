@@ -8,6 +8,8 @@ them locally in a file `<github-id>/<github-id>.jsonnet` in the organization spe
   -f, --force        skips interactive approvals
   -n, --no-web-ui    skip settings retrieved via web ui
 
+  --stats            print the GitHub API usage statistics to stderr at the end  [env var: OTTERDOG_STATS]
+  --stats-file FILE  write the GitHub API usage statistics as JSON to the given file  [env var: OTTERDOG_STATS_FILE]
   --local            work in local mode, not updating the referenced default config
 
   -v, --verbose      enable verbose output (-vvv for more verbose output)

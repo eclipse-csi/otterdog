@@ -9,6 +9,7 @@
 import asyncio
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +17,18 @@ import click
 from click.shell_completion import CompletionItem
 
 from otterdog.cache import set_github_cache
-from otterdog.logging import CONSOLE_STDOUT, init_logging, print_error, print_exception
+from otterdog.logging import (
+    CONSOLE_STDERR,
+    CONSOLE_STDOUT,
+    get_logger,
+    init_logging,
+    is_info_enabled,
+    print_error,
+    print_exception,
+)
 from otterdog.providers.github.cache.file import file_cache
+from otterdog.providers.github.stats import collect_api_usage
+from otterdog.providers.github.stats.report import ApiUsageReport
 
 from . import __version__
 from .config import OtterdogConfig
@@ -27,7 +38,18 @@ from .utils import IndentingPrinter, unwrap
 _CONFIG_FILES = ["otterdog.jsonnet", "otterdog.json"]
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "max_content_width": 120}
 
+_logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class _StatsOptions:
+    show: bool = False
+    file: str | None = None
+    command: str | None = None
+
+
 _CONFIG: OtterdogConfig | None = None
+_STATS = _StatsOptions()
 
 
 def load_otterdog_config(config_file_param: str | None, local_mode: bool) -> OtterdogConfig:
@@ -97,13 +119,38 @@ class StdCommand(click.Command):
             ),
         )
 
+        self.params.insert(
+            0,
+            click.Option(
+                ["--stats-file"],
+                type=click.Path(dir_okay=False),
+                envvar="OTTERDOG_STATS_FILE",
+                show_envvar=True,
+                help="write the GitHub API usage statistics as JSON to the given file",
+            ),
+        )
+
+        self.params.insert(
+            0,
+            click.Option(
+                ["--stats"],
+                is_flag=True,
+                default=False,
+                envvar="OTTERDOG_STATS",
+                show_envvar=True,
+                help="print the GitHub API usage statistics to stderr at the end",
+            ),
+        )
+
         self.params.insert(0, click.Argument(["organizations"], nargs=-1, shell_complete=complete_organizations))
 
     def invoke(self, ctx: click.Context) -> Any:
-        global _CONFIG
+        global _CONFIG, _STATS
 
         verbose = ctx.params.pop("verbose")
         init_logging(verbose)
+
+        _STATS = _StatsOptions(ctx.params.pop("stats"), ctx.params.pop("stats_file"), ctx.info_name)
 
         config_file = ctx.params.pop("config")
         local_mode = ctx.params.pop("local")
@@ -971,34 +1018,68 @@ def install_deps():
 
 def _execute_operation(organizations: list[str], operation: Operation):
     printer = IndentingPrinter(CONSOLE_STDOUT)
+    usage_report = ApiUsageReport(_STATS.command)
+    outcome = "failed"
+    exit_code = 0
 
     try:
-        exit_code = 0
-        config = unwrap(_CONFIG)
+        with collect_api_usage(usage_report.total):
+            config = unwrap(_CONFIG)
 
-        set_github_cache(file_cache())
+            set_github_cache(file_cache())
 
-        operation.init(config, printer)
-        operation.pre_execute()
+            operation.init(config, printer)
+            operation.pre_execute()
 
-        # if no organization has been specified as argument,
-        # process all organizations found in the configuration.
-        if len(organizations) == 0:
-            organizations = config.organization_names
+            # if no organization has been specified as argument,
+            # process all organizations found in the configuration.
+            if len(organizations) == 0:
+                organizations = config.organization_names
 
-        total_num_orgs = len(organizations)
-        current_org_number = 1
-        for organization in organizations:
-            org_config = config.get_organization_config(organization)
-            exit_code = max(exit_code, asyncio.run(operation.execute(org_config, current_org_number, total_num_orgs)))
-            current_org_number += 1
+            total_num_orgs = len(organizations)
+            current_org_number = 1
+            for organization in organizations:
+                org_config = config.get_organization_config(organization)
+                org_usage = usage_report.organization(org_config.github_id)
 
-        operation.post_execute()
-        sys.exit(exit_code)
+                with collect_api_usage(org_usage):
+                    exit_code = max(
+                        exit_code, asyncio.run(operation.execute(org_config, current_org_number, total_num_orgs))
+                    )
+
+                _logger.info("github api usage for organization '%s': %s", org_config.github_id, org_usage.summary())
+                current_org_number += 1
+
+            operation.post_execute()
+            outcome = "completed"
+
+    except KeyboardInterrupt:
+        print_error("operation interrupted")
+        outcome = "interrupted"
+        exit_code = 130
 
     except Exception as exc:
         print_exception(exc)
-        sys.exit(2)
+        exit_code = 2
+
+    finally:
+        _report_api_usage(usage_report, outcome)
+
+    sys.exit(exit_code)
+
+
+def _report_api_usage(usage_report: ApiUsageReport, outcome: str) -> None:
+    usage_report.finish(outcome)
+
+    # statistics go to stderr to keep any structured output on stdout intact
+    if _STATS.show:
+        usage_report.print(CONSOLE_STDERR, detailed=is_info_enabled())
+
+    if _STATS.file is not None:
+        try:
+            usage_report.write_json(_STATS.file)
+        except OSError as exc:
+            print_error(f"failed to write github api usage statistics to '{_STATS.file}': {exc}", CONSOLE_STDERR)
 
 
 if __name__ == "__main__":

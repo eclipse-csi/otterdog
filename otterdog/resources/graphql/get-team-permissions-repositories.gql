@@ -1,4 +1,9 @@
 query ($org: String!, $endCursor: String) {
+  rateLimit {
+    cost
+    remaining
+    resetAt
+  }
   organization(login: $org) {
     teams(first: 100, after: $endCursor) {
       nodes {

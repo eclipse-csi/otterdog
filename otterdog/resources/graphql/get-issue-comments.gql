@@ -1,4 +1,9 @@
 query($endCursor: String, $owner: String!, $repo: String!, $number: Int!) {
+  rateLimit {
+    cost
+    remaining
+    resetAt
+  }
   repository(name: $repo, owner: $owner) {
     pullRequest(number: $number) {
       comments(first: 100 after: $endCursor) {

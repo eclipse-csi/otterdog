@@ -22,7 +22,7 @@ from otterdog.providers.github.exception import (
     GitHubException,
     InsufficientPermissionsException,
 )
-from otterdog.providers.github.stats import RequestStatistics
+from otterdog.providers.github.stats import RequestRecorder, RequestStatistics
 from otterdog.utils import get_logger
 
 _logger = get_logger(__name__)
@@ -45,11 +45,13 @@ class Requester:
         }
 
         self._statistics = RequestStatistics()
+        # every response that is not cached costs one point of the core rate limit, unless stated otherwise
+        recorder = RequestRecorder("rest", self._statistics, charge_responses=True, default_resource="core")
         self._cache_strategy = cache_strategy
 
         if self._cache_strategy.is_external():
             self._base_url = cache_strategy.replace_base_url(f"https://{base_url}")
-            self._session = ClientSession()
+            self._session = ClientSession(trace_configs=[recorder.trace_config()])
         else:
             self._base_url = f"https://{base_url}"
             self._session = AsyncCachedSession(
@@ -58,6 +60,7 @@ class Requester:
                 connector=TCPConnector(
                     limit=30,
                 ),
+                trace_configs=[recorder.trace_config()],
             )
 
         self._client = RetryClient(
@@ -175,8 +178,6 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            self._statistics.sent_request()
-
             text = await response.text()
             status = response.status
             links = response.links
@@ -184,13 +185,6 @@ class Requester:
             next_url = next_link.get("url", None) if next_link is not None else None
 
             self._check_permissions(url_path, status, text, response.headers)
-
-            if (hasattr(response, "from_cache") and response.from_cache) or response.headers.get(
-                "X-From-Cache", 0
-            ) == "1":
-                self._statistics.received_cached_response()
-            else:
-                self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 
             return (
                 status,
