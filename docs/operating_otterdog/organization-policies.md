@@ -79,8 +79,9 @@ them from otterdog with regular expressions that are matched against the team sl
 ```
 
 Excluded teams are not imported, and defining them in the configuration of an organization is reported as error,
-unless they are defined by the default configuration. Their permissions on repositories are still compared with
-`team_permissions`, see [Teams and access](../userguide/guides/teams-and-access.md#grant-teams-access-to-repositories).
+unless they are defined by the default configuration. Their permissions on repositories are ignored as well, unless
+a repository lists the team in `team_permissions`, see
+[Teams and access](../userguide/guides/teams-and-access.md#grant-teams-access-to-repositories).
 
 The repository that holds the configuration of each organization is set with `config_repo` in the same `github`
 section, `.otterdog` by default. It is used by the `fetch-config` and `push-config` operations.

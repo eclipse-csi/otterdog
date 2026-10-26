@@ -771,6 +771,7 @@ class GitHubOrganization:
                     concurrency,
                     repo_filter,
                     expected_org,
+                    exclude_teams,
                 ):
                     org.add_repository(repo)
             else:
@@ -814,6 +815,7 @@ async def _process_single_repo(
     repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
     expected_org: GitHubOrganization | None = None,
+    exclude_teams: Pattern | None = None,
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
@@ -838,7 +840,19 @@ async def _process_single_repo(
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
     if repo_permissions is not None:
         repo_permission = repo_permissions.get(repo_name, [])
-        repo.set_team_permissions({entry["name"]: entry["permission"] for entry in repo_permission})
+        # permissions of excluded teams are managed outside otterdog, unless the repo explicitly declares them
+        declared_teams = (
+            set(expected_repo.team_permissions)
+            if expected_repo is not None and is_set_and_present(expected_repo.team_permissions)
+            else set()
+        )
+        repo.set_team_permissions(
+            {
+                entry["name"]: entry["permission"]
+                for entry in repo_permission
+                if exclude_teams is None or not exclude_teams.match(entry["name"]) or entry["name"] in declared_teams
+            }
+        )
     else:
         repo.unset_team_permissions()
 
@@ -969,6 +983,7 @@ async def _load_repos_from_provider(
     concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
+    exclude_teams: Pattern | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 
@@ -999,6 +1014,7 @@ async def _load_repos_from_provider(
                 repo_permissions,
                 app_installations,
                 expected_org,
+                exclude_teams,
             )
 
     if concurrency is not None:
