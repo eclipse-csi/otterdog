@@ -116,6 +116,43 @@ from otterdog.providers.github.stats.report import ApiUsageReport
         ),
         ("GET", "/repos/acme/website/commits/fix/status", "GET /repos/{owner}/{repo}/commits/{name}"),
         ("GET", "/repos/acme/website/commits/abc123/pulls", "GET /repos/{owner}/{repo}/commits/{name}/pulls"),
+        # names of environments may contain slashes, sent as is or encoded
+        (
+            "PUT",
+            "/repos/acme/website/environments/preview/private-project",
+            "PUT /repos/{owner}/{repo}/environments/{name}",
+        ),
+        ("GET", "/repos/acme/website/environments/preview%2Fprivate", "GET /repos/{owner}/{repo}/environments/{name}"),
+        (
+            "PUT",
+            "/repos/acme/website/environments/preview/private/secrets/TOKEN",
+            "PUT /repos/{owner}/{repo}/environments/{name}/secrets/{name}",
+        ),
+        (
+            "GET",
+            "/repos/acme/website/environments/preview/private/secrets/public-key",
+            "GET /repos/{owner}/{repo}/environments/{name}/secrets/public-key",
+        ),
+        (
+            "GET",
+            "/repos/acme/website/environments/preview/private/variables",
+            "GET /repos/{owner}/{repo}/environments/{name}/variables",
+        ),
+        (
+            "DELETE",
+            "/repos/acme/website/environments/preview/private/deployment-branch-policies/12",
+            "DELETE /repos/{owner}/{repo}/environments/{name}/deployment-branch-policies/{id}",
+        ),
+        # literal segments only follow their own collection
+        (
+            "PUT",
+            "/repos/acme/website/environments/teams/secrets/PRIVATE_TOKEN",
+            "PUT /repos/{owner}/{repo}/environments/{name}/secrets/{name}",
+        ),
+        ("GET", "/orgs/acme/teams/teams/members", "GET /orgs/{org}/teams/{name}/members"),
+        ("GET", "/orgs/acme/teams/public-key/members", "GET /orgs/{org}/teams/{name}/members"),
+        ("PUT", "/orgs/acme/teams/developers/memberships/teams", "PUT /orgs/{org}/teams/{name}/memberships/{name}"),
+        ("GET", "/orgs/acme/actions/secrets/defaults", "GET /orgs/{org}/actions/secrets/{name}"),
         ("GET", "/repos/acme/website/contents/docs/index.md", "GET /repos/{owner}/{repo}/contents/{path}"),
         ("GET", "/repos/acme/website/zipball/main", "GET /repos/{owner}/{repo}/zipball/{ref}"),
         ("GET", "/repos/acme/website/git/refs/heads/feature/x", "GET /repos/{owner}/{repo}/git/refs/{ref}"),

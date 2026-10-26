@@ -377,7 +377,7 @@ class RequestRecorder:
     ) -> None:
         try:
             request_context = context.trace_request_ctx if isinstance(context.trace_request_ctx, dict) else {}
-            context.endpoint = request_context.get("endpoint") or rest_endpoint(params.method, params.url.path)
+            context.endpoint = request_context.get("endpoint") or rest_endpoint(params.method, params.url.raw_path)
             # attempts are counted by aiohttp_retry starting with 1
             context.retry = request_context.get("current_attempt", 1) > 1
         except Exception:
@@ -438,7 +438,7 @@ class RequestRecorder:
     ) -> str:
         # redirects keep the endpoint of the original request
         endpoint = getattr(context, "endpoint", None)
-        return endpoint if endpoint is not None else rest_endpoint(params.method, params.url.path)
+        return endpoint if endpoint is not None else rest_endpoint(params.method, params.url.raw_path)
 
     @staticmethod
     def _is_retry(context: SimpleNamespace) -> bool:
@@ -472,7 +472,6 @@ _ITEM_COLLECTIONS = frozenset(
         "comments",
         "configurations",
         "deployment-branch-policies",
-        "environments",
         "hooks",
         "installations",
         "invitations",
@@ -496,8 +495,12 @@ _ITEM_COLLECTIONS = frozenset(
     }
 )
 
-# literal segments that may directly follow an item collection, e.g. /secrets/public-key
-_COLLECTION_LITERALS = frozenset({"defaults", "public-key", "teams"})
+# literal segments that may directly follow an item collection instead of an item, e.g. /secrets/public-key
+_COLLECTION_LITERALS = {
+    "configurations": frozenset({"defaults"}),
+    "organization-roles": frozenset({"teams"}),
+    "secrets": frozenset({"public-key"}),
+}
 
 _ID_PLACEHOLDER = "{id}"
 _NAME_PLACEHOLDER = "{name}"
@@ -517,12 +520,26 @@ _PATH_COLLECTIONS = {
     "zipball": _REF_PLACEHOLDER,
 }
 
-# collections whose items may contain slashes, with the routes that may follow an item and their
-# method, e.g. POST /branches/feature/x/rename. A route only follows an item if the remaining path
-# matches it completely, any other path is replaced together with the item.
-_SLASHED_ITEM_ROUTES: dict[str, dict[tuple[str, ...], str]] = {
-    "branches": {("rename",): "POST"},
-    "commits": {("pulls",): "GET", ("statuses",): "GET"},
+# a segment of a route that matches any item, e.g. the name of a secret
+_ANY_SEGMENT = "*"
+
+_GET = frozenset({"GET"})
+
+# collections whose items may contain slashes, with the routes used by otterdog that may follow an
+# item and their methods, e.g. POST /branches/feature/x/rename. A route only follows an item if the
+# remaining path matches it completely, any other path is replaced together with the item.
+_SLASHED_ITEM_ROUTES: dict[str, dict[tuple[str, ...], frozenset[str]]] = {
+    "branches": {("rename",): frozenset({"POST"})},
+    "commits": {("pulls",): _GET, ("statuses",): _GET},
+    "environments": {
+        ("deployment-branch-policies",): frozenset({"GET", "POST"}),
+        ("deployment-branch-policies", _ANY_SEGMENT): frozenset({"DELETE"}),
+        ("secrets",): _GET,
+        ("secrets", "public-key"): _GET,
+        ("secrets", _ANY_SEGMENT): frozenset({"PUT", "DELETE"}),
+        ("variables",): frozenset({"GET", "POST"}),
+        ("variables", _ANY_SEGMENT): frozenset({"PATCH", "DELETE"}),
+    },
 }
 
 
@@ -532,7 +549,8 @@ def rest_endpoint(method: str, path: str) -> str:
     identifies a resource replaced by a placeholder.
 
     Requests to the same endpoint for different organizations, repositories or other resources
-    are thus accounted together, and no names or ids end up in the statistics.
+    are thus accounted together, and no names or ids end up in the statistics. The path is
+    expected as sent, so that an encoded slash remains part of its segment.
     """
 
     method = method.upper()
@@ -578,19 +596,32 @@ def _item_placeholders(method: str, segment: str, following_segments: list[str])
         return placeholders, len(placeholders)
 
     item = following_segments[0]
-    if segment in _ITEM_COLLECTIONS and item not in _COLLECTION_LITERALS:
+    if segment in _ITEM_COLLECTIONS and item not in _COLLECTION_LITERALS.get(segment, frozenset()):
         return [_ID_PLACEHOLDER if item.isdigit() else _NAME_PLACEHOLDER], 1
 
     return [], 0
 
 
-def _slashed_item_length(method: str, following_segments: list[str], routes: dict[tuple[str, ...], str]) -> int:
+def _slashed_item_length(
+    method: str,
+    following_segments: list[str],
+    routes: dict[tuple[str, ...], frozenset[str]],
+) -> int:
     """
     Returns the number of segments of an item that may contain slashes: all of them, unless the
     path following one segment at least is a route used with the given method.
     """
     for length in range(1, len(following_segments)):
-        if routes.get(tuple(following_segments[length:])) == method:
+        if _is_route(method, following_segments[length:], routes):
             return length
 
     return len(following_segments)
+
+
+def _is_route(method: str, segments: list[str], routes: dict[tuple[str, ...], frozenset[str]]) -> bool:
+    return any(
+        method in methods
+        and len(route) == len(segments)
+        and all(expected in (_ANY_SEGMENT, actual) for expected, actual in zip(route, segments, strict=True))
+        for route, methods in routes.items()
+    )

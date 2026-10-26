@@ -442,6 +442,15 @@ async def test_graphql_response_cached_by_proxy_costs_nothing(github):
     assert usage.graphql.unpriced_requests == 0
 
 
+async def test_encoded_slash_remains_part_of_a_name(requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage):
+        await requester.request_raw("GET", "/repos/acme/website/environments/preview%2Fprivate-project")
+
+    assert list(usage.rest.endpoints) == ["GET /repos/{owner}/{repo}/environments/{name}"]
+
+
 async def test_statistics_do_not_leak_secrets(requester):
     report = ApiUsageReport("plan")
 
