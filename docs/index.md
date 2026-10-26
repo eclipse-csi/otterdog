@@ -5,7 +5,8 @@ scale using an infrastructure as code approach. It is actively developed by the
 
 The infrastructure configuration for enabled GitHub organizations is hosted in a separate repository of the
 organization itself and contributors can suggest changes to the configuration via pull requests. Changes to the
-configuration need to be approved by the configured teams and applied manually using the `otterdog` command line tool.
+configuration need to be approved by the configured teams and are then applied, either automatically once the pull
+request is merged or manually using the `otterdog` command line tool, see [Workflow for Changes](userguide/workflow.md).
 
 !!! note
 

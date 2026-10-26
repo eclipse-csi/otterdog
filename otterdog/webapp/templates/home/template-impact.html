@@ -1,0 +1,133 @@
+{% extends "layouts/base.html" %}
+
+{% block title %} Template impact {% endblock %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ asset('css/playground.css') }}">
+{% endblock stylesheets %}
+
+{% block content %}
+
+  <!-- Content Wrapper. Contains page content -->
+  <div class="app-main">
+    <!-- Content Header (Page header) -->
+    <section class="app-content-header">
+      <div class="container-fluid">
+        <div class="row mb-2">
+          <div class="col-sm-6">
+            <h1>Template impact</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+              <li class="breadcrumb-item"><a href="/index">Home</a></li>
+              <li class="breadcrumb-item active">Template impact</li>
+            </ol>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+
+    <!-- Main content -->
+    <section class="app-content">
+      <div class="container-fluid">
+        <p class="text-secondary">
+          Edit the default configuration of this instance,
+          <a href="{{ default_configuration.url }}" target="_blank" rel="noopener"><i class="fab fa-github"></i>
+            {{ default_configuration.label }}</a>, then evaluate the configurations of its projects with it: the changes
+          of their configurations are grouped by property, and the projects whose configuration changes are listed with
+          their changes. The configurations are evaluated in your browser, the edited files are not saved.
+        </p>
+        <div class="playground-panes">
+          <div class="card card-primary card-outline card-outline-tabs playground-pane">
+            {# the file imported by the organizations first, then the ones it imports #}
+            {% set template_files = jsonnet_files|selectattr('filename', 'equalto', default_config)|list
+                                    + jsonnet_files|rejectattr('filename', 'equalto', default_config)|list %}
+            <div class="card-header p-0 border-bottom-0">
+              <ul class="nav nav-tabs" role="tablist" aria-label="Files of the default configuration">
+                {% for jsonnet_file in template_files %}
+                <li class="nav-item" role="presentation">
+                  <button type="button" class="nav-link{% if loop.first %} active{% endif %}" id="template-file-tab-{{ loop.index }}"
+                          data-bs-toggle="tab" data-bs-target="#template-file-{{ loop.index }}" role="tab"
+                          aria-controls="template-file-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                    {{ jsonnet_file.filename.split('/')|last }}
+                    <span class="playground-document-modified d-none" title="Edited">●</span>
+                  </button>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="tab-content">
+              {% for jsonnet_file in template_files %}
+              <div class="tab-pane playground-pane-body{% if loop.first %} active{% endif %}" id="template-file-{{ loop.index }}"
+                   role="tabpanel" aria-labelledby="template-file-tab-{{ loop.index }}" data-file="{{ jsonnet_file.filename }}">
+                <div class="d-flex flex-wrap align-items-center column-gap-3 px-2 py-1 border-bottom small text-secondary">
+                  <code class="text-truncate mw-100" title="Path to import the file">{{ jsonnet_file.filename }}</code>
+                  <a href="#" class="text-nowrap d-none playground-file-restore" title="Discard the changes of this file">
+                    <i class="fas fa-rotate-left fa-xs" aria-hidden="true"></i> Restore</a>
+                  {% if jsonnet_file.url %}
+                  <a href="{{ jsonnet_file.url }}" target="_blank" rel="noopener" class="ms-auto text-nowrap"
+                     title="Open the file on GitHub"><i class="fab fa-github"></i> GitHub</a>
+                  {% endif %}
+                </div>
+                <div class="playground-code"></div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="card card-primary card-outline playground-pane">
+            <div class="card-header">
+              <h3 class="card-title">
+                Impact on the projects
+                <span class="badge text-bg-secondary d-none" id="playground-impact-count"></span>
+              </h3>
+            </div>
+            <div class="playground-pane-body">
+              <div class="playground-changes p-2">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  {# a disabled button gets no mouse events, its wrapper tells why it is disabled #}
+                  <span class="d-inline-block" id="playground-impact-hint"
+                        data-bs-title="Edit a file of the default configuration to see the impact of its changes on the projects">
+                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" id="playground-impact-run" disabled
+                            aria-describedby="playground-impact-why">
+                      <i class="fas fa-play fa-xs" aria-hidden="true"></i> Evaluate the projects
+                    </button>
+                  </span>
+                  <span class="visually-hidden" id="playground-impact-why">
+                    Edit a file of the default configuration to see the impact of its changes on the projects
+                  </span>
+                  <div class="d-flex align-items-center gap-2 flex-grow-1 d-none" id="playground-impact-progress">
+                    <progress class="flex-grow-1" max="1" value="0" aria-label="Projects evaluated"></progress>
+                    <span class="small text-secondary text-nowrap"></span>
+                  </div>
+                </div>
+                <div id="playground-impact" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+    </section>
+    <!-- /.content -->
+  </div>
+
+{% endblock content %}
+
+{% block javascripts %}
+  {{ super() }}
+
+  {% set impact_data = {
+    'defaultConfig': default_config,
+    'templateFiles': jsonnet_files,
+    'configurationsUrl': url_for('.template_impact_configurations'),
+  } %}
+  <script type="application/json" id="template-impact-data">{{ impact_data|tojson }}</script>
+  <!-- rendered after the scripts of the layout, as it depends on bootstrap -->
+  <script type="module">
+    import {createTemplateImpact} from '{{ asset('js/template-impact.js') }}';
+
+    createTemplateImpact(JSON.parse(document.getElementById('template-impact-data').textContent));
+  </script>
+{% endblock javascripts %}

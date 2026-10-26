@@ -68,6 +68,10 @@ class ConfigurationModel(Model):
     project_name: str | None = Field(unique=True, index=True)
     config: dict
     sha: str
+    # jsonnet source of the configuration, loaded by the playground of the project
+    jsonnet: str | None = None
+    # default branch of the configuration repository, the playground of the project proposes changes to it
+    branch: str | None = None
 
 
 class PullRequestStatus(StrEnum):

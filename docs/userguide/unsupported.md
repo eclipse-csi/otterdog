@@ -2,14 +2,19 @@ Not all features or settings of a GitHub organization and its associated resourc
 by the means of `otterdog`. The following non-exhaustive list outlines settings that are currently not supported:
 
 - setting the profile picture of an organization or a social media preview for a repository [#119](https://github.com/eclipse-csi/otterdog/issues/119)
-- manage items that should be visible on the main page, i.e. releases, packages, deployments
+- manage release entries, packages, or deployments that should be visible on the main page
 - manage default repository labels on organization level
-- secrets and variables for codespaces and dependabot
+- secrets and variables for codespaces, dependabot and Copilot agents
 - managing GitHub apps or oauth policies
 - managing pinned repositories for an organization
-- supporting merge queue settings for a branch protection rule [#86](https://github.com/eclipse-csi/otterdog/issues/86)
+- managing individual collaborators of repositories, use teams and `team_permissions` instead
+- supporting merge queue settings for a branch protection rule [#86](https://github.com/eclipse-csi/otterdog/issues/86), use the `required_merge_queue` setting of a [ruleset](../reference/organization/repository/ruleset.md) instead
+- ruleset rules other than those listed in [Rulesets or branch protection rules](guides/rulesets-vs-branch-protection.md#otterdog-specifics), e.g. metadata, file path or file size restrictions, code scanning or Copilot code review rules
+- targeting the repositories of an organization ruleset by custom properties
+- deploy keys as bypass actors of a ruleset
+- requiring actions to be pinned to a full-length commit SHA in the GitHub Actions settings
 - transfer a repo from one organization to another organization
-- (deprecated) ~~tag protections~~ [#143](https://github.com/eclipse-csi/otterdog/issues/143), use rulesets instead
+- (deprecated) ~~tag protections~~ [#143](https://github.com/eclipse-csi/otterdog/issues/143), use rulesets instead, see [Protecting tags and releases](guides/tag-protection.md)
 
 Most of the unsupported settings are only accessible via the Web UI of GitHub.
 In case you would like to have a specific feature of GitHub being supported by `otterdog`,

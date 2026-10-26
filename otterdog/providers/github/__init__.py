@@ -474,12 +474,8 @@ class GitHubProvider:
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         return await self.rest_api.repo.dispatch_workflow(org_id, repo_name, workflow_name)
 
-    async def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[str]:
-        repo_ids = []
-        for repo_name in repo_names:
-            repo_data = await self.rest_api.repo.get_simple_repo_data(org_id, repo_name)
-            repo_ids.append(repo_data["id"])
-        return repo_ids
+    async def get_repo_ids(self, org_id: str, repo_names: list[str]) -> list[int]:
+        return await self.rest_api.repo.get_repo_ids(org_id, repo_names)
 
     async def get_actor_node_ids(self, actor_names: list[str]) -> list[str]:
         return [x[1][1] for x in await self.get_actor_ids_with_type(actor_names)]

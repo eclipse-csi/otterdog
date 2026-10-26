@@ -13,8 +13,10 @@ import pretend
 import pytest
 
 from otterdog.models.repository import LivePatch, Repository
+
 from otterdog.operations.plan import PlanOperation
-from otterdog.utils import UNSET, Change, IndentingPrinter, query_json
+from otterdog.utils import UNSET, Change, IndentingPrinter, jsonnet_evaluate_snippet, query_json
+from tests.models import _EXAMPLE_CONFIG
 
 
 class TestRepository:
@@ -42,6 +44,7 @@ class TestRepository:
         assert repo.archived is False
         assert repo.allow_forking is True
         assert repo.web_commit_signoff_required is False
+        assert repo.immutable_releases_enabled is True
         assert repo.secret_scanning == "enabled"
         assert repo.secret_scanning_push_protection is UNSET
         assert repo.dependabot_alerts_enabled is True
@@ -76,6 +79,7 @@ class TestRepository:
         assert repo.archived is False
         assert repo.allow_forking is True
         assert repo.web_commit_signoff_required is False
+        assert repo.immutable_releases_enabled is True
         assert repo.secret_scanning == "enabled"
         assert repo.secret_scanning_push_protection == "disabled"
         assert repo.dependabot_alerts_enabled is True
@@ -87,9 +91,10 @@ class TestRepository:
 
         provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
 
-        assert len(provider_data) == 23
+        assert len(provider_data) == 24
         assert provider_data["name"] == "otterdog-defaults"
         assert provider_data.get("description") is None
+        assert provider_data["immutable_releases_enabled"] is True
 
         assert (query_json("security_and_analysis.secret_scanning.status", provider_data) or "") == "enabled"
 
@@ -135,6 +140,43 @@ class TestRepository:
         assert len(diff) == 2
         assert diff["name"] == Change(other.name, current.name)
         assert diff["has_wiki"] == Change(other.has_wiki, current.has_wiki)
+
+    def test_private_repository_creation_is_cost_related(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.private = True
+
+        patch = LivePatch.of_addition(repo, None, pretend.stub())
+
+        assert patch.is_cost_related()
+
+    def test_public_repository_creation_is_not_cost_related(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+
+        patch = LivePatch.of_addition(repo, None, pretend.stub())
+
+        assert not patch.is_cost_related()
+
+    def test_public_to_private_conversion_is_cost_related(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.private = True
+
+        changes = expected.get_difference_from(current)
+        patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
+
+        assert patch.is_cost_related()
+
+    @pytest.mark.parametrize("private", [False, True])
+    def test_unrelated_repository_change_is_not_cost_related(self, repository_test, private):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.private = current.private = private
+        expected.has_issues = False
+
+        changes = expected.get_difference_from(current)
+        patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
+
+        assert not patch.is_cost_related()
 
     @pytest.mark.parametrize(
         ("desired_permissions", "deleted_teams"),
@@ -422,3 +464,258 @@ class TestRepository:
         ]
         assert len(failures) == 1
         assert "members_can_create_private_pages' is disabled" in failures[0][1]
+
+    @pytest.mark.parametrize(
+        "enforced_repositories,selected_repositories,aliases,expected",
+        [
+            ("all", [], [], True),
+            ("none", ["otterdog-defaults"], [], False),
+            ("selected", ["otterdog-defaults"], [], True),
+            ("selected", ["Otterdog-Defaults"], [], True),
+            ("selected", ["old-name"], ["old-name"], True),
+            ("selected", ["other-repo"], [], False),
+        ],
+    )
+    def test_org_enforces_immutable_releases(
+        self, repository_test, enforced_repositories, selected_repositories, aliases, expected
+    ):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.aliases = aliases
+
+        org_settings = pretend.stub(
+            immutable_releases_enforced_repositories=enforced_repositories,
+            immutable_releases_selected_repositories=selected_repositories,
+        )
+
+        assert repo._org_enforces_immutable_releases(org_settings) is expected
+
+    @staticmethod
+    def _generate_immutable_releases_change(
+        repository_test, current_enforced, expected_enforced, current_enabled, expected_enabled
+    ):
+        from otterdog.models import LivePatchContext
+        from otterdog.models.organization_settings import OrganizationSettings
+
+        org_settings_data = repository_test.load_json_resource("otterdog-org-settings.json")
+        current_org_settings = OrganizationSettings.from_model_data(org_settings_data)
+        current_org_settings.immutable_releases_enforced_repositories = current_enforced
+        expected_org_settings = OrganizationSettings.from_model_data(org_settings_data)
+        expected_org_settings.immutable_releases_enforced_repositories = expected_enforced
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.immutable_releases_enabled = current_enabled
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.immutable_releases_enabled = expected_enabled
+
+        context = LivePatchContext("test-org", "", False, False, "*", current_org_settings, expected_org_settings)
+        patches = []
+        Repository.generate_live_patch(expected, current, None, context, patches.append)
+
+        changes = [
+            patch.changes["immutable_releases_enabled"]
+            for patch in patches
+            if isinstance(patch.expected_object, Repository) and "immutable_releases_enabled" in patch.changes
+        ]
+        return changes[0] if len(changes) > 0 else None
+
+    @pytest.mark.parametrize("expected_enabled", [True, False])
+    def test_live_patch_applies_immutable_releases_when_org_stops_enforcing(self, repository_test, expected_enabled):
+        # while enforced by the organization, immutable releases are reported as enabled for the repository,
+        # the configured value needs to be applied even if equal, to be kept once the enforcement is removed.
+        change = self._generate_immutable_releases_change(repository_test, "all", "none", True, expected_enabled)
+
+        assert change == Change(True, expected_enabled)
+
+    def test_live_patch_ignores_immutable_releases_while_org_enforces(self, repository_test):
+        change = self._generate_immutable_releases_change(repository_test, "all", "all", True, False)
+
+        assert change is None
+
+    def test_live_patch_ignores_immutable_releases_when_not_retrieved(self, repository_test):
+        change = self._generate_immutable_releases_change(repository_test, "all", "none", UNSET, True)
+
+        assert change is None
+
+    def test_load_gh_pages_custom_domain_from_provider(self, repository_test):
+        provider_data = repository_test.provider_data
+        provider_data["gh_pages"] = {
+            "build_type": "workflow",
+            "cname": "docs.example.org",
+            "https_enforced": False,
+            "public": True,
+        }
+
+        repo = Repository.from_provider_data(repository_test.org_id, provider_data)
+
+        assert repo.gh_pages_build_type == "workflow"
+        assert repo.gh_pages_cname == "docs.example.org"
+        assert repo.gh_pages_https_enforced is False
+
+    async def test_gh_pages_custom_domain_to_provider(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = "docs.example.org"
+        repo.gh_pages_https_enforced = True
+
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+        assert "gh_pages_cname" not in provider_data
+        assert "gh_pages_https_enforced" not in provider_data
+        assert provider_data["gh_pages"] == {
+            "build_type": "legacy",
+            "source": {"branch": "gh-pages", "path": "/"},
+            "cname": "docs.example.org",
+            "https_enforced": True,
+        }
+
+    async def test_gh_pages_https_enforced_ignored_for_default_domain(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = None
+        repo.gh_pages_https_enforced = False
+
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+        assert provider_data["gh_pages"]["cname"] is None
+        assert "https_enforced" not in provider_data["gh_pages"]
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_cname = None
+        current.gh_pages_https_enforced = True
+
+        assert repo.get_difference_from(current) == {}
+
+    def test_gh_pages_custom_domain_ignored_when_disabled(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.gh_pages_build_type = "disabled"
+        expected.gh_pages_cname = None
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_build_type = "disabled"
+        current.gh_pages_cname = "docs.example.org"
+
+        assert expected.get_difference_from(current) == {}
+
+    @pytest.mark.parametrize(
+        "current_cname, expected_cname, expected_changes",
+        [
+            (
+                None,
+                "docs.example.org",
+                {
+                    "gh_pages_cname": Change(None, "docs.example.org"),
+                    "gh_pages_https_enforced": Change(True, True),
+                },
+            ),
+            (
+                "docs.example.org",
+                None,
+                {
+                    "gh_pages_cname": Change("docs.example.org", None),
+                },
+            ),
+        ],
+    )
+    def test__include_gh_pages_patch_required_properties_custom_domain(
+        self,
+        repository_test,
+        current_cname,
+        expected_cname,
+        expected_changes,
+    ):
+        expected = Repository.from_model_data(repository_test.model_data)
+        expected.gh_pages_cname = expected_cname
+        expected.gh_pages_https_enforced = True
+
+        current = Repository.from_model_data(repository_test.model_data)
+        current.gh_pages_cname = current_cname
+        current.gh_pages_https_enforced = True
+
+        test_livepatch = LivePatch(
+            patch_type=3,
+            expected_object=expected,
+            current_object=current,
+            changes=expected.get_difference_from(current),
+            parent_object=None,
+            forced_update=False,
+            fn=pretend.stub(),
+            changes_object_to_readonly=False,
+        )
+        expected._include_gh_pages_patch_required_properties(test_livepatch)
+
+        assert test_livepatch.changes == expected_changes
+
+    @pytest.mark.parametrize(
+        "cname, error",
+        [
+            ("docs.example.org", None),
+            ("Example.ORG", None),
+            ("my-project.eclipse.dev", None),
+            ("example", "not a valid domain name"),
+            ("https://docs.example.org", "not a valid domain name"),
+            ("docs.example.org/path", "not a valid domain name"),
+            ("-docs.example.org", "not a valid domain name"),
+            ("eclipse-csi.github.io", "can not be a 'github.io' domain"),
+        ],
+    )
+    def test_gh_pages_cname_validation(self, repository_test, cname, error):
+        from otterdog.credentials.inmemory_provider import InMemoryVault
+        from otterdog.models import FailureType, ValidationContext
+
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.gh_pages_cname = cname
+
+        context = ValidationContext(
+            root_object=None,
+            secret_resolver=InMemoryVault(),
+            template_dir="",
+            org_members=set(),
+            default_team_names=set(),
+            exclude_teams_pattern=None,
+        )
+        org = pretend.stub(
+            github_id="test-org",
+            settings=pretend.stub(
+                plan="free",
+                members_can_fork_private_repositories=True,
+                members_can_create_private_pages=False,
+                web_commit_signoff_required=False,
+                has_discussions=False,
+                has_organization_projects=True,
+            ),
+        )
+
+        repo.validate(context, org)
+
+        failures = [f for f in context.validation_failures if f[0] == FailureType.ERROR and "gh_pages_cname" in f[1]]
+        if error is None:
+            assert failures == []
+        else:
+            assert len(failures) == 1
+            assert error in failures[0][1]
+
+    @pytest.mark.parametrize(
+        "cname, https_enforced, expected_patch",
+        [
+            (None, True, {}),
+            (None, False, {}),
+            ("csi.eclipse.dev", True, {"gh_pages_cname": "csi.eclipse.dev"}),
+            (
+                "csi.eclipse.dev",
+                False,
+                {"gh_pages_cname": "csi.eclipse.dev", "gh_pages_https_enforced": False},
+            ),
+        ],
+    )
+    def test_gh_pages_custom_domain_patch_to_example_config(
+        self, repository_test, cname, https_enforced, expected_patch
+    ):
+        # the patch to the default config is what gets rendered when importing a configuration
+        snippet = f"(import '{_EXAMPLE_CONFIG}').{repository_test.template_function}('default')"
+        default = Repository.from_model_data(jsonnet_evaluate_snippet(snippet))
+        current = Repository.from_model_data(jsonnet_evaluate_snippet(snippet))
+        current.gh_pages_build_type = "workflow"
+        current.gh_pages_cname = cname
+        current.gh_pages_https_enforced = https_enforced
+
+        patch = current.get_patch_to(default)
+
+        assert {k: v for k, v in patch.items() if k in Repository._gh_pages_domain_properties} == expected_patch

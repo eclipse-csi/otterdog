@@ -48,6 +48,9 @@ local newRepo(name) = {
 
   web_commit_signoff_required: true,
 
+  # ignored when the organization enforces immutable releases for the repository
+  immutable_releases_enabled: false,
+
   # security analysis
   secret_scanning: "enabled",
   secret_scanning_push_protection: "enabled",
@@ -68,6 +71,10 @@ local newRepo(name) = {
   gh_pages_source_branch: null,
   gh_pages_source_path: null,
   gh_pages_visibility: "public",
+  # custom domain of the GitHub Pages site, null to use the default github.io domain
+  gh_pages_cname: null,
+  # only taken into account when a custom domain is set
+  gh_pages_https_enforced: true,
 
   # Custom Properties
   custom_properties: {},
@@ -279,7 +286,7 @@ local newEnvironment(name) = {
   wait_timer: 0,
   reviewers: [],
   prevent_self_review: false,
-  # Can be one of: all, protected_branches, branch_policies
+  # Can be one of: all, protected, selected
   deployment_branch_policy: "all",
   branch_policies: [],
   secrets: [],
@@ -353,6 +360,12 @@ local newOrg(name, id=name) = {
 
     # Disable default code security configurations
     default_code_security_configurations_disabled: true,
+
+    # Repositories that must use immutable releases.
+    # Can be one of: all, none, selected
+    immutable_releases_enforced_repositories: "none",
+    # Only taken into account when 'immutable_releases_enforced_repositories' is set to 'selected'
+    immutable_releases_selected_repositories: [],
 
     ## Admin repository permissions
 

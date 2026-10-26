@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
 from otterdog.models import (
+    CostPolicy,
     FailureType,
     LivePatch,
     LivePatchContext,
@@ -86,6 +87,7 @@ class Repository(ModelObject):
     archived: bool
     allow_forking: bool
     web_commit_signoff_required: bool
+    immutable_releases_enabled: bool
     secret_scanning: str
     secret_scanning_push_protection: str
     dependabot_alerts_enabled: bool
@@ -100,6 +102,8 @@ class Repository(ModelObject):
     gh_pages_source_branch: str | None
     gh_pages_source_path: str | None
     gh_pages_visibility: str
+    gh_pages_cname: str | None
+    gh_pages_https_enforced: bool
 
     custom_properties: dict[str, str | list[str]] | None
 
@@ -166,6 +170,13 @@ class Repository(ModelObject):
         "gh_pages_source_branch",
         "gh_pages_source_path",
         "gh_pages_visibility",
+        "gh_pages_cname",
+        "gh_pages_https_enforced",
+    ]
+
+    _gh_pages_domain_properties: ClassVar[list[str]] = [
+        "gh_pages_cname",
+        "gh_pages_https_enforced",
     ]
 
     _gh_pages_legacy_properties: ClassVar[list[str]] = [
@@ -207,6 +218,17 @@ class Repository(ModelObject):
     @property
     def model_object_name(self) -> str:
         return "repository"
+
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
+        """Private repositories can incur costs when they are created."""
+        return self.private is True or super().is_cost_related(cost_policy)
+
+    def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
+        """Mark a change from public to private as potentially cost-increasing."""
+        private_change = changes.get("private")
+        return (
+            private_change is not None and private_change.from_value is False and private_change.to_value is True
+        ) or super().changes_are_cost_related(changes)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -293,6 +315,9 @@ class Repository(ModelObject):
         if org_settings.plan != "enterprise":
             copy.gh_pages_visibility = UNSET  # type: ignore
 
+        if self._org_enforces_immutable_releases(org_settings):
+            copy.immutable_releases_enabled = UNSET  # type: ignore
+
         if is_set_and_present(self.custom_properties):
             for custom_property in org_settings.custom_properties:
                 current_property_value = self.custom_properties.get(custom_property.name, None)
@@ -314,6 +339,19 @@ class Repository(ModelObject):
             copy.has_discussions = True
 
         return copy
+
+    def _org_enforces_immutable_releases(self, org_settings: OrganizationSettings) -> bool:
+        if org_settings.immutable_releases_enforced_repositories == "all":
+            return True
+
+        if org_settings.immutable_releases_enforced_repositories != "selected" or not is_set_and_valid(
+            org_settings.immutable_releases_selected_repositories
+        ):
+            return False
+
+        # repository names are case-insensitive on GitHub, also take aliases of a renamed repository into account
+        selected_repositories = {name.lower() for name in org_settings.immutable_releases_selected_repositories}
+        return any(name.lower() in selected_repositories for name in self.get_all_names())
 
     def requires_language_validation(self) -> bool:
         return (
@@ -367,7 +405,8 @@ class Repository(ModelObject):
                         context.add_failure(
                             FailureType.ERROR,
                             f"{self.get_model_header(parent_object)} has 'code_scanning_default_languages' "
-                            f"configured with '{configured_language}' but this language is not detected in the repository. "
+                            f"configured with '{configured_language}' but this language is not detected "
+                            f"in the repository. "
                             f"Detected languages: {', '.join(sorted(languages.keys()))}",
                         )
             except Exception as e:
@@ -464,6 +503,13 @@ class Repository(ModelObject):
                 f"the organization requires it, setting will be ignored.",
             )
 
+        if self.immutable_releases_enabled is False and self._org_enforces_immutable_releases(org_settings):
+            context.add_failure(
+                FailureType.INFO,
+                f"{self.get_model_header()} has 'immutable_releases_enabled' disabled, while "
+                f"the organization enforces immutable releases for this repository, setting will be ignored.",
+            )
+
         secret_scanning_disabled = self.secret_scanning == "disabled"
         secret_scanning_push_protection_enabled = self.secret_scanning_push_protection == "enabled"
         if secret_scanning_disabled and secret_scanning_push_protection_enabled and self.archived is False:
@@ -495,7 +541,7 @@ class Repository(ModelObject):
                         FailureType.ERROR,
                         f"invalid permission '{v}' "
                         f"for team '{k}', allowed values are "
-                        f"('read/pull' | 'triage' | 'write/push' | 'maintain' | 'admin').",
+                        f"('pull' | 'triage' | 'push' | 'maintain' | 'admin').",
                     )
 
         for webhook in self.webhooks:
@@ -598,6 +644,20 @@ class Repository(ModelObject):
                         f"{self.get_model_header(parent_object)} has 'gh_pages_visibility' set, "
                         f"but the organization setting 'members_can_create_private_pages' is disabled.",
                     )
+
+        if self.gh_pages_build_type != "disabled" and is_set_and_present(self.gh_pages_cname):
+            if not self._valid_domain_name(self.gh_pages_cname):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_cname' set to "
+                    f"value '{self.gh_pages_cname}', which is not a valid domain name.",
+                )
+            elif self.gh_pages_cname.lower().endswith(".github.io"):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'gh_pages_cname' set to "
+                    f"value '{self.gh_pages_cname}', but a custom domain can not be a 'github.io' domain.",
+                )
 
         if is_set_and_valid(self.code_scanning_default_query_suite):
             if self.code_scanning_default_query_suite not in {"default", "extended"}:
@@ -724,6 +784,15 @@ class Repository(ModelObject):
     def _valid_topic(topic, search=re.compile(r"[^a-z0-9\-]").search):
         return not bool(search(topic))
 
+    @staticmethod
+    def _valid_domain_name(
+        domain_name: str,
+        match=re.compile(
+            r"(?=.{1,253}$)([a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9\-]{0,61}[a-z0-9]", re.IGNORECASE
+        ).fullmatch,
+    ) -> bool:
+        return bool(match(domain_name))
+
     @classmethod
     def _valid_code_scanning_language(cls, language: str):
         return language in cls._valid_code_scanning_languages
@@ -744,6 +813,10 @@ class Repository(ModelObject):
         if self.gh_pages_build_type == "workflow":
             if field.name in self._gh_pages_legacy_properties:
                 return False
+
+        # HTTPS is always enforced for the default github.io domain, it can only be changed for a custom domain
+        if self.gh_pages_cname is None and field.name == "gh_pages_https_enforced":
+            return False
 
         if self.code_scanning_default_setup_enabled is False:
             if field.name in self._code_scanning_properties:
@@ -771,6 +844,9 @@ class Repository(ModelObject):
         if self.gh_pages_build_type == "workflow":
             if field.name in self._gh_pages_legacy_properties:
                 return False
+
+        if self.gh_pages_cname is None and field.name == "gh_pages_https_enforced":
+            return False
 
         if self.code_scanning_default_setup_enabled is False:
             if field.name in self._code_scanning_properties:
@@ -872,6 +948,8 @@ class Repository(ModelObject):
                         K(UNSET),
                     ),
                 ),
+                "gh_pages_cname": OptionalS("gh_pages", "cname", default=None),
+                "gh_pages_https_enforced": OptionalS("gh_pages", "https_enforced", default=UNSET),
             }
         )
 
@@ -911,6 +989,7 @@ class Repository(ModelObject):
                 "branch_protection_rules": K([]),
                 "rulesets": K([]),
                 "environments": K([]),
+                "immutable_releases_enabled": OptionalS("immutable_releases_enabled", default=UNSET),
                 "secret_scanning": OptionalS("security_and_analysis", "secret_scanning", "status", default=UNSET),
                 "secret_scanning_push_protection": OptionalS(
                     "security_and_analysis",
@@ -988,6 +1067,15 @@ class Repository(ModelObject):
             if len(gh_pages_legacy_mapping) > 0:
                 gh_pages_mapping["source"] = gh_pages_legacy_mapping
 
+        for domain_prop in cls._gh_pages_domain_properties:
+            if domain_prop in data:
+                mapping.pop(domain_prop)
+                gh_pages_mapping[domain_prop.removeprefix("gh_pages_")] = S(domain_prop)
+
+        # HTTPS enforcement can not be changed when using the default github.io domain
+        if data.get("gh_pages_cname", UNSET) is None:
+            gh_pages_mapping.pop("https_enforced", None)
+
         if len(gh_pages_mapping) > 0:
             mapping["gh_pages"] = gh_pages_mapping
 
@@ -995,6 +1083,7 @@ class Repository(ModelObject):
             "gh_pages_source_branch",
             "gh_pages_source_path",
             "gh_pages_visibility",
+            *cls._gh_pages_domain_properties,
         ]:
             if prop in mapping:
                 mapping.pop(prop)
@@ -1229,6 +1318,7 @@ class Repository(ModelObject):
         if current_object is None:
             handler(LivePatch.of_addition(coerced_object, parent_object, coerced_object.apply_live_patch))
         else:
+            raw_current_object = current_object
             if context.current_org_settings is not None:
                 current_org_settings = cast("OrganizationSettings", context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
@@ -1255,6 +1345,20 @@ class Repository(ModelObject):
                 for k in from_value:
                     if k not in to_value:
                         change.to_value[k] = None
+
+            if (
+                context.current_org_settings is not None
+                and raw_current_object._org_enforces_immutable_releases(
+                    cast("OrganizationSettings", context.current_org_settings)
+                )
+                and not expected_object._org_enforces_immutable_releases(expected_org_settings)
+                and is_set_and_valid(raw_current_object.immutable_releases_enabled)
+                and is_set_and_valid(coerced_object.immutable_releases_enabled)
+            ):
+                modified_repo["immutable_releases_enabled"] = Change(
+                    raw_current_object.immutable_releases_enabled,
+                    coerced_object.immutable_releases_enabled,
+                )
 
             if len(modified_repo) > 0:
                 if "archived" in modified_repo:
@@ -1360,6 +1464,9 @@ class Repository(ModelObject):
         """
         Ensure that the gh_pages_source_branch and gh_pages_source_path are set when
         the patch contains gh_pages change.
+
+        When the custom domain changes, GitHub has to issue a new certificate and might reset
+        the HTTPS enforcement, so the gh_pages_https_enforced setting is applied again.
         """
         if patch.changes:
             gh_pages_source_branch_present = "gh_pages_source_branch" in patch.changes
@@ -1372,6 +1479,16 @@ class Repository(ModelObject):
             if gh_pages_source_branch_present and not gh_pages_source_path_present:
                 gh_pages_source_path = cast("Repository", patch.current_object).gh_pages_source_path
                 patch.changes["gh_pages_source_path"] = Change(gh_pages_source_path, gh_pages_source_path)
+
+            if "gh_pages_cname" in patch.changes and "gh_pages_https_enforced" not in patch.changes:
+                expected_object = cast("Repository", patch.expected_object)
+                if is_set_and_present(expected_object.gh_pages_cname) and is_set_and_valid(
+                    expected_object.gh_pages_https_enforced
+                ):
+                    gh_pages_https_enforced = cast("Repository", patch.current_object).gh_pages_https_enforced
+                    patch.changes["gh_pages_https_enforced"] = Change(
+                        gh_pages_https_enforced, expected_object.gh_pages_https_enforced
+                    )
 
         return patch
 

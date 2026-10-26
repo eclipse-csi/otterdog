@@ -7,7 +7,7 @@
 
 {% block headscripts %}
   {{ super() }}
-  <script src="{{ asset('vendor/marked/marked.min.js') }}"></script>
+  <script src="{{ asset('vendor/marked/marked.umd.js') }}"></script>
 {% endblock headscripts %}
 
 <!-- Specific Page CSS goes HERE  -->
@@ -33,8 +33,14 @@
     <section class="app-content-header">
       <div class="container-fluid">
         <div class="row mb-2">
-          <div class="col-sm-6">
-            <h1>{{ project_name }}</h1>
+          <div class="col-sm-6 d-flex flex-wrap align-items-center gap-2">
+            <h1 class="mb-0 me-2">{{ project_name }}</h1>
+            <a href="/projects/{{ project_name }}/playground" class="btn btn-sm btn-primary"
+               title="Try changes to the configuration of {{ project_name }}">
+              <i class="fas fa-code" aria-hidden="true"></i> Playground</a>
+            <a href="/projects/{{ project_name }}/defaults" class="btn btn-sm btn-outline-secondary"
+               title="Default configuration of {{ project_name }}">
+              <i class="fas fa-layer-group" aria-hidden="true"></i> Defaults</a>
           </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">
@@ -99,7 +105,7 @@
                   <div class="tab-pane show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
                     <div class="container-fluid">
                       <div class="row">
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                           <div class="card card-primary">
                             <div class="card-header">
                               <h3 class="card-title">General</h3>
@@ -160,7 +166,7 @@
                             </div>
                           </div>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                           <div class="card card-{{ secret_scanning_data|from_json|first|int_status }}">
                             <div class="card-header">
                               <h3 class="card-title">Secret Scanning</h3>
@@ -170,42 +176,13 @@
                             </div>
                           </div>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-4">
                           <div class="card card-{{ branch_protection_data|from_json|first|int_status }}">
                             <div class="card-header">
                               <h3 class="card-title">Branch Protections</h3>
                             </div>
                             <div class="card-body">
                               <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="col-sm-2">
-                          <div class="card card-info">
-                            <div class="card-header">
-                              <h3 class="card-title">Help</h3>
-                            </div>
-                            <div class="card-body">
-                              <ul class="nav flex-column">
-                                <li class="nav-item">
-                                  <a href="https://otterdog.readthedocs.io/en/latest/reference/resource-format/" class="nav-link" target="_blank">
-                                    <i class="fa-solid fa-book"></i>
-                                    Reference guide
-                                  </a>
-                                </li>
-                                <li class="nav-item">
-                                  <a href="/projects/{{ project_name }}/defaults" class="nav-link">
-                                    <i class="fa-solid fa-layer-group"></i>
-                                    Defaults
-                                  </a>
-                                </li>
-                                <li class="nav-item">
-                                  <a href="/projects/{{ project_name }}/playground" class="nav-link">
-                                    <i class="fa-solid fa-gamepad"></i>
-                                    Playground
-                                  </a>
-                                </li>
-                              </ul>
                             </div>
                           </div>
                         </div>
@@ -652,6 +629,9 @@
                               {% endif %}
                               <a href="/projects/{{ project_name }}/repos/{{ repo.name }}">{{ repo.name }}</a>
                               <a href="https://github.com/{{ config.github_id }}/{{ repo.name }}" target="_blank"><i class="fa-solid fa-up-right-from-square"></i></a>
+                              <a href="/projects/{{ project_name }}/playground?repository={{ repo.name|urlencode }}"
+                                 title="Edit {{ repo.name }} in the Playground" aria-label="Edit {{ repo.name }} in the Playground">
+                                <i class="fas fa-code" aria-hidden="true"></i></a>
                             </td>
                             <td class="text-center">
                               {% if repo.archived == true %}

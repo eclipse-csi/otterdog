@@ -65,6 +65,17 @@ make test
 
 Note: Code coverage HTML is also available in `htmlcov/`
 
+The end-to-end tests of the Playground of the dashboard, in `tests/webapp/playground/`, run in Firefox with
+Playwright. They are skipped unless the assets of the webapp are built and Firefox is installed, which `make init`
+does:
+
+```bash
+(cd otterdog/webapp/static && npm ci && npm run build)
+poetry run pytest tests/webapp/playground
+```
+
+The scripts of the Playground also have unit tests, run with `npm test` in `otterdog/webapp/static`.
+
 ## Write docs
 
 Otterdog docs are built with [`mkdocs`](https://www.mkdocs.org/) and
@@ -82,6 +93,30 @@ differently, than you might be used from GitHub):
 
 ```bash
 make docs-serve
+```
+
+Complete jsonnet examples, i.e. examples that define an organization with `orgs.newOrg` without omitting content
+with `...` or using placeholders like `<github-id>`, get a link that opens them in the Playground of an otterdog
+dashboard. The link is added by the hook `docs/hooks/playground.py`, the url of the dashboard is set by the
+environment variable `OTTERDOG_URL` (`https://otterdog.eclipse.org` by default, an empty value omits the links):
+
+```bash
+OTTERDOG_URL=https://otterdog.example.org make docs-serve
+```
+
+To target the webapp of your development environment, use `make docs-serve-dev`, `make docs-serve-tunnel` or
+`make docs-serve-ngrok`, see [Test the Playground with the documentation](testing.md#optional-test-the-playground-with-the-documentation).
+
+The jsonnet examples of the [Configuration Guides](../userguide/guides/index.md) must be complete: the test
+`tests/test_docs_examples.py` validates each of them against the example default configuration.
+
+The Playground of the dashboard lists these examples from a catalog generated from the guides, and describes the
+properties that it completes from a catalog generated from the [Reference](../reference/index.md), i.e. from the
+property tables of its pages and from their "Jsonnet Function" sections. After changing an example or the reference,
+update both catalogs, otherwise `tests/test_docs_playground_hook.py` fails:
+
+```bash
+make playground-examples
 ```
 
 

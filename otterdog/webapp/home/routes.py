@@ -6,10 +6,15 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import functools
 import json
 import os.path
+import posixpath
+import re
 from collections.abc import Mapping, MutableMapping
+from importlib.resources import files
 from typing import Any
+from urllib.parse import quote
 
 from quart import (
     current_app,
@@ -22,15 +27,19 @@ from quart import (
 from quart_auth import current_user, login_required
 from werkzeug.routing import BuildError
 
+import otterdog
+from otterdog import resources
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
-from otterdog.utils import PrettyFormatter, associate_by_key
+from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
 from otterdog.webapp.db.service import (
     find_scorecard_result,
     get_active_installations,
     get_blueprints,
     get_blueprints_status,
     get_configuration_by_project_name,
+    get_configuration_sources,
     get_configurations,
     get_installation_by_github_id,
     get_installation_by_project_name,
@@ -42,9 +51,11 @@ from otterdog.webapp.db.service import (
     get_statistics,
 )
 from otterdog.webapp.tasks import get_organization_config
-from otterdog.webapp.utils import get_project_base_url, get_temporary_base_directory
+from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get_temporary_base_directory
 
 from . import blueprint
+
+_PAGE_NOT_FOUND = "home/page-404.html"
 
 
 @blueprint.route("/")
@@ -193,7 +204,7 @@ async def query():
 async def organization(org_name: str):
     installation = await get_installation_by_github_id(org_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
     else:
         return redirect(url_for(".project", project_name=installation.project_name))
 
@@ -202,7 +213,7 @@ async def organization(org_name: str):
 async def organization_catch_all_redirect(org_name: str, subpath: str):
     installation = await get_installation_by_github_id(org_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
     else:
         return redirect(url_for(".project", project_name=installation.project_name) + "/" + subpath)
 
@@ -213,7 +224,7 @@ async def project(project_name: str):
     config = await get_configuration_by_project_name(project_name)
 
     if config is None or installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     from otterdog.models.github_organization import GitHubOrganization
     from otterdog.webapp.db.service import get_policies
@@ -303,7 +314,7 @@ async def defaults(project_name: str):
 
     installation = await get_installation_by_project_name(project_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     default_elements = []
 
@@ -394,41 +405,202 @@ def _evaluate_default(jsonnet_config: JsonnetConfig, function: str) -> dict[str,
         raise RuntimeError(f"failed to evaluate snippet: {ex}") from ex
 
 
+# the example template of otterdog, which the configuration guides of the documentation are validated with,
+# it is part of the sources of otterdog but not of its package
+EXAMPLE_TEMPLATE = "example"
+_EXAMPLE_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(otterdog.__file__)), "examples", "template")
+_EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
+
+
+@blueprint.route("/playground")
+async def global_playground():
+    otterdog_config = await get_otterdog_config()
+
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return await render_template(_PAGE_NOT_FOUND), 404
+
+    # the global playground can also use the example template of otterdog instead of the one of the instance
+    example_template = await _example_template()
+    templates = None
+    if example_template is not None:
+        selected = request.args.get("template") == EXAMPLE_TEMPLATE
+        templates = [
+            {"value": "", "label": "This instance", "selected": not selected},
+            {"value": EXAMPLE_TEMPLATE, "label": "Otterdog example", "selected": selected},
+        ]
+        if selected:
+            return await _render_playground(example_template, None, templates=templates)
+
+    return await _render_playground(await _default_template(otterdog_config, base_template), None, templates=templates)
+
+
 @blueprint.route("/projects/<project_name>/playground")
 async def playground(project_name: str):
     import aiofiles
 
     installation = await get_installation_by_project_name(project_name)
     if installation is None:
-        return await render_template("home/page-404.html"), 404
-
-    jsonnet_files = []
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     base_dir = get_temporary_base_directory()
     async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
         org_config = await get_organization_config(installation, "", base_dir, work_dir)
 
-        jsonnet_config = org_config.jsonnet_config
-        await jsonnet_config.init_template()
+        # the playground starts with the current configuration of the organization, once it has been fetched
+        organization = None
+        config = await get_configuration_by_project_name(project_name)
+        if config is not None and config.jsonnet is not None:
+            # the stored sha is the one of the file, not of a commit: link the default branch,
+            # whose configuration is fetched again on each push to the configuration repository
+            repo_url = f"https://github.com/{config.github_id}/{org_config.config_repo}"
+            path = f"otterdog/{config.github_id}.jsonnet"
+            organization = {
+                "name": project_name,
+                "jsonnet": config.jsonnet,
+                "url": f"{repo_url}/blob/HEAD/{path}",
+                # the editor of GitHub needs a branch, known once the configuration has been fetched again
+                "edit_url": None if config.branch is None else f"{repo_url}/edit/{quote(config.branch)}/{path}",
+            }
 
-        async for jsonnet_file in jsonnet_config.jsonnet_template_files():
-            async with aiofiles.open(jsonnet_file) as f:
-                filename = os.path.basename(jsonnet_file)
-                file_id = os.path.splitext(filename)[0]
-                jsonnet_files.append(
-                    {
-                        "id": file_id,
-                        "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{filename}",
-                        "content": await f.read(),
-                    }
-                )
+        return await _render_playground(await _instance_template(org_config), project_name, organization)
 
+
+async def _render_playground(
+    template: dict[str, Any],
+    project_name: str | None,
+    organization: dict[str, str | None] | None = None,
+    templates: list[dict[str, Any]] | None = None,
+) -> str:
     return await render_home_template(
         "playground.html",
         project_name=project_name,
-        jsonnet_files=jsonnet_files,
-        default_config=f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
+        jsonnet_files=template["files"],
+        default_config=template["default_config"],
+        default_configuration=template["link"],
+        templates=templates,
+        examples=_playground_examples(),
+        reference=_playground_reference(),
+        schemas=_playground_schemas(),
+        documentation_url=current_app.config["DOCUMENTATION_URL"],
+        organization=organization,
     )
+
+
+async def _default_template(otterdog_config: OtterdogConfig, base_template: str) -> dict[str, Any]:
+    """Returns the files of the default base template of the instance, see _instance_template."""
+
+    import aiofiles
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = OrganizationConfig.of(
+            "playground",
+            "playground",
+            otterdog_config.default_config_repo,
+            base_template,
+            {"provider": "inmemory", "api_token": ""},
+            base_dir,
+            work_dir,
+        )
+        return await _instance_template(org_config)
+
+
+async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
+    import aiofiles
+
+    jsonnet_config = org_config.jsonnet_config
+    await jsonnet_config.init_template()
+
+    # the files of the template are next to its default configuration in its repository
+    repo_url, file, ref = parse_template_url(org_config.base_template)
+    directory = posixpath.dirname(file)
+
+    files = []
+    async for jsonnet_file in jsonnet_config.jsonnet_template_files():
+        name = os.path.basename(jsonnet_file)
+        async with aiofiles.open(jsonnet_file) as f:
+            files.append(
+                {
+                    "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{name}",
+                    "content": await f.read(),
+                    "url": f"{repo_url}/blob/{ref}/{posixpath.join(directory, name)}",
+                }
+            )
+
+    return {
+        "files": files,
+        "default_config": f"vendor/{jsonnet_config.base_template_repo_name}/{jsonnet_config.base_template_file_name}",
+        "link": _default_configuration_link(org_config.base_template),
+    }
+
+
+async def _example_template() -> dict[str, Any] | None:
+    import aiofiles
+    import aiofiles.os
+
+    if not await aiofiles.os.path.isfile(os.path.join(_EXAMPLE_TEMPLATE_DIR, _EXAMPLE_TEMPLATE_FILE)):
+        return None
+
+    # link the template of the running release, development versions are built from the main branch
+    ref = f"v{otterdog.__version__}" if re.fullmatch(r"\d+\.\d+\.\d+", otterdog.__version__) else "main"
+    url = f"https://github.com/eclipse-csi/otterdog/blob/{ref}/examples/template"
+
+    # vendored like the default configurations used in the documentation
+    files = []
+    for name in sorted(await aiofiles.os.listdir(_EXAMPLE_TEMPLATE_DIR)):
+        if name.endswith(".libsonnet"):
+            async with aiofiles.open(os.path.join(_EXAMPLE_TEMPLATE_DIR, name)) as f:
+                files.append(
+                    {
+                        "filename": f"vendor/otterdog-defaults/{name}",
+                        "content": await f.read(),
+                        "url": f"{url}/{name}",
+                    }
+                )
+
+    return {
+        "files": files,
+        "default_config": f"vendor/otterdog-defaults/{_EXAMPLE_TEMPLATE_FILE}",
+        "link": {
+            "url": f"{url}/{_EXAMPLE_TEMPLATE_FILE}",
+            "label": f"eclipse-csi/otterdog/examples/template/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
+        },
+    }
+
+
+def _default_configuration_link(base_template: str) -> dict[str, str]:
+    # the base template has the format https://github.com/<owner>/<repo>#<file>@<ref>
+    repo_url, file, ref = parse_template_url(base_template)
+    return {
+        "url": f"{repo_url}/blob/{ref}/{file}",
+        "label": f"{repo_url.removeprefix('https://github.com/')}/{file}@{ref}",
+    }
+
+
+@functools.cache
+def _playground_examples() -> list[dict[str, Any]]:
+    # generated from the configuration guides of the documentation with `make playground-examples`
+    with open(os.path.join(os.path.dirname(__file__), "playground-examples.json")) as file:
+        return json.load(file)["pages"]
+
+
+@functools.cache
+def _playground_reference() -> dict[str, Any]:
+    # generated from the reference of the documentation with `make playground-examples`, describes the properties
+    # completed by the playground
+    with open(os.path.join(os.path.dirname(__file__), "playground-reference.json")) as file:
+        return json.load(file)
+
+
+@functools.cache
+def _playground_schemas() -> dict[str, Any]:
+    # the schemas otterdog validates configurations with, the playground validates the evaluated ones with them
+    schemas = files(resources).joinpath("schemas")
+    return {
+        schema.name: json.loads(schema.read_text()) for schema in schemas.iterdir() if schema.name.endswith(".json")
+    }
 
 
 @blueprint.route("/projects/<project_name>/repos/<repo_name>")
@@ -436,7 +608,7 @@ async def repository(project_name: str, repo_name: str):
     config = await get_configuration_by_project_name(project_name)
 
     if config is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     from otterdog.models.github_organization import GitHubOrganization
 
@@ -444,7 +616,7 @@ async def repository(project_name: str, repo_name: str):
 
     repo_config = next(filter(lambda x: x.name == repo_name, github_organization.repositories), None)
     if repo_config is None:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
     scorecard_result = await find_scorecard_result(config.github_id, repo_name)
 
@@ -504,6 +676,53 @@ def _merge_policy_status(aggregate_status: MutableMapping[str, Any], org_status:
             aggregate_status.update({policy_type: status})
 
 
+@blueprint.route("/admin/template-impact")
+async def template_impact():
+    """The impact of a change of the default base template on the projects using it, evaluated in the browser."""
+
+    otterdog_config = await get_otterdog_config()
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return await render_template(_PAGE_NOT_FOUND), 404
+
+    template = await _default_template(otterdog_config, base_template)
+    return await render_home_template(
+        "template-impact.html",
+        jsonnet_files=template["files"],
+        default_config=template["default_config"],
+        default_configuration=template["link"],
+    )
+
+
+@blueprint.route("/admin/template-impact/configurations")
+async def template_impact_configurations():
+    """
+    Returns the configurations of the projects using the default base template, which the page of the impact of the
+    template evaluates with the default configuration as published and as edited, to list the projects whose
+    configuration changes. The configuration of a project is null until it has been fetched with its jsonnet source.
+    """
+
+    otterdog_config = await get_otterdog_config()
+    try:
+        base_template = otterdog_config.default_base_template
+    except RuntimeError:
+        return {"projects": []}
+
+    installations = [
+        installation
+        for installation in await get_active_installations()
+        if installation.base_template == base_template and installation.project_name is not None
+    ]
+    sources = await get_configuration_sources([installation.github_id for installation in installations])
+    return {
+        "projects": [
+            {"name": installation.project_name, "jsonnet": sources.get(installation.github_id)}
+            for installation in sorted(installations, key=lambda installation: installation.project_name or "")
+        ]
+    }
+
+
 @blueprint.route("/admin/tasks")
 async def tasks():
     return await render_home_template("tasks.html")
@@ -516,7 +735,7 @@ async def route_template(template: str):
 
         return redirect(url_for(f".{endpoint}"))
     except BuildError:
-        return await render_template("home/page-404.html"), 404
+        return await render_template(_PAGE_NOT_FOUND), 404
 
 
 @blueprint.errorhandler(401)

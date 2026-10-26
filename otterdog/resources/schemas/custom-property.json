@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "name": { "type": "string" },
-    "value_type": { "type": "string" },
+    "value_type": { "type": "string", "enum": ["string", "single_select", "multi_select", "true_false"] },
     "required": { "type": "boolean" },
     "default_value": { "$ref": "types.json#/$defs/string-or-list-or-null"},
     "description": { "$ref": "types.json#/$defs/string-or-null"},

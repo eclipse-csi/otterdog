@@ -1,0 +1,1383 @@
+{
+  "objects": {
+    "custom-property.md": {
+      "title": "Custom Property",
+      "url": "reference/organization/custom-property/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the custom property"
+        },
+        "value_type": {
+          "type": "string",
+          "description": "The type of this property, see Notes about allowed values",
+          "notes": "`string`, `single_select`, `multi_select` or `true_false`"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "If this property is required for any repository"
+        },
+        "default_value": {
+          "type": "string or list[string] or null",
+          "description": "The default value to assign to a repository if the property is required"
+        },
+        "description": {
+          "type": "string or null",
+          "description": "A description of this property"
+        },
+        "allowed_values": {
+          "type": "list[string] or null",
+          "description": "The list of allowed values if either `single_select` or `multi_select` is used"
+        },
+        "values_editable_by": {
+          "type": "string or null",
+          "description": "Who can edit the values of this property on a repository",
+          "notes": "`org_actors`, `org_and_repo_actors` or `null`"
+        }
+      }
+    },
+    "index.md": {
+      "title": "GitHub Organization",
+      "url": "reference/organization/",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "description": "Organization Settings",
+          "object": "settings.md"
+        },
+        "webhooks": {
+          "type": "list",
+          "description": "Organization Webhook",
+          "object": "webhook.md"
+        },
+        "secrets": {
+          "type": "list",
+          "description": "Organization Secret",
+          "object": "secret.md"
+        },
+        "variables": {
+          "type": "list",
+          "description": "Organization Variable",
+          "object": "variable.md"
+        },
+        "rulesets": {
+          "type": "list",
+          "description": "Organization Ruleset",
+          "object": "ruleset.md"
+        },
+        "_repositories": {
+          "type": "list",
+          "description": "Repository",
+          "object": "repository/index.md"
+        }
+      }
+    },
+    "repository/branch-protection-rule.md": {
+      "title": "Branch Protection Rule",
+      "url": "reference/organization/repository/branch-protection-rule/",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Pattern to match branches that shall be protected by this branch protection rule",
+          "notes": "Pattern follows fnmatch syntax, see doc@GitHub for more info"
+        },
+        "requires_pull_request": {
+          "type": "boolean",
+          "description": "If enabled, requires a pull request before merging. All commits must be made to a non-protected branch and submitted via a pull request before they can be merged into matching branches"
+        },
+        "required_approving_review_count": {
+          "type": "integer or null",
+          "description": "If specified, pull requests targeting a matching branch require a number of approvals and no changes requested before they can be merged.",
+          "notes": "Only taken into account when `requires_pull_request` is enabled, should be set to null when `requires_pull_request` is disabled"
+        },
+        "dismisses_stale_reviews": {
+          "type": "boolean",
+          "description": "If enabled, dismiss approved reviews automatically when a new commit is pushed",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "requires_code_owner_reviews": {
+          "type": "boolean",
+          "description": "If enabled, require an approved review in pull requests including files with a designated code owner",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "restricts_review_dismissals": {
+          "type": "boolean",
+          "description": "If enabled, only allowed actors can dismiss reviews on pull requests",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "review_dismissal_allowances": {
+          "type": "list[Actor]",
+          "description": "List of actors that are permitted to dismiss reviews on pull requests",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "bypass_pull_request_allowances": {
+          "type": "list[Actor]",
+          "description": "List of actors able to bypass pull requests",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "require_last_push_approval": {
+          "type": "boolean",
+          "description": "Whether the most recent push must be approved by someone other than the person who pushed it",
+          "notes": "Only taken into account when `requires_pull_request` is enabled"
+        },
+        "requires_status_checks": {
+          "type": "boolean",
+          "description": "If enabled, status checks must pass before branches can be merged into a matching branch"
+        },
+        "requires_strict_status_checks": {
+          "type": "boolean",
+          "description": "If enabled, pull requests targeting a matching branch must have been tested with the latest code.",
+          "notes": "This setting will not take effect unless at least one status check is enabled"
+        },
+        "required_status_checks": {
+          "type": "list[StatusCheck]",
+          "description": "List of status checks that must succeed before branches can be merged",
+          "notes": "Only taken into account when `requires_status_checks` is enabled"
+        },
+        "requires_conversation_resolution": {
+          "type": "boolean",
+          "description": "If enabled, all conversations on code must be resolved before a pull request can be merged into a matching branch"
+        },
+        "requires_commit_signatures": {
+          "type": "boolean",
+          "description": "If enabled, commits pushed to matching branches must have verified signatures"
+        },
+        "requires_linear_history": {
+          "type": "boolean",
+          "description": "If enabled, prevent merge commits from being pushed to matching branches"
+        },
+        "requires_deployments": {
+          "type": "boolean",
+          "description": "If enabled, environments must be successfully deployed to before branches can be merged into a matching branch"
+        },
+        "required_deployment_environments": {
+          "type": "list[string]",
+          "description": "List of environments that must be successfully deployed to before branches can be merged",
+          "notes": "Only taken into account when `requires_deployments` is enabled"
+        },
+        "lock_branch": {
+          "type": "boolean",
+          "description": "If enabled, matching branches are read-only, users cannot push to the branch"
+        },
+        "lock_allows_fetch_and_merge": {
+          "type": "boolean",
+          "description": "Whether users can pull changes from upstream when the branch is locked. Set to true to allow fork syncing. Set to false to prevent fork syncing"
+        },
+        "is_admin_enforced": {
+          "type": "boolean",
+          "description": "If enabled, the above settings will apply to administrators and custom roles with the \"bypass branch protections\" permission as well"
+        },
+        "restricts_pushes": {
+          "type": "boolean",
+          "description": "If enabled, only allowed actors (see `push_restrictions`) will be able to push to matching branches. Required status checks will still prevent these actors from merging if the checks fail"
+        },
+        "blocks_creations": {
+          "type": "boolean",
+          "description": "If enabled, only allowed actors (see `push_restrictions`) will be able to create new branches matching this rule",
+          "notes": "Only taken into account when `restricts_pushes` is enabled"
+        },
+        "push_restrictions": {
+          "type": "list[Actor]",
+          "description": "List of actors that are allowed to push to the matching branches",
+          "notes": "Only taken into account when `restricts_pushes` is enabled"
+        },
+        "allows_force_pushes": {
+          "type": "boolean",
+          "description": "If enabled, actors with push permission can force push to matching branches",
+          "notes": "This property takes precedence over `bypass_force_push_allowances` if enabled, allowing all users with write access to force push"
+        },
+        "bypass_force_push_allowances": {
+          "type": "list[Actor]",
+          "description": "List of actors able to force push to matching branches",
+          "notes": "This property is only taken into account when `allows_force_pushes` is disabled"
+        },
+        "allows_deletions": {
+          "type": "boolean",
+          "description": "If enabled, allows actors with push permission to delete matching branches"
+        }
+      }
+    },
+    "repository/bypass-actor.md#bypass-mode": {
+      "title": "Bypass Mode",
+      "url": "reference/organization/repository/bypass-actor/#bypass-mode",
+      "properties": {
+        "always": {
+          "type": "Allow the actor to always bypass the restrictions",
+          "description": "`<actor>:always`",
+          "notes": "`#Maintain:always`"
+        },
+        "pull_request": {
+          "type": "Allow the actor to only bypass the restrictions in the context of a pull request",
+          "description": "`<actor>:pull_request`",
+          "notes": "`@OtterdogTest/committers:pull_request`"
+        }
+      }
+    },
+    "repository/environment/index.md": {
+      "title": "Environment",
+      "url": "reference/organization/repository/environment/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the environment"
+        },
+        "wait_timer": {
+          "type": "int",
+          "description": "The amount of time to wait before allowing deployments to proceed"
+        },
+        "reviewers": {
+          "type": "list[Actor]",
+          "description": "Users or Teams that may approve workflow runs that access this environment"
+        },
+        "prevent_self_review": {
+          "type": "bool",
+          "description": "Whether a user who triggered a workflow run is prevented from approving it"
+        },
+        "deployment_branch_policy": {
+          "type": "string",
+          "description": "Limit which branches can deploy to this environment based on rules or naming patterns",
+          "notes": "`all`, `protected` or `selected`"
+        },
+        "branch_policies": {
+          "type": "list[BranchOrTag]",
+          "description": "List of branch or tag patterns which can deploy to this environment",
+          "notes": "only applicable if `deployment_branch_policy` is set to `selected`"
+        },
+        "secrets": {
+          "type": "list[EnvironmentSecret]",
+          "description": "secrets defined for this environment, see section below for details",
+          "object": "repository/environment/secret.md"
+        },
+        "variables": {
+          "type": "list[EnvironmentVariable]",
+          "description": "variables defined for this environment, see section below for details",
+          "object": "repository/environment/variable.md"
+        }
+      }
+    },
+    "repository/environment/secret.md": {
+      "title": "Environment Secret",
+      "url": "reference/organization/repository/environment/secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        }
+      }
+    },
+    "repository/environment/variable.md": {
+      "title": "Environment Variable",
+      "url": "reference/organization/repository/environment/variable/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the variable"
+        },
+        "value": {
+          "type": "string",
+          "description": "The variable value"
+        }
+      }
+    },
+    "repository/index.md": {
+      "title": "Repository",
+      "url": "reference/organization/repository/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the repository"
+        },
+        "aliases": {
+          "type": "list[string]",
+          "description": "List of repository alias names, need to add previous name when renaming a repository"
+        },
+        "description": {
+          "type": "string or null",
+          "description": "Project description"
+        },
+        "homepage": {
+          "type": "string or null",
+          "description": "Link to the homepage"
+        },
+        "topics": {
+          "type": "list[string]",
+          "description": "The list of topics of this repository"
+        },
+        "private": {
+          "type": "boolean",
+          "description": "If the project is private"
+        },
+        "archived": {
+          "type": "boolean",
+          "description": "If the repo is archived"
+        },
+        "allow_auto_merge": {
+          "type": "boolean",
+          "description": "If auto merges are permitted"
+        },
+        "allow_forking": {
+          "type": "boolean",
+          "description": "If the repo allows private forking"
+        },
+        "allow_merge_commit": {
+          "type": "boolean",
+          "description": "If merge commits are permitted"
+        },
+        "allow_rebase_merge": {
+          "type": "boolean",
+          "description": "If rebase merges are permitted"
+        },
+        "allow_squash_merge": {
+          "type": "boolean",
+          "description": "If squash merges are permitted"
+        },
+        "allow_update_branch": {
+          "type": "boolean",
+          "description": "If pull requests should suggest updates"
+        },
+        "auto_init": {
+          "type": "boolean",
+          "description": "If the repository shall be auto-initialized during creation",
+          "notes": "only considered during creation"
+        },
+        "code_scanning_default_setup_enabled": {
+          "type": "boolean",
+          "description": "If the repo has default code scanning enabled"
+        },
+        "code_scanning_default_query_suite": {
+          "type": "string",
+          "description": "The query suite to use for default code scanning",
+          "notes": "`default` or `extended`, only taken into account when `code_scanning_default_setup_enabled` is set to true"
+        },
+        "code_scanning_default_languages": {
+          "type": "list[string]",
+          "description": "The languages to analyze with code scanning default setup",
+          "notes": "`actions`, `c-cpp`, `csharp`, `go`, `java-kotlin`, `javascript-typescript`, `python`, `ruby`, `swift` or `rust`, only taken into account when `code_scanning_default_setup_enabled` is set to true"
+        },
+        "custom_properties": {
+          "type": "dict[string, string | list[string]]",
+          "description": "The custom properties to set for this repository"
+        },
+        "default_branch": {
+          "type": "string",
+          "description": "Name of the default branch"
+        },
+        "delete_branch_on_merge": {
+          "type": "boolean",
+          "description": "If branches shall automatically be deleted after a merge"
+        },
+        "dependabot_alerts_enabled": {
+          "type": "boolean",
+          "description": "If the repo has dependabot alerts enabled"
+        },
+        "dependabot_security_updates_enabled": {
+          "type": "boolean",
+          "description": "If the repo has dependabot security updates enabled"
+        },
+        "gh_pages_build_type": {
+          "type": "string",
+          "description": "If the repo has GitHub Pages enabled",
+          "notes": "`disabled`, `legacy` or `workflow`. Build-type `legacy` refers to building from a branch"
+        },
+        "gh_pages_cname": {
+          "type": "string or null",
+          "description": "The custom domain of the GitHub Pages site",
+          "notes": "`null` to use the default `github.io` domain. The DNS records for the domain have to be configured separately"
+        },
+        "gh_pages_https_enforced": {
+          "type": "boolean",
+          "description": "If HTTPS is enforced for the GitHub Pages site",
+          "notes": "only taken into account when `gh_pages_cname` is set, HTTPS is always enforced for the default `github.io` domain"
+        },
+        "gh_pages_source_branch": {
+          "type": "string or null",
+          "description": "The branch from which GitHub Pages should be built",
+          "notes": "only taken into account when `gh_pages_build_type` is set to `legacy`"
+        },
+        "gh_pages_source_path": {
+          "type": "string or null",
+          "description": "The folder from which GitHub Pages should be built",
+          "notes": "only taken into account when `gh_pages_build_type` is set to `legacy`"
+        },
+        "gh_pages_visibility": {
+          "type": "string",
+          "description": "The visibility of the GitHub Pages site",
+          "notes": "`public` or `private`. Only available for private repositories in enterprise organizations with `members_can_create_private_pages` enabled"
+        },
+        "has_discussions": {
+          "type": "boolean",
+          "description": "If the repo has discussions enabled"
+        },
+        "has_issues": {
+          "type": "boolean",
+          "description": "If the repo can have issues"
+        },
+        "has_projects": {
+          "type": "boolean",
+          "description": "If the repo can have projects"
+        },
+        "has_wiki": {
+          "type": "boolean",
+          "description": "If the repo has a wiki"
+        },
+        "is_template": {
+          "type": "boolean",
+          "description": "If the repo is can be used as a template repository"
+        },
+        "merge_commit_message": {
+          "type": "string",
+          "description": "Can be PR_BODY, PR_TITLE, or BLANK for a default merge commit message"
+        },
+        "merge_commit_title": {
+          "type": "string",
+          "description": "Can be PR_TITLE or MERGE_MESSAGE for a default merge commit title"
+        },
+        "post_process_template_content": {
+          "type": "list[string]",
+          "description": "A list of content paths in a template repository that shall be processed after creation",
+          "notes": "only considered during creation"
+        },
+        "private_vulnerability_reporting_enabled": {
+          "type": "boolean",
+          "description": "If the repo has private vulnerability reporting enabled"
+        },
+        "secret_scanning": {
+          "type": "string",
+          "description": "If secret scanning is \"enabled\" or \"disabled\""
+        },
+        "secret_scanning_push_protection": {
+          "type": "string",
+          "description": "If secret scanning push protection is \"enabled\" or \"disabled\""
+        },
+        "squash_merge_commit_message": {
+          "type": "string",
+          "description": "Can be PR_BODY, COMMIT_MESSAGES, or BLANK for a default squash merge commit message"
+        },
+        "squash_merge_commit_title": {
+          "type": "string",
+          "description": "Can be PR_TITLE or COMMIT_OR_PR_TITLE for a default squash merge commit title"
+        },
+        "team_permissions": {
+          "type": "dict[string, string]",
+          "description": "Permissions granted to organization teams on this repository",
+          "notes": "see Team Permissions for details"
+        },
+        "template_repository": {
+          "type": "string or null",
+          "description": "The template repository to use when creating the repo",
+          "notes": "read-only, only considered during creation"
+        },
+        "forked_repository": {
+          "type": "string or null",
+          "description": "The repository to fork when creating the repo",
+          "notes": "only considered during creation"
+        },
+        "fork_default_branch_only": {
+          "type": "boolean",
+          "description": "When creating a fork, whether only the default branch will be included in the fork",
+          "notes": "only considered during creation"
+        },
+        "immutable_releases_enabled": {
+          "type": "boolean",
+          "description": "If immutable releases are enabled for this repository",
+          "notes": "Can be overridden by organization-level immutable release settings"
+        },
+        "web_commit_signoff_required": {
+          "type": "boolean",
+          "description": "If the repo requires web commit signoff"
+        },
+        "workflows": {
+          "type": "Workflow Settings",
+          "description": "Workflow settings on organizational level",
+          "object": "repository/index.md#workflow-settings"
+        },
+        "webhooks": {
+          "type": "list[Webhook]",
+          "description": "webhooks defined for this repo, see section above for details",
+          "object": "repository/webhook.md"
+        },
+        "secrets": {
+          "type": "list[RepositorySecret]",
+          "description": "secrets defined for this repo, see section below for details",
+          "object": "repository/secret.md"
+        },
+        "variables": {
+          "type": "list[RepositoryVariable]",
+          "description": "variables defined for this repo, see section below for details",
+          "object": "repository/variable.md"
+        },
+        "environments": {
+          "type": "list[Environment]",
+          "description": "environments defined for this repo, see section below for details",
+          "object": "repository/environment/index.md"
+        },
+        "branch_protection_rules": {
+          "type": "list[BranchProtectionRule]",
+          "description": "branch protection rules of the repo, see section below for details",
+          "object": "repository/branch-protection-rule.md"
+        },
+        "rulesets": {
+          "type": "list[RepositoryRuleset]",
+          "description": "rulesets of the repo, see section below for details",
+          "object": "repository/ruleset.md"
+        }
+      }
+    },
+    "repository/index.md#workflow-settings": {
+      "title": "Workflow Settings",
+      "url": "reference/organization/repository/#workflow-settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "If GitHub actions are enabled for this repository"
+        },
+        "max_cache_size_gb": {
+          "type": "integer",
+          "description": "Maximum total size of all GitHub Actions caches, in GB"
+        },
+        "allowed_actions": {
+          "type": "string",
+          "description": "Defines which type of GitHub Actions are permitted to run",
+          "notes": "`all`, `local_only` or `selected`"
+        },
+        "allow_github_owned_actions": {
+          "type": "boolean",
+          "description": "If GitHub owned actions are permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "allow_verified_creator_actions": {
+          "type": "boolean",
+          "description": "If GitHub Actions from verified creators are permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "allow_action_patterns": {
+          "type": "list[string]",
+          "description": "A list of action patterns permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "default_workflow_permissions": {
+          "type": "string",
+          "description": "The default workflow permissions granted to the GITHUB_TOKEN",
+          "notes": "`read` or `write`"
+        },
+        "actions_can_approve_pull_request_reviews": {
+          "type": "boolean",
+          "description": "If actions can approve and merge pull requests"
+        },
+        "fork_pr_approval_policy": {
+          "type": "string",
+          "description": "Controls when fork PR workflows require approval from a maintainer",
+          "notes": "`first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors`"
+        }
+      }
+    },
+    "repository/ruleset.md": {
+      "title": "Repository Ruleset",
+      "url": "reference/organization/repository/ruleset/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of this repository ruleset"
+        },
+        "target": {
+          "type": "string",
+          "description": "The target of this ruleset",
+          "notes": "Possible values are `branch`, `tag` or `push`"
+        },
+        "enforcement": {
+          "type": "string",
+          "description": "The enforcement status of this ruleset",
+          "notes": "Possible values are `active`, `disabled` or `evaluate` (`evaluate` only available when enterprise billing is enabled)"
+        },
+        "bypass_actors": {
+          "type": "list[BypassActor]",
+          "description": "List of actors able to bypass this ruleset"
+        },
+        "include_refs": {
+          "type": "list[RefMatcher]",
+          "description": "List of refs or patterns to include matching branches"
+        },
+        "exclude_refs": {
+          "type": "list[RefMatcher]",
+          "description": "List of refs or patterns to exclude matching branches"
+        },
+        "allows_creations": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to create matching refs"
+        },
+        "allows_deletions": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to delete matching refs"
+        },
+        "allows_updates": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to push matching refs"
+        },
+        "allows_force_pushes": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to force push matching refs"
+        },
+        "required_status_checks": {
+          "type": "StatusCheckSettings or null",
+          "description": "If specified, status checks must pass before branches can be merged into a matching branch",
+          "object": "repository/ruleset.md#status-check-settings"
+        },
+        "requires_commit_signatures": {
+          "type": "boolean",
+          "description": "If enabled, commits pushed to matching branches must have verified signatures"
+        },
+        "requires_linear_history": {
+          "type": "boolean",
+          "description": "If enabled, prevent merge commits from being pushed to matching branches"
+        },
+        "requires_deployments": {
+          "type": "boolean",
+          "description": "If enabled, environments must be successfully deployed to before branches can be merged into a matching branch"
+        },
+        "required_deployment_environments": {
+          "type": "list[string]",
+          "description": "List of environments that must be successfully deployed to before branches can be merged",
+          "notes": "Only taken into account when `requires_deployments` is enabled"
+        },
+        "required_pull_request": {
+          "type": "PullRequestSettings or null",
+          "description": "If specified, requires a pull request before merging. All commits must be made to a non-protected branch and submitted via a pull request before they can be merged into matching branches",
+          "object": "repository/ruleset.md#pull-request-settings"
+        },
+        "required_merge_queue": {
+          "type": "MergeQueueSettings or null",
+          "description": "If specified, merges must be performed via a merge queue",
+          "object": "repository/ruleset.md#merge-queue-settings"
+        }
+      }
+    },
+    "repository/ruleset.md#status-check-settings": {
+      "title": "Status Check Settings",
+      "url": "reference/organization/repository/ruleset/#status-check-settings",
+      "properties": {
+        "do_not_enforce_on_create": {
+          "type": "boolean",
+          "description": "If enabled, allow repositories and branches to be created if a check would otherwise prohibit it"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If enabled, pull requests targeting a matching branch must have been tested with the latest code",
+          "notes": "This setting will not take effect unless at least one status check is enabled"
+        },
+        "status_checks": {
+          "type": "list[StatusCheck]",
+          "description": "List of status checks that must succeed before branches can be merged"
+        }
+      }
+    },
+    "repository/ruleset.md#pull-request-settings": {
+      "title": "Pull Request Settings",
+      "url": "reference/organization/repository/ruleset/#pull-request-settings",
+      "properties": {
+        "required_approving_review_count": {
+          "type": "integer",
+          "description": "The number or approvals required before a pull request can be merged",
+          "notes": "Allowed values in the range [0, 10]"
+        },
+        "dismisses_stale_reviews": {
+          "type": "boolean",
+          "description": "If enabled, dismiss approved reviews automatically when a new commit is pushed"
+        },
+        "requires_code_owner_review": {
+          "type": "boolean",
+          "description": "If enabled, require an approved review in pull requests including files with a designated code owner"
+        },
+        "requires_last_push_approval": {
+          "type": "boolean",
+          "description": "Whether the most recent push must be approved by someone other than the person who pushed it"
+        },
+        "requires_review_thread_resolution": {
+          "type": "boolean",
+          "description": "If enabled, all conversations on code must be resolved before a pull request can be merged into a matching branch"
+        },
+        "allowed_merge_methods": {
+          "type": "list[string]",
+          "description": "The merge methods that are allowed when merging a pull request into a matching branch",
+          "notes": "Allowed values: `merge`, `squash`, `rebase`; defaults to all three, matching GitHub's behavior when the parameter is omitted"
+        }
+      }
+    },
+    "repository/ruleset.md#merge-queue-settings": {
+      "title": "Merge Queue Settings",
+      "url": "reference/organization/repository/ruleset/#merge-queue-settings",
+      "properties": {
+        "merge_method": {
+          "type": "string",
+          "description": "Method to use when merging changes from queued pull requests",
+          "notes": "Possible values are `MERGE`, `SQUASH` or `REBASE`"
+        },
+        "build_concurrency": {
+          "type": "integer",
+          "description": "Limit the number of queued pull requests requesting checks and workflow runs at the same time",
+          "notes": "Must be in non-negative number"
+        },
+        "min_group_size": {
+          "type": "integer",
+          "description": "The minimum number of PRs that will be merged together in a group",
+          "notes": "Must be in non-negative number"
+        },
+        "max_group_size": {
+          "type": "integer",
+          "description": "The maximum number of PRs that will be merged together in a group",
+          "notes": "Must be in non-negative number"
+        },
+        "wait_time_for_minimum_group_size": {
+          "type": "integer",
+          "description": "The time in minutes the merge queue should wait after the first PR is added to the queue for the minimum group size to be met. After this time has elapsed, the minimum group size will be ignored and a smaller group will be merged",
+          "notes": "Must be in non-negative number"
+        },
+        "status_check_timeout": {
+          "type": "integer",
+          "description": "Maximum time in minutes for a required status check to report a conclusion. After this much time has elapsed, checks that have not reported a conclusion will be assumed to have failed",
+          "notes": "Must be in non-negative number"
+        },
+        "requires_all_group_entries_to_pass_required_checks": {
+          "type": "boolean",
+          "description": "When this setting is disabled, only the commit at the head of the merge group, i.e. the commit containing changes from all of the PRs in the group, must pass its required checks to merge"
+        }
+      }
+    },
+    "repository/secret.md": {
+      "title": "Repository Secret",
+      "url": "reference/organization/repository/secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        }
+      }
+    },
+    "repository/variable.md": {
+      "title": "Repository Variable",
+      "url": "reference/organization/repository/variable/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the variable"
+        },
+        "value": {
+          "type": "string",
+          "description": "The variable value"
+        }
+      }
+    },
+    "repository/webhook.md": {
+      "title": "Repository Webhook",
+      "url": "reference/organization/repository/webhook/",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The payload url to which a POST request will be sent when the webhook gets triggered"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "If the webhook is active"
+        },
+        "aliases": {
+          "type": "list[string]",
+          "description": "List of webhook alias urls, can be used to change the url of a webhook without re-creating the webhook as a whole",
+          "notes": "read-only property"
+        },
+        "content_type": {
+          "type": "string",
+          "description": "The content type the webhook shall use",
+          "notes": "`json` or `form`"
+        },
+        "events": {
+          "type": "list[string]",
+          "description": "List of events that trigger the webhook",
+          "notes": "supported events"
+        },
+        "insecure_ssl": {
+          "type": "string",
+          "description": "If the webhook uses insecure ssl connections",
+          "notes": "`0` or `1`"
+        },
+        "secret": {
+          "type": "SecretValue or null",
+          "description": "The secret the webhook shall use if any"
+        }
+      }
+    },
+    "role.md": {
+      "title": "Organization Role",
+      "url": "reference/organization/role/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the role"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the role"
+        },
+        "permissions": {
+          "type": "list[string]",
+          "description": "List of additional permissions",
+          "notes": "TODO"
+        },
+        "base_role": {
+          "type": "string",
+          "description": "The system role from which this role inherits permissions",
+          "notes": "`none`, `read`, `write`, `maintain` or `admin`"
+        }
+      }
+    },
+    "ruleset.md": {
+      "title": "Organization Ruleset",
+      "url": "reference/organization/ruleset/",
+      "properties": {
+        "include_repo_names": {
+          "type": "list[RepoNameMatcher]",
+          "description": "List of names or patterns to include matching repositories"
+        },
+        "exclude_repo_names": {
+          "type": "list[RepoNameMatcher]",
+          "description": "List of names or patterns to exclude matching repositories"
+        },
+        "protect_repo_names": {
+          "type": "boolean",
+          "description": "If enabled, target repositories can only be renamed by those with bypass permission"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of this repository ruleset"
+        },
+        "target": {
+          "type": "string",
+          "description": "The target of this ruleset",
+          "notes": "Possible values are `branch`, `tag` or `push`"
+        },
+        "enforcement": {
+          "type": "string",
+          "description": "The enforcement status of this ruleset",
+          "notes": "Possible values are `active`, `disabled` or `evaluate` (`evaluate` only available when enterprise billing is enabled)"
+        },
+        "bypass_actors": {
+          "type": "list[BypassActor]",
+          "description": "List of actors able to bypass this ruleset"
+        },
+        "include_refs": {
+          "type": "list[RefMatcher]",
+          "description": "List of refs or patterns to include matching branches"
+        },
+        "exclude_refs": {
+          "type": "list[RefMatcher]",
+          "description": "List of refs or patterns to exclude matching branches"
+        },
+        "allows_creations": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to create matching refs"
+        },
+        "allows_deletions": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to delete matching refs"
+        },
+        "allows_updates": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to push matching refs"
+        },
+        "allows_force_pushes": {
+          "type": "boolean",
+          "description": "If disabled, only allows users with bypass permission to force push matching refs"
+        },
+        "required_status_checks": {
+          "type": "StatusCheckSettings or null",
+          "description": "If specified, status checks must pass before branches can be merged into a matching branch",
+          "object": "ruleset.md#status-check-settings"
+        },
+        "requires_commit_signatures": {
+          "type": "boolean",
+          "description": "If enabled, commits pushed to matching branches must have verified signatures"
+        },
+        "requires_linear_history": {
+          "type": "boolean",
+          "description": "If enabled, prevent merge commits from being pushed to matching branches"
+        },
+        "requires_deployments": {
+          "type": "boolean",
+          "description": "If enabled, environments must be successfully deployed to before branches can be merged into a matching branch"
+        },
+        "required_deployment_environments": {
+          "type": "list[string]",
+          "description": "List of environments that must be successfully deployed to before branches can be merged",
+          "notes": "Only taken into account when `requires_deployments` is enabled"
+        },
+        "required_pull_request": {
+          "type": "PullRequestSettings or null",
+          "description": "If specified, requires a pull request before merging. All commits must be made to a non-protected branch and submitted via a pull request before they can be merged into matching branches",
+          "object": "ruleset.md#pull-request-settings"
+        },
+        "required_merge_queue": {
+          "type": "MergeQueueSettings or null",
+          "description": "If specified, merges must be performed via a merge queue",
+          "object": "ruleset.md#merge-queue-settings"
+        }
+      }
+    },
+    "ruleset.md#status-check-settings": {
+      "title": "Status Check Settings",
+      "url": "reference/organization/ruleset/#status-check-settings",
+      "properties": {
+        "do_not_enforce_on_create": {
+          "type": "boolean",
+          "description": "If enabled, allow repositories and branches to be created if a check would otherwise prohibit it"
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If enabled, pull requests targeting a matching branch must have been tested with the latest code",
+          "notes": "This setting will not take effect unless at least one status check is enabled"
+        },
+        "status_checks": {
+          "type": "list[StatusCheck]",
+          "description": "List of status checks that must succeed before branches can be merged"
+        }
+      }
+    },
+    "ruleset.md#pull-request-settings": {
+      "title": "Pull Request Settings",
+      "url": "reference/organization/ruleset/#pull-request-settings",
+      "properties": {
+        "required_approving_review_count": {
+          "type": "integer",
+          "description": "The number or approvals required before a pull request can be merged",
+          "notes": "Allowed values in the range [0, 10]"
+        },
+        "dismisses_stale_reviews": {
+          "type": "boolean",
+          "description": "If enabled, dismiss approved reviews automatically when a new commit is pushed"
+        },
+        "requires_code_owner_review": {
+          "type": "boolean",
+          "description": "If enabled, require an approved review in pull requests including files with a designated code owner"
+        },
+        "requires_last_push_approval": {
+          "type": "boolean",
+          "description": "Whether the most recent push must be approved by someone other than the person who pushed it"
+        },
+        "requires_review_thread_resolution": {
+          "type": "boolean",
+          "description": "If enabled, all conversations on code must be resolved before a pull request can be merged into a matching branch"
+        },
+        "allowed_merge_methods": {
+          "type": "list[string]",
+          "description": "The merge methods that are allowed when merging a pull request into a matching branch",
+          "notes": "Allowed values: `merge`, `squash`, `rebase`; defaults to all three, matching GitHub's behavior when the parameter is omitted"
+        }
+      }
+    },
+    "ruleset.md#merge-queue-settings": {
+      "title": "Merge Queue Settings",
+      "url": "reference/organization/ruleset/#merge-queue-settings",
+      "properties": {
+        "merge_method": {
+          "type": "string",
+          "description": "Method to use when merging changes from queued pull requests",
+          "notes": "Possible values are `MERGE`, `SQUASH` or `REBASE`"
+        },
+        "build_concurrency": {
+          "type": "integer",
+          "description": "Limit the number of queued pull requests requesting checks and workflow runs at the same time",
+          "notes": "Must be in non-negative number"
+        },
+        "min_group_size": {
+          "type": "integer",
+          "description": "The minimum number of PRs that will be merged together in a group",
+          "notes": "Must be in non-negative number"
+        },
+        "max_group_size": {
+          "type": "integer",
+          "description": "The maximum number of PRs that will be merged together in a group",
+          "notes": "Must be in non-negative number"
+        },
+        "wait_time_for_minimum_group_size": {
+          "type": "integer",
+          "description": "The time in minutes the merge queue should wait after the first PR is added to the queue for the minimum group size to be met. After this time has elapsed, the minimum group size will be ignored and a smaller group will be merged",
+          "notes": "Must be in non-negative number"
+        },
+        "status_check_timeout": {
+          "type": "integer",
+          "description": "Maximum time in minutes for a required status check to report a conclusion. After this much time has elapsed, checks that have not reported a conclusion will be assumed to have failed",
+          "notes": "Must be in non-negative number"
+        },
+        "requires_all_group_entries_to_pass_required_checks": {
+          "type": "boolean",
+          "description": "When this setting is disabled, only the commit at the head of the merge group, i.e. the commit containing changes from all of the PRs in the group, must pass its required checks to merge"
+        }
+      }
+    },
+    "secret.md": {
+      "title": "Organization Secret",
+      "url": "reference/organization/secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "selected_repositories": {
+          "type": "list[string]",
+          "description": "List of repositories that can use the secret",
+          "notes": "only applicable if `visibility` is set to `selected`"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Controls which repositories can use the secret",
+          "notes": "`public`, `private` or `selected`"
+        }
+      }
+    },
+    "settings.md": {
+      "title": "Organization Settings",
+      "url": "reference/organization/settings/",
+      "properties": {
+        "name": {
+          "type": "string or null",
+          "description": "The display name of the organization"
+        },
+        "description": {
+          "type": "string or null",
+          "description": "The description of the organization"
+        },
+        "plan": {
+          "type": "string",
+          "description": "The billing plan of the organization",
+          "notes": "read-only property"
+        },
+        "email": {
+          "type": "string or null",
+          "description": "The main contact point of the organization"
+        },
+        "billing_email": {
+          "type": "string",
+          "description": "The billing email"
+        },
+        "blog": {
+          "type": "string or null",
+          "description": "The blog url (usually links to the homepage of the organization)"
+        },
+        "twitter_username": {
+          "type": "string or null",
+          "description": "The twitter username of the organization"
+        },
+        "location": {
+          "type": "string or null",
+          "description": "The geographic location of the organization"
+        },
+        "company": {
+          "type": "string or null",
+          "description": "The company name if"
+        },
+        "default_branch_name": {
+          "type": "string",
+          "description": "The default branch name for newly created repositories"
+        },
+        "default_repository_permission": {
+          "type": "string",
+          "description": "The base permission for all members of the organization for its repositories",
+          "notes": "`none`, `read`, `write` or `admin`"
+        },
+        "default_code_security_configurations_disabled": {
+          "type": "boolean",
+          "description": "If default code security configuration should be disabled, no processing if the setting is set to `true`"
+        },
+        "immutable_releases_enforced_repositories": {
+          "type": "string",
+          "description": "Defines which repositories must use immutable releases",
+          "notes": "`all`, `none` or `selected`"
+        },
+        "immutable_releases_selected_repositories": {
+          "type": "list[string]",
+          "description": "The list of repositories for which immutable releases are enforced",
+          "notes": "Only taken into account when `immutable_releases_enforced_repositories` is set to `selected`"
+        },
+        "deploy_keys_enabled_for_repositories": {
+          "type": "boolean",
+          "description": "If deploy keys can be added to and used for repositories within the organization"
+        },
+        "discussion_source_repository": {
+          "type": "string or null",
+          "description": "The source repository to host organization discussions"
+        },
+        "has_discussions": {
+          "type": "boolean",
+          "description": "If discussions are enabled for the organization. If `true`, property `discussion_source_repository` must be set as well"
+        },
+        "has_organization_projects": {
+          "type": "boolean",
+          "description": "If the organization can have organization projects"
+        },
+        "has_repository_projects": {
+          "type": "boolean",
+          "description": "If the repositories can have repository projects"
+        },
+        "members_can_change_project_visibility": {
+          "type": "boolean",
+          "description": "If members with admin permissions for a project can change its visibility"
+        },
+        "members_can_change_repo_visibility": {
+          "type": "boolean",
+          "description": "If members with admin permissions for a repo can change its visibility"
+        },
+        "members_can_create_private_repositories": {
+          "type": "boolean",
+          "description": "If members can create private repos"
+        },
+        "members_can_create_public_pages": {
+          "type": "boolean",
+          "description": "If members can create public GitHub Pages sites in this organization. If disabled, no GitHub Pages will not be published for the organization."
+        },
+        "members_can_create_private_pages": {
+          "type": "boolean",
+          "description": "If members can create private GitHub Pages sites in this organization. Required for configuring GitHub Pages visibility on private repositories.",
+          "notes": "Only available for organizations with `enterprise` plan"
+        },
+        "members_can_create_public_repositories": {
+          "type": "boolean",
+          "description": "If members can create public repos"
+        },
+        "members_can_create_teams": {
+          "type": "boolean",
+          "description": "If members can create new teams"
+        },
+        "members_can_delete_issues": {
+          "type": "boolean",
+          "description": "If members with admin permissions for a repo can delete issues, otherwise only organization owners can delete issues"
+        },
+        "members_can_delete_repositories": {
+          "type": "boolean",
+          "description": "If members with admin permissions for a repo can delete or transfer it"
+        },
+        "members_can_fork_private_repositories": {
+          "type": "boolean",
+          "description": "If members can fork private repos"
+        },
+        "packages_containers_internal": {
+          "type": "boolean",
+          "description": "If members can publish internal releases / containers visible to all organization members"
+        },
+        "packages_containers_public": {
+          "type": "boolean",
+          "description": "If members can publish public releases / containers visible to anyone"
+        },
+        "readers_can_create_discussions": {
+          "type": "boolean or null",
+          "description": "If users with read access can create and comment on discussions"
+        },
+        "security_managers": {
+          "type": "list[string]",
+          "description": "List of teams that should act as security managers"
+        },
+        "two_factor_requirement": {
+          "type": "boolean",
+          "description": "If two factor is required for all members",
+          "notes": "read-only property, can only be changed via the Web UI"
+        },
+        "web_commit_signoff_required": {
+          "type": "boolean",
+          "description": "If repositories require contributors to sign-off on commits they make through GitHub's web interface. If enabled on organization level, it overrides the setting on repo level"
+        },
+        "custom_properties": {
+          "type": "list[CustomProperty]",
+          "description": "Definition of custom properties",
+          "object": "custom-property.md"
+        },
+        "workflows": {
+          "type": "Workflow Settings",
+          "description": "Workflow settings on organizational level",
+          "object": "settings.md#workflow-settings"
+        }
+      }
+    },
+    "settings.md#workflow-settings": {
+      "title": "Workflow Settings",
+      "url": "reference/organization/settings/#workflow-settings",
+      "properties": {
+        "enabled_repositories": {
+          "type": "string",
+          "description": "Defines which repositories are permitted to use GitHub Actions",
+          "notes": "`all`, `none` or `selected`"
+        },
+        "selected_repositories": {
+          "type": "list[string]",
+          "description": "The list of repositories that are permitted to use GitHub Actions",
+          "notes": "Only taken into account when `enabled_repositories` is set to `selected`"
+        },
+        "allowed_actions": {
+          "type": "string",
+          "description": "Defines which type of GitHub Actions are permitted to run",
+          "notes": "`all`, `local_only` or `selected`"
+        },
+        "allow_github_owned_actions": {
+          "type": "boolean",
+          "description": "If GitHub owned actions are permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "allow_verified_creator_actions": {
+          "type": "boolean",
+          "description": "If GitHub Actions from verified creators are permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "allow_action_patterns": {
+          "type": "list[string]",
+          "description": "A list of action patterns permitted to run",
+          "notes": "Only taken into account when `allowed_actions` is set to `selected`"
+        },
+        "default_workflow_permissions": {
+          "type": "string",
+          "description": "The default workflow permissions granted to the GITHUB_TOKEN",
+          "notes": "`read` or `write`"
+        },
+        "actions_can_approve_pull_request_reviews": {
+          "type": "boolean",
+          "description": "If actions can approve and merge pull requests"
+        },
+        "fork_pr_approval_policy": {
+          "type": "string",
+          "description": "Controls when fork PR workflows require approval from a maintainer",
+          "notes": "`first_time_contributors_new_to_github`, `first_time_contributors` or `all_external_contributors`"
+        },
+        "max_cache_size_gb": {
+          "type": "integer",
+          "description": "Maximum total size of all GitHub Actions caches for each repository, in GB"
+        }
+      }
+    },
+    "team.md": {
+      "title": "Team",
+      "url": "reference/organization/team/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the team"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the team"
+        },
+        "privacy": {
+          "type": "string",
+          "description": "The level of privacy this team should have",
+          "notes": "`visible` or `secret`"
+        },
+        "notifications": {
+          "type": "boolean",
+          "description": "Whether the team members receive notifications when the team is @mentioned"
+        },
+        "members": {
+          "type": "list[string]",
+          "description": "List of users that should be a member of the team"
+        },
+        "skip_members": {
+          "type": "boolean",
+          "description": "If `true`, team members will be ignored"
+        },
+        "skip_non_organization_members": {
+          "type": "boolean",
+          "description": "If `true`, users which are not yet organization members can not be added to the team"
+        }
+      }
+    },
+    "variable.md": {
+      "title": "Organization Variable",
+      "url": "reference/organization/variable/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the variable"
+        },
+        "selected_repositories": {
+          "type": "list[string]",
+          "description": "List of repositories that can use the variable",
+          "notes": "only applicable if `visibility` is set to `selected`"
+        },
+        "value": {
+          "type": "string",
+          "description": "The variable value"
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Controls which repositories can use the variable",
+          "notes": "`public`, `private` or `selected`"
+        }
+      }
+    },
+    "webhook.md": {
+      "title": "Organization Webhook",
+      "url": "reference/organization/webhook/",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The payload url to which a POST request will be sent when the webhook gets triggered"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "If the webhook is active"
+        },
+        "aliases": {
+          "type": "list[string]",
+          "description": "List of webhook alias urls, can be used to change the url of a webhook without re-creating the webhook as a whole",
+          "notes": "read-only property"
+        },
+        "content_type": {
+          "type": "string",
+          "description": "The content type the webhook shall use",
+          "notes": "`json` or `form`"
+        },
+        "events": {
+          "type": "list[string]",
+          "description": "List of events that trigger the webhook",
+          "notes": "supported events"
+        },
+        "insecure_ssl": {
+          "type": "string",
+          "description": "If the webhook uses insecure ssl connections",
+          "notes": "`0` or `1`"
+        },
+        "secret": {
+          "type": "SecretValue or null",
+          "description": "The secret the webhook shall use if any"
+        }
+      }
+    }
+  },
+  "functions": {
+    "newCustomProperty": "custom-property.md",
+    "newOrg": "index.md",
+    "newBranchProtectionRule": "repository/branch-protection-rule.md",
+    "newEnvironment": "repository/environment/index.md",
+    "newEnvSecret": "repository/environment/secret.md",
+    "newEnvVariable": "repository/environment/variable.md",
+    "newRepo": "repository/index.md",
+    "extendRepo": "repository/index.md",
+    "newRepoRuleset": "repository/ruleset.md",
+    "newStatusChecks": "repository/ruleset.md#status-check-settings",
+    "newPullRequest": "repository/ruleset.md#pull-request-settings",
+    "newMergeQueue": "repository/ruleset.md#merge-queue-settings",
+    "newRepoSecret": "repository/secret.md",
+    "newRepoVariable": "repository/variable.md",
+    "newRepoWebhook": "repository/webhook.md",
+    "newOrgRole": "role.md",
+    "newOrgRuleset": "ruleset.md",
+    "newOrgSecret": "secret.md",
+    "newTeam": "team.md",
+    "newOrgVariable": "variable.md",
+    "newOrgWebhook": "webhook.md"
+  }
+}

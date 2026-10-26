@@ -6,6 +6,11 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      # security updates ignore the other groups, bundle them in a single PR
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       python-minor-patch:
         patterns:
           - "*"
@@ -32,6 +37,26 @@ updates:
   - package-ecosystem: "npm"
     directory: "/otterdog/webapp/static"
     versioning-strategy: "increase"
+    schedule:
+      interval: "weekly"
+    groups:
+      # security updates ignore the other groups, bundle them in a single PR
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    cooldown:
+      default-days: 7
+
+  # the base images of the Dockerfile are pinned by tag and digest, keep both up to date
+  - package-ecosystem: "docker"
+    directory: "/docker"
     schedule:
       interval: "weekly"
     cooldown:

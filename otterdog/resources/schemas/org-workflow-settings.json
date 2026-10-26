@@ -4,7 +4,7 @@
   "$ref": "workflow-settings.json",
   "type": "object",
   "properties": {
-    "enabled_repositories": { "type": "string" },
+    "enabled_repositories": { "type": "string", "enum": ["all", "none", "selected"] },
     "selected_repositories": {
       "type": "array",
       "items": { "type": "string" }

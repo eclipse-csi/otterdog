@@ -8,6 +8,8 @@
 
 from dataclasses import dataclass
 
+import aiofiles
+
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db.models import ConfigurationModel, StatisticsModel, TaskModel
@@ -51,11 +53,17 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             # save configuration — confine imports to the org config directory,
             # matching the layout expected by org configs (vendored templates only).
             config_data = jsonnet_evaluate_file(config_file, import_base_dir=org_config.jsonnet_config.org_dir)
+            async with aiofiles.open(config_file) as file:
+                config_jsonnet = await file.read()
+            branch = await rest_api.repo.get_default_branch(self.org_id, org_config.config_repo)
+
             config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,
                 project_name=org_config.name,
                 config=config_data,
                 sha=sha,
+                jsonnet=config_jsonnet,
+                branch=branch,
             )
             await save_config(config)
 

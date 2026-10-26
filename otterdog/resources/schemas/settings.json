@@ -45,7 +45,8 @@
     },
     "default_repository_permission": {
       "provider": "restapi",
-      "type": "string"
+      "type": "string",
+      "enum": ["none", "read", "write", "admin"]
     },
     "members_can_create_private_repositories": {
       "provider": "restapi",
@@ -78,6 +79,16 @@
     "default_code_security_configurations_disabled": {
       "provider": "restapi",
       "type": "boolean"
+    },
+    "immutable_releases_enforced_repositories": {
+      "provider": "restapi",
+      "type": "string",
+      "enum": ["all", "none", "selected"]
+    },
+    "immutable_releases_selected_repositories": {
+      "provider": "restapi",
+      "type": "array",
+      "items": { "type": "string" }
     },
     "members_can_change_repo_visibility": {
       "provider": "web",

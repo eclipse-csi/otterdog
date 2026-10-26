@@ -79,7 +79,7 @@ class Team(ModelObject, abc.ABC):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{self.get_model_header(parent_object)} has 'privacy' of value '{self.privacy}', "
-                    f"while only values ('secret' | 'closed') are allowed.",
+                    f"while only values ('secret' | 'visible') are allowed.",
                 )
 
         if self.skip_members is True and is_set_and_valid(self.members) and len(self.members) > 0:

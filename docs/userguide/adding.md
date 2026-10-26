@@ -39,8 +39,8 @@ orgs.newRepo('new-repo') {
 !!! note
 
     Otterdog comes with a builtin Playground to try out snippets and inspect the final manifestation
-    of settings depending on the default configuration in use. Check the Dashboard of your project
-    for further details.
+    of settings depending on the default configuration in use. It is available in the menu of the
+    otterdog dashboard, and for each project with the default configuration of this project.
 
 Finally, we need to add this snippet to the existing configuration, adding it to the `_repositories` key in the
 configuration file:

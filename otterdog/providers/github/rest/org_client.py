@@ -9,7 +9,7 @@
 import json
 from typing import Any
 
-from otterdog.providers.github.exception import GitHubException
+from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 from otterdog.utils import get_logger
 
 from . import RestApi, RestClient, encrypt_value
@@ -60,6 +60,13 @@ class OrgClient(RestClient):
             default_configs = await self._get_default_code_security_configurations(org_id)
             settings["default_code_security_configurations_disabled"] = len(default_configs) == 0
 
+        immutable_releases_keys = {
+            "immutable_releases_enforced_repositories",
+            "immutable_releases_selected_repositories",
+        }
+        if len(included_keys.intersection(immutable_releases_keys)) > 0:
+            await self._fill_immutable_releases_settings(org_id, settings)
+
         result = {}
         for k, v in settings.items():
             if k in included_keys:
@@ -70,23 +77,124 @@ class OrgClient(RestClient):
 
     async def update_settings(self, org_id: str, data: dict[str, Any]) -> None:
         _logger.debug("updating settings for org '%s'", org_id)
+        changes = len(data)
+
+        # settings that are not part of the organization resource, they are updated via dedicated endpoints
+        security_managers = data.pop("security_managers", None)
+        default_code_security_configuration_disabled = data.pop("default_code_security_configurations_disabled", None)
+        immutable_releases_enforced_repositories = data.pop("immutable_releases_enforced_repositories", None)
+        immutable_releases_selected_repositories = data.pop("immutable_releases_selected_repositories", None)
 
         try:
-            await self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
+            if len(data) > 0:
+                await self.requester.request_json("PATCH", f"/orgs/{org_id}", data)
         except GitHubException as ex:
             raise RuntimeError(f"failed to update settings for org '{org_id}':\n{ex}") from ex
 
-        if "security_managers" in data:
-            await self.update_security_managers(org_id, data["security_managers"])
+        if security_managers is not None:
+            await self.update_security_managers(org_id, security_managers)
 
-        if "default_code_security_configurations_disabled" in data:
-            default_code_security_configuration_disabled = data["default_code_security_configurations_disabled"]
+        if default_code_security_configuration_disabled is not None:
             if default_code_security_configuration_disabled is True:
                 await self._disable_default_code_security_configurations(org_id)
             else:
                 _logger.warning("trying to enable default code security configurations")
 
-        _logger.debug("updated %d setting(s)", len(data))
+        if immutable_releases_enforced_repositories is not None:
+            immutable_release_data = {"enforced_repositories": immutable_releases_enforced_repositories}
+
+            if immutable_releases_enforced_repositories == "selected":
+                immutable_release_data["selected_repository_ids"] = await self.rest_api.repo.get_repo_ids(
+                    org_id, immutable_releases_selected_repositories or []
+                )
+
+            await self._update_immutable_releases_settings(org_id, immutable_release_data)
+        elif immutable_releases_selected_repositories is not None:
+            await self._update_selected_repositories_for_immutable_releases(
+                org_id,
+                await self.rest_api.repo.get_repo_ids(org_id, immutable_releases_selected_repositories),
+            )
+
+        _logger.debug("updated %d setting(s)", changes)
+
+    async def _fill_immutable_releases_settings(self, org_id: str, settings: dict[str, Any]) -> None:
+        immutable_releases = await self._get_immutable_releases_settings(org_id)
+        if immutable_releases is None:
+            # leave the settings unset, they will not be taken into account when computing changes
+            return
+
+        enforced_repositories = immutable_releases["enforced_repositories"]
+        settings["immutable_releases_enforced_repositories"] = enforced_repositories
+
+        if enforced_repositories == "selected":
+            settings["immutable_releases_selected_repositories"] = [
+                repo["name"] for repo in await self._get_selected_repositories_for_immutable_releases(org_id)
+            ]
+        else:
+            settings["immutable_releases_selected_repositories"] = []
+
+    async def _get_immutable_releases_settings(self, org_id: str) -> dict[str, Any] | None:
+        _logger.debug("retrieving immutable release settings for org '%s'", org_id)
+
+        try:
+            return await self.requester.request_json("GET", f"/orgs/{org_id}/settings/immutable-releases")
+        except (GitHubException, InsufficientPermissionsException) as ex:
+            # a 403 caused by missing OAuth scopes is raised as InsufficientPermissionsException
+            if ex.status == 404:
+                _logger.debug("immutable releases not available for org '%s', treating as disabled", org_id)
+                return {"enforced_repositories": "none"}
+            if ex.status in (402, 403):
+                _logger.warning(
+                    "immutable release settings for org '%s' not available (status=%s), "
+                    "any configured setting will not be validated",
+                    org_id,
+                    ex.status,
+                )
+                return None
+            raise RuntimeError(f"failed retrieving immutable release settings for org '{org_id}':\n{ex}") from ex
+
+    async def _update_immutable_releases_settings(self, org_id: str, data: dict[str, Any]) -> None:
+        _logger.debug("updating immutable release settings for org '%s'", org_id)
+
+        status, body = await self.requester.request_raw(
+            "PUT",
+            f"/orgs/{org_id}/settings/immutable-releases",
+            json.dumps(data),
+        )
+
+        if status != 200:
+            raise RuntimeError(f"failed updating immutable release settings for org '{org_id}'\n{status}: {body}")
+
+        _logger.debug("updated immutable release settings for org '%s'", org_id)
+
+    async def _get_selected_repositories_for_immutable_releases(self, org_id: str) -> list[dict[str, Any]]:
+        _logger.debug("retrieving selected repositories for immutable release settings of org '%s'", org_id)
+
+        try:
+            return await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/settings/immutable-releases/repositories", entries_key="repositories"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving selected repositories for immutable release settings:\n{ex}") from ex
+
+    async def _update_selected_repositories_for_immutable_releases(
+        self, org_id: str, selected_repository_ids: list[int]
+    ) -> None:
+        _logger.debug("updating selected repositories for immutable release settings of org '%s'", org_id)
+
+        status, body = await self.requester.request_raw(
+            "PUT",
+            f"/orgs/{org_id}/settings/immutable-releases/repositories",
+            json.dumps({"selected_repository_ids": selected_repository_ids}),
+        )
+
+        if status != 204:
+            raise RuntimeError(
+                f"failed updating selected repositories for immutable release settings of org '{org_id}'\n"
+                f"{status}: {body}"
+            )
+
+        _logger.debug("updated selected repositories for immutable release settings of org '%s'", org_id)
 
     async def list_security_managers(self, org_id: str, role_id: str) -> list[str]:
         _logger.debug("retrieving security managers for org '%s'", org_id)

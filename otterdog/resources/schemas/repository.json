@@ -35,13 +35,14 @@
     "allow_auto_merge": { "type": "boolean" },
     "delete_branch_on_merge": { "type": "boolean" },
     "allow_update_branch": { "type": "boolean" },
-    "squash_merge_commit_title": { "type": "string" },
-    "squash_merge_commit_message": { "type": "string" },
-    "merge_commit_title": { "type": "string" },
-    "merge_commit_message": { "type": "string" },
+    "squash_merge_commit_title": { "type": "string", "enum": ["PR_TITLE", "COMMIT_OR_PR_TITLE"] },
+    "squash_merge_commit_message": { "type": "string", "enum": ["PR_BODY", "COMMIT_MESSAGES", "BLANK"] },
+    "merge_commit_title": { "type": "string", "enum": ["PR_TITLE", "MERGE_MESSAGE"] },
+    "merge_commit_message": { "type": "string", "enum": ["PR_TITLE", "PR_BODY", "BLANK"] },
     "archived": { "type": "boolean" },
     "allow_forking": { "type": "boolean" },
     "web_commit_signoff_required": { "type": "boolean" },
+    "immutable_releases_enabled": { "type": "boolean" },
     "secret_scanning": { "type": "string" },
     "secret_scanning_push_protection": { "type": "string" },
     "dependabot_alerts_enabled": { "type": "boolean" },
@@ -49,18 +50,23 @@
     "private_vulnerability_reporting_enabled": { "type": "boolean" },
 
     "code_scanning_default_setup_enabled": { "type": "boolean" },
-    "code_scanning_default_query_suite": { "type": "string" },
+    "code_scanning_default_query_suite": { "type": "string", "enum": ["default", "extended"] },
     "code_scanning_default_languages": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string",
+        "enum": ["actions", "c-cpp", "csharp", "go", "java-kotlin", "javascript-typescript", "python", "ruby", "swift", "rust"]
+      }
     },
 
     "custom_properties": { "$ref": "types.json#/$defs/object-or-null"},
 
-    "gh_pages_build_type": { "type": "string" },
+    "gh_pages_build_type": { "type": "string", "enum": ["disabled", "legacy", "workflow"] },
     "gh_pages_source_branch": { "$ref": "types.json#/$defs/string-or-null"},
     "gh_pages_source_path": { "$ref": "types.json#/$defs/string-or-null"},
-    "gh_pages_visibility": { "type": "string"},
+    "gh_pages_visibility": { "type": "string", "enum": ["public", "private"] },
+    "gh_pages_cname": { "$ref": "types.json#/$defs/string-or-null"},
+    "gh_pages_https_enforced": { "type": "boolean" },
     "workflows": { "$ref": "repo-workflow-settings.json" },
     "branch_protection_rules": {
       "type": "array",
