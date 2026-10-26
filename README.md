@@ -148,7 +148,7 @@ web client when loading GitHub pages and waiting for elements. Increase it on sl
 
 ```bash
 export OTTERDOG_WEB_TIMEOUT=60000
-otterdog fetch-config eclipse-csi
+otterdog plan eclipse-csi
 ```
 ### Credentials
 
