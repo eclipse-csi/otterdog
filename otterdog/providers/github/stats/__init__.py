@@ -146,15 +146,15 @@ class RequestStatistics:
         current = self.rate_limits.get(rate_limit.resource)
         current_time = time.time() if now is None else now
 
-        if current is None:
-            self.rate_limits[rate_limit.resource] = rate_limit
-        elif rate_limit.reset > current.reset and current_time >= current.reset:
-            # the window of the current value has ended, the quota has been reset since
-            self.rate_limits[rate_limit.resource] = rate_limit
-        elif rate_limit.remaining < current.remaining:
-            # keep the lowest remaining quota of the current window, as responses of concurrent requests arrive
-            # in any order, and a later reset time does not mean a new window: GitHub reports a reset time
-            # moving along with the current time for responses that do not reflect any consumption yet
+        # keep the lowest remaining quota of the current window, as responses of concurrent requests arrive
+        # in any order, and a later reset time does not mean a new window: GitHub reports a reset time
+        # moving along with the current time for responses that do not reflect any consumption yet.
+        # only once the window of the current value has ended, the quota has been reset.
+        if (
+            current is None
+            or rate_limit.remaining < current.remaining
+            or (rate_limit.reset > current.reset and current_time >= current.reset)
+        ):
             self.rate_limits[rate_limit.resource] = rate_limit
 
     def merge(self, other: RequestStatistics) -> None:
@@ -321,8 +321,9 @@ class RequestRecorder:
 
     # recording statistics must never interfere with the request itself,
     # thus none of the trace callbacks lets an exception escape.
+    # aiohttp awaits trace callbacks, so they are coroutines even though they do not await anything.
 
-    async def _on_request_start(
+    async def _on_request_start(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
         session: ClientSession,
         context: SimpleNamespace,
@@ -336,7 +337,7 @@ class RequestRecorder:
         except Exception:
             _logger.debug("failed to prepare recording of request statistics", exc_info=True)
 
-    async def _on_request_response(
+    async def _on_request_response(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
         session: ClientSession,
         context: SimpleNamespace,
@@ -365,7 +366,7 @@ class RequestRecorder:
         except Exception:
             _logger.debug("failed to record request statistics", exc_info=True)
 
-    async def _on_request_exception(
+    async def _on_request_exception(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
         session: ClientSession,
         context: SimpleNamespace,
@@ -463,6 +464,10 @@ _ITEM_COLLECTIONS = frozenset(
 # literal segments that may directly follow an item collection, e.g. /secrets/public-key
 _COLLECTION_LITERALS = frozenset({"defaults", "public-key", "teams"})
 
+_ID_PLACEHOLDER = "{id}"
+_NAME_PLACEHOLDER = "{name}"
+_REF_PLACEHOLDER = "{ref}"
+
 # collections whose items have dedicated placeholders, e.g. /repos/{owner}/{repo}
 _NAMED_ITEMS = {
     "orgs": ("{org}",),
@@ -473,8 +478,8 @@ _NAMED_ITEMS = {
 # collections whose remaining path identifies one of their items, e.g. /contents/{path}
 _PATH_COLLECTIONS = {
     "contents": "{path}",
-    "tarball": "{ref}",
-    "zipball": "{ref}",
+    "tarball": _REF_PLACEHOLDER,
+    "zipball": _REF_PLACEHOLDER,
 }
 
 
@@ -495,30 +500,38 @@ def rest_endpoint(method: str, path: str) -> str:
         segment = segments[index]
         index += 1
 
-        if segment.isdigit():
-            result.append("{id}")
-            continue
+        result.append(_ID_PLACEHOLDER if segment.isdigit() else segment)
 
-        result.append(segment)
-
-        if index == len(segments):
-            break
-
-        if segment in _PATH_COLLECTIONS:
-            result.append(_PATH_COLLECTIONS[segment])
-            break
-        elif segment == "git":
-            # e.g. git/refs/heads/main or git/matching-refs/tags/v1
-            result.append(segments[index])
-            if index + 1 < len(segments):
-                result.append("{ref}")
-            break
-        elif segment in _NAMED_ITEMS:
-            placeholders = _NAMED_ITEMS[segment][: len(segments) - index]
-            result.extend(placeholders)
-            index += len(placeholders)
-        elif segment in _ITEM_COLLECTIONS and segments[index] not in _COLLECTION_LITERALS:
-            result.append("{id}" if segments[index].isdigit() else "{name}")
-            index += 1
+        placeholders, replaced_segments = _item_placeholders(segment, segments[index:])
+        result.extend(placeholders)
+        index += replaced_segments
 
     return f"{method.upper()} /{'/'.join(result)}"
+
+
+def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[list[str], int]:
+    """
+    Returns the placeholders for the segments that follow the given one and identify an item
+    of it, together with the number of segments they replace.
+    """
+
+    if segment.isdigit() or len(following_segments) == 0:
+        return [], 0
+
+    if segment in _PATH_COLLECTIONS:
+        return [_PATH_COLLECTIONS[segment]], len(following_segments)
+
+    if segment == "git":
+        # e.g. git/refs/heads/main or git/matching-refs/tags/v1
+        placeholders = following_segments[:1] + ([_REF_PLACEHOLDER] if len(following_segments) > 1 else [])
+        return placeholders, len(following_segments)
+
+    if segment in _NAMED_ITEMS:
+        placeholders = list(_NAMED_ITEMS[segment][: len(following_segments)])
+        return placeholders, len(placeholders)
+
+    item = following_segments[0]
+    if segment in _ITEM_COLLECTIONS and item not in _COLLECTION_LITERALS:
+        return [_ID_PLACEHOLDER if item.isdigit() else _NAME_PLACEHOLDER], 1
+
+    return [], 0

@@ -211,8 +211,10 @@ async def test_collect_api_usage_isolates_concurrent_tasks():
 
 
 def test_api_usage_of_unknown_api():
+    usage = ApiUsage()
+
     with pytest.raises(ValueError, match="unknown api"):
-        ApiUsage().of("soap")
+        usage.of("soap")
 
 
 def _sample_report() -> ApiUsageReport:
@@ -354,4 +356,5 @@ def test_every_graphql_query_reports_its_cost():
 
     for query in queries:
         content = query.read_text()
-        assert "rateLimit {" in content and "cost" in content, f"query '{query.name}' does not report its cost"
+        assert "rateLimit {" in content, f"query '{query.name}' does not ask for its rateLimit"
+        assert "cost" in content, f"query '{query.name}' does not report its cost"

@@ -27,6 +27,10 @@ if TYPE_CHECKING:
 _TOP_ORGANIZATIONS = 10
 _TOP_ENDPOINTS = 10
 
+_REQUESTS_COLUMN = "Requests"
+_QUOTA_COST_COLUMN = "Quota cost"
+_COLUMNS = [_REQUESTS_COLUMN, "Retries", "Errors", "Cached", _QUOTA_COST_COLUMN]
+
 
 class ApiUsageReport:
     """
@@ -90,7 +94,7 @@ class ApiUsageReport:
 
         table = Table(box=box.SIMPLE_HEAD, show_edge=False)
         table.add_column("API")
-        for column in ["Requests", "Retries", "Errors", "Cached", "Quota cost"]:
+        for column in _COLUMNS:
             table.add_column(column, justify="right")
 
         table.add_row("REST", *self._counters(self.total.rest), self._rest_quota_cost(self.total.rest))
@@ -228,7 +232,7 @@ class ApiUsageReport:
             show_edge=False,
         )
         table.add_column("Organization")
-        for column in ["Requests", "Retries", "Errors", "Cached", "Quota cost"]:
+        for column in _COLUMNS:
             table.add_column(column, justify="right")
 
         for github_id, usage, total in shown:
@@ -254,8 +258,8 @@ class ApiUsageReport:
 
         table = Table(title="Top endpoints", title_justify="left", box=box.SIMPLE_HEAD, show_edge=False)
         table.add_column("Endpoint")
-        table.add_column("Requests", justify="right")
-        table.add_column("Quota cost", justify="right")
+        table.add_column(_REQUESTS_COLUMN, justify="right")
+        table.add_column(_QUOTA_COST_COLUMN, justify="right")
 
         for endpoint, endpoint_statistics in endpoints[:_TOP_ENDPOINTS]:
             table.add_row(escape(endpoint), f"{endpoint_statistics.requests:,}", f"{endpoint_statistics.quota_cost:,}")
