@@ -87,8 +87,10 @@ the quota cost is measured apart:
 | Cached     | requests answered with `304 Not Modified` or served by a caching proxy                               |
 | Quota cost | points deducted from the GitHub rate limits, see [Quota cost and rate limits](#quota-cost-and-rate-limits) |
 
-A response that is served from the local cache without contacting GitHub is not a request. Many `404` errors are
-expected, as some settings are only available depending on the plan of an organization.
+A response that is served from the local cache without contacting GitHub is not a request. Neither is an attempt
+that fails before being sent, e.g. as it timed out or was interrupted while waiting for a free connection of the
+connection pool: such attempts are listed apart as `Not sent`. Many `404` errors are expected, as some settings are
+only available depending on the plan of an organization.
 
 Page loads of the GitHub web interface, used for settings that are not available via the api, are listed as
 `Web UI` and do not count against any api quota. Cloning the default configuration with git is not accounted.
@@ -114,7 +116,7 @@ The quota cost of a run is the number of points it has deducted from these quota
   free if nothing has changed. The estimate is thus close to the number of requests minus the cached ones.
 - **GraphQL** (`171 points`): every query asks GitHub for its cost, so the value is exact. A query costs at least one
   point, more if it requests many nested items; as otterdog fetches results in pages of 100 items, most queries cost
-  a single point. Mutations do not report their cost and are listed as `+ N unpriced`.
+  a single point. Mutations and failed requests do not report their cost and are listed as `+ N unpriced`.
 
 The `Rate limit` lines show, for each resource used during the run, the points left (`3,402`), the size of the quota
 for the used credentials (`5,000`) and when the quota is reset. The size depends on the
@@ -122,7 +124,8 @@ credentials, e.g. 5,000 requests per hour for a personal access token, see
 [rate limits for the REST API](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) and
 [rate limits for the GraphQL API](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api).
 The points left are the lowest value GitHub reported during the current window. They only decrease with requests that
-are accounted: a run answered mostly with `304 Not Modified` hardly changes them. As the quota is shared with any
-other client using the same credentials, it can not be used to derive the consumption of a single run.
+are accounted: a run answered mostly with `304 Not Modified` hardly changes them. Responses served by a caching proxy
+are ignored, as they carry the rate limit of the original request. As the quota is shared with any other client using
+the same credentials, it can not be used to derive the consumption of a single run.
 
 GitHub also enforces secondary rate limits, e.g. on concurrent requests, which are not measured.

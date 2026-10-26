@@ -129,6 +129,11 @@ class ApiUsageReport:
         if total.interrupted_requests > 0:
             details.append(("Interrupted", f"{total.interrupted_requests:,} request(s) cancelled"))
 
+        if len(total.unsent_attempts) > 0:
+            unsent = sorted(total.unsent_attempts.items(), key=lambda x: (-x[1], x[0]))
+            failures = " · ".join(f"{escape(k)}: {v:,}" for k, v in unsent)
+            details.append(("Not sent", f"{failures} (failed before being sent, not counted as requests)"))
+
         for index, line in enumerate(self._format_rate_limits()):
             details.append(("Rate limit" if index == 0 else None, line))
 

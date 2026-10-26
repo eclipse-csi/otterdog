@@ -43,7 +43,7 @@ class GraphQLClient:
 
         self._statistics = RequestStatistics()
         # the cost of a query is reported in its response body, see _record_response
-        self._recorder = RequestRecorder("graphql", self._statistics, default_resource="graphql")
+        self._recorder = RequestRecorder("graphql", self._statistics, default_resource="graphql", cost_in_body=True)
 
         # updated from every response that asks for it, see rate_limit_remaining
         self._rate_limit_remaining: int | None = None

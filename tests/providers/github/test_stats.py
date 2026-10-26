@@ -429,6 +429,28 @@ def test_report_print_failed_without_requests():
     assert "validate · 0 organizations" in output
     assert "failed" in output
     assert "Rate limit" not in output
+    assert "Not sent" not in output
+
+
+def test_report_lists_unsent_attempts_apart_from_requests():
+    report = ApiUsageReport("validate")
+    with collect_api_usage(report.total):
+        recorder = RequestRecorder("rest", RequestStatistics())
+        recorder.record(RequestOutcome("GET /orgs/{org}/members"))
+        recorder._record_unsent_attempt("timeout")
+        recorder._record_unsent_attempt("timeout")
+        recorder._record_unsent_attempt("interrupted")
+    report.finish("completed")
+
+    console = Console(record=True, width=120)
+    report.print(console)
+    output = console.export_text()
+    data = report.to_json()
+
+    assert "Not sent:    timeout: 2 · interrupted: 1 (failed before being sent, not counted as requests)" in output
+    assert data["total"]["requests"] == 1
+    assert data["total"]["errors"] == {}
+    assert data["apis"]["rest"]["unsent_attempts"] == {"interrupted": 1, "timeout": 2}
 
 
 def test_every_graphql_query_reports_its_cost():

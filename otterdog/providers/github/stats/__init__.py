@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from aiohttp import (
         ClientSession,
         TraceConfig,
+        TraceConnectionCreateStartParams,
+        TraceConnectionReuseconnParams,
         TraceRequestEndParams,
         TraceRequestExceptionParams,
         TraceRequestRedirectParams,
@@ -80,6 +82,8 @@ class RequestOutcome:
     interrupted: bool = False
     # the resource charged with one point for this request, if any
     quota_resource: str | None = None
+    # whether the cost of this request is unknown, as its response does not report it
+    unpriced: bool = False
     rate_limit: RateLimit | None = None
 
 
@@ -91,6 +95,8 @@ class RequestStatistics:
     interrupted_requests: int = 0
     unpriced_requests: int = 0
     errors: Counter[str] = dataclasses.field(default_factory=Counter)
+    # attempts that failed before being sent, e.g. while waiting for a free connection, which are no requests
+    unsent_attempts: Counter[str] = dataclasses.field(default_factory=Counter)
     quota_cost: Counter[str] = dataclasses.field(default_factory=Counter)
     endpoints: dict[str, EndpointStatistics] = dataclasses.field(default_factory=dict)
     rate_limits: dict[str, RateLimit] = dataclasses.field(default_factory=dict)
@@ -125,8 +131,14 @@ class RequestStatistics:
         if outcome.quota_resource is not None:
             self.add_quota_cost(outcome.quota_resource, 1, outcome.endpoint)
 
+        if outcome.unpriced:
+            self.unpriced_requests += 1
+
         if outcome.rate_limit is not None:
             self.update_rate_limit(outcome.rate_limit)
+
+    def record_unsent_attempt(self, failure: str) -> None:
+        self.unsent_attempts[failure] += 1
 
     def record_retry(self) -> None:
         self.retried_requests += 1
@@ -176,6 +188,7 @@ class RequestStatistics:
         self.interrupted_requests += other.interrupted_requests
         self.unpriced_requests += other.unpriced_requests
         self.errors.update(other.errors)
+        self.unsent_attempts.update(other.unsent_attempts)
         self.quota_cost.update(other.quota_cost)
 
         for endpoint, endpoint_statistics in other.endpoints.items():
@@ -201,6 +214,7 @@ class RequestStatistics:
             "interrupted": self.interrupted_requests,
             "quota_cost": dict(sorted(self.quota_cost.items())),
             "unpriced_requests": self.unpriced_requests,
+            "unsent_attempts": dict(sorted(self.unsent_attempts.items())),
         }
 
         if include_endpoints:
@@ -303,6 +317,7 @@ class RequestRecorder:
         statistics: RequestStatistics,
         charge_responses: bool = False,
         default_resource: str | None = None,
+        cost_in_body: bool = False,
     ) -> None:
         self._api = api
         self._statistics = statistics
@@ -310,12 +325,18 @@ class RequestRecorder:
         self._charge_responses = charge_responses
         # the rate limit resource used if a response does not specify it
         self._default_resource = default_resource
+        # whether the cost of a request is reported in the body of a successful response only,
+        # leaving the cost of a failed response unknown
+        self._cost_in_body = cost_in_body
 
     def trace_config(self) -> TraceConfig:
         from aiohttp import TraceConfig
 
         trace_config = TraceConfig()
         trace_config.on_request_start.append(self._on_request_start)
+        # an attempt is only sent once it has left the queue of the connection pool
+        trace_config.on_connection_create_start.append(self._on_connection_obtained)
+        trace_config.on_connection_reuseconn.append(self._on_connection_obtained)
         trace_config.on_request_redirect.append(self._on_request_response)
         trace_config.on_request_end.append(self._on_request_response)
         trace_config.on_request_exception.append(self._on_request_exception)
@@ -391,8 +412,11 @@ class RequestRecorder:
     ) -> None:
         try:
             response = params.response
-            cached = response.status == 304 or is_proxy_cached(response.headers)
-            rate_limit = self._rate_limit(response.headers)
+            failed = response.status >= 400
+            proxy_cached = is_proxy_cached(response.headers)
+            cached = response.status == 304 or proxy_cached
+            # the rate limit of a response served from the cache of a proxy is the one of the original request
+            rate_limit = None if proxy_cached else self._rate_limit(response.headers)
 
             if self._charge_responses and rate_limit is not None and not cached:
                 quota_resource = rate_limit.resource
@@ -403,14 +427,24 @@ class RequestRecorder:
                 RequestOutcome(
                     self._endpoint(context, params),
                     retry=self._is_retry(context),
-                    error=str(response.status) if response.status >= 400 else None,
+                    error=str(response.status) if failed else None,
                     cached=cached,
                     quota_resource=quota_resource,
+                    unpriced=self._cost_in_body and failed and not cached,
                     rate_limit=rate_limit,
                 )
             )
         except Exception:
             _logger.debug("failed to record request statistics", exc_info=True)
+
+    async def _on_connection_obtained(  # NOSONAR - aiohttp requires coroutines as trace callbacks
+        self,
+        session: ClientSession,
+        context: SimpleNamespace,
+        params: TraceConnectionCreateStartParams | TraceConnectionReuseconnParams,
+    ) -> None:
+        # the attempt has left the queue of the connection pool, it creates or reuses a connection
+        context.left_queue = True
 
     async def _on_request_exception(  # NOSONAR - aiohttp requires coroutines as trace callbacks
         self,
@@ -420,6 +454,13 @@ class RequestRecorder:
     ) -> None:
         try:
             error, interrupted = _classify_failure(params.exception)
+
+            # an attempt that failed while waiting for a connection, e.g. as all connections of the pool
+            # are in use, has never been sent
+            if not getattr(context, "left_queue", False):
+                self._record_unsent_attempt(error if error is not None else "interrupted")
+                return
+
             self.record(
                 RequestOutcome(
                     self._endpoint(context, params),
@@ -430,6 +471,10 @@ class RequestRecorder:
             )
         except Exception:
             _logger.debug("failed to record request statistics", exc_info=True)
+
+    def _record_unsent_attempt(self, failure: str) -> None:
+        for statistics in self._targets():
+            statistics.record_unsent_attempt(failure)
 
     @staticmethod
     def _endpoint(

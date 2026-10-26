@@ -45,6 +45,7 @@ class _GitHubStub:
     def __init__(self) -> None:
         self.hits: Counter[str] = Counter()
         self.request_received = asyncio.Event()
+        self.graphql_pool_exhausted = asyncio.Event()
 
         self.app = web.Application()
         self.app.router.add_get("/orgs/acme/repos", self.paged_repos)
@@ -144,6 +145,19 @@ class _GitHubStub:
             return web.json_response({"data": {"minimizeComment": {"clientMutationId": None}}}, headers=headers)
         elif "updateBranchProtectionRule" in query:
             return web.json_response({"errors": [{"type": "NOT_FOUND", "message": "missing rule"}]}, headers=headers)
+        elif "deleteBranchProtectionRule" in query:
+            self.hits["deleteBranchProtectionRule"] += 1
+            if self.hits["deleteBranchProtectionRule"] < 3:
+                return web.Response(status=502, headers=headers)
+            return web.json_response(
+                {"data": {"deleteBranchProtectionRule": {"clientMutationId": None}}}, headers=headers
+            )
+        elif "pullRequests(first" in query:
+            # keeps every connection of the client busy, its pool is limited to 10 connections
+            if self.hits[request.path] >= 10:
+                self.graphql_pool_exhausted.set()
+            await asyncio.sleep(60)
+            return web.json_response({}, headers=headers)
         elif "pullRequest(number" in query:
             # served from the cache of a proxy, the cost belongs to the original request
             comments = {"nodes": [], "pageInfo": {"hasNextPage": False}}
@@ -281,6 +295,8 @@ async def test_proxy_cached_response_is_a_free_request(requester):
     assert usage.rest.total_requests == 1
     assert usage.rest.cached_responses == 1
     assert len(usage.rest.quota_cost) == 0
+    # its rate limit headers are the ones of the original request
+    assert len(usage.rest.rate_limits) == 0
 
 
 async def test_stream_and_its_redirect_are_requests(requester):
@@ -440,6 +456,46 @@ async def test_graphql_response_cached_by_proxy_costs_nothing(github):
     assert usage.graphql.cached_responses == 1
     assert len(usage.graphql.quota_cost) == 0
     assert usage.graphql.unpriced_requests == 0
+    assert len(usage.graphql.rate_limits) == 0
+
+
+async def test_failed_graphql_attempts_are_unpriced(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage):
+            await client.delete_branch_protection_rule("acme", "website", "main", "R1")
+    finally:
+        await client.close()
+
+    assert usage.graphql.total_requests == 3
+    assert usage.graphql.retried_requests == 2
+    assert usage.graphql.errors == {"502": 2}
+    # neither the failed attempts nor the mutation report their cost
+    assert usage.graphql.unpriced_requests == 3
+    assert len(usage.graphql.quota_cost) == 0
+
+
+async def test_attempt_waiting_for_a_connection_is_not_a_request(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage):
+            tasks = [asyncio.create_task(client.get_pull_requests("acme", "website", "main")) for _ in range(11)]
+            await asyncio.wait_for(github.graphql_pool_exhausted.wait(), timeout=10)
+
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        await client.close()
+
+    assert github.hits["/graphql"] == 10
+    assert usage.graphql.total_requests == 10
+    assert usage.graphql.interrupted_requests == 10
+    assert usage.graphql.unsent_attempts == {"interrupted": 1}
 
 
 async def test_encoded_slash_remains_part_of_a_name(requester):
