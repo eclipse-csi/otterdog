@@ -1,5 +1,93 @@
 # Change Log
 
+## [1.7.0] - 27/10/2026
+
+### Added
+
+ - feat: support individual users as ruleset bypass actors by @jacksonsr451 in https://github.com/eclipse-csi/otterdog/pull/779
+ - feat:group dependabot update by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/838
+ - Configuration guides playground by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/878
+ - feat: make web client timeout configurable via OTTERDOG_WEB_TIMEOUT by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/880
+ - feat: report GitHub API usage statistics by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/881
+
+### Changed
+
+ - docs: add custom properties permissions to the GitHub App setup by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/774
+ - chore(deps-dev): bump ruff from 0.16.6 to 0.16.8 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/789
+ - chore(deps-dev): bump python-slugify from 9.0.0 to 9.1.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/788
+ - chore(deps): bump github/gh-aw-actions/setup from 0.88.8 to 0.89.17 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/787
+ - chore(deps-dev): bump tox from 4.61.4 to 4.63.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/786
+ - chore(deps-dev): bump semver from 3.0.4 to 3.1.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/785
+ - chore(deps): bump playwright from 1.62.0 to 1.63.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/784
+ - chore(deps): bump moment from 2.30.1 to 2.31.0 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/807
+ - chore(deps): bump urllib3 from 2.7.0 to 2.8.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/808
+ - chore(deps): bump pyjwt from 2.14.0 to 2.15.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/810
+ - chore(deps-dev): bump virtualenv from 21.7.9 to 21.7.13 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/809
+ - refactor: encapsulate organization diffs in DiffResult by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/782
+ - chore(deps): bump pyjwt from 2.15.0 to 2.15.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/816
+ - chore(deps): bump github/gh-aw-actions/setup from 0.89.17 to 0.90.0 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/814
+ - chore(deps-dev): bump pymdown-extensions from 12.0.1 to 12.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/813
+ - chore(deps): bump multidict from 6.8.0 to 6.9.1 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/819
+ - chore(deps-dev): bump werkzeug from 3.1.8 to 3.1.9 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/818
+ - chore: track npm dependencies with dependabot by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/820
+ - chore(deps-dev): bump tox from 4.63.0 to 4.64.4 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/823
+ - chore(deps-dev): bump pymongo from 4.18.1 to 4.18.2 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/812
+ - chore(deps-dev): bump prek from 0.5.3 to 0.5.4 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/824
+ - chore(deps): bump codemirror-graphql from 2.1.1 to 2.2.9 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/821
+ - chore(deps-dev): bump python-slugify from 9.1.0 to 9.1.2 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/815
+ - chore(deps-dev): bump ruff from 0.16.8 to 0.16.9 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/811
+ - chore(deps): bump admin-lte from 3.2.0 to 4.9.1 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/822
+ - chore(deps-dev): bump ruff from 0.16.9 to 0.16.10 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/837
+ - chore(deps-dev): bump tox from 4.64.4 to 4.64.7 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/836
+ - chore(deps): bump python-dotenv from 1.2.3 to 1.2.4 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/835
+ - chore(deps): bump gitpython from 3.1.62 to 3.2.0 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/834
+ - chore(deps): bump codemirror from 5.65.18 to 6.0.2 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/832
+ - chore(deps): bump chart.js from 4.4.6 to 4.5.1 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/828
+ - chore(deps-dev): bump mypy from 2.3.1 to 2.4.0 in the python-minor-patch group across 1 directory by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/840
+ - chore(deps): bump highlight.js from 11.10.0 to 11.12.0 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/831
+ - chore(deps): bump @fortawesome/fontawesome-free from 6.6.0 to 7.3.1 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/830
+ - chore(deps-dev): bump vite from 8.1.5 to 8.3.2 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/829
+ - chore(deps-dev): bump vite from 8.3.2 to 8.3.3 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/846
+ - chore(deps-dev): bump husky from 9.1.6 to 9.1.7 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/845
+ - chore(deps): bump the python-minor-patch group with 3 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/849
+ - chore(deps-dev): bump types-jsonschema from 4.26.0.20260518 to 4.26.0.20261006 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/851
+ - chore(deps-dev): bump types-requests from 2.33.0.20260906 to 2.33.0.20261006 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/850
+ - chore(deps): bump admin-lte from 4.9.1 to 4.10.0 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/847
+ - docs: document team_permissions of repositories by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/853
+ - Replace jsgrid with datatables by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/852
+ - chore(deps): bump marked from 15.0.0 to 18.1.0 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/844
+ - gh pages custom domain by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/858
+ - chore(deps): bump the python-minor-patch group with 9 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/863
+ - chore(deps): bump the github-actions group with 4 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/862
+ - chore(deps): bump python from 3.12-slim to 3.14-slim in /docker by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/861
+ - chore(deps-dev): bump vite from 8.3.3 to 8.3.4 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/860
+ - chore(deps): bump marked from 18.1.0 to 18.1.1 in /otterdog/webapp/static by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/859
+ - chore(deps-dev): bump virtualenv from 21.7.13 to 21.14.9 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/866
+ - chore(deps): bump the npm-minor-patch group in /otterdog/webapp/static with 3 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/875
+ - chore(deps): bump the python-minor-patch group with 6 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/874
+ - chore(deps): bump the python-security group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/877
+ - chore(deps): bump certifi from 2026.7.22 to 2026.10.19 by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/868
+
+### Fixed
+
+ - Fix grammatic issues in validation warnings by @fredg02 in https://github.com/eclipse-csi/otterdog/pull/771
+ - fix: validate code scanning languages for new repositories by @jacksonsr451 in https://github.com/eclipse-csi/otterdog/pull/767
+ - Prevent Issue Triage from spending its only comment on draft output by @heurtematte with @Copilot in https://github.com/eclipse-csi/otterdog/pull/769
+ - fix: do not drop webhook events whose payload cannot be formatted by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/775
+ - Apply all commits of rebase-merged pull requests by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/773
+ - fix: only disable code scanning of new repos when it is configured by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/791
+ - fix: validate required status checks of rulesets by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/790
+ - fix: do not revert pull request status with an outdated snapshot by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/792
+ - fix: model allowed_merge_methods in the pull_request ruleset rule by @c-vigo in https://github.com/eclipse-csi/otterdog/pull/777
+ - fix: agent workflow with dependabot by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/827
+ - Fix: bound installation refresh tasks by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/843
+ - Apply fixes from PR 664 by @mbarbero in https://github.com/eclipse-csi/otterdog/pull/665
+ - fix: mark private repository creation and conversion as cost-related by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/854
+ - fix: store the config of a blueprint changed along with its description by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/864
+ - Fix/drop quart flask patch by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/865
+ - fix: detect and apply repository team access removals by @AlexanderLanin in https://github.com/eclipse-csi/otterdog/pull/842
+ - ignore repository permissions of excluded teams by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/879
+
 ## [1.6.1] - 24/09/2026
 
 ### Fixed
