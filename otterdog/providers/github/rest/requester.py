@@ -10,7 +10,8 @@ import json
 from collections.abc import AsyncIterable, Mapping
 from typing import Any
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
+from aiohttp_client_cache import CacheBackend
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 
@@ -55,7 +56,7 @@ class Requester:
         else:
             self._base_url = f"https://{base_url}"
             self._session = AsyncCachedSession(
-                cache=self._cache_strategy.get_cache_backend(),
+                cache=self._record_body_failures_while_caching(self._cache_strategy.get_cache_backend()),
                 timeout=ClientTimeout(connect=3, sock_connect=3),
                 connector=TCPConnector(
                     limit=30,
@@ -71,6 +72,23 @@ class Requester:
     @property
     def statistics(self) -> RequestStatistics:
         return self._statistics
+
+    def _record_body_failures_while_caching(self, backend: CacheBackend | None) -> CacheBackend | None:
+        """
+        A cached session reads the body of a response to cache it before returning the response, i.e. after
+        its request has been recorded on receiving the headers, thus a failure while doing so is recorded here.
+        """
+        if backend is None:
+            return None
+
+        save_response = backend.save_response
+
+        async def recording_save_response(response: ClientResponse, *args: Any, **kwargs: Any) -> None:
+            with self._recorder.recording_body_failures(response.status):
+                await save_response(response, *args, **kwargs)
+
+        backend.save_response = recording_save_response  # type: ignore[method-assign]
+        return backend
 
     async def close(self) -> None:
         await self._session.close()

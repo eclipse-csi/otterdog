@@ -83,19 +83,38 @@ from otterdog.providers.github.stats.report import ApiUsageReport
             "/repos/acme/website/branches/feature/private-project/rename",
             "POST /repos/{owner}/{repo}/branches/{name}/rename",
         ),
+        # route words within names do not split them
+        (
+            "POST",
+            "/repos/acme/website/branches/feature/rename/private-project/rename",
+            "POST /repos/{owner}/{repo}/branches/{name}/rename",
+        ),
+        (
+            "GET",
+            "/repos/acme/website/branches/feature/rename/private-project",
+            "GET /repos/{owner}/{repo}/branches/{name}",
+        ),
+        # a route is only matched with its method
+        ("GET", "/repos/acme/website/branches/feature/rename", "GET /repos/{owner}/{repo}/branches/{name}"),
+        ("GET", "/repos/acme/website/branches/rename", "GET /repos/{owner}/{repo}/branches/{name}"),
+        # routes not used by otterdog are replaced together with the name
         (
             "GET",
             "/repos/acme/website/branches/release/1.x/protection/required_status_checks",
-            "GET /repos/{owner}/{repo}/branches/{name}/protection/required_status_checks",
+            "GET /repos/{owner}/{repo}/branches/{name}",
         ),
-        # a branch named like a route is still a branch
-        ("GET", "/repos/acme/website/branches/rename", "GET /repos/{owner}/{repo}/branches/{name}"),
         ("GET", "/repos/acme/website/commits/release/1.x", "GET /repos/{owner}/{repo}/commits/{name}"),
         (
             "GET",
             "/repos/acme/website/commits/release/1.x/statuses",
             "GET /repos/{owner}/{repo}/commits/{name}/statuses",
         ),
+        (
+            "GET",
+            "/repos/acme/website/commits/fix/statuses/private/statuses",
+            "GET /repos/{owner}/{repo}/commits/{name}/statuses",
+        ),
+        ("GET", "/repos/acme/website/commits/fix/status", "GET /repos/{owner}/{repo}/commits/{name}"),
         ("GET", "/repos/acme/website/commits/abc123/pulls", "GET /repos/{owner}/{repo}/commits/{name}/pulls"),
         ("GET", "/repos/acme/website/contents/docs/index.md", "GET /repos/{owner}/{repo}/contents/{path}"),
         ("GET", "/repos/acme/website/zipball/main", "GET /repos/{owner}/{repo}/zipball/{ref}"),
@@ -169,6 +188,10 @@ def test_rate_limit_keeps_lowest_remaining_of_current_window():
     # once the current window has ended, the quota has been reset
     statistics.update_rate_limit(RateLimit("core", 5000, 4999, 4600), now=1000)
     assert statistics.rate_limits["core"].remaining == 4999
+
+    # a delayed response of the window that has ended is ignored
+    statistics.update_rate_limit(RateLimit("core", 5000, 3900, 1000), now=1001)
+    assert statistics.rate_limits["core"] == RateLimit("core", 5000, 4999, 4600)
 
     statistics.update_rate_limit(RateLimit("search", 30, 25, 4600), now=1000)
     assert statistics.remaining_rate_limit == 25

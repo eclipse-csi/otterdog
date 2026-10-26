@@ -381,6 +381,19 @@ async def test_failure_while_reading_body_is_recorded_once(github, requester):
     assert usage.rest.interrupted_requests == 0
 
 
+async def test_failure_while_caching_body_is_recorded_per_attempt(github, cached_requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage), pytest.raises(ClientPayloadError):
+        await cached_requester.request_raw("GET", "/orgs/acme/truncated")
+
+    # the cached session reads the body to cache it once the response has been recorded, each attempt fails
+    assert github.hits["/orgs/acme/truncated"] == 3
+    assert usage.rest.total_requests == 3
+    assert usage.rest.retried_requests == 2
+    assert usage.rest.errors == {"network": 3}
+
+
 async def test_cancellation_while_reading_body_is_an_interruption(github, requester):
     usage = ApiUsage()
 

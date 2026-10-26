@@ -151,18 +151,23 @@ class RequestStatistics:
 
     def update_rate_limit(self, rate_limit: RateLimit, now: float | None = None) -> None:
         current = self.rate_limits.get(rate_limit.resource)
-        current_time = time.time() if now is None else now
+        if current is None or self._supersedes(rate_limit, current, time.time() if now is None else now):
+            self.rate_limits[rate_limit.resource] = rate_limit
+
+    @staticmethod
+    def _supersedes(rate_limit: RateLimit, current: RateLimit, now: float) -> bool:
+        if rate_limit.reset > current.reset and now >= current.reset:
+            # the window of the current value has ended, the quota has been reset since
+            return True
+
+        if rate_limit.reset < current.reset and now >= rate_limit.reset:
+            # a delayed response of a window that has ended already
+            return False
 
         # keep the lowest remaining quota of the current window, as responses of concurrent requests arrive
         # in any order, and a later reset time does not mean a new window: GitHub reports a reset time
         # moving along with the current time for responses that do not reflect any consumption yet.
-        # only once the window of the current value has ended, the quota has been reset.
-        if (
-            current is None
-            or rate_limit.remaining < current.remaining
-            or (rate_limit.reset > current.reset and current_time >= current.reset)
-        ):
-            self.rate_limits[rate_limit.resource] = rate_limit
+        return rate_limit.remaining < current.remaining
 
     def merge(self, other: RequestStatistics) -> None:
         self.total_requests += other.total_requests
@@ -512,11 +517,12 @@ _PATH_COLLECTIONS = {
     "zipball": _REF_PLACEHOLDER,
 }
 
-# collections whose items may contain slashes, with the routes that may follow an item,
-# e.g. /branches/feature/x/protection
-_SLASHED_ITEM_COLLECTIONS = {
-    "branches": frozenset({"protection", "rename"}),
-    "commits": frozenset({"check-runs", "check-suites", "pulls", "status", "statuses"}),
+# collections whose items may contain slashes, with the routes that may follow an item and their
+# method, e.g. POST /branches/feature/x/rename. A route only follows an item if the remaining path
+# matches it completely, any other path is replaced together with the item.
+_SLASHED_ITEM_ROUTES: dict[str, dict[tuple[str, ...], str]] = {
+    "branches": {("rename",): "POST"},
+    "commits": {("pulls",): "GET", ("statuses",): "GET"},
 }
 
 
@@ -529,6 +535,7 @@ def rest_endpoint(method: str, path: str) -> str:
     are thus accounted together, and no names or ids end up in the statistics.
     """
 
+    method = method.upper()
     segments = [x for x in path.split("/") if len(x) > 0]
     result = []
 
@@ -539,14 +546,14 @@ def rest_endpoint(method: str, path: str) -> str:
 
         result.append(_ID_PLACEHOLDER if segment.isdigit() else segment)
 
-        placeholders, replaced_segments = _item_placeholders(segment, segments[index:])
+        placeholders, replaced_segments = _item_placeholders(method, segment, segments[index:])
         result.extend(placeholders)
         index += replaced_segments
 
-    return f"{method.upper()} /{'/'.join(result)}"
+    return f"{method} /{'/'.join(result)}"
 
 
-def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[list[str], int]:
+def _item_placeholders(method: str, segment: str, following_segments: list[str]) -> tuple[list[str], int]:
     """
     Returns the placeholders for the segments that follow the given one and identify an item
     of it, together with the number of segments they replace.
@@ -563,8 +570,8 @@ def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[lis
         placeholders = following_segments[:1] + ([_REF_PLACEHOLDER] if len(following_segments) > 1 else [])
         return placeholders, len(following_segments)
 
-    if segment in _SLASHED_ITEM_COLLECTIONS:
-        return [_NAME_PLACEHOLDER], _slashed_item_length(following_segments, _SLASHED_ITEM_COLLECTIONS[segment])
+    if segment in _SLASHED_ITEM_ROUTES:
+        return [_NAME_PLACEHOLDER], _slashed_item_length(method, following_segments, _SLASHED_ITEM_ROUTES[segment])
 
     if segment in _NAMED_ITEMS:
         placeholders = list(_NAMED_ITEMS[segment][: len(following_segments)])
@@ -577,12 +584,13 @@ def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[lis
     return [], 0
 
 
-def _slashed_item_length(following_segments: list[str], routes: frozenset[str]) -> int:
+def _slashed_item_length(method: str, following_segments: list[str], routes: dict[tuple[str, ...], str]) -> int:
     """
-    Returns the number of segments of an item that may contain slashes, i.e. the segments up to
-    the first route following the item, which consists of one segment at least.
+    Returns the number of segments of an item that may contain slashes: all of them, unless the
+    path following one segment at least is a route used with the given method.
     """
-    return next(
-        (index for index, segment in enumerate(following_segments) if index > 0 and segment in routes),
-        len(following_segments),
-    )
+    for length in range(1, len(following_segments)):
+        if routes.get(tuple(following_segments[length:])) == method:
+            return length
+
+    return len(following_segments)
