@@ -112,7 +112,9 @@ display name. The team must exist in the organization, e.g. defined via [orgs.ne
     Once managed, `team_permissions` is authoritative: any team that has access to the repository on GitHub
     but is not listed will have its access removed. With `team_permissions: {}` as default value, this applies
     to every repository that does not explicitly declare its teams. Run `otterdog plan` to review such removals
-    before applying. Permissions of individual collaborators are not affected.
+    before applying. Permissions of individual collaborators are not affected, nor are permissions of teams
+    excluded with `exclude_teams` unless the repository lists them, see
+    [Teams managed by another tool](../../../operating_otterdog/organization-policies.md#teams-managed-by-another-tool).
 
 ## Jsonnet Function
 

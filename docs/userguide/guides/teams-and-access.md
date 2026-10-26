@@ -101,6 +101,10 @@ see also [Repository roles for an organization](https://docs.github.com/en/organ
     modification of the repository, it is applied even without `--delete-resources`. This also applies to teams
     whose members are managed outside otterdog. Review such removals with `plan` before applying.
 
+    The permissions of teams excluded with `exclude_teams` are ignored, unless the repository lists the team in
+    `team_permissions`, see
+    [Organization-wide policies](../../operating_otterdog/organization-policies.md#teams-managed-by-another-tool).
+
 !!! tip "Recommendation"
 
     Grant the lowest permission that fits the role of a team, e.g. `maintain` instead of `admin` for maintainers,

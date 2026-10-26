@@ -165,6 +165,10 @@ class GitHubOrganization:
     def get_repository(self, repo_name: str) -> Repository | None:
         return next(filter(lambda x: x.name == repo_name, self.repositories), None)  # type: ignore
 
+    def get_repository_by_name_or_alias(self, repo_name: str) -> Repository | None:
+        # also match the aliases of renamed repositories, like live patches do
+        return next(filter(lambda x: repo_name in x.get_all_names(), self.repositories), None)  # type: ignore
+
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
@@ -771,6 +775,7 @@ class GitHubOrganization:
                     concurrency,
                     repo_filter,
                     expected_org,
+                    exclude_teams,
                 ):
                     org.add_repository(repo)
             else:
@@ -814,6 +819,7 @@ async def _process_single_repo(
     repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
     expected_org: GitHubOrganization | None = None,
+    exclude_teams: Pattern | None = None,
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
@@ -822,7 +828,7 @@ async def _process_single_repo(
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
     is_private = github_repo_data.get("private", False)
-    expected_repo = expected_org.get_repository(repo_name) if expected_org is not None else None
+    expected_repo = expected_org.get_repository_by_name_or_alias(repo_name) if expected_org is not None else None
     workflow_included_keys: set[str] | None
     if expected_org is None:
         # no expected config to compare against (e.g. import): fetch everything
@@ -838,7 +844,21 @@ async def _process_single_repo(
     repo.workflows = RepositoryWorkflowSettings.from_provider_data(github_id, github_repo_workflow_data)
     if repo_permissions is not None:
         repo_permission = repo_permissions.get(repo_name, [])
-        repo.set_team_permissions({entry["name"]: entry["permission"] for entry in repo_permission})
+        # permissions of excluded teams are managed outside otterdog, unless the repo explicitly declares them.
+        # without an expected repo (e.g. import), keep the teams declared by the default repo config.
+        declared_permissions = (
+            expected_repo.team_permissions
+            if expected_repo is not None
+            else (jsonnet_config.default_repo_config or {}).get("team_permissions")
+        )
+        declared_teams = set(declared_permissions) if is_set_and_present(declared_permissions) else set()
+        repo.set_team_permissions(
+            {
+                entry["name"]: entry["permission"]
+                for entry in repo_permission
+                if exclude_teams is None or not exclude_teams.match(entry["name"]) or entry["name"] in declared_teams
+            }
+        )
     else:
         repo.unset_team_permissions()
 
@@ -969,6 +989,7 @@ async def _load_repos_from_provider(
     concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
+    exclude_teams: Pattern | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 
@@ -999,6 +1020,7 @@ async def _load_repos_from_provider(
                 repo_permissions,
                 app_installations,
                 expected_org,
+                exclude_teams,
             )
 
     if concurrency is not None:
