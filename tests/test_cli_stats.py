@@ -19,11 +19,18 @@ from otterdog.providers.github.stats import RequestOutcome, RequestRecorder, Req
 class _RequestingOperation(Operation):
     """Pretends to send a number of requests per organization, optionally failing for one."""
 
-    def __init__(self, requests: dict[str, int], failure: BaseException | None = None, failing_org: str = "") -> None:
+    def __init__(
+        self,
+        requests: dict[str, int],
+        failure: BaseException | None = None,
+        failing_org: str = "",
+        exit_code: int = 0,
+    ) -> None:
         super().__init__()
         self._requests = requests
         self._failure = failure
         self._failing_org = failing_org
+        self._exit_code = exit_code
 
     def pre_execute(self) -> None:
         pass
@@ -36,7 +43,7 @@ class _RequestingOperation(Operation):
         if self._failure is not None and org_config.github_id == self._failing_org:
             raise self._failure
 
-        return 0
+        return self._exit_code if org_config.github_id == self._failing_org else 0
 
 
 @pytest.fixture
@@ -95,6 +102,19 @@ def test_statistics_survive_a_failure(run_operation, tmp_path, capsys):
     assert data["outcome"] == "failed"
     assert data["total"]["requests"] == 5
     assert "failed" in capsys.readouterr().err
+
+
+def test_failure_reported_by_exit_code(run_operation, tmp_path):
+    stats_file = tmp_path / "stats.json"
+    # e.g. a validation reports its number of errors
+    operation = _RequestingOperation({"org-a": 3, "org-b": 2}, failing_org="org-a", exit_code=4)
+
+    exit_code = run_operation(operation, file=str(stats_file))
+
+    data = json.loads(stats_file.read_text())
+    assert exit_code == 4
+    assert data["outcome"] == "failed"
+    assert data["total"]["requests"] == 5
 
 
 def test_statistics_survive_an_interruption(run_operation, tmp_path):

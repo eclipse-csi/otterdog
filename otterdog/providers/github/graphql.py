@@ -18,7 +18,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from otterdog.logging import get_logger, is_trace_enabled
 from otterdog.providers.github.exception import RateLimitExceededException
-from otterdog.providers.github.stats import RequestRecorder, RequestStatistics
+from otterdog.providers.github.stats import RequestRecorder, RequestStatistics, is_proxy_cached
 from otterdog.utils import query_json
 
 if TYPE_CHECKING:
@@ -451,7 +451,9 @@ class GraphQLClient:
             trace_request_ctx={"endpoint": endpoint},
             **kwargs,
         ) as response:
-            text = await response.text()
+            with self._recorder.recording_body_failures(response.status):
+                text = await response.text()
+
             status = response.status
 
             if status == 403 or status == 429:
@@ -460,15 +462,16 @@ class GraphQLClient:
 
             # a failed status has already been recorded as error
             if status < 400:
-                self._record_response(endpoint, text)
+                self._record_response(endpoint, text, is_proxy_cached(response.headers))
 
             return status, text
 
-    def _record_response(self, endpoint: str, body: str) -> None:
+    def _record_response(self, endpoint: str, body: str, cached: bool) -> None:
         """
         Records the quota cost and the errors that GitHub reports in the body of a response.
 
-        Only a query asking for its rateLimit reports its cost, mutations remain unpriced.
+        Only a query asking for its rateLimit reports its cost, mutations remain unpriced. The cost
+        reported by a response served from the cache of a proxy belongs to the original request.
         """
 
         try:
@@ -479,11 +482,12 @@ class GraphQLClient:
         if not isinstance(json_data, dict):
             return
 
-        cost = ((json_data.get("data") or {}).get("rateLimit") or {}).get("cost")
-        if isinstance(cost, int):
-            self._recorder.add_quota_cost("graphql", cost, endpoint)
-        else:
-            self._recorder.record_unpriced_request()
+        if not cached:
+            cost = ((json_data.get("data") or {}).get("rateLimit") or {}).get("cost")
+            if isinstance(cost, int):
+                self._recorder.add_quota_cost("graphql", cost, endpoint)
+            else:
+                self._recorder.record_unpriced_request()
 
         errors = json_data.get("errors")
         if isinstance(errors, list) and len(errors) > 0:

@@ -62,20 +62,34 @@ async def test_goto_does_not_retry_non_repository_defaults_page_on_404():
     assert len(page.goto_calls) == 1
 
 
-def _navigation_response(status, navigation=True):
-    return pretend.stub(status=status, request=pretend.stub(is_navigation_request=lambda: navigation))
+def _request(navigation=True):
+    return pretend.stub(is_navigation_request=lambda: navigation)
 
 
-def test_page_loads_are_recorded():
+def _load_page(client, request, status=None, failed=False):
+    """Emits the events of a page load as playwright does."""
+    if status is not None:
+        client._remember_page_load_status(pretend.stub(status=status, request=request))
+
+    if failed:
+        client._record_failed_page_load(request)
+    else:
+        client._record_page_load(request)
+
+
+def test_page_loads_are_recorded_once_finished_or_failed():
     client = WebClient(pretend.stub())
 
-    client._record_page_load(_navigation_response(200))
-    client._record_page_load(_navigation_response(404))
+    _load_page(client, _request(), 200)
+    _load_page(client, _request(), 404)
+    # a page load can fail after its response has been received
+    _load_page(client, _request(), 200, failed=True)
+    _load_page(client, _request(), failed=True)
     # scripts, images and other resources of a page are not of interest
-    client._record_page_load(_navigation_response(200, navigation=False))
-    client._record_failed_page_load(pretend.stub(is_navigation_request=lambda: True))
-    client._record_failed_page_load(pretend.stub(is_navigation_request=lambda: False))
+    _load_page(client, _request(navigation=False), 200)
+    _load_page(client, _request(navigation=False), failed=True)
 
-    assert client.statistics.total_requests == 3
-    assert client.statistics.errors == {"404": 1, "network": 1}
+    assert client.statistics.total_requests == 4
+    assert client.statistics.errors == {"404": 1, "network": 2}
     assert len(client.statistics.quota_cost) == 0
+    assert len(client._page_load_statuses) == 0

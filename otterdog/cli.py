@@ -1051,7 +1051,8 @@ def _execute_operation(organizations: list[str], operation: Operation):
                 current_org_number += 1
 
             operation.post_execute()
-            outcome = "completed"
+            # operations report failures by their exit code as well, e.g. validation errors
+            outcome = "completed" if exit_code == 0 else "failed"
 
     except KeyboardInterrupt:
         print_error("operation interrupted")

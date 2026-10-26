@@ -46,12 +46,12 @@ class Requester:
 
         self._statistics = RequestStatistics()
         # every response that is not cached costs one point of the core rate limit, unless stated otherwise
-        recorder = RequestRecorder("rest", self._statistics, charge_responses=True, default_resource="core")
+        self._recorder = RequestRecorder("rest", self._statistics, charge_responses=True, default_resource="core")
         self._cache_strategy = cache_strategy
 
         if self._cache_strategy.is_external():
             self._base_url = cache_strategy.replace_base_url(f"https://{base_url}")
-            self._session = ClientSession(trace_configs=[recorder.trace_config()])
+            self._session = ClientSession(trace_configs=[self._recorder.trace_config()])
         else:
             self._base_url = f"https://{base_url}"
             self._session = AsyncCachedSession(
@@ -60,7 +60,7 @@ class Requester:
                 connector=TCPConnector(
                     limit=30,
                 ),
-                trace_configs=[recorder.trace_config()],
+                trace_configs=[self._recorder.trace_config()],
             )
 
         self._client = RetryClient(
@@ -178,7 +178,9 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            text = await response.text()
+            with self._recorder.recording_body_failures(response.status):
+                text = await response.text()
+
             status = response.status
             links = response.links
             next_link = links.get("next", None) if links is not None else None
@@ -221,8 +223,9 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            async for chunk, _ in response.content.iter_chunks():
-                yield chunk
+            with self._recorder.recording_body_failures(response.status):
+                async for chunk, _ in response.content.iter_chunks():
+                    yield chunk
 
     def _check_response(self, url_path: str, status_code: int, body: str) -> None:
         if status_code >= 400:

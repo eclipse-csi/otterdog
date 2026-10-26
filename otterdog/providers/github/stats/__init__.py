@@ -135,6 +135,13 @@ class RequestStatistics:
         """Records an error carried by the body of a response that did not fail by its status."""
         self.errors[error] += 1
 
+    def record_failure(self, error: str | None, interrupted: bool) -> None:
+        """Records the failure of a request that has been recorded as successful, e.g. while reading its body."""
+        if interrupted:
+            self.interrupted_requests += 1
+        elif error is not None:
+            self.errors[error] += 1
+
     def record_unpriced_request(self) -> None:
         self.unpriced_requests += 1
 
@@ -261,6 +268,21 @@ def collect_api_usage(usage: ApiUsage) -> Iterator[ApiUsage]:
         _active_usages.reset(token)
 
 
+def is_proxy_cached(headers: Mapping[str, str]) -> bool:
+    """Returns whether a response has been served from its cache by a caching proxy, e.g. ghproxy."""
+    return headers.get("X-From-Cache") == "1"
+
+
+def _classify_failure(exception: BaseException) -> tuple[str | None, bool]:
+    """Returns the error of a request that failed with the given exception, and whether it was interrupted."""
+    if isinstance(exception, CancelledError | KeyboardInterrupt):
+        return None, True
+    elif isinstance(exception, TimeoutError):
+        return "timeout", False
+    else:
+        return "network", False
+
+
 class RequestRecorder:
     """
     Records the requests of a client into its own statistics and into the usages collected by
@@ -314,6 +336,25 @@ class RequestRecorder:
         for statistics in self._targets():
             statistics.add_quota_cost(resource, cost, endpoint)
 
+    @contextlib.contextmanager
+    def recording_body_failures(self, status: int) -> Iterator[None]:
+        """
+        Records a failure while reading the body of a response, as its request has already been
+        recorded once its headers were received.
+        """
+        try:
+            yield
+        except GeneratorExit:
+            # the consumer of a streamed body stopped reading it, which is not a failure
+            raise
+        except BaseException as ex:
+            # a failed status has already been recorded as error
+            if status < 400:
+                error, interrupted = _classify_failure(ex)
+                for statistics in self._targets():
+                    statistics.record_failure(error, interrupted)
+            raise
+
     def _targets(self) -> Iterator[RequestStatistics]:
         yield self._statistics
         for usage in _active_usages.get():
@@ -345,7 +386,7 @@ class RequestRecorder:
     ) -> None:
         try:
             response = params.response
-            cached = response.status == 304 or response.headers.get("X-From-Cache") == "1"
+            cached = response.status == 304 or is_proxy_cached(response.headers)
             rate_limit = self._rate_limit(response.headers)
 
             if self._charge_responses and rate_limit is not None and not cached:
@@ -373,16 +414,7 @@ class RequestRecorder:
         params: TraceRequestExceptionParams,
     ) -> None:
         try:
-            exception = params.exception
-            interrupted = isinstance(exception, CancelledError)
-
-            if interrupted:
-                error = None
-            elif isinstance(exception, TimeoutError):
-                error = "timeout"
-            else:
-                error = "network"
-
+            error, interrupted = _classify_failure(params.exception)
             self.record(
                 RequestOutcome(
                     self._endpoint(context, params),
@@ -431,10 +463,8 @@ _ITEM_COLLECTIONS = frozenset(
         "apps",
         "artifacts",
         "blocks",
-        "branches",
         "collaborators",
         "comments",
-        "commits",
         "configurations",
         "deployment-branch-policies",
         "environments",
@@ -482,6 +512,13 @@ _PATH_COLLECTIONS = {
     "zipball": _REF_PLACEHOLDER,
 }
 
+# collections whose items may contain slashes, with the routes that may follow an item,
+# e.g. /branches/feature/x/protection
+_SLASHED_ITEM_COLLECTIONS = {
+    "branches": frozenset({"protection", "rename"}),
+    "commits": frozenset({"check-runs", "check-suites", "pulls", "status", "statuses"}),
+}
+
 
 def rest_endpoint(method: str, path: str) -> str:
     """
@@ -526,6 +563,9 @@ def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[lis
         placeholders = following_segments[:1] + ([_REF_PLACEHOLDER] if len(following_segments) > 1 else [])
         return placeholders, len(following_segments)
 
+    if segment in _SLASHED_ITEM_COLLECTIONS:
+        return [_NAME_PLACEHOLDER], _slashed_item_length(following_segments, _SLASHED_ITEM_COLLECTIONS[segment])
+
     if segment in _NAMED_ITEMS:
         placeholders = list(_NAMED_ITEMS[segment][: len(following_segments)])
         return placeholders, len(placeholders)
@@ -535,3 +575,14 @@ def _item_placeholders(segment: str, following_segments: list[str]) -> tuple[lis
         return [_ID_PLACEHOLDER if item.isdigit() else _NAME_PLACEHOLDER], 1
 
     return [], 0
+
+
+def _slashed_item_length(following_segments: list[str], routes: frozenset[str]) -> int:
+    """
+    Returns the number of segments of an item that may contain slashes, i.e. the segments up to
+    the first route following the item, which consists of one segment at least.
+    """
+    return next(
+        (index for index, segment in enumerate(following_segments) if index > 0 and segment in routes),
+        len(following_segments),
+    )

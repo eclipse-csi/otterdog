@@ -18,7 +18,7 @@ from collections import Counter
 
 import pytest
 import pytest_asyncio
-from aiohttp import web
+from aiohttp import ClientPayloadError, web
 from aiohttp.test_utils import TestServer
 
 from otterdog.providers.github.auth import token_auth
@@ -54,6 +54,8 @@ class _GitHubStub:
         self.app.router.add_get("/orgs/acme/proxied", self.proxied)
         self.app.router.add_get("/orgs/acme/missing", self.missing)
         self.app.router.add_get("/orgs/acme/slow", self.slow)
+        self.app.router.add_get("/orgs/acme/truncated", self.truncated)
+        self.app.router.add_get("/orgs/acme/slow-body", self.slow_body)
         self.app.router.add_get("/meta", self.meta)
         self.app.router.add_get("/repos/acme/website/zipball/main", self.zipball)
         self.app.router.add_get("/download/website.zip", self.download)
@@ -100,6 +102,25 @@ class _GitHubStub:
         await asyncio.sleep(60)
         return web.json_response({})
 
+    async def _partial_body(self, request: web.Request) -> web.StreamResponse:
+        self._hit(request)
+        response = web.StreamResponse(headers={**_RATE_LIMIT_HEADERS, "Content-Length": "100"})
+        await response.prepare(request)
+        await response.write(b"[")
+        return response
+
+    async def truncated(self, request: web.Request) -> web.StreamResponse:
+        response = await self._partial_body(request)
+        if request.transport is not None:
+            request.transport.close()
+        return response
+
+    async def slow_body(self, request: web.Request) -> web.StreamResponse:
+        response = await self._partial_body(request)
+        self.request_received.set()
+        await asyncio.sleep(60)
+        return response
+
     async def meta(self, request: web.Request) -> web.Response:
         self._hit(request)
         await asyncio.sleep(0.01)
@@ -123,6 +144,13 @@ class _GitHubStub:
             return web.json_response({"data": {"minimizeComment": {"clientMutationId": None}}}, headers=headers)
         elif "updateBranchProtectionRule" in query:
             return web.json_response({"errors": [{"type": "NOT_FOUND", "message": "missing rule"}]}, headers=headers)
+        elif "pullRequest(number" in query:
+            # served from the cache of a proxy, the cost belongs to the original request
+            comments = {"nodes": [], "pageInfo": {"hasNextPage": False}}
+            return web.json_response(
+                {"data": {"rateLimit": {"cost": 5}, "repository": {"pullRequest": {"comments": comments}}}},
+                headers={**headers, "X-From-Cache": "1"},
+            )
         else:
             teams = {"nodes": [{"id": "T1", "name": "team", "slug": "team"}], "pageInfo": {"hasNextPage": False}}
             return web.json_response(
@@ -339,6 +367,66 @@ async def test_graphql_cost_and_errors(github):
     assert usage.graphql.rate_limits["graphql"].remaining == 4990
     assert usage.rest.total_requests == 0
     assert client.statistics.total_requests == 3
+
+
+async def test_failure_while_reading_body_is_recorded_once(github, requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage), pytest.raises(ClientPayloadError):
+        await requester.request_raw("GET", "/orgs/acme/truncated")
+
+    assert github.hits["/orgs/acme/truncated"] == 1
+    assert usage.rest.total_requests == 1
+    assert usage.rest.errors == {"network": 1}
+    assert usage.rest.interrupted_requests == 0
+
+
+async def test_cancellation_while_reading_body_is_an_interruption(github, requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage):
+        task = asyncio.create_task(requester.request_raw("GET", "/orgs/acme/slow-body"))
+        await asyncio.wait_for(github.request_received.wait(), timeout=10)
+        # let the client receive the headers, so that it is reading the body when cancelled
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert usage.rest.total_requests == 1
+    assert usage.rest.interrupted_requests == 1
+    assert usage.rest.error_count == 0
+
+
+async def test_stopping_to_read_a_stream_is_no_failure(requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage):
+        stream = requester.request_stream("GET", "/repos/acme/website/zipball/main")
+        async for _ in stream:
+            break
+        await stream.aclose()
+
+    assert usage.rest.total_requests == 2
+    assert usage.rest.error_count == 0
+    assert usage.rest.interrupted_requests == 0
+
+
+async def test_graphql_response_cached_by_proxy_costs_nothing(github):
+    client = GraphQLClient(token_auth(_TOKEN), ghproxy_cache(github.url))
+    usage = ApiUsage()
+
+    try:
+        with collect_api_usage(usage):
+            await client.get_issue_comments("acme", "website", 1)
+    finally:
+        await client.close()
+
+    assert usage.graphql.total_requests == 1
+    assert usage.graphql.cached_responses == 1
+    assert len(usage.graphql.quota_cost) == 0
+    assert usage.graphql.unpriced_requests == 0
 
 
 async def test_statistics_do_not_leak_secrets(requester):

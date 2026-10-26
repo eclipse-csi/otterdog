@@ -47,6 +47,8 @@ class WebClient:
 
         self._statistics = RequestStatistics()
         self._recorder = RequestRecorder("web", self._statistics)
+        # the status of page loads whose response has been received, until they have finished or failed
+        self._page_load_statuses: dict[Request, int] = {}
 
     @property
     def statistics(self) -> RequestStatistics:
@@ -553,25 +555,32 @@ class WebClient:
         page = await target.new_page()
         page.set_default_timeout(self._DEFAULT_TIMEOUT)
 
-        # only page loads are of interest for the statistics, not the scripts or images they include
-        page.on("response", self._record_page_load)
+        # only page loads are of interest for the statistics, not the scripts or images they include.
+        # a page load is recorded once it has finished or failed, as it can still fail after its response.
+        page.on("response", self._remember_page_load_status)
+        page.on("requestfinished", self._record_page_load)
         page.on("requestfailed", self._record_failed_page_load)
 
         return page
 
-    def _record_page_load(self, response: Response) -> None:
+    def _remember_page_load_status(self, response: Response) -> None:
         if response.request.is_navigation_request():
-            status = response.status
+            self._page_load_statuses[response.request] = response.status
+
+    def _record_page_load(self, request: Request) -> None:
+        if request.is_navigation_request():
+            status = self._page_load_statuses.pop(request, None)
             self._recorder.record(
                 RequestOutcome(
                     _PAGE_LOAD_ENDPOINT,
-                    error=str(status) if status >= 400 else None,
+                    error=str(status) if status is not None and status >= 400 else None,
                     cached=status == 304,
                 )
             )
 
     def _record_failed_page_load(self, request: Request) -> None:
         if request.is_navigation_request():
+            self._page_load_statuses.pop(request, None)
             self._recorder.record(RequestOutcome(_PAGE_LOAD_ENDPOINT, error="network"))
 
     async def _goto(self, page: Page, url: str) -> None:

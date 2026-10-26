@@ -76,6 +76,27 @@ from otterdog.providers.github.stats.report import ApiUsageReport
             "/repos/acme/website/branches/main/rename",
             "POST /repos/{owner}/{repo}/branches/{name}/rename",
         ),
+        # names of branches and refs may contain slashes
+        ("GET", "/repos/acme/website/branches/feature/private-project", "GET /repos/{owner}/{repo}/branches/{name}"),
+        (
+            "POST",
+            "/repos/acme/website/branches/feature/private-project/rename",
+            "POST /repos/{owner}/{repo}/branches/{name}/rename",
+        ),
+        (
+            "GET",
+            "/repos/acme/website/branches/release/1.x/protection/required_status_checks",
+            "GET /repos/{owner}/{repo}/branches/{name}/protection/required_status_checks",
+        ),
+        # a branch named like a route is still a branch
+        ("GET", "/repos/acme/website/branches/rename", "GET /repos/{owner}/{repo}/branches/{name}"),
+        ("GET", "/repos/acme/website/commits/release/1.x", "GET /repos/{owner}/{repo}/commits/{name}"),
+        (
+            "GET",
+            "/repos/acme/website/commits/release/1.x/statuses",
+            "GET /repos/{owner}/{repo}/commits/{name}/statuses",
+        ),
+        ("GET", "/repos/acme/website/commits/abc123/pulls", "GET /repos/{owner}/{repo}/commits/{name}/pulls"),
         ("GET", "/repos/acme/website/contents/docs/index.md", "GET /repos/{owner}/{repo}/contents/{path}"),
         ("GET", "/repos/acme/website/zipball/main", "GET /repos/{owner}/{repo}/zipball/{ref}"),
         ("GET", "/repos/acme/website/git/refs/heads/feature/x", "GET /repos/{owner}/{repo}/git/refs/{ref}"),
