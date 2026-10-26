@@ -153,3 +153,11 @@ invalid values and the unknown properties in the editor, and lists them when the
   `apply` skip them with `--no-web-ui`, and such changes merged in a pull request of the configuration repository
   have to be applied manually, see
   [Restrict what members can do](organization-settings.md#restrict-what-members-can-do).
+
+**Loading a page of the GitHub web interface times out**
+
+: Settings that are only available through the GitHub web interface are retrieved with a headless browser, which
+  waits up to 10 seconds for a page to load. On a slow connection this fails with an error like
+  `Page.goto: Timeout 10000ms exceeded`. Increase the timeout, in milliseconds, with the environment variable
+  `OTTERDOG_WEB_TIMEOUT`, e.g. `export OTTERDOG_WEB_TIMEOUT=60000`, or skip these settings with `--no-web-ui`, see
+  [Environment variables](../../operating_otterdog/setup.md#environment-variables).
