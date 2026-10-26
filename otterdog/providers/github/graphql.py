@@ -18,7 +18,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from otterdog.logging import get_logger, is_trace_enabled
 from otterdog.providers.github.exception import RateLimitExceededException
-from otterdog.providers.github.stats import RequestStatistics
+from otterdog.providers.github.stats import RequestRecorder, RequestStatistics, is_proxy_cached
 from otterdog.utils import query_json
 
 if TYPE_CHECKING:
@@ -42,6 +42,8 @@ class GraphQLClient:
         }
 
         self._statistics = RequestStatistics()
+        # the cost of a query is reported in its response body, see _record_response
+        self._recorder = RequestRecorder("graphql", self._statistics, default_resource="graphql", cost_in_body=True)
 
         # updated from every response that asks for it, see rate_limit_remaining
         self._rate_limit_remaining: int | None = None
@@ -59,6 +61,7 @@ class GraphQLClient:
         self._session = ClientSession(
             timeout=ClientTimeout(connect=3, sock_connect=3),
             connector=TCPConnector(limit=10),
+            trace_configs=[self._recorder.trace_config()],
         )
 
         self._client = RetryClient(
@@ -179,7 +182,9 @@ class GraphQLClient:
            }
         }"""
 
-        status, body = await self._request_raw("POST", query=query, variables=variables)
+        status, body = await self._request_raw(
+            "POST", query=query, variables=variables, endpoint="mutation updateBranchProtectionRule"
+        )
         if status >= 400:
             raise RuntimeError(
                 f"failed updating branch protection rule '{rule_pattern}' for repo '{repo_name}': {body}"
@@ -209,7 +214,7 @@ class GraphQLClient:
            }
         }"""
 
-        status, body = await self._request_raw("POST", query, variables)
+        status, body = await self._request_raw("POST", query, variables, "mutation createBranchProtectionRule")
         if status >= 400:
             raise RuntimeError(
                 f"failed creating branch protection rule '{rule_pattern}' for repo '{repo_name}': {body}"
@@ -232,7 +237,7 @@ class GraphQLClient:
            }
         }"""
 
-        status, body = await self._request_raw("POST", query, variables)
+        status, body = await self._request_raw("POST", query, variables, "mutation deleteBranchProtectionRule")
         if status >= 400:
             raise RuntimeError(
                 f"failed removing branch protection rule '{rule_pattern}' for repo '{repo_name}': {body}"
@@ -260,7 +265,7 @@ class GraphQLClient:
            }
         }"""
 
-        status, body = await self._request_raw("POST", query, variables)
+        status, body = await self._request_raw("POST", query, variables, "mutation minimizeComment")
         if status >= 400:
             raise RuntimeError(f"failed minimizing comment: {body}")
 
@@ -353,6 +358,7 @@ class GraphQLClient:
         _logger.debug(f"running graphql query '{query_file}' with input '{json.dumps(input_variables)}'")
 
         query = _get_query_from_file(query_file)
+        endpoint = f"query {query_file.removesuffix('.gql')}"
 
         finished = False
         end_cursor = None
@@ -362,7 +368,7 @@ class GraphQLClient:
             variables = {"endCursor": end_cursor}
             variables.update(input_variables)
 
-            status, body = await self._request_raw("POST", query, variables)
+            status, body = await self._request_raw("POST", query, variables, endpoint)
             json_data = json.loads(body)
 
             if is_trace_enabled():
@@ -425,7 +431,7 @@ class GraphQLClient:
         if message is not None:
             raise RateLimitExceededException(message, self.rate_limit_reset_at)
 
-    async def _request_raw(self, method: str, query: str, variables: dict[str, Any]) -> tuple[int, str]:
+    async def _request_raw(self, method: str, query: str, variables: dict[str, Any], endpoint: str) -> tuple[int, str]:
         _logger.trace("'%s', query = %s, variables = %s", method, query[0:300] + "...", variables)
 
         headers = self._headers.copy()
@@ -442,19 +448,54 @@ class GraphQLClient:
             url=self._base_url,
             headers=headers,
             json={"query": query, "variables": variables},
+            trace_request_ctx={"endpoint": endpoint},
             **kwargs,
         ) as response:
-            self._statistics.sent_request()
+            with self._recorder.recording_body_failures(response):
+                text = await response.text()
 
-            text = await response.text()
             status = response.status
 
             if status == 403 or status == 429:
                 _logger.trace(f"graphql '{method}' result = ({status}, {text})")
                 raise RuntimeError("failed running graphql query, hitting rate limit")
 
-            self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
+            # a failed status has already been recorded as error
+            if status < 400:
+                self._record_response(endpoint, text, is_proxy_cached(response.headers))
+
             return status, text
+
+    def _record_response(self, endpoint: str, body: str, cached: bool) -> None:
+        """
+        Records the quota cost and the errors that GitHub reports in the body of a response.
+
+        Only a query asking for its rateLimit reports its cost, mutations remain unpriced. The cost
+        reported by a response served from the cache of a proxy belongs to the original request.
+        """
+
+        try:
+            json_data = json.loads(body)
+        except ValueError:
+            json_data = None
+
+        if not isinstance(json_data, dict):
+            # a body that can not be read does not report the cost either
+            if not cached:
+                self._recorder.record_unpriced_request()
+            return
+
+        if not cached:
+            cost = ((json_data.get("data") or {}).get("rateLimit") or {}).get("cost")
+            if isinstance(cost, int):
+                self._recorder.add_quota_cost("graphql", cost, endpoint)
+            else:
+                self._recorder.record_unpriced_request()
+
+        errors = json_data.get("errors")
+        if isinstance(errors, list) and len(errors) > 0:
+            error_type = errors[0].get("type") if isinstance(errors[0], dict) else None
+            self._recorder.record_error(f"graphql:{error_type or 'ERROR'}")
 
     @staticmethod
     def _transform_actors(actors: list[dict[str, Any]]) -> list[str]:

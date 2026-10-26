@@ -10,7 +10,8 @@ import json
 from collections.abc import AsyncIterable, Mapping
 from typing import Any
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
+from aiohttp_client_cache import CacheBackend
 from aiohttp_client_cache.session import CachedSession as AsyncCachedSession
 from aiohttp_retry import ExponentialRetry, RetryClient
 
@@ -22,7 +23,7 @@ from otterdog.providers.github.exception import (
     GitHubException,
     InsufficientPermissionsException,
 )
-from otterdog.providers.github.stats import RequestStatistics
+from otterdog.providers.github.stats import RequestRecorder, RequestStatistics
 from otterdog.utils import get_logger
 
 _logger = get_logger(__name__)
@@ -45,19 +46,22 @@ class Requester:
         }
 
         self._statistics = RequestStatistics()
+        # every response that is not cached costs one point of the core rate limit, unless stated otherwise
+        self._recorder = RequestRecorder("rest", self._statistics, charge_responses=True, default_resource="core")
         self._cache_strategy = cache_strategy
 
         if self._cache_strategy.is_external():
             self._base_url = cache_strategy.replace_base_url(f"https://{base_url}")
-            self._session = ClientSession()
+            self._session = ClientSession(trace_configs=[self._recorder.trace_config()])
         else:
             self._base_url = f"https://{base_url}"
             self._session = AsyncCachedSession(
-                cache=self._cache_strategy.get_cache_backend(),
+                cache=self._record_body_failures_while_caching(self._cache_strategy.get_cache_backend()),
                 timeout=ClientTimeout(connect=3, sock_connect=3),
                 connector=TCPConnector(
                     limit=30,
                 ),
+                trace_configs=[self._recorder.trace_config()],
             )
 
         self._client = RetryClient(
@@ -68,6 +72,23 @@ class Requester:
     @property
     def statistics(self) -> RequestStatistics:
         return self._statistics
+
+    def _record_body_failures_while_caching(self, backend: CacheBackend | None) -> CacheBackend | None:
+        """
+        A cached session reads the body of a response to cache it before returning the response, i.e. after
+        its request has been recorded on receiving the headers, thus a failure while doing so is recorded here.
+        """
+        if backend is None:
+            return None
+
+        save_response = backend.save_response
+
+        async def recording_save_response(response: ClientResponse, *args: Any, **kwargs: Any) -> None:
+            with self._recorder.recording_body_failures(response):
+                await save_response(response, *args, **kwargs)
+
+        backend.save_response = recording_save_response  # type: ignore[method-assign]
+        return backend
 
     async def close(self) -> None:
         await self._session.close()
@@ -175,22 +196,15 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            self._statistics.sent_request()
+            with self._recorder.recording_body_failures(response):
+                text = await response.text()
 
-            text = await response.text()
             status = response.status
             links = response.links
             next_link = links.get("next", None) if links is not None else None
             next_url = next_link.get("url", None) if next_link is not None else None
 
             self._check_permissions(url_path, status, text, response.headers)
-
-            if (hasattr(response, "from_cache") and response.from_cache) or response.headers.get(
-                "X-From-Cache", 0
-            ) == "1":
-                self._statistics.received_cached_response()
-            else:
-                self._statistics.update_remaining_rate_limit(int(response.headers.get("x-ratelimit-remaining", -1)))
 
             return (
                 status,
@@ -227,8 +241,9 @@ class Requester:
             data=data,
             **self._cache_strategy.get_request_parameters(),
         ) as response:
-            async for chunk, _ in response.content.iter_chunks():
-                yield chunk
+            with self._recorder.recording_body_failures(response):
+                async for chunk, _ in response.content.iter_chunks():
+                    yield chunk
 
     def _check_response(self, url_path: str, status_code: int, body: str) -> None:
         if status_code >= 400:

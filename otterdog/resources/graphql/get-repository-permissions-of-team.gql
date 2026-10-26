@@ -3,6 +3,11 @@ query TeamRepositoriesQuery(
   $teamSlug: String!,
   $endCursor: String
 ) {
+  rateLimit {
+    cost
+    remaining
+    resetAt
+  }
   organization(login: $org) {
     team(slug: $teamSlug) {
       repositories(first: 100, after: $endCursor) {

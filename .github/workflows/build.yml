@@ -72,7 +72,7 @@ jobs:
         if: matrix.python-version == '3.14'
         run: |
           source $VENV
-          python -m playwright install --with-deps firefox
+          python -m playwright install firefox
 
       # Run tests
       - name: Run tests
