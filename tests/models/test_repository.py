@@ -13,7 +13,6 @@ import pretend
 import pytest
 
 from otterdog.models.repository import LivePatch, Repository
-
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import UNSET, Change, IndentingPrinter, jsonnet_evaluate_snippet, query_json
 from tests.models import _EXAMPLE_CONFIG
