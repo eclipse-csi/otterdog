@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import inspect
 import json
 import os
 from datetime import datetime
@@ -36,6 +37,16 @@ _BLUEPRINT_MODULES: list[str] = ["home", "api", "internal", "auth"]
 mongo = Mongo()
 redis_handler = RedisHandler()
 auth_manager: QuartAuth | None = None
+
+
+class OtterdogQuart(Quart):
+    def ensure_async(self, func):  # type: ignore[override]
+        # tasks are scheduled as callable objects having an async __call__, which inspect.iscoroutinefunction
+        # does not detect: Quart would run them in an executor and never await the returned coroutine
+        if not inspect.isroutine(func) and inspect.iscoroutinefunction(type(func).__call__):
+            return func
+
+        return super().ensure_async(func)
 
 
 def register_extensions(app):
@@ -88,7 +99,7 @@ def configure_database(app):
 
 
 def create_app(app_config: AppConfig):
-    app = Quart(
+    app = OtterdogQuart(
         app_config.QUART_APP,
         static_url_path="/assets",
         static_folder="static/assets",
