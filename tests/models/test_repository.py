@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, call
 import pretend
 import pytest
 
+from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import LivePatch, Repository
 from otterdog.operations.plan import PlanOperation
 from otterdog.utils import UNSET, Change, IndentingPrinter, jsonnet_evaluate_snippet, query_json
@@ -176,6 +177,38 @@ class TestRepository:
         patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
 
         assert not patch.is_cost_related()
+
+    @pytest.mark.parametrize(
+        ("expected_workflows", "cost_related"),
+        [
+            ({"allow_action_patterns": ["actions/checkout@*", "ossf/scorecard-action@*"]}, False),
+            ({"max_cache_size_gb": 50}, True),
+        ],
+    )
+    def test_workflow_change_is_cost_related_only_for_cache_size(
+        self, repository_test, expected_workflows, cost_related
+    ):
+        workflows = {
+            "enabled": True,
+            "allowed_actions": "selected",
+            "allow_github_owned_actions": True,
+            "allow_verified_creator_actions": False,
+            "allow_action_patterns": ["actions/checkout@*"],
+            "default_workflow_permissions": "read",
+            "actions_can_approve_pull_request_reviews": False,
+            "max_cache_size_gb": 10,
+        }
+
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        current.workflows = RepositoryWorkflowSettings.from_model_data(workflows)
+        expected.workflows = RepositoryWorkflowSettings.from_model_data(workflows | expected_workflows)
+
+        changes = expected.get_difference_from(current)
+        patch = LivePatch.of_changes(expected, current, changes, None, False, pretend.stub())
+
+        assert "workflows" in changes
+        assert patch.is_cost_related() is cost_related
 
     @pytest.mark.parametrize(
         ("desired_permissions", "deleted_teams"),

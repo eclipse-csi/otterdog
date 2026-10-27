@@ -667,7 +667,14 @@ class ModelObject(_DefaultValuesMixin, ABC):
         for key, change in changes.items():
             value = self.__getattribute__(key)
             if isinstance(value, (EmbeddedModelObject, ModelObject)) and isinstance(change.to_value, dict):
-                if value.changes_are_cost_related(change.to_value):
+                # the change of an embedded model holds all of its values, only pass on the ones that changed
+                from_dict = change.from_value if isinstance(change.from_value, dict) else {}
+                nested_changes = {
+                    k: Change(from_dict.get(k), v)
+                    for k, v in change.to_value.items()
+                    if is_different_ignoring_order(from_dict.get(k), v)
+                }
+                if value.changes_are_cost_related(nested_changes):
                     return True
 
         return False
