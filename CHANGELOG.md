@@ -1,5 +1,17 @@
 # Change Log
 
+## [1.7.1] - 28/10/2026
+
+### Changed
+
+* chore(deps-dev): bump the python-minor-patch group with 2 updates by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/883
+* chore(deps): bump pypa/gh-action-pypi-publish from 1.14.2 to 1.14.3 in the github-actions group by @dependabot[bot] in https://github.com/eclipse-csi/otterdog/pull/882
+
+### Fixed
+
+* fix: execute background tasks scheduled as callable objects by @heurtematte in https://github.com/eclipse-csi/otterdog/pull/884
+
+
 ## [1.7.0] - 27/10/2026
 
 ### Added
