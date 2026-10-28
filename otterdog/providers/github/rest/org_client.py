@@ -12,7 +12,7 @@ from typing import Any
 from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
 from otterdog.utils import get_logger
 
-from . import RestApi, RestClient, encrypt_value
+from . import RestApi, RestClient
 
 _logger = get_logger(__name__)
 
@@ -417,80 +417,6 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed to retrieve repos for org '{org_id}':\n{ex}") from ex
 
-    async def get_secrets(self, org_id: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving secrets for org '%s'", org_id)
-
-        try:
-            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/secrets")
-
-            secrets = response["secrets"]
-            for secret in secrets:
-                if secret["visibility"] == "selected":
-                    secret["selected_repositories"] = await self._get_selected_repositories_for_secret(
-                        org_id, secret["name"]
-                    )
-            return secrets
-        except GitHubException as ex:
-            raise RuntimeError(f"failed getting secrets for org '{org_id}':\n{ex}") from ex
-
-    async def _get_selected_repositories_for_secret(self, org_id: str, secret_name: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving selected repositories for secret '%s' in org '%s'", secret_name, org_id)
-
-        try:
-            url = f"/orgs/{org_id}/actions/secrets/{secret_name}/repositories"
-            response = await self.requester.request_json("GET", url)
-            return response["repositories"]
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving selected repositories:\n{ex}") from ex
-
-    async def add_secret(self, org_id: str, data: dict[str, str]) -> None:
-        secret_name = data.pop("name")
-        _logger.debug("adding org secret '%s' in org '%s'", secret_name, org_id)
-
-        await self._encrypt_secret_inplace(org_id, data)
-
-        status, _ = await self.requester.request_raw(
-            "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(data)
-        )
-
-        if status != 201:
-            raise RuntimeError(f"failed to add org secret '{secret_name}'")
-
-        _logger.debug("added org secret '%s'", secret_name)
-
-    async def update_secret(self, org_id: str, secret_name: str, secret: dict[str, Any]) -> None:
-        _logger.debug("updating org secret '%s' in org '%s'", secret_name, org_id)
-
-        if "name" in secret:
-            secret.pop("name")
-
-        await self._encrypt_secret_inplace(org_id, secret)
-
-        status, _ = await self.requester.request_raw(
-            "PUT", f"/orgs/{org_id}/actions/secrets/{secret_name}", json.dumps(secret)
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to update org secret '{secret_name}'")
-
-        _logger.debug("updated org secret '%s'", secret_name)
-
-    async def _encrypt_secret_inplace(self, org_id: str, data: dict[str, Any]) -> None:
-        if "value" in data:
-            value = data.pop("value")
-            key_id, public_key = await self.get_public_key(org_id)
-            data["encrypted_value"] = encrypt_value(public_key, value)
-            data["key_id"] = key_id
-
-    async def delete_secret(self, org_id: str, secret_name: str) -> None:
-        _logger.debug("deleting org secret '%s' in org '%s'", secret_name, org_id)
-
-        status, _ = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/actions/secrets/{secret_name}")
-        if status != 204:
-            raise RuntimeError(f"failed to delete org secret '{secret_name}'")
-
-        _logger.debug("removed org secret '%s'", secret_name)
-
     async def get_variables(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving variables for org '%s'", org_id)
 
@@ -579,15 +505,6 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to delete org variable '{variable_name}': {body}")
 
         _logger.debug("removed org variable '%s'", variable_name)
-
-    async def get_public_key(self, org_id: str) -> tuple[str, str]:
-        _logger.debug("retrieving org public key for org '%s'", org_id)
-
-        try:
-            response = await self.requester.request_json("GET", f"/orgs/{org_id}/actions/secrets/public-key")
-            return response["key_id"], response["key"]
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving org public key:\n{ex}") from ex
 
     async def get_app_installations(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving app installations for org '%s'", org_id)
