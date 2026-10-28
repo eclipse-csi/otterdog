@@ -128,9 +128,25 @@ const REPOSITORY = /\brepositor(?:y|ies)(?:\[name="([^"]*)"|=([^,\]]*))/;
 // object, e.g. 'repo_ruleset[name="main", repository=my-repo]', 'repository[name="my-repo"]' or 'settings', or its
 // path in the configuration, e.g. 'repositories[name="my-repo"].rulesets[name="main"]'
 const HEADER = /^\w+(?:\[[^\]]*\])?(?:\.\w+(?:\[[^\]]*\])?)*/;
-// the named objects of a header, their kind, e.g. 'repo_ruleset' or 'rulesets', and their name, with the kind and the
-// name of the object containing the object in the header of an object
-const NAMES = /(\w+)\[\w+="([^"]*)"(?:, (\w+)=([^\]]*))?\]/g;
+// a named object of a header: its kind, e.g. 'repo_ruleset' or 'rulesets', and its name, with the kind and the name of
+// the object containing it in the header of an object
+const NAMED = /^(\w+)\[\w+="([^"]*)"(?:, (\w+)=([^\]]*))?\]$/;
+
+// the named objects of a header, see NAMED, read from its parts separated by the dots outside of the brackets, e.g. not
+// the dot of the repository '.github' in 'repositories[name=".github"].rulesets[name="main"]'
+function namedObjectsOf(header) {
+  const parts = [];
+  let [depth, start] = [0, 0];
+  for (let index = 0; index < header.length; index++) {
+    depth += {"[": 1, "]": -1}[header[index]] ?? 0;
+    if (header[index] === "." && depth === 0) {
+      parts.push(header.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(header.slice(start));
+  return parts.map((part) => NAMED.exec(part)).filter((match) => match !== null);
+}
 
 // Returns the diagnostics of the problems {severity, message} found by otterdog in the configuration of an
 // organization: their messages are about the objects of the evaluated configuration, they are located at the property
@@ -160,7 +176,7 @@ function propertiesAbout(message, code, properties) {
   if (header === null) {
     return [];
   }
-  const names = [...header[0].matchAll(NAMES)];
+  const names = namedObjectsOf(header[0]);
   const [last, previous] = [names.at(-1), names.at(-2)];
   const object = {
     kind: last?.[1],

@@ -684,7 +684,7 @@ class TestPullRequestSettings:
             }
         )
         context = self.make_validation_context()
-        parent = stub(get_model_header=lambda parent_object: 'repo_ruleset[name="test-ruleset"]')
+        parent = stub(get_model_header=lambda: 'repo_ruleset[name="test-ruleset"]')
 
         settings.validate(context, parent)
 

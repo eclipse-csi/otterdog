@@ -230,3 +230,24 @@ orgs.newOrg('demo', 'demo-org') {
   assert.ok(refs.from < repository);
   assert.equal(otterdogDiagnostics(problems, code).length, 2);
 });
+
+test("the objects of the headers of otterdog are read whatever the dots of their names", () => {
+  const code = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('.github') {
+      rulesets: [orgs.newRepoRuleset('main') { include_refs+: ['1.2.x'], foo: 1 }],
+    },
+  ],
+}`;
+  const problems = [
+    {severity: "error", message: "repo_ruleset[name=\"main\", repository=.github] has an invalid 'include_refs' pattern '1.2.x'"},
+    {severity: "warning", message: "repositories[name=\".github\"].rulesets[name=\"main\"] has the unknown property 'foo', which otterdog ignores"},
+    // a long message without object, read in a time linear in its length
+    {severity: "info", message: "a".repeat(100000) + " has 'foo'"},
+  ];
+
+  const located = otterdogDiagnostics(problems, code).map(({from, to}) => code.slice(from, to));
+  assert.deepEqual(located, ["'1.2.x'", "foo: 1", "orgs.newOrg"]);
+});
