@@ -53,6 +53,7 @@ nav:
         - Organization Codespaces Secret: reference/organization/codespaces-secret.md
         - Organization Variable: reference/organization/variable.md
         - Organization Ruleset: reference/organization/ruleset.md
+        - Organization Code Security Configuration: reference/organization/code-security-configuration.md
         - Custom Property: reference/organization/custom-property.md
         - Team: reference/organization/team.md
         - Repository:

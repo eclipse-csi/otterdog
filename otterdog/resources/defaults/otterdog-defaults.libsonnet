@@ -123,6 +123,10 @@ local newRepo(name) = {
 
   # team permissions
   team_permissions: {},
+
+  # the name of the code security configuration attached to the repo,
+  # null keeps the configuration currently attached to the repo
+  code_security_configuration: null,
 };
 
 # Function to extend an existing repo with the same name.
@@ -224,22 +228,49 @@ local newOrgRuleset(name) = newRepoRuleset(name) {
 };
 
 # Function to create a new organization code security configuration with default settings.
+# Settings set to null are not managed, e.g. as they are not available to every organization.
 local newOrgCodeSecurityConfiguration(name) = {
   name: name,
   description: "",
-  advanced_security: "disabled",
+
+  # GitHub Code Security and GitHub Secret Protection
+  code_security: "disabled",
+  secret_protection: "disabled",
+
+  # dependency graph and Dependabot
   dependency_graph: "enabled",
-  dependency_graph_autosubmit_action: "not_set",
+  dependency_graph_autosubmit_action: "disabled",
+  dependency_graph_autosubmit_action_labeled_runners: null,
   dependabot_alerts: "disabled",
   dependabot_security_updates: "disabled",
+  dependabot_reachability: null,
+  dependabot_delegated_alert_dismissal: null,
+
+  # code scanning
   code_scanning_default_setup: "disabled",
+  code_scanning_default_setup_runner_type: null,
+  code_scanning_default_setup_runner_label: null,
+  code_scanning_allow_advanced: null,
+  code_scanning_delegated_alert_dismissal: null,
+
+  # secret scanning
   secret_scanning: "disabled",
   secret_scanning_push_protection: "disabled",
   secret_scanning_delegated_bypass: "disabled",
+  secret_scanning_delegated_bypass_reviewers: null,
   secret_scanning_validity_checks: "disabled",
   secret_scanning_non_provider_patterns: "disabled",
+  secret_scanning_generic_secrets: null,
+  secret_scanning_generic_secrets_push_protection: null,
+  secret_scanning_delegated_alert_dismissal: null,
+  secret_scanning_extended_metadata: null,
+
   private_vulnerability_reporting: "disabled",
   enforcement: "enforced",
+
+  # the visibility of new repositories this configuration is applied to by default:
+  # 'none', 'all', 'public' or 'private_and_internal'
+  default_for_new_repos: "none",
 };
 
 # Function to create a new organization webhook with default settings.

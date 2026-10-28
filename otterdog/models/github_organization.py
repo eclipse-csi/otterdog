@@ -221,6 +221,37 @@ class GitHubOrganization:
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
 
+    def _validate_default_code_security_configurations(self, context: ValidationContext) -> None:
+        default_configurations = [x for x in self.code_security_configurations if x.is_default_for_new_repos()]
+
+        if len(default_configurations) > 0 and self.settings.default_code_security_configurations_disabled is True:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{default_configurations[0].get_model_header()} is set as default for new repositories, while "
+                f"setting 'default_code_security_configurations_disabled' of the organization removes any default "
+                f"code security configuration, set it to 'false' to use a default code security configuration.",
+            )
+
+        # a configuration can be the default for a visibility of new repositories at most once
+        visibilities = {
+            "all": ["public", "private_and_internal"],
+            "public": ["public"],
+            "private_and_internal": ["private_and_internal"],
+        }
+
+        defaults_by_visibility: dict[str, str] = {}
+        for configuration in default_configurations:
+            for visibility in visibilities.get(configuration.default_for_new_repos, []):
+                existing_default = defaults_by_visibility.get(visibility)
+                if existing_default is not None:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{configuration.get_model_header()} is set as default for new '{visibility}' repositories, "
+                        f"while code security configuration '{existing_default}' is already the default for them.",
+                    )
+                else:
+                    defaults_by_visibility[visibility] = configuration.name
+
     async def validate(
         self,
         config: OtterdogConfig,
@@ -297,6 +328,8 @@ class GitHubOrganization:
 
         for configuration in self.code_security_configurations:
             configuration.validate(context, self)
+
+        self._validate_default_code_security_configurations(context)
 
         # Run synchronous validations and collect repos needing API code scanning validation
         repos_needing_codescaning_language_validation = []
@@ -965,6 +998,7 @@ class GitHubOrganization:
         async def _load_code_security_configurations() -> None:
             if jsonnet_config.default_org_code_security_configuration_config is not None:
                 github_configurations = await provider.get_org_code_security_configurations(github_id)
+                await _enrich_team_bypass_reviewers(github_configurations, github_id, provider)
                 for configuration in github_configurations:
                     org.add_code_security_configuration(
                         OrganizationCodeSecurityConfiguration.from_provider_data(github_id, configuration)
@@ -1002,6 +1036,11 @@ class GitHubOrganization:
             task_group.soonify(_load_code_security_configurations)()
             task_group.soonify(_load_repos)()
 
+        # the configurations attached to repositories are only known once both have been loaded,
+        # without any configuration, repositories are known to have none attached
+        if jsonnet_config.default_org_code_security_configuration_config is not None:
+            await _load_code_security_configuration_attachments(org, github_id, provider)
+
         return org
 
 
@@ -1020,6 +1059,37 @@ async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: G
         for actor in ruleset.get("bypass_actors", []):
             if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
                 actor["user_login"] = user_logins[actor["actor_id"]]
+
+
+async def _enrich_team_bypass_reviewers(
+    configurations: list[dict[str, Any]], github_id: str, provider: GitHubProvider
+) -> None:
+    def team_reviewers() -> Iterator[dict[str, Any]]:
+        for configuration in configurations:
+            options = configuration.get("secret_scanning_delegated_bypass_options") or {}
+            for reviewer in options.get("reviewers") or []:
+                if reviewer.get("reviewer_type") == "TEAM":
+                    yield reviewer
+
+    if not any(True for _ in team_reviewers()):
+        return
+
+    teams = {team["id"]: f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    for reviewer in team_reviewers():
+        if reviewer.get("reviewer_id") in teams:
+            reviewer["team_slug"] = teams[reviewer["reviewer_id"]]
+
+
+async def _load_code_security_configuration_attachments(
+    org: GitHubOrganization, github_id: str, provider: GitHubProvider
+) -> None:
+    attached_configurations: dict[str, str] = {}
+    for configuration in org.code_security_configurations:
+        for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration.id):
+            attached_configurations[repo_name] = configuration.name
+
+    for repo in org.repositories:
+        repo.code_security_configuration = attached_configurations.get(repo.name)
 
 
 async def _process_single_repo(

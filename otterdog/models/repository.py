@@ -114,6 +114,7 @@ class Repository(ModelObject):
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
     team_permissions: dict[str, str] | None
+    code_security_configuration: str | None
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -174,6 +175,7 @@ class Repository(ModelObject):
         "has_projects",
         "web_commit_signoff_required",
         "workflows",
+        "code_security_configuration",
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
@@ -242,11 +244,21 @@ class Repository(ModelObject):
         return self.private is True or super().is_cost_related(cost_policy)
 
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
-        """Mark a change from public to private as potentially cost-increasing."""
+        """
+        Mark a change from public to private as potentially cost-increasing, as well as attaching a
+        code security configuration to a private repository, which might enable licensed features.
+        """
         private_change = changes.get("private")
+        code_security_configuration_change = changes.get("code_security_configuration")
         return (
-            private_change is not None and private_change.from_value is False and private_change.to_value is True
-        ) or super().changes_are_cost_related(changes)
+            (private_change is not None and private_change.from_value is False and private_change.to_value is True)
+            or (
+                self.private is True
+                and code_security_configuration_change is not None
+                and is_set_and_present(code_security_configuration_change.to_value)
+            )
+            or super().changes_are_cost_related(changes)
+        )
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -589,6 +601,16 @@ class Repository(ModelObject):
                         f"('pull' | 'triage' | 'push' | 'maintain' | 'admin').",
                     )
 
+        if is_set_and_present(self.code_security_configuration):
+            organization = cast("GitHubOrganization", parent_object)
+            if organization.get_code_security_configuration(self.code_security_configuration) is None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'code_security_configuration' set to "
+                    f"'{self.code_security_configuration}', but no such code security configuration "
+                    f"is defined for the organization.",
+                )
+
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
@@ -886,6 +908,10 @@ class Repository(ModelObject):
                 return False
 
         if self.forked_repository is None and field.name == "fork_default_branch_only":
+            return False
+
+        # a repository that does not specify a code security configuration keeps the one attached on GitHub
+        if self.code_security_configuration is None and field.name == "code_security_configuration":
             return False
 
         # do not show certain model_only fields that are not of interest for the user
@@ -1194,6 +1220,9 @@ class Repository(ModelObject):
 
         if "custom_properties" in data:
             mapping.update({"custom_properties": S("custom_properties") >> F(property_map_to_list)})
+
+        # code security configurations are attached with a separate request
+        mapping.pop("code_security_configuration", None)
 
         return mapping
 
@@ -1766,6 +1795,11 @@ class Repository(ModelObject):
                 # safely handle any unexpected initial state.
                 await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)
 
+                if is_set_and_present(expected_object.code_security_configuration):
+                    await provider.attach_org_code_security_configuration(
+                        org_id, expected_object.code_security_configuration, [expected_object.name]
+                    )
+
             case LivePatchType.REMOVE:
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
@@ -1802,3 +1836,10 @@ class Repository(ModelObject):
                 # - assigning a new permission (add)
                 # The patch is therefore decomposed into these three categories and applied here.
                 await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)
+
+                if "code_security_configuration" in unwrap(patch.changes) and is_set_and_present(
+                    expected_object.code_security_configuration
+                ):
+                    await provider.attach_org_code_security_configuration(
+                        org_id, expected_object.code_security_configuration, [expected_object.name]
+                    )

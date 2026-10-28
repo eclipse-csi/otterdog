@@ -148,6 +148,23 @@ class ShowDefaultOperation(Operation):
             )
             self._print_footer()
 
+            # the default configuration might not define code security configurations
+            if jsonnet_config.default_org_code_security_configuration_config is not None:
+                default_org_code_security_configuration = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_org_code_security_configuration}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Organization Code Security Configuration")
+                self.print_dict(
+                    default_org_code_security_configuration,
+                    f"orgs.{jsonnet_config.create_org_code_security_configuration}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
+
             default_repo = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo}('<repo-name>')")
             self.printer.println()
             self._print_header("Repository")

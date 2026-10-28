@@ -11,6 +11,7 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
 from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
 from otterdog.models.organization_dependabot_secret import OrganizationDependabotSecret
 from otterdog.models.organization_secret import OrganizationSecret
@@ -121,6 +122,7 @@ class ModelForContext:
             OrganizationDependabotSecret,
             OrganizationCodespacesSecret,
             OrganizationVariable,
+            OrganizationCodeSecurityConfiguration,
             CustomProperty,
         }:
             return None  # Organization-level, no parent object

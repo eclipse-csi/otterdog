@@ -345,6 +345,11 @@ async def defaults(project_name: str):
         elements = [
             ("org-role", "Organization Role", f"{jsonnet_config.create_org_role}('<name>')"),
             ("org-ruleset", "Organization Ruleset", f"{jsonnet_config.create_org_ruleset}('<name>')"),
+            (
+                "org-code-security-configuration",
+                "Organization Code Security Configuration",
+                f"{jsonnet_config.create_org_code_security_configuration}('<name>')",
+            ),
             ("org-team", "Organization Team", f"{jsonnet_config.create_org_team}('<name>')"),
             ("org-secret", "Organization Secret", f"{jsonnet_config.create_org_secret}('<name>')"),
             (

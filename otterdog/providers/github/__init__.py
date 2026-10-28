@@ -168,31 +168,47 @@ class GitHubProvider:
     async def get_org_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.org.get_code_security_configurations(org_id)
 
-    async def add_org_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> None:
-        await self.rest_api.org.add_code_security_configuration(org_id, data)
+    async def add_org_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> int:
+        return await self.rest_api.org.add_code_security_configuration(org_id, data)
 
     async def update_org_code_security_configuration(
         self, org_id: str, configuration_id: int, name: str, data: dict[str, Any]
     ) -> None:
         if len(data) > 0:
-            if configuration_id <= 0:
-                resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
-                if resolved_id is None:
-                    raise RuntimeError(
-                        f"failed to find code security configuration with name '{name}' in org '{org_id}'"
-                    )
-                configuration_id = resolved_id
-
+            configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
             await self.rest_api.org.update_code_security_configuration(org_id, configuration_id, name, data)
 
-    async def delete_org_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
-        if configuration_id <= 0:
-            resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
-            if resolved_id is None:
-                raise RuntimeError(f"failed to find code security configuration with name '{name}' in org '{org_id}'")
-            configuration_id = resolved_id
+    async def update_org_code_security_configuration_default(
+        self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str
+    ) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+        await self.rest_api.org.update_code_security_configuration_default(
+            org_id, configuration_id, name, default_for_new_repos
+        )
 
+    async def delete_org_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
         await self.rest_api.org.delete_code_security_configuration(org_id, configuration_id, name)
+
+    async def get_org_code_security_configuration_repositories(self, org_id: str, configuration_id: int) -> list[str]:
+        return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id)
+
+    async def attach_org_code_security_configuration(self, org_id: str, name: str, repo_names: list[str]) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, None, name)
+        repo_ids = await self.rest_api.repo.get_repo_ids(org_id, repo_names)
+        await self.rest_api.org.attach_code_security_configuration(org_id, configuration_id, name, repo_ids)
+
+    async def _resolve_code_security_configuration_id(
+        self, org_id: str, configuration_id: int | None, name: str
+    ) -> int:
+        if is_set_and_present(configuration_id) and configuration_id > 0:
+            return configuration_id
+
+        resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
+        if resolved_id is None:
+            raise RuntimeError(f"failed to find code security configuration with name '{name}' in org '{org_id}'")
+
+        return resolved_id
 
     async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_teams(org_id)

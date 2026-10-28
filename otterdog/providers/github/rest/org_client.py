@@ -319,30 +319,48 @@ class OrgClient(RestClient):
     async def get_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving code security configurations for org '%s'", org_id)
 
+        configurations = await self._get_organization_code_security_configurations(org_id)
+
+        # the defaults for new repositories are retrieved separately, include them in the configuration
+        defaults_by_id = {
+            config["configuration"]["id"]: config["default_for_new_repos"]
+            for config in await self._get_default_code_security_configurations(org_id)
+            if "configuration" in config
+        }
+
+        for configuration in configurations:
+            configuration["default_for_new_repos"] = defaults_by_id.get(configuration["id"], "none")
+
+        return configurations
+
+    async def _get_organization_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
         try:
-            result = await self.requester.request_json("GET", f"/orgs/{org_id}/code-security/configurations")
-            # filter out predefined configurations (e.g. GitHub recommended) which are managed by GitHub
-            return [c for c in result if c.get("target_type") != "global"]
+            result = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/code-security/configurations")
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving code security configurations for org '{org_id}':\n{ex}") from ex
+
+        # only configurations of the organization itself can be managed, predefined configurations
+        # (e.g. GitHub recommended) and configurations of the enterprise are skipped
+        return [c for c in result if c.get("target_type") == "organization"]
 
     async def get_code_security_configuration_id(self, org_id: str, name: str) -> int | None:
         _logger.debug("retrieving id for code security configuration with name '%s' in org '%s'", name, org_id)
 
-        configurations = await self.get_code_security_configurations(org_id)
+        configurations = await self._get_organization_code_security_configurations(org_id)
         for configuration in configurations:
             if configuration["name"] == name:
                 return configuration["id"]
 
         return None
 
-    async def add_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> None:
+    async def add_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> int:
         name = data.get("name", "<unknown>")
         _logger.debug("adding code security configuration with name '%s' for org '%s'", name, org_id)
 
         try:
-            await self.requester.request_json("POST", f"/orgs/{org_id}/code-security/configurations", data)
+            response = await self.requester.request_json("POST", f"/orgs/{org_id}/code-security/configurations", data)
             _logger.debug("added code security configuration with name '%s'", name)
+            return response["id"]
         except GitHubException as ex:
             raise RuntimeError(f"failed to add code security configuration with name '{name}':\n{ex}") from ex
 
@@ -351,13 +369,36 @@ class OrgClient(RestClient):
     ) -> None:
         _logger.debug("updating code security configuration with name '%s' for org '%s'", name, org_id)
 
+        # GitHub responds with 204 if the update did not change the configuration
+        status, body = await self.requester.request_raw(
+            "PATCH", f"/orgs/{org_id}/code-security/configurations/{configuration_id}", json.dumps(data)
+        )
+
+        if status not in (200, 204):
+            raise RuntimeError(f"failed to update code security configuration with name '{name}':\n{body}")
+
+        _logger.debug("updated code security configuration with name '%s'", name)
+
+    async def update_code_security_configuration_default(
+        self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str
+    ) -> None:
+        _logger.debug(
+            "setting code security configuration with name '%s' as default for '%s' new repos in org '%s'",
+            name,
+            default_for_new_repos,
+            org_id,
+        )
+
         try:
             await self.requester.request_json(
-                "PATCH", f"/orgs/{org_id}/code-security/configurations/{configuration_id}", data
+                "PUT",
+                f"/orgs/{org_id}/code-security/configurations/{configuration_id}/defaults",
+                {"default_for_new_repos": default_for_new_repos},
             )
-            _logger.debug("updated code security configuration with name '%s'", name)
         except GitHubException as ex:
-            raise RuntimeError(f"failed to update code security configuration with name '{name}':\n{ex}") from ex
+            raise RuntimeError(
+                f"failed to set default for new repos of code security configuration with name '{name}':\n{ex}"
+            ) from ex
 
     async def delete_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
         _logger.debug("deleting code security configuration with name '%s' for org '%s'", name, org_id)
@@ -370,6 +411,40 @@ class OrgClient(RestClient):
             raise RuntimeError(f"failed to delete code security configuration with name '{name}'")
 
         _logger.debug("removed code security configuration with name '%s'", name)
+
+    async def get_code_security_configuration_repositories(self, org_id: str, configuration_id: int) -> list[str]:
+        _logger.debug(
+            "retrieving repositories of code security configuration '%d' in org '%s'", configuration_id, org_id
+        )
+
+        # detached or removed repositories are not associated with the configuration anymore,
+        # repositories for which the attachment failed are reported as not being attached
+        params = {"status": "attached,attaching,updating,enforced"}
+
+        try:
+            result = await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/code-security/configurations/{configuration_id}/repositories", params=params
+            )
+            return [entry["repository"]["name"] for entry in result]
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving repositories of code security configuration '{configuration_id}':\n{ex}"
+            ) from ex
+
+    async def attach_code_security_configuration(
+        self, org_id: str, configuration_id: int, name: str, repository_ids: list[int]
+    ) -> None:
+        _logger.debug("attaching code security configuration with name '%s' to repositories %s", name, repository_ids)
+
+        data = {"scope": "selected", "selected_repository_ids": repository_ids}
+        status, body = await self.requester.request_raw(
+            "POST", f"/orgs/{org_id}/code-security/configurations/{configuration_id}/attach", json.dumps(data)
+        )
+
+        if status not in (200, 202):
+            raise RuntimeError(f"failed to attach code security configuration with name '{name}':\n{body}")
+
+        _logger.debug("attached code security configuration with name '%s'", name)
 
     async def get_custom_properties(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving custom properties for org '%s'", org_id)
