@@ -22,7 +22,7 @@ from otterdog.models import CostPolicy
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
-from .utils import deep_merge_dict, jsonnet_evaluate_file, query_json
+from .utils import ExclusionPatterns, deep_merge_dict, jsonnet_evaluate_file, query_json
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -298,12 +298,24 @@ class OtterdogConfig:
         return self._github_config.get("exclude_teams", [])
 
     @cached_property
-    def exclude_teams_pattern(self) -> re.Pattern | None:
+    def exclude_teams_pattern(self) -> ExclusionPatterns | None:
         team_exclusions = self.default_team_exclusions
         if len(team_exclusions) == 0:
             return None
         else:
-            return re.compile("|".join(team_exclusions))
+            return ExclusionPatterns(team_exclusions)
+
+    @property
+    def default_environment_exclusions(self) -> list[str]:
+        return self._github_config.get("exclude_environments", [])
+
+    @cached_property
+    def exclude_environments_pattern(self) -> ExclusionPatterns | None:
+        environment_exclusions = self.default_environment_exclusions
+        if len(environment_exclusions) == 0:
+            return None
+        else:
+            return ExclusionPatterns(environment_exclusions)
 
     @property
     def default_credential_provider(self) -> str:

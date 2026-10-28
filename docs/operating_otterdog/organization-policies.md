@@ -110,3 +110,81 @@ orgs.newOrg('my-project', 'my-org') {
 
 Changes that may incur costs, e.g. a larger GitHub Actions cache, can require a review by a designated team, see
 [Cost policy](setup.md#cost-policy).
+
+## Environments managed by another tool
+
+Repository environments that are created and maintained by another tool can be excluded from otterdog with regular
+expressions that are matched against the environment names:
+
+``` json
+{
+  "defaults": {
+    "github": {
+      "exclude_environments": [
+        "^copilot$",
+        "^external-.*"
+      ]
+    }
+  }
+}
+```
+
+Each pattern is matched independently from the start of the name, use `^name$` to match a single environment exactly.
+
+Excluded environments, including their secrets and variables, are ignored when reading the live state of a
+repository, so they are not reported as differences and otterdog never deletes them.
+
+### Managing an excluded environment
+
+To manage an excluded environment, declare it in the configuration of the repository:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      environments+: [
+        orgs.newEnvironment('external-prod') {
+          deployment_branch_policy: "selected",
+          branch_policies+: [
+            "main",
+          ],
+        },
+      ],
+    },
+  ],
+}
+```
+
+The same applies to environments created automatically by GitHub, e.g. `copilot`, which GitHub creates for the
+Copilot coding agent. To manage its settings, declare it explicitly:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      environments+: [
+        // created automatically by GitHub, only declared to manage its settings
+        orgs.newEnvironment('copilot') {
+          deployment_branch_policy: "all",
+        },
+      ],
+    },
+  ],
+}
+```
+
+A declared environment is managed like any other, even if its name matches a pattern: it is compared with the live
+state, changed if it differs and created if it does not exist. If the declaration is removed again, the environment is
+ignored again and remains on GitHub unmanaged.
+
+!!! note
+
+    Otterdog never deletes an environment that matches an exclusion pattern, not even after its declaration has been
+    removed from the configuration. If such an environment is no longer needed, delete it by other means, e.g. in the
+    repository settings on GitHub or via the GitHub API.
+
+!!! note
+
+    The `import` operation has no configuration to compare against and therefore always skips excluded environments.
+    When importing into an existing configuration, add the declarations of excluded environments you want to manage
+    again afterwards.

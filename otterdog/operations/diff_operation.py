@@ -280,6 +280,7 @@ class DiffOperation(Operation):
             self.concurrency,
             self.repo_filter,
             exclude_teams=self.config.exclude_teams_pattern,
+            exclude_environments=self.config.exclude_environments_pattern,
             expected_org=expected_org,
         )
 

@@ -69,6 +69,7 @@ class ShowLiveOperation(Operation):
                     provider,
                     self.no_web_ui,
                     exclude_teams=self.config.exclude_teams_pattern,
+                    exclude_environments=self.config.exclude_environments_pattern,
                 )
 
             for model_object, parent_object in organization.get_model_objects():

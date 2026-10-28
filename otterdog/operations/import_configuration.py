@@ -94,6 +94,7 @@ class ImportOperation(Operation):
                     provider,
                     self.no_web_ui,
                     exclude_teams=self.config.exclude_teams_pattern,
+                    exclude_environments=self.config.exclude_environments_pattern,
                 )
 
             # copy secrets from existing configuration if it is present.

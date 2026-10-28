@@ -60,10 +60,10 @@ from otterdog.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterable, Iterator
-    from re import Pattern
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.providers.github import GitHubProvider
+    from otterdog.utils import ExclusionPatterns
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
@@ -632,8 +632,9 @@ class GitHubOrganization:
         no_web_ui: bool = False,
         concurrency: int | None = None,
         repo_filter: str | None = None,
-        exclude_teams: Pattern | None = None,
+        exclude_teams: ExclusionPatterns | None = None,
         expected_org: GitHubOrganization | None = None,
+        exclude_environments: ExclusionPatterns | None = None,
     ) -> GitHubOrganization:
         import asyncer
 
@@ -776,6 +777,7 @@ class GitHubOrganization:
                     repo_filter,
                     expected_org,
                     exclude_teams,
+                    exclude_environments,
                 ):
                     org.add_repository(repo)
             else:
@@ -819,7 +821,8 @@ async def _process_single_repo(
     repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
     expected_org: GitHubOrganization | None = None,
-    exclude_teams: Pattern | None = None,
+    exclude_teams: ExclusionPatterns | None = None,
+    exclude_environments: ExclusionPatterns | None = None,
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
@@ -928,9 +931,23 @@ async def _process_single_repo(
     if jsonnet_config.default_environment_config is not None:
         # get environments of the repo
         environments = await rest_api.repo.get_environments(github_id, repo_name)
+        # environments managed outside otterdog are ignored, unless the repo explicitly declares them.
+        declared_environments = (
+            {env.name for env in expected_repo.environments}
+            if expected_repo is not None and is_set_and_present(expected_repo.environments)
+            else set()
+        )
         for github_environment in environments:
             env = Environment.from_provider_data(github_id, github_environment)
             env.repo_name = repo_name
+
+            if (
+                exclude_environments is not None
+                and exclude_environments.match(env.name)
+                and env.name not in declared_environments
+            ):
+                _logger.debug("ignoring excluded environment '%s' of repo '%s'", env.name, repo_name)
+                continue
 
             if jsonnet_config.default_environment_secret_config is not None:
                 # get secrets of the environment
@@ -989,7 +1006,8 @@ async def _load_repos_from_provider(
     concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
-    exclude_teams: Pattern | None = None,
+    exclude_teams: ExclusionPatterns | None = None,
+    exclude_environments: ExclusionPatterns | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 
@@ -1021,6 +1039,7 @@ async def _load_repos_from_provider(
                 app_installations,
                 expected_org,
                 exclude_teams,
+                exclude_environments,
             )
 
     if concurrency is not None:
