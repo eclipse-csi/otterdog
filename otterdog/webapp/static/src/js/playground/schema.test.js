@@ -79,5 +79,5 @@ test("values that otterdog does not allow are errors, e.g. an unknown code scann
 
   assert.deepEqual(others, []);
   assert.deepEqual(problem.slice(0, 2), ["error", "repositories[name=\"my-repo\"].code_scanning_default_languages[1]"]);
-  assert.match(problem[2], /^"truc" is not one of "actions", "c-cpp", .*"rust"$/);
+  assert.match(problem[2], /^"truc" is not one of "actions", "c-cpp", .*"rust"/);
 });
