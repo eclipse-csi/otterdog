@@ -54,7 +54,11 @@ def validate_required_settings(config_cls: type) -> None:
 
 # Settings that must be at least 1: they size a concurrency limit, which would block
 # everything waiting on it forever with a value of 0.
-POSITIVE_INT_SETTINGS = ("MAX_CONCURRENT_INSTALLATION_TASKS",)
+POSITIVE_INT_SETTINGS = (
+    "MAX_CONCURRENT_INSTALLATION_TASKS",
+    "PLAYGROUND_VALIDATION_MAX_SIZE",
+    "PLAYGROUND_MAX_CONCURRENT_VALIDATIONS",
+)
 
 
 def validate_positive_settings(config_cls: type) -> None:
@@ -125,6 +129,13 @@ class AppConfig:
     # calling /internal/init, which is handled by a single worker. Higher values speed up the refresh
     # at the cost of memory usage and load on GitHub. Must be at least 1.
     MAX_CONCURRENT_INSTALLATION_TASKS = config("MAX_CONCURRENT_INSTALLATION_TASKS", default=10, cast=int)
+
+    # Maximum size in bytes of a configuration posted by the playground to be validated by otterdog, the larger ones
+    # being rejected, e.g. about 800 KB for an organization with 300 repositories. Must be at least 1.
+    PLAYGROUND_VALIDATION_MAX_SIZE = config("PLAYGROUND_VALIDATION_MAX_SIZE", default=5 * 1024 * 1024, cast=int)
+    # Maximum number of validations by otterdog of configurations posted by the playground running concurrently in each
+    # worker process of the webapp, the other ones being rejected until one completes. Must be at least 1.
+    PLAYGROUND_MAX_CONCURRENT_VALIDATIONS = config("PLAYGROUND_MAX_CONCURRENT_VALIDATIONS", default=4, cast=int)
 
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     # Base url of the otterdog documentation, linked from the examples of the playground.

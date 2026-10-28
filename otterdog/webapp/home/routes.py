@@ -6,12 +6,13 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import contextlib
 import functools
 import json
 import os.path
 import posixpath
 import re
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Iterator, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
 from typing import TYPE_CHECKING, Any, cast
@@ -506,29 +507,32 @@ async def validate_global_playground():
     example = request.args.get("template") == EXAMPLE_TEMPLATE
     origin = await _validation_origin("the global playground" + (" with the example template" if example else ""))
 
-    data = await request.get_json(silent=True)
-    if not isinstance(data, dict):
-        logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
-        return _NOT_A_CONFIGURATION, 400
+    data = await _posted_configuration(origin)
+    if isinstance(data, tuple):
+        return data
 
-    otterdog_config = await get_otterdog_config()
+    with _validation_slots.take() as taken:
+        if not taken:
+            return _too_many_validations(origin)
 
-    base_dir = get_temporary_base_directory()
-    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-        if example:
-            jsonnet_config = await _example_jsonnet_config(work_dir)
-            if jsonnet_config is None:
-                logger.warning("rejecting a validation for %s: the example template is not available", origin)
-                return {"error": "the example template of otterdog is not available"}, 404
-        else:
-            try:
-                base_template = otterdog_config.default_base_template
-            except RuntimeError:
-                logger.warning("rejecting a validation for %s: no default base template is configured", origin)
-                return {"error": "no default configuration is configured"}, 404
-            jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
+        otterdog_config = await get_otterdog_config()
 
-        return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
+        base_dir = get_temporary_base_directory()
+        async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+            if example:
+                jsonnet_config = await _example_jsonnet_config(work_dir)
+                if jsonnet_config is None:
+                    logger.warning("rejecting a validation for %s: the example template is not available", origin)
+                    return {"error": "the example template of otterdog is not available"}, 404
+            else:
+                try:
+                    base_template = otterdog_config.default_base_template
+                except RuntimeError:
+                    logger.warning("rejecting a validation for %s: no default base template is configured", origin)
+                    return {"error": "no default configuration is configured"}, 404
+                jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
+
+            return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
 
 
 @blueprint.route("/projects/<project_name>/playground/validate", methods=["POST"])
@@ -545,17 +549,20 @@ async def validate_playground(project_name: str):
 
     origin = await _validation_origin(f"the playground of project '{installation.project_name}'")
 
-    data = await request.get_json(silent=True)
-    if not isinstance(data, dict):
-        logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
-        return _NOT_A_CONFIGURATION, 400
+    data = await _posted_configuration(origin)
+    if isinstance(data, tuple):
+        return data
 
-    otterdog_config = await get_otterdog_config()
+    with _validation_slots.take() as taken:
+        if not taken:
+            return _too_many_validations(origin)
 
-    base_dir = get_temporary_base_directory()
-    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-        org_config = await get_organization_config(installation, "", base_dir, work_dir)
-        return await _validate_playground_configuration(otterdog_config, org_config.jsonnet_config, data, origin)
+        otterdog_config = await get_otterdog_config()
+
+        base_dir = get_temporary_base_directory()
+        async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+            org_config = await get_organization_config(installation, "", base_dir, work_dir)
+            return await _validate_playground_configuration(otterdog_config, org_config.jsonnet_config, data, origin)
 
 
 async def _validation_origin(playground: str) -> str:
@@ -572,6 +579,83 @@ async def _validation_origin(playground: str) -> str:
 
 
 _NOT_A_CONFIGURATION = {"error": "an evaluated configuration of an organization is expected"}
+
+
+async def _posted_configuration(origin: str) -> dict[str, Any] | tuple[dict[str, Any], int]:
+    """
+    Returns the configuration posted as json to be validated, otherwise the response rejecting the request. The body
+    is read up to PLAYGROUND_VALIDATION_MAX_SIZE bytes, whether its length is announced or not, e.g. when it is sent in
+    chunks, in BODY_TIMEOUT seconds like any body.
+    """
+
+    import asyncio
+
+    from werkzeug.exceptions import RequestTimeout
+
+    max_size = current_app.config["PLAYGROUND_VALIDATION_MAX_SIZE"]
+    too_large = {"error": f"the configuration must not exceed {max_size} bytes"}, 413
+
+    async def read() -> bytes | None:
+        body = bytearray()
+        async for chunk in request.body:
+            body.extend(chunk)
+            if len(body) > max_size:
+                return None
+        return bytes(body)
+
+    if request.content_length is not None and request.content_length > max_size:
+        body = None
+    else:
+        try:
+            body = await asyncio.wait_for(read(), timeout=request.body_timeout)
+        except TimeoutError:
+            raise RequestTimeout() from None
+
+    if body is None:
+        logger.warning("rejecting a validation for %s: larger than %d bytes", origin, max_size)
+        return too_large
+
+    try:
+        data = json.loads(body) if request.is_json else None
+    except (ValueError, RecursionError):
+        data = None
+    if not isinstance(data, dict):
+        logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
+        return _NOT_A_CONFIGURATION, 400
+    return data
+
+
+class _ValidationSlots:
+    """
+    The validations of the configurations posted by the playground running concurrently in the worker process, at most
+    PLAYGROUND_MAX_CONCURRENT_VALIDATIONS: the other ones are rejected at once, rather than waiting and piling up.
+    """
+
+    def __init__(self) -> None:
+        self.running = 0
+
+    @contextlib.contextmanager
+    def take(self) -> Iterator[bool]:
+        """Takes a slot for a validation if one is free, yields whether it did."""
+
+        if self.running >= current_app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"]:
+            yield False
+            return
+
+        self.running += 1
+        try:
+            yield True
+        finally:
+            self.running -= 1
+
+
+_validation_slots = _ValidationSlots()
+
+
+def _too_many_validations(origin: str) -> tuple[dict[str, Any], int, dict[str, str]]:
+    logger.warning("rejecting a validation for %s: %d validations are running", origin, _validation_slots.running)
+    return {"error": "too many validations are running, try again in a moment"}, 503, {"Retry-After": "5"}
+
 
 # the names of the project and of the organization are passed to the default configuration as jsonnet strings
 _VALIDATED_NAME = re.compile(r"[\w.-]+")

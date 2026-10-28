@@ -680,3 +680,64 @@ async def test_playground_offers_the_validation(app):
 
     assert 'id="playground-validate"' in html
     assert _playground_data(html)["validationUrl"] == "/playground/validate"
+
+
+@pytest.mark.parametrize(
+    ("max_size", "headers"),
+    [
+        # the body read is larger, whether its length is announced or not, e.g. when sent in chunks
+        (100, None),
+        # a larger length announced by the request is rejected before reading its body
+        (1_000_000, {"Content-Length": "1000001"}),
+    ],
+    ids=["read", "announced"],
+)
+async def test_playground_validation_rejects_a_configuration_too_large(app, monkeypatch, max_size, headers):
+    app.config["PLAYGROUND_VALIDATION_MAX_SIZE"] = max_size
+    get_otterdog_config = mock.AsyncMock()
+    monkeypatch.setattr(routes, "get_otterdog_config", get_otterdog_config)
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated(), headers=headers):
+        result, status = await routes.validate_global_playground()
+
+    assert (result, status) == ({"error": f"the configuration must not exceed {max_size} bytes"}, 413)
+    get_otterdog_config.assert_not_awaited()
+
+
+async def test_playground_validation_expects_json(app):
+    headers = {"Content-Type": "text/plain"}
+    async with app.test_request_context(
+        "/playground/validate", method="POST", data=json.dumps(_evaluated()), headers=headers
+    ):
+        _, status = await routes.validate_global_playground()
+
+    assert status == 400
+
+
+async def test_playground_validation_rejects_the_validations_beyond_the_maximum(app, monkeypatch, tmp_path):
+    app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"] = 1
+    get_otterdog_config = mock.AsyncMock()
+    monkeypatch.setattr(routes, "get_otterdog_config", get_otterdog_config)
+    monkeypatch.setattr(routes._validation_slots, "running", 1)
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
+        result, status, headers = await routes.validate_global_playground()
+
+    assert (status, headers) == (503, {"Retry-After": "5"})
+    assert "too many validations" in result["error"]
+    get_otterdog_config.assert_not_awaited()
+
+
+async def test_playground_validation_releases_its_slot(app, monkeypatch, tmp_path):
+    app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"] = 1
+
+    # once validated, or failing
+    await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated())
+    assert routes._validation_slots.running == 0
+
+    monkeypatch.setattr(
+        routes, "_validate_playground_configuration", mock.AsyncMock(side_effect=RuntimeError("failed"))
+    )
+    with pytest.raises(RuntimeError):
+        await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated())
+    assert routes._validation_slots.running == 0
