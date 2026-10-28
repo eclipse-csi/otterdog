@@ -535,17 +535,20 @@ async def validate_global_playground():
 async def validate_playground(project_name: str):
     import aiofiles
 
-    origin = await _validation_origin(f"the playground of project '{project_name}'")
+    # the name of the project in the url is neither logged nor returned, only the one of a known project
+    installation = await get_installation_by_project_name(project_name)
+    if installation is None:
+        logger.warning(
+            "rejecting a validation for %s", await _validation_origin("the playground of an unknown project")
+        )
+        return {"error": "unknown project"}, 404
+
+    origin = await _validation_origin(f"the playground of project '{installation.project_name}'")
 
     data = await request.get_json(silent=True)
     if not isinstance(data, dict):
         logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
         return _NOT_A_CONFIGURATION, 400
-
-    installation = await get_installation_by_project_name(project_name)
-    if installation is None:
-        logger.warning("rejecting a validation for %s: unknown project", origin)
-        return {"error": f"unknown project '{project_name}'"}, 404
 
     otterdog_config = await get_otterdog_config()
 
@@ -579,9 +582,11 @@ async def _validate_playground_configuration(
 ) -> dict[str, Any]:
     """
     Validates an evaluated configuration, returns its problems {severity, message}, severity being 'error', 'warning'
-    or 'info'. The origin of the validation, see _validation_origin, is logged with its result.
+    or 'info'. The origin of the validation, see _validation_origin, is logged with its result, but not the values of
+    the configuration, which are posted by the user.
     """
 
+    import asyncio
     import time
     from asyncio import to_thread
 
@@ -601,12 +606,16 @@ async def _validate_playground_configuration(
 
     for name in (organization.project_name, organization.github_id):
         if _VALIDATED_NAME.fullmatch(name) is None:
-            logger.warning("rejecting a validation for %s: invalid name %r", origin, name)
+            logger.warning("rejecting a validation for %s: invalid name of the project or organization", origin)
             message = f"the name '{name}' can only contain letters, digits, '.', '_' and '-' to be validated"
             return {"problems": [{"severity": "error", "message": message}]}
 
     await jsonnet_config.init_template()
-    context = await organization.validate(otterdog_config, jsonnet_config, CredentialResolver(otterdog_config), None)
+    # without provider, the validation never waits, e.g. evaluating the default configuration, it is run apart too
+    context = await to_thread(
+        asyncio.run,
+        organization.validate(otterdog_config, jsonnet_config, CredentialResolver(otterdog_config), None),
+    )
     # otterdog only logs the unknown properties, which it ignores
     problems = [
         {
@@ -622,8 +631,7 @@ async def _validate_playground_configuration(
 
     counts = {severity: sum(problem["severity"] == severity for problem in problems) for severity in _SEVERITIES}
     logger.info(
-        "validated the configuration of organization '%s' for %s in %d ms: %d error(s), %d warning(s), %d info(s)",
-        organization.github_id,
+        "validated a configuration for %s in %d ms: %d error(s), %d warning(s), %d info(s)",
         origin,
         (time.perf_counter() - start) * 1000,
         *counts.values(),

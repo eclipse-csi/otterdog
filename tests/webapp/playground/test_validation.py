@@ -327,6 +327,39 @@ def test_a_configuration_is_not_validated_by_otterdog(playground, code, reason):
     assert reason in button.get_attribute("title")
 
 
+def test_an_earlier_validation_by_otterdog_does_not_replace_a_later_one(playground):
+    playground.open("example.html")
+    page = playground.page
+    # the requests are answered by the test, in another order
+    requests = []
+    page.route("**/playground/validate**", lambda route: requests.append(route))
+
+    def wait_requests(count):
+        while len(requests) < count:
+            page.wait_for_timeout(50)
+
+    playground.type_code(ORGANIZATION)
+    playground.wait_evaluated()
+    validate_button(playground).click()
+    wait_requests(1)
+    playground.replace("'1.2.x'", "'refs/heads/1.2.x'")
+    playground.wait_evaluated()
+    validate_button(playground).click()
+    wait_requests(2)
+
+    # the validation of the earlier content answers while the later one is pending
+    requests[0].fulfill(json={"problems": [{"severity": "error", "message": "an earlier problem"}]})
+    page.wait_for_timeout(300)
+    assert "validating" in playground.note("validation")
+    assert validate_button(playground).is_disabled()
+
+    requests[1].fulfill(json={"problems": []})
+    page.wait_for_function("document.querySelector('.playground-status-note[data-key=validation] .text-success')")
+    assert "no problem found by otterdog" in playground.note("validation")
+    assert errors(playground) == []
+    assert not validate_button(playground).is_disabled()
+
+
 def test_the_validation_by_otterdog_is_only_offered_for_an_organization(playground):
     # the snippet of the global playground is the configuration of an organization
     playground.open("example.html")

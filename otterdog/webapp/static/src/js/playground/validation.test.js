@@ -4,7 +4,7 @@ import {test} from "node:test";
 
 import {literalProperties} from "./jsonnet.js";
 import {validate} from "./schema.js";
-import {literalsOf, otterdogDiagnostics} from "./validation.js";
+import {createsKind, literalsOf, otterdogDiagnostics} from "./validation.js";
 
 // the schemas of otterdog, as passed to the playground
 const SCHEMAS_DIR = new URL("../../../../../resources/schemas/", import.meta.url);
@@ -158,4 +158,36 @@ orgs.newOrg('my-project', 'my-org') {
   // the invalid value of the repository the problem is about
   const [ruleset] = otterdogDiagnostics(problems.slice(0, 1), code);
   assert.equal(ruleset.from, code.lastIndexOf("'1.2.x'"));
+});
+
+test("problems found by otterdog are only located at the objects of their kind", () => {
+  const code = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+
+orgs.newOrg('my-project', 'my-org') {
+  teams+: [orgs.newTeam('shared') { description: 'team' }],
+  _repositories+:: [
+    orgs.newRepo('shared') { description: 'repository' },
+  ],
+}`;
+  const problems = [
+    {severity: "error", message: "repository[name=\"shared\"] has 'description' longer than 350 characters"},
+    {severity: "warning", message: "teams[name=\"shared\"] has the unknown property 'description', which otterdog ignores"},
+  ];
+
+  const located = otterdogDiagnostics(problems, code).map(({from, to}) => code.slice(from, to));
+  assert.deepEqual(located, ["description: 'repository'", "description: 'team'"]);
+});
+
+test("the functions creating the objects of a kind are recognized", () => {
+  const creating = (kind) => ["newOrg", "newRepo", "extendRepo", "newBinaryRepo", "newRepoRuleset", "newOrgRuleset", "newTeam",
+    "newRepoSecret", "newRepoDependabotSecret", "newBranchProtectionRule", "newCustomProperty"].filter((name) => createsKind(name, kind));
+
+  assert.deepEqual(creating("repository"), ["newRepo", "extendRepo", "newBinaryRepo"]);
+  assert.deepEqual(creating("repositories"), ["newRepo", "extendRepo", "newBinaryRepo"]);
+  assert.deepEqual(creating("repo_ruleset"), ["newRepoRuleset"]);
+  assert.deepEqual(creating("rulesets"), ["newRepoRuleset", "newOrgRuleset"]);
+  assert.deepEqual(creating("repo_secret"), ["newRepoSecret"]);
+  assert.deepEqual(creating("branch_protection_rules"), ["newBranchProtectionRule"]);
+  assert.deepEqual(creating("custom_properties"), ["newCustomProperty"]);
+  assert.deepEqual(creating("team"), ["newTeam"]);
 });

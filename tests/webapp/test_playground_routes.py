@@ -7,6 +7,7 @@
 #  *******************************************************************************
 
 import json
+import logging
 import re
 from pathlib import Path
 from unittest import mock
@@ -598,7 +599,7 @@ async def test_playground_validation_uses_the_default_base_template(app, monkeyp
     assert jsonnet_config.template_dir.startswith(str(tmp_path))
 
 
-async def test_project_playground_validates_with_the_template_of_the_organization(app, monkeypatch, tmp_path):
+async def test_project_playground_validates_with_the_template_of_the_organization(app, monkeypatch, tmp_path, caplog):
     installation = pretend.stub(project_name="my-project", github_id="my-org")
 
     async def organization_config(org_model, token, base_dir, work_dir):
@@ -614,20 +615,28 @@ async def test_project_playground_validates_with_the_template_of_the_organizatio
     monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=installation))
     monkeypatch.setattr(routes, "get_organization_config", organization_config)
 
-    data = _evaluated("settings+: { default_repository_permission: 'read' },")
-    async with app.test_request_context("/projects/my-project/playground/validate", method="POST", json=data):
-        result = await routes.validate_playground("my-project")
+    data = _evaluated("settings+: { default_repository_permission: 'read' },", github_id="posted-org")
+    with caplog.at_level(logging.INFO, logger=routes.__name__):
+        async with app.test_request_context("/projects/my-project/playground/validate", method="POST", json=data):
+            result = await routes.validate_playground("my-project")
 
     assert _errors(result) == ["settings has 'default_repository_permission' set to 'read' but 'none' is required."]
+    # the values posted by the user are not logged
+    (record,) = caplog.records
+    assert record.getMessage().startswith(
+        "validated a configuration for the playground of project 'my-project' by an anonymous user in "
+    )
+    assert "posted-org" not in record.getMessage()
 
 
 async def test_project_playground_validation_of_an_unknown_project(app, monkeypatch):
     monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=None))
 
-    async with app.test_request_context("/projects/unknown/playground/validate", method="POST", json=_evaluated()):
-        _, status = await routes.validate_playground("unknown")
+    async with app.test_request_context("/projects/<b>unknown/playground/validate", method="POST", json=_evaluated()):
+        result, status = await routes.validate_playground("<b>unknown")
 
-    assert status == 404
+    # the name of the project in the url is not returned
+    assert (result, status) == ({"error": "unknown project"}, 404)
 
 
 @pytest.mark.parametrize(

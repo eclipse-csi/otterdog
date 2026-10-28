@@ -74,10 +74,16 @@ export function createValidation({schemas, validationUrl, documentationUrl, disp
   // validates the shown value of a document with otterdog, and shows its problems if its content did not change
   async function validateWithOtterdog(d) {
     const {code, value} = d.result;
-    validations.set(d, {code, pending: true});
-    showNote(d, "validation", validationNote(validations.get(d), showProblems, limitationsUrl));
+    const pending = {code, pending: true};
+    validations.set(d, pending);
+    showNote(d, "validation", validationNote(pending, showProblems, limitationsUrl));
 
-    validations.set(d, {code, ...await validationOf(validationUrl, value)});
+    const validated = await validationOf(validationUrl, value);
+    // a later validation of the document, e.g. of its changed content, replaces this one
+    if (validations.get(d) !== pending) {
+      return;
+    }
+    validations.set(d, {code, ...validated});
     if (d.code === code) {
       show(d, value);
     }
@@ -122,8 +128,9 @@ const REPOSITORY = /\brepositor(?:y|ies)(?:\[name="([^"]*)"|=([^,\]]*))/;
 // object, e.g. 'repo_ruleset[name="main", repository=my-repo]', 'repository[name="my-repo"]' or 'settings', or its
 // path in the configuration, e.g. 'repositories[name="my-repo"].rulesets[name="main"]'
 const HEADER = /^\w+(?:\[[^\]]*\])?(?:\.\w+(?:\[[^\]]*\])?)*/;
-// the names of a header, with the name of the object containing the object in the header of an object
-const NAMES = /\[\w+="([^"]*)"(?:, \w+=([^\]]*))?\]/g;
+// the named objects of a header, their kind, e.g. 'repo_ruleset' or 'rulesets', and their name, with the name of the
+// object containing the object in the header of an object
+const NAMES = /(\w+)\[\w+="([^"]*)"(?:, \w+=([^\]]*))?\]/g;
 
 // Returns the diagnostics of the problems {severity, message} found by otterdog in the configuration of an
 // organization: their messages are about the objects of the evaluated configuration, they are located at the property
@@ -153,10 +160,10 @@ function propertiesAbout(message, code, properties) {
     return [];
   }
   const names = [...header[0].matchAll(NAMES)];
-  const [name, parent] = [names.at(-1)?.[1], names.at(-1)?.[2] ?? names.at(-2)?.[1]];
+  const object = {kind: names.at(-1)?.[1], name: names.at(-1)?.[2], parent: names.at(-1)?.[3] ?? names.at(-2)?.[2]};
   const quoted = [...message.slice(header[0].length).matchAll(/'([^']*)'/g)].map((match) => match[1]);
   for (const [index, quote] of quoted.entries()) {
-    const matching = properties.filter((property) => property.path.at(-1) === quote && isAbout(property, name, parent));
+    const matching = properties.filter((property) => property.path.at(-1) === quote && isAbout(property, object));
     if (matching.length > 0) {
       return matching.flatMap((property) => stringsOf(property, code, quoted[index + 1]));
     }
@@ -164,14 +171,25 @@ function propertiesAbout(message, code, properties) {
   return [];
 }
 
-// Whether a property is set in the object of a header: the object created by a call with its name, within the one
-// with the name of the object containing it, e.g. a ruleset of a repository, or the organization for an object
-// without name, e.g. its settings.
-function isAbout(property, name, parent) {
+// Whether a property is set in the object {kind, name, parent} of a header: the object created by a call of a function
+// creating objects of its kind with its name, within the one with the name of the object containing it, e.g. a ruleset
+// of a repository, or the organization for an object without name, e.g. its settings.
+function isAbout(property, {kind, name, parent}) {
   if (name === undefined) {
     return property.function === "newOrg" && property.within.length === 0;
   }
-  return property.firstArgument === name && (parent === undefined || property.within.some((call) => call.firstArgument === parent));
+  return property.firstArgument === name && createsKind(property.function, kind)
+    && (parent === undefined || property.within.some((call) => call.firstArgument === parent));
+}
+
+// Whether a function creates the objects of a kind, the kind of an object in the header of otterdog or in the path of
+// the configuration: the words of the function end with the ones of the kind, e.g. `newRepoRuleset` for 'repo_ruleset'
+// or 'rulesets', and `newRepo`, `extendRepo` or a function of the configuration like `newBinaryRepo` for 'repository'
+// or 'repositories', but not `newTeam` for 'repository'.
+export function createsKind(name, kind) {
+  const words = name.replace(/^(new|extend)/, "").split(/(?=[A-Z])/).map((word) => word.toLowerCase());
+  const kindWords = kind.replace(/ies$/, "y").replace(/s$/, "").replace(/^repository$/, "repo").split("_");
+  return kindWords.length <= words.length && kindWords.every((word, index) => word === words[words.length - kindWords.length + index]);
 }
 
 // the ranges of the strings of the value of a property having a value, the range of the property if there is none
@@ -289,14 +307,23 @@ function validationNote(validated, showProblems, limitationsUrl) {
       .map((severity) => [validated.problems.filter((problem) => problem.severity === severity).length, severity])
       .filter(([count]) => count > 0)
       .map(([count, severity]) => count + " validation " + severity + (count > 1 ? "s" : ""));
-    const errors = validated.problems.some((problem) => problem.severity === "error");
-    const warnings = validated.problems.some((problem) => problem.severity === "warning");
-    const result = actionLink(counts.join(", "), errors ? "link-danger" : warnings ? "link-warning" : "link-secondary", showProblems);
+    const result = actionLink(counts.join(", "), linkClassOf(validated.problems), showProblems);
     result.title = "Problems found by otterdog. Click to list them.";
     note.append(result);
   }
   note.append(limitationsLink(limitationsUrl));
   return note;
+}
+
+// the class of the link to the problems, by their most severe one
+function linkClassOf(problems) {
+  if (problems.some((problem) => problem.severity === "error")) {
+    return "link-danger";
+  }
+  if (problems.some((problem) => problem.severity === "warning")) {
+    return "link-warning";
+  }
+  return "link-secondary";
 }
 
 function limitationsLink(url) {
