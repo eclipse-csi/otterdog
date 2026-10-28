@@ -103,6 +103,8 @@ that GitHub shows for a repository. Some identifiers cover several languages, wh
     GitHub no longer reports `javascript-typescript`, it returns `javascript` and `typescript` separately. Existing
     configurations that still list `javascript-typescript` keep working: otterdog translates it to `javascript` and
     `typescript` when loading the configuration. Replace it with the two values to get rid of the deprecated one.
+    If both are configured, `validate` only requires one of them to be detected in the repository, as CodeQL analyzes
+    them together.
 
 Any other value is rejected as soon as the configuration is loaded, e.g. by `validate` or `plan`: `java`, `kotlin`,
 `c` or `cpp`, as well as languages that CodeQL does not analyze, e.g. PHP, Scala, Shell

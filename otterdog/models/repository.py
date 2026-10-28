@@ -204,6 +204,8 @@ class Repository(ModelObject):
         "typescript",
     }
 
+    _combined_code_scanning_languages: ClassVar[set[str]] = {"javascript", "typescript"}
+
     _deprecated_code_scanning_languages: ClassVar[dict[str, list[str]]] = {
         "javascript-typescript": ["javascript", "typescript"],
     }
@@ -393,17 +395,28 @@ class Repository(ModelObject):
                     "rust": "rust",
                 }
 
+                def is_detected(language: str) -> bool:
+                    return any(
+                        detected_lang == language or language_mapping.get(detected_lang) == language
+                        for detected_lang in detected_languages
+                    )
+
+                # CodeQL analyzes JavaScript and TypeScript together, so if both are configured, e.g. by the
+                # translation of the deprecated 'javascript-typescript', it is sufficient that one is detected.
+                configured_languages = {language.lower() for language in self.code_scanning_default_languages}
+                combined_languages = (
+                    self._combined_code_scanning_languages
+                    if self._combined_code_scanning_languages <= configured_languages
+                    else set()
+                )
+
                 for configured_language in self.code_scanning_default_languages:
                     configured_language_lower = configured_language.lower()
 
-                    is_valid = False
-                    for detected_lang in detected_languages:
-                        if (
-                            detected_lang == configured_language_lower
-                            or language_mapping.get(detected_lang) == configured_language_lower
-                        ):
-                            is_valid = True
-                            break
+                    is_valid = is_detected(configured_language_lower) or (
+                        configured_language_lower in combined_languages
+                        and any(is_detected(language) for language in combined_languages)
+                    )
 
                     if not is_valid:
                         context.add_failure(
