@@ -171,6 +171,12 @@ ignored again and remains on GitHub unmanaged.
 
 !!! note
 
+    Otterdog never deletes an environment that matches an exclusion pattern, not even after its declaration has been
+    removed from the configuration. If such an environment is no longer needed, delete it by other means, e.g. in the
+    repository settings on GitHub or via the GitHub API.
+
+!!! note
+
     The `import` operation has no configuration to compare against and therefore always skips excluded environments.
     When importing into an existing configuration, add the declarations of excluded environments you want to manage
     again afterwards.
