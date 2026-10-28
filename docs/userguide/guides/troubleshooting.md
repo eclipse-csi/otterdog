@@ -36,8 +36,7 @@ invalid values and the unknown properties in the editor, and lists them when the
 
 **`invalid value at '<path>.code_scanning_default_languages[<index>]': '<language>' is not one of [...]`**
 
-: The value is not a CodeQL identifier, e.g. `java` or `typescript` instead of `java-kotlin` or
-  `javascript-typescript`. Use one of the values listed in
+: The value is not a CodeQL identifier, e.g. `java` or `kotlin` instead of `java-kotlin`. Use one of the values listed in
   [Supported languages](repository-security.md#supported-languages).
 
 **`<repository> has 'code_scanning_default_languages' configured while the repository does not yet exist.`**

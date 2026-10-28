@@ -260,7 +260,7 @@
           "title": "Languages must be detected in the repository (2)",
           "variant": null,
           "anchor": "languages-must-be-detected-in-the-repository",
-          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      code_scanning_default_setup_enabled: true,\n      code_scanning_default_languages+: [\n        \"actions\",\n        \"java-kotlin\",\n        \"javascript-typescript\",\n      ],\n      code_scanning_default_query_suite: \"extended\",\n    },\n  ],\n}\n"
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      code_scanning_default_setup_enabled: true,\n      code_scanning_default_languages+: [\n        \"actions\",\n        \"java-kotlin\",\n        \"javascript\",\n        \"typescript\",\n      ],\n      code_scanning_default_query_suite: \"extended\",\n    },\n  ],\n}\n"
         },
         {
           "title": "Organization settings related to security",

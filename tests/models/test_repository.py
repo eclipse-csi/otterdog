@@ -751,3 +751,74 @@ class TestRepository:
         patch = current.get_patch_to(default)
 
         assert {k: v for k, v in patch.items() if k in Repository._gh_pages_domain_properties} == expected_patch
+
+
+@pytest.mark.parametrize(
+    "configured,expected",
+    [
+        (["javascript-typescript"], ["javascript", "typescript"]),
+        (["actions", "javascript-typescript", "python"], ["actions", "javascript", "typescript", "python"]),
+        (["javascript-typescript", "typescript"], ["javascript", "typescript"]),
+        (["javascript", "typescript"], ["javascript", "typescript"]),
+        (["python"], ["python"]),
+        ([], []),
+    ],
+)
+def test_deprecated_code_scanning_language_is_translated(configured, expected):
+    repo = Repository.from_model_data({"name": "my-repo", "code_scanning_default_languages": configured})
+
+    assert repo.code_scanning_default_languages == expected
+
+
+def test_unset_code_scanning_languages_stay_unset():
+    repo = Repository.from_model_data({"name": "my-repo"})
+
+    assert repo.code_scanning_default_languages is UNSET
+
+
+async def _code_scanning_language_failures(configured, detected):
+    repo = Repository.from_model_data(
+        {
+            "name": "my-repo",
+            "code_scanning_default_setup_enabled": True,
+            "code_scanning_default_languages": configured,
+        }
+    )
+    failures = []
+
+    async def get_languages(_github_id, _repo_name):
+        return dict.fromkeys(detected, 100)
+
+    context = pretend.stub(
+        provider=pretend.stub(rest_api=pretend.stub(repo=pretend.stub(get_languages=get_languages))),
+        add_failure=lambda failure_type, message: failures.append(message),
+    )
+    await repo.validate_code_scanning_languages(context, pretend.stub(github_id="my-org"))
+    return failures
+
+
+@pytest.mark.parametrize("detected", [["JavaScript"], ["TypeScript"], ["JavaScript", "TypeScript"]])
+async def test_deprecated_code_scanning_language_needs_either_language_detected(detected):
+    assert await _code_scanning_language_failures(["javascript-typescript"], detected) == []
+
+
+async def test_deprecated_code_scanning_language_without_javascript_or_typescript_is_reported():
+    failures = await _code_scanning_language_failures(["javascript-typescript"], ["Python"])
+
+    assert len(failures) == 2
+    assert any("'javascript'" in failure for failure in failures)
+    assert any("'typescript'" in failure for failure in failures)
+
+
+@pytest.mark.parametrize(
+    "configured,detected,missing",
+    [
+        (["typescript"], ["JavaScript"], "typescript"),
+        (["javascript"], ["TypeScript"], "javascript"),
+    ],
+)
+async def test_explicit_single_code_scanning_language_must_be_detected(configured, detected, missing):
+    failures = await _code_scanning_language_failures(configured, detected)
+
+    assert len(failures) == 1
+    assert f"'{missing}'" in failures[0]
