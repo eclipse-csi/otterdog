@@ -306,6 +306,18 @@ class OtterdogConfig:
             return re.compile("|".join(team_exclusions))
 
     @property
+    def default_environment_exclusions(self) -> list[str]:
+        return self._github_config.get("exclude_environments", [])
+
+    @cached_property
+    def exclude_environments_pattern(self) -> re.Pattern | None:
+        environment_exclusions = self.default_environment_exclusions
+        if len(environment_exclusions) == 0:
+            return None
+        else:
+            return re.compile("|".join(environment_exclusions))
+
+    @property
     def default_credential_provider(self) -> str:
         return self._default_credential_provider
 

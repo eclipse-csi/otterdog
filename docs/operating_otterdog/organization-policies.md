@@ -110,3 +110,23 @@ orgs.newOrg('my-project', 'my-org') {
 
 Changes that may incur costs, e.g. a larger GitHub Actions cache, can require a review by a designated team, see
 [Cost policy](setup.md#cost-policy).
+
+## Environments managed by another tool
+
+Repository environments that are created and maintained by another tool can be excluded from otterdog with regular
+expressions that are matched against the environment names:
+
+``` json
+{
+  "defaults": {
+    "github": {
+      "exclude_environments": [
+        "^external-.*"
+      ]
+    }
+  }
+}
+```
+
+Excluded environments, including their secrets and variables, are ignored when reading the live state of a
+repository, unless the repository declares an environment with that name in its configuration.
