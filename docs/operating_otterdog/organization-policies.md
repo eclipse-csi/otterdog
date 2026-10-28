@@ -129,7 +129,7 @@ expressions that are matched against the environment names:
 }
 ```
 
-Patterns are matched from the start of the name, use `^name$` to match a single environment exactly.
+Each pattern is matched independently from the start of the name, use `^name$` to match a single environment exactly.
 
 Excluded environments, including their secrets and variables, are ignored when reading the live state of a
 repository, so they are not reported as differences and otterdog never deletes them.

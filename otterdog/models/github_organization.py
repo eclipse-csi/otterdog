@@ -60,10 +60,10 @@ from otterdog.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterable, Iterator
-    from re import Pattern
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.providers.github import GitHubProvider
+    from otterdog.utils import ExclusionPatterns
 
 _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").read_text())
 
@@ -632,9 +632,9 @@ class GitHubOrganization:
         no_web_ui: bool = False,
         concurrency: int | None = None,
         repo_filter: str | None = None,
-        exclude_teams: Pattern | None = None,
+        exclude_teams: ExclusionPatterns | None = None,
         expected_org: GitHubOrganization | None = None,
-        exclude_environments: Pattern | None = None,
+        exclude_environments: ExclusionPatterns | None = None,
     ) -> GitHubOrganization:
         import asyncer
 
@@ -821,8 +821,8 @@ async def _process_single_repo(
     repo_permissions: dict[str, list[dict[str, Any]]] | None,
     app_installations: dict[str, str],
     expected_org: GitHubOrganization | None = None,
-    exclude_teams: Pattern | None = None,
-    exclude_environments: Pattern | None = None,
+    exclude_teams: ExclusionPatterns | None = None,
+    exclude_environments: ExclusionPatterns | None = None,
 ) -> tuple[str, Repository]:
     rest_api = gh_client.rest_api
 
@@ -1006,8 +1006,8 @@ async def _load_repos_from_provider(
     concurrency: int | None = None,
     repo_filter: str | None = None,
     expected_org: GitHubOrganization | None = None,
-    exclude_teams: Pattern | None = None,
-    exclude_environments: Pattern | None = None,
+    exclude_teams: ExclusionPatterns | None = None,
+    exclude_environments: ExclusionPatterns | None = None,
 ) -> AsyncIterator[Repository]:
     import fnmatch
 

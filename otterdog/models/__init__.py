@@ -34,11 +34,11 @@ from otterdog.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping, Sequence
-    from re import Pattern
 
     from otterdog.config import SecretResolver
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
+    from otterdog.utils import ExclusionPatterns
 
 MT = TypeVar("MT", bound="ModelObject")
 EMT = TypeVar("EMT", bound="EmbeddedModelObject")
@@ -69,7 +69,7 @@ class ValidationContext:
     template_dir: str
     org_members: set[str]
     default_team_names: set[str]
-    exclude_teams_pattern: Pattern | None
+    exclude_teams_pattern: ExclusionPatterns | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
     provider: GitHubProvider | None = None
 

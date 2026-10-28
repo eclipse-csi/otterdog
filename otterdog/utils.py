@@ -96,6 +96,23 @@ def expect_type(value: Any, expected_type: type[T]) -> T:
         raise TypeError(f"unexpected value of type '{type(value)}' while '{expected_type}' was expected")
 
 
+class ExclusionPatterns:
+    """
+    A list of regular expressions of which each is compiled and matched independently,
+    so that numbered groups and backreferences keep their meaning within a single pattern.
+    """
+
+    def __init__(self, patterns: list[str]) -> None:
+        self._patterns = [re.compile(pattern) for pattern in patterns]
+
+    @property
+    def pattern(self) -> str:
+        return "|".join(pattern.pattern for pattern in self._patterns)
+
+    def match(self, value: str) -> bool:
+        return any(pattern.match(value) for pattern in self._patterns)
+
+
 @dataclass
 class Change(Generic[T]):
     from_value: T | None
