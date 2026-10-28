@@ -751,3 +751,26 @@ class TestRepository:
         patch = current.get_patch_to(default)
 
         assert {k: v for k, v in patch.items() if k in Repository._gh_pages_domain_properties} == expected_patch
+
+
+@pytest.mark.parametrize(
+    "configured,expected",
+    [
+        (["javascript-typescript"], ["javascript", "typescript"]),
+        (["actions", "javascript-typescript", "python"], ["actions", "javascript", "typescript", "python"]),
+        (["javascript-typescript", "typescript"], ["javascript", "typescript"]),
+        (["javascript", "typescript"], ["javascript", "typescript"]),
+        (["python"], ["python"]),
+        ([], []),
+    ],
+)
+def test_deprecated_code_scanning_language_is_translated(configured, expected):
+    repo = Repository.from_model_data({"name": "my-repo", "code_scanning_default_languages": configured})
+
+    assert repo.code_scanning_default_languages == expected
+
+
+def test_unset_code_scanning_languages_stay_unset():
+    repo = Repository.from_model_data({"name": "my-repo"})
+
+    assert repo.code_scanning_default_languages is UNSET

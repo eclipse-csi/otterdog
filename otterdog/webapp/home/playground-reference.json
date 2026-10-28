@@ -356,7 +356,7 @@
         "code_scanning_default_languages": {
           "type": "list[string]",
           "description": "The languages to analyze with code scanning default setup",
-          "notes": "`actions`, `c-cpp`, `csharp`, `go`, `java-kotlin`, `javascript-typescript`, `python`, `ruby`, `swift` or `rust`, only taken into account when `code_scanning_default_setup_enabled` is set to true"
+          "notes": "`actions`, `c-cpp`, `csharp`, `go`, `java-kotlin`, `javascript`, `python`, `ruby`, `swift`, `rust` or `typescript`, only taken into account when `code_scanning_default_setup_enabled` is set to true. The deprecated value `javascript-typescript` is translated to `javascript` and `typescript`"
         },
         "custom_properties": {
           "type": "dict[string, string | list[string]]",

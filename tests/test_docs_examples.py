@@ -53,6 +53,7 @@ _DETECTED_LANGUAGES = {
     "Ruby": 1,
     "Rust": 1,
     "Swift": 1,
+    "TypeScript": 1,
 }
 
 

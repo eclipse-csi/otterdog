@@ -55,7 +55,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["actions", "c-cpp", "csharp", "go", "java-kotlin", "javascript-typescript", "python", "ruby", "swift", "rust"]
+        "enum": ["actions", "c-cpp", "csharp", "go", "java-kotlin", "javascript", "javascript-typescript", "python", "ruby", "swift", "rust", "typescript"]
       }
     },
 

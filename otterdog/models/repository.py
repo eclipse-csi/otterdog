@@ -195,11 +195,17 @@ class Repository(ModelObject):
         "csharp",
         "go",
         "java-kotlin",
-        "javascript-typescript",
+        "javascript",
+        "javascript-typescript",  # deprecated, translated to "javascript" and "typescript"
         "python",
         "ruby",
         "swift",
         "rust",
+        "typescript",
+    }
+
+    _deprecated_code_scanning_languages: ClassVar[dict[str, list[str]]] = {
+        "javascript-typescript": ["javascript", "typescript"],
     }
 
     _valid_team_permissions: ClassVar[dict[str, str]] = {
@@ -381,8 +387,6 @@ class Repository(ModelObject):
                     "go": "go",
                     "java": "java-kotlin",
                     "kotlin": "java-kotlin",
-                    "javascript": "javascript-typescript",
-                    "typescript": "javascript-typescript",
                     "python": "python",
                     "ruby": "ruby",
                     "swift": "swift",
@@ -794,6 +798,18 @@ class Repository(ModelObject):
         return bool(match(domain_name))
 
     @classmethod
+    def _translate_deprecated_code_scanning_languages(cls, languages: Any) -> Any:
+        if not isinstance(languages, list):
+            return languages
+
+        translated: list[Any] = []
+        for language in languages:
+            for translated_language in cls._deprecated_code_scanning_languages.get(language, [language]):
+                if translated_language not in translated:
+                    translated.append(translated_language)
+        return translated
+
+    @classmethod
     def _valid_code_scanning_language(cls, language: str):
         return language in cls._valid_code_scanning_languages
 
@@ -902,6 +918,8 @@ class Repository(ModelObject):
 
         mapping.update(
             {
+                "code_scanning_default_languages": OptionalS("code_scanning_default_languages", default=UNSET)
+                >> F(cls._translate_deprecated_code_scanning_languages),
                 "webhooks": OptionalS("webhooks", default=[]) >> Forall(lambda x: RepositoryWebhook.from_model_data(x)),
                 "secrets": OptionalS("secrets", default=[]) >> Forall(lambda x: RepositorySecret.from_model_data(x)),
                 "variables": OptionalS("variables", default=[])

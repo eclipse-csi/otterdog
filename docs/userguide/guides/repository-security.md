@@ -91,14 +91,21 @@ that GitHub shows for a repository. Some identifiers cover several languages, wh
 | `csharp`                | C#                                               | C#                             |
 | `go`                    | Go                                               | Go                             |
 | `java-kotlin`           | Java and Kotlin                                  | Java, Kotlin                   |
-| `javascript-typescript` | JavaScript and TypeScript                        | JavaScript, TypeScript         |
+| `javascript`            | JavaScript                                       | JavaScript                     |
 | `python`                | Python                                           | Python                         |
 | `ruby`                  | Ruby                                             | Ruby                           |
 | `swift`                 | Swift                                            | Swift                          |
 | `rust`                  | Rust                                             | Rust                           |
+| `typescript`            | TypeScript                                       | TypeScript                     |
+
+!!! note "Deprecated: `javascript-typescript`"
+
+    GitHub no longer reports `javascript-typescript`, it returns `javascript` and `typescript` separately. Existing
+    configurations that still list `javascript-typescript` keep working: otterdog translates it to `javascript` and
+    `typescript` when loading the configuration. Replace it with the two values to get rid of the deprecated one.
 
 Any other value is rejected as soon as the configuration is loaded, e.g. by `validate` or `plan`: `java`, `kotlin`,
-`javascript`, `typescript`, `c` or `cpp`, as well as languages that CodeQL does not analyze, e.g. PHP, Scala, Shell
+`c` or `cpp`, as well as languages that CodeQL does not analyze, e.g. PHP, Scala, Shell
 or Jsonnet. These values follow the
 [REST API for default setup](https://docs.github.com/en/rest/code-scanning/code-scanning#update-a-code-scanning-default-setup-configuration),
 which documents all of them except `rust`: CodeQL analyzes Rust in default setup since its general availability in
@@ -140,7 +147,8 @@ orgs.newOrg('my-project', 'my-org') {
       code_scanning_default_languages+: [
         "actions",
         "java-kotlin", // (1)!
-        "javascript-typescript",
+        "javascript",
+        "typescript",
       ],
       code_scanning_default_query_suite: "extended", // (2)!
     },
