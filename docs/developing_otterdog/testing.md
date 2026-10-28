@@ -67,7 +67,7 @@ Then create the file `otterdog.json` in this repository with all the required se
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<Github Username>/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+            "base_template": "https://github.com/<Github Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },
@@ -276,7 +276,7 @@ Example of `otterdog.json`
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<GitHub Username>/otterdog#examples/template/otterdog-defaults.libsonnet@main",
+            "base_template": "https://github.com/<GitHub Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },
@@ -396,7 +396,7 @@ Click **Redeliver** on the most recent **ping** delivery to trigger a test event
 
 The Playground of the webapp is available at `/playground`, it lists the examples of the Configuration Guides next
 to the editor. It evaluates them with the default configuration of the instance, or with the example template of
-otterdog (`examples/template`, `/playground?template=example`) which the examples are validated with. Complete
+otterdog (`otterdog/resources/defaults`, `/playground?template=example`) which the examples are validated with. Complete
 examples of the documentation link to it with the example preloaded and the example template selected. To make these
 links target your development environment, serve the documentation with the target that matches the way you started
 the webapp, in a second terminal:

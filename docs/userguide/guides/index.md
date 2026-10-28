@@ -11,7 +11,7 @@ documents every supported property, and link to it instead of repeating it.
   the properties relevant to the topic. All other properties are inherited from the default configuration. The
   `import` statement at the top of the configuration file is omitted.
 - **Examples use the example default configuration**: the values that an example inherits come from the
-  [example default configuration](https://github.com/eclipse-csi/otterdog/blob/main/examples/template/otterdog-defaults.libsonnet).
+  [example default configuration](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet).
   The default configuration of your organization may define different values, see
   [Inherited and explicit values](inheritance.md).
 - **Examples can be tried out**: the link below an example opens it in the Playground of the otterdog dashboard,

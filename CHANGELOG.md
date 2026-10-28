@@ -1,5 +1,16 @@
 # Change Log
 
+## [Unreleased]
+
+### Changed
+
+ - **Breaking**: move the standard Jsonnet defaults from `examples/template` to `otterdog/resources/defaults` and ship them with the otterdog package ([#857](https://github.com/eclipse-csi/otterdog/pull/857)).
+   Configurations using `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet` with a ref that includes this change (e.g. `@main`) need to update:
+   - `defaults.jsonnet.base_template` in `otterdog.json` to `https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@<ref>`
+   - the import statement of every organization configuration from `import 'vendor/otterdog/examples/template/otterdog-defaults.libsonnet'` to `import 'vendor/otterdog/otterdog/resources/defaults/otterdog-defaults.libsonnet'`
+
+   Configurations pinned to an earlier release tag are not affected.
+
 ## [1.7.1] - 28/10/2026
 
 ### Changed

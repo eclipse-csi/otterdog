@@ -19,7 +19,7 @@ from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db import service
 from otterdog.webapp.home import routes
 
-_TEMPLATE_DIR = Path(__file__).parents[2] / "examples" / "template"
+_TEMPLATE_DIR = Path(__file__).parents[2] / "otterdog" / "resources" / "defaults"
 _CONFIGURATION = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
 
 orgs.newOrg('my-project', 'my-org') {

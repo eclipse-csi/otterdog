@@ -20,7 +20,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.webapp.home import routes
 
 _BASE_TEMPLATE = "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1.0.0"
-_EXAMPLE_TEMPLATE_DIR = Path(__file__).parents[2] / "examples" / "template"
+_EXAMPLE_TEMPLATE_DIR = Path(__file__).parents[2] / "otterdog" / "resources" / "defaults"
 _TEMPLATE = {
     "files": [
         {
@@ -164,14 +164,14 @@ async def test_example_template_provides_the_files_of_the_examples(monkeypatch, 
         {
             "filename": f"vendor/otterdog-defaults/{path.name}",
             "content": path.read_text(),
-            "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/examples/template/{path.name}",
+            "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults/{path.name}",
         }
         for path in sorted(_EXAMPLE_TEMPLATE_DIR.glob("*.libsonnet"))
     ]
     assert template["default_config"] == "vendor/otterdog-defaults/otterdog-defaults.libsonnet"
     assert template["link"] == {
-        "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/examples/template/otterdog-defaults.libsonnet",
-        "label": f"eclipse-csi/otterdog/examples/template/otterdog-defaults.libsonnet@{ref}",
+        "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults/otterdog-defaults.libsonnet",
+        "label": f"eclipse-csi/otterdog/otterdog/resources/defaults/otterdog-defaults.libsonnet@{ref}",
     }
 
 

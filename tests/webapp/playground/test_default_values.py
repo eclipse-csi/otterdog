@@ -53,7 +53,7 @@ def test_values_of_the_default_configuration_are_highlighted(playground):
         "required_approving_review_count: 2",
     ]
     title = page.locator(".playground-default-value").first.get_attribute("title")
-    assert "eclipse-csi/otterdog/examples/template/otterdog-defaults.libsonnet" in title
+    assert "eclipse-csi/otterdog/otterdog/resources/defaults/otterdog-defaults.libsonnet" in title
     assert "can be removed" in title
 
     note = page.locator(".playground-status-note[data-key=defaults] a")
