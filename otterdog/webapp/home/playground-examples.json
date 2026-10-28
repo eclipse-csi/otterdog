@@ -489,6 +489,18 @@
           "variant": null,
           "anchor": "exceptions",
           "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    // Exception to the organization-wide default: the project publishes its documentation\n    // from private repositories, which requires read access for all members.\n    default_repository_permission: \"read\",\n  },\n}\n"
+        },
+        {
+          "title": "Managing an excluded environment (1)",
+          "variant": null,
+          "anchor": "managing-an-excluded-environment",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      environments+: [\n        orgs.newEnvironment('external-prod') {\n          deployment_branch_policy: \"selected\",\n          branch_policies+: [\n            \"main\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Managing an excluded environment (2)",
+          "variant": null,
+          "anchor": "managing-an-excluded-environment",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      environments+: [\n        // created automatically by GitHub, only declared to manage its settings\n        orgs.newEnvironment('copilot') {\n          deployment_branch_policy: \"all\",\n        },\n      ],\n    },\n  ],\n}\n"
         }
       ]
     }

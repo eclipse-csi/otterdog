@@ -139,12 +139,16 @@ repository, so they are not reported as differences and otterdog never deletes t
 To manage an excluded environment, declare it in the configuration of the repository:
 
 ``` jsonnet
-orgs.newRepo('my-repo') {
-  environments+: [
-    orgs.newEnvironment('external-prod') {
-      deployment_branch_policy: "selected",
-      branch_policies+: [
-        "main",
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      environments+: [
+        orgs.newEnvironment('external-prod') {
+          deployment_branch_policy: "selected",
+          branch_policies+: [
+            "main",
+          ],
+        },
       ],
     },
   ],
@@ -155,11 +159,15 @@ The same applies to environments created automatically by GitHub, e.g. `copilot`
 Copilot coding agent. To manage its settings, declare it explicitly:
 
 ``` jsonnet
-orgs.newRepo('my-repo') {
-  environments+: [
-    // created automatically by GitHub, only declared to manage its settings
-    orgs.newEnvironment('copilot') {
-      deployment_branch_policy: "all",
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      environments+: [
+        // created automatically by GitHub, only declared to manage its settings
+        orgs.newEnvironment('copilot') {
+          deployment_branch_policy: "all",
+        },
+      ],
     },
   ],
 }
