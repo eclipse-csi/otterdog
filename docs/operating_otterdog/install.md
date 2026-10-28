@@ -130,9 +130,11 @@ Repository Permissions
 |----------------------|--------------|
 | Actions              | Read & Write |
 | Administration       | Read & Write |
+| Codespaces secrets   | Read & Write |
 | Commit statuses      | Read & Write |
 | Contents             | Read & Write |
 | Custom properties    | Read & Write |
+| Dependabot secrets   | Read & Write |
 | Environments         | Read & Write |
 | Issues               | Read only    |
 | Metadata             | Read only    |
@@ -145,16 +147,22 @@ Repository Permissions
 
 Organization Permissions
 
-| Permission                  | Access Level |
-|-----------------------------|--------------|
-| Administration              | Read & Write |
-| Custom Organization Roles   | Read & Write |
-| Custom properties           | Admin        |
-| Members                     | Read only    |
-| Plan                        | Read only    |
-| Secrets                     | Read & Write |
-| Variables                   | Read & Write |
-| Webhooks                    | Read & Write |
+| Permission                      | Access Level |
+|---------------------------------|--------------|
+| Administration                  | Read & Write |
+| Custom Organization Roles       | Read & Write |
+| Custom properties               | Admin        |
+| Members                         | Read only    |
+| Organization codespaces secrets | Read & Write |
+| Organization dependabot secrets | Read & Write |
+| Plan                            | Read only    |
+| Secrets                         | Read & Write |
+| Variables                       | Read & Write |
+| Webhooks                        | Read & Write |
+
+The permissions for Codespaces and Dependabot secrets are only used when the default configuration defines the
+functions that create these secrets, see
+[Dependabot and Codespaces secrets](../userguide/guides/secrets-and-variables.md#dependabot-and-codespaces-secrets).
 
 Events
 

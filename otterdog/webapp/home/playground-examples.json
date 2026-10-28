@@ -285,6 +285,12 @@
           "variant": null,
           "anchor": "override-a-value-for-a-repository-or-an-environment",
           "code": "orgs.newOrg('my-project', 'my-org') {\n  variables+: [\n    orgs.newOrgVariable('REGISTRY_URL') {\n      value: \"https://registry.example.org\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-library') {\n      variables+: [\n        orgs.newRepoVariable('REGISTRY_URL') {\n          value: \"https://staging.registry.example.org\",\n        },\n      ],\n      environments+: [\n        orgs.newEnvironment('release') {\n          variables+: [\n            orgs.newEnvVariable('REGISTRY_URL') {\n              value: \"https://registry.example.org\",\n            },\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Dependabot and Codespaces secrets",
+          "variant": null,
+          "anchor": "dependabot-and-codespaces-secrets",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  secrets+: [\n    orgs.newOrgSecret('REGISTRY_TOKEN') {\n      value: \"pass:path/to/registry-token\",\n    },\n  ],\n  dependabot_secrets+: [\n    orgs.newOrgDependabotSecret('REGISTRY_TOKEN') {\n      value: \"pass:path/to/registry-token\",\n    },\n  ],\n}\n"
         }
       ]
     },

@@ -11,8 +11,10 @@ Repository Permissions:
 
 - Actions: read and write
 - Administration: read and write
+- Codespaces secrets: read and write
 - Commit statuses: read and write
 - Contents: read and write
+- Dependabot secrets: read and write
 - Environments: read and write
 - Issues: read only
 - Metadata: read only
@@ -28,6 +30,8 @@ Organization Permissions:
 - Administration: read and write
 - Custom Organization Roles: read and write
 - Members: read only
+- Organization codespaces secrets: read and write
+- Organization dependabot secrets: read and write
 - Plan: read only
 - Secrets: read and write
 - Variables: read and write

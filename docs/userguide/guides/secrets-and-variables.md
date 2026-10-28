@@ -118,6 +118,44 @@ orgs.newOrg('my-project', 'my-org') {
     Overriding a secret hides which value a workflow actually uses. Prefer distinct names, e.g. `STAGING_TOKEN` and
     `RELEASE_TOKEN`, for secrets that grant different permissions, and keep overrides for configuration values.
 
+## Dependabot and Codespaces secrets
+
+Dependabot and Codespaces use their own secrets, which GitHub manages independently of the secrets of GitHub Actions:
+
+- Dependabot secrets are used by Dependabot, e.g. to access private registries, and are the only secrets available
+  to workflows triggered by Dependabot, e.g. a workflow running for a pull request opened by Dependabot.
+- Codespaces secrets are available as environment variables in the codespaces created for a repository.
+
+They are defined in the `dependabot_secrets` and `codespaces_secrets` properties of an organization or a repository,
+see [Organization Dependabot Secret](../../reference/organization/dependabot-secret.md),
+[Organization Codespaces Secret](../../reference/organization/codespaces-secret.md),
+[Repository Dependabot Secret](../../reference/organization/repository/dependabot-secret.md) and
+[Repository Codespaces Secret](../../reference/organization/repository/codespaces-secret.md). A secret with the same
+name can be defined for GitHub Actions and for Dependabot, e.g. when a workflow needs the same credential whether it is
+triggered by Dependabot or not:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  secrets+: [
+    orgs.newOrgSecret('REGISTRY_TOKEN') {
+      value: "pass:path/to/registry-token",
+    },
+  ],
+  dependabot_secrets+: [
+    orgs.newOrgDependabotSecret('REGISTRY_TOKEN') {
+      value: "pass:path/to/registry-token",
+    },
+  ],
+}
+```
+
+!!! note
+
+    Otterdog only reads the Dependabot and Codespaces secrets when the default configuration defines the
+    corresponding function, e.g. `newOrgDependabotSecret` for the Dependabot secrets of an organization and
+    `newRepoDependabotSecret` for those of its repositories. The credentials used by otterdog then need access to
+    these secrets, see [Create a GitHub App](../../operating_otterdog/install.md#create-a-github-app).
+
 ## Secrets managed outside otterdog
 
 A secret with the redacted value `********`, which `import` writes as GitHub never discloses secret values, is
@@ -144,8 +182,8 @@ environment, this is usually safer than a long-lived token stored as secret.
 
 ## Limits
 
-- Secret names must not start with `GITHUB_`.
-- Secrets and variables of Dependabot, Codespaces and Copilot agents cannot be managed with otterdog, see
+- Secret names must not start with `GITHUB_`, and must be uppercase as GitHub normalizes them to uppercase.
+- Secrets and variables of Copilot agents cannot be managed with otterdog, see
   [Unsupported Features](../unsupported.md). GitHub moved the secrets of the Copilot cloud agent from an
   environment named `copilot` to dedicated agent secrets, see the
   [GitHub changelog](https://github.blog/changelog/2026-05-11-more-flexible-secrets-and-variables-for-copilot-cloud-agent/).
