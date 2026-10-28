@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from importlib.resources import files
 from unittest.mock import MagicMock
 
 import pytest
@@ -77,7 +78,8 @@ def test_repository_configuration_builds_typed_special_secrets() -> None:
 
 
 def test_bundled_template_exports_special_secret_constructors() -> None:
-    """The documented default template exposes every supported secret scope."""
+    """The packaged default template exposes every supported secret scope."""
+    defaults = files("otterdog").joinpath("resources", "defaults", "otterdog-defaults.libsonnet")
     functions = (
         "newOrgDependabotSecret",
         "newOrgCodespacesSecret",
@@ -86,9 +88,7 @@ def test_bundled_template_exports_special_secret_constructors() -> None:
     )
 
     for function in functions:
-        result = jsonnet_evaluate_snippet(
-            f"(import './examples/template/otterdog-defaults.libsonnet').{function}('default')"
-        )
+        result = jsonnet_evaluate_snippet(f"(import '{defaults}').{function}('default')")
         assert result["name"] == "default"
 
 
