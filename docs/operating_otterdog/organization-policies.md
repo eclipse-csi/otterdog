@@ -128,5 +128,34 @@ expressions that are matched against the environment names:
 }
 ```
 
+Patterns are matched from the start of the name, use `^name$` to match a single environment exactly.
+
 Excluded environments, including their secrets and variables, are ignored when reading the live state of a
-repository, unless the repository declares an environment with that name in its configuration.
+repository, so they are not reported as differences and otterdog never deletes them.
+
+### Managing an excluded environment
+
+To manage an excluded environment, declare it in the configuration of the repository:
+
+``` jsonnet
+orgs.newRepo('my-repo') {
+  environments+: [
+    orgs.newEnvironment('external-prod') {
+      deployment_branch_policy: "selected",
+      branch_policies+: [
+        "main",
+      ],
+    },
+  ],
+}
+```
+
+A declared environment is managed like any other, even if its name matches a pattern: it is compared with the live
+state, changed if it differs and created if it does not exist. If the declaration is removed again, the environment is
+ignored again and remains on GitHub unmanaged.
+
+!!! note
+
+    The `import` operation has no configuration to compare against and therefore always skips excluded environments.
+    When importing into an existing configuration, add the declarations of excluded environments you want to manage
+    again afterwards.
