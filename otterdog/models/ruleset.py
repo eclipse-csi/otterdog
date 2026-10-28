@@ -350,6 +350,19 @@ class MergeQueueSettings(EmbeddedModelObject):
         return mapping
 
 
+@dataclasses.dataclass(frozen=True)
+class _EmbeddedModelOwner:
+    """
+    The owner of the embedded models of a ruleset when validating them, which name it in their messages with its
+    header, e.g. 'repo_ruleset[name="main", repository=my-repo]'.
+    """
+
+    header: str
+
+    def get_model_header(self, parent_object: Any = None) -> str:
+        return self.header
+
+
 @dataclasses.dataclass
 class Ruleset(ModelObject, abc.ABC):
     """
@@ -473,14 +486,17 @@ class Ruleset(ModelObject, abc.ABC):
                         f"'{env_name}' which is not defined in the repository itself.",
                     )
 
+        # the messages of the embedded models name the ruleset, not only its repository or organization
+        owner = _EmbeddedModelOwner(self.get_model_header(parent_object))
+
         if is_set_and_present(self.required_pull_request):
-            self.required_pull_request.validate(context, parent_object)
+            self.required_pull_request.validate(context, owner)
 
         if is_set_and_present(self.required_status_checks):
-            self.required_status_checks.validate(context, parent_object)
+            self.required_status_checks.validate(context, owner)
 
         if is_set_and_present(self.required_merge_queue):
-            self.required_merge_queue.validate(context, parent_object)
+            self.required_merge_queue.validate(context, owner)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.requires_deployments is False:

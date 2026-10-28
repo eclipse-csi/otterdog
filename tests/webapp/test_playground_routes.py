@@ -507,6 +507,22 @@ async def test_playground_validates_the_configuration_with_otterdog(app, monkeyp
     assert {problem["severity"] for problem in result["problems"]} <= {"error", "warning", "info"}
 
 
+async def test_playground_validation_names_the_ruleset_of_its_nested_settings(app, monkeypatch, tmp_path):
+    ruleset = _INVALID_RULESET.replace(
+        "include_refs+: ['1.2.x'],", "required_pull_request+: { required_approving_review_count: 11 },"
+    )
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated(ruleset))
+
+    assert _errors(result) == [
+        (
+            'repo_ruleset[name="main", repository=my-repo] has '
+            "'required_pull_request.required_approving_review_count' of value '11' "
+            "while only integers in the range [0, 10] are allowed."
+        )
+    ]
+
+
 async def test_playground_validates_a_valid_configuration(app, monkeypatch, tmp_path):
     valid = _INVALID_RULESET.replace("'1.2.x'", "'refs/heads/1.2.x'")
 

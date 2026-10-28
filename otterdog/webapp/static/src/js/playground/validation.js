@@ -128,9 +128,9 @@ const REPOSITORY = /\brepositor(?:y|ies)(?:\[name="([^"]*)"|=([^,\]]*))/;
 // object, e.g. 'repo_ruleset[name="main", repository=my-repo]', 'repository[name="my-repo"]' or 'settings', or its
 // path in the configuration, e.g. 'repositories[name="my-repo"].rulesets[name="main"]'
 const HEADER = /^\w+(?:\[[^\]]*\])?(?:\.\w+(?:\[[^\]]*\])?)*/;
-// the named objects of a header, their kind, e.g. 'repo_ruleset' or 'rulesets', and their name, with the name of the
-// object containing the object in the header of an object
-const NAMES = /(\w+)\[\w+="([^"]*)"(?:, \w+=([^\]]*))?\]/g;
+// the named objects of a header, their kind, e.g. 'repo_ruleset' or 'rulesets', and their name, with the kind and the
+// name of the object containing the object in the header of an object
+const NAMES = /(\w+)\[\w+="([^"]*)"(?:, (\w+)=([^\]]*))?\]/g;
 
 // Returns the diagnostics of the problems {severity, message} found by otterdog in the configuration of an
 // organization: their messages are about the objects of the evaluated configuration, they are located at the property
@@ -152,34 +152,42 @@ export function otterdogDiagnostics(problems, code) {
 }
 
 // The ranges of the properties of the code that a message is about: the first property quoted in the message, e.g.
-// 'include_refs', set in the object of its header, narrowed to the strings of its value that are quoted next, e.g.
-// '1.2.x'. None if the property is not set in the code, e.g. inherited from the default configuration.
+// 'include_refs', or the path of a property of a nested object, e.g. 'required_pull_request.allowed_merge_methods', set
+// in the object of its header, narrowed to the values of its value that are quoted next, e.g. '1.2.x'. None if the
+// property is not set in the code, e.g. inherited from the default configuration.
 function propertiesAbout(message, code, properties) {
   const header = HEADER.exec(message);
   if (header === null) {
     return [];
   }
   const names = [...header[0].matchAll(NAMES)];
-  const object = {kind: names.at(-1)?.[1], name: names.at(-1)?.[2], parent: names.at(-1)?.[3] ?? names.at(-2)?.[2]};
+  const [last, previous] = [names.at(-1), names.at(-2)];
+  const object = {
+    kind: last?.[1],
+    name: last?.[2],
+    parent: last?.[3] === undefined ? previous && {kind: previous[1], name: previous[2]} : {kind: last[3], name: last[4]},
+  };
   const quoted = [...message.slice(header[0].length).matchAll(/'([^']*)'/g)].map((match) => match[1]);
   for (const [index, quote] of quoted.entries()) {
-    const matching = properties.filter((property) => property.path.at(-1) === quote && isAbout(property, object));
+    const path = quote.split(".");
+    const matching = properties.filter((property) => endsWith(property.path, path) && isAbout(property, object));
     if (matching.length > 0) {
-      return matching.flatMap((property) => stringsOf(property, code, quoted[index + 1]));
+      return matching.flatMap((property) => valuesOf(property, code, quoted[index + 1]));
     }
   }
   return [];
 }
 
 // Whether a property is set in the object {kind, name, parent} of a header: the object created by a call of a function
-// creating objects of its kind with its name, within the one with the name of the object containing it, e.g. a ruleset
-// of a repository, or the organization for an object without name, e.g. its settings.
+// creating objects of its kind with its name, within the innermost object of the kind of the object containing it
+// having its name, e.g. a ruleset of a repository rather than of another one within an organization named like the
+// repository, or the organization for an object without name, e.g. its settings.
 function isAbout(property, {kind, name, parent}) {
   if (name === undefined) {
     return property.function === "newOrg" && property.within.length === 0;
   }
   return property.firstArgument === name && createsKind(property.function, kind)
-    && (parent === undefined || property.within.some((call) => call.firstArgument === parent));
+    && (parent === undefined || property.within.find((call) => createsKind(call.function, parent.kind))?.firstArgument === parent.name);
 }
 
 // Whether a function creates the objects of a kind, the kind of an object in the header of otterdog or in the path of
@@ -192,13 +200,16 @@ export function createsKind(name, kind) {
   return kindWords.length <= words.length && kindWords.every((word, index) => word === words[words.length - kindWords.length + index]);
 }
 
-// the ranges of the strings of the value of a property having a value, the range of the property if there is none
-function stringsOf(property, code, value) {
+// The ranges of the literal values of the value of a property quoted as a value, e.g. a string of a list, a number or a
+// boolean, the range of the property if there is none.
+function valuesOf(property, code, value) {
   const offset = property.from;
-  const strings = value === undefined ? [] : tokenize(code.slice(property.from, property.to))
-    .filter((token) => token.type === "string" && literalValue(token.text) === value)
+  // the first token is the name of the property, the strings are quoted by their value, the other literals as written
+  const quotedAs = (token) => (token.type === "string" ? literalValue(token.text) : token.text);
+  const values = value === undefined ? [] : tokenize(code.slice(property.from, property.to)).slice(1)
+    .filter((token) => ["string", "word"].includes(token.type) && quotedAs(token) === value)
     .map((token) => ({from: offset + token.start, to: offset + token.end}));
-  return strings.length > 0 ? strings : [{from: property.from, to: property.to}];
+  return values.length > 0 ? values : [{from: property.from, to: property.to}];
 }
 
 function describe(problem, value) {

@@ -191,3 +191,42 @@ test("the functions creating the objects of a kind are recognized", () => {
   assert.deepEqual(creating("custom_properties"), ["newCustomProperty"]);
   assert.deepEqual(creating("team"), ["newTeam"]);
 });
+
+test("problems found by otterdog are located at the nested property they are about, in their object", () => {
+  const code = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+
+orgs.newOrg('demo', 'demo-org') {
+  _repositories+:: [
+    orgs.newRepo('demo') {
+      rulesets: [
+        orgs.newRepoRuleset('main') {
+          include_refs+: ['1.2.x'],
+          required_pull_request+: { required_approving_review_count: 11 },
+        },
+      ],
+    },
+    orgs.newRepo('api') {
+      rulesets: [
+        orgs.newRepoRuleset('main') {
+          include_refs+: ['1.2.x'],
+          required_pull_request+: { required_approving_review_count: 11 },
+        },
+      ],
+    },
+  ],
+}`;
+  const problems = [
+    // a property of an object nested in the ruleset, by its path
+    {severity: "error", message: "repo_ruleset[name=\"main\", repository=demo] has 'required_pull_request.required_approving_review_count' of value '11' while only integers in the range [0, 10] are allowed."},
+    // in the repository named like the organization, not in the other one
+    {severity: "error", message: "repo_ruleset[name=\"main\", repository=demo] has an invalid 'include_refs' pattern '1.2.x'"},
+  ];
+
+  const [count, refs] = otterdogDiagnostics(problems, code);
+  const repository = code.indexOf("orgs.newRepo('api')");
+  assert.equal(code.slice(count.from, count.to), "11");
+  assert.ok(count.from < repository);
+  assert.equal(code.slice(refs.from, refs.to), "'1.2.x'");
+  assert.ok(refs.from < repository);
+  assert.equal(otterdogDiagnostics(problems, code).length, 2);
+});
