@@ -26,7 +26,7 @@ from otterdog.models import FailureType
 from otterdog.models.github_organization import GitHubOrganization
 
 _ROOT_DIR = Path(__file__).parent.parent
-_TEMPLATE_DIR = _ROOT_DIR / "examples" / "template"
+_TEMPLATE_DIR = _ROOT_DIR / "otterdog" / "resources" / "defaults"
 _TEMPLATE_URL = "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@main"
 _TEMPLATE_IMPORT = "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n"
 

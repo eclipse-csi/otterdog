@@ -406,9 +406,9 @@ def _evaluate_default(jsonnet_config: JsonnetConfig, function: str) -> dict[str,
 
 
 # the example template of otterdog, which the configuration guides of the documentation are validated with,
-# it is part of the sources of otterdog but not of its package
+# it is shipped with the otterdog package
 EXAMPLE_TEMPLATE = "example"
-_EXAMPLE_TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(otterdog.__file__)), "examples", "template")
+_EXAMPLE_TEMPLATE_DIR = os.path.join(os.path.dirname(otterdog.__file__), "resources", "defaults")
 _EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
 
 
@@ -545,7 +545,7 @@ async def _example_template() -> dict[str, Any] | None:
 
     # link the template of the running release, development versions are built from the main branch
     ref = f"v{otterdog.__version__}" if re.fullmatch(r"\d+\.\d+\.\d+", otterdog.__version__) else "main"
-    url = f"https://github.com/eclipse-csi/otterdog/blob/{ref}/examples/template"
+    url = f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults"
 
     # vendored like the default configurations used in the documentation
     files = []
@@ -565,7 +565,7 @@ async def _example_template() -> dict[str, Any] | None:
         "default_config": f"vendor/otterdog-defaults/{_EXAMPLE_TEMPLATE_FILE}",
         "link": {
             "url": f"{url}/{_EXAMPLE_TEMPLATE_FILE}",
-            "label": f"eclipse-csi/otterdog/examples/template/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
+            "label": f"eclipse-csi/otterdog/otterdog/resources/defaults/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
         },
     }
 
