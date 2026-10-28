@@ -121,6 +121,7 @@ expressions that are matched against the environment names:
   "defaults": {
     "github": {
       "exclude_environments": [
+        "^copilot$",
         "^external-.*"
       ]
     }
@@ -145,6 +146,20 @@ orgs.newRepo('my-repo') {
       branch_policies+: [
         "main",
       ],
+    },
+  ],
+}
+```
+
+The same applies to environments created automatically by GitHub, e.g. `copilot`, which GitHub creates for the
+Copilot coding agent. To manage its settings, declare it explicitly:
+
+``` jsonnet
+orgs.newRepo('my-repo') {
+  environments+: [
+    // created automatically by GitHub, only declared to manage its settings
+    orgs.newEnvironment('copilot') {
+      deployment_branch_policy: "all",
     },
   ],
 }
