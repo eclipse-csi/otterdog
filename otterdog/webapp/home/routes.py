@@ -13,7 +13,8 @@ import posixpath
 import re
 from collections.abc import Mapping, MutableMapping
 from importlib.resources import files
-from typing import Any
+from logging import getLogger
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
 from quart import (
@@ -55,7 +56,12 @@ from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get
 
 from . import blueprint
 
+if TYPE_CHECKING:
+    from otterdog.webapp.auth import User
+
 _PAGE_NOT_FOUND = "home/page-404.html"
+
+logger = getLogger(__name__)
 
 
 @blueprint.route("/")
@@ -451,7 +457,7 @@ async def global_playground():
             {"value": EXAMPLE_TEMPLATE, "label": "Otterdog example", "selected": selected},
         ]
         if selected:
-            return await _render_playground(example_template, None, templates=templates)
+            return await _render_playground(example_template, None, templates=templates, example=True)
 
     return await _render_playground(await _default_template(otterdog_config, base_template), None, templates=templates)
 
@@ -487,12 +493,189 @@ async def playground(project_name: str):
         return await _render_playground(await _instance_template(org_config), project_name, organization)
 
 
+# The validation of the configurations evaluated by the playground, with the validations of otterdog that only depend
+# on the configuration and on the default configuration, like `otterdog validate` without the ones depending on the
+# current state of the organization on GitHub. The evaluated configuration is posted by the playground once asked to
+# validate it, it is neither stored nor applied.
+
+
+@blueprint.route("/playground/validate", methods=["POST"])
+async def validate_global_playground():
+    import aiofiles
+
+    example = request.args.get("template") == EXAMPLE_TEMPLATE
+    origin = await _validation_origin("the global playground" + (" with the example template" if example else ""))
+
+    data = await request.get_json(silent=True)
+    if not isinstance(data, dict):
+        logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
+        return _NOT_A_CONFIGURATION, 400
+
+    otterdog_config = await get_otterdog_config()
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        if example:
+            jsonnet_config = await _example_jsonnet_config(work_dir)
+            if jsonnet_config is None:
+                logger.warning("rejecting a validation for %s: the example template is not available", origin)
+                return {"error": "the example template of otterdog is not available"}, 404
+        else:
+            try:
+                base_template = otterdog_config.default_base_template
+            except RuntimeError:
+                logger.warning("rejecting a validation for %s: no default base template is configured", origin)
+                return {"error": "no default configuration is configured"}, 404
+            jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
+
+        return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
+
+
+@blueprint.route("/projects/<project_name>/playground/validate", methods=["POST"])
+async def validate_playground(project_name: str):
+    import aiofiles
+
+    origin = await _validation_origin(f"the playground of project '{project_name}'")
+
+    data = await request.get_json(silent=True)
+    if not isinstance(data, dict):
+        logger.warning("rejecting a validation for %s: no evaluated configuration", origin)
+        return _NOT_A_CONFIGURATION, 400
+
+    installation = await get_installation_by_project_name(project_name)
+    if installation is None:
+        logger.warning("rejecting a validation for %s: unknown project", origin)
+        return {"error": f"unknown project '{project_name}'"}, 404
+
+    otterdog_config = await get_otterdog_config()
+
+    base_dir = get_temporary_base_directory()
+    async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
+        org_config = await get_organization_config(installation, "", base_dir, work_dir)
+        return await _validate_playground_configuration(otterdog_config, org_config.jsonnet_config, data, origin)
+
+
+async def _validation_origin(playground: str) -> str:
+    """Returns the playground and the user asking for a validation, for the logs."""
+
+    try:
+        if await current_user.is_authenticated:
+            username = await cast("User", current_user).username
+            return f"{playground} by user '{username}'"
+    except KeyError:
+        # the users cannot log in if the authentication is not configured
+        pass
+    return f"{playground} by an anonymous user"
+
+
+_NOT_A_CONFIGURATION = {"error": "an evaluated configuration of an organization is expected"}
+
+# the names of the project and of the organization are passed to the default configuration as jsonnet strings
+_VALIDATED_NAME = re.compile(r"[\w.-]+")
+
+
+async def _validate_playground_configuration(
+    otterdog_config: OtterdogConfig, jsonnet_config: JsonnetConfig, data: dict[str, Any], origin: str
+) -> dict[str, Any]:
+    """
+    Validates an evaluated configuration, returns its problems {severity, message}, severity being 'error', 'warning'
+    or 'info'. The origin of the validation, see _validation_origin, is logged with its result.
+    """
+
+    import time
+    from asyncio import to_thread
+
+    from otterdog.config import CredentialResolver
+
+    start = time.perf_counter()
+    try:
+        # validated with the json schema of otterdog, which takes a while for large configurations
+        organization, unknown_properties = await to_thread(
+            GitHubOrganization.from_model_data_with_unknown_properties, data
+        )
+    except Exception as ex:
+        # e.g. a value not valid for the json schema of otterdog
+        messages = str(ex).splitlines()
+        logger.info("rejecting a validation for %s: %d error(s) reading the configuration", origin, len(messages))
+        return {"problems": [{"severity": "error", "message": message} for message in messages]}
+
+    for name in (organization.project_name, organization.github_id):
+        if _VALIDATED_NAME.fullmatch(name) is None:
+            logger.warning("rejecting a validation for %s: invalid name %r", origin, name)
+            message = f"the name '{name}' can only contain letters, digits, '.', '_' and '-' to be validated"
+            return {"problems": [{"severity": "error", "message": message}]}
+
+    await jsonnet_config.init_template()
+    context = await organization.validate(otterdog_config, jsonnet_config, CredentialResolver(otterdog_config), None)
+    # otterdog only logs the unknown properties, which it ignores
+    problems = [
+        {
+            "severity": "warning",
+            "message": f"{path or 'organization'} has the unknown property '{name}', which otterdog ignores",
+        }
+        for path, name in unknown_properties
+    ]
+    problems.extend(
+        {"severity": failure_type.name.lower(), "message": _plain_text(message)}
+        for failure_type, message in context.validation_failures
+    )
+
+    counts = {severity: sum(problem["severity"] == severity for problem in problems) for severity in _SEVERITIES}
+    logger.info(
+        "validated the configuration of organization '%s' for %s in %d ms: %d error(s), %d warning(s), %d info(s)",
+        organization.github_id,
+        origin,
+        (time.perf_counter() - start) * 1000,
+        *counts.values(),
+    )
+    return {"problems": problems}
+
+
+_SEVERITIES = ("error", "warning", "info")
+
+
+def _plain_text(message: str) -> str:
+    """
+    Returns a message of otterdog without the markup of the console: the headers of the objects, e.g.
+    '[bold]repository[/]\\[name="[bold]my-repo[/]"]', are in bold, the values of the configuration in them escaped.
+    Unlike rich, it does not fail on values looking like markup, e.g. '[/x]'.
+    """
+
+    return message.replace("[bold]", "").replace("[/]", "").replace("\\[", "[")
+
+
+async def _example_jsonnet_config(work_dir: str) -> JsonnetConfig | None:
+    """Returns the example template of otterdog vendored in a working directory, None if it is not available."""
+
+    import aiofiles.os
+    from aioshutil import copytree
+
+    if not await aiofiles.os.path.isfile(os.path.join(_EXAMPLE_TEMPLATE_DIR, _EXAMPLE_TEMPLATE_FILE)):
+        return None
+
+    # local only, the url only names the vendored directory and the file of the template, like in the playground
+    jsonnet_config = JsonnetConfig(
+        "playground", work_dir, f"https://github.com/eclipse-csi/otterdog-defaults#{_EXAMPLE_TEMPLATE_FILE}@main", True
+    )
+    await copytree(_EXAMPLE_TEMPLATE_DIR, jsonnet_config.template_dir)
+    return jsonnet_config
+
+
 async def _render_playground(
     template: dict[str, Any],
     project_name: str | None,
     organization: dict[str, str | None] | None = None,
     templates: list[dict[str, Any]] | None = None,
+    example: bool = False,
 ) -> str:
+    # otterdog validates the configurations with the same default configuration as the playground
+    if project_name is not None:
+        validation_url = url_for("home_blueprint.validate_playground", project_name=project_name)
+    elif example:
+        validation_url = url_for("home_blueprint.validate_global_playground", template=EXAMPLE_TEMPLATE)
+    else:
+        validation_url = url_for("home_blueprint.validate_global_playground")
+
     return await render_home_template(
         "playground.html",
         project_name=project_name,
@@ -505,6 +688,7 @@ async def _render_playground(
         schemas=_playground_schemas(),
         documentation_url=current_app.config["DOCUMENTATION_URL"],
         organization=organization,
+        validation_url=validation_url,
     )
 
 
@@ -515,16 +699,23 @@ async def _default_template(otterdog_config: OtterdogConfig, base_template: str)
 
     base_dir = get_temporary_base_directory()
     async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
-        org_config = OrganizationConfig.of(
-            "playground",
-            "playground",
-            otterdog_config.default_config_repo,
-            base_template,
-            {"provider": "inmemory", "api_token": ""},
-            base_dir,
-            work_dir,
-        )
-        return await _instance_template(org_config)
+        return await _instance_template(_default_org_config(otterdog_config, base_template, base_dir, work_dir))
+
+
+def _default_org_config(
+    otterdog_config: OtterdogConfig, base_template: str, base_dir: str, work_dir: str
+) -> OrganizationConfig:
+    """Returns the configuration of an organization using the default base template of the instance."""
+
+    return OrganizationConfig.of(
+        "playground",
+        "playground",
+        otterdog_config.default_config_repo,
+        base_template,
+        {"provider": "inmemory", "api_token": ""},
+        base_dir,
+        work_dir,
+    )
 
 
 async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:

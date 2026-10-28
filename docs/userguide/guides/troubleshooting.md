@@ -31,6 +31,8 @@ In the messages below, `<repository>` stands for the resource reported by `valid
 
 The Playground of the otterdog dashboard checks the same schemas while a configuration is edited: it underlines the
 invalid values and the unknown properties in the editor, and lists them when their number is clicked in its status.
+Its **Validate** button also has the configuration of an organization validated by otterdog, with limitations, see
+[Validation in the Playground](#validation-in-the-playground).
 
 ## Code scanning
 
@@ -109,6 +111,12 @@ invalid values and the unknown properties in the editor, and lists them when the
 
 ## Rulesets and branch protection rules
 
+**`<ruleset> has an invalid 'include_refs' pattern '<pattern>', while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed`**
+
+: The branches of a ruleset are matched by their full ref, e.g. `refs/heads/1.2.x` rather than `1.2.x`, or
+  `refs/heads/release/*` for a pattern, see [RefMatcher](../../reference/organization/repository/ref-matcher.md). The
+  same applies to `exclude_refs`, and the tags of a ruleset with `target: 'tag'` start with `refs/tags/`.
+
 **`use of organization rulesets requires an 'enterprise' plan, while this organization is currently on a '<plan>' plan.`**
 
 : Otterdog only accepts organization rulesets for organizations on the `enterprise` plan, although GitHub also
@@ -160,3 +168,32 @@ invalid values and the unknown properties in the editor, and lists them when the
   `Page.goto: Timeout 10000ms exceeded`. Increase the timeout, in milliseconds, with the environment variable
   `OTTERDOG_WEB_TIMEOUT`, e.g. `export OTTERDOG_WEB_TIMEOUT=60000`, or skip these settings with `--no-web-ui`, see
   [Environment variables](../../operating_otterdog/setup.md#environment-variables).
+
+## Validation in the Playground
+
+The **Validate** button of the Playground of the otterdog dashboard has the configuration of an organization, created
+by `orgs.newOrg(...)`, validated by otterdog on the server, with the default configuration of the Playground. It reports
+the messages of `validate` listed on this page, the infos included, at the property they are about, e.g. at the invalid
+value of `include_refs`, if it is set in the configuration, otherwise at the repository or the organization they are
+about. The evaluated configuration is only sent to the server when the button is clicked, it is neither stored nor
+applied.
+
+A configuration without problem in the Playground can still be rejected by the validation of its pull request, or fail
+to be applied:
+
+- **The validations depending on the organization on GitHub are skipped**: the members of a team with
+  `skip_non_organization_members` being members of the organization, and the languages of
+  `code_scanning_default_languages` being detected in the repository, which must exist.
+- **The checks only done when applying are not done**, by `validate` neither: the teams, users and apps of
+  `bypass_actors` must exist, and GitHub can reject a value that otterdog accepts.
+- **The plan is not computed**: whether the changes require secrets, settings only accessible via the GitHub web
+  interface, or remove resources, which prevents their automatic merge, is only reported on the pull request. The
+  Playground of a project shows the changes to the current configuration of the organization, though.
+- **The configuration is not compared with the settings on GitHub**, like `/otterdog check-sync` does on the pull
+  request.
+- **The default configuration is the one of the Playground**: the global Playground validates with the default
+  configuration it evaluates with, the one of the instance or the example of otterdog, which may not be the one of
+  your organization. Use the Playground of your project to validate with its default configuration.
+- **Only the configuration of an organization is validated**: the button is not shown for a snippet, e.g. creating a
+  repository, and is disabled for a configuration failing to evaluate or having schema errors, which otterdog does not
+  validate further.

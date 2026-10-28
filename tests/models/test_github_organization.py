@@ -49,6 +49,22 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         assert organization.github_id == "test-org"
         assert any("unknown_property_xyz" in message for message in log.output)
 
+    def test_load_from_model_returns_the_unknown_properties(self):
+        data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
+        data["unknown_property_abc"] = True
+        data["settings"]["unknown_property_xyz"] = True
+        repository = data["repositories"][0]
+        repository["has_wikki"] = True
+
+        organization, unknown_properties = GitHubOrganization.from_model_data_with_unknown_properties(data)
+
+        assert organization.github_id == "test-org"
+        assert sorted(unknown_properties) == [
+            ("", "unknown_property_abc"),
+            (f'repositories[name="{repository["name"]}"]', "has_wikki"),
+            ("settings", "unknown_property_xyz"),
+        ]
+
     def test_load_from_model_still_rejects_invalid_properties(self):
         data = jsonnet_evaluate_file(self.jsonnet_config.org_config_file)
         data["settings"]["plan"] = 123

@@ -1,6 +1,7 @@
 // The playground evaluates a configuration with the default configuration of an organization in the browser, the
-// content of the playground is never sent to the server. The page (templates/home/playground.html) renders its
-// markup and passes its data to createPlayground, Bootstrap is loaded as vendor script and the editors use CodeMirror.
+// content of the playground is not sent to the server, only the evaluated configuration of an organization once asked
+// to validate it with otterdog, see validation.js. The page (templates/home/playground.html) renders its markup and
+// passes its data to createPlayground, Bootstrap is loaded as vendor script and the editors use CodeMirror.
 //
 // The modules of playground/ implement the parts of the playground, this module connects them with the controls of
 // the page.
@@ -28,7 +29,7 @@ import {
   normalizeSnippet,
   snippetOfHash,
 } from "./playground/snippets.js";
-import {createValidation} from "./playground/validation.js";
+import {VALIDATION_LIMITATIONS, createValidation} from "./playground/validation.js";
 
 // delay after the last change typed before evaluating the playground again
 const EVALUATION_DELAY = 300;
@@ -51,6 +52,7 @@ export function createPlayground(data) {
   });
   setupReset(p);
   setupCopyLink(p);
+  setupValidation(p);
   setupTemplateChoice(p);
   setupProposal(p);
   openDocuments(p);
@@ -84,9 +86,11 @@ function connect(data) {
   p.evaluate = evaluation(p);
   p.validation = createValidation({
     schemas: data.schemas,
+    validationUrl: data.validationUrl,
+    documentationUrl: data.documentationUrl,
     dispatch: (d, spec) => p.documents.dispatch(d, spec),
     showProblems: () => openLintPanel(p.editor),
-    showNote: (d, note) => d === p.documents.active() && p.output.setNote("problems", note),
+    showNote: (d, key, note) => d === p.documents.active() && p.output.setNote(key, note),
   });
   p.defaultValues = createDefaultValues({
     evaluate: p.evaluate,
@@ -130,6 +134,11 @@ function connect(data) {
 function changed(p, update) {
   if (p.documents.update()) {
     updateButtons(p);
+  }
+  // the changed content is validated once evaluated
+  const validate = byId("playground-validate");
+  if (validate !== null) {
+    validate.disabled = true;
   }
   const typed = update.transactions.some((transaction) => transaction.annotation(Transaction.userEvent) !== undefined);
   p.schedule(typed ? EVALUATION_DELAY : 0);
@@ -175,6 +184,7 @@ function showEvaluation(p, d) {
     p.output.showValue(d.result.value, d.result.duration, restored);
     p.validation.show(d, d.result.value);
     p.defaultValues.highlight(d);
+    updateButtons(p);
     return;
   }
 
@@ -183,6 +193,7 @@ function showEvaluation(p, d) {
   const locations = errorLocations(d.result.error);
   p.files.markErrors(locations, d.result.error.split("\n")[0]);
   p.output.showError(d.result.error, locations);
+  updateButtons(p);
 }
 
 function organizationEvaluated(p) {
@@ -208,12 +219,22 @@ function showInOutput(p, view) {
   }
 }
 
-// the reset of the active document, and the proposal of the changes to the configuration of the organization
+// the reset of the active document, its validation, and the proposal of the changes to the configuration of the
+// organization
 function updateButtons(p) {
   const d = p.documents.active();
   const reset = byId("playground-reset");
   reset.disabled = !d.modified;
   reset.title = "Restore " + restoredContentOf(p, d);
+
+  const validate = byId("playground-validate");
+  if (validate !== null) {
+    // not shown for a snippet, e.g. of a repository, which otterdog does not validate
+    validate.classList.toggle("d-none", !p.validation.isOrganization(d));
+    const reason = p.validation.reasonNotToValidate(d);
+    validate.disabled = reason !== null;
+    validate.title = reason ?? VALIDATE_TITLE;
+  }
 
   const propose = byId("playground-propose");
   if (propose !== null) {
@@ -284,6 +305,27 @@ function setupCopyLink(p) {
     } catch {
       // e.g. no clipboard outside of secure contexts
       window.prompt("Copy the link to the playground:", url);
+    }
+  });
+}
+
+const VALIDATE_TITLE = "Validate the configuration with otterdog on the server, like `otterdog validate`.\n"
+  + VALIDATION_LIMITATIONS;
+
+// the shown document is validated by otterdog, its problems being shown with the ones of the schemas
+function setupValidation(p) {
+  const button = byId("playground-validate");
+  if (button === null) {
+    return;
+  }
+
+  button.addEventListener("click", async () => {
+    const d = p.documents.active();
+    const validated = p.validation.validateWithOtterdog(d);
+    updateButtons(p);
+    await validated;
+    if (d === p.documents.active()) {
+      updateButtons(p);
     }
   });
 }

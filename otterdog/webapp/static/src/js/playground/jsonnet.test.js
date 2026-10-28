@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {completionContext, explicitValues, literalProperties, literalValue, mainCall, repositoryCall, tokenize, topLevelLocals} from "./jsonnet.js";
+import {completionContext, explicitValues, literalProperties, literalValue, mainCall, propertiesOf, repositoryCall, tokenize, topLevelLocals} from "./jsonnet.js";
 
 const SNIPPET = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
 local wiki = true;
@@ -183,4 +183,29 @@ orgs.newOrg('my-project', 'my-org') {
   // the first call creating it, not a description with the same text
   assert.equal(callOf("api"), "newBinaryRepo('api')");
   assert.equal(callOf("unknown"), null);
+});
+
+test("the properties of the objects are found whatever their value and operator", () => {
+  const code = `orgs.newOrg('my-project', 'my-org') {
+  settings+: { name: std.asciiUpper('x') },
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [orgs.newRepoRuleset('main') { include_refs+: ['1.2.x'] }],
+    },
+  ],
+}`;
+  const found = propertiesOf(code).map((property) => [property.function, property.path.join("."), code.slice(property.from, property.to)]);
+
+  assert.deepEqual(found, [
+    ["newOrg", "settings.name", "name: std.asciiUpper('x')"],
+    ["newOrg", "settings", "settings+: { name: std.asciiUpper('x') }"],
+    ["newRepoRuleset", "include_refs", "include_refs+: ['1.2.x']"],
+    ["newRepo", "rulesets", "rulesets: [orgs.newRepoRuleset('main') { include_refs+: ['1.2.x'] }]"],
+    ["newOrg", "_repositories", code.slice(code.indexOf("_repositories"), code.lastIndexOf("]") + 1)],
+  ]);
+  // the calls creating the objects containing the ruleset
+  const ruleset = propertiesOf(code).find((property) => property.path[0] === "include_refs");
+  assert.deepEqual(ruleset.within, [{function: "newRepo", firstArgument: "my-repo"}, {function: "newOrg", firstArgument: "my-project"}]);
+  // only literal values are compared with the default configuration
+  assert.deepEqual(literalProperties(code), []);
 });

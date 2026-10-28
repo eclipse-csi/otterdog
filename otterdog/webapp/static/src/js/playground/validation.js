@@ -1,7 +1,7 @@
 import {setDiagnostics} from "@codemirror/lint";
 
-import {actionLink} from "./dom.js";
-import {literalProperties, literalValue, mainCall} from "./jsonnet.js";
+import {actionLink, element, icon} from "./dom.js";
+import {literalProperties, literalValue, mainCall, propertiesOf, repositoryCall, tokenize} from "./jsonnet.js";
 import {formatPath, schemaOfFunction, validate} from "./schema.js";
 import {isObject} from "./values.js";
 
@@ -10,10 +10,23 @@ import {isObject} from "./values.js";
 // validated if the document calls a function of the default configuration, e.g. `orgs.newOrg(...)`. The problems are
 // reported as diagnostics of the editor, at the literal values they are about, otherwise at this call.
 //
-// Returns the functions showing the problems of a document for its value, and clearing them, with dispatch(d, spec)
-// applying a transaction to a document. showNote is called with the document and the note telling the number of
-// problems, null if none, which shows them with showProblems when clicked.
-export function createValidation({schemas, dispatch, showProblems, showNote}) {
+// The configuration of an organization can also be validated by otterdog once asked to, see validateWithOtterdog: its
+// value is posted to the server, which validates it like `otterdog validate`, without the validations depending on the
+// current state of the organization on GitHub, e.g. an invalid pattern of the branches of a ruleset. These problems
+// are shown with the ones of the schemas as long as the content of the document does not change.
+//
+// Returns the functions showing the problems of a document for its value, clearing them, telling why a document
+// cannot be validated by otterdog, and validating it, with dispatch(d, spec) applying a transaction to a document.
+// showNote is called with the document, the key of the note, 'problems' or 'validation', and the note telling the
+// number of problems, null if none, which shows them with showProblems when clicked. The note of the validation by
+// otterdog links its limitations in the documentation.
+export function createValidation({schemas, validationUrl, documentationUrl, dispatch, showProblems, showNote}) {
+  const limitationsUrl = documentationUrl + LIMITATIONS_PAGE;
+  // the number of schema errors of the shown value of a document: {code, errors}
+  const schemaErrors = new WeakMap();
+  // the last validation by otterdog of a document: {code, pending}, {code, problems} or {code, error}
+  const validations = new WeakMap();
+
   function show(d, value) {
     const code = d.code;
     const call = mainCall(code);
@@ -26,15 +39,148 @@ export function createValidation({schemas, dispatch, showProblems, showNote}) {
       const message = describe(problem, value);
       return (located.length > 0 ? located : [call]).map(({from, to}) => ({from, to, severity: problem.severity, source: "schema", message}));
     });
-    dispatch(d, setDiagnostics(d.state, diagnostics));
-    showNote(d, noteOf(problems, showProblems));
+    schemaErrors.set(d, {code, errors: problems.filter((problem) => problem.severity === "error").length});
+
+    // the validation by otterdog of another content no longer applies
+    const validated = validations.get(d)?.code === code ? validations.get(d) : null;
+    const validatedDiagnostics = validated?.problems === undefined ? [] : otterdogDiagnostics(validated.problems, code);
+    dispatch(d, setDiagnostics(d.state, [...diagnostics, ...validatedDiagnostics]));
+    showNote(d, "problems", noteOf(problems, showProblems));
+    showNote(d, "validation", validated === null ? null : validationNote(validated, showProblems, limitationsUrl));
   }
 
   function clear(d) {
     dispatch(d, setDiagnostics(d.state, []));
   }
 
-  return {show, clear};
+  // the reason why the shown content of a document cannot be validated by otterdog, null if it can
+  function reasonNotToValidate(d) {
+    const code = d.code;
+    if (!isOrganization(d)) {
+      return "Only the configuration of an organization, created by `orgs.newOrg(...)`, can be validated by otterdog";
+    }
+    if (d.result?.code !== code || d.result.value === undefined) {
+      return "The document is validated once it has been evaluated without error";
+    }
+    if (schemaErrors.get(d)?.code !== code || schemaErrors.get(d).errors > 0) {
+      return "Otterdog does not validate a configuration with schema errors, fix them first";
+    }
+    if (validations.get(d)?.code === code && validations.get(d).pending) {
+      return "The document is being validated";
+    }
+    return null;
+  }
+
+  // validates the shown value of a document with otterdog, and shows its problems if its content did not change
+  async function validateWithOtterdog(d) {
+    const {code, value} = d.result;
+    validations.set(d, {code, pending: true});
+    showNote(d, "validation", validationNote(validations.get(d), showProblems, limitationsUrl));
+
+    validations.set(d, {code, ...await validationOf(validationUrl, value)});
+    if (d.code === code) {
+      show(d, value);
+    }
+  }
+
+  return {show, clear, isOrganization, reasonNotToValidate, validateWithOtterdog};
+}
+
+// whether a document is the configuration of an organization, the only one validated by otterdog
+const isOrganization = (d) => mainCall(d.code)?.name === "newOrg";
+
+// the limitations of the validation by otterdog, detailed in the documentation
+export const VALIDATION_LIMITATIONS = "Not checked: the members of the teams being members of the organization, the"
+  + " languages of code scanning being detected in the repositories, the teams, users and apps of bypass actors"
+  + " existing, and whether the changes can be merged automatically. A pull request is still validated by otterdog.";
+const LIMITATIONS_PAGE = "userguide/guides/troubleshooting/#validation-in-the-playground";
+
+// the validation of an evaluated configuration by otterdog: {problems} or {error}
+async function validationOf(url, value) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(value),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(body.problems)) {
+      return {error: body.error ?? "the server answered with the status " + response.status};
+    }
+    return {problems: body.problems};
+  } catch (e) {
+    return {error: e.message};
+  }
+}
+
+// the repository that a problem found by otterdog is about, e.g. 'my-repo' for
+// 'repository[name="my-repo"] has ...', 'repo_ruleset[name="main", repository=my-repo] has ...' or
+// 'repositories[name="my-repo"] has ...'
+const REPOSITORY = /\brepositor(?:y|ies)(?:\[name="([^"]*)"|=([^,\]]*))/;
+
+// the header of a message of otterdog, naming the object it is about and the one containing it: the header of the
+// object, e.g. 'repo_ruleset[name="main", repository=my-repo]', 'repository[name="my-repo"]' or 'settings', or its
+// path in the configuration, e.g. 'repositories[name="my-repo"].rulesets[name="main"]'
+const HEADER = /^\w+(?:\[[^\]]*\])?(?:\.\w+(?:\[[^\]]*\])?)*/;
+// the names of a header, with the name of the object containing the object in the header of an object
+const NAMES = /\[\w+="([^"]*)"(?:, \w+=([^\]]*))?\]/g;
+
+// Returns the diagnostics of the problems {severity, message} found by otterdog in the configuration of an
+// organization: their messages are about the objects of the evaluated configuration, they are located at the property
+// they are about, e.g. 'include_refs' in `repo_ruleset[name="main", repository=my-repo] has an invalid 'include_refs'
+// pattern '1.2.x'`, at its invalid value if it is quoted, otherwise at the call creating the repository they are about,
+// otherwise at the call creating the organization.
+export function otterdogDiagnostics(problems, code) {
+  const call = mainCall(code) ?? {from: 0, to: 0};
+  const properties = problems.length === 0 ? [] : propertiesOf(code);
+  return problems.flatMap(({severity, message}) => {
+    const located = propertiesAbout(message, code, properties);
+    if (located.length > 0) {
+      return located.map(({from, to}) => ({from, to, severity, source: "otterdog", message}));
+    }
+    const match = REPOSITORY.exec(message);
+    const {from, to} = (match === null ? null : repositoryCall(code, match[1] ?? match[2])) ?? call;
+    return [{from, to, severity, source: "otterdog", message}];
+  });
+}
+
+// The ranges of the properties of the code that a message is about: the first property quoted in the message, e.g.
+// 'include_refs', set in the object of its header, narrowed to the strings of its value that are quoted next, e.g.
+// '1.2.x'. None if the property is not set in the code, e.g. inherited from the default configuration.
+function propertiesAbout(message, code, properties) {
+  const header = HEADER.exec(message);
+  if (header === null) {
+    return [];
+  }
+  const names = [...header[0].matchAll(NAMES)];
+  const [name, parent] = [names.at(-1)?.[1], names.at(-1)?.[2] ?? names.at(-2)?.[1]];
+  const quoted = [...message.slice(header[0].length).matchAll(/'([^']*)'/g)].map((match) => match[1]);
+  for (const [index, quote] of quoted.entries()) {
+    const matching = properties.filter((property) => property.path.at(-1) === quote && isAbout(property, name, parent));
+    if (matching.length > 0) {
+      return matching.flatMap((property) => stringsOf(property, code, quoted[index + 1]));
+    }
+  }
+  return [];
+}
+
+// Whether a property is set in the object of a header: the object created by a call with its name, within the one
+// with the name of the object containing it, e.g. a ruleset of a repository, or the organization for an object
+// without name, e.g. its settings.
+function isAbout(property, name, parent) {
+  if (name === undefined) {
+    return property.function === "newOrg" && property.within.length === 0;
+  }
+  return property.firstArgument === name && (parent === undefined || property.within.some((call) => call.firstArgument === parent));
+}
+
+// the ranges of the strings of the value of a property having a value, the range of the property if there is none
+function stringsOf(property, code, value) {
+  const offset = property.from;
+  const strings = value === undefined ? [] : tokenize(code.slice(property.from, property.to))
+    .filter((token) => token.type === "string" && literalValue(token.text) === value)
+    .map((token) => ({from: offset + token.start, to: offset + token.end}));
+  return strings.length > 0 ? strings : [{from: property.from, to: property.to}];
 }
 
 function describe(problem, value) {
@@ -117,4 +263,49 @@ function noteOf(problems, showProblems) {
   note.title = "Problems found with the JSON schema of otterdog, which validates configurations before applying them."
     + " Click to list them.";
   return note;
+}
+
+// The state of the validation by otterdog, and the number of its problems by severity, showing them when clicked,
+// followed by the link to its limitations.
+function validationNote(validated, showProblems, limitationsUrl) {
+  if (validated.pending) {
+    const note = element("span", "", "validating…");
+    note.prepend(element("span", "spinner-border spinner-border-sm me-1"));
+    return note;
+  }
+  if (validated.error !== undefined) {
+    return element("span", "text-danger", "validation failed: " + validated.error);
+  }
+
+  const note = element("span");
+  if (validated.problems.length === 0) {
+    // not "valid": otterdog may still find problems in the pull request, see the limitations
+    const result = element("span", "text-success", " no problem found by otterdog");
+    result.prepend(icon("fas fa-check"));
+    note.append(result);
+  } else {
+    const severities = ["error", "warning", "info"];
+    const counts = severities
+      .map((severity) => [validated.problems.filter((problem) => problem.severity === severity).length, severity])
+      .filter(([count]) => count > 0)
+      .map(([count, severity]) => count + " validation " + severity + (count > 1 ? "s" : ""));
+    const errors = validated.problems.some((problem) => problem.severity === "error");
+    const warnings = validated.problems.some((problem) => problem.severity === "warning");
+    const result = actionLink(counts.join(", "), errors ? "link-danger" : warnings ? "link-warning" : "link-secondary", showProblems);
+    result.title = "Problems found by otterdog. Click to list them.";
+    note.append(result);
+  }
+  note.append(limitationsLink(limitationsUrl));
+  return note;
+}
+
+function limitationsLink(url) {
+  const link = element("a", "playground-validation-limitations link-secondary ms-1");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.title = "Limited validation. " + VALIDATION_LIMITATIONS + " Click for the details.";
+  link.setAttribute("aria-label", "Limitations of the validation by otterdog");
+  link.append(icon("fas fa-circle-info"));
+  return link;
 }
