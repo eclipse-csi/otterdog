@@ -66,6 +66,13 @@ class Secret(ModelObject, abc.ABC):
                 f"{self.get_model_header()} starts with prefix 'GITHUB_' which is not allowed for secrets.",
             )
 
+        if self.name != self.name.upper():
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header()} has 'name' of value '{self.name}' "
+                "which is not uppercase, while only uppercase names are allowed for secrets.",
+            )
+
     def has_dummy_secret(self) -> bool:
         if is_set_and_present(self.value) and len(self.value) > 0 and all(ch == "*" for ch in self.value):
             return True

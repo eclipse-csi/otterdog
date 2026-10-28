@@ -2,8 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+ - feat: manage the Dependabot and Codespaces secrets of organizations and repositories with the `dependabot_secrets` and `codespaces_secrets` properties, created by the functions `newOrgDependabotSecret`, `newOrgCodespacesSecret`, `newRepoDependabotSecret` and `newRepoCodespacesSecret` of the default configuration ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
+   These secrets are only read when the default configuration defines these functions.
+
 ### Changed
 
+ - **Breaking**: the standard Jsonnet defaults define the functions of Dependabot and Codespaces secrets ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
+   Configurations using them need credentials that can read these secrets, e.g. a GitHub App with the `Codespaces secrets`, `Dependabot secrets`, `Organization codespaces secrets` and `Organization dependabot secrets` permissions, see [Create a GitHub App](https://otterdog.readthedocs.io/en/latest/operating_otterdog/install/#create-a-github-app).
+ - **Breaking**: secret names that are not uppercase are reported as an error by the validation, as GitHub normalizes secret names to uppercase ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
+ - **Breaking**: a failure to read the secrets of an organization, a repository or an environment aborts the operation, instead of being considered as no secrets ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
  - **Breaking**: move the standard Jsonnet defaults from `examples/template` to `otterdog/resources/defaults` and ship them with the otterdog package ([#857](https://github.com/eclipse-csi/otterdog/pull/857)).
    Configurations using `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet` with a ref that includes this change (e.g. `@main`) need to update:
    - `defaults.jsonnet.base_template` in `otterdog.json` to `https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@<ref>`

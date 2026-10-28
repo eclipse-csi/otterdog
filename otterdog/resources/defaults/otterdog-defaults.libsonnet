@@ -249,6 +249,16 @@ local newOrgSecret(name) = newRepoSecret(name) {
   selected_repositories: [],
 };
 
+# Functions for organization-level secret scopes with the same shape as
+# Actions organization secrets.
+local newOrgDependabotSecret(name) = newOrgSecret(name);
+local newOrgCodespacesSecret(name) = newOrgSecret(name);
+
+# Functions for repository-level secret scopes with the same shape as Actions
+# repository secrets.
+local newRepoDependabotSecret(name) = newRepoSecret(name);
+local newRepoCodespacesSecret(name) = newRepoSecret(name);
+
 # Function to create a new repository variable with default settings.
 local newRepoVariable(name) = {
   name: name,
@@ -463,6 +473,8 @@ local newOrg(name, id=name) = {
   newTeam:: newTeam,
   newOrgWebhook:: newOrgWebhook,
   newOrgSecret:: newOrgSecret,
+  newOrgDependabotSecret:: newOrgDependabotSecret,
+  newOrgCodespacesSecret:: newOrgCodespacesSecret,
   newOrgVariable:: newOrgVariable,
   newOrgRuleset:: newOrgRuleset,
   newCustomProperty:: newCustomProperty,
@@ -470,6 +482,8 @@ local newOrg(name, id=name) = {
   extendRepo:: extendRepo,
   newRepoWebhook:: newRepoWebhook,
   newRepoSecret:: newRepoSecret,
+  newRepoDependabotSecret:: newRepoDependabotSecret,
+  newRepoCodespacesSecret:: newRepoCodespacesSecret,
   newRepoVariable:: newRepoVariable,
   newBranchProtectionRule:: newBranchProtectionRule,
   newRepoRuleset:: newRepoRuleset,

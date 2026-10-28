@@ -1,5 +1,29 @@
 {
   "objects": {
+    "codespaces-secret.md": {
+      "title": "Organization Codespaces Secret",
+      "url": "reference/organization/codespaces-secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "selected_repositories": {
+          "type": "list[string]",
+          "description": "List of repositories that can use the secret",
+          "notes": "only applicable if `visibility` is set to `selected`"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Controls which repositories can use the secret",
+          "notes": "`public`, `private` or `selected`"
+        }
+      }
+    },
     "custom-property.md": {
       "title": "Custom Property",
       "url": "reference/organization/custom-property/",
@@ -36,6 +60,30 @@
         }
       }
     },
+    "dependabot-secret.md": {
+      "title": "Organization Dependabot Secret",
+      "url": "reference/organization/dependabot-secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "selected_repositories": {
+          "type": "list[string]",
+          "description": "List of repositories that can use the secret",
+          "notes": "only applicable if `visibility` is set to `selected`"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Controls which repositories can use the secret",
+          "notes": "`public`, `private` or `selected`"
+        }
+      }
+    },
     "index.md": {
       "title": "GitHub Organization",
       "url": "reference/organization/",
@@ -54,6 +102,16 @@
           "type": "list",
           "description": "Organization Secret",
           "object": "secret.md"
+        },
+        "dependabot_secrets": {
+          "type": "list",
+          "description": "Organization Dependabot Secret",
+          "object": "dependabot-secret.md"
+        },
+        "codespaces_secrets": {
+          "type": "list",
+          "description": "Organization Codespaces Secret",
+          "object": "codespaces-secret.md"
         },
         "variables": {
           "type": "list",
@@ -210,6 +268,34 @@
           "type": "Allow the actor to only bypass the restrictions in the context of a pull request",
           "description": "`<actor>:pull_request`",
           "notes": "`@OtterdogTest/committers:pull_request`"
+        }
+      }
+    },
+    "repository/codespaces-secret.md": {
+      "title": "Repository Codespaces Secret",
+      "url": "reference/organization/repository/codespaces-secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
+        }
+      }
+    },
+    "repository/dependabot-secret.md": {
+      "title": "Repository Dependabot Secret",
+      "url": "reference/organization/repository/dependabot-secret/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the secret"
+        },
+        "value": {
+          "type": "SecretValue",
+          "description": "The secret value"
         }
       }
     },
@@ -504,6 +590,16 @@
           "type": "list[RepositorySecret]",
           "description": "secrets defined for this repo, see section below for details",
           "object": "repository/secret.md"
+        },
+        "dependabot_secrets": {
+          "type": "list[RepositoryDependabotSecret]",
+          "description": "Dependabot secrets defined for this repo",
+          "object": "repository/dependabot-secret.md"
+        },
+        "codespaces_secrets": {
+          "type": "list[RepositoryCodespacesSecret]",
+          "description": "Codespaces secrets defined for this repo",
+          "object": "repository/codespaces-secret.md"
         },
         "variables": {
           "type": "list[RepositoryVariable]",
@@ -1358,9 +1454,13 @@
     }
   },
   "functions": {
+    "newOrgCodespacesSecret": "codespaces-secret.md",
     "newCustomProperty": "custom-property.md",
+    "newOrgDependabotSecret": "dependabot-secret.md",
     "newOrg": "index.md",
     "newBranchProtectionRule": "repository/branch-protection-rule.md",
+    "newRepoCodespacesSecret": "repository/codespaces-secret.md",
+    "newRepoDependabotSecret": "repository/dependabot-secret.md",
     "newEnvironment": "repository/environment/index.md",
     "newEnvSecret": "repository/environment/secret.md",
     "newEnvVariable": "repository/environment/variable.md",

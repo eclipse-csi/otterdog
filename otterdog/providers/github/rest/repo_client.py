@@ -20,7 +20,7 @@ import chevron
 
 from otterdog.logging import is_trace_enabled
 from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
-from otterdog.providers.github.rest import RestApi, RestClient, encrypt_value
+from otterdog.providers.github.rest import RestApi, RestClient
 from otterdog.utils import (
     associate_by_key,
     get_logger,
@@ -865,99 +865,6 @@ class RepoClient(RestClient):
 
         _logger.debug("removed repo environment '%s'", env_name)
 
-    async def get_environment_secrets(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving secrets for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
-
-        try:
-            status, body = await self.requester.request_raw(
-                "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets"
-            )
-            if status == 200:
-                return json.loads(body)["secrets"]
-            else:
-                return []
-        except GitHubException as ex:
-            raise RuntimeError(
-                f"failed retrieving secrets for environment '{env_name}' of repo '{org_id}/{repo_name}':\n{ex}"
-            ) from ex
-
-    async def update_environment_secret(
-        self, org_id: str, repo_name: str, env_name: str, secret_name: str, secret: dict[str, Any]
-    ) -> None:
-        _logger.debug(
-            "updating secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
-        )
-
-        if "name" in secret:
-            secret.pop("name")
-
-        await self._encrypt_environment_secret_inplace(org_id, repo_name, env_name, secret)
-
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}",
-            json.dumps(secret),
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to update environment secret '{secret_name}'")
-
-        _logger.debug("updated environment secret '%s'", secret_name)
-
-    async def add_environment_secret(self, org_id: str, repo_name: str, env_name: str, data: dict[str, str]) -> None:
-        secret_name = data.pop("name")
-        _logger.debug(
-            "adding secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
-        )
-
-        await self._encrypt_environment_secret_inplace(org_id, repo_name, env_name, data)
-
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}",
-            json.dumps(data),
-        )
-
-        if status != 201:
-            raise RuntimeError(f"failed to add environment secret '{secret_name}'")
-
-        _logger.debug("added environment secret '%s'", secret_name)
-
-    async def _encrypt_environment_secret_inplace(
-        self, org_id: str, repo_name: str, env_name: str, data: dict[str, Any]
-    ) -> None:
-        value = data.pop("value")
-        key_id, public_key = await self.get_environment_public_key(org_id, repo_name, env_name)
-        data["encrypted_value"] = encrypt_value(public_key, value)
-        data["key_id"] = key_id
-
-    async def delete_environment_secret(self, org_id: str, repo_name: str, env_name: str, secret_name: str) -> None:
-        _logger.debug(
-            "deleting secret '%s' for environment '%s' of repo '%s/%s'", secret_name, env_name, org_id, repo_name
-        )
-
-        status, _ = await self.requester.request_raw(
-            "DELETE", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/{secret_name}"
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to delete environment secret '{secret_name}'")
-
-        _logger.debug("removed environment secret '%s'", secret_name)
-
-    async def get_environment_public_key(self, org_id: str, repo_name: str, env_name: str) -> tuple[str, str]:
-        _logger.debug("retrieving public key for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
-
-        try:
-            response = await self.requester.request_json(
-                "GET", f"/repos/{org_id}/{repo_name}/environments/{env_name}/secrets/public-key"
-            )
-            return response["key_id"], response["key"]
-        except GitHubException as ex:
-            raise RuntimeError(
-                f"failed retrieving public key for environment '{env_name}' of repo '{org_id}/{repo_name}':\n{ex}"
-            ) from ex
-
     async def get_environment_variables(self, org_id: str, repo_name: str, env_name: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving variables for environment '%s' of repo '%s/%s'", env_name, org_id, repo_name)
 
@@ -1132,72 +1039,6 @@ class RepoClient(RestClient):
             raise RuntimeError(f"failed deleting deployment branch policy\n{status}: {body}")
 
         _logger.debug("deleted deployment branch policy for env '%s'", env_name)
-
-    async def get_secrets(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving secrets for repo '%s/%s'", org_id, repo_name)
-
-        try:
-            status, body = await self.requester.request_raw("GET", f"/repos/{org_id}/{repo_name}/actions/secrets")
-            if status == 200:
-                return json.loads(body)["secrets"]
-            else:
-                return []
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving secrets for repo '{org_id}/{repo_name}':\n{ex}") from ex
-
-    async def update_secret(self, org_id: str, repo_name: str, secret_name: str, secret: dict[str, Any]) -> None:
-        _logger.debug("updating repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
-
-        if "name" in secret:
-            secret.pop("name")
-
-        await self._encrypt_secret_inplace(org_id, repo_name, secret)
-
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-            json.dumps(secret),
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to update repo secret '{secret_name}'")
-
-        _logger.debug("updated repo secret '%s'", secret_name)
-
-    async def add_secret(self, org_id: str, repo_name: str, data: dict[str, str]) -> None:
-        secret_name = data.pop("name")
-        _logger.debug("adding repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
-
-        await self._encrypt_secret_inplace(org_id, repo_name, data)
-
-        status, _ = await self.requester.request_raw(
-            "PUT",
-            f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}",
-            json.dumps(data),
-        )
-
-        if status != 201:
-            raise RuntimeError(f"failed to add repo secret '{secret_name}'")
-
-        _logger.debug("added repo secret '%s'", secret_name)
-
-    async def _encrypt_secret_inplace(self, org_id: str, repo_name: str, data: dict[str, Any]) -> None:
-        value = data.pop("value")
-        key_id, public_key = await self.get_public_key(org_id, repo_name)
-        data["encrypted_value"] = encrypt_value(public_key, value)
-        data["key_id"] = key_id
-
-    async def delete_secret(self, org_id: str, repo_name: str, secret_name: str) -> None:
-        _logger.debug("deleting repo secret '%s' for repo '%s/%s'", secret_name, org_id, repo_name)
-
-        status, _ = await self.requester.request_raw(
-            "DELETE", f"/repos/{org_id}/{repo_name}/actions/secrets/{secret_name}"
-        )
-
-        if status != 204:
-            raise RuntimeError(f"failed to delete repo secret '{secret_name}'")
-
-        _logger.debug("removed repo secret '%s'", secret_name)
 
     async def get_variables(self, org_id: str, repo_name: str) -> list[dict[str, Any]]:
         _logger.debug("retrieving variables for repo '%s/%s'", org_id, repo_name)
@@ -1429,17 +1270,6 @@ class RepoClient(RestClient):
             )
 
         _logger.debug("updated fork PR approval policy for repo '%s/%s'", org_id, repo_name)
-
-    async def get_public_key(self, org_id: str, repo_name: str) -> tuple[str, str]:
-        _logger.debug("retrieving repo public key for repo '%s/%s'", org_id, repo_name)
-
-        try:
-            response = await self.requester.request_json(
-                "GET", f"/repos/{org_id}/{repo_name}/actions/secrets/public-key"
-            )
-            return response["key_id"], response["key"]
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving repo public key:\n{ex}") from ex
 
     async def dispatch_workflow(self, org_id: str, repo_name: str, workflow_name: str) -> bool:
         _logger.debug("dispatching workflow for repo '%s/%s'", org_id, repo_name)

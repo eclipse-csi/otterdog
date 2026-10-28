@@ -101,6 +101,40 @@ class ShowDefaultOperation(Operation):
             )
             self._print_footer()
 
+            # the default configuration might not define Dependabot secrets
+            if jsonnet_config.default_org_dependabot_secret_config is not None:
+                default_org_dependabot_secret = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_org_dependabot_secret}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Organization Dependabot Secret")
+                self.print_dict(
+                    default_org_dependabot_secret,
+                    f"orgs.{jsonnet_config.create_org_dependabot_secret}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
+
+            # the default configuration might not define Codespaces secrets
+            if jsonnet_config.default_org_codespaces_secret_config is not None:
+                default_org_codespaces_secret = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_org_codespaces_secret}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Organization Codespaces Secret")
+                self.print_dict(
+                    default_org_codespaces_secret,
+                    f"orgs.{jsonnet_config.create_org_codespaces_secret}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
+
             default_org_variable = self.evaluate(jsonnet_config, f"{jsonnet_config.create_org_variable}('<name>')")
             self.printer.println()
             self._print_header("Organization Variable")
@@ -171,6 +205,40 @@ class ShowDefaultOperation(Operation):
                 ",",
             )
             self._print_footer()
+
+            # the default configuration might not define Dependabot secrets
+            if jsonnet_config.default_repo_dependabot_secret_config is not None:
+                default_repo_dependabot_secret = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_repo_dependabot_secret}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Repository Dependabot Secret")
+                self.print_dict(
+                    default_repo_dependabot_secret,
+                    f"orgs.{jsonnet_config.create_repo_dependabot_secret}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
+
+            # the default configuration might not define Codespaces secrets
+            if jsonnet_config.default_repo_codespaces_secret_config is not None:
+                default_repo_codespaces_secret = self.evaluate(
+                    jsonnet_config, f"{jsonnet_config.create_repo_codespaces_secret}('<name>')"
+                )
+                self.printer.println()
+                self._print_header("Repository Codespaces Secret")
+                self.print_dict(
+                    default_repo_codespaces_secret,
+                    f"orgs.{jsonnet_config.create_repo_codespaces_secret}('<name>') =",
+                    "",
+                    "black",
+                    ":",
+                    ",",
+                )
+                self._print_footer()
 
             default_repo_variable = self.evaluate(jsonnet_config, f"{jsonnet_config.create_repo_variable}('<name>')")
             self.printer.println()

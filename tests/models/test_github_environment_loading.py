@@ -29,6 +29,8 @@ def minimal_config():
         default_repo_ruleset_config=None,
         default_org_webhook_config=None,
         default_repo_secret_config=None,
+        default_repo_dependabot_secret_config=None,
+        default_repo_codespaces_secret_config=None,
         default_repo_variable_config=None,
         default_environment_config={},
         default_environment_secret_config={},
@@ -55,10 +57,9 @@ async def load_environments(exclude_environments, expected_org=None):
         get_repo_data=AsyncMock(return_value=repo_data),
         get_workflow_settings=AsyncMock(return_value={}),
         get_environments=AsyncMock(return_value=LIVE_ENVIRONMENTS),
-        get_environment_secrets=get_secrets,
         get_environment_variables=get_variables,
     )
-    provider = stub(rest_api=stub(repo=rest_repo))
+    provider = stub(rest_api=stub(repo=rest_repo), get_environment_secrets=get_secrets)
 
     def provider_environment(_, data):
         env = SimpleNamespace(name=data["name"], repo_name=None, secrets=[], variables=[])

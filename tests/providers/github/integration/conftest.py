@@ -55,15 +55,14 @@ class GitHubProviderTestKit:
 
         # we need to patch the encrypt_value function where it is being used
         # see: https://docs.python.org/3/library/unittest.mock.html#where-to-patch
-        from otterdog.providers.github.rest import org_client, repo_client
+        from otterdog.providers.github.rest import secret_client
 
         def encrypt_value(pk: str, value: str) -> str:
             assert pk == params[0], f"unexpected public key: {pk!r}"
             assert value == params[1], f"unexpected secret value: {value!r}"
             return ciphertext
 
-        self._monkeypatch.setattr(org_client, "encrypt_value", encrypt_value)
-        self._monkeypatch.setattr(repo_client, "encrypt_value", encrypt_value)
+        self._monkeypatch.setattr(secret_client, "encrypt_value", encrypt_value)
 
 
 # Last, but not least, this is the fixture that tests will use.

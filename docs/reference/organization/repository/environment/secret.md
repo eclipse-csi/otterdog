@@ -18,6 +18,7 @@ orgs.newEnvSecret('<name>') {
 
 ## Validation rules
 
+- a `name` that is not uppercase triggers an error, as GitHub normalizes secret names to uppercase
 - redacted secret values (`********`) trigger a validation info and will skip the secret during processing
 
 ## Example usage
