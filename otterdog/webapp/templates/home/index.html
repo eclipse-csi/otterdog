@@ -205,6 +205,32 @@
               </div>
             </div>
           </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Code Scanning</h3>
+              </div>
+              <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % code_scanning_percentage|float  }}% with default setup</h3>
+                <canvas id="code-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Code Security Configurations</h3>
+              </div>
+              <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % code_security_configuration_percentage|float  }}% with a configuration</h3>
+                <canvas id="code-security-configuration-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                <p class="text-center text-secondary mt-2 mb-0"
+                   title="Private repositories with a configuration enabling GitHub Code Security or GitHub Secret Protection, which are licensed per active committer">
+                  {{ private_repos_with_licensed_security_features }} private repositories with licensed features
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- /.row -->
 
@@ -317,6 +343,8 @@
       drawDependabotChart();
       drawBranchProtectionChart();
       drawPrivateVulnerabilityReportingChart();
+      drawCodeScanningChart();
+      drawCodeSecurityConfigurationChart();
     });
 
     function drawTwoFactorChart() {
@@ -433,6 +461,52 @@
             data: {{ private_vulnerability_reporting_data|safe }},
             backgroundColor: [
               '#ffc107',
+              '#28a745',
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawCodeScanningChart() {
+      new Chart(document.getElementById('code-scanning-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['not configured', 'default setup'],
+          datasets: [{
+            label: 'code scanning',
+            data: {{ code_scanning_data|safe }},
+            backgroundColor: [
+              '#ffc107',
+              '#28a745',
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawCodeSecurityConfigurationChart() {
+      new Chart(document.getElementById('code-security-configuration-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['without configuration', 'with configuration'],
+          datasets: [{
+            label: 'code security configurations',
+            data: {{ code_security_configuration_data|safe }},
+            backgroundColor: [
+              '#6c757d',
               '#28a745',
             ],
             borderWidth: 1

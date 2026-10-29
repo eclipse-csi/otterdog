@@ -769,6 +769,9 @@ class Statistics:
     repos_with_dependabot_alerts: int = 0
     repos_with_dependabot_security_updates: int = 0
     repos_with_private_vulnerability_reporting: int = 0
+    repos_with_code_scanning: int = 0
+    repos_with_code_security_configuration: int = 0
+    private_repos_with_licensed_security_features: int = 0
 
     @property
     def active_repos(self) -> int:
@@ -790,6 +793,11 @@ async def get_statistics() -> Statistics:
                 "repos_with_dependabot_alerts": {"$sum": "$repos_with_dependabot_alerts"},
                 "repos_with_dependabot_security_updates": {"$sum": "$repos_with_dependabot_security_updates"},
                 "repos_with_private_vulnerability_reporting": {"$sum": "$repos_with_private_vulnerability_reporting"},
+                "repos_with_code_scanning": {"$sum": "$repos_with_code_scanning"},
+                "repos_with_code_security_configuration": {"$sum": "$repos_with_code_security_configuration"},
+                "private_repos_with_licensed_security_features": {
+                    "$sum": "$private_repos_with_licensed_security_features"
+                },
             },
         }
     ]
@@ -811,6 +819,9 @@ async def get_statistics() -> Statistics:
             stats["repos_with_dependabot_alerts"],
             stats["repos_with_dependabot_security_updates"],
             stats["repos_with_private_vulnerability_reporting"],
+            stats["repos_with_code_scanning"],
+            stats["repos_with_code_security_configuration"],
+            stats["private_repos_with_licensed_security_features"],
         )
 
 

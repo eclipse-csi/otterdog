@@ -1219,3 +1219,39 @@ async def test_repository_is_unarchived_before_attaching_a_configuration():
         ("attach_org_code_security_configuration", None),
         ("update_repo", {"dependabot_alerts_enabled": True}),
     ]
+
+
+# ---------------------------------------------------------------------------
+# effective settings of repositories, e.g. for the dashboard
+# ---------------------------------------------------------------------------
+
+
+def test_repository_settings_of_a_configuration():
+    configuration = default_configuration(
+        dependabot_alerts="enabled",
+        secret_scanning="enabled",
+        code_scanning_default_setup="not_set",
+        private_vulnerability_reporting="not_set",
+    )
+
+    assert configuration.get_repository_settings() == {
+        "dependabot_alerts_enabled": True,
+        "dependabot_security_updates_enabled": False,
+        "secret_scanning": "enabled",
+        "secret_scanning_push_protection": "disabled",
+    }
+
+
+def test_effective_repository():
+    org = organization()
+    org.add_code_security_configuration(default_configuration(name="baseline", dependabot_alerts="disabled"))
+    attached = repository(name="attached", dependabot_alerts_enabled=True, code_security_configuration="baseline")
+    unattached = repository(name="unattached", dependabot_alerts_enabled=True, code_security_configuration=None)
+    unknown = repository(name="unknown", dependabot_alerts_enabled=True, code_security_configuration="unknown")
+
+    assert org.get_effective_repository(attached).dependabot_alerts_enabled is False
+    # the repository itself is left unchanged
+    assert attached.dependabot_alerts_enabled is True
+    # repositories that do not reference a defined configuration keep their own settings
+    assert org.get_effective_repository(unattached) is unattached
+    assert org.get_effective_repository(unknown) is unknown

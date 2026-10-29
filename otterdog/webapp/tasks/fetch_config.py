@@ -6,11 +6,14 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+from collections import Counter
 from dataclasses import dataclass
 
 import aiofiles
 
+from otterdog.models import CostPolicy
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.repository import Repository
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db.models import ConfigurationModel, StatisticsModel, TaskModel
 from otterdog.webapp.db.service import save_config, save_statistics
@@ -69,50 +72,78 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
 
             # save statistics
             github_organization = GitHubOrganization.from_model_data(config_data)
-
-            archived_repos = 0
-            repos_with_branch_protections = 0
-            repos_with_secret_scanning = 0
-            repos_with_secret_scanning_push_protection = 0
-            repos_with_dependabot_alerts = 0
-            repos_with_dependabot_security_updates = 0
-            repos_with_private_vulnerability_reporting = 0
-
-            for repo in github_organization.repositories:
-                if repo.archived is True:
-                    archived_repos += 1
-                    continue
-
-                if repo.private_vulnerability_reporting_enabled is True:
-                    repos_with_private_vulnerability_reporting += 1
-
-                if repo.dependabot_security_updates_enabled is True:
-                    repos_with_dependabot_security_updates += 1
-                elif repo.dependabot_alerts_enabled is True:
-                    repos_with_dependabot_alerts += 1
-
-                if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0:
-                    repos_with_branch_protections += 1
-
-                if repo.secret_scanning_push_protection == "enabled":
-                    repos_with_secret_scanning_push_protection += 1
-                elif repo.secret_scanning == "enabled":
-                    repos_with_secret_scanning += 1
-
-            statistics = StatisticsModel(  # type: ignore
-                project_name=org_config.name,
-                github_id=self.org_id,
-                two_factor_enforced=1 if github_organization.settings.two_factor_requirement is True else 0,
-                total_repos=len(github_organization.repositories),
-                archived_repos=archived_repos,
-                repos_with_branch_protection=repos_with_branch_protections,
-                repos_with_private_vulnerability_reporting=repos_with_private_vulnerability_reporting,
-                repos_with_secret_scanning=repos_with_secret_scanning,
-                repos_with_secret_scanning_push_protection=repos_with_secret_scanning_push_protection,
-                repos_with_dependabot_alerts=repos_with_dependabot_alerts,
-                repos_with_dependabot_security_updates=repos_with_dependabot_security_updates,
-            )
+            statistics = get_organization_statistics(org_config.name, self.org_id, github_organization)
             await save_statistics(statistics)
 
     def __repr__(self) -> str:
         return f"FetchConfigTask(repo='{self.org_id}/{self.repo_name}')"
+
+
+# the statistics counting the active repositories, see _get_repository_statistics
+_REPOSITORY_STATISTICS = [
+    "repos_with_branch_protection",
+    "repos_with_private_vulnerability_reporting",
+    "repos_with_secret_scanning",
+    "repos_with_secret_scanning_push_protection",
+    "repos_with_dependabot_alerts",
+    "repos_with_dependabot_security_updates",
+    "repos_with_code_scanning",
+    "repos_with_code_security_configuration",
+    "private_repos_with_licensed_security_features",
+]
+
+
+def get_organization_statistics(
+    project_name: str, github_id: str, github_organization: GitHubOrganization
+) -> StatisticsModel:
+    """Returns the statistics of an organization, with the security settings that apply to its repositories."""
+    counts: Counter[str] = Counter()
+    for repo in github_organization.repositories:
+        if repo.archived is True:
+            counts["archived_repos"] += 1
+        else:
+            counts.update(_get_repository_statistics(github_organization, repo))
+
+    return StatisticsModel(  # type: ignore
+        project_name=project_name,
+        github_id=github_id,
+        two_factor_enforced=1 if github_organization.settings.two_factor_requirement is True else 0,
+        total_repos=len(github_organization.repositories),
+        archived_repos=counts["archived_repos"],
+        **{name: counts[name] for name in _REPOSITORY_STATISTICS},
+    )
+
+
+def _get_repository_statistics(github_organization: GitHubOrganization, configured_repo: Repository) -> list[str]:
+    """Returns the statistics an active repository counts for."""
+    # the settings that the code security configuration of the repository sets take precedence
+    repo = github_organization.get_effective_repository(configured_repo)
+    configuration = github_organization.get_attached_code_security_configuration(repo)
+
+    statistics = []
+    if configuration is not None:
+        statistics.append("repos_with_code_security_configuration")
+        # Code Security and Secret Protection are licensed for private repositories
+        if repo.private is True and configuration.is_cost_related(CostPolicy()):
+            statistics.append("private_repos_with_licensed_security_features")
+
+    if repo.code_scanning_default_setup_enabled is True:
+        statistics.append("repos_with_code_scanning")
+
+    if repo.private_vulnerability_reporting_enabled is True:
+        statistics.append("repos_with_private_vulnerability_reporting")
+
+    if repo.dependabot_security_updates_enabled is True:
+        statistics.append("repos_with_dependabot_security_updates")
+    elif repo.dependabot_alerts_enabled is True:
+        statistics.append("repos_with_dependabot_alerts")
+
+    if len(repo.branch_protection_rules) > 0 or len(repo.rulesets) > 0:
+        statistics.append("repos_with_branch_protection")
+
+    if repo.secret_scanning_push_protection == "enabled":
+        statistics.append("repos_with_secret_scanning_push_protection")
+    elif repo.secret_scanning == "enabled":
+        statistics.append("repos_with_secret_scanning")
+
+    return statistics

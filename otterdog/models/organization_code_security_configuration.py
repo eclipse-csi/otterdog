@@ -256,6 +256,21 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
 
         return result
 
+    def get_repository_settings(self) -> dict[str, Any]:
+        """
+        Returns the values of the main settings of a repository that this configuration sets once attached to it,
+        e.g. 'dependabot_alerts_enabled', the settings of features set to 'not_set' are left to the repository.
+        """
+        settings: dict[str, Any] = {}
+        for feature, keys in self._repository_properties.items():
+            status = self.__getattribute__(feature)
+            if status in ("enabled", "disabled"):
+                # the first setting is the main one, e.g. 'code_scanning_default_setup_enabled'
+                key = keys[0]
+                settings[key] = status == "enabled" if key.endswith("_enabled") else status
+
+        return settings
+
     def get_controlled_repository_properties(self) -> set[str]:
         """
         Returns the settings of a repository that this configuration sets once attached to it,

@@ -219,6 +219,10 @@ class StatisticsModel(Model):
     repos_with_dependabot_alerts: int
     repos_with_dependabot_security_updates: int
     repos_with_private_vulnerability_reporting: int
+    # added later, statistics stored before default to 0
+    repos_with_code_scanning: int = 0
+    repos_with_code_security_configuration: int = 0
+    private_repos_with_licensed_security_features: int = 0
 
 
 class UserModel(Model):

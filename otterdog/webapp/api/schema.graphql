@@ -11,7 +11,40 @@ type Project {
 type Configuration {
     github_id: String!
     settings: OrganizationSettings!
+    code_security_configurations: [CodeSecurityConfiguration]
     repositories(filter: String): [Repository]
+}
+
+type CodeSecurityConfiguration {
+    name: String
+    description: String
+    code_security: String
+    secret_protection: String
+    dependency_graph: String
+    dependency_graph_autosubmit_action: String
+    dependency_graph_autosubmit_action_labeled_runners: Boolean
+    dependabot_alerts: String
+    dependabot_security_updates: String
+    dependabot_reachability: String
+    dependabot_delegated_alert_dismissal: String
+    code_scanning_default_setup: String
+    code_scanning_default_setup_runner_type: String
+    code_scanning_default_setup_runner_label: String
+    code_scanning_allow_advanced: Boolean
+    code_scanning_delegated_alert_dismissal: String
+    secret_scanning: String
+    secret_scanning_push_protection: String
+    secret_scanning_delegated_bypass: String
+    secret_scanning_delegated_bypass_reviewers: [String]
+    secret_scanning_validity_checks: String
+    secret_scanning_non_provider_patterns: String
+    secret_scanning_generic_secrets: String
+    secret_scanning_generic_secrets_push_protection: String
+    secret_scanning_delegated_alert_dismissal: String
+    secret_scanning_extended_metadata: String
+    private_vulnerability_reporting: String
+    enforcement: String
+    default_for_new_repos: String
 }
 
 type Repository {
@@ -45,6 +78,10 @@ type Repository {
     dependabot_alerts_enabled: Boolean
     dependabot_security_updates_enabled: Boolean
     private_vulnerability_reporting_enabled: Boolean
+    code_scanning_default_setup_enabled: Boolean
+    code_scanning_default_query_suite: String
+    code_scanning_default_languages: [String]
+    code_security_configuration: String
     gh_pages_build_type: String
     gh_pages_source_branch: String
     gh_pages_source_path: String
@@ -70,9 +107,7 @@ type OrganizationSettings {
     default_repository_permission: String
     two_factor_requirement: Boolean
     web_commit_signoff_required: Boolean
-    dependabot_alerts_enabled_for_new_repositories: Boolean
-    dependabot_security_updates_enabled_for_new_repositories: Boolean
-    dependency_graph_enabled_for_new_repositories: Boolean
+    default_code_security_configurations_disabled: Boolean
     members_can_create_private_repositories: Boolean
     members_can_create_public_repositories: Boolean
     members_can_fork_private_repositories: Boolean

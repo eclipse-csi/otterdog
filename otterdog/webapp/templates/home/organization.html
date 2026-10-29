@@ -27,6 +27,23 @@
 
 {% block content %}
 
+{% macro feature_status(status) -%}
+  {% if status == "enabled" -%}
+  <i class="text-success fa-solid fa-circle-check" title="enabled"></i>
+  {%- elif status == "disabled" -%}
+  <i class="text-danger fa-solid fa-circle-xmark" title="disabled"></i>
+  {%- elif status == "not_set" -%}
+  <i class="text-muted fa-solid fa-circle-minus" title="not set, left to the repositories"></i>
+  {%- else -%}
+  <i class="text-muted fa-solid fa-circle" title="not managed"></i>
+  {%- endif %}
+{%- endmacro %}
+
+{% macro set_by_configuration(repo_name, key) -%}
+  {%- set configuration = code_security.configuration_of.get(repo_name) -%}
+  {%- if configuration is not none and key in configuration.get_repository_settings() %} title="set by code security configuration '{{ configuration.name }}'"{% endif -%}
+{%- endmacro %}
+
   <!-- Content Wrapper. Contains page content -->
   <div class="app-main">
     <!-- Content Header (Page header) -->
@@ -96,6 +113,9 @@
                     <a class="nav-link" id="rulesets-tab" data-bs-toggle="pill" href="#rulesets" role="tab" aria-controls="rulesets" aria-selected="false">Rulesets</a>
                   </li>
                   <li class="nav-item">
+                    <a class="nav-link" id="code-security-tab" data-bs-toggle="pill" href="#code-security" role="tab" aria-controls="code-security" aria-selected="false">Code Security</a>
+                  </li>
+                  <li class="nav-item">
                     <a class="nav-link" id="repositories-tab" data-bs-toggle="pill" href="#repositories" role="tab" aria-controls="repositories" aria-selected="false">Repositories</a>
                   </li>
                 </ul>
@@ -155,6 +175,11 @@
                                 <li class="nav-item">
                                   <a href="#webhooks" class="nav-link tab-link">
                                     Webhooks <span class="float-end badge text-bg-{{ config.webhooks|length_to_color}}">{{ config.webhooks|length }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#code-security" class="nav-link tab-link">
+                                    Code security configurations <span class="float-end badge text-bg-{{ config.code_security_configurations|length_to_color}}">{{ config.code_security_configurations|length }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
@@ -605,6 +630,64 @@
                       </div>
                     </div>
                   </div>
+                  <div class="tab-pane" id="code-security" role="tabpanel" aria-labelledby="code-security-tab">
+                    {% if config.code_security_configurations|length > 0 %}
+                    <div class="table-responsive p-0">
+                      <!-- the headers wrap, so that the features fit the width of the page -->
+                      <table class="table table-hover align-middle">
+                        <thead>
+                          <tr>
+                            <th>Configuration</th>
+                            <th class="text-center">Code Security</th>
+                            <th class="text-center">Secret Protection</th>
+                            <th class="text-center">Dependabot Alerts</th>
+                            <th class="text-center">Dependabot Security Updates</th>
+                            <th class="text-center">Code Scanning</th>
+                            <th class="text-center">Secret Scanning</th>
+                            <th class="text-center">Push Protection</th>
+                            <th class="text-center">Private Vulnerability Reporting</th>
+                            <th class="text-center">Enforcement</th>
+                            <th class="text-center">Default for New Repositories</th>
+                            <th class="text-center">Repositories</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for configuration in config.code_security_configurations|sort(attribute='name') %}
+                          {% set configuration_repositories = code_security.repositories[configuration.name] %}
+                          <tr>
+                            <td style="min-width: 15rem">
+                              {{ configuration.name }}
+                              {% if configuration.description %}<br><small class="text-muted">{{ configuration.description }}</small>{% endif %}
+                            </td>
+                            <td class="text-center">{{ feature_status(configuration.code_security) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.secret_protection) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.dependabot_alerts) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.dependabot_security_updates) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.code_scanning_default_setup) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.secret_scanning) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.secret_scanning_push_protection) }}</td>
+                            <td class="text-center">{{ feature_status(configuration.private_vulnerability_reporting) }}</td>
+                            <td class="text-center">{{ configuration.enforcement }}</td>
+                            <td class="text-center">{{ configuration.default_for_new_repos }}</td>
+                            <td class="text-center" title="{{ configuration_repositories|join(', ') }}">
+                              <span class="badge text-bg-{{ configuration_repositories|length_to_color }}">{{ configuration_repositories|length }}</span>
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p class="text-secondary mt-3 mb-0">
+                      {{ code_security.without_configuration|length }} active repositories without a code security configuration,
+                      their security settings are the ones of the repositories, or of the configuration attached to them on GitHub.
+                    </p>
+                    {% else %}
+                    <p class="text-secondary mb-0">
+                      No code security configuration is defined, the security settings are the ones of the repositories, see
+                      <a href="{{ documentation_url }}userguide/guides/repository-security/#code-security-configurations" target="_blank" rel="noopener">Code security configurations</a>.
+                    </p>
+                    {% endif %}
+                  </div>
                   <div class="tab-pane" id="repositories" role="tabpanel" aria-labelledby="repositories-tab">
                     <div class="table-responsive p-0">
                       <table class="table table-hover text-nowrap">
@@ -615,6 +698,7 @@
                             <th class="text-center">Secrets</th>
                             <th class="text-center">Variables</th>
                             <th class="text-center">Webhooks</th>
+                            <th class="text-center">Code Security Configuration</th>
                             <th class="text-center">Secret Scanning</th>
                             <th class="text-center">Private Vulnerability Reporting</th>
                             <th class="text-center">OSSF Scorecard</th>
@@ -672,6 +756,14 @@
                               {% endif %}
                             </td>
                             <td class="text-center">
+                              {% set configuration = code_security.configuration_of.get(repo.name) %}
+                              {% if configuration is not none %}
+                              <a href="#code-security" class="tab-link badge text-bg-info text-decoration-none">{{ configuration.name }}</a>
+                              {% else %}
+                              <i class="text-muted fa-solid fa-circle" title="no code security configuration"></i>
+                              {% endif %}
+                            </td>
+                            <td class="text-center"{{ set_by_configuration(repo.name, 'secret_scanning') }}>
                               {% if repo.archived == true %}
                               <i class="text-muted fa-solid fa-circle"></i>
                               {% elif repo.secret_scanning_push_protection == "enabled" %}
@@ -682,7 +774,7 @@
                               <i class="text-danger fa-solid fa-circle-xmark"></i>
                               {% endif %}
                             </td>
-                            <td class="text-center">
+                            <td class="text-center"{{ set_by_configuration(repo.name, 'private_vulnerability_reporting_enabled') }}>
                               {% if repo.archived == true %}
                               <i class="text-muted fa-solid fa-circle"></i>
                               {% elif repo.private_vulnerability_reporting_enabled == true %}

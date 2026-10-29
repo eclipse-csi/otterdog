@@ -146,6 +146,16 @@ async def index():
         else 0
     )
 
+    code_scanning_data = [
+        stats.active_repos - stats.repos_with_code_scanning,
+        stats.repos_with_code_scanning,
+    ]
+
+    code_security_configuration_data = [
+        stats.active_repos - stats.repos_with_code_security_configuration,
+        stats.repos_with_code_security_configuration,
+    ]
+
     return await render_home_template(
         "index.html",
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
@@ -165,7 +175,18 @@ async def index():
         branch_protection_percentage=branch_protection_percentage,
         private_vulnerability_reporting_data=json.dumps(private_vulnerability_reporting_data),
         private_vulnerability_reporting_percentage=private_vulnerability_reporting_percentage,
+        code_scanning_data=json.dumps(code_scanning_data),
+        code_scanning_percentage=_percentage(stats.repos_with_code_scanning, stats.active_repos),
+        code_security_configuration_data=json.dumps(code_security_configuration_data),
+        code_security_configuration_percentage=_percentage(
+            stats.repos_with_code_security_configuration, stats.active_repos
+        ),
+        private_repos_with_licensed_security_features=stats.private_repos_with_licensed_security_features,
     )
+
+
+def _percentage(count: int, total: int) -> float:
+    return float(count) / float(total) * 100.0 if total > 0 else 0
 
 
 @blueprint.route("/myprojects")
@@ -237,6 +258,12 @@ async def project(project_name: str):
     from otterdog.webapp.db.service import get_policies
 
     github_organization = GitHubOrganization.from_model_data(config.config)
+    code_security_data = _get_code_security_data(github_organization)
+    # the settings that the code security configuration of a repository sets take precedence over its own ones
+    github_organization.set_repositories(
+        [github_organization.get_effective_repository(x) for x in github_organization.repositories]
+    )
+
     policies = [x.model_dump() for x in await get_policies(config.github_id)]
     policies_status = {x.id.policy_type: x.model_dump() for x in await get_policies_status(config.github_id)}
     blueprints = [x.model_dump() for x in await get_blueprints(config.github_id)]
@@ -275,7 +302,32 @@ async def project(project_name: str):
         secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
         branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
         scorecard_results=scorecard_results,
+        code_security=code_security_data,
     )
+
+
+def _get_code_security_data(org: GitHubOrganization) -> dict[str, Any]:
+    """
+    Returns the code security configuration referenced by each repository, the repositories referencing each
+    configuration, and the active repositories that do not reference any configuration.
+    """
+    configuration_of: dict[str, Any] = {}
+    repositories: dict[str, list[str]] = {x.name: [] for x in org.code_security_configurations}
+    without_configuration: list[str] = []
+
+    for repo in sorted(org.repositories, key=lambda x: x.name):
+        configuration = org.get_attached_code_security_configuration(repo)
+        if configuration is not None:
+            configuration_of[repo.name] = configuration
+            repositories[configuration.name].append(repo.name)
+        elif repo.archived is not True:
+            without_configuration.append(repo.name)
+
+    return {
+        "configuration_of": configuration_of,
+        "repositories": repositories,
+        "without_configuration": without_configuration,
+    }
 
 
 def _get_secret_scanning_data(org: GitHubOrganization) -> list[int]:
@@ -932,6 +984,10 @@ async def repository(project_name: str, repo_name: str):
     if repo_config is None:
         return await render_template(_PAGE_NOT_FOUND), 404
 
+    # the settings that the code security configuration of the repository sets take precedence over its own ones
+    code_security_configuration = github_organization.get_attached_code_security_configuration(repo_config)
+    repo_config = github_organization.get_effective_repository(repo_config)
+
     scorecard_result = await find_scorecard_result(config.github_id, repo_name)
 
     return await render_home_template(
@@ -942,6 +998,10 @@ async def repository(project_name: str, repo_name: str):
         repo_name=repo_name,
         repo_config=repo_config,
         scorecard_result=scorecard_result,
+        code_security_configuration=code_security_configuration,
+        code_security_settings=(
+            code_security_configuration.get_repository_settings() if code_security_configuration is not None else {}
+        ),
     )
 
 

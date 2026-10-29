@@ -320,6 +320,25 @@ class GitHubOrganization:
 
         return default_configurations
 
+    def get_attached_code_security_configuration(
+        self, repo: Repository
+    ) -> OrganizationCodeSecurityConfiguration | None:
+        """Returns the code security configuration that a repository references, if it is defined."""
+        name = repo.code_security_configuration
+        return self.get_code_security_configuration(name) if is_set_and_present(name) else None
+
+    def get_effective_repository(self, repo: Repository) -> Repository:
+        """
+        Returns the repository with the security settings that the code security configuration it references sets,
+        as they take precedence over the ones of the repository. A repository that does not reference a
+        configuration keeps its own settings, the configuration attached to it on GitHub being unknown.
+        """
+        configuration = self.get_attached_code_security_configuration(repo)
+        if configuration is None:
+            return repo
+
+        return dataclasses.replace(repo, **configuration.get_repository_settings())
+
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
 
