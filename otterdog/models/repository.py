@@ -1623,17 +1623,21 @@ class Repository(ModelObject):
     ) -> OrganizationCodeSecurityConfiguration | None:
         """
         Returns the code security configuration that is attached to the repository once the patch is applied:
-        the one specified by the repository, otherwise the one currently attached, or for a new repository,
-        the default configuration of the organization for its visibility.
+        the one specified by the repository, otherwise the one currently attached, which might not be managed,
+        or for a new repository, the default configuration of the organization for its visibility.
         """
         name = expected_object.code_security_configuration
         if not is_set_and_present(name) and current_object is not None:
-            name = current_object.code_security_configuration
+            name = context.attached_code_security_configurations.get(
+                current_object.name, current_object.code_security_configuration
+            )
 
         if is_set_and_present(name):
             return context.code_security_configurations.get(name)
 
-        if current_object is None:
+        # default configurations are removed before new repositories are created if they are disabled
+        org_settings = cast("OrganizationSettings", context.expected_org_settings)
+        if current_object is None and org_settings.default_code_security_configurations_disabled is not True:
             visibility = "private_and_internal" if expected_object.private is True else "public"
             return next(
                 (

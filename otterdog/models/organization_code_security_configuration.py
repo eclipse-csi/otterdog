@@ -221,6 +221,20 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
         return any(prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties)
 
+    def overlaid_with(self, other: OrganizationCodeSecurityConfiguration) -> OrganizationCodeSecurityConfiguration:
+        """
+        Returns a copy of this configuration with the values that the other configuration manages,
+        values that the other configuration does not manage, i.e. unset or None, are kept.
+        """
+        return dataclasses.replace(
+            self,
+            **{
+                field.name: other.__getattribute__(field.name)
+                for field in other.model_fields()
+                if is_set_and_valid(other.__getattribute__(field.name))
+            },
+        )
+
     def get_controlled_repository_properties(self) -> set[str]:
         """
         Returns the settings of a repository that this configuration sets once attached to it,
@@ -332,6 +346,13 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # optional properties set to None are not managed
         if field.name in self._optional_properties and self.__getattribute__(field.name) is None:
+            return False
+
+        # the runner label is only sent for labeled runners
+        if (
+            field.name == "code_scanning_default_setup_runner_label"
+            and self.code_scanning_default_setup_runner_type != "labeled"
+        ):
             return False
 
         return True

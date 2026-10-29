@@ -18,6 +18,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import CostPolicy, FailureType, LivePatch, LivePatchContext, ModelObject, ValidationContext
 from otterdog.models.github_organization import (
     GitHubOrganization,
+    _add_code_security_configurations,
     _enrich_team_bypass_reviewers,
     _load_code_security_configuration_attachments,
 )
@@ -542,21 +543,58 @@ def test_repository_attaching_code_security_configuration_is_cost_related(privat
 # ---------------------------------------------------------------------------
 
 
-async def test_load_code_security_configuration_attachments():
-    org = GitHubOrganization.from_model_data(
+def organization() -> GitHubOrganization:
+    return GitHubOrganization.from_model_data(
         jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').newOrg('my-project', 'OtterdogTest')")
     )
+
+
+def test_add_code_security_configurations():
+    org = organization()
+
+    _add_code_security_configurations(
+        org,
+        "OtterdogTest",
+        [
+            {"id": 1, "name": "GitHub recommended", "target_type": "global", "advanced_security": "enabled"},
+            {"id": 2, "name": "baseline", "target_type": "organization", "advanced_security": "disabled"},
+            {"id": 3, "name": "enterprise", "target_type": "enterprise", "advanced_security": "enabled"},
+        ],
+    )
+
+    assert [x.name for x in org.code_security_configurations] == ["baseline"]
+    assert [x.name for x in org.unmanaged_code_security_configurations] == ["GitHub recommended", "enterprise"]
+
+
+async def test_load_code_security_configuration_attachments():
+    org = organization()
     org.add_code_security_configuration(dataclasses.replace(default_configuration(name="baseline"), id=1))
     org.add_code_security_configuration(dataclasses.replace(default_configuration(name="strict"), id=2))
-    for name in ("repo-a", "repo-b", "repo-c"):
+    org.add_unmanaged_code_security_configuration(
+        dataclasses.replace(default_configuration(name="GitHub recommended"), id=3)
+    )
+    org.add_unmanaged_code_security_configuration(dataclasses.replace(default_configuration(name="enterprise"), id=4))
+    for name in ("repo-a", "repo-b", "repo-c", "repo-d"):
         org.add_repository(repository(name=name, code_security_configuration=UNSET))
 
-    attached = {1: ["repo-a"], 2: ["repo-b", "not-loaded"]}
-    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(side_effect=lambda _, x: attached[x]))
+    def repositories(_, configuration_id):
+        if configuration_id == 4:
+            raise RuntimeError("not accessible")
+        return {1: ["repo-a"], 2: ["repo-b", "not-loaded"], 3: ["repo-c"]}[configuration_id]
+
+    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(side_effect=repositories))
 
     await _load_code_security_configuration_attachments(org, "OtterdogTest", provider)  # type: ignore
 
-    assert [r.code_security_configuration for r in org.repositories] == ["baseline", "strict", None]
+    # repositories only reference managed configurations
+    assert [r.code_security_configuration for r in org.repositories] == ["baseline", "strict", None, None]
+    # while the attached configurations include configurations that are not managed
+    assert org.attached_code_security_configurations == {
+        "repo-a": "baseline",
+        "repo-b": "strict",
+        "not-loaded": "strict",
+        "repo-c": "GitHub recommended",
+    }
 
 
 async def test_enrich_team_bypass_reviewers():
@@ -661,13 +699,17 @@ def test_controlled_repository_properties():
 
 
 def generate_repository_patches(
-    expected: Repository, current: Repository | None, configurations: list[OrganizationCodeSecurityConfiguration]
+    expected: Repository,
+    current: Repository | None,
+    configurations: list[OrganizationCodeSecurityConfiguration],
+    attached_configurations: dict[str, str] | None = None,
+    defaults_disabled: bool = False,
 ) -> list[LivePatch]:
-    org_settings = GitHubOrganization.from_model_data(
-        jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').newOrg('my-project', 'OtterdogTest')")
-    ).settings
+    org_settings = organization().settings
+    org_settings.default_code_security_configurations_disabled = defaults_disabled
     context = LivePatchContext("OtterdogTest", "*", False, False, "*", org_settings, org_settings)
     context.code_security_configurations = {x.name: x for x in configurations}
+    context.attached_code_security_configurations = attached_configurations or {}
 
     patches: list[LivePatch] = []
     Repository.generate_live_patch(expected, current, None, context, patches.append)
@@ -735,3 +777,81 @@ def test_settings_of_new_repository_set_by_default_configuration_are_not_managed
     assert (unwrap(patches[0].expected_object).dependabot_alerts_enabled is not UNSET) is managed
     # the expected organization is left unchanged
     assert expected.dependabot_alerts_enabled is True
+
+
+def test_settings_set_by_an_unmanaged_attached_configuration_are_not_managed():
+    """A repository attached to e.g. GitHub recommended does not reference it, but its settings are still set."""
+    configurations = [default_configuration(name="GitHub recommended")]
+    expected = repository()
+    current = repository(code_security_configuration=None, **DIFFERING_SETTINGS)
+
+    patches = generate_repository_patches(
+        expected, current, configurations, attached_configurations={"my-repo": "GitHub recommended"}
+    )
+
+    assert patches == []
+
+
+def test_settings_of_new_repository_are_managed_if_default_configurations_are_disabled():
+    configurations = [default_configuration(name="baseline", default_for_new_repos="all")]
+
+    patches = generate_repository_patches(repository(), None, configurations, defaults_disabled=True)
+
+    assert unwrap(patches[0].expected_object).dependabot_alerts_enabled is True
+
+
+# ---------------------------------------------------------------------------
+# code security configurations planned for repositories
+# ---------------------------------------------------------------------------
+
+
+def test_planned_configurations_keep_values_not_managed_by_the_expected_configuration():
+    current = organization()
+    current.add_code_security_configuration(
+        dataclasses.replace(
+            default_configuration(
+                name="baseline", dependabot_alerts="enabled", secret_scanning_generic_secrets="enabled"
+            ),
+            id=1,
+        )
+    )
+    expected = organization()
+    data = jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').newOrgCodeSecurityConfiguration('baseline')")
+    data.pop("dependabot_alerts")
+    expected.add_code_security_configuration(
+        OrganizationCodeSecurityConfiguration.from_model_data({**data, "secret_scanning": "enabled"})
+    )
+
+    planned = expected._get_planned_code_security_configurations(current)
+
+    assert planned["baseline"].id == 1
+    # unset in the expected configuration
+    assert planned["baseline"].dependabot_alerts == "enabled"
+    # optional property not managed by the expected configuration
+    assert planned["baseline"].secret_scanning_generic_secrets == "enabled"
+    # managed by the expected configuration
+    assert planned["baseline"].secret_scanning == "enabled"
+
+
+def test_planned_configurations_include_configurations_not_expected():
+    current = organization()
+    current.add_code_security_configuration(default_configuration(name="to-be-deleted"))
+    current.add_unmanaged_code_security_configuration(default_configuration(name="GitHub recommended"))
+    expected = organization()
+    expected.add_code_security_configuration(default_configuration(name="new"))
+
+    planned = expected._get_planned_code_security_configurations(current)
+
+    # the deletion of configurations might be skipped, configurations that are not managed are kept
+    assert set(planned) == {"to-be-deleted", "GitHub recommended", "new"}
+
+
+def test_runner_label_of_standard_runners_is_not_compared():
+    expected = default_configuration(
+        code_scanning_default_setup_runner_type="standard", code_scanning_default_setup_runner_label="ignored"
+    )
+    current = default_configuration(
+        code_scanning_default_setup_runner_type="standard", code_scanning_default_setup_runner_label=None
+    )
+
+    assert expected.get_difference_from(current) == {}

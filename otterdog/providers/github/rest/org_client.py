@@ -317,9 +317,18 @@ class OrgClient(RestClient):
         _logger.debug("removed org role with name '%s'", role_name)
 
     async def get_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
+        """
+        Returns all code security configurations available to the organization, including the predefined
+        configurations (e.g. GitHub recommended) and configurations of the enterprise, see 'target_type'.
+        """
         _logger.debug("retrieving code security configurations for org '%s'", org_id)
 
-        configurations = await self._get_organization_code_security_configurations(org_id)
+        try:
+            configurations = await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/code-security/configurations"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving code security configurations for org '{org_id}':\n{ex}") from ex
 
         # the defaults for new repositories are retrieved separately, include them in the configuration
         defaults_by_id = {
@@ -333,22 +342,19 @@ class OrgClient(RestClient):
 
         return configurations
 
-    async def _get_organization_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
-        try:
-            result = await self.requester.request_paged_json("GET", f"/orgs/{org_id}/code-security/configurations")
-        except GitHubException as ex:
-            raise RuntimeError(f"failed retrieving code security configurations for org '{org_id}':\n{ex}") from ex
-
-        # only configurations of the organization itself can be managed, predefined configurations
-        # (e.g. GitHub recommended) and configurations of the enterprise are skipped
-        return [c for c in result if c.get("target_type") == "organization"]
-
     async def get_code_security_configuration_id(self, org_id: str, name: str) -> int | None:
         _logger.debug("retrieving id for code security configuration with name '%s' in org '%s'", name, org_id)
 
-        configurations = await self._get_organization_code_security_configurations(org_id)
+        try:
+            configurations = await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/code-security/configurations"
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving code security configurations for org '{org_id}':\n{ex}") from ex
+
+        # only configurations of the organization itself can be managed
         for configuration in configurations:
-            if configuration["name"] == name:
+            if configuration.get("target_type") == "organization" and configuration["name"] == name:
                 return configuration["id"]
 
         return None

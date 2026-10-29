@@ -76,7 +76,7 @@ async def generate_patch_and_run_it(
 
 
 async def test_get_configurations(github: GitHubProviderTestKit):
-    """Only configurations of the organization are returned, along with their default for new repositories."""
+    """All configurations are returned with their default for new repositories, the ones of GitHub included."""
     # API: https://docs.github.com/en/rest/code-security/configurations#get-code-security-configurations-for-an-organization
     github.http.expect(
         "GET",
@@ -109,10 +109,27 @@ async def test_get_configurations(github: GitHubProviderTestKit):
 
     configurations = await github.provider.get_org_code_security_configurations(ORG_ID)
 
-    assert [(c["name"], c["default_for_new_repos"]) for c in configurations] == [
-        ("baseline", "none"),
-        ("strict", "private_and_internal"),
+    assert [(c["name"], c["target_type"], c["default_for_new_repos"]) for c in configurations] == [
+        ("GitHub recommended", "global", "public"),
+        ("baseline", "organization", "none"),
+        ("enterprise", "enterprise", "none"),
+        ("strict", "organization", "private_and_internal"),
     ]
+
+
+async def test_resolve_configuration_id_of_the_organization_only(github: GitHubProviderTestKit):
+    """A configuration is attached by its name, only configurations of the organization are considered."""
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[
+            {"id": 1, "name": "baseline", "target_type": "enterprise"},
+            {"id": 2, "name": "baseline", "target_type": "organization"},
+        ],
+    )
+
+    assert await github.provider.rest_api.org.get_code_security_configuration_id(ORG_ID, "baseline") == 2
 
 
 async def test_get_configuration_repositories(github: GitHubProviderTestKit):

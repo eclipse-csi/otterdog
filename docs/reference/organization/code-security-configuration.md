@@ -36,7 +36,7 @@ A feature set to `not_set` is not changed on the repositories the configuration 
 to `null` are not managed by otterdog, e.g. because the feature is not available to every organization.
 
 Only configurations of the organization are managed, the predefined configurations of GitHub (e.g. `GitHub recommended`)
-and configurations of an enterprise are ignored. The name identifies a configuration: renaming a configuration deletes
+and configurations of an enterprise are neither created, updated nor deleted. The name identifies a configuration: renaming a configuration deletes
 it and creates a new one, which is not attached to the repositories of the previous configuration anymore.
 
 A configuration is attached to a repository with the `code_security_configuration` property of the
@@ -44,8 +44,9 @@ A configuration is attached to a repository with the `code_security_configuratio
 
 The settings of a repository that the configuration attached to it sets are not managed on the repository, as the
 configuration takes precedence, and changing them on the repository might detach it from its configuration. This
-applies to the configuration the repository specifies, the one currently attached to it, or for a new repository, the
-default configuration for its visibility:
+applies to the configuration the repository specifies, otherwise the one currently attached to it, even if it is not
+managed (e.g. `GitHub recommended`) or not deleted as `--delete-resources` is not used, or for a new repository, the
+default configuration for its visibility, unless `default_code_security_configurations_disabled` is enabled:
 
 | Feature of the configuration      | Settings of the repository                                                                                 |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------|
@@ -57,6 +58,7 @@ default configuration for its visibility:
 | `private_vulnerability_reporting` | `private_vulnerability_reporting_enabled`                                                                  |
 
 Features set to `not_set` leave the settings of the repository unchanged, they are still managed on the repository.
+For a feature that the configuration does not specify, its current value on GitHub applies.
 
 !!! note
 

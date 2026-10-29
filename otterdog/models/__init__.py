@@ -214,10 +214,12 @@ class LivePatchContext:
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
     modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
-    # the expected code security configurations of the organization by name
+    # the code security configurations by name as they are once the patches are applied
     code_security_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(
         default_factory=dict
     )
+    # the name of the code security configuration currently attached to each repository, managed or not
+    attached_code_security_configurations: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 class LivePatchHandler(Protocol):

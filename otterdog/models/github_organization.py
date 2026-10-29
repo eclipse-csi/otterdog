@@ -123,6 +123,14 @@ class GitHubOrganization:
 
     _secrets_resolved: bool = False
 
+    # retrieved from GitHub to plan repositories: the code security configurations that are not managed,
+    # e.g. GitHub recommended or of the enterprise, and the name of the configuration attached to each
+    # repository, regardless of whether the configuration is managed
+    _unmanaged_code_security_configurations: list[OrganizationCodeSecurityConfiguration] = dataclasses.field(
+        default_factory=list
+    )
+    _attached_code_security_configurations: dict[str, str] = dataclasses.field(default_factory=dict)
+
     @property
     def secrets_resolved(self) -> bool:
         return self._secrets_resolved
@@ -207,6 +215,46 @@ class GitHubOrganization:
 
     def set_code_security_configurations(self, configurations: list[OrganizationCodeSecurityConfiguration]) -> None:
         self.code_security_configurations = configurations
+
+    @property
+    def unmanaged_code_security_configurations(self) -> list[OrganizationCodeSecurityConfiguration]:
+        return self._unmanaged_code_security_configurations
+
+    def add_unmanaged_code_security_configuration(self, configuration: OrganizationCodeSecurityConfiguration) -> None:
+        self._unmanaged_code_security_configurations.append(configuration)
+
+    @property
+    def attached_code_security_configurations(self) -> dict[str, str]:
+        return self._attached_code_security_configurations
+
+    def set_attached_code_security_configurations(self, attached_configurations: dict[str, str]) -> None:
+        self._attached_code_security_configurations = attached_configurations
+
+    def _get_planned_code_security_configurations(
+        self, current_organization: GitHubOrganization
+    ) -> dict[str, OrganizationCodeSecurityConfiguration]:
+        """
+        Returns the code security configurations by name as they are once the patches are applied, to plan the
+        settings of repositories: the configurations retrieved from GitHub, including the ones that are not managed
+        or whose deletion might be skipped, overlaid with the values managed by the expected configurations.
+        """
+        planned_configurations = {
+            x.name: x
+            for x in [
+                *current_organization.code_security_configurations,
+                *current_organization.unmanaged_code_security_configurations,
+            ]
+        }
+
+        for expected_configuration in self.code_security_configurations:
+            current_configuration = planned_configurations.get(expected_configuration.name)
+            planned_configurations[expected_configuration.name] = (
+                expected_configuration
+                if current_configuration is None
+                else current_configuration.overlaid_with(expected_configuration)
+            )
+
+        return planned_configurations
 
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
@@ -792,7 +840,8 @@ class GitHubOrganization:
             context,
             handler,
         )
-        context.code_security_configurations = {x.name: x for x in self.code_security_configurations}
+        context.code_security_configurations = self._get_planned_code_security_configurations(current_organization)
+        context.attached_code_security_configurations = current_organization.attached_code_security_configurations
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
         )
@@ -1000,10 +1049,7 @@ class GitHubOrganization:
             if jsonnet_config.default_org_code_security_configuration_config is not None:
                 github_configurations = await provider.get_org_code_security_configurations(github_id)
                 await _enrich_team_bypass_reviewers(github_configurations, github_id, provider)
-                for configuration in github_configurations:
-                    org.add_code_security_configuration(
-                        OrganizationCodeSecurityConfiguration.from_provider_data(github_id, configuration)
-                    )
+                _add_code_security_configurations(org, github_id, github_configurations)
             else:
                 _logger.debug("not reading org code security configurations, no default config available")
 
@@ -1081,6 +1127,20 @@ async def _enrich_team_bypass_reviewers(
             reviewer["team_slug"] = teams[reviewer["reviewer_id"]]
 
 
+def _add_code_security_configurations(
+    org: GitHubOrganization, github_id: str, configurations: list[dict[str, Any]]
+) -> None:
+    for configuration in configurations:
+        model = OrganizationCodeSecurityConfiguration.from_provider_data(github_id, configuration)
+        # only configurations of the organization are managed, predefined configurations (e.g. GitHub
+        # recommended) and configurations of the enterprise are only retained to plan the settings
+        # of the repositories they are attached to
+        if configuration.get("target_type") == "organization":
+            org.add_code_security_configuration(model)
+        else:
+            org.add_unmanaged_code_security_configuration(model)
+
+
 async def _load_code_security_configuration_attachments(
     org: GitHubOrganization, github_id: str, provider: GitHubProvider
 ) -> None:
@@ -1089,8 +1149,30 @@ async def _load_code_security_configuration_attachments(
         for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration.id):
             attached_configurations[repo_name] = configuration.name
 
+    for configuration in org.unmanaged_code_security_configurations:
+        try:
+            repo_names = await provider.get_org_code_security_configuration_repositories(github_id, configuration.id)
+        except RuntimeError as ex:
+            _logger.warning(
+                "failed to retrieve the repositories of code security configuration '%s', the settings it sets "
+                "on repositories might be changed: %s",
+                configuration.name,
+                ex,
+            )
+            continue
+
+        for repo_name in repo_names:
+            attached_configurations[repo_name] = configuration.name
+
+    org.set_attached_code_security_configurations(attached_configurations)
+
+    # repositories only reference managed configurations
+    managed_configurations = {x.name for x in org.code_security_configurations}
     for repo in org.repositories:
-        repo.code_security_configuration = attached_configurations.get(repo.name)
+        attached_configuration = attached_configurations.get(repo.name)
+        repo.code_security_configuration = (
+            attached_configuration if attached_configuration in managed_configurations else None
+        )
 
 
 async def _process_single_repo(
