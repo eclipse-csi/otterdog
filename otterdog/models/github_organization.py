@@ -792,6 +792,7 @@ class GitHubOrganization:
             context,
             handler,
         )
+        context.code_security_configurations = {x.name: x for x in self.code_security_configurations}
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
         )

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
     from otterdog.config import SecretResolver
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
     from otterdog.providers.github import GitHubProvider
     from otterdog.utils import ExclusionPatterns
 
@@ -213,6 +214,10 @@ class LivePatchContext:
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
     modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
+    # the expected code security configurations of the organization by name
+    code_security_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 class LivePatchHandler(Protocol):

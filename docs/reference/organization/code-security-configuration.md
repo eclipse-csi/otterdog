@@ -42,6 +42,22 @@ it and creates a new one, which is not attached to the repositories of the previ
 A configuration is attached to a repository with the `code_security_configuration` property of the
 [Repository](repository/index.md), and to new repositories with the `default_for_new_repos` property.
 
+The settings of a repository that the configuration attached to it sets are not managed on the repository, as the
+configuration takes precedence, and changing them on the repository might detach it from its configuration. This
+applies to the configuration the repository specifies, the one currently attached to it, or for a new repository, the
+default configuration for its visibility:
+
+| Feature of the configuration      | Settings of the repository                                                                                 |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------|
+| `dependabot_alerts`               | `dependabot_alerts_enabled`                                                                                |
+| `dependabot_security_updates`     | `dependabot_security_updates_enabled`                                                                      |
+| `code_scanning_default_setup`     | `code_scanning_default_setup_enabled`, `code_scanning_default_query_suite`, `code_scanning_default_languages` |
+| `secret_scanning`                 | `secret_scanning`                                                                                          |
+| `secret_scanning_push_protection` | `secret_scanning_push_protection`                                                                          |
+| `private_vulnerability_reporting` | `private_vulnerability_reporting_enabled`                                                                  |
+
+Features set to `not_set` leave the settings of the repository unchanged, they are still managed on the repository.
+
 !!! note
 
     To use a code security configuration as default for new repositories, the setting

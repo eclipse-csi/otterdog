@@ -711,7 +711,7 @@
         "code_security_configuration": {
           "type": "string or null",
           "description": "The name of the code security configuration attached to this repository",
-          "notes": "see Code Security Configuration, `null` keeps the configuration attached on GitHub"
+          "notes": "see Code Security Configuration, `null` keeps the configuration attached on GitHub, the security settings it sets are not managed on the repository"
         },
         "template_repository": {
           "type": "string or null",

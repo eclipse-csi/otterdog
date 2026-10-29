@@ -227,8 +227,10 @@ async def test_update_failure(github: GitHubProviderTestKit):
         response_json={"message": "Validation Failed"},
     )
 
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=configuration(description="updated"))
+
     with pytest.raises(RuntimeError, match="failed to update code security configuration with name 'baseline'"):
-        await generate_patch_and_run_it(github, old=configuration(7), new=configuration(description="updated"))
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
 
 
 async def test_update_default_for_new_repositories_only(github: GitHubProviderTestKit):

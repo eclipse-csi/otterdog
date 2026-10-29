@@ -7,7 +7,7 @@
  - feat: manage the Dependabot and Codespaces secrets of organizations and repositories with the `dependabot_secrets` and `codespaces_secrets` properties, created by the functions `newOrgDependabotSecret`, `newOrgCodespacesSecret`, `newRepoDependabotSecret` and `newRepoCodespacesSecret` of the default configuration ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
    These secrets are only read when the default configuration defines these functions.
  - feat: manage the code security configurations of organizations with the `code_security_configurations` property, created by the function `newOrgCodeSecurityConfiguration` of the default configuration, set them as default for new repositories with `default_for_new_repos` and attach them to repositories with the `code_security_configuration` property of repositories ([#892](https://github.com/eclipse-csi/otterdog/pull/892)).
-   These configurations are only read when the default configuration defines this function. Enabling `code_security` or `secret_protection` is considered to be cost-related, as well as attaching a configuration to a private repository.
+   These configurations are only read when the default configuration defines this function. Enabling `code_security` or `secret_protection` is considered to be cost-related, as well as attaching a configuration to a private repository. The security settings of a repository that its configuration sets are not managed on the repository.
 
 ### Changed
 

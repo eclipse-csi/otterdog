@@ -15,7 +15,7 @@ import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import CostPolicy, FailureType, LivePatch, ModelObject, ValidationContext
+from otterdog.models import CostPolicy, FailureType, LivePatch, LivePatchContext, ModelObject, ValidationContext
 from otterdog.models.github_organization import (
     GitHubOrganization,
     _enrich_team_bypass_reviewers,
@@ -25,7 +25,7 @@ from otterdog.models.organization_code_security_configuration import (
     OrganizationCodeSecurityConfiguration,
 )
 from otterdog.models.repository import Repository
-from otterdog.utils import UNSET, Change, jsonnet_evaluate_snippet
+from otterdog.utils import UNSET, Change, jsonnet_evaluate_snippet, unwrap
 
 from . import _EXAMPLE_CONFIG, ModelTest
 
@@ -598,3 +598,140 @@ async def test_repository_code_security_configuration_is_attached_after_creation
         )
     else:
         provider.attach_org_code_security_configuration.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# normalization of bypass reviewers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("reviewer", "normalized"),
+    [
+        ("#Maintain:always", "#Maintain"),
+        ("#5", "#RepositoryAdmin"),
+        ("#1:exempt", "#OrganizationAdmin:exempt"),
+        ("#4711:always", "#4711"),
+        ("@org/team:always", "@org/team"),
+        ("@org/team:exempt", "@org/team:exempt"),
+        # invalid reviewers are kept as is, to be reported by the validation
+        ("#Triage:always", "#Triage:always"),
+        ("@org/team:sometimes", "@org/team:sometimes"),
+    ],
+)
+def test_bypass_reviewers_are_normalized(reviewer, normalized):
+    configuration = default_configuration(secret_scanning_delegated_bypass_reviewers=[reviewer])
+
+    assert configuration.secret_scanning_delegated_bypass_reviewers == [normalized]
+
+
+def test_normalized_bypass_reviewers_do_not_differ_from_github():
+    current = OrganizationCodeSecurityConfiguration.from_provider_data(
+        "OtterdogTest",
+        {
+            "id": 1,
+            "name": "baseline",
+            "secret_scanning_delegated_bypass_options": {
+                "reviewers": [
+                    {"reviewer_id": 2, "reviewer_type": "ROLE", "mode": "ALWAYS"},
+                    {"reviewer_id": 5, "reviewer_type": "ROLE", "mode": "ALWAYS"},
+                ]
+            },
+        },
+    )
+    expected = default_configuration(secret_scanning_delegated_bypass_reviewers=["#Maintain:always", "#5"])
+
+    assert "secret_scanning_delegated_bypass_reviewers" not in expected.get_difference_from(current)
+
+
+# ---------------------------------------------------------------------------
+# repository settings set by the attached code security configuration
+# ---------------------------------------------------------------------------
+
+
+def test_controlled_repository_properties():
+    configuration = default_configuration(dependabot_security_updates="not_set", code_scanning_default_setup="not_set")
+
+    assert configuration.get_controlled_repository_properties() == {
+        "dependabot_alerts_enabled",
+        "secret_scanning",
+        "secret_scanning_push_protection",
+        "private_vulnerability_reporting_enabled",
+    }
+
+
+def generate_repository_patches(
+    expected: Repository, current: Repository | None, configurations: list[OrganizationCodeSecurityConfiguration]
+) -> list[LivePatch]:
+    org_settings = GitHubOrganization.from_model_data(
+        jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').newOrg('my-project', 'OtterdogTest')")
+    ).settings
+    context = LivePatchContext("OtterdogTest", "*", False, False, "*", org_settings, org_settings)
+    context.code_security_configurations = {x.name: x for x in configurations}
+
+    patches: list[LivePatch] = []
+    Repository.generate_live_patch(expected, current, None, context, patches.append)
+    return patches
+
+
+# the settings of the default repository differ from the default configuration
+DIFFERING_SETTINGS = {
+    "dependabot_alerts_enabled": False,
+    "secret_scanning": "disabled",
+}
+
+
+@pytest.mark.parametrize("attached_on", ["repository", "github"])
+def test_settings_set_by_the_attached_configuration_are_not_managed(attached_on):
+    configurations = [default_configuration(name="baseline")]
+    expected = repository(code_security_configuration="baseline" if attached_on == "repository" else None)
+    current = repository(code_security_configuration="baseline", **DIFFERING_SETTINGS)
+
+    assert expected.dependabot_alerts_enabled is True
+    assert generate_repository_patches(expected, current, configurations) == []
+
+
+def test_settings_of_features_not_set_by_the_attached_configuration_are_managed():
+    configurations = [default_configuration(name="baseline", dependabot_alerts="not_set")]
+    expected = repository()
+    current = repository(code_security_configuration="baseline", **DIFFERING_SETTINGS)
+
+    patches = generate_repository_patches(expected, current, configurations)
+
+    assert len(patches) == 1
+    assert unwrap(patches[0].changes) == {"dependabot_alerts_enabled": Change(False, True)}
+
+
+def test_settings_without_attached_configuration_are_managed():
+    configurations = [default_configuration(name="baseline")]
+    expected = repository()
+    current = repository(code_security_configuration=None, **DIFFERING_SETTINGS)
+
+    patches = generate_repository_patches(expected, current, configurations)
+
+    assert len(patches) == 1
+    assert set(unwrap(patches[0].changes)) == set(DIFFERING_SETTINGS)
+
+
+@pytest.mark.parametrize(
+    ("private", "default_for_new_repos", "managed"),
+    [
+        (False, "all", False),
+        (False, "public", False),
+        (False, "private_and_internal", True),
+        (True, "private_and_internal", False),
+        (True, "none", True),
+    ],
+)
+def test_settings_of_new_repository_set_by_default_configuration_are_not_managed(
+    private, default_for_new_repos, managed
+):
+    configurations = [default_configuration(name="baseline", default_for_new_repos=default_for_new_repos)]
+    expected = repository(private=private)
+
+    patches = generate_repository_patches(expected, None, configurations)
+
+    assert len(patches) == 1
+    assert (unwrap(patches[0].expected_object).dependabot_alerts_enabled is not UNSET) is managed
+    # the expected organization is left unchanged
+    assert expected.dependabot_alerts_enabled is True

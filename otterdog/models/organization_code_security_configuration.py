@@ -52,6 +52,58 @@ _REVIEWER_MODES = {"always": "ALWAYS", "exempt": "EXEMPT"}
 _REVIEWER_PATTERN = re.compile(r"^(@[^/:\s]+/[^/:\s]+|#[\w-]+)(:(?P<mode>\w+))?$")
 
 
+def _validate_reviewer(reviewer: str) -> str | None:
+    """Returns the description of the problem of a bypass reviewer, if any."""
+    match = _REVIEWER_PATTERN.match(reviewer)
+    if match is None:
+        return (
+            f"an invalid bypass reviewer '{reviewer}', "
+            f"only teams ('@<org>/<team-slug>') or roles ('#<role>') are supported."
+        )
+
+    mode = match.group("mode")
+    if mode is not None and mode not in _REVIEWER_MODES:
+        return (
+            f"bypass reviewer '{reviewer}' with mode '{mode}', "
+            f"while only modes ({' | '.join(repr(x) for x in _REVIEWER_MODES)}) are allowed."
+        )
+
+    actor = match.group(1)
+    role = actor[1:]
+    if actor.startswith("#") and role not in _INVERTED_REVIEWER_ROLES and not role.isdigit():
+        return (
+            f"bypass reviewer '{reviewer}' with unknown role '{role}', "
+            f"only roles ({' | '.join(repr(x) for x in _INVERTED_REVIEWER_ROLES)}) "
+            f"or the id of a custom role are supported."
+        )
+
+    return None
+
+
+def _normalize_reviewers(reviewers: Any) -> Any:
+    """
+    Normalizes bypass reviewers to the representation they are read from GitHub with:
+    the default mode 'always' is omitted and roles that have a name are referenced by it.
+    """
+    if not isinstance(reviewers, list):
+        return reviewers
+
+    def normalize(reviewer: Any) -> Any:
+        match = _REVIEWER_PATTERN.match(reviewer) if isinstance(reviewer, str) else None
+        if match is None or _validate_reviewer(reviewer) is not None:
+            # invalid reviewers are kept as is to be reported by the validation
+            return reviewer
+
+        actor = match.group(1)
+        if actor.startswith("#"):
+            actor = f"#{_REVIEWER_ROLES.get(actor[1:], actor[1:])}"
+
+        mode = match.group("mode")
+        return f"{actor}:{mode}" if mode is not None and mode != "always" else actor
+
+    return [normalize(reviewer) for reviewer in reviewers]
+
+
 @dataclasses.dataclass
 class OrganizationCodeSecurityConfiguration(ModelObject):
     """
@@ -138,6 +190,20 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         "secret_scanning_extended_metadata",
     ]
 
+    # the settings of a repository that a feature sets once the configuration is attached to the repository
+    _repository_properties: ClassVar[dict[str, list[str]]] = {
+        "dependabot_alerts": ["dependabot_alerts_enabled"],
+        "dependabot_security_updates": ["dependabot_security_updates_enabled"],
+        "code_scanning_default_setup": [
+            "code_scanning_default_setup_enabled",
+            "code_scanning_default_query_suite",
+            "code_scanning_default_languages",
+        ],
+        "secret_scanning": ["secret_scanning"],
+        "secret_scanning_push_protection": ["secret_scanning_push_protection"],
+        "private_vulnerability_reporting": ["private_vulnerability_reporting_enabled"],
+    }
+
     # Code Security and Secret Protection are licensed per active committer on private and internal repositories
     _cost_related_properties: ClassVar[list[str]] = ["code_security", "secret_protection"]
 
@@ -155,9 +221,27 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
         return any(prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties)
 
+    def get_controlled_repository_properties(self) -> set[str]:
+        """
+        Returns the settings of a repository that this configuration sets once attached to it,
+        the settings of features set to 'not_set' are left to the repository.
+        """
+        return {
+            key
+            for feature, keys in self._repository_properties.items()
+            if self.__getattribute__(feature) in ("enabled", "disabled")
+            for key in keys
+        }
+
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         header = self.get_model_header(parent_object)
 
+        self._validate_values(context, header)
+        self._validate_code_scanning_runner(context, header)
+        self._validate_bypass_reviewers(context, header)
+        self._validate_ineffective_settings(context, header)
+
+    def _validate_values(self, context: ValidationContext, header: str) -> None:
         def validate_value(key: str, allowed_values: tuple[str, ...]) -> None:
             value = self.__getattribute__(key)
             if is_set_and_valid(value) and value not in allowed_values:
@@ -184,76 +268,66 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         validate_value("default_for_new_repos", _DEFAULT_FOR_NEW_REPOS_VALUES)
         validate_value("code_scanning_default_setup_runner_type", _RUNNER_TYPE_VALUES)
 
-        if self.code_scanning_default_setup_runner_type == "labeled":
-            if not is_set_and_valid(self.code_scanning_default_setup_runner_label):
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{header} has 'code_scanning_default_setup_runner_type' set to 'labeled', "
-                    f"but no 'code_scanning_default_setup_runner_label' is specified.",
-                )
-        elif is_set_and_valid(self.code_scanning_default_setup_runner_label):
+    def _validate_code_scanning_runner(self, context: ValidationContext, header: str) -> None:
+        has_runner_label = is_set_and_valid(self.code_scanning_default_setup_runner_label)
+
+        if self.code_scanning_default_setup_runner_type == "labeled" and not has_runner_label:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{header} has 'code_scanning_default_setup_runner_type' set to 'labeled', "
+                f"but no 'code_scanning_default_setup_runner_label' is specified.",
+            )
+        elif self.code_scanning_default_setup_runner_type != "labeled" and has_runner_label:
             context.add_failure(
                 FailureType.WARNING,
                 f"{header} has 'code_scanning_default_setup_runner_label' specified, "
                 f"which is only taken into account if 'code_scanning_default_setup_runner_type' is set to 'labeled'.",
             )
 
+    def _validate_bypass_reviewers(self, context: ValidationContext, header: str) -> None:
         reviewers = self.secret_scanning_delegated_bypass_reviewers
-        if is_set_and_present(reviewers):
-            for reviewer in reviewers:
-                match = _REVIEWER_PATTERN.match(reviewer)
-                if match is None:
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{header} has an invalid bypass reviewer '{reviewer}', "
-                        f"only teams ('@<org>/<team-slug>') or roles ('#<role>') are supported.",
-                    )
-                    continue
+        if not is_set_and_present(reviewers):
+            return
 
-                if (mode := match.group("mode")) is not None and mode not in _REVIEWER_MODES:
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{header} has bypass reviewer '{reviewer}' with mode '{mode}', "
-                        f"while only modes ({' | '.join(repr(x) for x in _REVIEWER_MODES)}) are allowed.",
-                    )
+        for reviewer in reviewers:
+            error = _validate_reviewer(reviewer)
+            if error is not None:
+                context.add_failure(FailureType.ERROR, f"{header} has {error}")
 
-                role = match.group(1)[1:]
-                if match.group(1).startswith("#") and role not in _INVERTED_REVIEWER_ROLES and not role.isdigit():
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{header} has bypass reviewer '{reviewer}' with unknown role '{role}', "
-                        f"only roles ({' | '.join(repr(x) for x in _INVERTED_REVIEWER_ROLES)}) "
-                        f"or the id of a custom role are supported.",
-                    )
+        if self.secret_scanning_delegated_bypass == "enabled" and len(reviewers) == 0:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{header} has 'secret_scanning_delegated_bypass' enabled, "
+                f"but no 'secret_scanning_delegated_bypass_reviewers' are specified.",
+            )
 
-            if self.secret_scanning_delegated_bypass == "enabled" and len(reviewers) == 0:
-                context.add_failure(
-                    FailureType.WARNING,
-                    f"{header} has 'secret_scanning_delegated_bypass' enabled, "
-                    f"but no 'secret_scanning_delegated_bypass_reviewers' are specified.",
-                )
+    def _validate_ineffective_settings(self, context: ValidationContext, header: str) -> None:
+        def warn(key: str, required_key: str) -> None:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{header} has '{key}' enabled while '{required_key}' is disabled, the setting will have no effect.",
+            )
 
         if self.secret_scanning == "disabled":
             for key in self._secret_scanning_properties:
                 if self.__getattribute__(key) == "enabled":
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{header} has '{key}' enabled while 'secret_scanning' is disabled, "
-                        f"the setting will have no effect.",
-                    )
+                    warn(key, "secret_scanning")
         elif self.secret_scanning_push_protection == "disabled" and self.secret_scanning_delegated_bypass == "enabled":
-            context.add_failure(
-                FailureType.WARNING,
-                f"{header} has 'secret_scanning_delegated_bypass' enabled while 'secret_scanning_push_protection' "
-                f"is disabled, the setting will have no effect.",
-            )
+            warn("secret_scanning_delegated_bypass", "secret_scanning_push_protection")
 
         if self.dependabot_alerts == "disabled" and self.dependabot_security_updates == "enabled":
-            context.add_failure(
-                FailureType.WARNING,
-                f"{header} has 'dependabot_security_updates' enabled while 'dependabot_alerts' is disabled, "
-                f"the setting will have no effect.",
-            )
+            warn("dependabot_security_updates", "dependabot_alerts")
+
+    @classmethod
+    def get_mapping_from_model(cls) -> dict[str, Any]:
+        mapping = super().get_mapping_from_model()
+
+        # reviewers are compared in the representation they are read from GitHub with
+        mapping["secret_scanning_delegated_bypass_reviewers"] = OptionalS(
+            "secret_scanning_delegated_bypass_reviewers", default=UNSET
+        ) >> F(_normalize_reviewers)
+
+        return mapping
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         # optional properties set to None are not managed

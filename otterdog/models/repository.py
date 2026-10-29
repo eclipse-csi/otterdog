@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
 
     from .github_organization import GitHubOrganization
+    from .organization_code_security_configuration import OrganizationCodeSecurityConfiguration
     from .organization_settings import OrganizationSettings
 
 
@@ -1467,6 +1468,8 @@ class Repository(ModelObject):
                 coerced_object, expected_org_settings.workflows
             )
 
+        cls._unset_properties_of_attached_code_security_configuration(coerced_object, current_object, context)
+
         changes_object_to_readonly = False
 
         if current_object is None:
@@ -1600,6 +1603,48 @@ class Repository(ModelObject):
                 context,
                 handler,
             )
+
+    @classmethod
+    def _unset_properties_of_attached_code_security_configuration(
+        cls, expected_object: Repository, current_object: Repository | None, context: LivePatchContext
+    ) -> None:
+        """
+        The settings that the code security configuration attached to the repository sets are not managed
+        on the repository, otherwise both would set them, and changing them might detach the configuration.
+        """
+        configuration = cls._get_attached_code_security_configuration(expected_object, current_object, context)
+        if configuration is not None:
+            for key in configuration.get_controlled_repository_properties():
+                setattr(expected_object, key, UNSET)
+
+    @staticmethod
+    def _get_attached_code_security_configuration(
+        expected_object: Repository, current_object: Repository | None, context: LivePatchContext
+    ) -> OrganizationCodeSecurityConfiguration | None:
+        """
+        Returns the code security configuration that is attached to the repository once the patch is applied:
+        the one specified by the repository, otherwise the one currently attached, or for a new repository,
+        the default configuration of the organization for its visibility.
+        """
+        name = expected_object.code_security_configuration
+        if not is_set_and_present(name) and current_object is not None:
+            name = current_object.code_security_configuration
+
+        if is_set_and_present(name):
+            return context.code_security_configurations.get(name)
+
+        if current_object is None:
+            visibility = "private_and_internal" if expected_object.private is True else "public"
+            return next(
+                (
+                    x
+                    for x in context.code_security_configurations.values()
+                    if x.default_for_new_repos in ("all", visibility)
+                ),
+                None,
+            )
+
+        return None
 
     @staticmethod
     def _include_squash_merge_patch_required_properties(
