@@ -10,7 +10,7 @@
   "dependabot_security_updates": "enabled",
   "dependabot_reachability": null,
   "dependabot_delegated_alert_dismissal": "disabled",
-  "code_scanning_default_setup": "enabled",
+  "code_scanning_default_setup": "disabled",
   "code_scanning_default_setup_runner_type": "labeled",
   "code_scanning_default_setup_runner_label": "code-scanning",
   "code_scanning_allow_advanced": false,

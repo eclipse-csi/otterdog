@@ -17,7 +17,7 @@
   "code_scanning_options": {
     "allow_advanced": false
   },
-  "code_scanning_default_setup": "enabled",
+  "code_scanning_default_setup": "disabled",
   "code_scanning_default_setup_options": {
     "runner_type": "labeled",
     "runner_label": "code-scanning"

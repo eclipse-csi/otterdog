@@ -179,6 +179,8 @@ orgs.newOrg('my-project', 'my-org') {
   code_security_configurations+: [
     orgs.newOrgCodeSecurityConfiguration('baseline') {
       description: "Secret scanning and Dependabot for all repositories",
+      code_security: "enabled", // (1)!
+      secret_protection: "enabled",
       dependabot_alerts: "enabled",
       dependabot_security_updates: "enabled",
       secret_scanning: "enabled",
@@ -188,13 +190,16 @@ orgs.newOrg('my-project', 'my-org') {
   ],
   _repositories+:: [
     orgs.newRepo('my-repo') {
-      code_security_configuration: "baseline", // (1)!
+      code_security_configuration: "baseline", // (2)!
     },
   ],
 }
 ```
 
-1. The settings of the repository that the configuration sets, e.g. `dependabot_alerts_enabled`, are not managed on
+1. GitHub requires `secret_protection` for the secret scanning features, and `code_security` for the code scanning
+   ones. Without an unbundled GitHub Advanced Security plan, which is not available for an organization with free
+   plan, both products must have the same status.
+2. The settings of the repository that the configuration sets, e.g. `dependabot_alerts_enabled`, are not managed on
    the repository anymore, the configuration takes precedence. A repository without `code_security_configuration`
    keeps the configuration attached to it on GitHub.
 
@@ -217,6 +222,8 @@ orgs.newOrg('my-project', 'my-org') {
   },
   code_security_configurations+: [
     orgs.newOrgCodeSecurityConfiguration('public-baseline') {
+      code_security: "enabled",
+      secret_protection: "enabled",
       dependabot_alerts: "enabled",
       secret_scanning: "enabled",
       secret_scanning_push_protection: "enabled",
@@ -239,6 +246,8 @@ reviewer from push protection instead, e.g. for automation:
 orgs.newOrg('my-project', 'my-org') {
   code_security_configurations+: [
     orgs.newOrgCodeSecurityConfiguration('baseline') {
+      code_security: "enabled",
+      secret_protection: "enabled",
       secret_scanning: "enabled",
       secret_scanning_push_protection: "enabled",
       secret_scanning_delegated_bypass: "enabled",

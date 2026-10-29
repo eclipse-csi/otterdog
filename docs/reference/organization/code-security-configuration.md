@@ -118,6 +118,9 @@ The default configuration of an instance of otterdog, set by `base_template`, mi
 - specifying a bypass reviewer that is neither a team nor a role, or with a mode other than `always` or `exempt`, triggers an error
 - setting the same visibility of new repositories in `default_for_new_repos` of several configurations triggers an error
 - setting `default_for_new_repos` while `default_code_security_configurations_disabled` of the organization settings is enabled triggers an error
+- enabling a feature of secret scanning while `secret_protection` is disabled triggers an error
+- enabling `code_scanning_default_setup` or `code_scanning_delegated_alert_dismissal` while `code_security` is disabled triggers an error
+- setting `code_security` and `secret_protection` to a different status for an organization with free plan triggers an error
 - enabling `secret_scanning_delegated_bypass` without any `secret_scanning_delegated_bypass_reviewers` triggers a warning
 - enabling a feature of secret scanning while `secret_scanning` is disabled triggers a warning
 - enabling `secret_scanning_delegated_bypass` while `secret_scanning_push_protection` is disabled triggers a warning
@@ -128,7 +131,8 @@ The default configuration of an instance of otterdog, set by `base_template`, mi
     Enabling `code_security` or `secret_protection` can consume GitHub Advanced Security licenses for the private
     and internal repositories the configuration is attached to, such changes are considered to be cost-related.
     Setting `code_security` and `secret_protection` to a different status requires an unbundled GitHub Advanced
-    Security plan, i.e. GitHub Code Security and GitHub Secret Protection, GitHub rejects it otherwise.
+    Security plan, i.e. GitHub Code Security and GitHub Secret Protection, which is not available for an organization
+    with free plan. GitHub rejects it otherwise.
 
 ## Example usage
 
@@ -141,6 +145,7 @@ The default configuration of an instance of otterdog, set by `base_template`, mi
       code_security_configurations+: [
         orgs.newOrgCodeSecurityConfiguration('baseline') {
           description: "Baseline configuration for all new repositories",
+          code_security: "enabled",
           secret_protection: "enabled",
           dependabot_alerts: "enabled",
           dependabot_security_updates: "enabled",

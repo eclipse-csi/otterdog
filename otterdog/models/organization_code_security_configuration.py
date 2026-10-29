@@ -11,7 +11,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import re
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from jsonbender import F, K, OptionalS  # type: ignore
 
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models.github_organization import GitHubOrganization
     from otterdog.providers.github import GitHubProvider
 
 
@@ -202,6 +203,12 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         "secret_scanning_extended_metadata",
     ]
 
+    # features that GitHub only allows to be enabled along with their product
+    _product_features: ClassVar[dict[str, list[str]]] = {
+        "code_security": ["code_scanning_default_setup", "code_scanning_delegated_alert_dismissal"],
+        "secret_protection": ["secret_scanning", *_secret_scanning_properties],
+    }
+
     # the settings of a repository that a feature sets once the configuration is attached to the repository
     _repository_properties: ClassVar[dict[str, list[str]]] = {
         "dependabot_alerts": ["dependabot_alerts_enabled"],
@@ -292,6 +299,7 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         header = self.get_model_header(parent_object)
 
         self._validate_values(context, header)
+        self._validate_products(context, header, cast("GitHubOrganization | None", parent_object))
         self._validate_code_scanning_runner(context, header)
         self._validate_bypass_reviewers(context, header)
         self._validate_ineffective_settings(context, header)
@@ -322,6 +330,28 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         validate_value("enforcement", _ENFORCEMENT_VALUES)
         validate_value("default_for_new_repos", _DEFAULT_FOR_NEW_REPOS_VALUES)
         validate_value("code_scanning_default_setup_runner_type", _RUNNER_TYPE_VALUES)
+
+    def _validate_products(self, context: ValidationContext, header: str, org: GitHubOrganization | None) -> None:
+        # the products can only have a different status with an unbundled Advanced Security plan, which is not
+        # available for an organization with free plan
+        if org is not None and org.settings.plan == "free" and self.code_security != self.secret_protection:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{header} has 'code_security' and 'secret_protection' of a different status, which is not available "
+                f"for an organization with free plan, both have to be enabled or disabled.",
+            )
+
+        for product, features in self._product_features.items():
+            if self.__getattribute__(product) != "disabled":
+                continue
+
+            for key in features:
+                if self.__getattribute__(key) == "enabled":
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{header} has '{key}' enabled while '{product}' is disabled, "
+                        f"GitHub requires '{product}' to be enabled for it.",
+                    )
 
     def _validate_code_scanning_runner(self, context: ValidationContext, header: str) -> None:
         has_runner_label = is_set_and_valid(self.code_scanning_default_setup_runner_label)

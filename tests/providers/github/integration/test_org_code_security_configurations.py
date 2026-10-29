@@ -204,8 +204,8 @@ async def test_create_as_default_for_new_repositories(github: GitHubProviderTest
         # the products have a different status, they are set individually instead of 'advanced_security'
         request_json={
             **{k: v for k, v in DEFAULT_CONFIGURATION_REQUEST.items() if k != "advanced_security"},
-            "code_security": "enabled",
-            "secret_protection": "disabled",
+            "code_security": "disabled",
+            "secret_protection": "enabled",
             "secret_scanning": "enabled",
             "secret_scanning_push_protection": "enabled",
             "secret_scanning_delegated_bypass": "enabled",
@@ -228,7 +228,7 @@ async def test_create_as_default_for_new_repositories(github: GitHubProviderTest
         github,
         old=None,
         new=configuration(
-            code_security="enabled",
+            secret_protection="enabled",
             secret_scanning="enabled",
             secret_scanning_push_protection="enabled",
             secret_scanning_delegated_bypass="enabled",

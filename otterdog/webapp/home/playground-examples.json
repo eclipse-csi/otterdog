@@ -266,19 +266,19 @@
           "title": "Code security configurations",
           "variant": null,
           "anchor": "code-security-configurations",
-          "code": "orgs.newOrg('my-project', 'my-org') {\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('baseline') {\n      description: \"Secret scanning and Dependabot for all repositories\",\n      dependabot_alerts: \"enabled\",\n      dependabot_security_updates: \"enabled\",\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      private_vulnerability_reporting: \"enabled\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      code_security_configuration: \"baseline\",\n    },\n  ],\n}\n"
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('baseline') {\n      description: \"Secret scanning and Dependabot for all repositories\",\n      code_security: \"enabled\",\n      secret_protection: \"enabled\",\n      dependabot_alerts: \"enabled\",\n      dependabot_security_updates: \"enabled\",\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      private_vulnerability_reporting: \"enabled\",\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      code_security_configuration: \"baseline\",\n    },\n  ],\n}\n"
         },
         {
           "title": "Default configuration for new repositories",
           "variant": null,
           "anchor": "default-configuration-for-new-repositories",
-          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    default_code_security_configurations_disabled: false,\n  },\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('public-baseline') {\n      dependabot_alerts: \"enabled\",\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      default_for_new_repos: \"public\",\n    },\n  ],\n}\n"
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    default_code_security_configurations_disabled: false,\n  },\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('public-baseline') {\n      code_security: \"enabled\",\n      secret_protection: \"enabled\",\n      dependabot_alerts: \"enabled\",\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      default_for_new_repos: \"public\",\n    },\n  ],\n}\n"
         },
         {
           "title": "Delegated bypass of push protection",
           "variant": null,
           "anchor": "delegated-bypass-of-push-protection",
-          "code": "orgs.newOrg('my-project', 'my-org') {\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('baseline') {\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      secret_scanning_delegated_bypass: \"enabled\",\n      secret_scanning_delegated_bypass_reviewers: [\n        \"@my-org/security-team\",\n        \"#OrganizationAdmin\",\n        \"@my-org/release-bots:exempt\",\n      ],\n    },\n  ],\n}\n"
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  code_security_configurations+: [\n    orgs.newOrgCodeSecurityConfiguration('baseline') {\n      code_security: \"enabled\",\n      secret_protection: \"enabled\",\n      secret_scanning: \"enabled\",\n      secret_scanning_push_protection: \"enabled\",\n      secret_scanning_delegated_bypass: \"enabled\",\n      secret_scanning_delegated_bypass_reviewers: [\n        \"@my-org/security-team\",\n        \"#OrganizationAdmin\",\n        \"@my-org/release-bots:exempt\",\n      ],\n    },\n  ],\n}\n"
         },
         {
           "title": "Organization settings related to security",

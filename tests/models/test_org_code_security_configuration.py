@@ -340,6 +340,7 @@ def test_validate_runner_label_without_labeled_runner():
 )
 def test_validate_invalid_bypass_reviewers(reviewer, message):
     configuration = default_configuration(
+        secret_protection="enabled",
         secret_scanning="enabled",
         secret_scanning_push_protection="enabled",
         secret_scanning_delegated_bypass="enabled",
@@ -358,6 +359,7 @@ def test_validate_invalid_bypass_reviewers(reviewer, message):
 )
 def test_validate_valid_bypass_reviewers(reviewer):
     configuration = default_configuration(
+        secret_protection="enabled",
         secret_scanning="enabled",
         secret_scanning_push_protection="enabled",
         secret_scanning_delegated_bypass="enabled",
@@ -372,6 +374,7 @@ def test_validate_valid_bypass_reviewers(reviewer):
     [
         (
             {
+                "secret_protection": "enabled",
                 "secret_scanning": "enabled",
                 "secret_scanning_push_protection": "enabled",
                 "secret_scanning_delegated_bypass": "enabled",
@@ -380,11 +383,19 @@ def test_validate_valid_bypass_reviewers(reviewer):
             "no 'secret_scanning_delegated_bypass_reviewers'",
         ),
         (
-            {"secret_scanning": "disabled", "secret_scanning_validity_checks": "enabled"},
+            {
+                "secret_protection": "enabled",
+                "secret_scanning": "disabled",
+                "secret_scanning_validity_checks": "enabled",
+            },
             "'secret_scanning_validity_checks' enabled while 'secret_scanning' is disabled",
         ),
         (
-            {"secret_scanning": "enabled", "secret_scanning_delegated_bypass": "enabled"},
+            {
+                "secret_protection": "enabled",
+                "secret_scanning": "enabled",
+                "secret_scanning_delegated_bypass": "enabled",
+            },
             "'secret_scanning_delegated_bypass' enabled while 'secret_scanning_push_protection' is disabled",
         ),
         (
@@ -400,6 +411,72 @@ def test_validate_ineffective_settings(overrides, message):
     warnings = failures_of_type(failures, FailureType.WARNING)
     assert len(warnings) == 1
     assert message in warnings[0]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "messages"),
+    [
+        (
+            {"code_scanning_default_setup": "enabled"},
+            ["'code_scanning_default_setup' enabled while 'code_security' is disabled"],
+        ),
+        (
+            {"secret_scanning": "enabled", "secret_scanning_push_protection": "enabled"},
+            [
+                "'secret_scanning' enabled while 'secret_protection' is disabled",
+                "'secret_scanning_push_protection' enabled while 'secret_protection' is disabled",
+            ],
+        ),
+    ],
+)
+def test_validate_features_require_their_product(overrides, messages):
+    failures = validate(default_configuration(**overrides))
+
+    errors = failures_of_type(failures, FailureType.ERROR)
+    assert len(errors) == len(messages)
+    for error, message in zip(errors, messages, strict=True):
+        assert message in error
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"code_security": "enabled", "code_scanning_default_setup": "enabled"},
+        {"secret_protection": "enabled", "secret_scanning": "enabled", "secret_scanning_push_protection": "enabled"},
+        # features that do not belong to a product
+        {"dependabot_alerts": "enabled", "private_vulnerability_reporting": "enabled"},
+    ],
+)
+def test_validate_features_with_their_product(overrides):
+    assert validate(default_configuration(**overrides)) == []
+
+
+@pytest.mark.parametrize(
+    ("plan", "code_security", "secret_protection", "valid"),
+    [
+        ("free", "enabled", "enabled", True),
+        ("free", "disabled", "disabled", True),
+        ("free", "disabled", "enabled", False),
+        ("free", "enabled", "disabled", False),
+        # an unbundled Advanced Security plan is available for other plans
+        ("team", "disabled", "enabled", True),
+        ("enterprise", "enabled", "disabled", True),
+    ],
+)
+def test_validate_products_of_the_plan(plan, code_security, secret_protection, valid):
+    configuration = default_configuration(code_security=code_security, secret_protection=secret_protection)
+    org = organization()
+    org.settings.plan = plan
+    context = validation_context()
+
+    configuration.validate(context, org)
+
+    errors = failures_of_type(context.validation_failures, FailureType.ERROR)
+    if valid:
+        assert errors == []
+    else:
+        assert len(errors) == 1
+        assert "not available for an organization with free plan" in errors[0]
 
 
 @pytest.mark.parametrize(
