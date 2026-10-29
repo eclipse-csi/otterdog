@@ -60,7 +60,9 @@ default configuration for its visibility, unless `default_code_security_configur
 | `private_vulnerability_reporting` | `private_vulnerability_reporting_enabled`                                                                  |
 
 Features set to `not_set` leave the settings of the repository unchanged, they are still managed on the repository.
-For a feature that the configuration does not specify, its current value on GitHub applies.
+For a feature that the configuration does not specify, its current value on GitHub applies. When the current settings
+of repositories are not retrieved from GitHub, e.g. for the local apply of the dashboard, the settings that their
+configuration stops setting are applied again, as the configuration might have changed them on GitHub.
 
 !!! note
 

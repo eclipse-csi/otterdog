@@ -119,6 +119,8 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     """
 
     id: int = dataclasses.field(metadata={"external_only": True})
+    # 'organization', 'global' for predefined configurations (e.g. GitHub recommended) or 'enterprise'
+    target_type: str = dataclasses.field(metadata={"external_only": True})
     name: str = dataclasses.field(metadata={"key": True})
     description: str
     code_security: str
@@ -218,6 +220,10 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     @property
     def model_object_name(self) -> str:
         return "org_code_security_configuration"
+
+    def is_organization_configuration(self) -> bool:
+        """Configurations of the organization can be managed, as opposed to predefined or enterprise ones."""
+        return not is_set_and_valid(self.target_type) or self.target_type == "organization"
 
     def is_default_for_new_repos(self) -> bool:
         return is_set_and_valid(self.default_for_new_repos) and self.default_for_new_repos != "none"
@@ -578,13 +584,20 @@ class CodeSecurityConfigurationPlan:
 
     # the configurations of the organization by name, that repositories can reference
     managed_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=dict)
-    # the configuration currently attached to each repository, which might not be managed, or None if
-    # the configuration is deleted
-    attached_configurations: dict[str, OrganizationCodeSecurityConfiguration | None] = dataclasses.field(
+    # the configuration currently attached to each repository
+    current_attached_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(
+        default_factory=dict
+    )
+    # the configuration attached to each repository once the patches are applied, if the repository does not
+    # specify one, None if the configuration is deleted
+    planned_attached_configurations: dict[str, OrganizationCodeSecurityConfiguration | None] = dataclasses.field(
         default_factory=dict
     )
     # the default configuration for new repositories by visibility
     default_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=dict)
+    # whether the settings that the attached configuration stops setting are updated, as their current values
+    # are not known, e.g. if the current organization is loaded from a file
+    update_released_settings: bool = False
 
     def get_default_configuration(self, private: bool) -> OrganizationCodeSecurityConfiguration | None:
         return self.default_configurations.get("private_and_internal" if private else "public")

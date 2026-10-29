@@ -126,13 +126,13 @@ class GitHubOrganization:
 
     _secrets_resolved: bool = False
 
-    # retrieved from GitHub to plan repositories: the code security configurations that are not managed,
-    # e.g. GitHub recommended or of the enterprise, and the id of the configuration attached to each
-    # repository, regardless of whether the configuration is managed
-    _unmanaged_code_security_configurations: list[OrganizationCodeSecurityConfiguration] = dataclasses.field(
-        default_factory=list
-    )
-    _attached_code_security_configurations: dict[str, int] = dataclasses.field(default_factory=dict)
+    # retrieved from GitHub to plan the settings of repositories: all code security configurations, including the
+    # ones that are not managed, e.g. GitHub recommended or of the enterprise, and the id of the configuration
+    # attached to each repository, None if they were not retrieved, e.g. for an organization loaded from a file
+    _live_code_security_configurations: list[OrganizationCodeSecurityConfiguration] | None = None
+    _attached_code_security_configurations: dict[str, int] | None = None
+    # whether the settings of the repositories were retrieved from GitHub
+    _loaded_from_github: bool = False
 
     @property
     def secrets_resolved(self) -> bool:
@@ -220,14 +220,16 @@ class GitHubOrganization:
         self.code_security_configurations = configurations
 
     @property
-    def unmanaged_code_security_configurations(self) -> list[OrganizationCodeSecurityConfiguration]:
-        return self._unmanaged_code_security_configurations
+    def live_code_security_configurations(self) -> list[OrganizationCodeSecurityConfiguration] | None:
+        return self._live_code_security_configurations
 
-    def add_unmanaged_code_security_configuration(self, configuration: OrganizationCodeSecurityConfiguration) -> None:
-        self._unmanaged_code_security_configurations.append(configuration)
+    def set_live_code_security_configurations(
+        self, configurations: list[OrganizationCodeSecurityConfiguration]
+    ) -> None:
+        self._live_code_security_configurations = configurations
 
     @property
-    def attached_code_security_configurations(self) -> dict[str, int]:
+    def attached_code_security_configurations(self) -> dict[str, int] | None:
         return self._attached_code_security_configurations
 
     def set_attached_code_security_configurations(self, attached_configurations: dict[str, int]) -> None:
@@ -236,71 +238,60 @@ class GitHubOrganization:
     async def load_code_security_configuration_metadata(self, provider: GitHubProvider) -> None:
         """
         Retrieves from GitHub what is needed to plan the settings of repositories for an organization that is not
-        loaded from GitHub, e.g. from a file: the ids of its code security configurations, the configurations that
-        are not managed and the configuration attached to each repository. The configurations of the organization
-        and its repositories are otherwise left unchanged.
+        loaded from GitHub, e.g. from a file: all code security configurations and the configuration attached to each
+        repository. The configurations of the organization and its repositories are otherwise left unchanged.
         """
-        managed_configuration_ids: dict[str, int] = {}
-        for data in await provider.get_org_code_security_configurations(self.github_id):
-            if data.get("target_type") == "organization":
-                managed_configuration_ids[data["name"]] = data["id"]
-            else:
-                self.add_unmanaged_code_security_configuration(
-                    OrganizationCodeSecurityConfiguration.from_provider_data(self.github_id, data)
-                )
-
-        for configuration in self.code_security_configurations:
-            if configuration.name in managed_configuration_ids:
-                configuration.id = managed_configuration_ids[configuration.name]
-
-        await _load_attached_code_security_configurations(
-            self, self.github_id, provider, list(managed_configuration_ids.values())
-        )
+        configurations = [
+            OrganizationCodeSecurityConfiguration.from_provider_data(self.github_id, data)
+            for data in await provider.get_org_code_security_configurations(self.github_id)
+        ]
+        self.set_live_code_security_configurations(configurations)
+        await _load_attached_code_security_configurations(self, self.github_id, provider)
 
     def plan_code_security_configurations(
         self, current_organization: GitHubOrganization, delete_resources: bool
     ) -> CodeSecurityConfigurationPlan:
         """
         Plans the code security configurations as they are once the patches are applied, to plan the settings
-        of repositories: the configurations retrieved from GitHub, including the ones that are not managed or whose
-        deletion is skipped, overlaid with the values managed by the expected configurations.
+        of repositories: the current configurations, including the ones that are not managed or whose deletion
+        is skipped, overlaid with the values managed by the expected configurations.
         """
         expected_configurations = {x.name: x for x in self.code_security_configurations}
+        deleted_configurations = (
+            {x.name for x in current_organization.code_security_configurations} - set(expected_configurations)
+            if delete_resources
+            else set()
+        )
 
-        managed_configurations: dict[str, OrganizationCodeSecurityConfiguration] = {}
-        configurations_by_id: dict[int, OrganizationCodeSecurityConfiguration] = {}
+        # pairs of a current configuration and the planned one, None if it is deleted
+        configurations = [
+            (x, _plan_code_security_configuration(x, expected_configurations, deleted_configurations))
+            for x in (
+                current_organization.live_code_security_configurations
+                or current_organization.code_security_configurations
+            )
+        ]
 
-        for current_configuration in current_organization.code_security_configurations:
-            expected_configuration = expected_configurations.get(current_configuration.name)
-            if expected_configuration is not None:
-                planned_configuration = current_configuration.overlaid_with(expected_configuration)
-            elif delete_resources:
-                # the configuration is deleted before repositories are patched, detaching its repositories
-                continue
-            else:
-                planned_configuration = current_configuration
-
-            managed_configurations[current_configuration.name] = planned_configuration
-            if is_set_and_present(current_configuration.id):
-                configurations_by_id[current_configuration.id] = planned_configuration
-
-        for configuration in current_organization.unmanaged_code_security_configurations:
-            configurations_by_id[configuration.id] = configuration
-
+        managed_configurations = {
+            current.name: planned
+            for current, planned in configurations
+            if planned is not None and current.is_organization_configuration()
+        }
         # the configurations that are created
         for expected_configuration in self.code_security_configurations:
             managed_configurations.setdefault(expected_configuration.name, expected_configuration)
 
+        attached_configurations = _get_attached_code_security_configurations(current_organization, configurations)
+
         return CodeSecurityConfigurationPlan(
             managed_configurations,
-            {
-                repo_name: configurations_by_id.get(configuration_id)
-                for repo_name, configuration_id in current_organization.attached_code_security_configurations.items()
-            },
+            {repo_name: current for repo_name, (current, _) in attached_configurations.items()},
+            {repo_name: planned for repo_name, (_, planned) in attached_configurations.items()},
             self._plan_default_code_security_configurations(
                 [managed_configurations[x] for x in expected_configurations],
-                list(configurations_by_id.values()),
+                [planned for _, planned in configurations if planned is not None],
             ),
+            update_released_settings=not current_organization._loaded_from_github,
         )
 
     def _plan_default_code_security_configurations(
@@ -997,7 +988,7 @@ class GitHubOrganization:
             return settings
 
         org_settings = await _load_settings()
-        org = cls(project_name, github_id, org_settings)
+        org = cls(project_name, github_id, org_settings, _loaded_from_github=True)
 
         @debug_times("roles")
         async def _load_roles() -> None:
@@ -1189,42 +1180,28 @@ async def _enrich_team_bypass_reviewers(
 def _add_code_security_configurations(
     org: GitHubOrganization, github_id: str, configurations: list[dict[str, Any]]
 ) -> None:
-    for configuration in configurations:
-        model = OrganizationCodeSecurityConfiguration.from_provider_data(github_id, configuration)
-        # only configurations of the organization are managed, predefined configurations (e.g. GitHub
-        # recommended) and configurations of the enterprise are only retained to plan the settings
-        # of the repositories they are attached to
-        if configuration.get("target_type") == "organization":
+    models = [OrganizationCodeSecurityConfiguration.from_provider_data(github_id, x) for x in configurations]
+
+    # only configurations of the organization are managed, predefined configurations (e.g. GitHub recommended)
+    # and configurations of the enterprise are only retained to plan the repositories they are attached to
+    for model in models:
+        if model.is_organization_configuration():
             org.add_code_security_configuration(model)
-        else:
-            org.add_unmanaged_code_security_configuration(model)
+
+    org.set_live_code_security_configurations(models)
 
 
 async def _load_attached_code_security_configurations(
-    org: GitHubOrganization, github_id: str, provider: GitHubProvider, managed_configuration_ids: list[int]
+    org: GitHubOrganization, github_id: str, provider: GitHubProvider
 ) -> None:
     """
-    Retrieves the id of the code security configuration attached to each repository, for the managed configurations
-    with the given ids and the configurations that are not managed.
+    Retrieves the id of the code security configuration attached to each repository, for all configurations
+    retrieved from GitHub. A failure aborts, as repositories could be planned with settings that conflict with
+    the configuration attached to them otherwise.
     """
     attached_configurations: dict[str, int] = {}
-    for configuration_id in managed_configuration_ids:
-        for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration_id):
-            attached_configurations[repo_name] = configuration_id
-
-    for configuration in org.unmanaged_code_security_configurations:
-        try:
-            repo_names = await provider.get_org_code_security_configuration_repositories(github_id, configuration.id)
-        except RuntimeError as ex:
-            _logger.warning(
-                "failed to retrieve the repositories of code security configuration '%s', the settings it sets "
-                "on repositories might be changed: %s",
-                configuration.name,
-                ex,
-            )
-            continue
-
-        for repo_name in repo_names:
+    for configuration in org.live_code_security_configurations or []:
+        for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration.id):
             attached_configurations[repo_name] = configuration.id
 
     org.set_attached_code_security_configurations(attached_configurations)
@@ -1233,17 +1210,70 @@ async def _load_attached_code_security_configurations(
 async def _load_code_security_configuration_attachments(
     org: GitHubOrganization, github_id: str, provider: GitHubProvider
 ) -> None:
-    await _load_attached_code_security_configurations(
-        org, github_id, provider, [x.id for x in org.code_security_configurations]
-    )
+    await _load_attached_code_security_configurations(org, github_id, provider)
 
     # repositories only reference managed configurations
     managed_configurations = {x.id: x.name for x in org.code_security_configurations}
+    attached_configurations = org.attached_code_security_configurations or {}
     for repo in org.repositories:
-        configuration_id = org.attached_code_security_configurations.get(repo.name)
+        configuration_id = attached_configurations.get(repo.name)
         repo.code_security_configuration = (
             managed_configurations.get(configuration_id) if configuration_id is not None else None
         )
+
+
+def _plan_code_security_configuration(
+    current_configuration: OrganizationCodeSecurityConfiguration,
+    expected_configurations: dict[str, OrganizationCodeSecurityConfiguration],
+    deleted_configurations: set[str],
+) -> OrganizationCodeSecurityConfiguration | None:
+    """
+    Returns a current code security configuration as it is once the patches are applied, None if it is deleted.
+    Only the configurations of the organization are changed by the expected ones.
+    """
+    if not current_configuration.is_organization_configuration():
+        return current_configuration
+
+    if current_configuration.name in deleted_configurations:
+        return None
+
+    expected_configuration = expected_configurations.get(current_configuration.name)
+    if expected_configuration is not None:
+        return current_configuration.overlaid_with(expected_configuration)
+
+    return current_configuration
+
+
+def _get_attached_code_security_configurations(
+    current_organization: GitHubOrganization,
+    configurations: list[tuple[OrganizationCodeSecurityConfiguration, OrganizationCodeSecurityConfiguration | None]],
+) -> dict[str, tuple[OrganizationCodeSecurityConfiguration, OrganizationCodeSecurityConfiguration | None]]:
+    """
+    Returns the current and planned configuration attached to each repository, by the id retrieved from GitHub,
+    or if attachments were not retrieved, e.g. for an organization loaded from a file, by the name of the managed
+    configuration the repository references.
+    """
+    attached_configurations = current_organization.attached_code_security_configurations
+    if attached_configurations is not None:
+        by_id = {
+            current.id: (current, planned) for current, planned in configurations if is_set_and_present(current.id)
+        }
+        return {
+            repo_name: by_id[configuration_id]
+            for repo_name, configuration_id in attached_configurations.items()
+            if configuration_id in by_id
+        }
+
+    by_name = {
+        current.name: (current, planned)
+        for current, planned in configurations
+        if current.is_organization_configuration()
+    }
+    return {
+        repo.name: by_name[repo.code_security_configuration]
+        for repo in current_organization.repositories
+        if is_set_and_present(repo.code_security_configuration) and repo.code_security_configuration in by_name
+    }
 
 
 async def _process_single_repo(

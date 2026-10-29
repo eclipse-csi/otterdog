@@ -53,7 +53,10 @@ if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
 
     from .github_organization import GitHubOrganization
-    from .organization_code_security_configuration import OrganizationCodeSecurityConfiguration
+    from .organization_code_security_configuration import (
+        CodeSecurityConfigurationPlan,
+        OrganizationCodeSecurityConfiguration,
+    )
     from .organization_settings import OrganizationSettings
 
 
@@ -1480,7 +1483,10 @@ class Repository(ModelObject):
                 current_org_settings = cast("OrganizationSettings", context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
 
-            modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
+            modified_repo: dict[str, Change[Any]] = {
+                **cls._get_changes_of_released_code_security_settings(coerced_object, current_object, context),
+                **coerced_object.get_difference_from(current_object),
+            }
 
             is_archived = cast("Repository", coerced_object).archived
             if is_archived is False and "web_commit_signoff_required" in context.modified_org_settings:
@@ -1612,30 +1618,59 @@ class Repository(ModelObject):
         The settings that the code security configuration attached to the repository sets are not managed
         on the repository, otherwise both would set them, and changing them might detach the configuration.
         """
-        configuration = cls._get_attached_code_security_configuration(expected_object, current_object, context)
+        plan = context.code_security_configuration_plan
+        configuration = (
+            cls._get_planned_code_security_configuration(expected_object, current_object, plan)
+            if plan is not None
+            else None
+        )
         if configuration is not None:
             for key in configuration.get_controlled_repository_properties():
                 setattr(expected_object, key, UNSET)
 
+    @classmethod
+    def _get_changes_of_released_code_security_settings(
+        cls, expected_object: Repository, current_object: Repository, context: LivePatchContext
+    ) -> dict[str, Change[Any]]:
+        """
+        Returns the changes of the settings that the code security configuration currently attached to the
+        repository sets, but the planned one does not, if their current values are not known, e.g. if the current
+        organization is loaded from a file, as the configuration might have set them to other values on GitHub.
+        """
+        plan = context.code_security_configuration_plan
+        if plan is None or not plan.update_released_settings:
+            return {}
+
+        current_configuration = plan.current_attached_configurations.get(current_object.name)
+        if current_configuration is None:
+            return {}
+
+        planned_configuration = cls._get_planned_code_security_configuration(expected_object, current_object, plan)
+        released_keys = current_configuration.get_controlled_repository_properties() - (
+            planned_configuration.get_controlled_repository_properties() if planned_configuration is not None else set()
+        )
+
+        return {
+            key: Change(current_object.__getattribute__(key), expected_object.__getattribute__(key))
+            for key in expected_object.keys(for_diff=True)
+            if key in released_keys and current_object.is_key_valid_for_diff_computation(key, expected_object)
+        }
+
     @staticmethod
-    def _get_attached_code_security_configuration(
-        expected_object: Repository, current_object: Repository | None, context: LivePatchContext
+    def _get_planned_code_security_configuration(
+        expected_object: Repository, current_object: Repository | None, plan: CodeSecurityConfigurationPlan
     ) -> OrganizationCodeSecurityConfiguration | None:
         """
         Returns the code security configuration that is attached to the repository once the patch is applied:
         the one specified by the repository, otherwise the one currently attached, which might not be managed,
         or for a new repository, the default configuration of the organization for its visibility.
         """
-        plan = context.code_security_configuration_plan
-        if plan is None:
-            return None
-
         name = expected_object.code_security_configuration
         if is_set_and_present(name):
             return plan.managed_configurations.get(name)
 
         if current_object is not None:
-            return plan.attached_configurations.get(current_object.name)
+            return plan.planned_attached_configurations.get(current_object.name)
 
         return plan.get_default_configuration(expected_object.private is True)
 

@@ -550,6 +550,14 @@ def organization() -> GitHubOrganization:
     )
 
 
+def configuration_with_id(
+    name: str, configuration_id: int, target_type: str = "organization", **overrides: Any
+) -> OrganizationCodeSecurityConfiguration:
+    return dataclasses.replace(
+        default_configuration(name=name, **overrides), id=configuration_id, target_type=target_type
+    )
+
+
 def test_add_code_security_configurations():
     org = organization()
 
@@ -563,29 +571,31 @@ def test_add_code_security_configurations():
         ],
     )
 
+    # only configurations of the organization are managed, all of them are retained for planning
     assert [x.name for x in org.code_security_configurations] == ["baseline"]
-    assert [x.name for x in org.unmanaged_code_security_configurations] == ["GitHub recommended", "enterprise"]
+    assert [x.name for x in unwrap(org.live_code_security_configurations)] == [
+        "GitHub recommended",
+        "baseline",
+        "enterprise",
+    ]
 
 
 async def test_load_code_security_configuration_attachments():
     org = organization()
-    org.add_code_security_configuration(dataclasses.replace(default_configuration(name="baseline"), id=1))
-    org.add_code_security_configuration(dataclasses.replace(default_configuration(name="strict"), id=2))
-    org.add_unmanaged_code_security_configuration(
-        dataclasses.replace(default_configuration(name="GitHub recommended"), id=3)
-    )
-    # an enterprise configuration with the same name as a configuration of the organization
-    org.add_unmanaged_code_security_configuration(dataclasses.replace(default_configuration(name="baseline"), id=4))
-    org.add_unmanaged_code_security_configuration(dataclasses.replace(default_configuration(name="enterprise"), id=5))
+    live_configurations = [
+        configuration_with_id("baseline", 1),
+        configuration_with_id("strict", 2),
+        configuration_with_id("GitHub recommended", 3, "global"),
+        # an enterprise configuration with the same name as a configuration of the organization
+        configuration_with_id("baseline", 4, "enterprise"),
+    ]
+    org.set_code_security_configurations(live_configurations[:2])
+    org.set_live_code_security_configurations(live_configurations)
     for name in ("repo-a", "repo-b", "repo-c", "repo-d", "repo-e"):
         org.add_repository(repository(name=name, code_security_configuration=UNSET))
 
-    def repositories(_, configuration_id):
-        if configuration_id == 5:
-            raise RuntimeError("not accessible")
-        return {1: ["repo-a"], 2: ["repo-b", "not-loaded"], 3: ["repo-c"], 4: ["repo-d"]}[configuration_id]
-
-    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(side_effect=repositories))
+    attached = {1: ["repo-a"], 2: ["repo-b", "not-loaded"], 3: ["repo-c"], 4: ["repo-d"]}
+    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(side_effect=lambda _, x: attached[x]))
 
     await _load_code_security_configuration_attachments(org, "OtterdogTest", provider)  # type: ignore
 
@@ -599,6 +609,16 @@ async def test_load_code_security_configuration_attachments():
         "repo-c": 3,
         "repo-d": 4,
     }
+
+
+async def test_load_code_security_configuration_attachments_fails_for_unmanaged_configurations():
+    """Without the attachments of a configuration, repositories could be planned with conflicting settings."""
+    org = organization()
+    org.set_live_code_security_configurations([configuration_with_id("GitHub recommended", 1, "global")])
+    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(side_effect=RuntimeError("failed")))
+
+    with pytest.raises(RuntimeError, match="failed"):
+        await _load_code_security_configuration_attachments(org, "OtterdogTest", provider)  # type: ignore
 
 
 async def test_load_code_security_configuration_metadata():
@@ -621,10 +641,14 @@ async def test_load_code_security_configuration_metadata():
 
     await org.load_code_security_configuration_metadata(provider)  # type: ignore
 
-    assert org.code_security_configurations[0].id == 1
-    assert [x.name for x in org.unmanaged_code_security_configurations] == ["GitHub recommended"]
+    assert [x.name for x in unwrap(org.live_code_security_configurations)] == [
+        "baseline",
+        "not-in-file",
+        "GitHub recommended",
+    ]
     assert org.attached_code_security_configurations == {"repo-a": 1, "repo-b": 3}
-    # the repositories keep the configuration of the file
+    # the configurations and repositories of the file are left unchanged
+    assert org.code_security_configurations[0].id is UNSET
     assert [r.code_security_configuration for r in org.repositories] == ["baseline", None]
 
 
@@ -760,6 +784,22 @@ def generate_repository_patches(
     return patches
 
 
+def attached_plan(
+    current: OrganizationCodeSecurityConfiguration,
+    planned: OrganizationCodeSecurityConfiguration | None,
+    managed: bool = True,
+    update_released_settings: bool = False,
+) -> CodeSecurityConfigurationPlan:
+    """A plan where 'my-repo' is attached to a configuration that is planned to be changed or deleted."""
+    return CodeSecurityConfigurationPlan(
+        {current.name: planned} if managed and planned is not None else {},
+        {"my-repo": current},
+        {"my-repo": planned},
+        {},
+        update_released_settings,
+    )
+
+
 # the settings of the default repository differ from the default configuration
 DIFFERING_SETTINGS = {
     "dependabot_alerts_enabled": False,
@@ -768,8 +808,7 @@ DIFFERING_SETTINGS = {
 
 
 def test_settings_set_by_the_configuration_specified_by_the_repository_are_not_managed():
-    baseline = default_configuration(name="baseline")
-    plan = CodeSecurityConfigurationPlan({"baseline": baseline}, {"my-repo": None}, {})
+    plan = CodeSecurityConfigurationPlan({"baseline": default_configuration(name="baseline")})
     expected = repository(code_security_configuration="baseline")
     current = repository(code_security_configuration=None, **DIFFERING_SETTINGS)
 
@@ -783,7 +822,7 @@ def test_settings_set_by_the_configuration_specified_by_the_repository_are_not_m
 def test_settings_set_by_the_attached_configuration_are_not_managed(managed):
     """This applies to configurations that are not managed as well, e.g. GitHub recommended."""
     attached = default_configuration(name="baseline" if managed else "GitHub recommended")
-    plan = CodeSecurityConfigurationPlan({"baseline": attached} if managed else {}, {"my-repo": attached}, {})
+    plan = attached_plan(attached, attached, managed)
     expected = repository()
     current = repository(code_security_configuration="baseline" if managed else None, **DIFFERING_SETTINGS)
 
@@ -793,7 +832,7 @@ def test_settings_set_by_the_attached_configuration_are_not_managed(managed):
 
 def test_settings_of_features_not_set_by_the_attached_configuration_are_managed():
     attached = default_configuration(name="baseline", dependabot_alerts="not_set")
-    plan = CodeSecurityConfigurationPlan({"baseline": attached}, {"my-repo": attached}, {})
+    plan = attached_plan(attached, attached)
     expected = repository()
     current = repository(code_security_configuration="baseline", **DIFFERING_SETTINGS)
 
@@ -803,9 +842,13 @@ def test_settings_of_features_not_set_by_the_attached_configuration_are_managed(
     assert unwrap(patches[0].changes) == {"dependabot_alerts_enabled": Change(False, True)}
 
 
-@pytest.mark.parametrize("attached", [{}, {"my-repo": None}])
-def test_settings_without_attached_configuration_are_managed(attached):
-    plan = CodeSecurityConfigurationPlan({"baseline": default_configuration(name="baseline")}, attached, {})
+@pytest.mark.parametrize("deleted", [True, False])
+def test_settings_without_attached_configuration_are_managed(deleted):
+    plan = (
+        attached_plan(default_configuration(name="baseline"), None)
+        if deleted
+        else CodeSecurityConfigurationPlan({"baseline": default_configuration(name="baseline")})
+    )
     expected = repository()
     current = repository(code_security_configuration=None, **DIFFERING_SETTINGS)
 
@@ -817,7 +860,7 @@ def test_settings_without_attached_configuration_are_managed(attached):
 
 @pytest.mark.parametrize(("private", "managed"), [(False, False), (True, True)])
 def test_settings_of_new_repository_set_by_the_default_configuration_are_not_managed(private, managed):
-    plan = CodeSecurityConfigurationPlan({}, {}, {"public": default_configuration(name="baseline")})
+    plan = CodeSecurityConfigurationPlan(default_configurations={"public": default_configuration(name="baseline")})
     expected = repository(private=private)
 
     patches = generate_repository_patches(expected, None, plan)
@@ -828,9 +871,46 @@ def test_settings_of_new_repository_set_by_the_default_configuration_are_not_man
     assert expected.dependabot_alerts_enabled is True
 
 
+@pytest.mark.parametrize("update_released_settings", [True, False])
+def test_settings_released_by_the_attached_configuration(update_released_settings):
+    """
+    If the current values are not known, e.g. loaded from a file, the settings that the configuration stops setting
+    are updated, as the configuration might have set them to other values on GitHub.
+    """
+    current_configuration = default_configuration(name="baseline")
+    planned_configuration = default_configuration(name="baseline", dependabot_alerts="not_set")
+    plan = attached_plan(
+        current_configuration, planned_configuration, update_released_settings=update_released_settings
+    )
+    # the file holds the same value for the expected and current repository
+    expected = repository()
+    current = repository(code_security_configuration="baseline")
+
+    patches = generate_repository_patches(expected, current, plan)
+
+    if update_released_settings:
+        assert len(patches) == 1
+        assert unwrap(patches[0].changes) == {"dependabot_alerts_enabled": Change(True, True)}
+    else:
+        assert patches == []
+
+
 # ---------------------------------------------------------------------------
 # code security configurations planned for repositories
 # ---------------------------------------------------------------------------
+
+
+def current_organization(
+    *configurations: OrganizationCodeSecurityConfiguration, attached: dict[str, int] | None = None
+) -> GitHubOrganization:
+    """An organization loaded from GitHub with the given configurations."""
+    org = organization()
+    org._loaded_from_github = True
+    org.set_code_security_configurations([x for x in configurations if x.is_organization_configuration()])
+    org.set_live_code_security_configurations(list(configurations))
+    if attached is not None:
+        org.set_attached_code_security_configurations(attached)
+    return org
 
 
 def plan(
@@ -839,21 +919,11 @@ def plan(
     return expected.plan_code_security_configurations(current, delete_resources)
 
 
-def with_id(configuration: OrganizationCodeSecurityConfiguration, configuration_id: int):
-    return dataclasses.replace(configuration, id=configuration_id)
-
-
 def test_plan_keeps_values_not_managed_by_the_expected_configuration():
-    current = organization()
-    current.add_code_security_configuration(
-        with_id(
-            default_configuration(
-                name="baseline", dependabot_alerts="enabled", secret_scanning_generic_secrets="enabled"
-            ),
-            1,
-        )
+    current = current_organization(
+        configuration_with_id("baseline", 1, dependabot_alerts="enabled", secret_scanning_generic_secrets="enabled"),
+        attached={"my-repo": 1},
     )
-    current.set_attached_code_security_configurations({"my-repo": 1})
     expected = organization()
     data = jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').newOrgCodeSecurityConfiguration('baseline')")
     data.pop("dependabot_alerts")
@@ -863,9 +933,10 @@ def test_plan_keeps_values_not_managed_by_the_expected_configuration():
 
     planned = plan(expected, current)
 
+    assert planned.update_released_settings is False
     for planned_configuration in (
         planned.managed_configurations["baseline"],
-        planned.attached_configurations["my-repo"],
+        planned.planned_attached_configurations["my-repo"],
     ):
         assert planned_configuration is not None
         assert planned_configuration.id == 1
@@ -875,14 +946,17 @@ def test_plan_keeps_values_not_managed_by_the_expected_configuration():
         assert planned_configuration.secret_scanning_generic_secrets == "enabled"
         # managed by the expected configuration
         assert planned_configuration.secret_scanning == "enabled"
+    # the current configuration is kept as is
+    assert planned.current_attached_configurations["my-repo"].secret_scanning == "disabled"
 
 
 @pytest.mark.parametrize("delete_resources", [False, True])
 def test_plan_of_configurations_that_are_not_expected(delete_resources):
-    current = organization()
-    current.add_code_security_configuration(with_id(default_configuration(name="to-be-deleted"), 1))
-    current.add_unmanaged_code_security_configuration(with_id(default_configuration(name="GitHub recommended"), 2))
-    current.set_attached_code_security_configurations({"repo-a": 1, "repo-b": 2})
+    current = current_organization(
+        configuration_with_id("to-be-deleted", 1),
+        configuration_with_id("GitHub recommended", 2, "global"),
+        attached={"repo-a": 1, "repo-b": 2},
+    )
     expected = organization()
     expected.add_code_security_configuration(default_configuration(name="new"))
 
@@ -891,25 +965,22 @@ def test_plan_of_configurations_that_are_not_expected(delete_resources):
     if delete_resources:
         # the deleted configuration detaches its repositories
         assert set(planned.managed_configurations) == {"new"}
-        assert planned.attached_configurations["repo-a"] is None
+        assert planned.planned_attached_configurations["repo-a"] is None
     else:
         # the deletion of the configuration is skipped
         assert set(planned.managed_configurations) == {"to-be-deleted", "new"}
-        assert unwrap(planned.attached_configurations["repo-a"]).name == "to-be-deleted"
+        assert unwrap(planned.planned_attached_configurations["repo-a"]).name == "to-be-deleted"
 
     # configurations that are not managed are kept, but can not be referenced by repositories
-    assert unwrap(planned.attached_configurations["repo-b"]).name == "GitHub recommended"
+    assert unwrap(planned.planned_attached_configurations["repo-b"]).name == "GitHub recommended"
 
 
 def test_plan_identifies_attached_configurations_by_their_id():
-    current = organization()
-    current.add_code_security_configuration(
-        with_id(default_configuration(name="baseline", dependabot_alerts="disabled"), 1)
+    current = current_organization(
+        configuration_with_id("baseline", 1, dependabot_alerts="disabled"),
+        configuration_with_id("baseline", 2, "enterprise", dependabot_alerts="enabled"),
+        attached={"repo-a": 1, "repo-b": 2},
     )
-    current.add_unmanaged_code_security_configuration(
-        with_id(default_configuration(name="baseline", dependabot_alerts="enabled"), 2)
-    )
-    current.set_attached_code_security_configurations({"repo-a": 1, "repo-b": 2})
     expected = organization()
     expected.add_code_security_configuration(default_configuration(name="baseline", dependabot_alerts="not_set"))
 
@@ -917,17 +988,50 @@ def test_plan_identifies_attached_configurations_by_their_id():
 
     assert unwrap(planned.managed_configurations["baseline"]).id == 1
     assert unwrap(planned.managed_configurations["baseline"]).dependabot_alerts == "not_set"
-    assert unwrap(planned.attached_configurations["repo-a"]).dependabot_alerts == "not_set"
+    assert unwrap(planned.planned_attached_configurations["repo-a"]).dependabot_alerts == "not_set"
     # the enterprise configuration with the same name is not changed by the expected configuration
-    assert unwrap(planned.attached_configurations["repo-b"]).id == 2
-    assert unwrap(planned.attached_configurations["repo-b"]).dependabot_alerts == "enabled"
+    assert unwrap(planned.planned_attached_configurations["repo-b"]).id == 2
+    assert unwrap(planned.planned_attached_configurations["repo-b"]).dependabot_alerts == "enabled"
+
+
+def test_plan_of_an_organization_loaded_from_a_file_with_live_metadata():
+    """For a local apply, configurations of GitHub that are not in the file are retained to plan repositories."""
+    current = organization()
+    current.add_code_security_configuration(default_configuration(name="baseline"))
+    current.set_live_code_security_configurations(
+        [configuration_with_id("baseline", 1), configuration_with_id("not-in-file", 2)]
+    )
+    current.set_attached_code_security_configurations({"repo-a": 2})
+    expected = organization()
+    expected.add_code_security_configuration(default_configuration(name="baseline"))
+
+    planned = plan(expected, current, delete_resources=True)
+
+    # only configurations of the file are deleted
+    assert unwrap(planned.planned_attached_configurations["repo-a"]).name == "not-in-file"
+    assert planned.update_released_settings is True
+
+
+def test_plan_of_an_organization_loaded_from_a_file_without_live_metadata():
+    """For a local plan, the attachments are derived from the configurations referenced by repositories."""
+    current = organization()
+    current.add_code_security_configuration(default_configuration(name="baseline"))
+    current.add_repository(repository(name="repo-a", code_security_configuration="baseline"))
+    current.add_repository(repository(name="repo-b", code_security_configuration=None))
+    expected = organization()
+    expected.add_code_security_configuration(default_configuration(name="baseline", dependabot_alerts="not_set"))
+
+    planned = plan(expected, current)
+
+    assert set(planned.planned_attached_configurations) == {"repo-a"}
+    assert unwrap(planned.planned_attached_configurations["repo-a"]).dependabot_alerts == "not_set"
+    assert planned.current_attached_configurations["repo-a"].dependabot_alerts == "disabled"
 
 
 def test_plan_of_defaults_prefers_the_expected_configurations():
-    current = organization()
-    current.add_code_security_configuration(with_id(default_configuration(name="old", default_for_new_repos="all"), 1))
-    current.add_unmanaged_code_security_configuration(
-        with_id(default_configuration(name="GitHub recommended", default_for_new_repos="public"), 2)
+    current = current_organization(
+        configuration_with_id("old", 1, default_for_new_repos="all"),
+        configuration_with_id("GitHub recommended", 2, "global", default_for_new_repos="public"),
     )
     expected = organization()
     expected.settings.default_code_security_configurations_disabled = False
@@ -945,9 +1049,8 @@ def test_plan_of_defaults_prefers_the_expected_configurations():
 
 
 def test_plan_of_defaults_while_default_configurations_are_disabled():
-    current = organization()
-    current.add_unmanaged_code_security_configuration(
-        with_id(default_configuration(name="GitHub recommended", default_for_new_repos="all"), 1)
+    current = current_organization(
+        configuration_with_id("GitHub recommended", 1, "global", default_for_new_repos="all")
     )
     expected = organization()
     expected.settings.default_code_security_configurations_disabled = True
