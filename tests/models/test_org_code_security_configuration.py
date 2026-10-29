@@ -1242,6 +1242,14 @@ def test_repository_settings_of_a_configuration():
     }
 
 
+def test_repository_settings_of_a_configuration_for_a_private_repository():
+    configuration = default_configuration(private_vulnerability_reporting="enabled")
+
+    assert configuration.get_repository_settings()["private_vulnerability_reporting_enabled"] is True
+    # GitHub supports private vulnerability reporting only on public repositories
+    assert "private_vulnerability_reporting_enabled" not in configuration.get_repository_settings(private=True)
+
+
 def test_effective_repository():
     org = organization()
     org.add_code_security_configuration(default_configuration(name="baseline", dependabot_alerts="disabled"))
@@ -1255,3 +1263,22 @@ def test_effective_repository():
     # repositories that do not reference a defined configuration keep their own settings
     assert org.get_effective_repository(unattached) is unattached
     assert org.get_effective_repository(unknown) is unknown
+
+
+def test_effective_private_repository():
+    org = organization()
+    org.add_code_security_configuration(
+        default_configuration(name="baseline", dependabot_alerts="disabled", private_vulnerability_reporting="enabled")
+    )
+    private = repository(
+        private=True,
+        dependabot_alerts_enabled=True,
+        private_vulnerability_reporting_enabled=False,
+        code_security_configuration="baseline",
+    )
+
+    effective = org.get_effective_repository(private)
+
+    assert effective.dependabot_alerts_enabled is False
+    # the configuration does not enable private vulnerability reporting on a private repository
+    assert effective.private_vulnerability_reporting_enabled is False

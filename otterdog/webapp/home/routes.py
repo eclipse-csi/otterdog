@@ -990,7 +990,9 @@ async def repository(project_name: str, repo_name: str):
         scorecard_result=scorecard_result,
         code_security_configuration=code_security_configuration,
         code_security_settings=(
-            code_security_configuration.get_repository_settings() if code_security_configuration is not None else {}
+            code_security_configuration.get_repository_settings(repo_config.private is True)
+            if code_security_configuration is not None
+            else {}
         ),
     )
 

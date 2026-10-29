@@ -216,6 +216,9 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         "private_vulnerability_reporting": ["private_vulnerability_reporting_enabled"],
     }
 
+    # the settings of a repository that GitHub supports only on public repositories
+    _public_repository_properties: ClassVar[set[str]] = {"private_vulnerability_reporting_enabled"}
+
     # Code Security and Secret Protection are licensed per active committer on private and internal repositories
     _cost_related_properties: ClassVar[list[str]] = ["code_security", "secret_protection"]
 
@@ -256,17 +259,19 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
 
         return result
 
-    def get_repository_settings(self) -> dict[str, Any]:
+    def get_repository_settings(self, private: bool = False) -> dict[str, Any]:
         """
         Returns the values of the main settings of a repository that this configuration sets once attached to it,
         e.g. 'dependabot_alerts_enabled', the settings of features set to 'not_set' are left to the repository.
+        A private repository does not get the settings that GitHub supports only on public repositories,
+        e.g. 'private_vulnerability_reporting_enabled'.
         """
         settings: dict[str, Any] = {}
         for feature, keys in self._repository_properties.items():
             status = self.__getattribute__(feature)
-            if status in ("enabled", "disabled"):
-                # the first setting is the main one, e.g. 'code_scanning_default_setup_enabled'
-                key = keys[0]
+            # the first setting is the main one, e.g. 'code_scanning_default_setup_enabled'
+            key = keys[0]
+            if status in ("enabled", "disabled") and not (private and key in self._public_repository_properties):
                 settings[key] = status == "enabled" if key.endswith("_enabled") else status
 
         return settings

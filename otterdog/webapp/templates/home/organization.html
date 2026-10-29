@@ -39,9 +39,9 @@
   {%- endif %}
 {%- endmacro %}
 
-{% macro set_by_configuration(repo_name, key) -%}
-  {%- set configuration = code_security.configuration_of.get(repo_name) -%}
-  {%- if configuration is not none and key in configuration.get_repository_settings() %} title="set by code security configuration '{{ configuration.name }}'"{% endif -%}
+{% macro set_by_configuration(repo, key) -%}
+  {%- set configuration = code_security.configuration_of.get(repo.name) -%}
+  {%- if configuration is not none and key in configuration.get_repository_settings(repo.private == true) %} title="set by code security configuration '{{ configuration.name }}'"{% endif -%}
 {%- endmacro %}
 
   <!-- Content Wrapper. Contains page content -->
@@ -763,7 +763,7 @@
                               <i class="text-muted fa-solid fa-circle" title="no code security configuration"></i>
                               {% endif %}
                             </td>
-                            <td class="text-center"{{ set_by_configuration(repo.name, 'secret_scanning') }}>
+                            <td class="text-center"{{ set_by_configuration(repo, 'secret_scanning') }}>
                               {% if repo.archived == true %}
                               <i class="text-muted fa-solid fa-circle"></i>
                               {% elif repo.secret_scanning_push_protection == "enabled" %}
@@ -774,7 +774,7 @@
                               <i class="text-danger fa-solid fa-circle-xmark"></i>
                               {% endif %}
                             </td>
-                            <td class="text-center"{{ set_by_configuration(repo.name, 'private_vulnerability_reporting_enabled') }}>
+                            <td class="text-center"{{ set_by_configuration(repo, 'private_vulnerability_reporting_enabled') }}>
                               {% if repo.archived == true %}
                               <i class="text-muted fa-solid fa-circle"></i>
                               {% elif repo.private_vulnerability_reporting_enabled == true %}

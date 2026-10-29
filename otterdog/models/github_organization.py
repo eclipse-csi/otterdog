@@ -338,7 +338,7 @@ class GitHubOrganization:
             return repo
 
         effective_repo = copy.copy(repo)
-        for key, value in configuration.get_repository_settings().items():
+        for key, value in configuration.get_repository_settings(repo.private is True).items():
             setattr(effective_repo, key, value)
 
         return effective_repo

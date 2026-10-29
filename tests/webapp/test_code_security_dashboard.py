@@ -8,6 +8,7 @@
 
 """The dashboard shows the code security configurations and the security settings that apply to repositories."""
 
+import re
 import shutil
 from pathlib import Path
 from unittest import mock
@@ -127,6 +128,15 @@ async def test_the_page_of_a_repository_shows_its_effective_security_settings(ap
     assert "title=\"set by code security configuration 'baseline'\"" in page
 
 
+async def test_the_page_of_a_private_repository_shows_only_the_settings_it_supports(app, project):
+    async with app.test_request_context("/projects/my-project/repos/private-repo"):
+        page = await routes.repository("my-project", "private-repo")
+
+    assert '<span class="float-end badge text-bg-info">baseline</span>' in page
+    # GitHub supports private vulnerability reporting only on public repositories
+    assert re.search(r'<a href="#settings" class="nav-link tab-link"\s*>\s*Private Vulnerability Reporting', page)
+
+
 async def test_the_index_shows_code_scanning(app, monkeypatch):
     statistics = Statistics(total_projects=1, total_repos=10, archived_repos=2, repos_with_code_scanning=3)
     nothing = mock.AsyncMock(return_value=[])
@@ -154,8 +164,9 @@ def test_statistics_count_the_settings_set_by_the_configurations(config):
     assert statistics.total_repos == 3
     # the configuration disables Dependabot alerts, 'other-repo' keeps the ones of the default repository
     assert statistics.repos_with_dependabot_alerts == 1
-    # the configuration enables private vulnerability reporting, the default repository disables it
-    assert statistics.repos_with_private_vulnerability_reporting == 2
+    # the configuration enables private vulnerability reporting on the public repository only,
+    # the default repository disables it
+    assert statistics.repos_with_private_vulnerability_reporting == 1
     # the configuration does not set code scanning, only 'other-repo' enables it
     assert statistics.repos_with_code_scanning == 1
 
