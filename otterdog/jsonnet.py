@@ -9,6 +9,7 @@
 import os
 from asyncio import Lock, Task, create_task, shield, to_thread
 from functools import cached_property
+from pathlib import Path
 from shutil import ignore_patterns
 from typing import Any
 
@@ -387,13 +388,13 @@ class JsonnetConfig:
         )
 
     async def jsonnet_template_files(self):
-        import os
+        """Yield library paths from the whole template checkout, including subdirectories.
 
-        import aiofiles
-
-        for file in await aiofiles.os.listdir(self.template_dir):
-            if file.endswith(".libsonnet"):
-                yield os.path.join(self.template_dir, file)
+        The selected template may import sibling or nested libraries. Return paths
+        under the repository root so callers can preserve those import relationships.
+        """
+        for file in sorted(Path(self.template_dir).rglob("*.libsonnet")):
+            yield str(file)
 
     @property
     def base_dir(self) -> str:

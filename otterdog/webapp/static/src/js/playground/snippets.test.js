@@ -48,6 +48,114 @@ orgs.newOrg('a', 'b') {
   }
 });
 
+test("opening a snippet keeps explicit imports of upstream libraries", () => {
+  /**
+   * The selected template has its own defaults and helper. The snippet explicitly
+   * imports the upstream versions, which are also available. Opening it must keep
+   * those choices instead of silently changing them to the custom libraries.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/upstream/otterdog-functions.libsonnet",
+    "vendor/custom/otterdog-defaults.libsonnet",
+    "vendor/custom/otterdog-functions.libsonnet",
+  ];
+  const code = `local orgs = import 'vendor/upstream/otterdog-defaults.libsonnet';
+local helper = import 'vendor/upstream/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`;
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, code);
+});
+
+test("opening a snippet keeps explicit imports of custom libraries", () => {
+  /**
+   * Both upstream and custom files are available, with upstream listed first.
+   * The snippet already imports the custom defaults and helper. Those exact
+   * paths must survive opening the shared URL despite the matching filenames.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/upstream/otterdog-functions.libsonnet",
+    "vendor/custom/otterdog-defaults.libsonnet",
+    "vendor/custom/otterdog-functions.libsonnet",
+  ];
+  const code = `local orgs = import 'vendor/custom/otterdog-defaults.libsonnet';
+local helper = import 'vendor/custom/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`;
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, code);
+});
+
+test("a snippet from another project uses the selected custom template and its sibling helper", () => {
+  /**
+   * The shared URL came from a documentation playground. Its vendor/documentation
+   * files do not exist here. Both upstream and custom replacements are available;
+   * use the selected custom template and the helper next to it, even though the
+   * upstream files appear first in the list.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/upstream/otterdog-functions.libsonnet",
+    "vendor/custom/nested/otterdog-defaults.libsonnet",
+    "vendor/custom/nested/otterdog-functions.libsonnet",
+  ];
+  const code = `local orgs = import 'vendor/documentation/otterdog-defaults.libsonnet';
+local helper = import 'vendor/documentation/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`;
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/nested/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, `local orgs = import 'vendor/custom/nested/otterdog-defaults.libsonnet';
+local helper = import 'vendor/custom/nested/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`);
+});
+
+test("a snippet from a nested template in another project uses the selected custom libraries", () => {
+  /**
+   * The shared URL's template and helper both lived under nested/ in another
+   * repository. Those vendor/documentation paths are unavailable here. Treat
+   * them like imports from a repository root: use the selected template and
+   * its sibling helper, keeping the snippet usable in this playground.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/upstream/otterdog-functions.libsonnet",
+    "vendor/custom/nested/otterdog-defaults.libsonnet",
+    "vendor/custom/nested/otterdog-functions.libsonnet",
+  ];
+  const code = `local orgs = import 'vendor/documentation/nested/otterdog-defaults.libsonnet';
+local helper = import 'vendor/documentation/nested/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`;
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/nested/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, `local orgs = import 'vendor/custom/nested/otterdog-defaults.libsonnet';
+local helper = import 'vendor/custom/nested/otterdog-functions.libsonnet';
+orgs.newOrg('project', helper.name)`);
+});
+
+test("a shared snippet can reuse an upstream helper when the selected template has no sibling helper", () => {
+  /**
+   * The snippet imports a helper from another project's vendor directory. This
+   * custom template has no helper of its own, but an upstream helper is available.
+   * Use that available helper so the snippet's import can be evaluated here.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/upstream/otterdog-functions.libsonnet",
+    "vendor/custom/nested/otterdog-defaults.libsonnet",
+  ];
+  const code = "import 'vendor/documentation/otterdog-functions.libsonnet'";
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/nested/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, "import 'vendor/upstream/otterdog-functions.libsonnet'");
+});
+
 test("further imports of a path are spelled differently, strings and comments being kept", () => {
   const files = {
     "playground.jsonnet": `local a = import 'a.libsonnet';

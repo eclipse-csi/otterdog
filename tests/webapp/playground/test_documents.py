@@ -273,3 +273,35 @@ def test_changing_the_default_configuration_keeps_the_shown_document(playground)
 
     assert "?template=example#code=" in page.url
     assert decode(page.url.split("#code=")[1]) == content
+
+
+def test_custom_helper_error_opens_and_marks_that_helper_instead_of_the_upstream_helper(playground):
+    """Two libraries have the same helper filename, but only the custom one fails.
+
+    The selected template is vendor/custom/nested/otterdog-defaults.libsonnet.
+    It imports its sibling otterdog-functions.libsonnet, containing
+    error 'custom helper failed'. A different helper with the same filename
+    lives under nested/upstream/.
+
+    This page triggers the error in the real WASM evaluator. Clicking its source
+    link must open line 1 of the custom helper and show an error mark there.
+    The unrelated upstream helper must have no error mark.
+    """
+    page = playground.page
+    custom_helper = "vendor/custom/nested/otterdog-functions.libsonnet"
+    custom_editor = '.tab-pane[data-file="vendor/custom/nested/otterdog-functions.libsonnet"]'
+    upstream_editor = '.tab-pane[data-file="vendor/custom/nested/upstream/otterdog-functions.libsonnet"]'
+
+    # playground.open() waits for successful evaluation; this page must fail.
+    page.goto(f"{playground.base_url}/custom-helper-error.html")
+    playground.wait_status("error")
+    error_text = page.locator("#playground-error").inner_text()
+    error_source_link = page.locator("#playground-error a", has_text="otterdog-functions.libsonnet:1:")
+    error_source_link.click()
+    page.wait_for_timeout(200)
+
+    assert "custom helper failed" in error_text
+    assert playground.shown_file() == custom_helper
+    assert playground.cursor_line(custom_editor) == 1
+    assert page.locator(f"{custom_editor} .cm-lintRange-error").count() == 1
+    assert page.locator(f"{upstream_editor} .cm-lintRange-error").count() == 0

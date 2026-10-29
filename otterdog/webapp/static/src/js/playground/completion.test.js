@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {functionParameters, propertyInsertion, referenceOf} from "./completion.js";
+import {functionCompletion, functionParameters, propertyInsertion, referenceOf} from "./completion.js";
 
 const REFERENCE = {
   functions: {newRepo: "repository/index.md"},
@@ -36,4 +36,133 @@ test("objects and lists are extended, other values are replaced", () => {
   assert.deepEqual(propertyInsertion("topics", values), {text: "topics+: []", cursor: -1});
   assert.deepEqual(propertyInsertion("workflows", values), {text: "workflows+: {}", cursor: -1});
   assert.deepEqual(propertyInsertion("_repositories", values), {text: "_repositories+:: ", cursor: 0});
+});
+
+// These unit tests supply the evaluator's argument count and the source hint
+// explicitly. Browser tests in tests/webapp/playground/test_completion.py check
+// that real Jsonnet templates produce those inputs and that completion works in
+// the editor. Here dispatch captures the edit CodeMirror would apply, and
+// describe returns tooltip data directly instead of rendering browser elements.
+
+test("a custom constructor without parameters is completed without an argument", () => {
+  /**
+   * The library defines local newRepo(name). The custom template replaces it
+   * with the method newRepo(): upstream.newRepo('website').
+   * Our name lookup only recognizes local functions, so it still finds 'name'
+   * from the library. The evaluator sees the custom method and reports zero
+   * required arguments. Selecting the suggestion must therefore insert newRepo().
+   */
+  const completion = functionCompletion({
+    alias: "orgs",
+    name: "newRepo",
+    parameterLabel: "name",
+    requiredArguments: 0,
+    reference: REFERENCE,
+    describe: (info) => info,
+  });
+  let transaction;
+
+  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
+
+  assert.equal(completion.detail, "()");
+  assert.equal(completion.info().title, "orgs.newRepo()");
+  assert.equal(transaction.changes.insert, "newRepo()");
+});
+
+test("a constructor with an unknown parameter name still offers an argument to fill in", () => {
+  /**
+   * The template defines newRepo: function(name) { name: name }.
+   * Our name lookup does not recognize this form, so no parameter name is known.
+   * The evaluator still reports one required argument. The suggestion shows (…)
+   * and inserts newRepo(''), letting the user type the repository name.
+   */
+  const completion = functionCompletion({
+    alias: "orgs",
+    name: "newRepo",
+    parameterLabel: undefined,
+    requiredArguments: 1,
+    reference: REFERENCE,
+    describe: (info) => info,
+  });
+  let transaction;
+
+  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
+
+  assert.equal(completion.detail, "(…)");
+  assert.equal(completion.info().title, "orgs.newRepo(…)");
+  assert.equal(transaction.changes.insert, "newRepo('')");
+});
+
+test("an override requiring an argument is completed with a value even when the template hint is empty", () => {
+  /**
+   * The template defines local newRepo() with a fixed repository name, so its
+   * parameter label is empty. The user overrides it in the playground snippet
+   * with newRepo(name). The evaluator now reports one required argument.
+   * Selecting the suggestion must insert newRepo('') for the user to fill in.
+   */
+  const completion = functionCompletion({
+    alias: "orgs",
+    name: "newRepo",
+    parameterLabel: "",
+    requiredArguments: 1,
+    reference: REFERENCE,
+    describe: (info) => info,
+  });
+  let transaction;
+
+  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
+
+  assert.equal(completion.detail, "(…)");
+  assert.equal(completion.info().title, "orgs.newRepo(…)");
+  assert.equal(transaction.changes.insert, "newRepo('')");
+});
+
+test("a constructor with a known name parameter shows the hint and offers a value to fill in", () => {
+  /**
+   * The template defines local newRepo(name). Both the parameter name and the
+   * need for an argument are known. The suggestion shows (name), the tooltip
+   * shows orgs.newRepo(name), and selecting it inserts newRepo('') to fill in.
+   */
+  const completion = functionCompletion({
+    alias: "orgs",
+    name: "newRepo",
+    parameterLabel: "name",
+    requiredArguments: 1,
+    reference: REFERENCE,
+    describe: (info) => info,
+  });
+  let transaction;
+
+  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
+
+  assert.equal(completion.detail, "(name)");
+  assert.equal(completion.info().title, "orgs.newRepo(name)");
+  assert.equal(transaction.changes.insert, "newRepo('')");
+});
+
+test("completion uses the custom template's parameter hints and keeps hints for inherited constructors", () => {
+  /**
+   * The library provides newRepo(name) and newTeam(name). The custom template
+   * replaces only newRepo with a local function that takes no parameters.
+   * The hints must show no parameter for newRepo and keep 'name' for newTeam,
+   * even though the library file appears after the custom file in this list.
+   */
+  const files = [
+    {
+      filename: "vendor/custom/otterdog-defaults.libsonnet",
+      content: `local upstream = import 'upstream/otterdog-defaults.libsonnet';
+local newRepo() = upstream.newRepo('custom');
+upstream + { newRepo: newRepo }`,
+    },
+    {
+      filename: "vendor/custom/upstream/otterdog-defaults.libsonnet",
+      content: `local newRepo(name) = {name: name};
+local newTeam(name) = {name: name};
+{ newRepo: newRepo, newTeam: newTeam }`,
+    },
+  ];
+
+  const parameters = functionParameters(files, "vendor/custom/otterdog-defaults.libsonnet");
+
+  assert.deepEqual(Object.fromEntries(parameters), {newRepo: "", newTeam: "name"});
 });

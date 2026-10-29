@@ -8,6 +8,7 @@
 
 """The playground of a project, starting with the current configuration of its organization."""
 
+import json
 import time
 
 from .conftest import ORGANIZATION
@@ -272,3 +273,54 @@ def test_an_unknown_repository_opens_the_whole_configuration(playground):
 
     assert playground.page.locator("#playground-output-view").input_value() == ""
     assert playground.tabs()[0]["active"]
+
+
+def test_playground_keeps_the_selected_custom_template_when_library_filenames_match(playground):
+    """Opening the project must use its custom template and helper.
+
+    The fixture's project imports vendor/custom/nested/otterdog-defaults.libsonnet.
+    Another otterdog-defaults.libsonnet exists under nested/upstream/. The custom
+    template sets the organization name from its own helper: 'Custom helper'.
+    Seeing that value in the output confirms that the selected template was used.
+    """
+    playground.open("custom-local.html")
+
+    assert "import 'vendor/custom/nested/otterdog-defaults.libsonnet'" in playground.code()
+    assert json.loads(playground.output())["settings"]["name"] == "Custom helper"
+
+
+def test_a_shared_snippet_uses_the_selected_custom_template_instead_of_its_upstream_library(playground):
+    """A user opens a shared snippet whose template import belongs to another project.
+
+    The URL's snippet imports vendor/documentation/otterdog-defaults.libsonnet,
+    which is unavailable in this playground. The playground must adapt that
+    import to the selected custom template, not its equally named upstream file.
+    The resulting organization name 'Custom helper' comes from the custom helper.
+    """
+    shared_code = """local orgs = import 'vendor/documentation/otterdog-defaults.libsonnet';
+orgs.newOrg('custom', 'custom')
+"""
+    shared_fragment = "#code=" + encode(shared_code)
+
+    playground.open("custom-local.html", shared_fragment)
+
+    assert "import 'vendor/custom/nested/otterdog-defaults.libsonnet'" in playground.code()
+    assert json.loads(playground.output())["settings"]["name"] == "Custom helper"
+
+
+def test_a_shared_snippet_from_a_nested_template_uses_the_selected_custom_template(playground):
+    """A shared snippet imports a nested template from another project's repository.
+
+    The unavailable import contains an extra 'templates/' directory. That source
+    directory must not prevent adapting the import to this playground's selected
+    template. The output name proves that the custom template and helper ran.
+    """
+    shared_code = """local orgs = import 'vendor/documentation/templates/otterdog-defaults.libsonnet';
+orgs.newOrg('custom', 'custom')
+"""
+    shared_fragment = "#code=" + encode(shared_code)
+
+    playground.open("custom-local.html", shared_fragment)
+
+    assert "import 'vendor/custom/nested/otterdog-defaults.libsonnet'" in playground.code()
+    assert json.loads(playground.output())["settings"]["name"] == "Custom helper"
