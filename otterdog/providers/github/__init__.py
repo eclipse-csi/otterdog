@@ -49,8 +49,10 @@ class GitHubProvider:
         self._credentials = credentials
         self._user_logins: dict[int, str] = {}
         self._user_login_lock = asyncio.Lock()
-        # the repositories whose patches are skipped by (org_id, repo_name), with the reason
+        # the repositories whose patches are skipped by (org_id, repo_name), with the reason,
+        # and the organizations all of whose repositories have their patches skipped
         self._skipped_repositories: dict[tuple[str, str], str] = {}
+        self._skipped_organizations: dict[str, str] = {}
 
         if credentials is not None:
             self._init_clients()
@@ -197,8 +199,14 @@ class GitHubProvider:
         for repo_name in repo_names:
             self._skipped_repositories[(org_id.lower(), repo_name.lower())] = reason
 
+    def skip_all_repository_patches(self, org_id: str, reason: str) -> None:
+        """Marks all repositories of an organization whose patches are skipped for the rest of the operation."""
+        self._skipped_organizations[org_id.lower()] = reason
+
     def get_skipped_repository_reason(self, org_id: str, repo_name: str) -> str | None:
-        return self._skipped_repositories.get((org_id.lower(), repo_name.lower()))
+        return self._skipped_organizations.get(org_id.lower()) or self._skipped_repositories.get(
+            (org_id.lower(), repo_name.lower())
+        )
 
     async def update_org_code_security_configuration_default(
         self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str

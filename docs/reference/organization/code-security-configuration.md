@@ -45,7 +45,7 @@ configuration is attached before the other settings of the repository are applie
 completed the attachment, as well as until an updated configuration is applied to its repositories. The patches of
 the repositories that an update is not applied to, as it failed or is still pending after 30 seconds, are skipped and
 reported as errors, as they might depend on the updated settings, as well as the patches of the repositories attached to
-a configuration whose update or deletion failed. Archived repositories support code security
+a configuration whose update or deletion failed, or of all repositories if the attached ones can not be retrieved. Archived repositories support code security
 configurations, only secret scanning runs while they are archived.
 
 The settings of a repository that the configuration attached to it sets are not managed on the repository, as the

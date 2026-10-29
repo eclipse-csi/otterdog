@@ -307,7 +307,7 @@ async def test_delete_failure(github: GitHubProviderTestKit):
     )
 
 
-async def test_failure_is_reported_if_the_attached_repositories_can_not_be_retrieved(github: GitHubProviderTestKit):
+async def test_all_repositories_are_skipped_if_the_attached_ones_can_not_be_retrieved(github: GitHubProviderTestKit):
     github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=409)
     github.http.expect(
         "GET",
@@ -322,7 +322,13 @@ async def test_failure_is_reported_if_the_attached_repositories_can_not_be_retri
     with pytest.raises(RuntimeError, match="failed to delete code security configuration with name 'baseline'"):
         await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
 
-    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) is None
+    # any repository might be attached to the configuration, the patches of all repositories are skipped
+    for repo_name in (REPO_NAME, "other-repo"):
+        assert github.provider.get_skipped_repository_reason(ORG_ID, repo_name) == (
+            "the deletion of code security configuration 'baseline' failed, "
+            "and the repositories attached to it could not be retrieved"
+        )
+    assert github.provider.get_skipped_repository_reason("other-org", REPO_NAME) is None
 
 
 async def test_update_default_for_new_repositories_only(github: GitHubProviderTestKit):

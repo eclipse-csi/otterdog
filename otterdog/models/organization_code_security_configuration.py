@@ -584,7 +584,8 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     ) -> None:
         """
         Skips the patches of the repositories attached to a configuration whose patch failed, as they were planned
-        with the configuration as it is once its patch is applied, and might change settings it still sets.
+        with the configuration as it is once its patch is applied, and might change settings it still sets. If these
+        repositories can not be retrieved, the patches of all repositories are skipped, as any might be attached.
         """
         try:
             repo_names = await provider.get_org_code_security_configuration_repositories(
@@ -592,9 +593,13 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
             )
         except RuntimeError as ex:
             _logger.warning(
-                "failed to retrieve the repositories of code security configuration '%s' to skip their patches: %s",
+                "failed to retrieve the repositories of code security configuration '%s', skipping the patches "
+                "of all repositories: %s",
                 configuration.name,
                 ex,
+            )
+            provider.skip_all_repository_patches(
+                org_id, f"{reason}, and the repositories attached to it could not be retrieved"
             )
             return
 
