@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import re
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -36,6 +37,13 @@ _PRODUCT_VALUES = ("enabled", "disabled")
 _ENFORCEMENT_VALUES = ("enforced", "unenforced")
 _DEFAULT_FOR_NEW_REPOS_VALUES = ("none", "all", "private_and_internal", "public")
 _RUNNER_TYPE_VALUES = ("standard", "labeled", "not_set")
+
+# the visibilities of new repositories a configuration is the default for
+_DEFAULT_VISIBILITIES = {
+    "all": ["public", "private_and_internal"],
+    "public": ["public"],
+    "private_and_internal": ["private_and_internal"],
+}
 
 # GitHub reports the status of Code Security and Secret Protection combined in 'advanced_security'
 _ADVANCED_SECURITY_TO_PRODUCTS = {
@@ -221,19 +229,22 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
         return any(prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties)
 
+    def get_default_visibilities(self) -> list[str]:
+        """Returns the visibilities of new repositories this configuration is the default for."""
+        return _DEFAULT_VISIBILITIES.get(self.default_for_new_repos, []) if self.is_default_for_new_repos() else []
+
     def overlaid_with(self, other: OrganizationCodeSecurityConfiguration) -> OrganizationCodeSecurityConfiguration:
         """
         Returns a copy of this configuration with the values that the other configuration manages,
         values that the other configuration does not manage, i.e. unset or None, are kept.
         """
-        return dataclasses.replace(
-            self,
-            **{
-                field.name: other.__getattribute__(field.name)
-                for field in other.model_fields()
-                if is_set_and_valid(other.__getattribute__(field.name))
-            },
-        )
+        result = copy.copy(self)
+        for field in other.model_fields():
+            value = other.__getattribute__(field.name)
+            if is_set_and_valid(value):
+                setattr(result, field.name, value)
+
+        return result
 
     def get_controlled_repository_properties(self) -> set[str]:
         """
@@ -556,3 +567,24 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
                         current_object.name,
                         expected_object.default_for_new_repos,
                     )
+
+
+@dataclasses.dataclass
+class CodeSecurityConfigurationPlan:
+    """
+    The code security configurations of an organization as they are once its patches are applied,
+    to plan the settings of its repositories that the configurations attached to them set.
+    """
+
+    # the configurations of the organization by name, that repositories can reference
+    managed_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=dict)
+    # the configuration currently attached to each repository, which might not be managed, or None if
+    # the configuration is deleted
+    attached_configurations: dict[str, OrganizationCodeSecurityConfiguration | None] = dataclasses.field(
+        default_factory=dict
+    )
+    # the default configuration for new repositories by visibility
+    default_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=dict)
+
+    def get_default_configuration(self, private: bool) -> OrganizationCodeSecurityConfiguration | None:
+        return self.default_configurations.get("private_and_internal" if private else "public")

@@ -175,6 +175,7 @@ class RepoClient(RestClient):
         forked_repository: str | None,
         fork_default_branch_only: bool,
         auto_init_repo: bool,
+        code_security_configuration: str | None = None,
     ) -> None:
         repo_name = data["name"]
 
@@ -194,6 +195,7 @@ class RepoClient(RestClient):
                     f"/repos/{upstream_owner}/{upstream_repo}/forks",
                     fork_data,
                 )
+                await self._attach_code_security_configuration(org_id, repo_name, code_security_configuration)
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
@@ -226,6 +228,7 @@ class RepoClient(RestClient):
                 )
 
                 _logger.debug("created repo with name '%s' from template '%s'", repo_name, template_repository)
+                await self._attach_code_security_configuration(org_id, repo_name, code_security_configuration)
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
@@ -307,10 +310,49 @@ class RepoClient(RestClient):
             # in some cases, the repo can not be access yet via the REST API, resulting in 404 errors
             # we prevent that by adding an arbitrary sleep
             await asyncio.sleep(2)
+            await self._attach_code_security_configuration(org_id, repo_name, code_security_configuration)
             await self._remove_not_configured_code_scanning(org_id, repo_name, update_data)
             await self.update_repo(org_id, repo_name, update_data)
         except GitHubException as ex:
             raise RuntimeError(f"failed to add repo with name '{org_id}/{repo_name}':\n{ex}") from ex
+
+    async def _attach_code_security_configuration(
+        self, org_id: str, repo_name: str, code_security_configuration: str | None
+    ) -> None:
+        # attached to a new repository before its settings are applied, as the default configuration
+        # attached to the new repository might prevent changing them
+        if code_security_configuration is not None:
+            await self.rest_api.org.attach_code_security_configuration_by_name(
+                org_id, code_security_configuration, [repo_name]
+            )
+
+    async def wait_for_code_security_configuration(self, org_id: str, repo_name: str, configuration_id: int) -> None:
+        """Waits until the code security configuration with the given id is attached to the repository."""
+        url = f"/repos/{org_id}/{repo_name}/code-security-configuration"
+
+        for attempt in range(1, 11):
+            status, body = await self.requester.request_raw("GET", url)
+            if status != 200:
+                raise RuntimeError(f"failed retrieving the code security configuration of repo '{repo_name}':\n{body}")
+
+            data = json.loads(body)
+            attachment_status = data.get("status")
+            if data.get("configuration", {}).get("id") == configuration_id:
+                if attachment_status in ("attached", "enforced"):
+                    return
+                if attachment_status == "failed":
+                    raise RuntimeError(f"failed to attach code security configuration to repo '{repo_name}'")
+
+            _logger.trace(
+                "waiting for code security configuration of repo '%s/%s' (%s), try %d of 10",
+                org_id,
+                repo_name,
+                attachment_status,
+                attempt,
+            )
+            await asyncio.sleep(1)
+
+        raise RuntimeError(f"code security configuration not attached to repo '{repo_name}' after 10s")
 
     async def get_webhook_id(self, org_id: str, repo_name: str, url: str) -> str:
         _logger.debug("retrieving id for repo webhook with url '%s' for repo '%s/%s'", url, org_id, repo_name)

@@ -1626,29 +1626,18 @@ class Repository(ModelObject):
         the one specified by the repository, otherwise the one currently attached, which might not be managed,
         or for a new repository, the default configuration of the organization for its visibility.
         """
+        plan = context.code_security_configuration_plan
+        if plan is None:
+            return None
+
         name = expected_object.code_security_configuration
-        if not is_set_and_present(name) and current_object is not None:
-            name = context.attached_code_security_configurations.get(
-                current_object.name, current_object.code_security_configuration
-            )
-
         if is_set_and_present(name):
-            return context.code_security_configurations.get(name)
+            return plan.managed_configurations.get(name)
 
-        # default configurations are removed before new repositories are created if they are disabled
-        org_settings = cast("OrganizationSettings", context.expected_org_settings)
-        if current_object is None and org_settings.default_code_security_configurations_disabled is not True:
-            visibility = "private_and_internal" if expected_object.private is True else "public"
-            return next(
-                (
-                    x
-                    for x in context.code_security_configurations.values()
-                    if x.default_for_new_repos in ("all", visibility)
-                ),
-                None,
-            )
+        if current_object is not None:
+            return plan.attached_configurations.get(current_object.name)
 
-        return None
+        return plan.get_default_configuration(expected_object.private is True)
 
     @staticmethod
     def _include_squash_merge_patch_required_properties(
@@ -1816,6 +1805,8 @@ class Repository(ModelObject):
         match patch.patch_type:
             case LivePatchType.ADD:
                 expected_object = unwrap(patch.expected_object)
+                # the code security configuration is attached before the settings of the repository are applied,
+                # as the default configuration attached to the new repository might prevent changing them
                 await provider.add_repo(
                     org_id,
                     await expected_object.to_provider_data(org_id, provider),
@@ -1824,6 +1815,11 @@ class Repository(ModelObject):
                     expected_object.forked_repository,
                     expected_object.fork_default_branch_only,
                     expected_object.auto_init,
+                    code_security_configuration=(
+                        expected_object.code_security_configuration
+                        if is_set_and_present(expected_object.code_security_configuration)
+                        else None
+                    ),
                 )
 
                 if is_set_and_present(expected_object.workflows):
@@ -1844,11 +1840,6 @@ class Repository(ModelObject):
                 # safely handle any unexpected initial state.
                 await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)
 
-                if is_set_and_present(expected_object.code_security_configuration):
-                    await provider.attach_org_code_security_configuration(
-                        org_id, expected_object.code_security_configuration, [expected_object.name]
-                    )
-
             case LivePatchType.REMOVE:
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
@@ -1858,6 +1849,15 @@ class Repository(ModelObject):
                 cls._include_gh_pages_patch_required_properties(patch)
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
+
+                # the code security configuration is attached before the settings it does not set are applied,
+                # as the configuration currently attached might prevent changing them
+                if "code_security_configuration" in unwrap(patch.changes) and is_set_and_present(
+                    expected_object.code_security_configuration
+                ):
+                    await provider.attach_org_code_security_configuration(
+                        org_id, expected_object.code_security_configuration, [unwrap(patch.current_object).name]
+                    )
 
                 if "workflows" in github_settings:
                     github_settings.pop("workflows")
@@ -1885,10 +1885,3 @@ class Repository(ModelObject):
                 # - assigning a new permission (add)
                 # The patch is therefore decomposed into these three categories and applied here.
                 await cls._apply_team_permission_changes(provider, org_id, expected_object.name, patch)
-
-                if "code_security_configuration" in unwrap(patch.changes) and is_set_and_present(
-                    expected_object.code_security_configuration
-                ):
-                    await provider.attach_org_code_security_configuration(
-                        org_id, expected_object.code_security_configuration, [expected_object.name]
-                    )

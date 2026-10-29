@@ -7,13 +7,16 @@
 #  *******************************************************************************
 
 import dataclasses
+import json
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
 from otterdog.models import LivePatch
 from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
 from otterdog.models.repository import Repository
+from otterdog.providers.github.rest import repo_client
 from otterdog.utils import Change, jsonnet_evaluate_snippet
 
 from .conftest import GitHubProviderTestKit
@@ -291,7 +294,8 @@ async def test_delete_default_configuration(github: GitHubProviderTestKit):
 # ---------------------------------------------------------------------------
 
 
-async def test_attach_to_repository(github: GitHubProviderTestKit):
+def expect_attachment(github: GitHubProviderTestKit, status: str = "attached") -> None:
+    """Expects the attachment of configuration 'baseline' (7) to the repository, reported with the given status."""
     # the id of the configuration and of the repository are resolved by their name
     github.http.expect(
         "GET",
@@ -308,6 +312,22 @@ async def test_attach_to_repository(github: GitHubProviderTestKit):
         response_status=202,
         response_json={},
     )
+    # API: https://docs.github.com/en/rest/code-security/configurations#get-the-code-security-configuration-associated-with-a-repository
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/code-security-configuration",
+        response_json={"status": status, "configuration": {"id": 7, "name": "baseline"}},
+    )
+
+
+@pytest.fixture
+def no_sleep(monkeypatch: pytest.MonkeyPatch):
+    """Skip the waits for repositories and attachments."""
+    monkeypatch.setattr(repo_client.asyncio, "sleep", AsyncMock())
+
+
+async def test_attach_to_repository(github: GitHubProviderTestKit):
+    expect_attachment(github)
 
     current = Repository.from_model_data({"name": REPO_NAME, "code_security_configuration": None})
     expected = Repository.from_model_data({"name": REPO_NAME, "code_security_configuration": "baseline"})
@@ -321,3 +341,75 @@ async def test_attach_to_repository(github: GitHubProviderTestKit):
     )
 
     await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+
+async def test_attach_waits_until_the_attachment_completed(github: GitHubProviderTestKit, no_sleep):
+    # the attachment is processed asynchronously by GitHub
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[{"id": 7, "name": "baseline", "target_type": "organization"}],
+    )
+    github.http.expect("GET", f"/repos/{ORG_ID}/{REPO_NAME}", response_json={"id": 1296269, "name": REPO_NAME})
+    github.http.expect(
+        "POST",
+        f"{CONFIGURATIONS_URL}/7/attach",
+        request_json={"scope": "selected", "selected_repository_ids": [1296269]},
+        response_status=202,
+        response_json={},
+    )
+    # the HTTP mock answers a request only once, the successive statuses of the attachment are served here
+    statuses = iter(["attaching", "enforced"])
+    original_request_raw = github.provider.rest_api.requester.request_raw
+
+    async def request_raw(method, url_path, data=None, params=None):
+        if url_path.endswith("/code-security-configuration"):
+            return 200, json.dumps({"status": next(statuses), "configuration": {"id": 7}})
+        return await original_request_raw(method, url_path, data, params)
+
+    github.provider.rest_api.requester.request_raw = request_raw  # type: ignore[method-assign]
+
+    await github.provider.attach_org_code_security_configuration(ORG_ID, "baseline", [REPO_NAME])
+
+    assert next(statuses, None) is None
+
+
+async def test_attach_fails_if_the_attachment_failed(github: GitHubProviderTestKit, no_sleep):
+    expect_attachment(github, "failed")
+
+    with pytest.raises(RuntimeError, match="failed to attach code security configuration to repo"):
+        await github.provider.attach_org_code_security_configuration(ORG_ID, "baseline", [REPO_NAME])
+
+
+async def test_add_repo_attaches_configuration_before_applying_settings(github: GitHubProviderTestKit, no_sleep):
+    github.http.expect(
+        "POST",
+        f"/orgs/{ORG_ID}/repos",
+        request_json={"name": REPO_NAME, "private": False, "auto_init": False},
+        response_json={"name": REPO_NAME, "private": False},
+    )
+    expect_attachment(github)
+    github.http.expect(
+        "PATCH",
+        f"/repos/{ORG_ID}/{REPO_NAME}",
+        request_json={"security_and_analysis": {"secret_scanning": {"status": "enabled"}}},
+        response_json={"name": REPO_NAME},
+    )
+
+    await github.provider.add_repo(
+        ORG_ID,
+        {"name": REPO_NAME, "private": False, "security_and_analysis": {"secret_scanning": {"status": "enabled"}}},  # type: ignore[dict-item]
+        None,
+        [],
+        None,
+        False,
+        False,
+        code_security_configuration="baseline",
+    )
+
+    # the settings are applied once the configuration is attached
+    served = [(r.method, r.url) for r in github.http.served_requests]
+    assert served.index(("GET", f"/repos/{ORG_ID}/{REPO_NAME}/code-security-configuration")) < served.index(
+        ("PATCH", f"/repos/{ORG_ID}/{REPO_NAME}")
+    )

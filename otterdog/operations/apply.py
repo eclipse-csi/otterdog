@@ -57,6 +57,9 @@ class ApplyOperation(PlanOperation):
     def resolve_secrets(self) -> bool:
         return self._resolve_secrets
 
+    def delete_resources(self) -> bool:
+        return self._delete_resources
+
     def handle_add_object(
         self,
         org_id: str,

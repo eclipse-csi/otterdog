@@ -87,4 +87,8 @@ class LocalApplyOperation(ApplyOperation):
         if self.no_web_ui is True:
             github_organization.unset_settings_requiring_web_ui()
 
+        # the configurations attached to repositories on GitHub set some of their settings
+        if jsonnet_config.default_org_code_security_configuration_config is not None:
+            await github_organization.load_code_security_configuration_metadata(self.gh_client)
+
         return github_organization

@@ -437,6 +437,21 @@ class OrgClient(RestClient):
                 f"failed retrieving repositories of code security configuration '{configuration_id}':\n{ex}"
             ) from ex
 
+    async def attach_code_security_configuration_by_name(self, org_id: str, name: str, repo_names: list[str]) -> None:
+        """
+        Attaches the code security configuration with the given name to the given repositories,
+        and waits until the attachment completed, as the settings it sets are applied asynchronously.
+        """
+        configuration_id = await self.get_code_security_configuration_id(org_id, name)
+        if configuration_id is None:
+            raise RuntimeError(f"failed to find code security configuration with name '{name}' in org '{org_id}'")
+
+        repo_ids = await self.rest_api.repo.get_repo_ids(org_id, repo_names)
+        await self.attach_code_security_configuration(org_id, configuration_id, name, repo_ids)
+
+        for repo_name in repo_names:
+            await self.rest_api.repo.wait_for_code_security_configuration(org_id, repo_name, configuration_id)
+
     async def attach_code_security_configuration(
         self, org_id: str, configuration_id: int, name: str, repository_ids: list[int]
     ) -> None:

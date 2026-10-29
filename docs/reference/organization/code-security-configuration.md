@@ -40,7 +40,9 @@ and configurations of an enterprise are neither created, updated nor deleted. Th
 it and creates a new one, which is not attached to the repositories of the previous configuration anymore.
 
 A configuration is attached to a repository with the `code_security_configuration` property of the
-[Repository](repository/index.md), and to new repositories with the `default_for_new_repos` property.
+[Repository](repository/index.md), and to new repositories with the `default_for_new_repos` property. The
+configuration is attached before the other settings of the repository are applied, and otterdog waits until GitHub
+completed the attachment.
 
 The settings of a repository that the configuration attached to it sets are not managed on the repository, as the
 configuration takes precedence, and changing them on the repository might detach it from its configuration. This

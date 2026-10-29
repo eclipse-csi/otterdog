@@ -194,9 +194,7 @@ class GitHubProvider:
         return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id)
 
     async def attach_org_code_security_configuration(self, org_id: str, name: str, repo_names: list[str]) -> None:
-        configuration_id = await self._resolve_code_security_configuration_id(org_id, None, name)
-        repo_ids = await self.rest_api.repo.get_repo_ids(org_id, repo_names)
-        await self.rest_api.org.attach_code_security_configuration(org_id, configuration_id, name, repo_ids)
+        await self.rest_api.org.attach_code_security_configuration_by_name(org_id, name, repo_names)
 
     async def _resolve_code_security_configuration_id(
         self, org_id: str, configuration_id: int | None, name: str
@@ -302,6 +300,7 @@ class GitHubProvider:
         forked_repository: str | None,
         fork_default_branch_only: bool,
         auto_init_repo: bool,
+        code_security_configuration: str | None = None,
     ) -> None:
         await self.rest_api.repo.add_repo(
             org_id,
@@ -311,6 +310,7 @@ class GitHubProvider:
             forked_repository,
             fork_default_branch_only,
             auto_init_repo,
+            code_security_configuration,
         )
 
     async def delete_repo(self, org_id: str, repo_name: str) -> None:

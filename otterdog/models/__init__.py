@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from otterdog.config import SecretResolver
     from otterdog.jsonnet import JsonnetConfig
-    from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
+    from otterdog.models.organization_code_security_configuration import CodeSecurityConfigurationPlan
     from otterdog.providers.github import GitHubProvider
     from otterdog.utils import ExclusionPatterns
 
@@ -214,12 +214,10 @@ class LivePatchContext:
     expected_org_settings: ModelObject
     modified_org_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
     modified_org_workflow_settings: dict[str, Change] = dataclasses.field(default_factory=dict)
-    # the code security configurations by name as they are once the patches are applied
-    code_security_configurations: dict[str, OrganizationCodeSecurityConfiguration] = dataclasses.field(
-        default_factory=dict
-    )
-    # the name of the code security configuration currently attached to each repository, managed or not
-    attached_code_security_configurations: dict[str, str] = dataclasses.field(default_factory=dict)
+    # whether resources that are not expected are deleted
+    delete_resources: bool = False
+    # the code security configurations as they are once the patches are applied, to plan repositories
+    code_security_configuration_plan: CodeSecurityConfigurationPlan | None = None
 
 
 class LivePatchHandler(Protocol):
