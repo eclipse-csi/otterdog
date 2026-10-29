@@ -72,6 +72,7 @@ test("the objects created by the functions of the default configuration are vali
   assert.equal(schemaOfFunction("newPullRequest"), "ruleset.json#/$defs/pull_request");
   assert.equal(schemaOfFunction("newOrgDependabotSecret"), "org-secret.json");
   assert.equal(schemaOfFunction("newRepoCodespacesSecret"), "repo-secret.json");
+  assert.equal(schemaOfFunction("newOrgCodeSecurityConfiguration"), "org-code-security-configuration.json");
   assert.equal(schemaOfFunction("unknown"), null);
   assert.deepEqual(validate({required_approving_review_count: "0"}, schemaOfFunction("newPullRequest"), SCHEMAS).map((problem) => problem.path), [["required_approving_review_count"]]);
 });

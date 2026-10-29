@@ -237,6 +237,7 @@ class DiffOperation(Operation):
                 self.update_filter,
                 current_org.settings if self.coerce_current_org() else None,
                 expected_org.settings,
+                delete_resources=self.delete_resources(),
             )
             expected_org.generate_live_patch(current_org, context, handle)
 
@@ -250,6 +251,10 @@ class DiffOperation(Operation):
 
     def load_expected_org(self, github_id: str, org_file_name: str) -> GitHubOrganization:
         return GitHubOrganization.load_from_file(github_id, org_file_name)
+
+    def delete_resources(self) -> bool:
+        """Indicates whether resources that are not expected are deleted when applying the patches."""
+        return False
 
     def coerce_current_org(self) -> bool:
         return False

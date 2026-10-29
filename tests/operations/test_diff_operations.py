@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pretend
+import pytest
 
 from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
@@ -20,6 +21,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.operations.apply import ApplyOperation
 from otterdog.operations.check_status import CheckStatusOperation
 from otterdog.operations.local_plan import LocalPlanOperation
+from otterdog.operations.plan import PlanOperation
 from otterdog.operations.validate import ValidationStatus
 from otterdog.utils import IndentingPrinter, LogLevel
 
@@ -134,7 +136,11 @@ async def test_apply_processes_a_non_empty_plan(tmp_path, monkeypatch):
     output = StringIO()
     update_repo = AsyncMock()
     operation = ApplyOperation(True, True, "*", False, False, False, "", False)
-    client = pretend.stub(close=AsyncMock(), update_repo=update_repo)
+    client = pretend.stub(
+        close=AsyncMock(),
+        update_repo=update_repo,
+        get_skipped_repository_reason=lambda org_id, repo_name: None,
+    )
     _initialize_operation(operation, monkeypatch, output, client, current_org)
 
     result = await operation.execute(org_config)
@@ -181,3 +187,22 @@ async def test_check_status_reports_the_status_of_matching_configurations(tmp_pa
         }
     ]
     archived_check.assert_awaited_once_with("test-org")
+
+
+@pytest.mark.parametrize("delete_resources", [True, False])
+def test_apply_plans_with_its_deletion_policy(delete_resources):
+    """Repositories are planned with the resources that are deleted, e.g. code security configurations."""
+    operation = ApplyOperation(True, True, "*", False, False, False, "", delete_resources)
+
+    assert operation.delete_resources() is delete_resources
+
+
+def test_plan_does_not_delete_resources():
+    assert PlanOperation(True, "*", False, False, False, "").delete_resources() is False
+
+
+@pytest.mark.parametrize("delete_resources", [True, False])
+def test_local_plan_uses_the_deletion_policy_of_the_apply_it_previews(delete_resources):
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "", delete_resources=delete_resources)
+
+    assert operation.delete_resources() is delete_resources

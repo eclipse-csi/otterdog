@@ -36,6 +36,10 @@ from otterdog.models.custom_property import CustomProperty
 from otterdog.models.environment import Environment
 from otterdog.models.environment_secret import EnvironmentSecret
 from otterdog.models.environment_variable import EnvironmentVariable
+from otterdog.models.organization_code_security_configuration import (
+    CodeSecurityConfigurationPlan,
+    OrganizationCodeSecurityConfiguration,
+)
 from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
 from otterdog.models.organization_dependabot_secret import OrganizationDependabotSecret
 from otterdog.models.organization_role import OrganizationRole
@@ -117,9 +121,18 @@ class GitHubOrganization:
     codespaces_secrets: list[OrganizationCodespacesSecret] = dataclasses.field(default_factory=list)
     variables: list[OrganizationVariable] = dataclasses.field(default_factory=list)
     rulesets: list[OrganizationRuleset] = dataclasses.field(default_factory=list)
+    code_security_configurations: list[OrganizationCodeSecurityConfiguration] = dataclasses.field(default_factory=list)
     repositories: list[Repository] = dataclasses.field(default_factory=list)
 
     _secrets_resolved: bool = False
+
+    # retrieved from GitHub to plan the settings of repositories: all code security configurations, including the
+    # ones that are not managed, e.g. GitHub recommended or of the enterprise, and the id of the configuration
+    # attached to each repository, None if they were not retrieved, e.g. for an organization loaded from a file
+    _live_code_security_configurations: list[OrganizationCodeSecurityConfiguration] | None = None
+    _attached_code_security_configurations: dict[str, int] | None = None
+    # whether the settings of the repositories were retrieved from GitHub
+    _loaded_from_github: bool = False
 
     @property
     def secrets_resolved(self) -> bool:
@@ -197,6 +210,188 @@ class GitHubOrganization:
     def set_rulesets(self, rulesets: list[OrganizationRuleset]) -> None:
         self.rulesets = rulesets
 
+    def add_code_security_configuration(self, configuration: OrganizationCodeSecurityConfiguration) -> None:
+        self.code_security_configurations.append(configuration)
+
+    def get_code_security_configuration(self, name: str) -> OrganizationCodeSecurityConfiguration | None:
+        return next(filter(lambda x: x.name == name, self.code_security_configurations), None)  # type: ignore
+
+    def set_code_security_configurations(self, configurations: list[OrganizationCodeSecurityConfiguration]) -> None:
+        self.code_security_configurations = configurations
+
+    @property
+    def live_code_security_configurations(self) -> list[OrganizationCodeSecurityConfiguration] | None:
+        return self._live_code_security_configurations
+
+    def set_live_code_security_configurations(
+        self, configurations: list[OrganizationCodeSecurityConfiguration]
+    ) -> None:
+        self._live_code_security_configurations = configurations
+
+    @property
+    def attached_code_security_configurations(self) -> dict[str, int] | None:
+        return self._attached_code_security_configurations
+
+    def set_attached_code_security_configurations(self, attached_configurations: dict[str, int]) -> None:
+        self._attached_code_security_configurations = attached_configurations
+
+    async def load_code_security_configuration_metadata(self, provider: GitHubProvider) -> None:
+        """
+        Retrieves from GitHub what is needed to plan the settings of repositories for an organization that is not
+        loaded from GitHub, e.g. from a file: all code security configurations and the configuration attached to each
+        repository. The configurations of the organization and its repositories are otherwise left unchanged.
+        """
+        configurations = [
+            OrganizationCodeSecurityConfiguration.from_provider_data(self.github_id, data)
+            for data in await provider.get_org_code_security_configurations(self.github_id)
+        ]
+        self.set_live_code_security_configurations(configurations)
+        await _load_attached_code_security_configurations(self, self.github_id, provider)
+
+    def plan_code_security_configurations(
+        self, current_organization: GitHubOrganization, delete_resources: bool
+    ) -> CodeSecurityConfigurationPlan:
+        """
+        Plans the code security configurations as they are once the patches are applied, to plan the settings
+        of repositories: the current configurations, including the ones that are not managed or whose deletion
+        is skipped, overlaid with the values managed by the expected configurations.
+        """
+        expected_configurations = {x.name: x for x in self.code_security_configurations}
+        deleted_configurations = (
+            {x.name for x in current_organization.code_security_configurations} - set(expected_configurations)
+            if delete_resources
+            else set()
+        )
+
+        # the configurations of the organization the patches are generated against, which are not the ones
+        # retrieved from GitHub if the current organization is loaded from a file
+        compared_configurations = {x.name: x for x in current_organization.code_security_configurations}
+
+        # pairs of a current configuration and the planned one, None if it is deleted
+        configurations = [
+            (
+                x,
+                _plan_code_security_configuration(
+                    x, expected_configurations.get(x.name), compared_configurations.get(x.name), deleted_configurations
+                ),
+            )
+            for x in (
+                current_organization.live_code_security_configurations
+                or current_organization.code_security_configurations
+            )
+        ]
+
+        managed_configurations = {
+            current.name: planned
+            for current, planned in configurations
+            if planned is not None and current.is_organization_configuration()
+        }
+        # the configurations that are created
+        for expected_configuration in self.code_security_configurations:
+            managed_configurations.setdefault(expected_configuration.name, expected_configuration)
+
+        attached_configurations = _get_attached_code_security_configurations(current_organization, configurations)
+
+        return CodeSecurityConfigurationPlan(
+            managed_configurations,
+            {repo_name: current for repo_name, (current, _) in attached_configurations.items()},
+            {repo_name: planned for repo_name, (_, planned) in attached_configurations.items()},
+            self._plan_default_code_security_configurations(
+                [managed_configurations[x] for x in expected_configurations],
+                [planned for _, planned in configurations if planned is not None],
+            ),
+            update_released_settings=not current_organization._loaded_from_github,
+        )
+
+    def _plan_default_code_security_configurations(
+        self,
+        expected_configurations: list[OrganizationCodeSecurityConfiguration],
+        current_configurations: list[OrganizationCodeSecurityConfiguration],
+    ) -> dict[str, OrganizationCodeSecurityConfiguration]:
+        # default configurations are removed if they are disabled
+        if self.settings.default_code_security_configurations_disabled is True:
+            return {}
+
+        # an expected default configuration replaces the current one for the same visibility
+        default_configurations: dict[str, OrganizationCodeSecurityConfiguration] = {}
+        for configuration in [*expected_configurations, *current_configurations]:
+            for visibility in configuration.get_default_visibilities():
+                default_configurations.setdefault(visibility, configuration)
+
+        return default_configurations
+
+    def _set_costs_of_code_security_configurations(
+        self, current_organization: GitHubOrganization, plan: CodeSecurityConfigurationPlan
+    ) -> None:
+        """
+        Sets what the costs of the code security configurations depend on: the plan of the organization, and whether
+        private repositories are attached to them once the patches are applied, None if not known.
+        """
+        attached_to_private_repositories, unknown_attachments = self._get_attachments_of_private_repositories(
+            current_organization, plan
+        )
+        # a private repository whose attachment is not known might be attached to any existing configuration
+        existing_configurations = {x.name for x in current_organization.code_security_configurations}
+
+        for configuration in self.code_security_configurations:
+            configuration.organization_plan = self.settings.plan
+            if configuration.name in attached_to_private_repositories:
+                configuration.attached_to_private_repositories = True
+            elif unknown_attachments and configuration.name in existing_configurations:
+                configuration.attached_to_private_repositories = None
+            else:
+                configuration.attached_to_private_repositories = False
+
+    def _get_attachments_of_private_repositories(
+        self, current_organization: GitHubOrganization, plan: CodeSecurityConfigurationPlan
+    ) -> tuple[set[str], bool]:
+        """
+        Returns the configurations attached to private repositories once the patches are applied, the one they
+        specify, otherwise the one currently attached to them, and whether the attachment of some private
+        repositories is not known, as attachments are not retrieved from GitHub, e.g. for an organization loaded
+        from a file, and they do not specify a configuration.
+        """
+        attachments_known = current_organization.attached_code_security_configurations is not None
+        attached_configurations: set[str] = set()
+        unknown_attachments = False
+
+        for repo in filter(lambda x: x.private is True, self.repositories):
+            if is_set_and_present(repo.code_security_configuration):
+                attached_configurations.add(repo.code_security_configuration)
+            elif not attachments_known:
+                unknown_attachments = True
+            else:
+                # a renamed repository is still known by its former name
+                for name in repo.get_all_names():
+                    configuration = plan.get_planned_attached_configuration(name)
+                    if configuration is not None:
+                        attached_configurations.add(configuration.name)
+
+        return attached_configurations, unknown_attachments
+
+    def get_attached_code_security_configuration(
+        self, repo: Repository
+    ) -> OrganizationCodeSecurityConfiguration | None:
+        """Returns the code security configuration that a repository references, if it is defined."""
+        name = repo.code_security_configuration
+        return self.get_code_security_configuration(name) if is_set_and_present(name) else None
+
+    def get_effective_repository(self, repo: Repository) -> Repository:
+        """
+        Returns the repository with the security settings that the code security configuration it references sets,
+        as they take precedence over the ones of the repository. A repository that does not reference a
+        configuration keeps its own settings, the configuration attached to it on GitHub being unknown.
+        """
+        configuration = self.get_attached_code_security_configuration(repo)
+        if configuration is None:
+            return repo
+
+        effective_repo = copy.copy(repo)
+        for key, value in configuration.get_repository_settings(repo.private is True).items():
+            setattr(effective_repo, key, value)
+
+        return effective_repo
+
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)
 
@@ -209,6 +404,31 @@ class GitHubOrganization:
 
     def set_repositories(self, repos: list[Repository]) -> None:
         self.repositories = repos
+
+    def _validate_default_code_security_configurations(self, context: ValidationContext) -> None:
+        default_configurations = [x for x in self.code_security_configurations if x.is_default_for_new_repos()]
+
+        if len(default_configurations) > 0 and self.settings.default_code_security_configurations_disabled is True:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{default_configurations[0].get_model_header()} is set as default for new repositories, while "
+                f"setting 'default_code_security_configurations_disabled' of the organization removes any default "
+                f"code security configuration, set it to 'false' to use a default code security configuration.",
+            )
+
+        # a configuration can be the default for a visibility of new repositories at most once
+        defaults_by_visibility: dict[str, str] = {}
+        for configuration in default_configurations:
+            for visibility in configuration.get_default_visibilities():
+                existing_default = defaults_by_visibility.get(visibility)
+                if existing_default is not None:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{configuration.get_model_header()} is set as default for new '{visibility}' repositories, "
+                        f"while code security configuration '{existing_default}' is already the default for them.",
+                    )
+                else:
+                    defaults_by_visibility[visibility] = configuration.name
 
     async def validate(
         self,
@@ -283,6 +503,11 @@ class GitHubOrganization:
         else:
             for ruleset in self.rulesets:
                 ruleset.validate(context, self)
+
+        for configuration in self.code_security_configurations:
+            configuration.validate(context, self)
+
+        self._validate_default_code_security_configurations(context)
 
         # Run synchronous validations and collect repos needing API code scanning validation
         repos_needing_codescaning_language_validation = []
@@ -428,6 +653,10 @@ class GitHubOrganization:
             yield ruleset, None
             yield from ruleset.get_model_objects()
 
+        for configuration in self.code_security_configurations:
+            yield configuration, None
+            yield from configuration.get_model_objects()
+
         for repo in self.repositories:
             yield repo, None
             yield from repo.get_model_objects()
@@ -463,6 +692,8 @@ class GitHubOrganization:
             "variables": OptionalS("variables", default=[])
             >> Forall(lambda x: OrganizationVariable.from_model_data(x)),
             "rulesets": OptionalS("rulesets", default=[]) >> Forall(lambda x: OrganizationRuleset.from_model_data(x)),
+            "code_security_configurations": OptionalS("code_security_configurations", default=[])
+            >> Forall(lambda x: OrganizationCodeSecurityConfiguration.from_model_data(x)),
             "repositories": OptionalS("repositories", default=[]) >> Forall(lambda x: Repository.from_model_data(x)),
         }
 
@@ -654,6 +885,21 @@ class GitHubOrganization:
             printer.level_down()
             printer.println("],")
 
+        # print organization code security configurations
+        if len(self.code_security_configurations) > 0:
+            default_configuration = OrganizationCodeSecurityConfiguration.from_model_data(
+                config.default_org_code_security_configuration_config
+            )
+
+            printer.println("code_security_configurations+: [")
+            printer.level_up()
+
+            for configuration in self.code_security_configurations:
+                configuration.to_jsonnet(printer, config, context, False, default_configuration)
+
+            printer.level_down()
+            printer.println("],")
+
         # print repositories
         if len(self.repositories) > 0:
             repos_by_name = associate_by_key(self.repositories, lambda x: x.name)
@@ -716,6 +962,17 @@ class GitHubOrganization:
         )
         OrganizationRuleset.generate_live_patch_of_list(
             self.rulesets, current_organization.rulesets, None, context, handler
+        )
+        context.code_security_configuration_plan = self.plan_code_security_configurations(
+            current_organization, context.delete_resources
+        )
+        self._set_costs_of_code_security_configurations(current_organization, context.code_security_configuration_plan)
+        OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(
+            self.code_security_configurations,
+            current_organization.code_security_configurations,
+            None,
+            context,
+            handler,
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
@@ -813,7 +1070,7 @@ class GitHubOrganization:
             return settings
 
         org_settings = await _load_settings()
-        org = cls(project_name, github_id, org_settings)
+        org = cls(project_name, github_id, org_settings, _loaded_from_github=True)
 
         @debug_times("roles")
         async def _load_roles() -> None:
@@ -919,6 +1176,15 @@ class GitHubOrganization:
             else:
                 _logger.debug("not reading org secrets, no default config available")
 
+        @debug_times("code_security_configurations")
+        async def _load_code_security_configurations() -> None:
+            if jsonnet_config.default_org_code_security_configuration_config is not None:
+                github_configurations = await provider.get_org_code_security_configurations(github_id)
+                await _enrich_team_bypass_reviewers(github_configurations, github_id, provider)
+                _add_code_security_configurations(org, github_id, github_configurations)
+            else:
+                _logger.debug("not reading org code security configurations, no default config available")
+
         @debug_times("repos")
         async def _load_repos() -> None:
             if jsonnet_config.default_repo_config is not None:
@@ -946,7 +1212,13 @@ class GitHubOrganization:
             task_group.soonify(_load_codespaces_secrets)()
             task_group.soonify(_load_variables)()
             task_group.soonify(_load_rulesets)()
+            task_group.soonify(_load_code_security_configurations)()
             task_group.soonify(_load_repos)()
+
+        # the configurations attached to repositories are only known once both have been loaded,
+        # without any configuration, repositories are known to have none attached
+        if jsonnet_config.default_org_code_security_configuration_config is not None:
+            await _load_code_security_configuration_attachments(org, github_id, provider)
 
         return org
 
@@ -966,6 +1238,140 @@ async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: G
         for actor in ruleset.get("bypass_actors", []):
             if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
                 actor["user_login"] = user_logins[actor["actor_id"]]
+
+
+async def _enrich_team_bypass_reviewers(
+    configurations: list[dict[str, Any]], github_id: str, provider: GitHubProvider
+) -> None:
+    def team_reviewers() -> Iterator[dict[str, Any]]:
+        for configuration in configurations:
+            options = configuration.get("secret_scanning_delegated_bypass_options") or {}
+            for reviewer in options.get("reviewers") or []:
+                if reviewer.get("reviewer_type") == "TEAM":
+                    yield reviewer
+
+    if not any(True for _ in team_reviewers()):
+        return
+
+    teams = {team["id"]: f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    for reviewer in team_reviewers():
+        if reviewer.get("reviewer_id") in teams:
+            reviewer["team_slug"] = teams[reviewer["reviewer_id"]]
+
+
+def _add_code_security_configurations(
+    org: GitHubOrganization, github_id: str, configurations: list[dict[str, Any]]
+) -> None:
+    models = [OrganizationCodeSecurityConfiguration.from_provider_data(github_id, x) for x in configurations]
+
+    # only configurations of the organization are managed, predefined configurations (e.g. GitHub recommended)
+    # and configurations of the enterprise are only retained to plan the repositories they are attached to
+    for model in models:
+        if model.is_organization_configuration():
+            org.add_code_security_configuration(model)
+
+    org.set_live_code_security_configurations(models)
+
+
+async def _load_attached_code_security_configurations(
+    org: GitHubOrganization, github_id: str, provider: GitHubProvider
+) -> None:
+    """
+    Retrieves the id of the code security configuration attached to each repository, for all configurations
+    retrieved from GitHub. A failure aborts, as repositories could be planned with settings that conflict with
+    the configuration attached to them otherwise.
+    """
+    attached_configurations: dict[str, int] = {}
+    for configuration in org.live_code_security_configurations or []:
+        for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration.id):
+            # the names of repositories are case-insensitive on GitHub
+            attached_configurations[repo_name.lower()] = configuration.id
+
+    org.set_attached_code_security_configurations(attached_configurations)
+
+
+async def _load_code_security_configuration_attachments(
+    org: GitHubOrganization, github_id: str, provider: GitHubProvider
+) -> None:
+    await _load_attached_code_security_configurations(org, github_id, provider)
+
+    # repositories only reference managed configurations
+    managed_configurations = {x.id: x.name for x in org.code_security_configurations}
+    attached_configurations = org.attached_code_security_configurations or {}
+    for repo in org.repositories:
+        configuration_id = attached_configurations.get(repo.name.lower())
+        repo.code_security_configuration = (
+            managed_configurations.get(configuration_id) if configuration_id is not None else None
+        )
+
+
+def _plan_code_security_configuration(
+    current_configuration: OrganizationCodeSecurityConfiguration,
+    expected_configuration: OrganizationCodeSecurityConfiguration | None,
+    compared_configuration: OrganizationCodeSecurityConfiguration | None,
+    deleted_configurations: set[str],
+) -> OrganizationCodeSecurityConfiguration | None:
+    """
+    Returns a current code security configuration as it is once the patches are applied, None if it is deleted.
+    Only the configurations of the organization are changed by the expected ones, and only if a patch updates them,
+    i.e. if the expected configuration differs from the one it is compared to: an update sends all its settings,
+    while its default for new repositories is set separately.
+    """
+    if not current_configuration.is_organization_configuration():
+        return current_configuration
+
+    if current_configuration.name in deleted_configurations:
+        return None
+
+    if expected_configuration is None:
+        return current_configuration
+
+    changes: dict[str, Any] | None = (
+        expected_configuration.get_difference_from(compared_configuration)
+        if compared_configuration is not None
+        else None
+    )
+    updated_keys = {
+        field.name
+        for field in expected_configuration.model_fields()
+        if changes is None
+        or (field.name == "default_for_new_repos" and field.name in changes)
+        or (field.name != "default_for_new_repos" and any(key != "default_for_new_repos" for key in changes))
+    }
+
+    return current_configuration.overlaid_with(expected_configuration, updated_keys)
+
+
+def _get_attached_code_security_configurations(
+    current_organization: GitHubOrganization,
+    configurations: list[tuple[OrganizationCodeSecurityConfiguration, OrganizationCodeSecurityConfiguration | None]],
+) -> dict[str, tuple[OrganizationCodeSecurityConfiguration, OrganizationCodeSecurityConfiguration | None]]:
+    """
+    Returns the current and planned configuration attached to each repository, by the id retrieved from GitHub,
+    or if attachments were not retrieved, e.g. for an organization loaded from a file, by the name of the managed
+    configuration the repository references.
+    """
+    attached_configurations = current_organization.attached_code_security_configurations
+    if attached_configurations is not None:
+        by_id = {
+            current.id: (current, planned) for current, planned in configurations if is_set_and_present(current.id)
+        }
+        return {
+            repo_name: by_id[configuration_id]
+            for repo_name, configuration_id in attached_configurations.items()
+            if configuration_id in by_id
+        }
+
+    by_name = {
+        current.name: (current, planned)
+        for current, planned in configurations
+        if current.is_organization_configuration()
+    }
+    return {
+        repo.name.lower(): by_name[repo.code_security_configuration]
+        for repo in current_organization.repositories
+        if is_set_and_present(repo.code_security_configuration) and repo.code_security_configuration in by_name
+    }
 
 
 async def _process_single_repo(

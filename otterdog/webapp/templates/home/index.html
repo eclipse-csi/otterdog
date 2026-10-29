@@ -205,6 +205,17 @@
               </div>
             </div>
           </div>
+          <div class="col-sm-3">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title">Code Scanning</h3>
+              </div>
+              <div class="card-body">
+                <h3 class="text-center text-secondary">{{ '%0.1f' % code_scanning_percentage|float  }}% with default setup</h3>
+                <canvas id="code-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- /.row -->
 
@@ -317,6 +328,7 @@
       drawDependabotChart();
       drawBranchProtectionChart();
       drawPrivateVulnerabilityReportingChart();
+      drawCodeScanningChart();
     });
 
     function drawTwoFactorChart() {
@@ -431,6 +443,29 @@
           datasets: [{
             label: 'private vulnerability reporting',
             data: {{ private_vulnerability_reporting_data|safe }},
+            backgroundColor: [
+              '#ffc107',
+              '#28a745',
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          animation: {
+            animateRotate: false
+          }
+        }
+      });
+    };
+
+    function drawCodeScanningChart() {
+      new Chart(document.getElementById('code-scanning-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['not configured', 'default setup'],
+          datasets: [{
+            label: 'code scanning',
+            data: {{ code_scanning_data|tojson }},
             backgroundColor: [
               '#ffc107',
               '#28a745',

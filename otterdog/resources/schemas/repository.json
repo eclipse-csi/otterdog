@@ -106,7 +106,8 @@
         ".*": { "$ref": "team-permission.json" }
       },
       "additionalProperties": false
-    }
+    },
+    "code_security_configuration": { "$ref": "types.json#/$defs/string-or-null" }
   },
 
   "required": [ "name", "private" ],

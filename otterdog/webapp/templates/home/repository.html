@@ -103,14 +103,34 @@
                         </a>
                         {% endif %}
                       </li>
-                      {% if repo_config.private_vulnerability_reporting_enabled != null %}
                       <li class="nav-item">
-                        <a href="#settings" class="nav-link tab-link">
-                          {% set private_vulnerability_reporting_enabled = repo_config.private_vulnerability_reporting_enabled %}
-                          Private Vulnerability Reporting <span class="float-end badge text-bg-{{ 'success' if private_vulnerability_reporting_enabled == true else 'danger' }}">{{ private_vulnerability_reporting_enabled }}</span>
+                        <a href="/projects/{{ project_name }}" class="nav-link"
+                           title="The code security configuration attached to the repository, which sets some of its security settings">
+                          Code Security Configuration
+                          {% if code_security_configuration is not none %}
+                          <span class="float-end badge text-bg-info">{{ code_security_configuration.name }}</span>
+                          {% else %}
+                          <span class="float-end badge text-bg-secondary">none</span>
+                          {% endif %}
                         </a>
                       </li>
-                      {% endif %}
+                      {% set security_settings = [
+                        ('Secret Scanning', 'secret_scanning', repo_config.secret_scanning == 'enabled', repo_config.secret_scanning),
+                        ('Secret Scanning Push Protection', 'secret_scanning_push_protection', repo_config.secret_scanning_push_protection == 'enabled', repo_config.secret_scanning_push_protection),
+                        ('Dependabot Alerts', 'dependabot_alerts_enabled', repo_config.dependabot_alerts_enabled == true, repo_config.dependabot_alerts_enabled),
+                        ('Code Scanning Default Setup', 'code_scanning_default_setup_enabled', repo_config.code_scanning_default_setup_enabled == true, repo_config.code_scanning_default_setup_enabled),
+                        ('Private Vulnerability Reporting', 'private_vulnerability_reporting_enabled', repo_config.private_vulnerability_reporting_enabled == true, repo_config.private_vulnerability_reporting_enabled),
+                      ] %}
+                      {% for label, key, enabled, value in security_settings if value is not none %}
+                      <li class="nav-item">
+                        <a href="#settings" class="nav-link tab-link"
+                           {% if key in code_security_settings %}title="set by code security configuration '{{ code_security_configuration.name }}'"{% endif %}>
+                          {{ label }}
+                          {% if key in code_security_settings %}<i class="fa-solid fa-shield-halved text-info" aria-hidden="true"></i>{% endif %}
+                          <span class="float-end badge text-bg-{{ 'success' if enabled else 'danger' }}">{{ value }}</span>
+                        </a>
+                      </li>
+                      {% endfor %}
                       <li class="nav-item">
                         <a href="#secrets" class="nav-link tab-link">
                           Secrets <span class="float-end badge text-bg-{{ repo_config.secrets|length_to_color}}">{{ repo_config.secrets|length }}</span>

@@ -12,7 +12,8 @@ This resource represents a GitHub organization with all supported settings and n
         codespaces_secrets+: [ ... ], // (5)!
         variables+: [ ... ], // (6)!
         rulesets+: [ ... ], // (7)!
-        _repositories+:: [ ... ], // (8)!
+        code_security_configurations+: [ ... ], // (8)!
+        _repositories+:: [ ... ], // (9)!
     }
     ```
 
@@ -23,7 +24,8 @@ This resource represents a GitHub organization with all supported settings and n
     5. see [Organization Codespaces Secret](codespaces-secret.md)
     6. see [Organization Variable](variable.md)
     7. see [Organization Ruleset](ruleset.md)
-    8. see [Repository](repository/index.md)
+    8. see [Organization Code Security Configuration](code-security-configuration.md)
+    9. see [Repository](repository/index.md)
 
 !!! note
 

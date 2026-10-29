@@ -155,7 +155,8 @@ class ValidatePullRequestTask(InstallationBasedTask, Task[ValidationResult]):
             else:
                 output = StringIO()
                 printer = IndentingPrinter(output, log_level=self.log_level, output_for_github=True)
-                operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+                # plan with the deletion policy of the apply of the dashboard, see ApplyChangesTask
+                operation = LocalPlanOperation("-BASE", "*", False, False, False, "", delete_resources=True)
 
                 otterdog_config = await get_otterdog_config()
                 cost_policy = otterdog_config.cost_policy

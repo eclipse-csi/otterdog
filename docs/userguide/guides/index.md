@@ -58,7 +58,7 @@ documents every supported property, and link to it instead of repeating it.
 | Guide                                                   | Read it when you want to ...                                                         |
 |---------------------------------------------------------|--------------------------------------------------------------------------------------|
 | [Securing GitHub Actions](github-actions.md)            | limit the permissions of workflows and control which actions can run                 |
-| [Repository security features](repository-security.md)  | enable secret scanning, Dependabot, code scanning and vulnerability reporting        |
+| [Repository security features](repository-security.md)  | enable secret scanning, Dependabot, code scanning and vulnerability reporting, or apply code security configurations |
 | [Secrets and variables](secrets-and-variables.md)       | provide credentials to workflows without exposing them                               |
 | [Deployment environments](environments.md)              | protect deployments and publishing with approvals and branch restrictions            |
 | [Webhooks](webhooks.md)                                 | connect external services securely                                                   |

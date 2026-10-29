@@ -53,6 +53,10 @@ if TYPE_CHECKING:
     from otterdog.providers.github import GitHubProvider
 
     from .github_organization import GitHubOrganization
+    from .organization_code_security_configuration import (
+        CodeSecurityConfigurationPlan,
+        OrganizationCodeSecurityConfiguration,
+    )
     from .organization_settings import OrganizationSettings
 
 
@@ -114,6 +118,7 @@ class Repository(ModelObject):
 
     workflows: RepositoryWorkflowSettings = dataclasses.field(metadata={"embedded_model": True})
     team_permissions: dict[str, str] | None
+    code_security_configuration: str | None
 
     # model only fields
     aliases: list[str] = dataclasses.field(metadata={"model_only": True}, default_factory=list)
@@ -242,11 +247,22 @@ class Repository(ModelObject):
         return self.private is True or super().is_cost_related(cost_policy)
 
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
-        """Mark a change from public to private as potentially cost-increasing."""
+        """
+        Mark a change from public to private as potentially cost-increasing, as well as attaching a
+        code security configuration to a private repository, if it might enable licensed features.
+        """
         private_change = changes.get("private")
+        code_security_configuration_change = changes.get("code_security_configuration")
         return (
-            private_change is not None and private_change.from_value is False and private_change.to_value is True
-        ) or super().changes_are_cost_related(changes)
+            (private_change is not None and private_change.from_value is False and private_change.to_value is True)
+            or (
+                self.private is True
+                and code_security_configuration_change is not None
+                and is_set_and_present(code_security_configuration_change.to_value)
+                and self.licensed_code_security_configuration is not False
+            )
+            or super().changes_are_cost_related(changes)
+        )
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -256,6 +272,10 @@ class Repository(ModelObject):
         # Environment.repo_name.
         for env in self.environments:
             env.repo_name = self.name
+
+        # whether the code security configuration the repository specifies enables a licensed product,
+        # set when generating patches, None if not known
+        self.licensed_code_security_configuration: bool | None = None
 
     def get_all_names(self) -> list[str]:
         return [self.name, *self.aliases]
@@ -589,6 +609,16 @@ class Repository(ModelObject):
                         f"('pull' | 'triage' | 'push' | 'maintain' | 'admin').",
                     )
 
+        if is_set_and_present(self.code_security_configuration):
+            organization = cast("GitHubOrganization", parent_object)
+            if organization.get_code_security_configuration(self.code_security_configuration) is None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has 'code_security_configuration' set to "
+                    f"'{self.code_security_configuration}', but no such code security configuration "
+                    f"is defined for the organization.",
+                )
+
         for webhook in self.webhooks:
             webhook.validate(context, self)
 
@@ -886,6 +916,10 @@ class Repository(ModelObject):
                 return False
 
         if self.forked_repository is None and field.name == "fork_default_branch_only":
+            return False
+
+        # a repository that does not specify a code security configuration keeps the one attached on GitHub
+        if self.code_security_configuration is None and field.name == "code_security_configuration":
             return False
 
         # do not show certain model_only fields that are not of interest for the user
@@ -1195,6 +1229,9 @@ class Repository(ModelObject):
         if "custom_properties" in data:
             mapping.update({"custom_properties": S("custom_properties") >> F(property_map_to_list)})
 
+        # code security configurations are attached with a separate request
+        mapping.pop("code_security_configuration", None)
+
         return mapping
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
@@ -1438,6 +1475,11 @@ class Repository(ModelObject):
                 coerced_object, expected_org_settings.workflows
             )
 
+        cls._unset_properties_of_attached_code_security_configuration(coerced_object, current_object, context)
+        coerced_object.licensed_code_security_configuration = cls._is_licensed_code_security_configuration(
+            coerced_object, expected_org_settings, context
+        )
+
         changes_object_to_readonly = False
 
         if current_object is None:
@@ -1448,7 +1490,10 @@ class Repository(ModelObject):
                 current_org_settings = cast("OrganizationSettings", context.current_org_settings)
                 current_object = current_object.coerce_from_org_settings(current_org_settings)
 
-            modified_repo: dict[str, Change[Any]] = coerced_object.get_difference_from(current_object)
+            modified_repo: dict[str, Change[Any]] = {
+                **cls._get_changes_of_released_code_security_settings(coerced_object, current_object, context),
+                **coerced_object.get_difference_from(current_object),
+            }
 
             is_archived = cast("Repository", coerced_object).archived
             if is_archived is False and "web_commit_signoff_required" in context.modified_org_settings:
@@ -1571,6 +1616,107 @@ class Repository(ModelObject):
                 context,
                 handler,
             )
+
+    @staticmethod
+    async def _attach_code_security_configuration(
+        provider: GitHubProvider, org_id: str, patch: LivePatch[Repository], github_settings: dict[str, Any]
+    ) -> None:
+        """
+        Attaches the code security configuration of a changed repository before the settings it does not set are
+        applied, as the configuration currently attached might prevent changing them. A repository that is
+        unarchived is unarchived first, the other settings are applied afterwards.
+        """
+        expected_object = unwrap(patch.expected_object)
+        configuration = expected_object.code_security_configuration
+        if "code_security_configuration" not in unwrap(patch.changes) or not is_set_and_present(configuration):
+            return
+
+        # the repository is attached with its current name, it is renamed afterwards
+        repo_name = unwrap(patch.current_object).name
+        if github_settings.get("archived") is False:
+            await provider.update_repo(org_id, repo_name, {"archived": github_settings.pop("archived")})
+
+        await provider.attach_org_code_security_configuration(org_id, configuration, [repo_name])
+
+    @classmethod
+    def _unset_properties_of_attached_code_security_configuration(
+        cls, expected_object: Repository, current_object: Repository | None, context: LivePatchContext
+    ) -> None:
+        """
+        The settings that the code security configuration attached to the repository sets are not managed
+        on the repository, otherwise both would set them, and changing them might detach the configuration.
+        """
+        plan = context.code_security_configuration_plan
+        configuration = (
+            cls._get_planned_code_security_configuration(expected_object, current_object, plan)
+            if plan is not None
+            else None
+        )
+        if configuration is not None:
+            for key in configuration.get_controlled_repository_properties():
+                setattr(expected_object, key, UNSET)
+
+    @classmethod
+    def _get_changes_of_released_code_security_settings(
+        cls, expected_object: Repository, current_object: Repository, context: LivePatchContext
+    ) -> dict[str, Change[Any]]:
+        """
+        Returns the changes of the settings that the code security configuration currently attached to the
+        repository sets, but the planned one does not, if their current values are not known, e.g. if the current
+        organization is loaded from a file, as the configuration might have set them to other values on GitHub.
+        """
+        plan = context.code_security_configuration_plan
+        if plan is None or not plan.update_released_settings:
+            return {}
+
+        current_configuration = plan.get_current_attached_configuration(current_object.name)
+        if current_configuration is None:
+            return {}
+
+        planned_configuration = cls._get_planned_code_security_configuration(expected_object, current_object, plan)
+        released_keys = current_configuration.get_controlled_repository_properties() - (
+            planned_configuration.get_controlled_repository_properties() if planned_configuration is not None else set()
+        )
+
+        return {
+            key: Change(current_object.__getattribute__(key), expected_object.__getattribute__(key))
+            for key in expected_object.keys(for_diff=True)
+            if key in released_keys and current_object.is_key_valid_for_diff_computation(key, expected_object)
+        }
+
+    @staticmethod
+    def _is_licensed_code_security_configuration(
+        expected_object: Repository, expected_org_settings: OrganizationSettings, context: LivePatchContext
+    ) -> bool | None:
+        """
+        Returns whether the code security configuration the repository specifies enables a licensed product,
+        which cannot be purchased for an organization with free plan, None if not known.
+        """
+        plan = context.code_security_configuration_plan
+        name = expected_object.code_security_configuration
+        configuration = plan.managed_configurations.get(name) if plan is not None and is_set_and_present(name) else None
+        if configuration is None:
+            return None
+
+        return expected_org_settings.plan != "free" and configuration.enables_licensed_products()
+
+    @staticmethod
+    def _get_planned_code_security_configuration(
+        expected_object: Repository, current_object: Repository | None, plan: CodeSecurityConfigurationPlan
+    ) -> OrganizationCodeSecurityConfiguration | None:
+        """
+        Returns the code security configuration that is attached to the repository once the patch is applied:
+        the one specified by the repository, otherwise the one currently attached, which might not be managed,
+        or for a new repository, the default configuration of the organization for its visibility.
+        """
+        name = expected_object.code_security_configuration
+        if is_set_and_present(name):
+            return plan.managed_configurations.get(name)
+
+        if current_object is not None:
+            return plan.get_planned_attached_configuration(current_object.name)
+
+        return plan.get_default_configuration(expected_object.private is True)
 
     @staticmethod
     def _include_squash_merge_patch_required_properties(
@@ -1738,6 +1884,8 @@ class Repository(ModelObject):
         match patch.patch_type:
             case LivePatchType.ADD:
                 expected_object = unwrap(patch.expected_object)
+                # the code security configuration is attached before the settings of the repository are applied,
+                # as the default configuration attached to the new repository might prevent changing them
                 await provider.add_repo(
                     org_id,
                     await expected_object.to_provider_data(org_id, provider),
@@ -1746,6 +1894,11 @@ class Repository(ModelObject):
                     expected_object.forked_repository,
                     expected_object.fork_default_branch_only,
                     expected_object.auto_init,
+                    code_security_configuration=(
+                        expected_object.code_security_configuration
+                        if is_set_and_present(expected_object.code_security_configuration)
+                        else None
+                    ),
                 )
 
                 if is_set_and_present(expected_object.workflows):
@@ -1770,11 +1923,18 @@ class Repository(ModelObject):
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
+                # e.g. a code security configuration that the settings of the repository depend on is not applied
+                skipped_reason = provider.get_skipped_repository_reason(org_id, unwrap(patch.current_object).name)
+                if skipped_reason is not None:
+                    raise RuntimeError(f"skipped the patch of the repository, {skipped_reason}")
+
                 # TODO: move the cls._ to a LivePatch get_changes method
                 cls._include_squash_merge_patch_required_properties(patch)
                 cls._include_gh_pages_patch_required_properties(patch)
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
+
+                await cls._attach_code_security_configuration(provider, org_id, patch, github_settings)
 
                 if "workflows" in github_settings:
                     github_settings.pop("workflows")

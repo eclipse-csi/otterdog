@@ -15,6 +15,7 @@ const FUNCTION_SCHEMAS = {
   newOrgCodespacesSecret: "org-secret.json",
   newOrgVariable: "org-variable.json",
   newOrgRuleset: "org-ruleset.json",
+  newOrgCodeSecurityConfiguration: "org-code-security-configuration.json",
   newRepo: "repository.json",
   extendRepo: "repository.json",
   newRepoWebhook: "webhook.json",

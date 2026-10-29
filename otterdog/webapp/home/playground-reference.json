@@ -1,5 +1,156 @@
 {
   "objects": {
+    "code-security-configuration.md": {
+      "title": "Organization Code Security Configuration",
+      "url": "reference/organization/code-security-configuration/",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the code security configuration",
+          "notes": "Must be unique within the organization"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the code security configuration",
+          "notes": "At most 255 characters"
+        },
+        "code_security": {
+          "type": "string",
+          "description": "The enablement status of GitHub Code Security",
+          "notes": "`enabled` or `disabled`"
+        },
+        "secret_protection": {
+          "type": "string",
+          "description": "The enablement status of GitHub Secret Protection",
+          "notes": "`enabled` or `disabled`"
+        },
+        "dependency_graph": {
+          "type": "string",
+          "description": "The enablement status of the dependency graph",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "dependency_graph_autosubmit_action": {
+          "type": "string",
+          "description": "The enablement status of automatic dependency submission",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "dependency_graph_autosubmit_action_labeled_runners": {
+          "type": "boolean or null",
+          "description": "If automatic dependency submission uses runners labeled with `dependency-submission`",
+          "notes": "`null` if not managed"
+        },
+        "dependabot_alerts": {
+          "type": "string",
+          "description": "The enablement status of Dependabot alerts",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "dependabot_security_updates": {
+          "type": "string",
+          "description": "The enablement status of Dependabot security updates",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "dependabot_reachability": {
+          "type": "string or null",
+          "description": "The enablement status of reachability analysis for Dependabot",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "dependabot_delegated_alert_dismissal": {
+          "type": "string or null",
+          "description": "The enablement status of Dependabot delegated alert dismissal",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "code_scanning_default_setup": {
+          "type": "string",
+          "description": "The enablement status of code scanning default setup",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "code_scanning_default_setup_runner_type": {
+          "type": "string or null",
+          "description": "The type of runners code scanning default setup uses",
+          "notes": "`standard`, `labeled`, `not_set` or `null` if not managed"
+        },
+        "code_scanning_default_setup_runner_label": {
+          "type": "string or null",
+          "description": "The label of the runners code scanning default setup uses",
+          "notes": "Only taken into account if `code_scanning_default_setup_runner_type` is `labeled`"
+        },
+        "code_scanning_allow_advanced": {
+          "type": "boolean or null",
+          "description": "If repositories using code scanning advanced setup are allowed",
+          "notes": "`null` if not managed"
+        },
+        "code_scanning_delegated_alert_dismissal": {
+          "type": "string or null",
+          "description": "The enablement status of code scanning delegated alert dismissal",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "secret_scanning": {
+          "type": "string",
+          "description": "The enablement status of secret scanning",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "secret_scanning_push_protection": {
+          "type": "string",
+          "description": "The enablement status of secret scanning push protection",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "secret_scanning_delegated_bypass": {
+          "type": "string",
+          "description": "The enablement status of delegated bypass for push protection",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "secret_scanning_delegated_bypass_reviewers": {
+          "type": "list[string] or null",
+          "description": "List of teams or roles that review requests to bypass push protection",
+          "notes": "see Bypass Reviewers, `null` if not managed"
+        },
+        "secret_scanning_validity_checks": {
+          "type": "string",
+          "description": "The enablement status of secret scanning validity checks",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "secret_scanning_non_provider_patterns": {
+          "type": "string",
+          "description": "The enablement status of secret scanning of non-provider patterns",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "secret_scanning_generic_secrets": {
+          "type": "string or null",
+          "description": "The enablement status of Copilot secret scanning",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "secret_scanning_generic_secrets_push_protection": {
+          "type": "string or null",
+          "description": "The enablement status of push protection for generic secrets",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "secret_scanning_delegated_alert_dismissal": {
+          "type": "string or null",
+          "description": "The enablement status of secret scanning delegated alert dismissal",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "secret_scanning_extended_metadata": {
+          "type": "string or null",
+          "description": "The enablement status of secret scanning extended metadata",
+          "notes": "`enabled`, `disabled`, `not_set` or `null` if not managed"
+        },
+        "private_vulnerability_reporting": {
+          "type": "string",
+          "description": "The enablement status of private vulnerability reporting",
+          "notes": "`enabled`, `disabled` or `not_set`"
+        },
+        "enforcement": {
+          "type": "string",
+          "description": "If repositories the configuration is attached to can change its settings",
+          "notes": "`enforced` or `unenforced`"
+        },
+        "default_for_new_repos": {
+          "type": "string",
+          "description": "The visibility of new repositories the configuration is attached to by default",
+          "notes": "`none`, `all`, `public` or `private_and_internal`"
+        }
+      }
+    },
     "codespaces-secret.md": {
       "title": "Organization Codespaces Secret",
       "url": "reference/organization/codespaces-secret/",
@@ -122,6 +273,11 @@
           "type": "list",
           "description": "Organization Ruleset",
           "object": "ruleset.md"
+        },
+        "code_security_configurations": {
+          "type": "list",
+          "description": "Organization Code Security Configuration",
+          "object": "code-security-configuration.md"
         },
         "_repositories": {
           "type": "list",
@@ -551,6 +707,11 @@
           "type": "dict[string, string]",
           "description": "Permissions granted to organization teams on this repository",
           "notes": "see Team Permissions for details"
+        },
+        "code_security_configuration": {
+          "type": "string or null",
+          "description": "The name of the code security configuration attached to this repository",
+          "notes": "see Code Security Configuration, `null` keeps the configuration attached on GitHub, the security settings it sets are not managed on the repository"
         },
         "template_repository": {
           "type": "string or null",
@@ -1191,7 +1352,8 @@
         },
         "default_code_security_configurations_disabled": {
           "type": "boolean",
-          "description": "If default code security configuration should be disabled, no processing if the setting is set to `true`"
+          "description": "If default code security configuration should be disabled, no processing if the setting is set to `true`",
+          "notes": "Must be `false` to set a Code Security Configuration as default for new repositories"
         },
         "immutable_releases_enforced_repositories": {
           "type": "string",
@@ -1454,6 +1616,7 @@
     }
   },
   "functions": {
+    "newOrgCodeSecurityConfiguration": "code-security-configuration.md",
     "newOrgCodespacesSecret": "codespaces-secret.md",
     "newCustomProperty": "custom-property.md",
     "newOrgDependabotSecret": "dependabot-secret.md",

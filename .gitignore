@@ -22,7 +22,7 @@ site
 *.pem
 
 ### Ignoring development values for helm charts
-values.yaml
+values*.yaml
 dev/.dev-values-ngrok-host.yaml
 
 ### Ignoring otterdog out directory orgs and conf

@@ -79,3 +79,21 @@ async def test_secret_defaults_missing_from_the_template_are_skipped(tmp_path, e
     shown = [section for section in SECRET_SECTIONS if f'=== "{section}"' in output]
     assert shown == [s for s, f in zip(SECRET_SECTIONS, SECRET_FUNCTIONS, strict=True) if f != excluded_function]
     assert '=== "Repository Variable"' in output
+
+
+async def test_code_security_configuration_default_is_shown(tmp_path):
+    write_template(tmp_path, [])
+
+    output = await show_default(tmp_path)
+
+    assert '=== "Organization Code Security Configuration"' in output
+    assert "orgs.newOrgCodeSecurityConfiguration('<name>') =" in output
+
+
+async def test_code_security_configuration_default_missing_from_the_template_is_skipped(tmp_path):
+    write_template(tmp_path, ["newOrgCodeSecurityConfiguration"])
+
+    output = await show_default(tmp_path)
+
+    assert '=== "Organization Code Security Configuration"' not in output
+    assert '=== "Repository"' in output

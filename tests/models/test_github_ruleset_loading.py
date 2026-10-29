@@ -43,6 +43,7 @@ def minimal_config(**overrides):
         "default_org_dependabot_secret_config": None,
         "default_org_codespaces_secret_config": None,
         "default_org_variable_config": None,
+        "default_org_code_security_configuration_config": None,
         "default_branch_protection_rule_config": None,
         "default_repo_secret_config": None,
         "default_repo_dependabot_secret_config": None,

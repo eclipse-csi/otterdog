@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "$defs": {
+    "feature": { "type": "string", "enum": ["enabled", "disabled", "not_set"] },
+    "feature-or-null": {
+      "anyOf": [
+        { "$ref": "#/$defs/feature" },
+        { "type": "null" }
+      ]
+    },
+    "product": { "type": "string", "enum": ["enabled", "disabled"] }
+  },
+
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string", "maxLength": 255 },
+    "code_security": { "$ref": "#/$defs/product" },
+    "secret_protection": { "$ref": "#/$defs/product" },
+    "dependency_graph": { "$ref": "#/$defs/feature" },
+    "dependency_graph_autosubmit_action": { "$ref": "#/$defs/feature" },
+    "dependency_graph_autosubmit_action_labeled_runners": { "$ref": "types.json#/$defs/boolean-or-null" },
+    "dependabot_alerts": { "$ref": "#/$defs/feature" },
+    "dependabot_security_updates": { "$ref": "#/$defs/feature" },
+    "dependabot_reachability": { "$ref": "#/$defs/feature-or-null" },
+    "dependabot_delegated_alert_dismissal": { "$ref": "#/$defs/feature-or-null" },
+    "code_scanning_default_setup": { "$ref": "#/$defs/feature" },
+    "code_scanning_default_setup_runner_type": {
+      "anyOf": [
+        { "type": "string", "enum": ["standard", "labeled", "not_set"] },
+        { "type": "null" }
+      ]
+    },
+    "code_scanning_default_setup_runner_label": { "$ref": "types.json#/$defs/string-or-null" },
+    "code_scanning_allow_advanced": { "$ref": "types.json#/$defs/boolean-or-null" },
+    "code_scanning_delegated_alert_dismissal": { "$ref": "#/$defs/feature-or-null" },
+    "secret_scanning": { "$ref": "#/$defs/feature" },
+    "secret_scanning_push_protection": { "$ref": "#/$defs/feature" },
+    "secret_scanning_delegated_bypass": { "$ref": "#/$defs/feature" },
+    "secret_scanning_delegated_bypass_reviewers": {
+      "anyOf": [
+        { "type": "array", "items": { "type": "string" } },
+        { "type": "null" }
+      ]
+    },
+    "secret_scanning_validity_checks": { "$ref": "#/$defs/feature" },
+    "secret_scanning_non_provider_patterns": { "$ref": "#/$defs/feature" },
+    "secret_scanning_generic_secrets": { "$ref": "#/$defs/feature-or-null" },
+    "secret_scanning_generic_secrets_push_protection": { "$ref": "#/$defs/feature-or-null" },
+    "secret_scanning_delegated_alert_dismissal": { "$ref": "#/$defs/feature-or-null" },
+    "secret_scanning_extended_metadata": { "$ref": "#/$defs/feature-or-null" },
+    "private_vulnerability_reporting": { "$ref": "#/$defs/feature" },
+    "enforcement": { "type": "string", "enum": ["enforced", "unenforced"] },
+    "default_for_new_repos": { "type": "string", "enum": ["none", "all", "public", "private_and_internal"] }
+  },
+
+  "required": [ "name" ],
+  "additionalProperties": false
+}

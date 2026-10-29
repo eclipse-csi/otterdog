@@ -1,0 +1,557 @@
+#  *******************************************************************************
+#  Copyright (c) 2026 Eclipse Foundation and others.
+#  This program and the accompanying materials are made available
+#  under the terms of the Eclipse Public License 2.0
+#  which is available at http://www.eclipse.org/legal/epl-v20.html
+#  SPDX-License-Identifier: EPL-2.0
+#  *******************************************************************************
+
+import dataclasses
+import json
+from typing import Any
+from unittest.mock import AsyncMock
+
+import pytest
+
+from otterdog.models import LivePatch
+from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
+from otterdog.models.repository import Repository
+from otterdog.providers.github.rest import repo_client
+from otterdog.utils import Change, jsonnet_evaluate_snippet, unwrap
+
+from .conftest import GitHubProviderTestKit
+from .helpers.model import ModelForContext
+
+# Constants
+ORG_ID = "test-org"
+REPO_NAME = "test-repo"
+CONFIGURATIONS_URL = f"/orgs/{ORG_ID}/code-security/configurations"
+
+_DEFAULTS = "./otterdog/resources/defaults/otterdog-defaults.libsonnet"
+
+# the request to create or update a configuration with the settings of the default configuration
+DEFAULT_CONFIGURATION_REQUEST = {
+    "name": "baseline",
+    "description": "",
+    "advanced_security": "disabled",
+    "dependency_graph": "enabled",
+    "dependency_graph_autosubmit_action": "disabled",
+    "dependabot_alerts": "disabled",
+    "dependabot_security_updates": "disabled",
+    "code_scanning_default_setup": "disabled",
+    "secret_scanning": "disabled",
+    "secret_scanning_push_protection": "disabled",
+    "secret_scanning_delegated_bypass": "disabled",
+    "secret_scanning_validity_checks": "disabled",
+    "secret_scanning_non_provider_patterns": "disabled",
+    "private_vulnerability_reporting": "disabled",
+    "enforcement": "enforced",
+}
+
+
+def configuration(configuration_id: int | None = None, **overrides: Any) -> OrganizationCodeSecurityConfiguration:
+    data = jsonnet_evaluate_snippet(f"(import '{_DEFAULTS}').newOrgCodeSecurityConfiguration('baseline')")
+    data.update(overrides)
+    result = OrganizationCodeSecurityConfiguration.from_model_data(data)
+    if configuration_id is not None:
+        result = dataclasses.replace(result, id=configuration_id)
+    return result
+
+
+def expect_failed_repositories(github: GitHubProviderTestKit, failed: list[str] | None = None) -> None:
+    """Expects the retrieval of the repositories that configuration 7 failed for before it is updated."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "failed"},
+        response_json=[{"status": "failed", "repository": {"name": x}} for x in failed or []],
+    )
+
+
+def expect_attached_repositories(github: GitHubProviderTestKit, attached: list[str]) -> None:
+    """Expects the retrieval of the repositories that configuration 7 is attached to."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attached,attaching,updating,enforced"},
+        response_json=[{"status": "attached", "repository": {"name": x}} for x in attached],
+    )
+
+
+def expect_no_pending_repositories(github: GitHubProviderTestKit) -> None:
+    """Expects the check that an update of configuration 7 is applied to its repositories."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attaching,updating,failed"},
+        response_json=[],
+    )
+
+
+async def generate_patch_and_run_it(
+    github: GitHubProviderTestKit,
+    *,
+    old: OrganizationCodeSecurityConfiguration | None,
+    new: OrganizationCodeSecurityConfiguration | None,
+):
+    """Generate and apply a LivePatch in one call."""
+    model = ModelForContext(ORG_ID)
+
+    patch = model.generate_live_patch(old=old, new=new)
+    await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# Retrieval of code security configurations
+# ---------------------------------------------------------------------------
+
+
+async def test_get_configurations(github: GitHubProviderTestKit):
+    """All configurations are returned with their default for new repositories, the ones of GitHub included."""
+    # API: https://docs.github.com/en/rest/code-security/configurations#get-code-security-configurations-for-an-organization
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[
+            {"id": 1, "name": "GitHub recommended", "target_type": "global"},
+            {"id": 2, "name": "baseline", "target_type": "organization"},
+        ],
+        response_links={"next": {"url": f"https://api.github.com{CONFIGURATIONS_URL}?per_page=100&after=cursor"}},
+    )
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100", "after": "cursor"},
+        response_json=[
+            {"id": 3, "name": "enterprise", "target_type": "enterprise"},
+            {"id": 4, "name": "strict", "target_type": "organization"},
+        ],
+    )
+    # API: https://docs.github.com/en/rest/code-security/configurations#get-default-code-security-configurations
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/defaults",
+        response_json=[
+            {"default_for_new_repos": "public", "configuration": {"id": 1}},
+            {"default_for_new_repos": "private_and_internal", "configuration": {"id": 4}},
+        ],
+    )
+
+    configurations = await github.provider.get_org_code_security_configurations(ORG_ID)
+
+    assert [(c["name"], c["target_type"], c["default_for_new_repos"]) for c in configurations] == [
+        ("GitHub recommended", "global", "public"),
+        ("baseline", "organization", "none"),
+        ("enterprise", "enterprise", "none"),
+        ("strict", "organization", "private_and_internal"),
+    ]
+
+
+async def test_resolve_configuration_id_of_the_organization_only(github: GitHubProviderTestKit):
+    """A configuration is attached by its name, only configurations of the organization are considered."""
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[
+            {"id": 1, "name": "baseline", "target_type": "enterprise"},
+            {"id": 2, "name": "baseline", "target_type": "organization"},
+        ],
+    )
+
+    assert await github.provider.rest_api.org.get_code_security_configuration_id(ORG_ID, "baseline") == 2
+
+
+async def test_get_configuration_repositories(github: GitHubProviderTestKit):
+    """Only repositories the configuration is attached to are returned."""
+    # API: https://docs.github.com/en/rest/code-security/configurations#get-repositories-associated-with-a-code-security-configuration
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/2/repositories",
+        request_params={"per_page": "100", "status": "attached,attaching,updating,enforced"},
+        response_json=[
+            {"status": "attached", "repository": {"id": 10, "name": "repo-a"}},
+            {"status": "enforced", "repository": {"id": 11, "name": "repo-b"}},
+        ],
+    )
+
+    assert await github.provider.get_org_code_security_configuration_repositories(ORG_ID, 2) == ["repo-a", "repo-b"]
+
+
+# ---------------------------------------------------------------------------
+# CRUD operations for OrganizationCodeSecurityConfiguration
+# ---------------------------------------------------------------------------
+
+
+async def test_create(github: GitHubProviderTestKit):
+    # API: https://docs.github.com/en/rest/code-security/configurations#create-a-code-security-configuration
+    github.http.expect(
+        "POST",
+        CONFIGURATIONS_URL,
+        request_json=DEFAULT_CONFIGURATION_REQUEST,
+        response_status=201,
+        response_json={"id": 7, "name": "baseline"},
+    )
+
+    await generate_patch_and_run_it(github, old=None, new=configuration())
+
+
+async def test_create_as_default_for_new_repositories(github: GitHubProviderTestKit):
+    github.http.expect(
+        "POST",
+        CONFIGURATIONS_URL,
+        # the products have a different status, they are set individually instead of 'advanced_security'
+        request_json={
+            **{k: v for k, v in DEFAULT_CONFIGURATION_REQUEST.items() if k != "advanced_security"},
+            "code_security": "disabled",
+            "secret_protection": "enabled",
+            "secret_scanning": "enabled",
+            "secret_scanning_push_protection": "enabled",
+            "secret_scanning_delegated_bypass": "enabled",
+            "secret_scanning_delegated_bypass_options": {
+                "reviewers": [{"reviewer_id": 5, "reviewer_type": "ROLE", "mode": "ALWAYS"}]
+            },
+        },
+        response_status=201,
+        response_json={"id": 7, "name": "baseline"},
+    )
+    # API: https://docs.github.com/en/rest/code-security/configurations#set-a-code-security-configuration-as-a-default-for-an-organization
+    github.http.expect(
+        "PUT",
+        f"{CONFIGURATIONS_URL}/7/defaults",
+        request_json={"default_for_new_repos": "all"},
+        response_json={"default_for_new_repos": "all", "configuration": {"id": 7}},
+    )
+
+    await generate_patch_and_run_it(
+        github,
+        old=None,
+        new=configuration(
+            secret_protection="enabled",
+            secret_scanning="enabled",
+            secret_scanning_push_protection="enabled",
+            secret_scanning_delegated_bypass="enabled",
+            secret_scanning_delegated_bypass_reviewers=["#RepositoryAdmin"],
+            default_for_new_repos="all",
+        ),
+    )
+
+
+async def test_update(github: GitHubProviderTestKit):
+    expect_failed_repositories(github)
+    # API: https://docs.github.com/en/rest/code-security/configurations#update-a-code-security-configuration
+    github.http.expect(
+        "PATCH",
+        f"{CONFIGURATIONS_URL}/7",
+        request_json={**DEFAULT_CONFIGURATION_REQUEST, "dependabot_alerts": "enabled"},
+        response_json={"id": 7, "name": "baseline"},
+    )
+    expect_no_pending_repositories(github)
+
+    await generate_patch_and_run_it(
+        github,
+        old=configuration(7),
+        new=configuration(dependabot_alerts="enabled"),
+    )
+
+
+async def test_update_without_effective_change(github: GitHubProviderTestKit):
+    """GitHub responds with 204 if the update does not change the configuration, which is not an error."""
+    expect_failed_repositories(github)
+    github.http.expect(
+        "PATCH",
+        f"{CONFIGURATIONS_URL}/7",
+        request_json={**DEFAULT_CONFIGURATION_REQUEST, "description": "updated"},
+        response_status=204,
+    )
+    expect_no_pending_repositories(github)
+
+    await generate_patch_and_run_it(github, old=configuration(7), new=configuration(description="updated"))
+
+
+async def test_update_failure(github: GitHubProviderTestKit):
+    expect_failed_repositories(github)
+    github.http.expect(
+        "PATCH",
+        f"{CONFIGURATIONS_URL}/7",
+        request_json={**DEFAULT_CONFIGURATION_REQUEST, "description": "updated"},
+        response_status=422,
+        response_json={"message": "Validation Failed"},
+    )
+
+    # the patches of the repositories attached to the configuration are skipped, as they were planned with the update
+    expect_attached_repositories(github, [REPO_NAME])
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=configuration(description="updated"))
+
+    with pytest.raises(RuntimeError, match="failed to update code security configuration with name 'baseline'"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) == (
+        "the update of code security configuration 'baseline' failed"
+    )
+
+
+async def test_delete_failure(github: GitHubProviderTestKit):
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=409)
+    expect_attached_repositories(github, [REPO_NAME])
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=None)
+
+    with pytest.raises(RuntimeError, match="failed to delete code security configuration with name 'baseline'"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) == (
+        "the deletion of code security configuration 'baseline' failed"
+    )
+
+
+async def test_all_repositories_are_skipped_if_the_attached_ones_can_not_be_retrieved(github: GitHubProviderTestKit):
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=409)
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attached,attaching,updating,enforced"},
+        response_status=500,
+        response_json={"message": "Server Error"},
+    )
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=None)
+
+    # the failure of the patch is reported rather than the one of retrieving the repositories
+    with pytest.raises(RuntimeError, match="failed to delete code security configuration with name 'baseline'"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    # any repository might be attached to the configuration, the patches of all repositories are skipped
+    for repo_name in (REPO_NAME, "other-repo"):
+        assert github.provider.get_skipped_repository_reason(ORG_ID, repo_name) == (
+            "the deletion of code security configuration 'baseline' failed, "
+            "and the repositories attached to it could not be retrieved"
+        )
+    assert github.provider.get_skipped_repository_reason("other-org", REPO_NAME) is None
+
+
+async def test_update_default_for_new_repositories_only(github: GitHubProviderTestKit):
+    """A change of the default for new repositories does not update the configuration itself."""
+    github.http.expect(
+        "PUT",
+        f"{CONFIGURATIONS_URL}/7/defaults",
+        request_json={"default_for_new_repos": "public"},
+        response_json={"default_for_new_repos": "public", "configuration": {"id": 7}},
+    )
+
+    await generate_patch_and_run_it(
+        github,
+        old=configuration(7, default_for_new_repos="none"),
+        new=configuration(default_for_new_repos="public"),
+    )
+
+
+async def test_delete(github: GitHubProviderTestKit):
+    # API: https://docs.github.com/en/rest/code-security/configurations#delete-a-code-security-configuration
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=204)
+
+    await generate_patch_and_run_it(github, old=configuration(7), new=None)
+
+
+async def test_delete_default_configuration(github: GitHubProviderTestKit):
+    """A configuration that is the default for new repositories stops being the default before it is deleted."""
+    github.http.expect(
+        "PUT",
+        f"{CONFIGURATIONS_URL}/7/defaults",
+        request_json={"default_for_new_repos": "none"},
+        response_json={"default_for_new_repos": "none", "configuration": {"id": 7}},
+    )
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=204)
+
+    await generate_patch_and_run_it(github, old=configuration(7, default_for_new_repos="all"), new=None)
+
+
+# ---------------------------------------------------------------------------
+# Attaching a code security configuration to a repository
+# ---------------------------------------------------------------------------
+
+
+def expect_attachment(github: GitHubProviderTestKit, status: str = "attached") -> None:
+    """Expects the attachment of configuration 'baseline' (7) to the repository, reported with the given status."""
+    # the id of the configuration and of the repository are resolved by their name
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[{"id": 7, "name": "baseline", "target_type": "organization"}],
+    )
+    github.http.expect("GET", f"/repos/{ORG_ID}/{REPO_NAME}", response_json={"id": 1296269, "name": REPO_NAME})
+    # API: https://docs.github.com/en/rest/code-security/configurations#attach-a-configuration-to-repositories
+    github.http.expect(
+        "POST",
+        f"{CONFIGURATIONS_URL}/7/attach",
+        request_json={"scope": "selected", "selected_repository_ids": [1296269]},
+        response_status=202,
+        response_json={},
+    )
+    # API: https://docs.github.com/en/rest/code-security/configurations#get-the-code-security-configuration-associated-with-a-repository
+    github.http.expect(
+        "GET",
+        f"/repos/{ORG_ID}/{REPO_NAME}/code-security-configuration",
+        response_json={"status": status, "configuration": {"id": 7, "name": "baseline"}},
+    )
+
+
+@pytest.fixture
+def no_sleep(monkeypatch: pytest.MonkeyPatch):
+    """Skip the waits for repositories and attachments."""
+    monkeypatch.setattr(repo_client.asyncio, "sleep", AsyncMock())
+
+
+async def test_attach_to_repository(github: GitHubProviderTestKit):
+    expect_attachment(github)
+
+    current = Repository.from_model_data({"name": REPO_NAME, "code_security_configuration": None})
+    expected = Repository.from_model_data({"name": REPO_NAME, "code_security_configuration": "baseline"})
+    patch = LivePatch.of_changes(
+        expected,
+        current,
+        {"code_security_configuration": Change(None, "baseline")},
+        None,
+        False,
+        Repository.apply_live_patch,
+    )
+
+    await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+
+async def test_attach_waits_until_the_attachment_completed(github: GitHubProviderTestKit, no_sleep):
+    # the attachment is processed asynchronously by GitHub
+    github.http.expect(
+        "GET",
+        CONFIGURATIONS_URL,
+        request_params={"per_page": "100"},
+        response_json=[{"id": 7, "name": "baseline", "target_type": "organization"}],
+    )
+    github.http.expect("GET", f"/repos/{ORG_ID}/{REPO_NAME}", response_json={"id": 1296269, "name": REPO_NAME})
+    github.http.expect(
+        "POST",
+        f"{CONFIGURATIONS_URL}/7/attach",
+        request_json={"scope": "selected", "selected_repository_ids": [1296269]},
+        response_status=202,
+        response_json={},
+    )
+    # the HTTP mock answers a request only once, the successive statuses of the attachment are served here
+    statuses = iter(["attaching", "enforced"])
+    original_request_raw = github.provider.rest_api.requester.request_raw
+
+    async def request_raw(method, url_path, data=None, params=None):
+        if url_path.endswith("/code-security-configuration"):
+            return 200, json.dumps({"status": next(statuses), "configuration": {"id": 7}})
+        return await original_request_raw(method, url_path, data, params)
+
+    github.provider.rest_api.requester.request_raw = request_raw  # type: ignore[method-assign]
+
+    await github.provider.attach_org_code_security_configuration(ORG_ID, "baseline", [REPO_NAME])
+
+    assert next(statuses, None) is None
+
+
+async def test_attach_fails_if_the_attachment_failed(github: GitHubProviderTestKit, no_sleep):
+    expect_attachment(github, "failed")
+
+    with pytest.raises(RuntimeError, match="failed to attach code security configuration to repo"):
+        await github.provider.attach_org_code_security_configuration(ORG_ID, "baseline", [REPO_NAME])
+
+
+async def test_add_repo_attaches_configuration_before_applying_settings(github: GitHubProviderTestKit, no_sleep):
+    github.http.expect(
+        "POST",
+        f"/orgs/{ORG_ID}/repos",
+        request_json={"name": REPO_NAME, "private": False, "auto_init": False},
+        response_json={"name": REPO_NAME, "private": False},
+    )
+    expect_attachment(github)
+    github.http.expect(
+        "PATCH",
+        f"/repos/{ORG_ID}/{REPO_NAME}",
+        request_json={"security_and_analysis": {"secret_scanning": {"status": "enabled"}}},
+        response_json={"name": REPO_NAME},
+    )
+
+    await github.provider.add_repo(
+        ORG_ID,
+        {"name": REPO_NAME, "private": False, "security_and_analysis": {"secret_scanning": {"status": "enabled"}}},  # type: ignore[dict-item]
+        None,
+        [],
+        None,
+        False,
+        False,
+        code_security_configuration="baseline",
+    )
+
+    # the settings are applied once the configuration is attached
+    served = [(r.method, r.url) for r in github.http.served_requests]
+    assert served.index(("GET", f"/repos/{ORG_ID}/{REPO_NAME}/code-security-configuration")) < served.index(
+        ("PATCH", f"/repos/{ORG_ID}/{REPO_NAME}")
+    )
+
+
+def serve_repositories_of_configuration(github: GitHubProviderTestKit, *answers: list[dict[str, Any]]) -> None:
+    """Serves the successive answers for the pending repositories of configuration 7, as the HTTP mock answers once."""
+    remaining = iter(answers)
+    original_request_paged_json = github.provider.rest_api.requester.request_paged_json
+
+    async def request_paged_json(method, url_path, data=None, params=None, entries_key=None):
+        if url_path.endswith("/7/repositories") and (params or {}).get("status") == "attaching,updating,failed":
+            return next(remaining)
+        return await original_request_paged_json(method, url_path, data, params, entries_key)
+
+    github.provider.rest_api.requester.request_paged_json = request_paged_json  # type: ignore[method-assign]
+
+
+@pytest.fixture
+def no_org_sleep(monkeypatch: pytest.MonkeyPatch):
+    from otterdog.providers.github.rest import org_client
+
+    monkeypatch.setattr(org_client.asyncio, "sleep", AsyncMock())
+
+
+def expect_update(github: GitHubProviderTestKit) -> None:
+    github.http.expect(
+        "PATCH",
+        f"{CONFIGURATIONS_URL}/7",
+        request_json={**DEFAULT_CONFIGURATION_REQUEST, "dependabot_alerts": "enabled"},
+        response_json={"id": 7, "name": "baseline"},
+    )
+
+
+async def test_update_waits_until_it_is_applied_to_the_repositories(github: GitHubProviderTestKit, no_org_sleep):
+    expect_failed_repositories(github)
+    expect_update(github)
+    serve_repositories_of_configuration(github, [{"status": "updating", "repository": {"name": REPO_NAME}}], [])
+
+    await generate_patch_and_run_it(github, old=configuration(7), new=configuration(dependabot_alerts="enabled"))
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) is None
+
+
+async def test_update_skips_the_repositories_it_is_not_applied_to(github: GitHubProviderTestKit, no_org_sleep):
+    """
+    The repositories the update failed for, or is still pending for after 30s, are reported and their patches are
+    skipped, while the repositories that had already failed before the update are not affected by it.
+    """
+    expect_failed_repositories(github, ["already-failed"])
+    expect_update(github)
+    answers = [
+        {"status": "failed", "repository": {"name": "already-failed"}},
+        {"status": "failed", "repository": {"name": "failed-repo"}},
+        {"status": "updating", "repository": {"name": "pending-repo"}},
+    ]
+    serve_repositories_of_configuration(github, *([answers] * 30))
+    patch = ModelForContext(ORG_ID).generate_live_patch(
+        old=configuration(7), new=configuration(dependabot_alerts="enabled")
+    )
+
+    with pytest.raises(RuntimeError, match="not applied to repositories failed-repo, pending-repo"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    for repo_name in ("failed-repo", "Pending-Repo"):
+        assert "is not applied to the repository" in unwrap(
+            github.provider.get_skipped_repository_reason(ORG_ID, repo_name)
+        )
+    assert github.provider.get_skipped_repository_reason(ORG_ID, "already-failed") is None

@@ -22,6 +22,7 @@ from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 from .rest.secret_client import SecretScope
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from typing import Any
 
     from otterdog.credentials import Credentials
@@ -48,6 +49,10 @@ class GitHubProvider:
         self._credentials = credentials
         self._user_logins: dict[int, str] = {}
         self._user_login_lock = asyncio.Lock()
+        # the repositories whose patches are skipped by (org_id, repo_name), with the reason,
+        # and the organizations all of whose repositories have their patches skipped
+        self._skipped_repositories: dict[tuple[str, str], str] = {}
+        self._skipped_organizations: dict[str, str] = {}
 
         if credentials is not None:
             self._init_clients()
@@ -165,6 +170,82 @@ class GitHubProvider:
     async def delete_org_custom_role(self, org_id: str, role_id: int, role_name: str) -> None:
         await self.rest_api.org.delete_custom_role(org_id, role_id, role_name)
 
+    async def get_org_code_security_configurations(self, org_id: str) -> list[dict[str, Any]]:
+        return await self.rest_api.org.get_code_security_configurations(org_id)
+
+    async def add_org_code_security_configuration(self, org_id: str, data: dict[str, Any]) -> int:
+        return await self.rest_api.org.add_code_security_configuration(org_id, data)
+
+    async def update_org_code_security_configuration(
+        self, org_id: str, configuration_id: int, name: str, data: dict[str, Any]
+    ) -> None:
+        if len(data) > 0:
+            configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+            await self.rest_api.org.update_code_security_configuration(org_id, configuration_id, name, data)
+
+    async def wait_for_org_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, name: str, failed_repositories: Collection[str]
+    ) -> list[str]:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+        return await self.rest_api.org.wait_for_code_security_configuration_repositories(
+            org_id, configuration_id, name, failed_repositories
+        )
+
+    def skip_repository_patches(self, org_id: str, repo_names: Collection[str], reason: str) -> None:
+        """
+        Marks repositories whose patches are skipped for the rest of the operation, e.g. as a code security
+        configuration they depend on is not applied to them, see get_skipped_repository_reason.
+        """
+        for repo_name in repo_names:
+            self._skipped_repositories[(org_id.lower(), repo_name.lower())] = reason
+
+    def skip_all_repository_patches(self, org_id: str, reason: str) -> None:
+        """Marks all repositories of an organization whose patches are skipped for the rest of the operation."""
+        self._skipped_organizations[org_id.lower()] = reason
+
+    def get_skipped_repository_reason(self, org_id: str, repo_name: str) -> str | None:
+        return self._skipped_organizations.get(org_id.lower()) or self._skipped_repositories.get(
+            (org_id.lower(), repo_name.lower())
+        )
+
+    async def update_org_code_security_configuration_default(
+        self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str
+    ) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+        await self.rest_api.org.update_code_security_configuration_default(
+            org_id, configuration_id, name, default_for_new_repos
+        )
+
+    async def delete_org_code_security_configuration(self, org_id: str, configuration_id: int, name: str) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+        await self.rest_api.org.delete_code_security_configuration(org_id, configuration_id, name)
+
+    async def get_org_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, name: str | None = None, status: str | None = None
+    ) -> list[str]:
+        if name is not None:
+            configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+
+        if status is None:
+            return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id)
+
+        return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id, status)
+
+    async def attach_org_code_security_configuration(self, org_id: str, name: str, repo_names: list[str]) -> None:
+        await self.rest_api.org.attach_code_security_configuration_by_name(org_id, name, repo_names)
+
+    async def _resolve_code_security_configuration_id(
+        self, org_id: str, configuration_id: int | None, name: str
+    ) -> int:
+        if is_set_and_present(configuration_id) and configuration_id > 0:
+            return configuration_id
+
+        resolved_id = await self.rest_api.org.get_code_security_configuration_id(org_id, name)
+        if resolved_id is None:
+            raise RuntimeError(f"failed to find code security configuration with name '{name}' in org '{org_id}'")
+
+        return resolved_id
+
     async def get_org_teams(self, org_id: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_teams(org_id)
 
@@ -257,6 +338,7 @@ class GitHubProvider:
         forked_repository: str | None,
         fork_default_branch_only: bool,
         auto_init_repo: bool,
+        code_security_configuration: str | None = None,
     ) -> None:
         await self.rest_api.repo.add_repo(
             org_id,
@@ -266,6 +348,7 @@ class GitHubProvider:
             forked_repository,
             fork_default_branch_only,
             auto_init_repo,
+            code_security_configuration,
         )
 
     async def delete_repo(self, org_id: str, repo_name: str) -> None:
