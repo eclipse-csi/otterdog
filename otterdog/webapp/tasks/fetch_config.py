@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 import aiofiles
 
-from otterdog.models import CostPolicy
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
 from otterdog.utils import jsonnet_evaluate_file
@@ -88,8 +87,6 @@ _REPOSITORY_STATISTICS = [
     "repos_with_dependabot_alerts",
     "repos_with_dependabot_security_updates",
     "repos_with_code_scanning",
-    "repos_with_code_security_configuration",
-    "private_repos_with_licensed_security_features",
 ]
 
 
@@ -118,15 +115,8 @@ def _get_repository_statistics(github_organization: GitHubOrganization, configur
     """Returns the statistics an active repository counts for."""
     # the settings that the code security configuration of the repository sets take precedence
     repo = github_organization.get_effective_repository(configured_repo)
-    configuration = github_organization.get_attached_code_security_configuration(repo)
 
     statistics = []
-    if configuration is not None:
-        statistics.append("repos_with_code_security_configuration")
-        # Code Security and Secret Protection are licensed for private repositories
-        if repo.private is True and configuration.is_cost_related(CostPolicy()):
-            statistics.append("private_repos_with_licensed_security_features")
-
     if repo.code_scanning_default_setup_enabled is True:
         statistics.append("repos_with_code_scanning")
 

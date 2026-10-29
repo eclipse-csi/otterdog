@@ -127,15 +127,8 @@ async def test_the_page_of_a_repository_shows_its_effective_security_settings(ap
     assert "title=\"set by code security configuration 'baseline'\"" in page
 
 
-async def test_the_index_shows_code_scanning_and_code_security_configurations(app, monkeypatch):
-    statistics = Statistics(
-        total_projects=1,
-        total_repos=10,
-        archived_repos=2,
-        repos_with_code_scanning=3,
-        repos_with_code_security_configuration=4,
-        private_repos_with_licensed_security_features=1,
-    )
+async def test_the_index_shows_code_scanning(app, monkeypatch):
+    statistics = Statistics(total_projects=1, total_repos=10, archived_repos=2, repos_with_code_scanning=3)
     nothing = mock.AsyncMock(return_value=[])
     monkeypatch.setattr(routes, "get_installations", nothing)
     monkeypatch.setattr(routes, "get_configurations", nothing)
@@ -148,9 +141,9 @@ async def test_the_index_shows_code_scanning_and_code_security_configurations(ap
         page = await routes.index()
 
     assert "37.5% with default setup" in page
-    assert "50.0% with a configuration" in page
-    assert "1 private repositories with licensed features" in page
     assert "data: [5, 3]," in page
+    # the configurations are a means to set the security settings, which the index shows
+    assert "Code Security Configurations" not in page
 
 
 def test_statistics_count_the_settings_set_by_the_configurations(config):
@@ -159,9 +152,6 @@ def test_statistics_count_the_settings_set_by_the_configurations(config):
     statistics = get_organization_statistics("my-project", "my-org", org)
 
     assert statistics.total_repos == 3
-    assert statistics.repos_with_code_security_configuration == 2
-    # only the private repository uses licensed features, Secret Protection being enabled
-    assert statistics.private_repos_with_licensed_security_features == 1
     # the configuration disables Dependabot alerts, 'other-repo' keeps the ones of the default repository
     assert statistics.repos_with_dependabot_alerts == 1
     # the configuration enables private vulnerability reporting, the default repository disables it

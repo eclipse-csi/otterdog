@@ -151,11 +151,6 @@ async def index():
         stats.repos_with_code_scanning,
     ]
 
-    code_security_configuration_data = [
-        stats.active_repos - stats.repos_with_code_security_configuration,
-        stats.repos_with_code_security_configuration,
-    ]
-
     return await render_home_template(
         "index.html",
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
@@ -177,11 +172,6 @@ async def index():
         private_vulnerability_reporting_percentage=private_vulnerability_reporting_percentage,
         code_scanning_data=json.dumps(code_scanning_data),
         code_scanning_percentage=_percentage(stats.repos_with_code_scanning, stats.active_repos),
-        code_security_configuration_data=json.dumps(code_security_configuration_data),
-        code_security_configuration_percentage=_percentage(
-            stats.repos_with_code_security_configuration, stats.active_repos
-        ),
-        private_repos_with_licensed_security_features=stats.private_repos_with_licensed_security_features,
     )
 
 
