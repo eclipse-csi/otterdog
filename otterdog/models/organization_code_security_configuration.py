@@ -516,8 +516,9 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_code_security_configuration}"
 
-    @staticmethod
+    @classmethod
     async def _update_configuration(
+        cls,
         org_id: str,
         expected_object: OrganizationCodeSecurityConfiguration,
         current_object: OrganizationCodeSecurityConfiguration,
@@ -529,17 +530,25 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         applied to, e.g. as it failed or is still pending, are skipped.
         """
         name = current_object.name
-        failed_repositories = await provider.get_org_code_security_configuration_repositories(
-            org_id, current_object.id, name, status="failed"
-        )
 
-        await provider.update_org_code_security_configuration(
-            org_id, current_object.id, name, await expected_object.to_provider_data(org_id, provider)
-        )
+        try:
+            failed_repositories = await provider.get_org_code_security_configuration_repositories(
+                org_id, current_object.id, name, status="failed"
+            )
 
-        incomplete_repositories = await provider.wait_for_org_code_security_configuration_repositories(
-            org_id, current_object.id, name, failed_repositories
-        )
+            await provider.update_org_code_security_configuration(
+                org_id, current_object.id, name, await expected_object.to_provider_data(org_id, provider)
+            )
+
+            incomplete_repositories = await provider.wait_for_org_code_security_configuration_repositories(
+                org_id, current_object.id, name, failed_repositories
+            )
+        except RuntimeError:
+            await cls._skip_patches_of_attached_repositories(
+                org_id, current_object, provider, f"the update of code security configuration '{name}' failed"
+            )
+            raise
+
         if len(incomplete_repositories) > 0:
             provider.skip_repository_patches(
                 org_id,
@@ -550,6 +559,46 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
                 f"the update of code security configuration '{name}' is not applied to repositories "
                 f"{', '.join(sorted(incomplete_repositories))}, their patches are skipped"
             )
+
+    @classmethod
+    async def _delete_configuration(
+        cls, org_id: str, current_object: OrganizationCodeSecurityConfiguration, provider: GitHubProvider
+    ) -> None:
+        name = current_object.name
+
+        try:
+            # do not leave the organization with a default configuration that is going to be deleted
+            if current_object.is_default_for_new_repos():
+                await provider.update_org_code_security_configuration_default(org_id, current_object.id, name, "none")
+
+            await provider.delete_org_code_security_configuration(org_id, current_object.id, name)
+        except RuntimeError:
+            await cls._skip_patches_of_attached_repositories(
+                org_id, current_object, provider, f"the deletion of code security configuration '{name}' failed"
+            )
+            raise
+
+    @staticmethod
+    async def _skip_patches_of_attached_repositories(
+        org_id: str, configuration: OrganizationCodeSecurityConfiguration, provider: GitHubProvider, reason: str
+    ) -> None:
+        """
+        Skips the patches of the repositories attached to a configuration whose patch failed, as they were planned
+        with the configuration as it is once its patch is applied, and might change settings it still sets.
+        """
+        try:
+            repo_names = await provider.get_org_code_security_configuration_repositories(
+                org_id, configuration.id, configuration.name
+            )
+        except RuntimeError as ex:
+            _logger.warning(
+                "failed to retrieve the repositories of code security configuration '%s' to skip their patches: %s",
+                configuration.name,
+                ex,
+            )
+            return
+
+        provider.skip_repository_patches(org_id, repo_names, reason)
 
     @classmethod
     async def apply_live_patch(
@@ -575,22 +624,7 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
                     )
 
             case LivePatchType.REMOVE:
-                current_object = unwrap(patch.current_object)
-
-                # do not leave the organization with a default configuration that is going to be deleted
-                if current_object.is_default_for_new_repos():
-                    await provider.update_org_code_security_configuration_default(
-                        org_id,
-                        current_object.id,
-                        current_object.name,
-                        "none",
-                    )
-
-                await provider.delete_org_code_security_configuration(
-                    org_id,
-                    current_object.id,
-                    current_object.name,
-                )
+                await cls._delete_configuration(org_id, unwrap(patch.current_object), provider)
 
             case LivePatchType.CHANGE:
                 expected_object = unwrap(patch.expected_object)

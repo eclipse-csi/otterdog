@@ -70,6 +70,16 @@ def expect_failed_repositories(github: GitHubProviderTestKit, failed: list[str] 
     )
 
 
+def expect_attached_repositories(github: GitHubProviderTestKit, attached: list[str]) -> None:
+    """Expects the retrieval of the repositories that configuration 7 is attached to."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attached,attaching,updating,enforced"},
+        response_json=[{"status": "attached", "repository": {"name": x}} for x in attached],
+    )
+
+
 def expect_no_pending_repositories(github: GitHubProviderTestKit) -> None:
     """Expects the check that an update of configuration 7 is applied to its repositories."""
     github.http.expect(
@@ -272,10 +282,47 @@ async def test_update_failure(github: GitHubProviderTestKit):
         response_json={"message": "Validation Failed"},
     )
 
+    # the patches of the repositories attached to the configuration are skipped, as they were planned with the update
+    expect_attached_repositories(github, [REPO_NAME])
     patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=configuration(description="updated"))
 
     with pytest.raises(RuntimeError, match="failed to update code security configuration with name 'baseline'"):
         await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) == (
+        "the update of code security configuration 'baseline' failed"
+    )
+
+
+async def test_delete_failure(github: GitHubProviderTestKit):
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=409)
+    expect_attached_repositories(github, [REPO_NAME])
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=None)
+
+    with pytest.raises(RuntimeError, match="failed to delete code security configuration with name 'baseline'"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) == (
+        "the deletion of code security configuration 'baseline' failed"
+    )
+
+
+async def test_failure_is_reported_if_the_attached_repositories_can_not_be_retrieved(github: GitHubProviderTestKit):
+    github.http.expect("DELETE", f"{CONFIGURATIONS_URL}/7", response_status=409)
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attached,attaching,updating,enforced"},
+        response_status=500,
+        response_json={"message": "Server Error"},
+    )
+    patch = ModelForContext(ORG_ID).generate_live_patch(old=configuration(7), new=None)
+
+    # the failure of the patch is reported rather than the one of retrieving the repositories
+    with pytest.raises(RuntimeError, match="failed to delete code security configuration with name 'baseline'"):
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
+
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) is None
 
 
 async def test_update_default_for_new_repositories_only(github: GitHubProviderTestKit):
