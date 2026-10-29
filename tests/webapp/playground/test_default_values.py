@@ -8,7 +8,7 @@
 
 """The explicit values identical to the values of the default configuration."""
 
-CONFIGURATION = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+CONFIGURATION = """local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';
 local wiki = true;
 
 orgs.newOrg('my-project', 'my-org') {

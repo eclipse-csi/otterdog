@@ -50,9 +50,11 @@ export function createEvaluator() {
   });
 }
 
-// the files evaluated for a code with the files {filename, content} of a default configuration
+// Builds the browser evaluator's in-memory file map. Optional aliases expose the
+// same library content under the import paths used by custom templates.
 export function filesOf(code, templateFiles) {
-  return Object.fromEntries([[MAIN_FILE, code], ...templateFiles.map((file) => [file.filename, file.content])]);
+  return Object.fromEntries([[MAIN_FILE, code], ...templateFiles.flatMap((file) =>
+    [file.filename, ...(file.aliases ?? [])].map((filename) => [filename, file.content]))]);
 }
 
 // Evaluates the shown document once its content has not changed for a while, only its latest content being evaluated

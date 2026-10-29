@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import contextvars
 import json
-import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, Literal, Self, TextIO, TypeGuard, TypeVar
 from urllib.parse import urlparse
 
@@ -400,17 +400,16 @@ _jsonnet_import_root: contextvars.ContextVar[str | None] = contextvars.ContextVa
 
 
 class restrict_jsonnet_imports:  # noqa: N801
-    """Context manager confining jsonnet imports to a directory tree.
+    """Confine Jsonnet imports to a directory tree and the packaged defaults.
 
     While active, jsonnet_evaluate_file / jsonnet_evaluate_snippet install an
-    import_callback that rejects any import (absolute or relative) whose
-    real path resolves outside ``base_dir``. The restriction propagates
-    transparently across ``await`` boundaries via a ``ContextVar``.
+    import_callback that permits imports only from ``base_dir`` or the packaged
+    defaults directory. The restriction propagates across ``await`` boundaries
+    via a ``ContextVar``.
 
-    Legitimate org configurations only import from the vendored template
-    directory under ``org_dir`` (e.g. ``vendor/<template-repo>/...``), so
-    scoping imports to the org config directory matches the expected
-    operational layout. The canonical pattern when invoking an operation
+    Org configurations can import vendored templates under ``org_dir`` or
+    standard defaults from the installed package. Other filesystem paths are
+    rejected. The canonical pattern when invoking an operation
     that may evaluate jsonnet is::
 
         try:
@@ -443,29 +442,35 @@ class restrict_jsonnet_imports:  # noqa: N801
 
 
 def _make_jsonnet_import_callback(allowed_root: str) -> Callable[[str, str], tuple[str, str | None]]:
-    real_root = os.path.realpath(allowed_root)
+    package_root = Path(__file__).resolve().parent.parent
+    package_defaults = package_root / "otterdog" / "resources" / "defaults"
+    roots = (Path(allowed_root).resolve(), package_defaults)
 
     def callback(base: str, rel: str) -> tuple[str, str | None]:
-        candidate = rel if os.path.isabs(rel) else os.path.join(base, rel)
-        # resolve symlinks and ".." traversal before the containment check
-        resolved = os.path.realpath(candidate)
-        try:
-            common = os.path.commonpath([resolved, real_root])
-        except ValueError:
-            raise RuntimeError(f"import of '{rel}' is not allowed") from None
-        if common != real_root:
+        candidate = Path(base) / rel
+        # A custom importer replaces Jsonnet's library search. Match the native
+        # local-first behavior, with a fallback only for packaged default imports.
+        if not candidate.is_file() and rel.startswith("otterdog/resources/defaults/"):
+            candidate = package_root / rel
+        # Resolve symlinks and parent traversal before checking either allowed root.
+        resolved = candidate.resolve()
+        if not any(resolved.is_relative_to(root) for root in roots):
             raise RuntimeError(f"import of '{rel}' is not allowed")
-        with open(resolved, "rb") as f:
-            return resolved, f.read().decode("utf-8")
+        # importstr values, including secrets, must retain their original line endings.
+        return str(resolved), resolved.read_bytes().decode("utf-8")
 
     return callback
 
 
 def _jsonnet_kwargs(import_base_dir: str | None) -> dict[str, Any]:
     base = import_base_dir if import_base_dir is not None else _jsonnet_import_root.get()
-    if base is None:
-        return {}
-    return {"import_callback": _make_jsonnet_import_callback(base)}
+    # Packaged imports start with "otterdog/", so Jsonnet searches the directory containing
+    # the installed package. Unrestricted evaluations use the native importer,
+    # which also handles non-UTF-8 importbin data.
+    kwargs: dict[str, Any] = {"jpathdir": [str(Path(__file__).resolve().parent.parent)]}
+    if base is not None:
+        kwargs["import_callback"] = _make_jsonnet_import_callback(base)
+    return kwargs
 
 
 def jsonnet_evaluate_file(file: str, import_base_dir: str | None = None) -> dict[str, Any]:

@@ -8,7 +8,9 @@
 
 """The completion and the description of the functions and properties of the default configuration."""
 
-HEAD = "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\norgs.newOrg('my-project', 'my-org') {\n"
+import pytest
+
+HEAD = "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\norgs.newOrg('my-project', 'my-org') {\n"
 REPOSITORY = HEAD + "  _repositories+:: [\n    orgs.newRepo('my-repo') {\n"
 HINTS = """[...document.querySelectorAll('.cm-tooltip-autocomplete li')].map((item) => {
   const detail = item.querySelector('.cm-completionDetail')?.textContent ?? '';
@@ -90,7 +92,7 @@ def test_properties_of_nested_objects_and_of_functions_of_the_configuration_are_
     page.keyboard.press("Escape")
 
     # objects created in a function of the configuration, whose arguments are not known
-    function = "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n"
+    function = "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\n"
     function += "local customRuleset(name) =\n  orgs.newRepoRuleset(name) {\n    allows_"
     assert complete(playground, function, "u") == ["allows_updates true"]
     assert "Reference: Repository Ruleset" in description(playground)
@@ -121,3 +123,15 @@ def test_hovering_a_property_describes_it(playground):
     page.mouse.move(5, 5)
     page.wait_for_timeout(700)
     assert page.locator(".cm-tooltip-hover").count() == 0
+
+
+@pytest.mark.parametrize("page", ["custom-bundled.html", "custom-method.html", "custom-upstream.html"])
+def test_custom_constructor_parameters_take_precedence_over_packaged_defaults(playground, page):
+    playground.open(page)
+    import_statement = playground.code().split(";")[0] + ";\n"
+
+    assert complete(playground, import_statement + "orgs.newR", "e") == ["newRepo()"]
+    playground.page.keyboard.press("Enter")
+    assert playground.code().endswith("orgs.newRepo()")
+    playground.wait_evaluated()
+    assert '"custom-repo"' in playground.output()

@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 from quart import render_template, request
 
-from otterdog.config import OtterdogConfig
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.webapp import create_app
 from otterdog.webapp.config import TestingConfig
 from otterdog.webapp.home import routes
@@ -34,7 +34,7 @@ from .helpers import Playground
 
 _ASSETS_DIR = Path(routes.__file__).parents[1] / "static" / "assets"
 _BASE_TEMPLATE = "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1.0.0"
-_IMPORT = "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n"
+_IMPORT = "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\n"
 
 ORGANIZATION = (
     _IMPORT + "orgs.newOrg('my-project', 'my-org') {\n"
@@ -49,7 +49,7 @@ ORGANIZATION = (
 
 # a large configuration extending the default configuration with its own functions, like many organizations do
 LARGE_ORGANIZATION = (
-    "local orgsBase = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n"
+    "local orgsBase = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n"
     "local orgs = orgsBase + {\n"
     "  newRepo(name):: orgsBase.newRepo(name) { delete_branch_on_merge: true },\n"
     "};\n\n"
@@ -137,6 +137,69 @@ async def _render_pages(directory: Path) -> None:
             (directory / "large.html").write_text(await routes._render_playground(instance, "large-project", large))
         async with app.test_request_context("/admin/template-impact"):
             (directory / "template-impact.html").write_text(await routes.template_impact())
+
+    custom_org = OrganizationConfig.of(
+        "custom",
+        "custom",
+        ".otterdog",
+        "https://github.com/example/otterdog-defaults#nested/otterdog-defaults.libsonnet@main",
+        {},
+        str(directory),
+        str(directory),
+    )
+    custom_config = custom_org.jsonnet_config
+    custom_file = Path(custom_config.template_file)
+    custom_file.parent.mkdir(parents=True)
+    custom_file.write_text(
+        "local bundled = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n"
+        "local functions = import 'otterdog/resources/defaults/otterdog-functions.libsonnet';\n"
+        "local helper = import 'otterdog-functions.libsonnet';\n"
+        "local newRepo() = bundled.newRepo('custom-repo');\n"
+        "{ newRepo: newRepo, newOrg(project, id): bundled.newOrg(project, id) { settings+: {\n"
+        "name: functions.mergeByKey([{name: 'custom', value: helper.name}], 'name')[0].value\n"
+        "} } }"
+    )
+    (custom_file.parent / "otterdog-functions.libsonnet").write_text("{ name: 'Custom helper' }")
+    with mock.patch.object(custom_config, "_init_base_template", mock.AsyncMock()):
+        custom = await routes._instance_template(custom_org)
+    source = f"local orgs = {custom_config.import_statement}; orgs.newOrg('custom', 'custom')"
+    with mock.patch.object(routes, "render_home_template", _render_home_template):
+        async with app.test_request_context("/projects/custom/playground"):
+            for variant in ("custom-bundled", "custom-method", "custom-helper-error"):
+                files = [dict(file) for file in custom["files"]]
+                for file in files:
+                    if file["filename"] == custom["default_config"] and variant == "custom-method":
+                        file["content"] = (
+                            file["content"]
+                            .replace("local newRepo() = bundled.newRepo('custom-repo');\n", "")
+                            .replace("newRepo: newRepo,", "newRepo(): bundled.newRepo('custom-repo'),")
+                        )
+                    if variant == "custom-helper-error" and file["filename"].startswith("vendor/"):
+                        if file["filename"].endswith("/otterdog-functions.libsonnet"):
+                            file["content"] = "error 'custom helper failed'"
+                (directory / f"{variant}.html").write_text(
+                    await routes._render_playground(
+                        {**custom, "files": files}, "custom", {**organization, "jsonnet": source}
+                    )
+                )
+
+            # A recursively loaded upstream library sorts after the selected template.
+            # Its constructor must not replace the signature of the custom override.
+            upstream = custom_file.parent / "upstream" / "otterdog-defaults.libsonnet"
+            upstream.parent.mkdir()
+            upstream.write_text("local newRepo(name) = { name: name }; { newRepo: newRepo }")
+            custom_file.write_text(
+                custom_file.read_text().replace(
+                    "local newRepo() = bundled.newRepo('custom-repo');",
+                    "local upstream = import 'upstream/otterdog-defaults.libsonnet';\n"
+                    "local newRepo() = upstream.newRepo('custom-repo');",
+                )
+            )
+            with mock.patch.object(custom_config, "_init_base_template", mock.AsyncMock()):
+                custom = await routes._instance_template(custom_org)
+            (directory / "custom-upstream.html").write_text(
+                await routes._render_playground(custom, "custom", {**organization, "jsonnet": source})
+            )
 
     (directory / "admin" / "template-impact").mkdir(parents=True)
     (directory / "admin" / "template-impact" / "configurations").write_text(json.dumps({"projects": PROJECTS}))

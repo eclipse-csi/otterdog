@@ -4,6 +4,8 @@
 
 ### Added
 
+- Use defaults bundled with the installed Otterdog version when `base_template` is omitted. Standard Jsonnet library imports load them directly from the package in normal and local mode, without vendor copies or template cloning. Existing organizations switching to bundled defaults must update their vendor imports; custom templates remain supported.
+
  - feat: manage the Dependabot and Codespaces secrets of organizations and repositories with the `dependabot_secrets` and `codespaces_secrets` properties, created by the functions `newOrgDependabotSecret`, `newOrgCodespacesSecret`, `newRepoDependabotSecret` and `newRepoCodespacesSecret` of the default configuration ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
    These secrets are only read when the default configuration defines these functions.
 

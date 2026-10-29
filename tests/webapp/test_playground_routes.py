@@ -116,43 +116,48 @@ async def test_global_playground_without_example_template(app, monkeypatch, tmp_
     assert render_playground.await_args.kwargs["templates"] is None
 
 
-async def test_global_playground_without_default_base_template(app, monkeypatch):
-    render_playground = mock.AsyncMock()
-
+async def test_global_playground_without_default_base_template(app, monkeypatch, tmp_path):
+    render_playground = mock.AsyncMock(return_value="playground")
     monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(routes, "_render_playground", render_playground)
 
     async with app.test_request_context("/playground"):
-        _, status = await routes.global_playground()
+        assert await routes.global_playground() == "playground"
 
-    assert status == 404
-    render_playground.assert_not_awaited()
+    template = render_playground.await_args.args[0]
+    assert template["default_config"] == "otterdog/resources/defaults/otterdog-defaults.libsonnet"
+    assert len(template["files"]) == 2
+    assert not list(tmp_path.iterdir())
 
 
-async def test_instance_template_provides_the_files_of_the_default_configuration(monkeypatch, tmp_path):
+@pytest.mark.parametrize("subdirectory", ["", "templates/"])
+async def test_instance_template_provides_the_files_of_the_default_configuration(monkeypatch, tmp_path, subdirectory):
     monkeypatch.setattr(JsonnetConfig, "init_template", mock.AsyncMock())
 
+    base_template = _BASE_TEMPLATE.replace("#", f"#{subdirectory}")
     org_config = OrganizationConfig.of(
-        "playground", "playground", ".otterdog", _BASE_TEMPLATE, {}, str(tmp_path), str(tmp_path)
+        "playground", "playground", ".otterdog", base_template, {}, str(tmp_path), str(tmp_path)
     )
-    template_dir = tmp_path / "playground" / "vendor" / "otterdog-defaults"
+    template_dir = tmp_path / "playground" / "vendor" / "otterdog-defaults" / subdirectory
     template_dir.mkdir(parents=True)
     (template_dir / "otterdog-defaults.libsonnet").write_text("{}")
 
-    assert await routes._instance_template(org_config) == {
-        "files": [
-            {
-                "filename": "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
-                "content": "{}",
-                "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
-            }
-        ],
-        "default_config": "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
-        "link": {
-            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
-            "label": "example/otterdog-defaults/otterdog-defaults.libsonnet@v1.0.0",
-        },
+    template = await routes._instance_template(org_config)
+    assert template["default_config"] == f"vendor/otterdog-defaults/{subdirectory}otterdog-defaults.libsonnet"
+    assert template["files"][-1] == {
+        "filename": f"vendor/otterdog-defaults/{subdirectory}otterdog-defaults.libsonnet",
+        "content": "{}",
+        "url": f"https://github.com/example/otterdog-defaults/blob/v1.0.0/{subdirectory}otterdog-defaults.libsonnet",
     }
+    assert len(template["files"]) == 3
+    for file in template["files"][:-1]:
+        assert file["filename"].startswith("otterdog/resources/defaults/")
+        assert file["aliases"] == [f"vendor/otterdog-defaults/{subdirectory}{file['filename']}"]
+    assert (
+        template["link"]["url"]
+        == f"https://github.com/example/otterdog-defaults/blob/v1.0.0/{subdirectory}otterdog-defaults.libsonnet"
+    )
 
 
 @pytest.mark.parametrize(("version", "ref"), [("1.6.1", "v1.6.1"), ("1.7.0.dev67", "main")])
@@ -164,13 +169,13 @@ async def test_example_template_provides_the_files_of_the_examples(monkeypatch, 
     assert template is not None
     assert template["files"] == [
         {
-            "filename": f"vendor/otterdog-defaults/{path.name}",
+            "filename": f"otterdog/resources/defaults/{path.name}",
             "content": path.read_text(),
             "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults/{path.name}",
         }
         for path in sorted(_EXAMPLE_TEMPLATE_DIR.glob("*.libsonnet"))
     ]
-    assert template["default_config"] == "vendor/otterdog-defaults/otterdog-defaults.libsonnet"
+    assert template["default_config"] == "otterdog/resources/defaults/otterdog-defaults.libsonnet"
     assert template["link"] == {
         "url": f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults/otterdog-defaults.libsonnet",
         "label": f"eclipse-csi/otterdog/otterdog/resources/defaults/otterdog-defaults.libsonnet@{ref}",
@@ -387,16 +392,17 @@ async def test_global_playground_does_not_propose_changes(app):
     assert 'id="playground-propose-modal"' not in html
 
 
-async def test_configurations_of_the_projects_using_the_default_base_template(app, monkeypatch):
+@pytest.mark.parametrize("base_template", [None, _BASE_TEMPLATE])
+async def test_configurations_of_the_projects_using_the_default_base_template(app, monkeypatch, base_template):
     installations = [
-        pretend.stub(project_name="beta", github_id="beta-org", base_template=_BASE_TEMPLATE),
-        pretend.stub(project_name="alpha", github_id="alpha-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="beta", github_id="beta-org", base_template=base_template),
+        pretend.stub(project_name="alpha", github_id="alpha-org", base_template=base_template),
         pretend.stub(project_name="other", github_id="other-org", base_template="https://github.com/other/template"),
-        pretend.stub(project_name="new", github_id="new-org", base_template=_BASE_TEMPLATE),
+        pretend.stub(project_name="new", github_id="new-org", base_template=base_template),
     ]
     sources = mock.AsyncMock(return_value={"alpha-org": "orgs.newOrg('alpha', 'alpha-org')", "beta-org": None})
     monkeypatch.setattr(
-        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": base_template}))
     )
     monkeypatch.setattr(routes, "get_active_installations", mock.AsyncMock(return_value=installations))
     monkeypatch.setattr(routes, "get_configuration_sources", sources)
@@ -418,19 +424,15 @@ async def test_configurations_of_the_projects_using_the_default_base_template(ap
     }
 
 
-async def test_no_configurations_without_default_base_template(app, monkeypatch):
-    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
-
-    async with app.test_request_context("/admin/template-impact/configurations"):
-        assert await routes.template_impact_configurations() == {"projects": []}
-
-
-async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_template(app, monkeypatch, tmp_path):
+@pytest.mark.parametrize("base_template", [None, _BASE_TEMPLATE])
+async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_template(
+    app, monkeypatch, tmp_path, base_template
+):
     render_home_template = mock.AsyncMock(return_value="template impact")
     instance_template = mock.AsyncMock(return_value=_TEMPLATE)
     monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(
-        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": base_template}))
     )
     monkeypatch.setattr(routes, "_instance_template", instance_template)
     monkeypatch.setattr(routes, "render_home_template", render_home_template)
@@ -439,22 +441,13 @@ async def test_the_impact_of_the_template_is_evaluated_with_the_default_base_tem
         assert await routes.template_impact() == "template impact"
 
     (org_config,) = instance_template.await_args.args
-    assert org_config.base_template == _BASE_TEMPLATE
+    assert org_config.base_template == base_template
     assert render_home_template.await_args.args == ("template-impact.html",)
     assert render_home_template.await_args.kwargs == {
         "jsonnet_files": _TEMPLATE["files"],
         "default_config": _TEMPLATE["default_config"],
         "default_configuration": _TEMPLATE["link"],
     }
-
-
-async def test_no_impact_of_the_template_without_default_base_template(app, monkeypatch):
-    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
-
-    async with app.test_request_context("/admin/template-impact"):
-        _, status = await routes.template_impact()
-
-    assert status == 404
 
 
 def _evaluated(body: str = "", project_name: str = "my-project", github_id: str = "my-org") -> dict:
@@ -592,10 +585,10 @@ async def test_playground_validation_without_default_base_template(app, monkeypa
     monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
 
-    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
-        _, status = await routes.validate_global_playground()
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated(_INVALID_RULESET)):
+        result = await routes.validate_global_playground()
 
-    assert status == 404
+    assert any("invalid 'include_refs' pattern" in error for error in _errors(result))
 
 
 async def test_playground_validation_uses_the_default_base_template(app, monkeypatch, tmp_path):

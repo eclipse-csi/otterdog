@@ -37,3 +37,26 @@ test("objects and lists are extended, other values are replaced", () => {
   assert.deepEqual(propertyInsertion("workflows", values), {text: "workflows+: {}", cursor: -1});
   assert.deepEqual(propertyInsertion("_repositories", values), {text: "_repositories+:: ", cursor: 0});
 });
+
+test("custom methods replace packaged signatures without reading calls, strings or comments as definitions", () => {
+  const parameters = functionParameters([
+    {content: "local newRepo(name) = {};"},
+    {content: `{
+      // newRepo(fake): {}
+      text: 'newRepo(fake): {}',
+      value: other.newRepo('argument'),
+      newRepo /* method */ ():: {},
+      newOrg(name, id=std.join('', ['a', 'b'])): {},
+    }`},
+  ]);
+  assert.deepEqual(Object.fromEntries(parameters), {newRepo: "", newOrg: "name, id=std.join('', ['a', 'b'])"});
+});
+
+
+test("the selected template overrides signatures from libraries that sort after it", () => {
+  const files = [
+    {filename: "vendor/custom/otterdog-defaults.libsonnet", content: "local upstream = import 'upstream/otterdog-defaults.libsonnet'; local newRepo() = upstream.newRepo('custom'); { newRepo: newRepo }"},
+    {filename: "vendor/custom/upstream/otterdog-defaults.libsonnet", content: "local newRepo(name) = {name: name}; local newTeam(name) = {name: name}; { newRepo: newRepo, newTeam: newTeam }"},
+  ];
+  assert.deepEqual(Object.fromEntries(functionParameters(files, files[0].filename)), {newRepo: "", newTeam: "name"});
+});

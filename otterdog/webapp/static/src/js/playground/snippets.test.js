@@ -48,6 +48,34 @@ orgs.newOrg('a', 'b') {
   }
 });
 
+test("existing imports keep their exact paths when packaged and custom libraries share filenames", () => {
+  const files = [
+    "otterdog/resources/defaults/otterdog-defaults.libsonnet",
+    "otterdog/resources/defaults/otterdog-functions.libsonnet",
+    ...TEMPLATE_FILES,
+  ];
+  for (const file of files) {
+    const code = `import '${file}'`;
+    assert.equal(normalizeSnippet(code, files, TEMPLATE_FILES[0]), code);
+  }
+});
+
+test("vendor imports from shared snippets prefer libraries beside the selected custom template", () => {
+  const directory = "vendor/custom/nested/";
+  const names = ["otterdog-defaults.libsonnet", "otterdog-functions.libsonnet"];
+  const files = [...names.map((name) => "otterdog/resources/defaults/" + name), ...names.map((name) => directory + name)];
+  for (const name of names) {
+    assert.equal(
+      normalizeSnippet(`import 'vendor/documentation/${name}'`, files, directory + names[0]),
+      `import '${directory + name}'`,
+    );
+  }
+  assert.equal(
+    normalizeSnippet("import 'vendor/documentation/otterdog-functions.libsonnet'", files.slice(0, -1), directory + names[0]),
+    "import 'otterdog/resources/defaults/otterdog-functions.libsonnet'",
+  );
+});
+
 test("further imports of a path are spelled differently, strings and comments being kept", () => {
   const files = {
     "playground.jsonnet": `local a = import 'a.libsonnet';
