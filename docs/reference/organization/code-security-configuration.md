@@ -132,7 +132,9 @@ The default configuration of an instance of otterdog, set by `base_template`, mi
     and internal repositories the configuration is attached to. Such changes are considered to be cost-related if
     private repositories are attached to the configuration or it is the default for new private repositories, and
     so is attaching a private repository to a configuration that enables them. This does not apply to an
-    organization with free plan, for which these products cannot be purchased.
+    organization with free plan, for which these products cannot be purchased. If the configurations attached to
+    repositories are not retrieved from GitHub, e.g. to validate a pull request, a private repository that does not
+    specify a configuration might be attached to any existing one.
     Setting `code_security` and `secret_protection` to a different status requires an unbundled GitHub Advanced
     Security plan, i.e. GitHub Code Security and GitHub Secret Protection, which is not available for an organization
     with free plan. GitHub rejects it otherwise.

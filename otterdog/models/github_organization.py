@@ -320,27 +320,54 @@ class GitHubOrganization:
 
         return default_configurations
 
-    def _set_costs_of_code_security_configurations(self, plan: CodeSecurityConfigurationPlan) -> None:
+    def _set_costs_of_code_security_configurations(
+        self, current_organization: GitHubOrganization, plan: CodeSecurityConfigurationPlan
+    ) -> None:
         """
         Sets what the costs of the code security configurations depend on: the plan of the organization, and whether
-        private repositories are attached to them once the patches are applied, the configuration they specify,
-        otherwise the one currently attached to them.
+        private repositories are attached to them once the patches are applied, None if not known.
         """
-        attached_to_private_repositories = set()
-        for repo in self.repositories:
-            if repo.private is not True:
-                continue
-
-            if is_set_and_present(repo.code_security_configuration):
-                attached_to_private_repositories.add(repo.code_security_configuration)
-            else:
-                configuration = plan.get_planned_attached_configuration(repo.name)
-                if configuration is not None:
-                    attached_to_private_repositories.add(configuration.name)
+        attached_to_private_repositories, unknown_attachments = self._get_attachments_of_private_repositories(
+            current_organization, plan
+        )
+        # a private repository whose attachment is not known might be attached to any existing configuration
+        existing_configurations = {x.name for x in current_organization.code_security_configurations}
 
         for configuration in self.code_security_configurations:
             configuration.organization_plan = self.settings.plan
-            configuration.attached_to_private_repositories = configuration.name in attached_to_private_repositories
+            if configuration.name in attached_to_private_repositories:
+                configuration.attached_to_private_repositories = True
+            elif unknown_attachments and configuration.name in existing_configurations:
+                configuration.attached_to_private_repositories = None
+            else:
+                configuration.attached_to_private_repositories = False
+
+    def _get_attachments_of_private_repositories(
+        self, current_organization: GitHubOrganization, plan: CodeSecurityConfigurationPlan
+    ) -> tuple[set[str], bool]:
+        """
+        Returns the configurations attached to private repositories once the patches are applied, the one they
+        specify, otherwise the one currently attached to them, and whether the attachment of some private
+        repositories is not known, as attachments are not retrieved from GitHub, e.g. for an organization loaded
+        from a file, and they do not specify a configuration.
+        """
+        attachments_known = current_organization.attached_code_security_configurations is not None
+        attached_configurations: set[str] = set()
+        unknown_attachments = False
+
+        for repo in filter(lambda x: x.private is True, self.repositories):
+            if is_set_and_present(repo.code_security_configuration):
+                attached_configurations.add(repo.code_security_configuration)
+            elif not attachments_known:
+                unknown_attachments = True
+            else:
+                # a renamed repository is still known by its former name
+                for name in repo.get_all_names():
+                    configuration = plan.get_planned_attached_configuration(name)
+                    if configuration is not None:
+                        attached_configurations.add(configuration.name)
+
+        return attached_configurations, unknown_attachments
 
     def get_attached_code_security_configuration(
         self, repo: Repository
@@ -939,7 +966,7 @@ class GitHubOrganization:
         context.code_security_configuration_plan = self.plan_code_security_configurations(
             current_organization, context.delete_resources
         )
-        self._set_costs_of_code_security_configurations(context.code_security_configuration_plan)
+        self._set_costs_of_code_security_configurations(current_organization, context.code_security_configuration_plan)
         OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(
             self.code_security_configurations,
             current_organization.code_security_configurations,

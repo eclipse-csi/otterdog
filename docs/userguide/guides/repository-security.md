@@ -276,7 +276,8 @@ orgs.newOrg('my-project', 'my-org') {
     Enabling them in a configuration attached to private repositories, or attaching a private repository to a
     configuration enabling them, is thus considered to be cost-related, except for an organization with free plan,
     for which they cannot be purchased. A configuration enabling them for public repositories only can be
-    auto-merged.
+    auto-merged, if it is new or the private repositories of the organization specify their configuration, as the
+    configuration attached on GitHub to the other ones is not known when validating a pull request.
 
 ## Organization settings related to security
 

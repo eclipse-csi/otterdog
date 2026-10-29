@@ -587,6 +587,41 @@ def test_configuration_is_cost_related_if_private_repositories_are_attached(plan
 
 
 @pytest.mark.parametrize(
+    ("existing", "attached", "expected"),
+    [
+        # attachments not retrieved from GitHub, e.g. to validate a pull request: an existing configuration
+        # might be attached to the private repository, a new one is not
+        (True, None, True),
+        (False, None, False),
+        # attachments retrieved from GitHub
+        (True, {"my-repo": 1}, True),
+        (True, {}, False),
+    ],
+)
+def test_configuration_is_cost_related_if_private_repositories_might_be_attached(existing, attached, expected):
+    expected_org = organization()
+    expected_org.settings.plan = "enterprise"
+    expected_org.add_code_security_configuration(
+        default_configuration(name="baseline", code_security="enabled", secret_protection="enabled")
+    )
+    # the private repository keeps the configuration attached to it on GitHub
+    expected_org.add_repository(repository(private=True, code_security_configuration=None))
+    current_org = organization()
+    current_org.settings.plan = "enterprise"
+    if existing:
+        current_org.add_code_security_configuration(configuration_with_id("baseline", 1))
+    current_org.add_repository(repository(private=True, code_security_configuration=None))
+    if attached is not None:
+        current_org.set_attached_code_security_configurations(attached)
+
+    patches = generate_organization_patches(expected_org, current_org)
+
+    configuration_patches = [x for x in patches if isinstance(x.expected_object, OrganizationCodeSecurityConfiguration)]
+    assert len(configuration_patches) == 1
+    assert configuration_patches[0].is_cost_related() is expected
+
+
+@pytest.mark.parametrize(
     ("plan", "products", "expected"),
     [("enterprise", "enabled", True), ("enterprise", "disabled", False), ("free", "enabled", False)],
 )
