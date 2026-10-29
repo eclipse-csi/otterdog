@@ -60,6 +60,16 @@ def configuration(configuration_id: int | None = None, **overrides: Any) -> Orga
     return result
 
 
+def expect_no_pending_repositories(github: GitHubProviderTestKit) -> None:
+    """Expects the check that an update of configuration 7 is applied to its repositories."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "attaching,updating"},
+        response_json=[],
+    )
+
+
 async def generate_patch_and_run_it(
     github: GitHubProviderTestKit,
     *,
@@ -218,6 +228,7 @@ async def test_update(github: GitHubProviderTestKit):
         request_json={**DEFAULT_CONFIGURATION_REQUEST, "dependabot_alerts": "enabled"},
         response_json={"id": 7, "name": "baseline"},
     )
+    expect_no_pending_repositories(github)
 
     await generate_patch_and_run_it(
         github,
@@ -234,6 +245,7 @@ async def test_update_without_effective_change(github: GitHubProviderTestKit):
         request_json={**DEFAULT_CONFIGURATION_REQUEST, "description": "updated"},
         response_status=204,
     )
+    expect_no_pending_repositories(github)
 
     await generate_patch_and_run_it(github, old=configuration(7), new=configuration(description="updated"))
 
@@ -413,3 +425,29 @@ async def test_add_repo_attaches_configuration_before_applying_settings(github: 
     assert served.index(("GET", f"/repos/{ORG_ID}/{REPO_NAME}/code-security-configuration")) < served.index(
         ("PATCH", f"/repos/{ORG_ID}/{REPO_NAME}")
     )
+
+
+async def test_update_waits_until_it_is_applied_to_the_repositories(github: GitHubProviderTestKit, monkeypatch):
+    from otterdog.providers.github.rest import org_client
+
+    monkeypatch.setattr(org_client.asyncio, "sleep", AsyncMock())
+    github.http.expect(
+        "PATCH",
+        f"{CONFIGURATIONS_URL}/7",
+        request_json={**DEFAULT_CONFIGURATION_REQUEST, "dependabot_alerts": "enabled"},
+        response_json={"id": 7, "name": "baseline"},
+    )
+    # the HTTP mock answers a request only once, the successive answers are served here
+    answers = iter([[{"status": "updating", "repository": {"name": REPO_NAME}}], []])
+    original_request_paged_json = github.provider.rest_api.requester.request_paged_json
+
+    async def request_paged_json(method, url_path, data=None, params=None, entries_key=None):
+        if url_path.endswith("/7/repositories"):
+            return next(answers)
+        return await original_request_paged_json(method, url_path, data, params, entries_key)
+
+    github.provider.rest_api.requester.request_paged_json = request_paged_json  # type: ignore[method-assign]
+
+    await generate_patch_and_run_it(github, old=configuration(7), new=configuration(dependabot_alerts="enabled"))
+
+    assert next(answers, None) is None

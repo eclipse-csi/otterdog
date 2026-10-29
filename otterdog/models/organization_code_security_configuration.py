@@ -26,6 +26,8 @@ from otterdog.models import (
 from otterdog.utils import UNSET, Change, get_logger, is_set_and_present, is_set_and_valid, unwrap
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
@@ -239,15 +241,17 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         """Returns the visibilities of new repositories this configuration is the default for."""
         return _DEFAULT_VISIBILITIES.get(self.default_for_new_repos, []) if self.is_default_for_new_repos() else []
 
-    def overlaid_with(self, other: OrganizationCodeSecurityConfiguration) -> OrganizationCodeSecurityConfiguration:
+    def overlaid_with(
+        self, other: OrganizationCodeSecurityConfiguration, keys: Collection[str] | None = None
+    ) -> OrganizationCodeSecurityConfiguration:
         """
-        Returns a copy of this configuration with the values that the other configuration manages,
-        values that the other configuration does not manage, i.e. unset or None, are kept.
+        Returns a copy of this configuration with the values that the other configuration manages, restricted to
+        the given keys if any, values that the other configuration does not manage, i.e. unset or None, are kept.
         """
         result = copy.copy(self)
         for field in other.model_fields():
             value = other.__getattribute__(field.name)
-            if is_set_and_valid(value):
+            if is_set_and_valid(value) and (keys is None or field.name in keys):
                 setattr(result, field.name, value)
 
         return result
@@ -565,6 +569,10 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
                         current_object.name,
                         await expected_object.to_provider_data(org_id, provider),
                     )
+                    # the patches of repositories might change settings that depend on the updated ones
+                    await provider.wait_for_org_code_security_configuration_repositories(
+                        org_id, current_object.id, current_object.name
+                    )
 
                 if "default_for_new_repos" in changes:
                     await provider.update_org_code_security_configuration_default(
@@ -601,3 +609,11 @@ class CodeSecurityConfigurationPlan:
 
     def get_default_configuration(self, private: bool) -> OrganizationCodeSecurityConfiguration | None:
         return self.default_configurations.get("private_and_internal" if private else "public")
+
+    # repositories are keyed by their name in lower case, as the names of repositories are case-insensitive on GitHub
+
+    def get_current_attached_configuration(self, repo_name: str) -> OrganizationCodeSecurityConfiguration | None:
+        return self.current_attached_configurations.get(repo_name.lower())
+
+    def get_planned_attached_configuration(self, repo_name: str) -> OrganizationCodeSecurityConfiguration | None:
+        return self.planned_attached_configurations.get(repo_name.lower())

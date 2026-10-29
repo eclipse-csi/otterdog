@@ -1070,3 +1070,124 @@ def test_runner_label_of_standard_runners_is_not_compared():
     )
 
     assert expected.get_difference_from(current) == {}
+
+
+# ---------------------------------------------------------------------------
+# fifth review: names, applied changes, archived repositories
+# ---------------------------------------------------------------------------
+
+
+def test_attached_configurations_are_looked_up_regardless_of_the_case_of_the_repository():
+    attached = default_configuration(name="baseline")
+    plan = attached_plan(attached, attached)
+    expected = repository(name="My-Repo")
+    current = repository(name="My-Repo", code_security_configuration="baseline", **DIFFERING_SETTINGS)
+
+    assert generate_repository_patches(expected, current, plan) == []
+
+
+async def test_attachments_are_keyed_by_the_lower_case_name_of_repositories():
+    org = organization()
+    org.set_code_security_configurations([configuration_with_id("baseline", 1)])
+    org.set_live_code_security_configurations(org.code_security_configurations)
+    org.add_repository(repository(name="My-Repo", code_security_configuration=UNSET))
+    provider = stub(get_org_code_security_configuration_repositories=AsyncMock(return_value=["My-Repo"]))
+
+    await _load_code_security_configuration_attachments(org, "OtterdogTest", provider)  # type: ignore
+
+    assert org.attached_code_security_configurations == {"my-repo": 1}
+    assert org.repositories[0].code_security_configuration == "baseline"
+
+
+def file_organization(*configurations: OrganizationCodeSecurityConfiguration) -> GitHubOrganization:
+    """A current organization loaded from a file, whose configurations differ from the ones on GitHub."""
+    org = organization()
+    org.set_code_security_configurations(list(configurations))
+    org.set_live_code_security_configurations([configuration_with_id("baseline", 1, secret_scanning="disabled")])
+    org.set_attached_code_security_configurations({"my-repo": 1})
+    return org
+
+
+def test_plan_keeps_the_configuration_on_github_if_it_is_not_updated():
+    """If the file and the expected configuration do not differ, no patch updates the configuration on GitHub."""
+    configuration = default_configuration(name="baseline", secret_scanning="not_set")
+    expected = organization()
+    expected.add_code_security_configuration(configuration)
+
+    planned = plan(expected, file_organization(configuration))
+
+    assert unwrap(planned.get_planned_attached_configuration("my-repo")).secret_scanning == "disabled"
+
+
+def test_plan_applies_all_expected_settings_if_the_configuration_is_updated():
+    expected = organization()
+    expected.add_code_security_configuration(
+        default_configuration(name="baseline", secret_scanning="not_set", dependabot_alerts="enabled")
+    )
+
+    planned = plan(expected, file_organization(default_configuration(name="baseline", secret_scanning="not_set")))
+
+    planned_configuration = unwrap(planned.get_planned_attached_configuration("my-repo"))
+    assert planned_configuration.dependabot_alerts == "enabled"
+    # the update sends all settings of the expected configuration
+    assert planned_configuration.secret_scanning == "not_set"
+
+
+def test_plan_only_applies_the_default_if_only_the_default_is_updated():
+    expected = organization()
+    expected.settings.default_code_security_configurations_disabled = False
+    expected.add_code_security_configuration(
+        default_configuration(name="baseline", secret_scanning="not_set", default_for_new_repos="all")
+    )
+
+    planned = plan(expected, file_organization(default_configuration(name="baseline", secret_scanning="not_set")))
+
+    planned_configuration = unwrap(planned.get_planned_attached_configuration("my-repo"))
+    assert planned_configuration.default_for_new_repos == "all"
+    assert planned_configuration.secret_scanning == "disabled"
+
+
+def test_plan_of_an_enterprise_configuration_named_like_a_deleted_one():
+    current = current_organization(
+        configuration_with_id("baseline", 1),
+        configuration_with_id("baseline", 2, "enterprise"),
+        attached={"repo-a": 2},
+    )
+
+    planned = plan(organization(), current, delete_resources=True)
+
+    assert unwrap(planned.get_planned_attached_configuration("repo-a")).id == 2
+
+
+def test_code_security_configuration_of_archived_repositories_is_managed():
+    """GitHub supports code security configurations on archived repositories."""
+    expected = repository(archived=True, code_security_configuration="baseline")
+    current = repository(archived=True, code_security_configuration=None)
+
+    assert expected.get_difference_from(current)["code_security_configuration"] == Change(None, "baseline")
+
+
+async def test_repository_is_unarchived_before_attaching_a_configuration():
+    current = repository(archived=True, code_security_configuration=None)
+    expected = repository(archived=False, code_security_configuration="baseline")
+    changes = {
+        "archived": Change(True, False),
+        "code_security_configuration": Change(None, "baseline"),
+        "dependabot_alerts_enabled": Change(False, True),
+    }
+    provider = AsyncMock()
+
+    await LivePatch.of_changes(expected, current, changes, None, False, Repository.apply_live_patch).apply(
+        "OtterdogTest", provider
+    )
+
+    calls = [
+        (call[0], call[1][2] if call[0] == "update_repo" else None)
+        for call in provider.mock_calls
+        if call[0] in ("attach_org_code_security_configuration", "update_repo")
+    ]
+    assert calls == [
+        ("update_repo", {"archived": False}),
+        ("attach_org_code_security_configuration", None),
+        ("update_repo", {"dependabot_alerts_enabled": True}),
+    ]

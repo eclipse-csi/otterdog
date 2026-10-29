@@ -195,3 +195,10 @@ def test_apply_plans_with_its_deletion_policy(delete_resources):
 
 def test_plan_does_not_delete_resources():
     assert PlanOperation(True, "*", False, False, False, "").delete_resources() is False
+
+
+@pytest.mark.parametrize("delete_resources", [True, False])
+def test_local_plan_uses_the_deletion_policy_of_the_apply_it_previews(delete_resources):
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "", delete_resources=delete_resources)
+
+    assert operation.delete_resources() is delete_resources

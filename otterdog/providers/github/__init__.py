@@ -178,6 +178,12 @@ class GitHubProvider:
             configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
             await self.rest_api.org.update_code_security_configuration(org_id, configuration_id, name, data)
 
+    async def wait_for_org_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, name: str
+    ) -> None:
+        configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+        await self.rest_api.org.wait_for_code_security_configuration_repositories(org_id, configuration_id, name)
+
     async def update_org_code_security_configuration_default(
         self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str
     ) -> None:

@@ -263,9 +263,18 @@ class GitHubOrganization:
             else set()
         )
 
+        # the configurations of the organization the patches are generated against, which are not the ones
+        # retrieved from GitHub if the current organization is loaded from a file
+        compared_configurations = {x.name: x for x in current_organization.code_security_configurations}
+
         # pairs of a current configuration and the planned one, None if it is deleted
         configurations = [
-            (x, _plan_code_security_configuration(x, expected_configurations, deleted_configurations))
+            (
+                x,
+                _plan_code_security_configuration(
+                    x, expected_configurations.get(x.name), compared_configurations.get(x.name), deleted_configurations
+                ),
+            )
             for x in (
                 current_organization.live_code_security_configurations
                 or current_organization.code_security_configurations
@@ -1202,7 +1211,8 @@ async def _load_attached_code_security_configurations(
     attached_configurations: dict[str, int] = {}
     for configuration in org.live_code_security_configurations or []:
         for repo_name in await provider.get_org_code_security_configuration_repositories(github_id, configuration.id):
-            attached_configurations[repo_name] = configuration.id
+            # the names of repositories are case-insensitive on GitHub
+            attached_configurations[repo_name.lower()] = configuration.id
 
     org.set_attached_code_security_configurations(attached_configurations)
 
@@ -1216,7 +1226,7 @@ async def _load_code_security_configuration_attachments(
     managed_configurations = {x.id: x.name for x in org.code_security_configurations}
     attached_configurations = org.attached_code_security_configurations or {}
     for repo in org.repositories:
-        configuration_id = attached_configurations.get(repo.name)
+        configuration_id = attached_configurations.get(repo.name.lower())
         repo.code_security_configuration = (
             managed_configurations.get(configuration_id) if configuration_id is not None else None
         )
@@ -1224,12 +1234,15 @@ async def _load_code_security_configuration_attachments(
 
 def _plan_code_security_configuration(
     current_configuration: OrganizationCodeSecurityConfiguration,
-    expected_configurations: dict[str, OrganizationCodeSecurityConfiguration],
+    expected_configuration: OrganizationCodeSecurityConfiguration | None,
+    compared_configuration: OrganizationCodeSecurityConfiguration | None,
     deleted_configurations: set[str],
 ) -> OrganizationCodeSecurityConfiguration | None:
     """
     Returns a current code security configuration as it is once the patches are applied, None if it is deleted.
-    Only the configurations of the organization are changed by the expected ones.
+    Only the configurations of the organization are changed by the expected ones, and only if a patch updates them,
+    i.e. if the expected configuration differs from the one it is compared to: an update sends all its settings,
+    while its default for new repositories is set separately.
     """
     if not current_configuration.is_organization_configuration():
         return current_configuration
@@ -1237,11 +1250,23 @@ def _plan_code_security_configuration(
     if current_configuration.name in deleted_configurations:
         return None
 
-    expected_configuration = expected_configurations.get(current_configuration.name)
-    if expected_configuration is not None:
-        return current_configuration.overlaid_with(expected_configuration)
+    if expected_configuration is None:
+        return current_configuration
 
-    return current_configuration
+    changes: dict[str, Any] | None = (
+        expected_configuration.get_difference_from(compared_configuration)
+        if compared_configuration is not None
+        else None
+    )
+    updated_keys = {
+        field.name
+        for field in expected_configuration.model_fields()
+        if changes is None
+        or (field.name == "default_for_new_repos" and field.name in changes)
+        or (field.name != "default_for_new_repos" and any(key != "default_for_new_repos" for key in changes))
+    }
+
+    return current_configuration.overlaid_with(expected_configuration, updated_keys)
 
 
 def _get_attached_code_security_configurations(
@@ -1270,7 +1295,7 @@ def _get_attached_code_security_configurations(
         if current.is_organization_configuration()
     }
     return {
-        repo.name: by_name[repo.code_security_configuration]
+        repo.name.lower(): by_name[repo.code_security_configuration]
         for repo in current_organization.repositories
         if is_set_and_present(repo.code_security_configuration) and repo.code_security_configuration in by_name
     }

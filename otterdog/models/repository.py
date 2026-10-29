@@ -179,7 +179,6 @@ class Repository(ModelObject):
         "has_projects",
         "web_commit_signoff_required",
         "workflows",
-        "code_security_configuration",
     }
 
     _gh_pages_properties: ClassVar[list[str]] = [
@@ -1610,6 +1609,27 @@ class Repository(ModelObject):
                 handler,
             )
 
+    @staticmethod
+    async def _attach_code_security_configuration(
+        provider: GitHubProvider, org_id: str, patch: LivePatch[Repository], github_settings: dict[str, Any]
+    ) -> None:
+        """
+        Attaches the code security configuration of a changed repository before the settings it does not set are
+        applied, as the configuration currently attached might prevent changing them. A repository that is
+        unarchived is unarchived first, the other settings are applied afterwards.
+        """
+        expected_object = unwrap(patch.expected_object)
+        configuration = expected_object.code_security_configuration
+        if "code_security_configuration" not in unwrap(patch.changes) or not is_set_and_present(configuration):
+            return
+
+        # the repository is attached with its current name, it is renamed afterwards
+        repo_name = unwrap(patch.current_object).name
+        if github_settings.get("archived") is False:
+            await provider.update_repo(org_id, repo_name, {"archived": github_settings.pop("archived")})
+
+        await provider.attach_org_code_security_configuration(org_id, configuration, [repo_name])
+
     @classmethod
     def _unset_properties_of_attached_code_security_configuration(
         cls, expected_object: Repository, current_object: Repository | None, context: LivePatchContext
@@ -1641,7 +1661,7 @@ class Repository(ModelObject):
         if plan is None or not plan.update_released_settings:
             return {}
 
-        current_configuration = plan.current_attached_configurations.get(current_object.name)
+        current_configuration = plan.get_current_attached_configuration(current_object.name)
         if current_configuration is None:
             return {}
 
@@ -1670,7 +1690,7 @@ class Repository(ModelObject):
             return plan.managed_configurations.get(name)
 
         if current_object is not None:
-            return plan.planned_attached_configurations.get(current_object.name)
+            return plan.get_planned_attached_configuration(current_object.name)
 
         return plan.get_default_configuration(expected_object.private is True)
 
@@ -1885,14 +1905,7 @@ class Repository(ModelObject):
                 expected_object = unwrap(patch.expected_object)
                 github_settings = await cls.changes_to_provider(org_id, unwrap(patch.changes), provider)
 
-                # the code security configuration is attached before the settings it does not set are applied,
-                # as the configuration currently attached might prevent changing them
-                if "code_security_configuration" in unwrap(patch.changes) and is_set_and_present(
-                    expected_object.code_security_configuration
-                ):
-                    await provider.attach_org_code_security_configuration(
-                        org_id, expected_object.code_security_configuration, [unwrap(patch.current_object).name]
-                    )
+                await cls._attach_code_security_configuration(provider, org_id, patch, github_settings)
 
                 if "workflows" in github_settings:
                     github_settings.pop("workflows")

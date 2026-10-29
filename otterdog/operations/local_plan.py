@@ -32,6 +32,7 @@ class LocalPlanOperation(PlanOperation):
         update_secrets: bool,
         only_secrets: bool,
         update_filter: str,
+        delete_resources: bool = False,
     ) -> None:
         super().__init__(
             no_web_ui=False,
@@ -44,6 +45,8 @@ class LocalPlanOperation(PlanOperation):
 
         self.suffix = suffix
         self._other_org: GitHubOrganization | None = None
+        # the deletion policy of the apply that the plan previews, e.g. the one of the dashboard
+        self._delete_resources = delete_resources
 
     @property
     def other_org(self) -> GitHubOrganization:
@@ -58,6 +61,9 @@ class LocalPlanOperation(PlanOperation):
 
     def resolve_secrets(self) -> bool:
         return False
+
+    def delete_resources(self) -> bool:
+        return self._delete_resources
 
     def coerce_current_org(self) -> bool:
         return True

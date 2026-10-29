@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import json
 from typing import Any
 
@@ -436,6 +437,42 @@ class OrgClient(RestClient):
             raise RuntimeError(
                 f"failed retrieving repositories of code security configuration '{configuration_id}':\n{ex}"
             ) from ex
+
+    async def wait_for_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, name: str
+    ) -> None:
+        """
+        Waits until the update of a code security configuration is applied to its repositories, which GitHub does
+        asynchronously, so that the settings of these repositories can be changed afterwards.
+        """
+        url = f"/orgs/{org_id}/code-security/configurations/{configuration_id}/repositories"
+        params = {"status": "attaching,updating"}
+
+        pending: list[dict[str, Any]] = []
+        for attempt in range(1, 31):
+            try:
+                pending = await self.requester.request_paged_json("GET", url, params=params)
+            except GitHubException as ex:
+                raise RuntimeError(
+                    f"failed retrieving repositories of code security configuration with name '{name}':\n{ex}"
+                ) from ex
+
+            if len(pending) == 0:
+                return
+
+            _logger.trace(
+                "waiting for code security configuration '%s' to be applied to %d repositories, try %d of 30",
+                name,
+                len(pending),
+                attempt,
+            )
+            await asyncio.sleep(1)
+
+        _logger.warning(
+            "code security configuration '%s' is still being applied to %d repositories after 30s",
+            name,
+            len(pending),
+        )
 
     async def attach_code_security_configuration_by_name(self, org_id: str, name: str, repo_names: list[str]) -> None:
         """
