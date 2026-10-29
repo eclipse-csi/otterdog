@@ -144,6 +144,14 @@ class Playground:
             f"document.querySelector('.playground-status-note[data-key={key}]')?.textContent ?? null"
         )
 
+    def click_note(self, key: str) -> None:
+        """
+        Clicks the link of a note of the status. The status is aligned to the right: a note added meanwhile, e.g. the
+        values already set by the default configuration once compared, moves the other ones, so that a click at the
+        position of the link could miss it, the click is dispatched to the link instead.
+        """
+        self.page.locator(f".playground-status-note[data-key={key}] a").first.dispatch_event("click")
+
     @property
     def copied(self) -> str | None:
         return self.page.evaluate("window.__copied")

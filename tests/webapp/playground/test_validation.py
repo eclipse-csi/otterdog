@@ -39,7 +39,7 @@ def warnings(playground) -> list[str]:
 
 def listed_problems(playground) -> list[str]:
     page = playground.page
-    page.click(".playground-status-note[data-key=problems] a")
+    playground.click_note("problems")
     page.wait_for_selector(".cm-panel-lint li")
     return page.locator(".cm-panel-lint li").all_inner_texts()
 
@@ -200,7 +200,7 @@ def test_the_configuration_of_an_organization_is_validated_by_otterdog(playgroun
     assert "1 validation error" in playground.note("validation")
     # located at the invalid value of the property the problem is about
     assert errors(playground) == ["'1.2.x'"]
-    page.click(".playground-status-note[data-key=validation] a")
+    playground.click_note("validation")
     page.wait_for_selector(".cm-panel-lint li")
     (problem,) = page.locator(".cm-panel-lint li").all_inner_texts()
     assert 'repo_ruleset[name="main", repository=api] ' + INCLUDE_REFS_ERROR in problem
@@ -245,7 +245,7 @@ def test_the_unknown_properties_ignored_by_otterdog_are_reported(playground):
     page.wait_for_function("document.querySelector('.playground-status-note[data-key=validation] a') !== null")
 
     assert "1 validation warning" in playground.note("validation")
-    page.click(".playground-status-note[data-key=validation] a")
+    playground.click_note("validation")
     page.wait_for_selector(".cm-panel-lint li")
     problems = page.locator(".cm-panel-lint li").all_inner_texts()
     assert any(
