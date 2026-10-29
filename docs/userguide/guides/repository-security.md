@@ -272,9 +272,11 @@ orgs.newOrg('my-project', 'my-org') {
 !!! note
 
     For private and internal repositories, `code_security` and `secret_protection` enable GitHub Code Security and
-    GitHub Secret Protection, which are licensed per active committer. Enabling them, or attaching a configuration to a
-    private repository, is considered to be cost-related. Enabling them is not for an organization with free plan,
-    for which they cannot be purchased.
+    GitHub Secret Protection, which are licensed per active committer, they are free for public repositories.
+    Enabling them in a configuration attached to private repositories, or attaching a private repository to a
+    configuration enabling them, is thus considered to be cost-related, except for an organization with free plan,
+    for which they cannot be purchased. A configuration enabling them for public repositories only can be
+    auto-merged.
 
 ## Organization settings related to security
 

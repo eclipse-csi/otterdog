@@ -515,22 +515,98 @@ def test_products_are_not_cost_related_for_a_free_plan(plan, expected):
     assert configuration.changes_are_cost_related({"code_security": Change("disabled", "enabled")}) is expected
 
 
-@pytest.mark.parametrize(("plan", "expected"), [("free", False), ("enterprise", True)])
-def test_patches_of_configurations_know_the_plan_of_the_organization(plan, expected):
+@pytest.mark.parametrize(
+    ("attached_to_private_repositories", "default_for_new_repos", "expected"),
+    [
+        (None, "none", True),
+        (True, "none", True),
+        (False, "none", False),
+        (False, "public", False),
+        (False, "private_and_internal", True),
+        (False, "all", True),
+    ],
+)
+def test_products_are_only_cost_related_for_private_repositories(
+    attached_to_private_repositories, default_for_new_repos, expected
+):
+    configuration = default_configuration(
+        code_security="enabled", secret_protection="enabled", default_for_new_repos=default_for_new_repos
+    )
+    configuration.attached_to_private_repositories = attached_to_private_repositories
+
+    assert configuration.is_cost_related(CostPolicy()) is expected
+    assert configuration.changes_are_cost_related({"code_security": Change("disabled", "enabled")}) is expected
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected"),
+    [
+        ({"default_for_new_repos": Change("public", "all")}, True),
+        ({"default_for_new_repos": Change("none", "private_and_internal")}, True),
+        # the configuration already was the default for new private repositories
+        ({"default_for_new_repos": Change("private_and_internal", "all")}, False),
+        ({"default_for_new_repos": Change("all", "public")}, False),
+    ],
+)
+def test_default_for_new_private_repositories_is_cost_related(changes, expected):
+    configuration = default_configuration(
+        code_security="enabled",
+        secret_protection="enabled",
+        default_for_new_repos=changes["default_for_new_repos"].to_value,
+    )
+    configuration.attached_to_private_repositories = False
+
+    assert configuration.changes_are_cost_related(changes) is expected
+
+
+def generate_organization_patches(expected_org: GitHubOrganization, current_org: GitHubOrganization) -> list[LivePatch]:
+    context = LivePatchContext("OtterdogTest", "*", False, False, "*", current_org.settings, expected_org.settings)
+
+    patches: list[LivePatch] = []
+    expected_org.generate_live_patch(current_org, context, patches.append)
+    return patches
+
+
+@pytest.mark.parametrize(
+    ("plan", "private", "expected"),
+    [("free", True, False), ("enterprise", True, True), ("enterprise", False, False)],
+)
+def test_configuration_is_cost_related_if_private_repositories_are_attached(plan, private, expected):
     expected_org = organization()
     expected_org.settings.plan = plan
     expected_org.add_code_security_configuration(
         default_configuration(name="baseline", code_security="enabled", secret_protection="enabled")
     )
-    current_org = organization()
-    context = LivePatchContext("OtterdogTest", "*", False, False, "*", current_org.settings, expected_org.settings)
+    expected_org.add_repository(repository(private=private, code_security_configuration="baseline"))
 
-    patches: list[LivePatch] = []
-    expected_org.generate_live_patch(current_org, context, patches.append)
+    patches = generate_organization_patches(expected_org, organization())
 
     configuration_patches = [x for x in patches if isinstance(x.expected_object, OrganizationCodeSecurityConfiguration)]
     assert len(configuration_patches) == 1
     assert configuration_patches[0].is_cost_related() is expected
+
+
+@pytest.mark.parametrize(
+    ("plan", "products", "expected"),
+    [("enterprise", "enabled", True), ("enterprise", "disabled", False), ("free", "enabled", False)],
+)
+def test_attaching_a_private_repository_is_cost_related_if_the_configuration_is_licensed(plan, products, expected):
+    expected_org = organization()
+    expected_org.settings.plan = plan
+    expected_org.add_code_security_configuration(
+        default_configuration(name="baseline", code_security=products, secret_protection=products)
+    )
+    expected_org.add_repository(repository(private=True, code_security_configuration="baseline"))
+    current_org = organization()
+    current_org.settings.plan = plan
+    current_org.add_repository(repository(private=True, code_security_configuration=None))
+
+    patches = generate_organization_patches(expected_org, current_org)
+
+    repository_patches = [x for x in patches if isinstance(x.expected_object, Repository)]
+    assert len(repository_patches) == 1
+    assert "code_security_configuration" in unwrap(repository_patches[0].changes)
+    assert repository_patches[0].is_cost_related() is expected
 
 
 # ---------------------------------------------------------------------------

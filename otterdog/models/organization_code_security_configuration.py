@@ -63,6 +63,10 @@ _REVIEWER_MODES = {"always": "ALWAYS", "exempt": "EXEMPT"}
 _REVIEWER_PATTERN = re.compile(r"^(@[^/:\s]+/[^/:\s]+|#[\w-]+)(:(?P<mode>\w+))?$")
 
 
+def _is_default_for_private_repositories(default_for_new_repos: Any) -> bool:
+    return "private_and_internal" in _DEFAULT_VISIBILITIES.get(default_for_new_repos, [])
+
+
 def _validate_reviewer(reviewer: str) -> str | None:
     """Returns the description of the problem of a bypass reviewer, if any."""
     match = _REVIEWER_PATTERN.match(reviewer)
@@ -232,9 +236,10 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        # the plan of the organization, set by the organization when generating patches,
-        # as the products cannot incur costs for an organization with free plan
+        # set by the organization when generating patches, as the products can only incur costs for private
+        # repositories, and cannot be purchased for an organization with free plan, None if not known
         self.organization_plan: str | None = None
+        self.attached_to_private_repositories: bool | None = None
 
     @property
     def model_object_name(self) -> str:
@@ -247,19 +252,38 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def is_default_for_new_repos(self) -> bool:
         return is_set_and_valid(self.default_for_new_repos) and self.default_for_new_repos != "none"
 
-    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
+    def enables_licensed_products(self) -> bool:
+        """Code Security and Secret Protection are licensed per active committer."""
+        return any(self.__getattribute__(prop) == "enabled" for prop in self._cost_related_properties)
+
+    def can_incur_costs(self) -> bool:
         """
-        Enabling Code Security or Secret Protection can consume licenses, unless the organization has a free plan,
-        for which they cannot be purchased.
+        The products can only incur costs for private and internal repositories, the ones attached to this
+        configuration or new ones it is the default for, and cannot be purchased for an organization with free plan.
         """
-        return self.organization_plan != "free" and any(
-            self.__getattribute__(prop) == "enabled" for prop in self._cost_related_properties
+        return self.organization_plan != "free" and (
+            self.attached_to_private_repositories is not False
+            or _is_default_for_private_repositories(self.default_for_new_repos)
         )
 
+    def is_cost_related(self, cost_policy: CostPolicy) -> bool:
+        return self.enables_licensed_products() and self.can_incur_costs()
+
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
-        return self.organization_plan != "free" and any(
+        """Enabling a product, or making a configuration enabling one the default for new private repositories."""
+        if not self.can_incur_costs():
+            return False
+
+        enables_product = any(
             prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties
         )
+        default_change = changes.get("default_for_new_repos")
+        becomes_private_default = (
+            default_change is not None
+            and _is_default_for_private_repositories(default_change.to_value)
+            and not _is_default_for_private_repositories(default_change.from_value)
+        )
+        return enables_product or (becomes_private_default and self.enables_licensed_products())
 
     def get_default_visibilities(self) -> list[str]:
         """Returns the visibilities of new repositories this configuration is the default for."""

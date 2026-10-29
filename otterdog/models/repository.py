@@ -249,7 +249,7 @@ class Repository(ModelObject):
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
         """
         Mark a change from public to private as potentially cost-increasing, as well as attaching a
-        code security configuration to a private repository, which might enable licensed features.
+        code security configuration to a private repository, if it might enable licensed features.
         """
         private_change = changes.get("private")
         code_security_configuration_change = changes.get("code_security_configuration")
@@ -259,6 +259,7 @@ class Repository(ModelObject):
                 self.private is True
                 and code_security_configuration_change is not None
                 and is_set_and_present(code_security_configuration_change.to_value)
+                and self.licensed_code_security_configuration is not False
             )
             or super().changes_are_cost_related(changes)
         )
@@ -271,6 +272,10 @@ class Repository(ModelObject):
         # Environment.repo_name.
         for env in self.environments:
             env.repo_name = self.name
+
+        # whether the code security configuration the repository specifies enables a licensed product,
+        # set when generating patches, None if not known
+        self.licensed_code_security_configuration: bool | None = None
 
     def get_all_names(self) -> list[str]:
         return [self.name, *self.aliases]
@@ -1471,6 +1476,9 @@ class Repository(ModelObject):
             )
 
         cls._unset_properties_of_attached_code_security_configuration(coerced_object, current_object, context)
+        coerced_object.licensed_code_security_configuration = cls._is_licensed_code_security_configuration(
+            coerced_object, expected_org_settings, context
+        )
 
         changes_object_to_readonly = False
 
@@ -1675,6 +1683,22 @@ class Repository(ModelObject):
             for key in expected_object.keys(for_diff=True)
             if key in released_keys and current_object.is_key_valid_for_diff_computation(key, expected_object)
         }
+
+    @staticmethod
+    def _is_licensed_code_security_configuration(
+        expected_object: Repository, expected_org_settings: OrganizationSettings, context: LivePatchContext
+    ) -> bool | None:
+        """
+        Returns whether the code security configuration the repository specifies enables a licensed product,
+        which cannot be purchased for an organization with free plan, None if not known.
+        """
+        plan = context.code_security_configuration_plan
+        name = expected_object.code_security_configuration
+        configuration = plan.managed_configurations.get(name) if plan is not None and is_set_and_present(name) else None
+        if configuration is None:
+            return None
+
+        return expected_org_settings.plan != "free" and configuration.enables_licensed_products()
 
     @staticmethod
     def _get_planned_code_security_configuration(

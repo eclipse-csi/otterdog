@@ -320,6 +320,28 @@ class GitHubOrganization:
 
         return default_configurations
 
+    def _set_costs_of_code_security_configurations(self, plan: CodeSecurityConfigurationPlan) -> None:
+        """
+        Sets what the costs of the code security configurations depend on: the plan of the organization, and whether
+        private repositories are attached to them once the patches are applied, the configuration they specify,
+        otherwise the one currently attached to them.
+        """
+        attached_to_private_repositories = set()
+        for repo in self.repositories:
+            if repo.private is not True:
+                continue
+
+            if is_set_and_present(repo.code_security_configuration):
+                attached_to_private_repositories.add(repo.code_security_configuration)
+            else:
+                configuration = plan.get_planned_attached_configuration(repo.name)
+                if configuration is not None:
+                    attached_to_private_repositories.add(configuration.name)
+
+        for configuration in self.code_security_configurations:
+            configuration.organization_plan = self.settings.plan
+            configuration.attached_to_private_repositories = configuration.name in attached_to_private_repositories
+
     def get_attached_code_security_configuration(
         self, repo: Repository
     ) -> OrganizationCodeSecurityConfiguration | None:
@@ -914,17 +936,16 @@ class GitHubOrganization:
         OrganizationRuleset.generate_live_patch_of_list(
             self.rulesets, current_organization.rulesets, None, context, handler
         )
-        for configuration in self.code_security_configurations:
-            configuration.organization_plan = self.settings.plan
+        context.code_security_configuration_plan = self.plan_code_security_configurations(
+            current_organization, context.delete_resources
+        )
+        self._set_costs_of_code_security_configurations(context.code_security_configuration_plan)
         OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(
             self.code_security_configurations,
             current_organization.code_security_configurations,
             None,
             context,
             handler,
-        )
-        context.code_security_configuration_plan = self.plan_code_security_configurations(
-            current_organization, context.delete_resources
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
