@@ -4,6 +4,8 @@
   "name": "my-config",
   "description": "My code security configuration",
   "advanced_security": "secret_protection",
+  "code_security": null,
+  "secret_protection": null,
   "dependency_graph": "enabled",
   "dependency_graph_autosubmit_action": "enabled",
   "dependency_graph_autosubmit_action_options": {

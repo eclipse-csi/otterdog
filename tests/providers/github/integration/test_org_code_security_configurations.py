@@ -33,8 +33,6 @@ _DEFAULTS = "./otterdog/resources/defaults/otterdog-defaults.libsonnet"
 DEFAULT_CONFIGURATION_REQUEST = {
     "name": "baseline",
     "description": "",
-    "code_security": "disabled",
-    "secret_protection": "disabled",
     "advanced_security": "disabled",
     "dependency_graph": "enabled",
     "dependency_graph_autosubmit_action": "disabled",
@@ -203,7 +201,7 @@ async def test_create_as_default_for_new_repositories(github: GitHubProviderTest
     github.http.expect(
         "POST",
         CONFIGURATIONS_URL,
-        # 'advanced_security' would need a deprecated value, only the individual products are set
+        # the products have a different status, they are set individually instead of 'advanced_security'
         request_json={
             **{k: v for k, v in DEFAULT_CONFIGURATION_REQUEST.items() if k != "advanced_security"},
             "code_security": "enabled",

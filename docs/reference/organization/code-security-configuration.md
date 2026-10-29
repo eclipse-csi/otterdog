@@ -127,6 +127,8 @@ The default configuration of an instance of otterdog, set by `base_template`, mi
 
     Enabling `code_security` or `secret_protection` can consume GitHub Advanced Security licenses for the private
     and internal repositories the configuration is attached to, such changes are considered to be cost-related.
+    Setting `code_security` and `secret_protection` to a different status requires an unbundled GitHub Advanced
+    Security plan, i.e. GitHub Code Security and GitHub Secret Protection, GitHub rejects it otherwise.
 
 ## Example usage
 

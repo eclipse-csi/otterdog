@@ -414,8 +414,9 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         mapping.update(
             {
                 "description": OptionalS("description", default="") >> F(lambda x: x if x is not None else ""),
-                "code_security": OptionalS("code_security", default=code_security),
-                "secret_protection": OptionalS("secret_protection", default=secret_protection),
+                # GitHub reports the individual products as null, their status is given by 'advanced_security'
+                "code_security": K(data.get("code_security") or code_security),
+                "secret_protection": K(data.get("secret_protection") or secret_protection),
                 "dependency_graph_autosubmit_action_labeled_runners": K(
                     option("dependency_graph_autosubmit_action_options", "labeled_runners")
                 ),
@@ -478,10 +479,11 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         # the default for new repositories is set with a separate request
         pop_mapping(["default_for_new_repos"])
 
-        # 'advanced_security' is only set if it does not need a deprecated value, otherwise
-        # the individual product settings are used
+        # GitHub rejects 'advanced_security' along with the individual products, which are only available on an
+        # unbundled Advanced Security plan, 'advanced_security' is thus used if both products have the same status
         products = (data.get("code_security"), data.get("secret_protection"))
         if products in (("enabled", "enabled"), ("disabled", "disabled")):
+            pop_mapping(["code_security", "secret_protection"])
             mapping["advanced_security"] = K(products[0])
 
         labeled_runners = data.get("dependency_graph_autosubmit_action_labeled_runners")

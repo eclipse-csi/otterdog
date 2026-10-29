@@ -140,7 +140,7 @@ class OrganizationCodeSecurityConfigurationTest(ModelTest):
 
         assert "id" not in provider_data
         assert provider_data["name"] == "my-config"
-        # a deprecated value of 'advanced_security' is not used, the individual products are set instead
+        # GitHub rejects 'advanced_security' along with the individual products
         assert "advanced_security" not in provider_data
         assert provider_data["code_security"] == "disabled"
         assert provider_data["secret_protection"] == "enabled"
@@ -174,9 +174,10 @@ class OrganizationCodeSecurityConfigurationTest(ModelTest):
     async def test_to_provider_of_default_configuration(self):
         provider_data = await default_configuration().to_provider_data(self.org_id, self.provider)
 
+        # 'advanced_security' is available on all plans, unlike the individual products
         assert provider_data["advanced_security"] == "disabled"
-        assert provider_data["code_security"] == "disabled"
-        assert provider_data["secret_protection"] == "disabled"
+        assert "code_security" not in provider_data
+        assert "secret_protection" not in provider_data
 
         for key in OrganizationCodeSecurityConfiguration._optional_properties:
             assert key not in provider_data
@@ -238,8 +239,16 @@ class OrganizationCodeSecurityConfigurationTest(ModelTest):
     ],
 )
 def test_advanced_security_is_split_into_products(advanced_security, code_security, secret_protection):
+    # GitHub reports the individual products as null
     configuration = OrganizationCodeSecurityConfiguration.from_provider_data(
-        "OtterdogTest", {"id": 1, "name": "config", "advanced_security": advanced_security}
+        "OtterdogTest",
+        {
+            "id": 1,
+            "name": "config",
+            "advanced_security": advanced_security,
+            "code_security": None,
+            "secret_protection": None,
+        },
     )
 
     assert configuration.code_security == code_security
@@ -255,16 +264,23 @@ def test_advanced_security_is_split_into_products(advanced_security, code_securi
         ("disabled", "enabled", None),
     ],
 )
-async def test_advanced_security_is_only_sent_without_deprecated_value(
+async def test_advanced_security_is_sent_instead_of_the_same_products(
     code_security, secret_protection, advanced_security
 ):
     configuration = default_configuration(code_security=code_security, secret_protection=secret_protection)
 
     provider_data = await configuration.to_provider_data("OtterdogTest", MagicMock())
 
-    assert provider_data.get("advanced_security") == advanced_security
-    assert provider_data["code_security"] == code_security
-    assert provider_data["secret_protection"] == secret_protection
+    # GitHub rejects 'advanced_security' along with the individual products, which are only available on an
+    # unbundled Advanced Security plan
+    if advanced_security is not None:
+        assert provider_data["advanced_security"] == advanced_security
+        assert "code_security" not in provider_data
+        assert "secret_protection" not in provider_data
+    else:
+        assert "advanced_security" not in provider_data
+        assert provider_data["code_security"] == code_security
+        assert provider_data["secret_protection"] == secret_protection
 
 
 @pytest.mark.parametrize(
