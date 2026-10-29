@@ -193,8 +193,7 @@ function errorContent(message, locations, files) {
   const content = [];
   let index = 0;
   for (const location of locations) {
-    // The rest of the stack can identify the importer when this filename is ambiguous.
-    const filename = files.fileOf(location, locations);
+    const filename = files.fileOf(location);
     const text = filename === undefined
       ? location.text
       : actionLink(location.text, "link-danger", () => files.goTo(filename, location));
@@ -207,11 +206,11 @@ function errorContent(message, locations, files) {
 
 // the status of an error: its first location in a file of the playground, leading to it
 function errorStatus(locations, files) {
-  const first = locations.find((location) => files.fileOf(location, locations) !== undefined);
+  const first = locations.find((location) => files.fileOf(location) !== undefined);
   if (first === undefined) {
     return ["Error"];
   }
-  const filename = files.fileOf(first, locations);
+  const filename = files.fileOf(first);
   const where = filename === MAIN_FILE ? "Error at line " : "Error in " + baseName(filename) + ", line ";
   return [where + (first.from.line + 1), () => files.goTo(filename, first)];
 }

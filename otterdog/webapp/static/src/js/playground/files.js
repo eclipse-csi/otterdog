@@ -59,61 +59,16 @@ function importedFiles(file, templateFiles) {
     .filter((imported) => imported !== undefined && imported !== file.filename);
 }
 
-// Returns a function mapping an error location to its editor filename.
-// WASM may report only 'helper.libsonnet'. When two libraries share that name,
-// the next known caller in the error stack can tell us which one was imported.
-// Without that evidence the location stays unlinked, avoiding the wrong editor.
-// `location` is an entry from `locations`, the stack parsed by errorLocations().
-// Only its file field is needed here; line and column are used later by the editor.
-export function fileResolver(templateFiles, editorFilenames) {
-  return (location, locations = []) => {
+// Error locations may contain a full path or only a filename. Link a shortened
+// path only when it identifies one editor; the caller's imports do not prove
+// where a failing function was defined. Ambiguous locations stay unlinked.
+export function fileResolver(editorFilenames) {
+  return (location) => {
     if (editorFilenames.includes(location.file)) {
       return location.file;
     }
     const matchingFilenames = editorFilenames.filter((name) => name.endsWith("/" + location.file));
-    if (matchingFilenames.length === 0) {
-      return undefined;
-    }
-    if (matchingFilenames.length === 1) {
-      return matchingFilenames[0];
-    }
-
-    // Error locations run from the failure outward through its callers. Only
-    // frames after this location can explain how its file was imported.
-    const callerLocations = locations.slice(locations.indexOf(location) + 1);
-    for (const callerLocation of callerLocations) {
-      let caller = templateFiles.find((file) => file.filename === callerLocation.file);
-      if (caller === undefined) {
-        // A shortened path such as upstream/defaults.libsonnet can still
-        // identify exactly one library. Resolve it before examining its imports.
-        const matchingCallers = templateFiles.filter((file) => file.filename.endsWith("/" + callerLocation.file));
-        if (matchingCallers.length !== 1) {
-          // Do not skip an unknown or ambiguous caller: an outer caller's import
-          // cannot tell us which helper the intervening file actually used.
-          return undefined;
-        }
-        caller = matchingCallers[0];
-      }
-      // Repeated frames inside a matching library do not identify its importer.
-      if (matchingFilenames.includes(caller.filename)) {
-        continue;
-      }
-
-      // The caller must actually import the reported path. './' prefixes are
-      // equivalent spellings used to distinguish repeated imports in WASM.
-      const importsReportedPath = importsOf(caller.content)
-        .some(({path}) => path.replace(/^(\.\/)+/, "") === location.file);
-      if (!importsReportedPath) {
-        return undefined;
-      }
-
-      // Resolve relative to this caller, e.g. vendor/custom/defaults.libsonnet
-      // importing helper.libsonnet selects vendor/custom/helper.libsonnet.
-      // Stop here: more distant callers cannot prove which file this one used.
-      const imported = resolveImportedFilename(location.file, caller.filename, templateFiles);
-      return matchingFilenames.includes(imported) ? imported : undefined;
-    }
-    return undefined;
+    return matchingFilenames.length === 1 ? matchingFilenames[0] : undefined;
   };
 }
 
@@ -155,7 +110,7 @@ export function createFiles({view, templateFiles, defaultConfig, onShow}) {
     files.get(filename).view.requestMeasure();
   }
 
-  const fileOf = fileResolver(templateFiles, [...files.keys()]);
+  const fileOf = fileResolver([...files.keys()]);
 
   // shows a range {from, to} of a file, of offsets or of the positions {line, ch} of an error location
   function goTo(filename, location) {
@@ -170,7 +125,7 @@ export function createFiles({view, templateFiles, defaultConfig, onShow}) {
     clearErrors();
     const marked = new Set();
     for (const location of locations) {
-      const filename = fileOf(location, locations);
+      const filename = fileOf(location);
       if (filename !== undefined && !marked.has(filename)) {
         marked.add(filename);
         const fileView = files.get(filename).view;
