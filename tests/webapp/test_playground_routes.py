@@ -739,8 +739,9 @@ async def test_playground_validation_releases_its_slot(app, monkeypatch, tmp_pat
     monkeypatch.setattr(
         routes, "_validate_playground_configuration", mock.AsyncMock(side_effect=RuntimeError("failed"))
     )
-    with pytest.raises(RuntimeError):
-        await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated())
+    data = _evaluated()
+    with pytest.raises(RuntimeError, match="failed"):
+        await _validate_with_example_template(app, monkeypatch, tmp_path, data)
     assert routes._validation_slots.running == 0
 
 
