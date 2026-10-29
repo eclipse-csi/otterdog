@@ -136,7 +136,11 @@ async def test_apply_processes_a_non_empty_plan(tmp_path, monkeypatch):
     output = StringIO()
     update_repo = AsyncMock()
     operation = ApplyOperation(True, True, "*", False, False, False, "", False)
-    client = pretend.stub(close=AsyncMock(), update_repo=update_repo)
+    client = pretend.stub(
+        close=AsyncMock(),
+        update_repo=update_repo,
+        get_skipped_repository_reason=lambda org_id, repo_name: None,
+    )
     _initialize_operation(operation, monkeypatch, output, client, current_org)
 
     result = await operation.execute(org_config)

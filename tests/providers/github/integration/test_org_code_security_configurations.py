@@ -17,7 +17,7 @@ from otterdog.models import LivePatch
 from otterdog.models.organization_code_security_configuration import OrganizationCodeSecurityConfiguration
 from otterdog.models.repository import Repository
 from otterdog.providers.github.rest import repo_client
-from otterdog.utils import Change, jsonnet_evaluate_snippet
+from otterdog.utils import Change, jsonnet_evaluate_snippet, unwrap
 
 from .conftest import GitHubProviderTestKit
 from .helpers.model import ModelForContext
@@ -60,12 +60,22 @@ def configuration(configuration_id: int | None = None, **overrides: Any) -> Orga
     return result
 
 
+def expect_failed_repositories(github: GitHubProviderTestKit, failed: list[str] | None = None) -> None:
+    """Expects the retrieval of the repositories that configuration 7 failed for before it is updated."""
+    github.http.expect(
+        "GET",
+        f"{CONFIGURATIONS_URL}/7/repositories",
+        request_params={"per_page": "100", "status": "failed"},
+        response_json=[{"status": "failed", "repository": {"name": x}} for x in failed or []],
+    )
+
+
 def expect_no_pending_repositories(github: GitHubProviderTestKit) -> None:
     """Expects the check that an update of configuration 7 is applied to its repositories."""
     github.http.expect(
         "GET",
         f"{CONFIGURATIONS_URL}/7/repositories",
-        request_params={"per_page": "100", "status": "attaching,updating"},
+        request_params={"per_page": "100", "status": "attaching,updating,failed"},
         response_json=[],
     )
 
@@ -221,6 +231,7 @@ async def test_create_as_default_for_new_repositories(github: GitHubProviderTest
 
 
 async def test_update(github: GitHubProviderTestKit):
+    expect_failed_repositories(github)
     # API: https://docs.github.com/en/rest/code-security/configurations#update-a-code-security-configuration
     github.http.expect(
         "PATCH",
@@ -239,6 +250,7 @@ async def test_update(github: GitHubProviderTestKit):
 
 async def test_update_without_effective_change(github: GitHubProviderTestKit):
     """GitHub responds with 204 if the update does not change the configuration, which is not an error."""
+    expect_failed_repositories(github)
     github.http.expect(
         "PATCH",
         f"{CONFIGURATIONS_URL}/7",
@@ -251,6 +263,7 @@ async def test_update_without_effective_change(github: GitHubProviderTestKit):
 
 
 async def test_update_failure(github: GitHubProviderTestKit):
+    expect_failed_repositories(github)
     github.http.expect(
         "PATCH",
         f"{CONFIGURATIONS_URL}/7",
@@ -427,27 +440,64 @@ async def test_add_repo_attaches_configuration_before_applying_settings(github: 
     )
 
 
-async def test_update_waits_until_it_is_applied_to_the_repositories(github: GitHubProviderTestKit, monkeypatch):
+def serve_repositories_of_configuration(github: GitHubProviderTestKit, *answers: list[dict[str, Any]]) -> None:
+    """Serves the successive answers for the pending repositories of configuration 7, as the HTTP mock answers once."""
+    remaining = iter(answers)
+    original_request_paged_json = github.provider.rest_api.requester.request_paged_json
+
+    async def request_paged_json(method, url_path, data=None, params=None, entries_key=None):
+        if url_path.endswith("/7/repositories") and (params or {}).get("status") == "attaching,updating,failed":
+            return next(remaining)
+        return await original_request_paged_json(method, url_path, data, params, entries_key)
+
+    github.provider.rest_api.requester.request_paged_json = request_paged_json  # type: ignore[method-assign]
+
+
+@pytest.fixture
+def no_org_sleep(monkeypatch: pytest.MonkeyPatch):
     from otterdog.providers.github.rest import org_client
 
     monkeypatch.setattr(org_client.asyncio, "sleep", AsyncMock())
+
+
+def expect_update(github: GitHubProviderTestKit) -> None:
     github.http.expect(
         "PATCH",
         f"{CONFIGURATIONS_URL}/7",
         request_json={**DEFAULT_CONFIGURATION_REQUEST, "dependabot_alerts": "enabled"},
         response_json={"id": 7, "name": "baseline"},
     )
-    # the HTTP mock answers a request only once, the successive answers are served here
-    answers = iter([[{"status": "updating", "repository": {"name": REPO_NAME}}], []])
-    original_request_paged_json = github.provider.rest_api.requester.request_paged_json
 
-    async def request_paged_json(method, url_path, data=None, params=None, entries_key=None):
-        if url_path.endswith("/7/repositories"):
-            return next(answers)
-        return await original_request_paged_json(method, url_path, data, params, entries_key)
 
-    github.provider.rest_api.requester.request_paged_json = request_paged_json  # type: ignore[method-assign]
+async def test_update_waits_until_it_is_applied_to_the_repositories(github: GitHubProviderTestKit, no_org_sleep):
+    expect_failed_repositories(github)
+    expect_update(github)
+    serve_repositories_of_configuration(github, [{"status": "updating", "repository": {"name": REPO_NAME}}], [])
 
     await generate_patch_and_run_it(github, old=configuration(7), new=configuration(dependabot_alerts="enabled"))
 
-    assert next(answers, None) is None
+    assert github.provider.get_skipped_repository_reason(ORG_ID, REPO_NAME) is None
+
+
+async def test_update_skips_the_repositories_it_is_not_applied_to(github: GitHubProviderTestKit, no_org_sleep):
+    """
+    The repositories the update failed for, or is still pending for after 30s, are reported and their patches are
+    skipped, while the repositories that had already failed before the update are not affected by it.
+    """
+    expect_failed_repositories(github, ["already-failed"])
+    expect_update(github)
+    answers = [
+        {"status": "failed", "repository": {"name": "already-failed"}},
+        {"status": "failed", "repository": {"name": "failed-repo"}},
+        {"status": "updating", "repository": {"name": "pending-repo"}},
+    ]
+    serve_repositories_of_configuration(github, *([answers] * 30))
+
+    with pytest.raises(RuntimeError, match="not applied to repositories failed-repo, pending-repo"):
+        await generate_patch_and_run_it(github, old=configuration(7), new=configuration(dependabot_alerts="enabled"))
+
+    for repo_name in ("failed-repo", "Pending-Repo"):
+        assert "is not applied to the repository" in unwrap(
+            github.provider.get_skipped_repository_reason(ORG_ID, repo_name)
+        )
+    assert github.provider.get_skipped_repository_reason(ORG_ID, "already-failed") is None

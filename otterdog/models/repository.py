@@ -1899,6 +1899,11 @@ class Repository(ModelObject):
                 await provider.delete_repo(org_id, unwrap(patch.current_object).name)
 
             case LivePatchType.CHANGE:
+                # e.g. a code security configuration that the settings of the repository depend on is not applied
+                skipped_reason = provider.get_skipped_repository_reason(org_id, unwrap(patch.current_object).name)
+                if skipped_reason is not None:
+                    raise RuntimeError(f"skipped the patch of the repository, {skipped_reason}")
+
                 # TODO: move the cls._ to a LivePatch get_changes method
                 cls._include_squash_merge_patch_required_properties(patch)
                 cls._include_gh_pages_patch_required_properties(patch)

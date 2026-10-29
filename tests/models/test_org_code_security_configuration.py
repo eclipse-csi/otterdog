@@ -698,7 +698,7 @@ async def test_repository_code_security_configuration_is_attached_before_the_set
         "code_security_configuration": Change("strict", "baseline"),
         "dependabot_alerts_enabled": Change(False, True),
     }
-    provider = AsyncMock()
+    provider = repository_provider()
 
     await LivePatch.of_changes(expected, current, changes, None, False, Repository.apply_live_patch).apply(
         "OtterdogTest", provider
@@ -1077,6 +1077,34 @@ def test_runner_label_of_standard_runners_is_not_compared():
 # ---------------------------------------------------------------------------
 
 
+def repository_provider(skipped_reason: str | None = None) -> AsyncMock:
+    """A provider for the patches of repositories, whose patches are not skipped by default."""
+    provider = AsyncMock()
+    provider.get_skipped_repository_reason = MagicMock(return_value=skipped_reason)
+    return provider
+
+
+async def test_patch_of_repository_is_skipped_if_its_configuration_is_not_applied():
+    current = repository(dependabot_alerts_enabled=False)
+    expected = repository()
+    provider = repository_provider("the update of code security configuration 'baseline' is not applied")
+
+    patch = LivePatch.of_changes(
+        expected,
+        current,
+        {"dependabot_alerts_enabled": Change(False, True)},
+        None,
+        False,
+        Repository.apply_live_patch,
+    )
+
+    with pytest.raises(RuntimeError, match="skipped the patch of the repository, the update of"):
+        await patch.apply("OtterdogTest", provider)
+
+    provider.get_skipped_repository_reason.assert_called_once_with("OtterdogTest", "my-repo")
+    provider.update_repo.assert_not_awaited()
+
+
 def test_attached_configurations_are_looked_up_regardless_of_the_case_of_the_repository():
     attached = default_configuration(name="baseline")
     plan = attached_plan(attached, attached)
@@ -1175,7 +1203,7 @@ async def test_repository_is_unarchived_before_attaching_a_configuration():
         "code_security_configuration": Change(None, "baseline"),
         "dependabot_alerts_enabled": Change(False, True),
     }
-    provider = AsyncMock()
+    provider = repository_provider()
 
     await LivePatch.of_changes(expected, current, changes, None, False, Repository.apply_live_patch).apply(
         "OtterdogTest", provider

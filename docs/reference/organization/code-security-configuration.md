@@ -42,8 +42,10 @@ it and creates a new one, which is not attached to the repositories of the previ
 A configuration is attached to a repository with the `code_security_configuration` property of the
 [Repository](repository/index.md), and to new repositories with the `default_for_new_repos` property. The
 configuration is attached before the other settings of the repository are applied, and otterdog waits until GitHub
-completed the attachment, as well as until an updated configuration is applied to its repositories. Archived
-repositories support code security configurations, only secret scanning runs while they are archived.
+completed the attachment, as well as until an updated configuration is applied to its repositories. The patches of
+the repositories that an update is not applied to, as it failed or is still pending after 30 seconds, are skipped and
+reported as errors, as they might depend on the updated settings. Archived repositories support code security
+configurations, only secret scanning runs while they are archived.
 
 The settings of a repository that the configuration attached to it sets are not managed on the repository, as the
 configuration takes precedence, and changing them on the repository might detach it from its configuration. This

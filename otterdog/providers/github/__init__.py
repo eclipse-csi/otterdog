@@ -22,6 +22,7 @@ from otterdog.utils import get_logger, is_ghsa_repo, is_set_and_present
 from .rest.secret_client import SecretScope
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from typing import Any
 
     from otterdog.credentials import Credentials
@@ -48,6 +49,8 @@ class GitHubProvider:
         self._credentials = credentials
         self._user_logins: dict[int, str] = {}
         self._user_login_lock = asyncio.Lock()
+        # the repositories whose patches are skipped by (org_id, repo_name), with the reason
+        self._skipped_repositories: dict[tuple[str, str], str] = {}
 
         if credentials is not None:
             self._init_clients()
@@ -179,10 +182,23 @@ class GitHubProvider:
             await self.rest_api.org.update_code_security_configuration(org_id, configuration_id, name, data)
 
     async def wait_for_org_code_security_configuration_repositories(
-        self, org_id: str, configuration_id: int, name: str
-    ) -> None:
+        self, org_id: str, configuration_id: int, name: str, failed_repositories: Collection[str]
+    ) -> list[str]:
         configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
-        await self.rest_api.org.wait_for_code_security_configuration_repositories(org_id, configuration_id, name)
+        return await self.rest_api.org.wait_for_code_security_configuration_repositories(
+            org_id, configuration_id, name, failed_repositories
+        )
+
+    def skip_repository_patches(self, org_id: str, repo_names: Collection[str], reason: str) -> None:
+        """
+        Marks repositories whose patches are skipped for the rest of the operation, e.g. as a code security
+        configuration they depend on is not applied to them, see get_skipped_repository_reason.
+        """
+        for repo_name in repo_names:
+            self._skipped_repositories[(org_id.lower(), repo_name.lower())] = reason
+
+    def get_skipped_repository_reason(self, org_id: str, repo_name: str) -> str | None:
+        return self._skipped_repositories.get((org_id.lower(), repo_name.lower()))
 
     async def update_org_code_security_configuration_default(
         self, org_id: str, configuration_id: int, name: str, default_for_new_repos: str
@@ -196,8 +212,16 @@ class GitHubProvider:
         configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
         await self.rest_api.org.delete_code_security_configuration(org_id, configuration_id, name)
 
-    async def get_org_code_security_configuration_repositories(self, org_id: str, configuration_id: int) -> list[str]:
-        return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id)
+    async def get_org_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, name: str | None = None, status: str | None = None
+    ) -> list[str]:
+        if name is not None:
+            configuration_id = await self._resolve_code_security_configuration_id(org_id, configuration_id, name)
+
+        if status is None:
+            return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id)
+
+        return await self.rest_api.org.get_code_security_configuration_repositories(org_id, configuration_id, status)
 
     async def attach_org_code_security_configuration(self, org_id: str, name: str, repo_names: list[str]) -> None:
         await self.rest_api.org.attach_code_security_configuration_by_name(org_id, name, repo_names)

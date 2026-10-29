@@ -8,6 +8,7 @@
 
 import asyncio
 import json
+from collections.abc import Collection
 from typing import Any
 
 from otterdog.providers.github.exception import GitHubException, InsufficientPermissionsException
@@ -419,14 +420,19 @@ class OrgClient(RestClient):
 
         _logger.debug("removed code security configuration with name '%s'", name)
 
-    async def get_code_security_configuration_repositories(self, org_id: str, configuration_id: int) -> list[str]:
+    async def get_code_security_configuration_repositories(
+        self, org_id: str, configuration_id: int, status: str = "attached,attaching,updating,enforced"
+    ) -> list[str]:
+        """
+        Returns the names of the repositories of a code security configuration with the given attachment statuses,
+        by default the ones it is attached to: detached or removed repositories are not associated with the
+        configuration anymore, repositories for which the attachment failed are reported as not being attached.
+        """
         _logger.debug(
             "retrieving repositories of code security configuration '%d' in org '%s'", configuration_id, org_id
         )
 
-        # detached or removed repositories are not associated with the configuration anymore,
-        # repositories for which the attachment failed are reported as not being attached
-        params = {"status": "attached,attaching,updating,enforced"}
+        params = {"status": status}
 
         try:
             result = await self.requester.request_paged_json(
@@ -439,26 +445,29 @@ class OrgClient(RestClient):
             ) from ex
 
     async def wait_for_code_security_configuration_repositories(
-        self, org_id: str, configuration_id: int, name: str
-    ) -> None:
+        self, org_id: str, configuration_id: int, name: str, failed_repositories: Collection[str]
+    ) -> list[str]:
         """
         Waits until the update of a code security configuration is applied to its repositories, which GitHub does
-        asynchronously, so that the settings of these repositories can be changed afterwards.
+        asynchronously, so that the settings of these repositories can be changed afterwards. Returns the names of
+        the repositories the update is not applied to: the ones still pending after 30s, and the ones it failed for,
+        except the given ones, which had already failed before the update.
         """
         url = f"/orgs/{org_id}/code-security/configurations/{configuration_id}/repositories"
-        params = {"status": "attaching,updating"}
+        params = {"status": "attaching,updating,failed"}
 
-        pending: list[dict[str, Any]] = []
+        repositories: list[dict[str, Any]] = []
         for attempt in range(1, 31):
             try:
-                pending = await self.requester.request_paged_json("GET", url, params=params)
+                repositories = await self.requester.request_paged_json("GET", url, params=params)
             except GitHubException as ex:
                 raise RuntimeError(
                     f"failed retrieving repositories of code security configuration with name '{name}':\n{ex}"
                 ) from ex
 
+            pending = [x for x in repositories if x["status"] != "failed"]
             if len(pending) == 0:
-                return
+                break
 
             _logger.trace(
                 "waiting for code security configuration '%s' to be applied to %d repositories, try %d of 30",
@@ -468,11 +477,12 @@ class OrgClient(RestClient):
             )
             await asyncio.sleep(1)
 
-        _logger.warning(
-            "code security configuration '%s' is still being applied to %d repositories after 30s",
-            name,
-            len(pending),
-        )
+        previously_failed = {x.lower() for x in failed_repositories}
+        return [
+            x["repository"]["name"]
+            for x in repositories
+            if x["status"] != "failed" or x["repository"]["name"].lower() not in previously_failed
+        ]
 
     async def attach_code_security_configuration_by_name(self, org_id: str, name: str, repo_names: list[str]) -> None:
         """

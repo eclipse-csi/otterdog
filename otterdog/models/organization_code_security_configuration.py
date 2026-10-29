@@ -516,6 +516,41 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_org_code_security_configuration}"
 
+    @staticmethod
+    async def _update_configuration(
+        org_id: str,
+        expected_object: OrganizationCodeSecurityConfiguration,
+        current_object: OrganizationCodeSecurityConfiguration,
+        provider: GitHubProvider,
+    ) -> None:
+        """
+        Updates the configuration and waits until the update is applied to its repositories, as their patches
+        might change settings that depend on the updated ones. The patches of the repositories the update is not
+        applied to, e.g. as it failed or is still pending, are skipped.
+        """
+        name = current_object.name
+        failed_repositories = await provider.get_org_code_security_configuration_repositories(
+            org_id, current_object.id, name, status="failed"
+        )
+
+        await provider.update_org_code_security_configuration(
+            org_id, current_object.id, name, await expected_object.to_provider_data(org_id, provider)
+        )
+
+        incomplete_repositories = await provider.wait_for_org_code_security_configuration_repositories(
+            org_id, current_object.id, name, failed_repositories
+        )
+        if len(incomplete_repositories) > 0:
+            provider.skip_repository_patches(
+                org_id,
+                incomplete_repositories,
+                f"the update of code security configuration '{name}' is not applied to the repository",
+            )
+            raise RuntimeError(
+                f"the update of code security configuration '{name}' is not applied to repositories "
+                f"{', '.join(sorted(incomplete_repositories))}, their patches are skipped"
+            )
+
     @classmethod
     async def apply_live_patch(
         cls,
@@ -563,16 +598,7 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
                 changes = unwrap(patch.changes)
 
                 if any(key != "default_for_new_repos" for key in changes):
-                    await provider.update_org_code_security_configuration(
-                        org_id,
-                        current_object.id,
-                        current_object.name,
-                        await expected_object.to_provider_data(org_id, provider),
-                    )
-                    # the patches of repositories might change settings that depend on the updated ones
-                    await provider.wait_for_org_code_security_configuration_repositories(
-                        org_id, current_object.id, current_object.name
-                    )
+                    await cls._update_configuration(org_id, expected_object, current_object, provider)
 
                 if "default_for_new_repos" in changes:
                     await provider.update_org_code_security_configuration_default(
