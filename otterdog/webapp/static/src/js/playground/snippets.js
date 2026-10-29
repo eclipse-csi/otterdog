@@ -21,6 +21,23 @@ const VENDOR_FILE = /^vendor\/[^/]+\/(?:[^/]+\/)*([^/]+)$/;
 
 export const baseName = (path) => path.split("/").pop();
 
+// Compare browser filenames after resolving '.' and '..' directory segments.
+// Leading '..' segments stay intact: they cannot name a file inside the playground.
+export function normalizePath(path) {
+  const parts = [];
+  for (const part of path.split("/")) {
+    if (part === "." || part === "") {
+      continue;
+    }
+    if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") {
+      parts.pop();
+    } else {
+      parts.push(part);
+    }
+  }
+  return parts.join("/");
+}
+
 export function encodeSnippet(code) {
   const bytes = new TextEncoder().encode(code);
   let binary = "";
@@ -60,7 +77,8 @@ function decodeSnippet(encoded) {
 // template's filename. Add its import when the snippet contains no import.
 export function normalizeSnippet(code, templateFiles, defaultConfig) {
   code = rewriteImports(code, ({path}) => {
-    if (templateFiles.includes(path)) {
+    // An available import keeps its original spelling, including './' and '../'.
+    if (templateFiles.includes(normalizePath(path))) {
       return path;
     }
     const name = VENDOR_FILE.exec(path)?.[1];

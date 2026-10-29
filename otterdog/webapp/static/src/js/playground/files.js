@@ -5,7 +5,7 @@ import {EditorView} from "@codemirror/view";
 import {byId} from "./dom.js";
 import {editorExtensions, offsetOf, select} from "./editors.js";
 import {importsOf} from "./jsonnet.js";
-import {MAIN_FILE, baseName} from "./snippets.js";
+import {MAIN_FILE, baseName, normalizePath} from "./snippets.js";
 
 // The user edits one Jsonnet document. Template libraries are separate read-only
 // editors, reachable through the file menu and through links in evaluation errors.
@@ -32,16 +32,7 @@ export function fileRoles(templateFiles, defaultConfig) {
 // selects 'vendor/custom/helper.libsonnet', even if another library has that basename.
 function resolveImportedFilename(path, importer, templateFiles) {
   const directory = importer.slice(0, importer.lastIndexOf("/") + 1);
-  const parts = [];
-  // Compare filenames after resolving '.' and '..' relative to the importing file.
-  for (const part of (directory + path).split("/")) {
-    if (part === "..") {
-      parts.pop();
-    } else if (part !== "." && part !== "") {
-      parts.push(part);
-    }
-  }
-  const relativeFilename = parts.join("/");
+  const relativeFilename = normalizePath(directory + path);
   const relativeMatch = templateFiles.find((file) => file.filename === relativeFilename);
   if (relativeMatch !== undefined) {
     return relativeMatch.filename;

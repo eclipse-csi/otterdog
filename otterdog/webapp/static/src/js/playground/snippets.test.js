@@ -69,6 +69,40 @@ orgs.newOrg('project', helper.name)`;
   assert.equal(normalized, code);
 });
 
+test("opening a snippet keeps an upstream import containing a current-directory segment", () => {
+  /**
+   * A user explicitly imports the available upstream defaults with /./ in the
+   * path. That spelling names the same file as the listed upstream path. Keep
+   * the user's import instead of switching to the selected custom defaults.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/custom/otterdog-defaults.libsonnet",
+  ];
+  const code = "import 'vendor/upstream/./otterdog-defaults.libsonnet'";
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, code);
+});
+
+test("opening a snippet keeps an upstream import that goes up to its parent directory", () => {
+  /**
+   * This import enters upstream/, goes back to vendor/, then enters upstream/
+   * again. The target exists, so opening the snippet must preserve its explicit
+   * choice of upstream defaults even though custom defaults are also available.
+   */
+  const files = [
+    "vendor/upstream/otterdog-defaults.libsonnet",
+    "vendor/custom/otterdog-defaults.libsonnet",
+  ];
+  const code = "import 'vendor/upstream/../upstream/otterdog-defaults.libsonnet'";
+
+  const normalized = normalizeSnippet(code, files, "vendor/custom/otterdog-defaults.libsonnet");
+
+  assert.equal(normalized, code);
+});
+
 test("opening a snippet keeps explicit imports of custom libraries", () => {
   /**
    * Both upstream and custom files are available, with upstream listed first.

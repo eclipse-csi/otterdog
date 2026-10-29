@@ -324,3 +324,21 @@ orgs.newOrg('custom', 'custom')
 
     assert "import 'vendor/custom/nested/otterdog-defaults.libsonnet'" in playground.code()
     assert json.loads(playground.output())["settings"]["name"] == "Custom helper"
+
+
+def test_a_shared_snippet_keeps_an_available_upstream_import_with_a_dot_in_its_path(playground):
+    """A user deliberately imports upstream defaults in a custom-template playground.
+
+    The /./ in the import still refers to the available upstream library. Keep
+    that import and evaluate it: upstream uses the supplied organization name,
+    whereas the custom template would replace it with 'Custom helper'.
+    """
+    shared_code = """local orgs = import 'vendor/custom/nested/upstream/./otterdog-defaults.libsonnet';
+orgs.newOrg('custom', 'Upstream organization')
+"""
+    shared_fragment = "#code=" + encode(shared_code)
+
+    playground.open("custom-local.html", shared_fragment)
+
+    assert "import 'vendor/custom/nested/upstream/./otterdog-defaults.libsonnet'" in playground.code()
+    assert json.loads(playground.output())["settings"]["name"] == "Upstream organization"
