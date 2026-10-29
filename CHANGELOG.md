@@ -2,23 +2,8 @@
 
 ## [Unreleased]
 
-### Added
-
- - feat: manage the Dependabot and Codespaces secrets of organizations and repositories with the `dependabot_secrets` and `codespaces_secrets` properties, created by the functions `newOrgDependabotSecret`, `newOrgCodespacesSecret`, `newRepoDependabotSecret` and `newRepoCodespacesSecret` of the default configuration ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
-   These secrets are only read when the default configuration defines these functions.
- - feat: manage the code security configurations of organizations with the `code_security_configurations` property, created by the function `newOrgCodeSecurityConfiguration` of the default configuration, set them as default for new repositories with `default_for_new_repos` and attach them to repositories with the `code_security_configuration` property of repositories ([#892](https://github.com/eclipse-csi/otterdog/pull/892)).
-   These configurations are only read when the default configuration defines this function. Enabling `code_security` or `secret_protection` is considered to be cost-related, as well as attaching a configuration to a private repository. The security settings of a repository that its configuration sets are not managed on the repository.
- - feat: show the code security configurations in the dashboard ([#892](https://github.com/eclipse-csi/otterdog/pull/892)).
-   The page of an organization lists its configurations with the repositories referencing them, and shows the configuration of each repository. The security settings of repositories are shown and counted as the configuration they reference sets them. The index shows the repositories with code scanning default setup. The GraphQL API exposes the configurations and the code scanning settings of repositories, the settings `*_enabled_for_new_repositories` removed from otterdog are no longer exposed.
-
 ### Changed
 
- - **Breaking**: the standard Jsonnet defaults define the function of code security configurations ([#892](https://github.com/eclipse-csi/otterdog/pull/892)).
-   The code security configurations of organizations using them are read, the ones that are not defined in the configuration are planned to be deleted. Import the organization, or define the existing configurations in `code_security_configurations`, to keep them.
- - **Breaking**: the standard Jsonnet defaults define the functions of Dependabot and Codespaces secrets ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
-   Configurations using them need credentials that can read these secrets, e.g. a GitHub App with the `Codespaces secrets`, `Dependabot secrets`, `Organization codespaces secrets` and `Organization dependabot secrets` permissions, see [Create a GitHub App](https://otterdog.readthedocs.io/en/latest/operating_otterdog/install/#create-a-github-app).
- - **Breaking**: secret names that are not uppercase are reported as an error by the validation, as GitHub normalizes secret names to uppercase ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
- - **Breaking**: a failure to read the secrets of an organization, a repository or an environment aborts the operation, instead of being considered as no secrets ([#783](https://github.com/eclipse-csi/otterdog/pull/783)).
  - **Breaking**: move the standard Jsonnet defaults from `examples/template` to `otterdog/resources/defaults` and ship them with the otterdog package ([#857](https://github.com/eclipse-csi/otterdog/pull/857)).
    Configurations using `https://github.com/eclipse-csi/otterdog#examples/template/otterdog-defaults.libsonnet` with a ref that includes this change (e.g. `@main`) need to update:
    - `defaults.jsonnet.base_template` in `otterdog.json` to `https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@<ref>`
