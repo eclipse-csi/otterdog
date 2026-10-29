@@ -270,8 +270,9 @@ function createConfirmation() {
     cancel?.();
   });
 
-  return (message, label, action, cancel = null) => {
+  return (message, label, action, cancel = null, {title = "Discard your changes?"} = {}) => {
     pending = {action, cancel};
+    byId("playground-overwrite-title").textContent = title;
     byId("playground-overwrite-message").textContent = message;
     confirmButton.textContent = label;
     modal.show();
@@ -370,7 +371,9 @@ function templateUrl(template) {
 }
 
 // The changes to the configuration of the organization are proposed as a pull request from the account of the user:
-// browsers do not let the playground fill the editor of GitHub, the user pastes the copied configuration into it.
+// browsers do not let the playground fill the editor of GitHub, the user pastes the copied configuration into it. The
+// configuration is validated by otterdog first, proposing it with errors, which fail the validation of its pull
+// request, being confirmed.
 function setupProposal(p) {
   const button = byId("playground-propose");
   if (button === null) {
@@ -378,11 +381,40 @@ function setupProposal(p) {
   }
 
   const modal = window.bootstrap.Modal.getOrCreateInstance(byId("playground-propose-modal"));
-  button.addEventListener("click", async () => {
+  const propose = async () => {
     byId("playground-propose-copied").textContent = await copyConfiguration(p);
     modal.show();
+  };
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    const warning = proposalWarning(p, await p.validation.validationOfContent(p.organizationDocument));
+    updateButtons(p);
+    if (warning === null) {
+      await propose();
+      return;
+    }
+    // the proposal is shown once the confirmation is closed
+    const proposeOnceClosed = () => byId("playground-overwrite-modal").addEventListener("hidden.bs.modal", propose, {once: true});
+    p.confirm(warning, "Propose anyway", proposeOnceClosed, null, {title: "Propose a configuration with errors?"});
   });
   byId("playground-propose-open").addEventListener("click", () => modal.hide());
+}
+
+// the warning before proposing the configuration of the organization for its validation by otterdog, null if
+// otterdog found no error in it
+function proposalWarning(p, validated) {
+  const name = p.organization.name;
+  if (validated.reason !== undefined || validated.error !== undefined) {
+    const why = validated.reason === undefined ? "Its validation failed: " + validated.error + "." : validated.reason + ".";
+    return "The configuration of " + name + " has not been validated by otterdog. " + why
+      + " The validation of its pull request may fail.";
+  }
+  const errors = validated.problems.filter((problem) => problem.severity === "error").length;
+  if (errors === 0) {
+    return null;
+  }
+  return "Otterdog found " + errors + " error" + (errors > 1 ? "s" : "") + " in the configuration of " + name
+    + ", underlined in it: the validation of its pull request will fail.";
 }
 
 // copies the configuration of the organization, returns the message telling whether it has been copied

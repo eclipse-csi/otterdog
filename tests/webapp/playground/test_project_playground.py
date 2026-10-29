@@ -11,7 +11,7 @@
 import time
 
 from .conftest import ORGANIZATION
-from .helpers import EDITOR, encode
+from .helpers import EDITOR, encode, validated_by_otterdog
 
 
 def changes(playground) -> str:
@@ -43,8 +43,11 @@ def test_changes_are_proposed_on_github(playground):
 
     propose = page.locator("#playground-propose")
     assert propose.is_enabled()
+    urls = validated_by_otterdog(page)
     propose.click()
     page.wait_for_selector("#playground-propose-modal.show")
+    # validated by otterdog first, without error
+    assert urls == [playground.base_url + "/projects/my-project/playground/validate"]
     assert playground.copied == content + "\n", "copied with the final new line of the file"
     link = page.locator("#playground-propose-open")
     assert link.get_attribute("href") == "https://github.com/my-org/.otterdog/edit/main/otterdog/my-org.jsonnet"
@@ -55,6 +58,52 @@ def test_changes_are_proposed_on_github(playground):
     playground.replace("has_wiki: false", "has_wiki: nope")
     playground.wait_evaluated()
     assert propose.is_disabled(), "no proposal of a configuration failing to evaluate"
+
+
+def test_a_configuration_with_errors_is_only_proposed_once_confirmed(playground):
+    playground.open("org.html")
+    page = playground.page
+    urls = validated_by_otterdog(page)
+    playground.replace("allows_updates: false", "allows_updates: false, include_refs+: ['1.2.x']")
+    playground.wait_evaluated()
+
+    page.locator("#playground-propose").click()
+    page.wait_for_selector("#playground-overwrite-modal.show")
+    assert page.locator("#playground-overwrite-title").inner_text() == "Propose a configuration with errors?"
+    assert page.locator("#playground-overwrite-message").inner_text() == (
+        "Otterdog found 1 error in the configuration of my-project, underlined in it: "
+        "the validation of its pull request will fail."
+    )
+    assert playground.marked("cm-lintRange-error") == ["'1.2.x'"]
+    page.locator("#playground-overwrite-modal .btn-secondary").click()
+    page.wait_for_timeout(400)
+    assert playground.copied is None
+    assert page.locator("#playground-propose-modal.show").count() == 0
+
+    # the validation of the same content is not repeated
+    page.locator("#playground-propose").click()
+    page.wait_for_selector("#playground-overwrite-modal.show")
+    page.locator("#playground-overwrite-confirm").click()
+    page.wait_for_selector("#playground-propose-modal.show")
+    assert playground.copied == playground.code() + "\n"
+    assert len(urls) == 1
+
+
+def test_a_configuration_not_validated_is_only_proposed_once_confirmed(playground):
+    playground.open("org.html")
+    page = playground.page
+    page.route("**/playground/validate**", lambda route: route.fulfill(status=500, body="Internal Server Error"))
+    playground.replace("has_wiki: true", "has_wiki: false")
+    playground.wait_evaluated()
+
+    page.locator("#playground-propose").click()
+    page.wait_for_selector("#playground-overwrite-modal.show")
+
+    assert page.locator("#playground-overwrite-message").inner_text() == (
+        "The configuration of my-project has not been validated by otterdog. Its validation failed: "
+        "the server answered with the status 500. The validation of its pull request may fail."
+    )
+    assert page.locator("#playground-overwrite-confirm").inner_text() == "Propose anyway"
 
 
 def test_the_changes_of_the_configuration_are_shown_with_another_document(playground):

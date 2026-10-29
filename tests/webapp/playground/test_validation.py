@@ -8,17 +8,11 @@
 
 """The validation of the evaluated configurations with the schemas of otterdog, and by otterdog on the server."""
 
-import asyncio
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
-from otterdog.config import OtterdogConfig
-from otterdog.webapp.home import routes
-
-from .helpers import EDITOR
+from .helpers import EDITOR, validated_by_otterdog
 
 RULESET = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
 
@@ -183,30 +177,6 @@ orgs.newOrg('my-project', 'my-org') {
   ],
 }"""
 INCLUDE_REFS_ERROR = "has an invalid 'include_refs' pattern '1.2.x'"
-
-
-def validated_by_otterdog(page) -> list[str]:
-    """
-    Validates the configurations posted by the playground with otterdog and the example template, like the server of
-    the global playground does with it, returns the urls posted to.
-    """
-
-    config = OtterdogConfig.from_dict({"defaults": {}, "organizations": []}, False, ".")
-    urls = []
-
-    async def validation(data):
-        with tempfile.TemporaryDirectory() as work_dir:
-            jsonnet_config = await routes._example_jsonnet_config(work_dir)
-            return await routes._validate_playground_configuration(config, jsonnet_config, data, "a test")
-
-    def validate(route):
-        urls.append(route.request.url)
-        # the page is driven by the event loop of playwright
-        with ThreadPoolExecutor(1) as executor:
-            route.fulfill(json=executor.submit(asyncio.run, validation(route.request.post_data_json)).result())
-
-    page.route("**/playground/validate**", validate)
-    return urls
 
 
 def validate_button(playground):

@@ -16,7 +16,8 @@ import {isObject} from "./values.js";
 // are shown with the ones of the schemas as long as the content of the document does not change.
 //
 // Returns the functions showing the problems of a document for its value, clearing them, telling why a document
-// cannot be validated by otterdog, and validating it, with dispatch(d, spec) applying a transaction to a document.
+// cannot be validated by otterdog, validating it, and returning its validation, e.g. before proposing it, with
+// dispatch(d, spec) applying a transaction to a document.
 // showNote is called with the document, the key of the note, 'problems' or 'validation', and the note telling the
 // number of problems, null if none, which shows them with showProblems when clicked. The note of the validation by
 // otterdog links its limitations in the documentation.
@@ -78,7 +79,7 @@ export function createValidation({schemas, validationUrl, documentationUrl, disp
     validations.set(d, pending);
     showNote(d, "validation", validationNote(pending, showProblems, limitationsUrl));
 
-    const validated = await validationOf(validationUrl, value);
+    const validated = await requestValidation(validationUrl, value);
     // a later validation of the document, e.g. of its changed content, replaces this one
     if (validations.get(d) !== pending) {
       return;
@@ -89,7 +90,22 @@ export function createValidation({schemas, validationUrl, documentationUrl, disp
     }
   }
 
-  return {show, clear, isOrganization, reasonNotToValidate, validateWithOtterdog};
+  // Returns the validation by otterdog of the shown content of a document, validating it unless it already has been:
+  // {problems}, {error} if the validation failed, or {reason} if it cannot be validated, see reasonNotToValidate.
+  async function validationOfContent(d) {
+    const code = d.code;
+    if (validations.get(d)?.code !== code || validations.get(d).pending) {
+      const reason = reasonNotToValidate(d);
+      if (reason !== null) {
+        return {reason};
+      }
+      await validateWithOtterdog(d);
+    }
+    const validated = validations.get(d);
+    return validated?.code === code && !validated.pending ? validated : {reason: "Its content changed while it was validated"};
+  }
+
+  return {show, clear, isOrganization, reasonNotToValidate, validateWithOtterdog, validationOfContent};
 }
 
 // whether a document is the configuration of an organization, the only one validated by otterdog
@@ -102,7 +118,7 @@ export const VALIDATION_LIMITATIONS = "Not checked: the members of the teams bei
 const LIMITATIONS_PAGE = "userguide/guides/troubleshooting/#validation-in-the-playground";
 
 // the validation of an evaluated configuration by otterdog: {problems} or {error}
-async function validationOf(url, value) {
+async function requestValidation(url, value) {
   try {
     const response = await fetch(url, {
       method: "POST",

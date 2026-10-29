@@ -178,6 +178,10 @@ value of `include_refs`, if it is set in the configuration, otherwise at the rep
 about. The evaluated configuration is only sent to the server when the button is clicked, it is neither stored nor
 applied.
 
+The **Propose on GitHub** button of the Playground of a project validates the configuration the same way first. If
+otterdog finds errors, which would fail the validation of the pull request, or if the configuration cannot be
+validated, e.g. because of schema errors, it asks to confirm before proposing it.
+
 A configuration without problem in the Playground can still be rejected by the validation of its pull request, or fail
 to be applied:
 

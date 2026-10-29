@@ -8,8 +8,14 @@
 
 """Drives a page of the playground: its editors, documents, output and status."""
 
+import asyncio
 import base64
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+
+from otterdog.config import OtterdogConfig
+from otterdog.webapp.home import routes
 
 # Counts the evaluations sent to the worker, captures the copied texts, and finds the CodeMirror view of an element.
 _INIT_SCRIPT = """
@@ -175,3 +181,27 @@ class Playground:
 
     def examples(self):
         return self.page.locator(".playground-example")
+
+
+def validated_by_otterdog(page) -> list[str]:
+    """
+    Validates the configurations posted by the playground with otterdog and the example template, like the server of
+    the global playground does with it, returns the urls posted to.
+    """
+
+    config = OtterdogConfig.from_dict({"defaults": {}, "organizations": []}, False, ".")
+    urls = []
+
+    async def validation(data):
+        with tempfile.TemporaryDirectory() as work_dir:
+            jsonnet_config = await routes._example_jsonnet_config(work_dir)
+            return await routes._validate_playground_configuration(config, jsonnet_config, data, "a test")
+
+    def validate(route):
+        urls.append(route.request.url)
+        # the page is driven by the event loop of playwright
+        with ThreadPoolExecutor(1) as executor:
+            route.fulfill(json=executor.submit(asyncio.run, validation(route.request.post_data_json)).result())
+
+    page.route("**/playground/validate**", validate)
+    return urls
