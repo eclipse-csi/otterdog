@@ -492,9 +492,12 @@ async def test_update_skips_the_repositories_it_is_not_applied_to(github: GitHub
         {"status": "updating", "repository": {"name": "pending-repo"}},
     ]
     serve_repositories_of_configuration(github, *([answers] * 30))
+    patch = ModelForContext(ORG_ID).generate_live_patch(
+        old=configuration(7), new=configuration(dependabot_alerts="enabled")
+    )
 
     with pytest.raises(RuntimeError, match="not applied to repositories failed-repo, pending-repo"):
-        await generate_patch_and_run_it(github, old=configuration(7), new=configuration(dependabot_alerts="enabled"))
+        await patch.apply(ORG_ID, github.provider)  # type: ignore[arg-type]
 
     for repo_name in ("failed-repo", "Pending-Repo"):
         assert "is not applied to the repository" in unwrap(
