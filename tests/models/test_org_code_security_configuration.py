@@ -505,6 +505,34 @@ def test_changes_are_cost_related(changes, expected):
     assert default_configuration().changes_are_cost_related(changes) is expected
 
 
+@pytest.mark.parametrize(("plan", "expected"), [(None, True), ("free", False), ("team", True), ("enterprise", True)])
+def test_products_are_not_cost_related_for_a_free_plan(plan, expected):
+    configuration = default_configuration(code_security="enabled", secret_protection="enabled")
+    configuration.organization_plan = plan
+
+    # the products cannot be purchased for an organization with free plan
+    assert configuration.is_cost_related(CostPolicy()) is expected
+    assert configuration.changes_are_cost_related({"code_security": Change("disabled", "enabled")}) is expected
+
+
+@pytest.mark.parametrize(("plan", "expected"), [("free", False), ("enterprise", True)])
+def test_patches_of_configurations_know_the_plan_of_the_organization(plan, expected):
+    expected_org = organization()
+    expected_org.settings.plan = plan
+    expected_org.add_code_security_configuration(
+        default_configuration(name="baseline", code_security="enabled", secret_protection="enabled")
+    )
+    current_org = organization()
+    context = LivePatchContext("OtterdogTest", "*", False, False, "*", current_org.settings, expected_org.settings)
+
+    patches: list[LivePatch] = []
+    expected_org.generate_live_patch(current_org, context, patches.append)
+
+    configuration_patches = [x for x in patches if isinstance(x.expected_object, OrganizationCodeSecurityConfiguration)]
+    assert len(configuration_patches) == 1
+    assert configuration_patches[0].is_cost_related() is expected
+
+
 # ---------------------------------------------------------------------------
 # defaults for new repositories of an organization
 # ---------------------------------------------------------------------------

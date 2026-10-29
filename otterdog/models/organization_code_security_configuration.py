@@ -229,6 +229,13 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     # Code Security and Secret Protection are licensed per active committer on private and internal repositories
     _cost_related_properties: ClassVar[list[str]] = ["code_security", "secret_protection"]
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        # the plan of the organization, set by the organization when generating patches,
+        # as the products cannot incur costs for an organization with free plan
+        self.organization_plan: str | None = None
+
     @property
     def model_object_name(self) -> str:
         return "org_code_security_configuration"
@@ -241,11 +248,18 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
         return is_set_and_valid(self.default_for_new_repos) and self.default_for_new_repos != "none"
 
     def is_cost_related(self, cost_policy: CostPolicy) -> bool:
-        """Enabling Code Security or Secret Protection can consume licenses."""
-        return any(self.__getattribute__(prop) == "enabled" for prop in self._cost_related_properties)
+        """
+        Enabling Code Security or Secret Protection can consume licenses, unless the organization has a free plan,
+        for which they cannot be purchased.
+        """
+        return self.organization_plan != "free" and any(
+            self.__getattribute__(prop) == "enabled" for prop in self._cost_related_properties
+        )
 
     def changes_are_cost_related(self, changes: dict[str, Change]) -> bool:
-        return any(prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties)
+        return self.organization_plan != "free" and any(
+            prop in changes and changes[prop].to_value == "enabled" for prop in self._cost_related_properties
+        )
 
     def get_default_visibilities(self) -> list[str]:
         """Returns the visibilities of new repositories this configuration is the default for."""

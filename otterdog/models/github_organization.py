@@ -914,6 +914,8 @@ class GitHubOrganization:
         OrganizationRuleset.generate_live_patch_of_list(
             self.rulesets, current_organization.rulesets, None, context, handler
         )
+        for configuration in self.code_security_configurations:
+            configuration.organization_plan = self.settings.plan
         OrganizationCodeSecurityConfiguration.generate_live_patch_of_list(
             self.code_security_configurations,
             current_organization.code_security_configurations,
