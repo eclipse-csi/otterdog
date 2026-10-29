@@ -10,6 +10,7 @@ the default configuration and exceptions are visible in the configuration of the
 | Get alerts and fixes for vulnerable dependencies          | `dependabot_alerts_enabled`, `dependabot_security_updates_enabled`           |
 | Let researchers report vulnerabilities privately          | `private_vulnerability_reporting_enabled`                                     |
 | Analyze the code for vulnerabilities                      | `code_scanning_default_setup_enabled` and related settings                   |
+| Apply the same features to many repositories              | `code_security_configuration`, see [Code security configurations](#code-security-configurations) |
 
 The following example enables all of them for a public repository. Secret scanning, push protection and Dependabot
 alerts are already enabled by the example default configuration:
@@ -167,15 +168,113 @@ orgs.newOrg('my-project', 'my-org') {
     the existing CodeQL workflow and blocks its uploads. If a repository uses a custom workflow, keep
     `code_scanning_default_setup_enabled` disabled.
 
+## Code security configurations
+
+A [code security configuration](../../reference/organization/code-security-configuration.md) groups the security
+features of the organization, and GitHub applies them to the repositories the configuration is attached to. A
+configuration is attached to a repository with its `code_security_configuration` property:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  code_security_configurations+: [
+    orgs.newOrgCodeSecurityConfiguration('baseline') {
+      description: "Secret scanning and Dependabot for all repositories",
+      dependabot_alerts: "enabled",
+      dependabot_security_updates: "enabled",
+      secret_scanning: "enabled",
+      secret_scanning_push_protection: "enabled",
+      private_vulnerability_reporting: "enabled",
+    },
+  ],
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      code_security_configuration: "baseline", // (1)!
+    },
+  ],
+}
+```
+
+1. The settings of the repository that the configuration sets, e.g. `dependabot_alerts_enabled`, are not managed on
+   the repository anymore, the configuration takes precedence. A repository without `code_security_configuration`
+   keeps the configuration attached to it on GitHub.
+
+!!! warning
+
+    The features of `newOrgCodeSecurityConfiguration` are disabled by default, except the dependency graph: attaching
+    a configuration disables the features it does not enable on the repository, e.g. code scanning default setup.
+    Set a feature to `not_set` to leave it to the repositories.
+
+### Default configuration for new repositories
+
+`default_for_new_repos` attaches a configuration to the new repositories of a visibility, `all`, `public` or
+`private_and_internal`, when GitHub creates them. The organization setting
+`default_code_security_configurations_disabled` removes any default configuration, it has to be disabled:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    default_code_security_configurations_disabled: false, // (1)!
+  },
+  code_security_configurations+: [
+    orgs.newOrgCodeSecurityConfiguration('public-baseline') {
+      dependabot_alerts: "enabled",
+      secret_scanning: "enabled",
+      secret_scanning_push_protection: "enabled",
+      default_for_new_repos: "public", // (2)!
+    },
+  ],
+}
+```
+
+1. Otherwise, the validation reports an error, as the setting would remove the default configuration again.
+2. A visibility can have one default configuration only, `all` covers both `public` and `private_and_internal`.
+
+### Delegated bypass of push protection
+
+With delegated bypass, pushing a secret requires the approval of a reviewer, a team or a role referenced like the
+[bypass actors](../../reference/organization/repository/bypass-actor.md) of rulesets. The suffix `:exempt` exempts a
+reviewer from push protection instead, e.g. for automation:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  code_security_configurations+: [
+    orgs.newOrgCodeSecurityConfiguration('baseline') {
+      secret_scanning: "enabled",
+      secret_scanning_push_protection: "enabled",
+      secret_scanning_delegated_bypass: "enabled",
+      secret_scanning_delegated_bypass_reviewers: [
+        "@my-org/security-team",
+        "#OrganizationAdmin",
+        "@my-org/release-bots:exempt",
+      ],
+    },
+  ],
+}
+```
+
+!!! warning
+
+    The configurations of the organization that are not defined in the otterdog configuration are deleted with
+    `--delete-resources`, and listed as deletions by `plan` otherwise. GitHub created such configurations for the
+    organizations that existed in March 2024, e.g. `Legacy - public repositories`, from their former settings for new
+    repositories. Delete them if no repository is attached to them, or import them to keep them. The predefined
+    configurations of GitHub, e.g. `GitHub recommended`, are not managed.
+
+!!! note
+
+    For private and internal repositories, `code_security` and `secret_protection` enable GitHub Code Security and
+    GitHub Secret Protection, which are licensed per active committer. Enabling them, or attaching a configuration to a
+    private repository, is considered to be cost-related.
+
 ## Organization settings related to security
 
 - `security_managers` lists the teams that get the security manager role, which grants access to the security
   alerts and settings of all repositories, see
   [Managing security managers](https://docs.github.com/en/organizations/managing-peoples-access-to-your-organization-with-roles/managing-security-managers-in-your-organization).
-- `default_code_security_configurations_disabled: true` removes the default
-  [code security configurations](https://docs.github.com/en/code-security/securing-your-organization/introduction-to-securing-your-organization-at-scale/about-enabling-security-features-at-scale)
-  of the organization, so that the security settings of repositories are only defined by the otterdog
-  configuration. Setting it to `false` does not create a default configuration.
+- `default_code_security_configurations_disabled: true` removes the default code security configurations of the
+  organization, including the predefined ones of GitHub. Set it to `false` to use a
+  [default configuration for new repositories](#default-configuration-for-new-repositories), it does not create one
+  by itself.
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {
