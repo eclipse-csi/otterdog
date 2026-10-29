@@ -57,9 +57,16 @@ function decodeSnippet(encoded) {
 // to these files, and imports the default configuration if the snippet does not.
 export function normalizeSnippet(code, templateFiles, defaultConfig) {
   code = rewriteImports(code, ({path}) => {
+    if (templateFiles.includes(path)) {
+      return path;
+    }
     const name = VENDOR_FILE.exec(path)?.[1];
-    const file = name === undefined ? undefined : templateFiles.find((f) => f.endsWith("/" + name));
-    return file ?? path;
+    if (name === undefined) {
+      return path;
+    }
+    // Shared snippets use the selected template's libraries before package fallbacks.
+    const sibling = defaultConfig.slice(0, defaultConfig.lastIndexOf("/") + 1) + name;
+    return templateFiles.includes(sibling) ? sibling : templateFiles.find((f) => f.endsWith("/" + name)) ?? path;
   });
 
   if (!importsOf(code).some(({keyword}) => keyword === "import")) {

@@ -231,6 +231,16 @@ def test_evaluate_without_restricting_import(tmp_path: Path):
     assert result["outside"] == "payload"
 
 
+def test_importstr_preserves_original_line_endings(tmp_path: Path):
+    imported_file = tmp_path / "secret.txt"
+    original_content = "first\r\nsecond\rthird\n"
+    imported_file.write_bytes(original_content.encode("utf-8"))
+
+    result = jsonnet_evaluate_snippet(f'{{ secret: importstr "{imported_file}" }}')
+
+    assert result["secret"] == original_content
+
+
 _long_string = "Too long to fit console width"
 
 
@@ -262,3 +272,16 @@ def test_print_with_soft_wrap(method, long_string, soft_wrap, expected_newlines)
 
     # Assert newline count in captured output
     assert captured_output.getvalue().count("\n") == expected_newlines
+
+
+def test_unrestricted_importbin_preserves_non_utf8_bytes(tmp_path: Path):
+    """Ordinary Jsonnet imports retain the native evaluator's binary-file support."""
+    binary = tmp_path / "data.bin"
+    binary.write_bytes(bytes([0, 128, 255]))
+    assert jsonnet_evaluate_snippet(f"importbin '{binary}'") == [0, 128, 255]
+
+
+def test_packaged_import_cannot_escape_the_defaults_directory(tmp_path: Path):
+    callback = _make_jsonnet_import_callback(str(tmp_path))
+    with pytest.raises(RuntimeError, match="not allowed"):
+        callback(str(tmp_path), "otterdog/resources/defaults/../../utils.py")

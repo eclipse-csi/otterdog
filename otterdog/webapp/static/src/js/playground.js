@@ -108,6 +108,7 @@ function connect(data) {
         reference: data.reference,
         documentationUrl: data.documentationUrl,
         templateFiles: data.templateFiles,
+        defaultConfig: data.defaultConfig,
       }),
       p.defaultValues.extension,
     ],

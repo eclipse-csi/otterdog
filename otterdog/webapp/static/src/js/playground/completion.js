@@ -1,7 +1,7 @@
 import {autocompletion, pickedCompletion} from "@codemirror/autocomplete";
 import {hoverTooltip} from "@codemirror/view";
 
-import {completionContext, topLevelLocals} from "./jsonnet.js";
+import {completionContext, tokenize, topLevelLocals} from "./jsonnet.js";
 import {tooltipContent} from "./tooltip.js";
 import {formatValue, isObject} from "./values.js";
 
@@ -16,12 +16,39 @@ const HOVER_DELAY = 400;
 // evaluations kept for the completion, the local definitions of the code changing while it is edited
 const MAX_EVALUATIONS = 50;
 
-// the parameters of the functions of the default configuration, e.g. 'name' for `local newRepo(name) = {`
-export function functionParameters(templateFiles) {
+// Reads local functions and object methods. Custom templates follow the packaged
+// defaults. The selected template is read last so its own constructors take
+// precedence over any libraries recursively loaded from its repository.
+export function functionParameters(templateFiles, defaultConfig) {
+  const selected = templateFiles.find((file) => defaultConfig !== undefined && file.filename === defaultConfig);
+  const ordered = selected === undefined ? templateFiles : [...templateFiles.filter((file) => file !== selected), selected];
   const parameters = new Map();
-  for (const file of templateFiles) {
-    for (const match of file.content.matchAll(/^[ \t]*local[ \t]+(\w+)[ \t]*\(([^)]*)\)[ \t]*=/gm)) {
-      parameters.set(match[1], match[2].trim());
+  for (const file of ordered) {
+    const tokens = tokenize(file.content);
+    const brackets = [];
+    for (const [index, token] of tokens.entries()) {
+      if (token.type === "word" && tokens[index + 1]?.text === "(") {
+        const previous = tokens[index - 1]?.text;
+        const local = previous === "local";
+        const method = brackets.at(-1) === "{" && ["{", ","].includes(previous);
+        if (local || method) {
+          let end = index + 1;
+          let depth = 0;
+          do {
+            const next = tokens[end++];
+            if (next.type === "punct") {
+              depth += {"(": 1, ")": -1}[next.text] ?? 0;
+            }
+          } while (depth > 0 && end < tokens.length);
+          if (depth === 0 && tokens[end]?.text === (local ? "=" : ":")) {
+            parameters.set(token.text, file.content.slice(tokens[index + 1].end, tokens[end - 1].start).trim());
+          }
+        }
+      }
+      if (token.type === "punct") {
+        if ("{[(".includes(token.text)) brackets.push(token.text);
+        else if ("}])".includes(token.text)) brackets.pop();
+      }
     }
   }
   return parameters;
@@ -50,9 +77,9 @@ export function propertyInsertion(name, values) {
 }
 
 // Returns the extensions of the editor completing the names and describing them, see the description of the module.
-export function completionExtensions({evaluate, reference, documentationUrl, templateFiles}) {
+export function completionExtensions({evaluate, reference, documentationUrl, templateFiles, defaultConfig}) {
   const describe = (info) => tooltipContent(info, documentationUrl);
-  const candidates = createCandidates({evaluate, reference, describe, parameters: functionParameters(templateFiles)});
+  const candidates = createCandidates({evaluate, reference, describe, parameters: functionParameters(templateFiles, defaultConfig)});
 
   // the completions of the name at the cursor, proposed while typing it or after a dot, and with Ctrl+Space
   async function complete(context) {

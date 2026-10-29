@@ -8,7 +8,12 @@
 
 """The playground of a project, starting with the current configuration of its organization."""
 
+import json
 import time
+
+import pytest
+
+from otterdog.utils import jsonnet_evaluate_snippet
 
 from .conftest import ORGANIZATION
 from .helpers import EDITOR, encode, validated_by_otterdog
@@ -272,3 +277,27 @@ def test_an_unknown_repository_opens_the_whole_configuration(playground):
 
     assert playground.page.locator("#playground-output-view").input_value() == ""
     assert playground.tabs()[0]["active"]
+
+
+@pytest.mark.parametrize("snippet", [None, "orgs.newRepo('no-import')"])
+def test_bundled_playground_snippets_load_from_the_package_without_files(playground, tmp_path, monkeypatch, snippet):
+    """Copied browser snippets need neither vendor files nor other generated defaults."""
+    fragment = "" if snippet is None else "#code=" + encode(snippet)
+    monkeypatch.chdir(tmp_path)
+    playground.open("example.html", fragment)
+    code = playground.code()
+    assert "import 'otterdog/resources/defaults/otterdog-defaults.libsonnet'" in code
+    configuration = jsonnet_evaluate_snippet(code)
+    repository = configuration["repositories"][0] if snippet is None else configuration
+    assert repository["name"] == ("myrepo" if snippet is None else "no-import")
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("shared_snippet", [False, True])
+def test_custom_templates_import_packaged_libraries_without_helper_collisions(playground, shared_snippet):
+    fragment = ""
+    if shared_snippet:
+        code = "local orgs = import 'vendor/documentation/otterdog-defaults.libsonnet'; orgs.newOrg('custom', 'custom')"
+        fragment = "#code=" + encode(code)
+    playground.open("custom-bundled.html", fragment)
+    assert json.loads(playground.output())["settings"]["name"] == "Custom helper"

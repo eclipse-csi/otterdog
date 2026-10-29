@@ -4,14 +4,13 @@
 
 To start using the cli part of `otterdog` right away on a specific organization you have to set up the following:
 
-- define a default configuration to use, or use the following [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) right away
+- use Otterdog's bundled default configuration, or explicitly set a shared `base_template` if your organizations need custom defaults
 - create a `otterdog.json` file that contains a list of GitHub organizations to manager and their respective credentials
 - start managing your organizations using the cli
 
 ### Default configuration
 
-The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
-However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
+When no `base_template` is configured, Otterdog loads the standard defaults directly from the installed package. Generated organization files use `import 'otterdog/resources/defaults/otterdog-defaults.libsonnet'`, resolved through Jsonnet's library search path. Loading bundled defaults creates no vendor files. Set `defaults.jsonnet.base_template` to use custom shared defaults, or set `base_template` on an individual organization to override it there.
 
 A change of the default configuration applies to all the organizations using it. Its impact can be evaluated
 beforehand on the **Template impact** page of the administration of the otterdog dashboard: the files of the default
@@ -21,6 +20,19 @@ groups the changes by property across the projects, e.g. `repositories[*].delete
 and the ones whose configuration fails to evaluate. The configurations are the ones fetched by the dashboard, and are
 evaluated in the browser.
 
+### Switching existing organizations to bundled defaults
+
+Remove `defaults.jsonnet.base_template` from `otterdog.json` and any organization-level
+`base_template` override that should use the bundled defaults. Update affected organization
+files to import `otterdog/resources/defaults/otterdog-defaults.libsonnet` instead of a
+`vendor/.../otterdog-defaults.libsonnet` path. The helper library can be imported as
+`otterdog/resources/defaults/otterdog-functions.libsonnet`.
+
+Upgrade the CLI and webapp installations evaluating these files before switching imports.
+Both normal and local mode load bundled defaults without creating vendor files. Custom
+shared templates keep their existing URL and vendor workflow; they can also import the
+packaged defaults using the same library paths.
+
 ### Otterdog configuration
 
 Create a `otterdog.json` file with the following content (replace bracketed values according to your setup):
@@ -29,7 +41,6 @@ Create a `otterdog.json` file with the following content (replace bracketed valu
 {
   "defaults": {
     "jsonnet": {
-      "base_template": "https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     }
   },

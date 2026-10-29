@@ -4,6 +4,7 @@ import {EditorView} from "@codemirror/view";
 
 import {byId} from "./dom.js";
 import {editorExtensions, offsetOf, select} from "./editors.js";
+import {importsOf} from "./jsonnet.js";
 import {MAIN_FILE, baseName} from "./snippets.js";
 
 // The files of the playground: the editor of its documents, and the files of the default configuration shown read-only
@@ -13,18 +14,56 @@ import {MAIN_FILE, baseName} from "./snippets.js";
 export function fileRoles(templateFiles, defaultConfig) {
   const importers = new Map([[defaultConfig, ["the playground"]]]);
   for (const file of templateFiles) {
-    for (const imported of importsOf(file, templateFiles)) {
+    for (const imported of importedFiles(file, templateFiles)) {
       importers.set(imported, [...(importers.get(imported) ?? []), baseName(file.filename)]);
     }
   }
   return importers;
 }
 
-// the files of the default configuration imported by one of them, matched by their name
-function importsOf(file, templateFiles) {
-  return [...file.content.matchAll(/\bimport(?:str|bin)?\s*['"]([^'"]+)['"]/g)]
-    .map((match) => templateFiles.find((other) => baseName(other.filename) === baseName(match[1]))?.filename)
+// Resolve relative imports before the package path/aliases, just as the evaluator does.
+function importedFile(path, importer, templateFiles) {
+  const relative = importer.slice(0, importer.lastIndexOf("/") + 1) + path;
+  const normalized = [];
+  for (const part of relative.split("/")) {
+    if (part === "..") normalized.pop();
+    else if (part !== "." && part !== "") normalized.push(part);
+  }
+  const owner = (name) => templateFiles.find((file) => file.filename === name)
+    ?? templateFiles.find((file) => file.aliases?.includes(name));
+  return (owner(normalized.join("/")) ?? owner(path))?.filename;
+}
+
+function importedFiles(file, templateFiles) {
+  return importsOf(file.content)
+    .map(({path}) => importedFile(path, file.filename, templateFiles))
     .filter((imported) => imported !== undefined && imported !== file.filename);
+}
+
+// WASM can report only the relative import spelling. If several editors match,
+// use the next known stack frame's imports to identify its owner. Ambiguous
+// locations stay unresolved rather than marking an unrelated library.
+export function fileResolver(templateFiles, filenames) {
+  const direct = (name) => filenames.includes(name) ? name
+    : templateFiles.find((file) => file.aliases?.includes(name))?.filename;
+  return (location, locations = []) => {
+    const exact = direct(location.file);
+    if (exact !== undefined) return exact;
+    const matching = filenames.filter((name) => name.endsWith("/" + location.file));
+    if (matching.length === 1) return matching[0];
+    for (const frame of locations.slice(locations.indexOf(location) + 1)) {
+      const importer = direct(frame.file);
+      const file = templateFiles.find((file) => file.filename === importer);
+      if (file === undefined) continue;
+      if (matching.includes(importer)) continue;
+      const candidates = new Set(importsOf(file.content)
+        .filter(({path}) => path.replace(/^(\.\/)+/, "") === location.file)
+        .map(({path}) => importedFile(path, importer, templateFiles))
+        .filter((name) => matching.includes(name)));
+      return candidates.size === 1 ? [...candidates][0] : undefined;
+    }
+    return undefined;
+  };
 }
 
 // Creates the editors of the files, the editor of the documents being the one of the main file, onShow being called
@@ -65,14 +104,7 @@ export function createFiles({view, templateFiles, defaultConfig, onShow}) {
     files.get(filename).view.requestMeasure();
   }
 
-  // locations of errors may only have the name of a file, e.g. a file imported by the default configuration
-  function fileOf(location) {
-    if (files.has(location.file)) {
-      return location.file;
-    }
-    const matching = [...files.keys()].filter((name) => name.endsWith("/" + location.file));
-    return matching.length === 1 ? matching[0] : undefined;
-  }
+  const fileOf = fileResolver(templateFiles, [...files.keys()]);
 
   // shows a range {from, to} of a file, of offsets or of the positions {line, ch} of an error location
   function goTo(filename, location) {
@@ -87,7 +119,7 @@ export function createFiles({view, templateFiles, defaultConfig, onShow}) {
     clearErrors();
     const marked = new Set();
     for (const location of locations) {
-      const filename = fileOf(location);
+      const filename = fileOf(location, locations);
       if (filename !== undefined && !marked.has(filename)) {
         marked.add(filename);
         const fileView = files.get(filename).view;

@@ -14,9 +14,12 @@ from unittest.mock import AsyncMock
 import pretend
 
 from otterdog.models import CostPolicy, LivePatchType
+from otterdog.models.github_organization import GitHubOrganization
 from otterdog.models.repository import Repository
 from otterdog.operations.diff_operation import DiffResult, DiffStatus
 from otterdog.operations.validate import ValidationStatus
+from otterdog.webapp.tasks import get_organization_config
+from otterdog.webapp.utils import fetch_config_from_github
 from otterdog.webapp.webhook import CheckConfigurationInSyncTask, ValidatePullRequestTask
 
 
@@ -196,3 +199,18 @@ async def test_validate_pull_request_task_exposes_patch_safety_flags(monkeypatch
     assert validation_result.cost_related is True
     assert validation_result.includes_deletions is True
     rest_api.issue.create_comment.assert_awaited_once()
+
+
+async def test_bundled_config_can_be_fetched_into_fresh_webapp_workspace(tmp_path):
+    """Webapp tasks can fetch and evaluate an organization using only packaged template files."""
+
+    installation = pretend.stub(project_name="sample", github_id="sample", config_repo=".otterdog", base_template=None)
+    organization = await get_organization_config(installation, "token", str(tmp_path), str(tmp_path))
+    config = organization.jsonnet_config
+    await config.init_template()
+    content = f"local orgs = {config.import_statement}; orgs.newOrg('sample', 'sample')"
+    api = pretend.stub(content=pretend.stub(get_content_with_sha=AsyncMock(return_value=(content, "sha"))))
+
+    assert await fetch_config_from_github(api, "sample", "sample", ".otterdog", config.org_config_file) == "sha"
+    assert GitHubOrganization.load_from_file("sample", config.org_config_file).github_id == "sample"
+    assert not (Path(config.org_dir) / "vendor").exists()

@@ -69,7 +69,6 @@ An example for an `otterdog.json` looks like that:
       "api_token_key": "api_token_admin"
     },
     "jsonnet": {
-      "base_template": "https://github.com/eclipse-csi/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
       "config_dir": "orgs"
     },
     "github": {

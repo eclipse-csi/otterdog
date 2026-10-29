@@ -14,7 +14,7 @@ import pytest
 
 from .helpers import EDITOR, validated_by_otterdog
 
-RULESET = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+RULESET = """local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';
 
 orgs.newRepo('myrepo') {
   has_issues: false,
@@ -90,7 +90,7 @@ def test_a_value_of_a_wrong_type_is_reported(playground):
         # a missing property is reported at the call creating the object
         (
             (
-                "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n"
+                "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\n"
                 "orgs.newRepo('myrepo') {\n  name:: 'myrepo',\n}"
             ),
             ["orgs.newRepo"],
@@ -115,7 +115,7 @@ def test_problems_are_reported(playground, code, error, warning, note):
     [
         VALID,
         RULESET.replace('"0"', '"0" +'),
-        "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n{ a: orgs.newRepo('x') { has_wiki: 1 } }",
+        "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\n{ a: orgs.newRepo('x') { has_wiki: 1 } }",
     ],
     ids=["valid", "evaluation_error", "not_a_call_of_the_default_configuration"],
 )
@@ -162,7 +162,7 @@ def test_a_problem_is_located_at_its_value_in_a_large_configuration(playground):
     assert lines[playground.cursor_line() - 1] == '    web_commit_signoff_required: "yes",'
 
 
-ORGANIZATION = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+ORGANIZATION = """local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';
 
 orgs.newOrg('my-project', 'my-org') {
   _repositories+:: [

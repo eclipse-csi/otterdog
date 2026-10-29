@@ -9,6 +9,7 @@
 import os
 from asyncio import Lock, Task, create_task, shield, to_thread
 from functools import cached_property
+from pathlib import Path
 from shutil import ignore_patterns
 from typing import Any
 
@@ -25,6 +26,13 @@ _logger = get_logger(__name__)
 
 
 class JsonnetConfig:
+    """Select defaults from the installed package or an explicitly configured repository.
+
+    A missing template URL selects package resources, read in place in both normal
+    and local mode. For custom templates, local_only uses existing vendor files
+    without updating the template repository.
+    """
+
     # FIXME: the function names to create resources should not be hard-coded but
     #        rather follow a convention to add new resources more easily.
 
@@ -58,7 +66,7 @@ class JsonnetConfig:
         self,
         org_id: str,
         base_dir: str,
-        base_template_url: str,
+        base_template_url: str | None,
         local_only: bool,
         org_dir: str | None = None,
     ):
@@ -66,12 +74,17 @@ class JsonnetConfig:
         self._base_dir = base_dir
         self._base_org_dir = org_dir if org_dir is not None else base_dir
 
-        repo_url, file, ref = parse_template_url(base_template_url)
-
-        self._base_template_repo_url = repo_url
-        self._base_template_repo_name = os.path.basename(repo_url)
-        self._base_template_file = file
-        self._base_template_ref = ref
+        if base_template_url is None:
+            self._base_template_repo_url = None
+            self._base_template_repo_name = "otterdog"
+            self._base_template_file = "otterdog-defaults.libsonnet"
+            self._base_template_ref = "bundled"
+        else:
+            repo_url, file, ref = parse_template_url(base_template_url)
+            self._base_template_repo_url = repo_url
+            self._base_template_repo_name = os.path.basename(repo_url)
+            self._base_template_file = file
+            self._base_template_ref = ref
 
         self._local_only = local_only
 
@@ -373,6 +386,8 @@ class JsonnetConfig:
 
     @property
     def template_dir(self) -> str:
+        if self._base_template_repo_url is None:
+            return str(Path(__file__).resolve().parent / "resources" / "defaults")
         return os.path.join(
             self.org_dir,
             "vendor",
@@ -387,13 +402,10 @@ class JsonnetConfig:
         )
 
     async def jsonnet_template_files(self):
-        import os
-
-        import aiofiles
-
-        for file in await aiofiles.os.listdir(self.template_dir):
-            if file.endswith(".libsonnet"):
-                yield os.path.join(self.template_dir, file)
+        # Custom templates may live in a repository subdirectory and import
+        # helpers from there. Preserve that layout in the browser's file map.
+        for file in sorted(Path(self.template_dir).rglob("*.libsonnet")):
+            yield str(file)
 
     @property
     def base_dir(self) -> str:
@@ -413,9 +425,14 @@ class JsonnetConfig:
 
     @property
     def import_statement(self) -> str:
+        if self._base_template_repo_url is None:
+            return f"import 'otterdog/resources/defaults/{self._base_template_file}'"
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_base_template(self) -> None:
+        if self._base_template_repo_url is None:
+            return
+
         from aiofiles.os import makedirs
         from aiofiles.ospath import exists
         from aioshutil import copytree, rmtree
@@ -468,6 +485,9 @@ class JsonnetConfig:
 
     def _update_template_repo(self, template_dir: str) -> None:
         """Clones the repository of the base template at its ref in a directory, or pulls its changes from a branch."""
+
+        if self._base_template_repo_url is None:
+            return
 
         import git
 

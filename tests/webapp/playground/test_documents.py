@@ -14,7 +14,7 @@ from .helpers import EDITOR, decode
 
 CATALOG = routes._playground_examples()
 FUNCTIONS = "otterdog-functions.libsonnet"
-IMPORT = "local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';\n\n"
+IMPORT = "local orgs = import 'otterdog/resources/defaults/otterdog-defaults.libsonnet';\n\n"
 TWO_REPOSITORIES = (
     IMPORT + "orgs.newOrg('p', 'o') {\n  _repositories+:: [\n"
     "    orgs.newRepo('alpha') { has_wiki: false },\n    orgs.newRepo('beta'),\n  ],\n}"
@@ -273,3 +273,19 @@ def test_changing_the_default_configuration_keeps_the_shown_document(playground)
 
     assert "?template=example#code=" in page.url
     assert decode(page.url.split("#code=")[1]) == content
+
+
+def test_custom_helper_errors_link_and_mark_the_custom_file_when_package_names_collide(playground):
+    """The real WASM stack uses a relative helper name shared by two libraries."""
+    page = playground.page
+    page.goto(f"{playground.base_url}/custom-helper-error.html")
+    playground.wait_status("error")
+    assert "custom helper failed" in page.locator("#playground-error").inner_text()
+    link = page.locator("#playground-error a", has_text="otterdog-functions.libsonnet:1:").first
+    link.click()
+    page.wait_for_timeout(200)
+    assert playground.shown_file() == "vendor/otterdog-defaults/nested/otterdog-functions.libsonnet"
+    assert playground.cursor_line(".tab-pane.active .playground-code") == 1
+    assert page.locator(".tab-pane.active .cm-lintRange-error").count() == 1
+    packaged = '.tab-pane[data-file="otterdog/resources/defaults/otterdog-functions.libsonnet"]'
+    assert page.locator(f"{packaged} .cm-lintRange-error").count() == 0

@@ -53,7 +53,7 @@ class OrganizationConfig:
         name: str,
         github_id: str,
         config_repo: str,
-        base_template: str,
+        base_template: str | None,
         jsonnet_config: JsonnetConfig,
         credential_data: dict[str, Any],
         approval_teams: str | None = None,
@@ -81,7 +81,8 @@ class OrganizationConfig:
         return self._config_repo
 
     @property
-    def base_template(self) -> str:
+    def base_template(self) -> str | None:
+        """The effective template URL for this organization, or None for packaged defaults."""
         return self._base_template
 
     @property
@@ -169,7 +170,7 @@ class OrganizationConfig:
         project_name: str,
         github_id: str,
         config_repo: str,
-        base_template: str,
+        base_template: str | None,
         credential_data: dict[str, Any],
         base_dir: str,
         work_dir: str,
@@ -341,13 +342,9 @@ class OtterdogConfig:
         return CostPolicy(free_max_cache_size_gb=free_max_cache_size_gb)
 
     @property
-    def default_base_template(self) -> str:
-        base_template = self._jsonnet_config.get("base_template")
-        if base_template is None:
-            raise RuntimeError(
-                "need to define a base template in your otterdog config, key: 'defaults.jsonnet.base_template'"
-            )
-        return base_template
+    def default_base_template(self) -> str | None:
+        """The instance's default template URL, or None for packaged defaults."""
+        return self._jsonnet_config.get("base_template")
 
     def _get_organization_config(self, project_or_organization_name: str):
         return self._organizations_map.get(project_or_organization_name.lower())

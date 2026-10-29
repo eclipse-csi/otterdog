@@ -23,7 +23,7 @@ Accept the Terms of Service (if you agree)
 
 #### Fork otterdog
 
-Fork otterdog in your own organization. This will act as a base for modifications and contributions to the project, and will serve as the URL for the otterdog config `base_template`.
+Fork otterdog in your own organization. This acts as a base for modifications and contributions to the project. If you need to test a custom defaults template, you can also use the fork as the config's `base_template`; otherwise, Otterdog uses its bundled defaults.
 
 ```
 https://github.com/<Github Username>/otterdog
@@ -67,7 +67,6 @@ Then create the file `otterdog.json` in this repository with all the required se
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<Github Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },
@@ -276,7 +275,6 @@ Example of `otterdog.json`
 {
     "defaults": {
         "jsonnet": {
-            "base_template": "https://github.com/<GitHub Username>/otterdog#otterdog/resources/defaults/otterdog-defaults.libsonnet@main",
             "config_dir": "orgs"
         }
     },

@@ -58,7 +58,8 @@ function createTemplateEditors(templateFiles, onChange) {
 
   return {
     isEdited: () => [...editors.keys()].some(isModified),
-    contents: () => templateFiles.map(({filename}) => ({filename, content: editors.get(filename).view.state.doc.toString()})),
+    // Edited libraries must remain available under their import aliases.
+    contents: () => templateFiles.map((file) => ({...file, content: editors.get(file.filename).view.state.doc.toString()})),
     revision: () => revision,
   };
 }

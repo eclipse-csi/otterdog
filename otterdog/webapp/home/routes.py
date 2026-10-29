@@ -15,6 +15,7 @@ import re
 from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote
 
@@ -443,10 +444,7 @@ _EXAMPLE_TEMPLATE_FILE = "otterdog-defaults.libsonnet"
 async def global_playground():
     otterdog_config = await get_otterdog_config()
 
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return await render_template(_PAGE_NOT_FOUND), 404
+    base_template = otterdog_config.default_base_template
 
     # the global playground can also use the example template of otterdog instead of the one of the instance
     example_template = await _example_template()
@@ -522,11 +520,7 @@ async def validate_global_playground():
                     logger.warning("rejecting a validation for %s: the example template is not available", origin)
                     return {"error": "the example template of otterdog is not available"}, 404
             else:
-                try:
-                    base_template = otterdog_config.default_base_template
-                except RuntimeError:
-                    logger.warning("rejecting a validation for %s: no default base template is configured", origin)
-                    return {"error": "no default configuration is configured"}, 404
+                base_template = otterdog_config.default_base_template
                 jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
 
             return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
@@ -790,7 +784,7 @@ async def _render_playground(
     )
 
 
-async def _default_template(otterdog_config: OtterdogConfig, base_template: str) -> dict[str, Any]:
+async def _default_template(otterdog_config: OtterdogConfig, base_template: str | None) -> dict[str, Any]:
     """Returns the files of the default base template of the instance, see _instance_template."""
 
     import aiofiles
@@ -801,7 +795,7 @@ async def _default_template(otterdog_config: OtterdogConfig, base_template: str)
 
 
 def _default_org_config(
-    otterdog_config: OtterdogConfig, base_template: str, base_dir: str, work_dir: str
+    otterdog_config: OtterdogConfig, base_template: str | None, base_dir: str, work_dir: str
 ) -> OrganizationConfig:
     """Returns the configuration of an organization using the default base template of the instance."""
 
@@ -822,21 +816,42 @@ async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
     jsonnet_config = org_config.jsonnet_config
     await jsonnet_config.init_template()
 
-    # the files of the template are next to its default configuration in its repository
-    repo_url, file, ref = parse_template_url(org_config.base_template)
-    directory = posixpath.dirname(file)
+    if org_config.base_template is None:
+        bundled = await _example_template()
+        if bundled is None:
+            raise RuntimeError("packaged Jsonnet defaults are missing")
+        return bundled
 
+    repo_url, _, ref = parse_template_url(org_config.base_template)
     files = []
     async for jsonnet_file in jsonnet_config.jsonnet_template_files():
-        name = os.path.basename(jsonnet_file)
+        name = Path(jsonnet_file).relative_to(jsonnet_config.template_dir).as_posix()
         async with aiofiles.open(jsonnet_file) as f:
             files.append(
                 {
                     "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{name}",
                     "content": await f.read(),
-                    "url": f"{repo_url}/blob/{ref}/{posixpath.join(directory, name)}",
+                    "url": f"{repo_url}/blob/{ref}/{name}",
                 }
             )
+
+    bundled = await _example_template()
+    if bundled is not None:
+        # The browser resolves imports relative to their importing file and has no
+        # library search path. A template under vendor/custom/ needs package imports
+        # at vendor/custom/otterdog/resources/defaults/ as in-memory aliases.
+        # Existing custom files take precedence over these fallback paths.
+        directories = {posixpath.dirname(file["filename"]) for file in files}
+        existing = {file["filename"] for file in files}
+        for file in bundled["files"]:
+            file["aliases"] = [
+                f"{directory}/{file['filename']}"
+                for directory in sorted(directories)
+                if f"{directory}/{file['filename']}" not in existing
+            ]
+        # Constructor metadata uses the last definition of a function. Keep custom
+        # templates after the packaged fallback so their signatures take precedence.
+        files = bundled["files"] + files
 
     return {
         "files": files,
@@ -856,14 +871,14 @@ async def _example_template() -> dict[str, Any] | None:
     ref = f"v{otterdog.__version__}" if re.fullmatch(r"\d+\.\d+\.\d+", otterdog.__version__) else "main"
     url = f"https://github.com/eclipse-csi/otterdog/blob/{ref}/otterdog/resources/defaults"
 
-    # vendored like the default configurations used in the documentation
+    # The same package-relative paths are used by the native library search.
     files = []
     for name in sorted(await aiofiles.os.listdir(_EXAMPLE_TEMPLATE_DIR)):
         if name.endswith(".libsonnet"):
             async with aiofiles.open(os.path.join(_EXAMPLE_TEMPLATE_DIR, name)) as f:
                 files.append(
                     {
-                        "filename": f"vendor/otterdog-defaults/{name}",
+                        "filename": f"otterdog/resources/defaults/{name}",
                         "content": await f.read(),
                         "url": f"{url}/{name}",
                     }
@@ -871,7 +886,7 @@ async def _example_template() -> dict[str, Any] | None:
 
     return {
         "files": files,
-        "default_config": f"vendor/otterdog-defaults/{_EXAMPLE_TEMPLATE_FILE}",
+        "default_config": f"otterdog/resources/defaults/{_EXAMPLE_TEMPLATE_FILE}",
         "link": {
             "url": f"{url}/{_EXAMPLE_TEMPLATE_FILE}",
             "label": f"eclipse-csi/otterdog/otterdog/resources/defaults/{_EXAMPLE_TEMPLATE_FILE}@{ref}",
@@ -990,10 +1005,7 @@ async def template_impact():
     """The impact of a change of the default base template on the projects using it, evaluated in the browser."""
 
     otterdog_config = await get_otterdog_config()
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return await render_template(_PAGE_NOT_FOUND), 404
+    base_template = otterdog_config.default_base_template
 
     template = await _default_template(otterdog_config, base_template)
     return await render_home_template(
@@ -1013,10 +1025,7 @@ async def template_impact_configurations():
     """
 
     otterdog_config = await get_otterdog_config()
-    try:
-        base_template = otterdog_config.default_base_template
-    except RuntimeError:
-        return {"projects": []}
+    base_template = otterdog_config.default_base_template
 
     installations = [
         installation
