@@ -337,7 +337,11 @@ class GitHubOrganization:
         if configuration is None:
             return repo
 
-        return dataclasses.replace(repo, **configuration.get_repository_settings())
+        effective_repo = copy.copy(repo)
+        for key, value in configuration.get_repository_settings().items():
+            setattr(effective_repo, key, value)
+
+        return effective_repo
 
     def add_repository(self, repo: Repository) -> None:
         self.repositories.append(repo)

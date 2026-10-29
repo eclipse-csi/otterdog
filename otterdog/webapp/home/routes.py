@@ -170,7 +170,7 @@ async def index():
         branch_protection_percentage=branch_protection_percentage,
         private_vulnerability_reporting_data=json.dumps(private_vulnerability_reporting_data),
         private_vulnerability_reporting_percentage=private_vulnerability_reporting_percentage,
-        code_scanning_data=json.dumps(code_scanning_data),
+        code_scanning_data=code_scanning_data,
         code_scanning_percentage=_percentage(stats.repos_with_code_scanning, stats.active_repos),
     )
 

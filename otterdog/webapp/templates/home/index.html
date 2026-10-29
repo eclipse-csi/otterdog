@@ -465,7 +465,7 @@
           labels: ['not configured', 'default setup'],
           datasets: [{
             label: 'code scanning',
-            data: {{ code_scanning_data|safe }},
+            data: {{ code_scanning_data|tojson }},
             backgroundColor: [
               '#ffc107',
               '#28a745',
