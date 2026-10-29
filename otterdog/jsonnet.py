@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import os
-from asyncio import Lock
+from asyncio import Lock, to_thread
 from functools import cached_property
 from shutil import ignore_patterns
 from typing import Any
@@ -414,7 +414,6 @@ class JsonnetConfig:
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_base_template(self) -> None:
-        import git
         from aiofiles.os import makedirs
         from aiofiles.ospath import exists
         from aioshutil import copytree, rmtree
@@ -425,20 +424,8 @@ class JsonnetConfig:
         async with _template_lock:
             # cache the template repo with the requested ref in the 'templates' directory
             template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
-
-            if not await exists(f"{template_dir}/.git"):
-                _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
-                with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
-                    repo.git.checkout(self._base_template_ref)
-            else:
-                with git.Repo(template_dir) as repo:
-                    if not repo.head.is_detached:
-                        _logger.debug(
-                            "pulling changes from base template url '%s' with ref '%s'",
-                            self._base_template_repo_url,
-                            repo.head.ref,
-                        )
-                        repo.remotes.origin.pull()
+            # git waits for the network, run apart to not block the other tasks, e.g. the requests of the webapp
+            await to_thread(self._update_template_repo, template_dir)
 
         # create base directory if it does not exist yet
         if not await exists(self.org_dir):
@@ -468,6 +455,25 @@ class JsonnetConfig:
         else:
             ignore = ignore_patterns(".git")
         await copytree(template_dir, self.template_dir, ignore=ignore)
+
+    def _update_template_repo(self, template_dir: str) -> None:
+        """Clones the repository of the base template at its ref in a directory, or pulls its changes from a branch."""
+
+        import git
+
+        if not os.path.exists(f"{template_dir}/.git"):
+            _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
+            with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
+                repo.git.checkout(self._base_template_ref)
+        else:
+            with git.Repo(template_dir) as repo:
+                if not repo.head.is_detached:
+                    _logger.debug(
+                        "pulling changes from base template url '%s' with ref '%s'",
+                        self._base_template_repo_url,
+                        repo.head.ref,
+                    )
+                    repo.remotes.origin.pull()
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self.base_dir}, '{self._base_template_file}')"

@@ -6,16 +6,16 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-import contextlib
+import asyncio
 import functools
 import json
 import os.path
 import posixpath
 import re
-from collections.abc import Iterator, Mapping, MutableMapping
+from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote
 
 from quart import (
@@ -511,10 +511,7 @@ async def validate_global_playground():
     if isinstance(data, tuple):
         return data
 
-    with _validation_slots.take() as taken:
-        if not taken:
-            return _too_many_validations(origin)
-
+    async def validate():
         otterdog_config = await get_otterdog_config()
 
         base_dir = get_temporary_base_directory()
@@ -533,6 +530,9 @@ async def validate_global_playground():
                 jsonnet_config = _default_org_config(otterdog_config, base_template, base_dir, work_dir).jsonnet_config
 
             return await _validate_playground_configuration(otterdog_config, jsonnet_config, data, origin)
+
+    result = await _validation_slots.run(validate)
+    return _too_many_validations(origin) if result is None else result
 
 
 @blueprint.route("/projects/<project_name>/playground/validate", methods=["POST"])
@@ -553,16 +553,16 @@ async def validate_playground(project_name: str):
     if isinstance(data, tuple):
         return data
 
-    with _validation_slots.take() as taken:
-        if not taken:
-            return _too_many_validations(origin)
-
+    async def validate():
         otterdog_config = await get_otterdog_config()
 
         base_dir = get_temporary_base_directory()
         async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
             org_config = await get_organization_config(installation, "", base_dir, work_dir)
             return await _validate_playground_configuration(otterdog_config, org_config.jsonnet_config, data, origin)
+
+    result = await _validation_slots.run(validate)
+    return _too_many_validations(origin) if result is None else result
 
 
 async def _validation_origin(playground: str) -> str:
@@ -587,8 +587,6 @@ async def _posted_configuration(origin: str) -> dict[str, Any] | tuple[dict[str,
     is read up to PLAYGROUND_VALIDATION_MAX_SIZE bytes, whether its length is announced or not, e.g. when it is sent in
     chunks, in BODY_TIMEOUT seconds like any body.
     """
-
-    import asyncio
 
     from werkzeug.exceptions import RequestTimeout
 
@@ -625,6 +623,9 @@ async def _posted_configuration(origin: str) -> dict[str, Any] | tuple[dict[str,
     return data
 
 
+_T = TypeVar("_T")
+
+
 class _ValidationSlots:
     """
     The validations of the configurations posted by the playground running concurrently in the worker process, at most
@@ -632,21 +633,27 @@ class _ValidationSlots:
     """
 
     def __init__(self) -> None:
-        self.running = 0
+        # the tasks of the running validations, referenced until they complete
+        self._tasks: set[asyncio.Task] = set()
 
-    @contextlib.contextmanager
-    def take(self) -> Iterator[bool]:
-        """Takes a slot for a validation if one is free, yields whether it did."""
+    @property
+    def running(self) -> int:
+        return len(self._tasks)
+
+    async def run(self, validate: Callable[[], Coroutine[Any, Any, _T]]) -> _T | None:
+        """
+        Runs a validation if a slot is free, returns its result, None if no slot is free. The validation runs in its
+        own task, shielded from the cancellation of the request, e.g. when its client disconnects: its work offloaded
+        to threads cannot be stopped, so it keeps its slot and its working directory until it completes.
+        """
 
         if self.running >= current_app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"]:
-            yield False
-            return
+            return None
 
-        self.running += 1
-        try:
-            yield True
-        finally:
-            self.running -= 1
+        task = asyncio.create_task(validate())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return await asyncio.shield(task)
 
 
 _validation_slots = _ValidationSlots()
@@ -670,7 +677,6 @@ async def _validate_playground_configuration(
     the configuration, which are posted by the user.
     """
 
-    import asyncio
     import time
     from asyncio import to_thread
 

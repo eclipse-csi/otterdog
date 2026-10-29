@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import json
 import logging
 import re
@@ -718,7 +719,7 @@ async def test_playground_validation_rejects_the_validations_beyond_the_maximum(
     app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"] = 1
     get_otterdog_config = mock.AsyncMock()
     monkeypatch.setattr(routes, "get_otterdog_config", get_otterdog_config)
-    monkeypatch.setattr(routes._validation_slots, "running", 1)
+    monkeypatch.setattr(routes._validation_slots, "_tasks", {mock.Mock()})
 
     async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
         result, status, headers = await routes.validate_global_playground()
@@ -741,3 +742,59 @@ async def test_playground_validation_releases_its_slot(app, monkeypatch, tmp_pat
     with pytest.raises(RuntimeError):
         await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated())
     assert routes._validation_slots.running == 0
+
+
+async def test_a_cancelled_validation_keeps_its_slot_until_it_completes(app):
+    # its work offloaded to threads cannot be stopped when the request is cancelled, e.g. when its client disconnects
+    slots = routes._ValidationSlots()
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def validate():
+        started.set()
+        await release.wait()
+        return {"problems": []}
+
+    async with app.app_context():
+        request = asyncio.create_task(slots.run(validate))
+        await started.wait()
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+        assert slots.running == 1
+        (validation,) = slots._tasks
+        release.set()
+        assert await validation == {"problems": []}
+        # once its completion is notified
+        await asyncio.sleep(0)
+        assert slots.running == 0
+
+
+async def test_a_cancelled_validation_keeps_its_working_directory_until_it_completes(app, monkeypatch, tmp_path):
+    started, release = asyncio.Event(), asyncio.Event()
+    template_dirs = []
+
+    async def validate(otterdog_config, jsonnet_config, data, origin):
+        template_dirs.append(Path(jsonnet_config.template_dir))
+        started.set()
+        await release.wait()
+        return {"problems": []}
+
+    monkeypatch.setattr(routes, "_validate_playground_configuration", validate)
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/playground/validate?template=example", method="POST", json=_evaluated()):
+        request = asyncio.create_task(routes.validate_global_playground())
+        await started.wait()
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+        (template_dir,) = template_dirs
+        assert template_dir.is_dir()
+        (validation,) = routes._validation_slots._tasks
+        release.set()
+        await validation
+
+    assert not template_dir.exists()
