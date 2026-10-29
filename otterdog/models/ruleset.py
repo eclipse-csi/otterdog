@@ -67,15 +67,14 @@ class PullRequestSettings(EmbeddedModelObject):
             if is_unset(value):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has not set required parameter "
-                    f"'required_pull_request.{key}'.",
+                    f"{parent_object.get_model_header()} has not set required parameter 'required_pull_request.{key}'.",
                 )
 
         if is_set_and_valid(self.required_approving_review_count):
             if self.required_approving_review_count < 0 or self.required_approving_review_count > 10:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has "
+                    f"{parent_object.get_model_header()} has "
                     f"'required_pull_request.required_approving_review_count' of value "
                     f"'{self.required_approving_review_count}' while only integers in the range [0, 10] are allowed.",
                 )
@@ -84,7 +83,7 @@ class PullRequestSettings(EmbeddedModelObject):
             if len(self.allowed_merge_methods) == 0:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has an empty "
+                    f"{parent_object.get_model_header()} has an empty "
                     f"'required_pull_request.allowed_merge_methods' while at least one merge method must be allowed.",
                 )
 
@@ -92,7 +91,7 @@ class PullRequestSettings(EmbeddedModelObject):
                 if method not in self.VALID_MERGE_METHODS:
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{parent_object.get_model_header(parent_object)} has "
+                        f"{parent_object.get_model_header()} has "
                         f"'required_pull_request.allowed_merge_methods' containing value '{method}' "
                         f"while only values in {self.VALID_MERGE_METHODS} are allowed.",
                     )
@@ -156,7 +155,7 @@ class StatusCheckSettings(EmbeddedModelObject):
             if is_unset(value):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has not set required parameter "
+                    f"{parent_object.get_model_header()} has not set required parameter "
                     f"'required_status_checks.{key}'.",
                 )
 
@@ -268,14 +267,13 @@ class MergeQueueSettings(EmbeddedModelObject):
             if is_unset(value):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has not set required parameter "
-                    f"'required_merge_queue.{key}'.",
+                    f"{parent_object.get_model_header()} has not set required parameter 'required_merge_queue.{key}'.",
                 )
 
         if self.merge_method not in {"MERGE", "SQUASH", "REBASE"}:
             context.add_failure(
                 FailureType.ERROR,
-                f"{parent_object.get_model_header(parent_object)} has 'required_merge_queue.merge_method' of value "
+                f"{parent_object.get_model_header()} has 'required_merge_queue.merge_method' of value "
                 f"'{self.merge_method}', only values ('MERGE' | 'SQUASH' | 'REBASE') are allowed.",
             )
 
@@ -291,7 +289,7 @@ class MergeQueueSettings(EmbeddedModelObject):
                 if int(value) < 0:
                     context.add_failure(
                         FailureType.ERROR,
-                        f"{parent_object.get_model_header(parent_object)} has 'required_merge_queue.{key}' of value "
+                        f"{parent_object.get_model_header()} has 'required_merge_queue.{key}' of value "
                         f"'{value}' while only non-negative integers are allowed.",
                     )
 
@@ -348,6 +346,19 @@ class MergeQueueSettings(EmbeddedModelObject):
                 mapping.pop(key)
 
         return mapping
+
+
+@dataclasses.dataclass(frozen=True)
+class _EmbeddedModelOwner:
+    """
+    The owner of the embedded models of a ruleset when validating them, which name it in their messages with its
+    header, e.g. 'repo_ruleset[name="main", repository=my-repo]'.
+    """
+
+    header: str
+
+    def get_model_header(self) -> str:
+        return self.header
 
 
 @dataclasses.dataclass
@@ -473,14 +484,17 @@ class Ruleset(ModelObject, abc.ABC):
                         f"'{env_name}' which is not defined in the repository itself.",
                     )
 
+        # the messages of the embedded models name the ruleset, not only its repository or organization
+        owner = _EmbeddedModelOwner(self.get_model_header(parent_object))
+
         if is_set_and_present(self.required_pull_request):
-            self.required_pull_request.validate(context, parent_object)
+            self.required_pull_request.validate(context, owner)
 
         if is_set_and_present(self.required_status_checks):
-            self.required_status_checks.validate(context, parent_object)
+            self.required_status_checks.validate(context, owner)
 
         if is_set_and_present(self.required_merge_queue):
-            self.required_merge_queue.validate(context, parent_object)
+            self.required_merge_queue.validate(context, owner)
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.requires_deployments is False:

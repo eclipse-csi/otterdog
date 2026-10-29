@@ -99,6 +99,13 @@ export function literalProperties(code) {
   return scan(code).values;
 }
 
+// Returns the properties of the objects created by a function of the default configuration, whatever their value and
+// operator, e.g. `include_refs+: [...]`: {function, call, exact, firstArgument, path, from, to, within}, see
+// literalProperties, from and to being the range of the property, from its name to the end of its value.
+export function propertiesOf(code) {
+  return scan(code).properties;
+}
+
 // the literal properties whose values can be compared with the default configuration
 export function explicitValues(code) {
   return literalProperties(code).filter((property) => property.exact);
@@ -217,10 +224,12 @@ function readTopLevel(state, token, next) {
 // the name of a top-level definition follows 'local', or a comma separating several definitions
 const isTopLevelName = (token, pending) => (token.text === "local" && pending === 0) || (token.text === "," && pending === 1);
 
-// scans the objects of the code: the literal values of their properties, and the brackets still open at its end
+// scans the objects of the code: their properties, the literal values of their properties, and the brackets still
+// open at its end
 function scan(code) {
   const tokens = tokenize(code);
   const values = [];
+  const properties = [];
   // the open brackets, an object created by a function or extending one of them has a scope {call, path}, and the
   // calls creating the objects containing a bracket are its calls, innermost first
   const frames = [];
@@ -232,18 +241,18 @@ function scan(code) {
       const calls = scope?.path.length === 0 ? [scope, ...(frame?.calls ?? [])] : (frame?.calls ?? []);
       frames.push({scope, field: null, expectsField: true, calls});
     } else if (isPunctuation(token, "}])")) {
-      endField(code, tokens, frames.pop(), index, values);
+      endField(code, tokens, frames.pop(), index, values, properties);
     } else if (frame?.scope) {
-      readField(code, tokens, frame, index, values);
+      readField(code, tokens, frame, index, values, properties);
     }
   });
-  return {values, frames};
+  return {values, properties, frames};
 }
 
 // reads the fields of an object scope, separated by commas
-function readField(code, tokens, frame, index, values) {
+function readField(code, tokens, frame, index, values, properties) {
   if (tokens[index].text === ",") {
-    endField(code, tokens, frame, index, values);
+    endField(code, tokens, frame, index, values, properties);
     frame.expectsField = true;
   } else if (frame.expectsField) {
     frame.field = fieldAt(tokens, index);
@@ -340,17 +349,20 @@ function fieldAt(tokens, index) {
     : null;
 }
 
-function endField(code, tokens, frame, end, values) {
+function endField(code, tokens, frame, end, values, properties) {
   const field = frame?.field;
-  if (!frame?.scope || field?.operator !== ":") {
+  if (!frame?.scope || !field) {
     return;
   }
   const valueTokens = tokens.slice(field.valueIndex, end);
-  if (isLiteral(valueTokens)) {
+  if (valueTokens.length > 0) {
     const to = valueTokens[valueTokens.length - 1].end;
-    const {path} = frame.scope;
+    const path = [...frame.scope.path, field.name];
     const within = frame.calls.slice(1).map((call) => ({function: call.function, firstArgument: call.firstArgument}));
-    values.push({...frame.scope, path: [...path, field.name], value: code.slice(valueTokens[0].start, to), from: field.start, to, within});
+    properties.push({...frame.scope, path, from: field.start, to, within});
+    if (field.operator === ":" && isLiteral(valueTokens)) {
+      values.push({...frame.scope, path, value: code.slice(valueTokens[0].start, to), from: field.start, to, within});
+    }
   }
   frame.field = null;
 }

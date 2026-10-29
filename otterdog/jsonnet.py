@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import os
-from asyncio import Lock
+from asyncio import Lock, Task, create_task, shield, to_thread
 from functools import cached_property
 from shutil import ignore_patterns
 from typing import Any
@@ -19,6 +19,8 @@ from .logging import get_logger
 from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_url
 
 _template_lock = Lock()
+# the updates of the cached templates, see JsonnetConfig._init_base_template, referenced until they complete
+_template_updates: set[Task] = set()
 _logger = get_logger(__name__)
 
 
@@ -414,7 +416,6 @@ class JsonnetConfig:
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
 
     async def _init_base_template(self) -> None:
-        import git
         from aiofiles.os import makedirs
         from aiofiles.ospath import exists
         from aioshutil import copytree, rmtree
@@ -422,23 +423,14 @@ class JsonnetConfig:
         _logger.debug("initializing base template '%s@%s'", self._base_template_repo_url, self._base_template_ref)
         template_owner, template_repository = parse_github_url(self._base_template_repo_url)
 
-        async with _template_lock:
-            # cache the template repo with the requested ref in the 'templates' directory
-            template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
-
-            if not await exists(f"{template_dir}/.git"):
-                _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
-                with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
-                    repo.git.checkout(self._base_template_ref)
-            else:
-                with git.Repo(template_dir) as repo:
-                    if not repo.head.is_detached:
-                        _logger.debug(
-                            "pulling changes from base template url '%s' with ref '%s'",
-                            self._base_template_repo_url,
-                            repo.head.ref,
-                        )
-                        repo.remotes.origin.pull()
+        # cache the template repo with the requested ref in the 'templates' directory
+        template_dir = f"{self.base_dir}/templates/{template_owner}/{template_repository}/{self._base_template_ref}"
+        # the update runs in its own task, shielded from the cancellation of its caller, e.g. a request whose client
+        # disconnects: its git operation in a thread cannot be stopped, so it keeps the lock until it completes
+        update = create_task(self._update_template_repo_with_lock(template_dir))
+        _template_updates.add(update)
+        update.add_done_callback(_template_updates.discard)
+        await shield(update)
 
         # create base directory if it does not exist yet
         if not await exists(self.org_dir):
@@ -468,6 +460,30 @@ class JsonnetConfig:
         else:
             ignore = ignore_patterns(".git")
         await copytree(template_dir, self.template_dir, ignore=ignore)
+
+    async def _update_template_repo_with_lock(self, template_dir: str) -> None:
+        async with _template_lock:
+            # git waits for the network, run apart to not block the other tasks, e.g. the requests of the webapp
+            await to_thread(self._update_template_repo, template_dir)
+
+    def _update_template_repo(self, template_dir: str) -> None:
+        """Clones the repository of the base template at its ref in a directory, or pulls its changes from a branch."""
+
+        import git
+
+        if not os.path.exists(f"{template_dir}/.git"):
+            _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
+            with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
+                repo.git.checkout(self._base_template_ref)
+        else:
+            with git.Repo(template_dir) as repo:
+                if not repo.head.is_detached:
+                    _logger.debug(
+                        "pulling changes from base template url '%s' with ref '%s'",
+                        self._base_template_repo_url,
+                        repo.head.ref,
+                    )
+                    repo.remotes.origin.pull()
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self.base_dir}, '{self._base_template_file}')"

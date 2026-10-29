@@ -431,9 +431,10 @@ deploy the chart of a `helm-charts` checkout. Outside of development, the Playgr
 `https://otterdog.readthedocs.io/en/latest/` unless `config.documentationUrl` is set.
 
 The Playground of a project starts with the current configuration of its organization, once the webapp fetched it
-again, e.g. after calling `/internal/init`. Its button "Propose on GitHub" copies the modified configuration and opens
-it in the editor of GitHub, where the user creates the pull request from their own account. It opens the editor on the
-default branch of the configuration repository, which is also known once the configuration has been fetched again.
+again, e.g. after calling `/internal/init`. Its button "Propose on GitHub" validates the modified configuration with
+otterdog, asking to confirm if it has errors, then copies it and opens it in the editor of GitHub, where the user
+creates the pull request from their own account. It opens the editor on the default branch of the configuration
+repository, which is also known once the configuration has been fetched again.
 
 #### [Optional] Configure dependency track
 

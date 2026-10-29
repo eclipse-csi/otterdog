@@ -67,7 +67,8 @@ class ValidationContext:
     root_object: Any
     secret_resolver: SecretResolver
     template_dir: str
-    org_members: set[str]
+    # None if the members of the organization are unknown, e.g. when validating without provider
+    org_members: set[str] | None
     default_team_names: set[str]
     exclude_teams_pattern: ExclusionPatterns | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)

@@ -298,6 +298,28 @@ This initialization will:
     but refreshes triggered at the same time in different workers, e.g. an initialization and a
     push to the otterdog configuration repository, run up to this many tasks each.
 
+### Validation in the Playground
+
+The **Validate** button of the Playground posts the evaluated configuration of an organization to
+`/playground/validate` and `/projects/<project>/playground/validate`, which validate it with otterdog,
+see [Validation in the Playground](../userguide/guides/troubleshooting.md#validation-in-the-playground).
+Like the Playground, these endpoints are public. They neither call GitHub nor store or apply the
+configuration, but each validation prepares the default configuration and validates the posted one,
+which takes up to a second for a large organization. They are bounded by two settings:
+
+- `PLAYGROUND_VALIDATION_MAX_SIZE`: the maximum size in bytes of a posted configuration, 5 MB by
+  default, a larger one being rejected with the status `413`. The evaluated configuration of an
+  organization with 300 repositories takes about 800 KB.
+- `PLAYGROUND_MAX_CONCURRENT_VALIDATIONS`: the maximum number of validations running concurrently
+  in each worker process of the webapp, 4 by default, the other ones being rejected at once with the
+  status `503`.
+
+!!! note
+
+    These settings bound the work of each worker process, not the number of requests of a client.
+    To limit the requests of a client, configure a rate limit for these paths in the ingress or
+    the reverse proxy in front of the webapp.
+
 ### Updating the Deployment
 
 To upgrade to the latest chart or image version:

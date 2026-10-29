@@ -74,6 +74,18 @@ _ORG_SCHEMA = json.loads(files(resources).joinpath("schemas/organization.json").
 _logger = get_logger(__name__)
 
 
+def _additional_properties(error: Any) -> list[str]:
+    """Returns the names of the properties of an 'additionalProperties' error of the json schema validation."""
+
+    properties = error.schema.get("properties", {})
+    patterns = error.schema.get("patternProperties", {})
+    return [
+        name
+        for name in error.instance
+        if name not in properties and not any(re.search(pattern, name) for pattern in patterns)
+    ]
+
+
 def _configured_keys(model_object: EmbeddedModelObject) -> set[str]:
     """
     Returns the field names of an embedded model object that have a real, non-null value.
@@ -203,10 +215,19 @@ class GitHubOrganization:
         config: OtterdogConfig,
         jsonnet_config: JsonnetConfig,
         secret_resolver: SecretResolver,
-        provider: GitHubProvider,
+        provider: GitHubProvider | None,
     ) -> ValidationContext:
+        """
+        Validates the organization. Without provider, e.g. in the playground of the dashboard, the validations
+        depending on the current state of the organization on GitHub are skipped: the members of its teams being
+        members of the organization, and the languages of code scanning being detected in its repositories.
+        """
+
         # only retrieve the list of current organization members if there are teams defined
-        if len(self.teams) > 0:
+        org_members: set[str] | None
+        if provider is None:
+            org_members = None
+        elif len(self.teams) > 0:
             org_members = {x["login"] for x in await provider.rest_api.org.list_members(self.github_id)}
         else:
             org_members = set()
@@ -301,7 +322,12 @@ class GitHubOrganization:
         return context
 
     @staticmethod
-    def _validate_org_config(data: dict[str, Any]) -> None:
+    def _validate_org_config(data: dict[str, Any]) -> list[tuple[str, str]]:
+        """
+        Validates the data with the json schema, returns the unknown properties, which are ignored, as the path of the
+        object having them and their name, e.g. ('repositories[name="my-repo"]', 'has_wikki').
+        """
+
         from jsonschema import Draft202012Validator
         from jsonschema.exceptions import best_match
         from referencing import Registry, Resource
@@ -321,12 +347,15 @@ class GitHubOrganization:
             validator = Draft202012Validator(_ORG_SCHEMA, registry=registry)
 
             blocking_errors = []
+            unknown_properties: list[tuple[str, str]] = []
             for error in validator.iter_errors(data):
                 if error.validator == "additionalProperties":
                     _logger.warning(
                         "ignoring unknown properties found while validating organization config: %s",
                         error.message,
                     )
+                    path = GitHubOrganization._format_config_path(data, error.absolute_path)
+                    unknown_properties.extend((path, name) for name in _additional_properties(error))
                 else:
                     blocking_errors.append(error)
 
@@ -340,6 +369,8 @@ class GitHubOrganization:
                     messages.append(f"invalid value at '{path}': {cause.message}")
 
                 raise RuntimeError("\n".join(messages)) from blocking_errors[0]
+
+            return unknown_properties
 
     @staticmethod
     def _format_config_path(data: Any, path: Iterable[str | int]) -> str:
@@ -403,8 +434,19 @@ class GitHubOrganization:
 
     @classmethod
     def from_model_data(cls, data: dict[str, Any]) -> GitHubOrganization:
+        return cls.from_model_data_with_unknown_properties(data)[0]
+
+    @classmethod
+    def from_model_data_with_unknown_properties(
+        cls, data: dict[str, Any]
+    ) -> tuple[GitHubOrganization, list[tuple[str, str]]]:
+        """
+        Returns the organization of the data, and the unknown properties of the data, which are ignored, see
+        _validate_org_config.
+        """
+
         # validate the input data with the json schema.
-        cls._validate_org_config(data)
+        unknown_properties = cls._validate_org_config(data)
 
         mapping = {
             "project_name": S("project_name"),
@@ -426,7 +468,7 @@ class GitHubOrganization:
 
         org = cls(**bend(mapping, data))
         org.repositories = [x.coerce_from_org_settings(org.settings) for x in org.repositories]
-        return org
+        return org, unknown_properties
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
         for webhook in self.webhooks:

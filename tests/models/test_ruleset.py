@@ -564,6 +564,8 @@ class TestRulesetValidation:
         errors = self.validate(ruleset)
 
         assert len(errors) == 1
+        # the message names the ruleset, not only its repository
+        assert errors[0].startswith(ruleset.get_model_header())
         assert "has not set required parameter 'required_status_checks.strict'" in errors[0]
 
     def test_validate_required_status_checks_with_strict(self):
@@ -682,7 +684,7 @@ class TestPullRequestSettings:
             }
         )
         context = self.make_validation_context()
-        parent = stub(get_model_header=lambda parent_object: 'repo_ruleset[name="test-ruleset"]')
+        parent = stub(get_model_header=lambda: 'repo_ruleset[name="test-ruleset"]')
 
         settings.validate(context, parent)
 

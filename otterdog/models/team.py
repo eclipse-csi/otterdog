@@ -89,7 +89,11 @@ class Team(ModelObject, abc.ABC):
                 f"but 'members' is set to {self.members}.",
             )
 
-        if is_set_and_valid(self.members) and self.skip_non_organization_members is True:
+        if (
+            is_set_and_valid(self.members)
+            and self.skip_non_organization_members is True
+            and context.org_members is not None
+        ):
             for member in self.members:
                 if member not in context.org_members:
                     context.add_failure(

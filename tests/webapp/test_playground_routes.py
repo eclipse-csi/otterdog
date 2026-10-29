@@ -6,7 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import asyncio
 import json
+import logging
 import re
 from pathlib import Path
 from unittest import mock
@@ -453,3 +455,347 @@ async def test_no_impact_of_the_template_without_default_base_template(app, monk
         _, status = await routes.template_impact()
 
     assert status == 404
+
+
+def _evaluated(body: str = "", project_name: str = "my-project", github_id: str = "my-org") -> dict:
+    """Returns the configuration of an organization evaluated with the example template, like the playground does."""
+
+    from otterdog.utils import jsonnet_evaluate_snippet
+
+    template = _EXAMPLE_TEMPLATE_DIR / "otterdog-defaults.libsonnet"
+    return jsonnet_evaluate_snippet(
+        f"local orgs = import '{template}';\norgs.newOrg('{project_name}', '{github_id}') {{\n{body}\n}}"
+    )
+
+
+_INVALID_RULESET = """
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [
+        orgs.newRepoRuleset('main') {
+          include_refs+: ['1.2.x'],
+        },
+      ],
+    },
+  ],
+"""
+
+
+async def _validate_with_example_template(app, monkeypatch, tmp_path, data) -> dict:
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+    )
+
+    async with app.test_request_context("/playground/validate?template=example", method="POST", json=data):
+        return await routes.validate_global_playground()
+
+
+def _errors(result: dict) -> list[str]:
+    return [problem["message"] for problem in result["problems"] if problem["severity"] == "error"]
+
+
+async def test_playground_validates_the_configuration_with_otterdog(app, monkeypatch, tmp_path):
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated(_INVALID_RULESET))
+
+    # the messages are the ones of `otterdog validate`, without the markup of the console
+    assert _errors(result) == [
+        (
+            "repo_ruleset[name=\"main\", repository=my-repo] has an invalid 'include_refs' pattern '1.2.x', "
+            "while only values ('refs/heads/*', '~DEFAULT_BRANCH', '~ALL') are allowed"
+        )
+    ]
+    assert {problem["severity"] for problem in result["problems"]} <= {"error", "warning", "info"}
+
+
+async def test_playground_validation_names_the_ruleset_of_its_nested_settings(app, monkeypatch, tmp_path):
+    ruleset = _INVALID_RULESET.replace(
+        "include_refs+: ['1.2.x'],", "required_pull_request+: { required_approving_review_count: 11 },"
+    )
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated(ruleset))
+
+    assert _errors(result) == [
+        (
+            'repo_ruleset[name="main", repository=my-repo] has '
+            "'required_pull_request.required_approving_review_count' of value '11' "
+            "while only integers in the range [0, 10] are allowed."
+        )
+    ]
+
+
+async def test_playground_validates_a_valid_configuration(app, monkeypatch, tmp_path):
+    valid = _INVALID_RULESET.replace("'1.2.x'", "'refs/heads/1.2.x'")
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated(valid))
+
+    assert _errors(result) == []
+
+
+async def test_playground_validation_skips_the_members_of_the_organization(app, monkeypatch, tmp_path):
+    # the members of the organization are unknown without the state of the organization on GitHub
+    teams = "teams+: [orgs.newTeam('my-team') { members: ['someone'], skip_non_organization_members: true }],"
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated(teams))
+
+    assert _errors(result) == []
+
+
+async def test_playground_validation_reports_the_unknown_properties(app, monkeypatch, tmp_path):
+    # otterdog ignores them, only logging them
+    data = _evaluated("_repositories+:: [orgs.newRepo('my-repo') { test: 'test' }],")
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, data)
+
+    assert result["problems"] == [
+        {
+            "severity": "warning",
+            "message": "repositories[name=\"my-repo\"] has the unknown property 'test', which otterdog ignores",
+        }
+    ]
+
+
+async def test_playground_validation_reports_the_schema_errors(app, monkeypatch, tmp_path):
+    data = _evaluated("_repositories+:: [orgs.newRepo('my-repo') { has_wiki: 'yes' }],")
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, data)
+
+    (error,) = _errors(result)
+    assert error.startswith("invalid value at 'repositories[name=\"my-repo\"].has_wiki'")
+
+
+@pytest.mark.parametrize("name", ["x', 'y') + { teams: [] } //", "my project"])
+async def test_playground_validation_rejects_names_not_passed_to_the_template(app, monkeypatch, tmp_path, name):
+    # the names are passed as jsonnet strings to the default configuration
+    data = _evaluated()
+    data["project_name"] = name
+    default_org_config = mock.Mock()
+    monkeypatch.setattr(JsonnetConfig, "default_org_config_for_org_id", default_org_config)
+
+    result = await _validate_with_example_template(app, monkeypatch, tmp_path, data)
+
+    assert _errors(result) == [f"the name '{name}' can only contain letters, digits, '.', '_' and '-' to be validated"]
+    default_org_config.assert_not_called()
+
+
+@pytest.mark.parametrize("data", [None, [], "orgs.newOrg('my-project')"])
+async def test_playground_validation_expects_an_evaluated_configuration(app, monkeypatch, tmp_path, data):
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/playground/validate", method="POST", json=data):
+        _, status = await routes.validate_global_playground()
+
+    assert status == 400
+
+
+async def test_playground_validation_without_default_base_template(app, monkeypatch, tmp_path):
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
+        _, status = await routes.validate_global_playground()
+
+    assert status == 404
+
+
+async def test_playground_validation_uses_the_default_base_template(app, monkeypatch, tmp_path):
+    validate = mock.AsyncMock(return_value={"problems": []})
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({"base_template": _BASE_TEMPLATE}))
+    )
+    monkeypatch.setattr(routes, "_validate_playground_configuration", validate)
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
+        assert await routes.validate_global_playground() == {"problems": []}
+
+    _, jsonnet_config, data, origin = validate.await_args.args
+    assert origin == "the global playground by an anonymous user"
+    assert data == _evaluated()
+    assert jsonnet_config.base_template_repo_name == "otterdog-defaults"
+    assert jsonnet_config.template_dir.startswith(str(tmp_path))
+
+
+async def test_project_playground_validates_with_the_template_of_the_organization(app, monkeypatch, tmp_path, caplog):
+    installation = pretend.stub(project_name="my-project", github_id="my-org")
+
+    async def organization_config(org_model, token, base_dir, work_dir):
+        assert (org_model, token) == (installation, "")
+        # a template with the validations of an instance, run by otterdog
+        jsonnet_config = await routes._example_jsonnet_config(work_dir)
+        script = Path(jsonnet_config.template_dir) / "validate-org-settings.py"
+        script.write_text('context.property_equals(self, "default_repository_permission", "none")\n')
+        return pretend.stub(jsonnet_config=jsonnet_config)
+
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+    monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=installation))
+    monkeypatch.setattr(routes, "get_organization_config", organization_config)
+
+    data = _evaluated("settings+: { default_repository_permission: 'read' },", github_id="posted-org")
+    with caplog.at_level(logging.INFO, logger=routes.__name__):
+        async with app.test_request_context("/projects/my-project/playground/validate", method="POST", json=data):
+            result = await routes.validate_playground("my-project")
+
+    assert _errors(result) == ["settings has 'default_repository_permission' set to 'read' but 'none' is required."]
+    # the values posted by the user are not logged
+    (record,) = caplog.records
+    assert record.getMessage().startswith(
+        "validated a configuration for the playground of project 'my-project' by an anonymous user in "
+    )
+    assert "posted-org" not in record.getMessage()
+
+
+async def test_project_playground_validation_of_an_unknown_project(app, monkeypatch):
+    monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=None))
+
+    async with app.test_request_context("/projects/<b>unknown/playground/validate", method="POST", json=_evaluated()):
+        result, status = await routes.validate_playground("<b>unknown")
+
+    # the name of the project in the url is not returned
+    assert (result, status) == ({"error": "unknown project"}, 404)
+
+
+@pytest.mark.parametrize(
+    ("path", "project_name", "example", "validation_url"),
+    [
+        ("/playground", None, False, "/playground/validate"),
+        ("/playground?template=example", None, True, "/playground/validate?template=example"),
+        ("/projects/my-project/playground", "my-project", False, "/projects/my-project/playground/validate"),
+    ],
+)
+async def test_playground_validates_with_its_default_configuration(
+    app, monkeypatch, path, project_name, example, validation_url
+):
+    render_home_template = mock.AsyncMock(return_value="playground")
+    monkeypatch.setattr(routes, "render_home_template", render_home_template)
+
+    async with app.test_request_context(path):
+        await routes._render_playground(_TEMPLATE, project_name, example=example)
+
+    assert render_home_template.await_args.kwargs["validation_url"] == validation_url
+
+
+async def test_playground_offers_the_validation(app):
+    html = await _render_page(app, "/playground", project_name=None, validation_url="/playground/validate")
+
+    assert 'id="playground-validate"' in html
+    assert _playground_data(html)["validationUrl"] == "/playground/validate"
+
+
+@pytest.mark.parametrize(
+    ("max_size", "headers"),
+    [
+        # the body read is larger, whether its length is announced or not, e.g. when sent in chunks
+        (100, None),
+        # a larger length announced by the request is rejected before reading its body
+        (1_000_000, {"Content-Length": "1000001"}),
+    ],
+    ids=["read", "announced"],
+)
+async def test_playground_validation_rejects_a_configuration_too_large(app, monkeypatch, max_size, headers):
+    app.config["PLAYGROUND_VALIDATION_MAX_SIZE"] = max_size
+    get_otterdog_config = mock.AsyncMock()
+    monkeypatch.setattr(routes, "get_otterdog_config", get_otterdog_config)
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated(), headers=headers):
+        result, status = await routes.validate_global_playground()
+
+    assert (result, status) == ({"error": f"the configuration must not exceed {max_size} bytes"}, 413)
+    get_otterdog_config.assert_not_awaited()
+
+
+async def test_playground_validation_expects_json(app):
+    headers = {"Content-Type": "text/plain"}
+    async with app.test_request_context(
+        "/playground/validate", method="POST", data=json.dumps(_evaluated()), headers=headers
+    ):
+        _, status = await routes.validate_global_playground()
+
+    assert status == 400
+
+
+async def test_playground_validation_rejects_the_validations_beyond_the_maximum(app, monkeypatch, tmp_path):
+    app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"] = 1
+    get_otterdog_config = mock.AsyncMock()
+    monkeypatch.setattr(routes, "get_otterdog_config", get_otterdog_config)
+    monkeypatch.setattr(routes._validation_slots, "_tasks", {mock.Mock()})
+
+    async with app.test_request_context("/playground/validate", method="POST", json=_evaluated()):
+        result, status, headers = await routes.validate_global_playground()
+
+    assert (status, headers) == (503, {"Retry-After": "5"})
+    assert "too many validations" in result["error"]
+    get_otterdog_config.assert_not_awaited()
+
+
+async def test_playground_validation_releases_its_slot(app, monkeypatch, tmp_path):
+    app.config["PLAYGROUND_MAX_CONCURRENT_VALIDATIONS"] = 1
+
+    # once validated, or failing
+    await _validate_with_example_template(app, monkeypatch, tmp_path, _evaluated())
+    assert routes._validation_slots.running == 0
+
+    monkeypatch.setattr(
+        routes, "_validate_playground_configuration", mock.AsyncMock(side_effect=RuntimeError("failed"))
+    )
+    data = _evaluated()
+    with pytest.raises(RuntimeError, match="failed"):
+        await _validate_with_example_template(app, monkeypatch, tmp_path, data)
+    assert routes._validation_slots.running == 0
+
+
+async def test_a_cancelled_validation_keeps_its_slot_until_it_completes(app):
+    # its work offloaded to threads cannot be stopped when the request is cancelled, e.g. when its client disconnects
+    slots = routes._ValidationSlots()
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def validate():
+        started.set()
+        await release.wait()
+        return {"problems": []}
+
+    async with app.app_context():
+        request = asyncio.create_task(slots.run(validate))
+        await started.wait()
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+        assert slots.running == 1
+        (validation,) = slots._tasks
+        release.set()
+        assert await validation == {"problems": []}
+        # once its completion is notified
+        await asyncio.sleep(0)
+        assert slots.running == 0
+
+
+async def test_a_cancelled_validation_keeps_its_working_directory_until_it_completes(app, monkeypatch, tmp_path):
+    started, release = asyncio.Event(), asyncio.Event()
+    template_dirs = []
+
+    async def validate(otterdog_config, jsonnet_config, data, origin):
+        template_dirs.append(Path(jsonnet_config.template_dir))
+        started.set()
+        await release.wait()
+        return {"problems": []}
+
+    monkeypatch.setattr(routes, "_validate_playground_configuration", validate)
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
+
+    async with app.test_request_context("/playground/validate?template=example", method="POST", json=_evaluated()):
+        request = asyncio.create_task(routes.validate_global_playground())
+        await started.wait()
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+        (template_dir,) = template_dirs
+        assert template_dir.is_dir()
+        (validation,) = routes._validation_slots._tasks
+        release.set()
+        await validation
+
+    assert not template_dir.exists()

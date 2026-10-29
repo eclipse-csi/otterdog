@@ -8,8 +8,14 @@
 
 """Drives a page of the playground: its editors, documents, output and status."""
 
+import asyncio
 import base64
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+
+from otterdog.config import OtterdogConfig
+from otterdog.webapp.home import routes
 
 # Counts the evaluations sent to the worker, captures the copied texts, and finds the CodeMirror view of an element.
 _INIT_SCRIPT = """
@@ -138,6 +144,14 @@ class Playground:
             f"document.querySelector('.playground-status-note[data-key={key}]')?.textContent ?? null"
         )
 
+    def click_note(self, key: str) -> None:
+        """
+        Clicks the link of a note of the status. The status is aligned to the right: a note added meanwhile, e.g. the
+        values already set by the default configuration once compared, moves the other ones, so that a click at the
+        position of the link could miss it, the click is dispatched to the link instead.
+        """
+        self.page.locator(f".playground-status-note[data-key={key}] a").first.dispatch_event("click")
+
     @property
     def copied(self) -> str | None:
         return self.page.evaluate("window.__copied")
@@ -175,3 +189,27 @@ class Playground:
 
     def examples(self):
         return self.page.locator(".playground-example")
+
+
+def validated_by_otterdog(page) -> list[str]:
+    """
+    Validates the configurations posted by the playground with otterdog and the example template, like the server of
+    the global playground does with it, returns the urls posted to.
+    """
+
+    config = OtterdogConfig.from_dict({"defaults": {}, "organizations": []}, False, ".")
+    urls = []
+
+    async def validation(data):
+        with tempfile.TemporaryDirectory() as work_dir:
+            jsonnet_config = await routes._example_jsonnet_config(work_dir)
+            return await routes._validate_playground_configuration(config, jsonnet_config, data, "a test")
+
+    def validate(route):
+        urls.append(route.request.url)
+        # the page is driven by the event loop of playwright
+        with ThreadPoolExecutor(1) as executor:
+            route.fulfill(json=executor.submit(asyncio.run, validation(route.request.post_data_json)).result())
+
+    page.route("**/playground/validate**", validate)
+    return urls

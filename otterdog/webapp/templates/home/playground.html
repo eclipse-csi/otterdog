@@ -116,6 +116,12 @@
                       title="Copy a link opening the playground with its current content">
                 <i class="fas fa-link" aria-hidden="true"></i> <span>Copy link</span>
               </button>
+              {% if validation_url %}
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="playground-validate" disabled
+                      title="Validate the configuration with otterdog on the server">
+                <i class="fas fa-clipboard-check" aria-hidden="true"></i> Validate
+              </button>
+              {% endif %}
               {% if organization %}
               <button type="button" class="btn btn-sm btn-outline-primary" id="playground-propose" disabled
                       title="Propose your changes to the configuration of {{ organization.name }} as a pull request from your GitHub account">
@@ -321,6 +327,7 @@
     'schemas': schemas|default({}),
     'documentationUrl': documentation_url,
     'organization': organization|default(none),
+    'validationUrl': validation_url|default(none),
   } %}
   <script type="application/json" id="playground-data">{{ playground_data|tojson }}</script>
   <!-- rendered after the scripts of the layout, as it depends on bootstrap -->
