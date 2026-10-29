@@ -186,6 +186,8 @@ async def test_playground_loads_a_template_from_a_repository_subdirectory(monkey
     Both playground filenames and GitHub source links must include 'templates/'.
     The helper import is relative to the selected template, so its file lives
     under templates/nested/, not directly under the repository's nested/ directory.
+    Exercise the real cache-to-vendor copy: keeping paths in the loader only helps
+    if initialization has preserved the nested helper. Unrelated root files stay out.
     """
     org_config = OrganizationConfig.of(
         project_name="playground",
@@ -196,15 +198,18 @@ async def test_playground_loads_a_template_from_a_repository_subdirectory(monkey
         base_dir=str(tmp_path),
         work_dir=str(tmp_path),
     )
-    # The local vendor checkout contains the whole repository, including 'templates/'.
-    repository_dir = tmp_path / "playground" / "vendor" / "otterdog-defaults"
-    selected_template_dir = repository_dir / "templates"
+    # Represent the downloaded repository in the template cache. Skip only Git;
+    # the real initialization must copy the selected subtree into vendor/ before
+    # the playground loader collects its libraries.
+    cached_repository = tmp_path / "templates" / "example" / "otterdog-defaults" / "v1.0.0"
+    selected_template_dir = cached_repository / "templates"
     (selected_template_dir / "nested").mkdir(parents=True)
     (selected_template_dir / "otterdog-defaults.libsonnet").write_text(
         "local helper = import 'nested/helper.libsonnet'; {}"
     )
     (selected_template_dir / "nested" / "helper.libsonnet").write_text("{}")
-    monkeypatch.setattr(JsonnetConfig, "init_template", mock.AsyncMock())
+    (cached_repository / "unrelated.libsonnet").write_text("{}")
+    monkeypatch.setattr(JsonnetConfig, "_update_template_repo", mock.Mock())
 
     template = await routes._instance_template(org_config)
 

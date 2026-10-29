@@ -82,9 +82,17 @@ export function fileResolver(templateFiles, editorFilenames) {
     // frames after this location can explain how its file was imported.
     const callerLocations = locations.slice(locations.indexOf(location) + 1);
     for (const callerLocation of callerLocations) {
-      const caller = templateFiles.find((file) => file.filename === callerLocation.file);
+      let caller = templateFiles.find((file) => file.filename === callerLocation.file);
       if (caller === undefined) {
-        continue;
+        // A shortened path such as upstream/defaults.libsonnet can still
+        // identify exactly one library. Resolve it before examining its imports.
+        const matchingCallers = templateFiles.filter((file) => file.filename.endsWith("/" + callerLocation.file));
+        if (matchingCallers.length !== 1) {
+          // Do not skip an unknown or ambiguous caller: an outer caller's import
+          // cannot tell us which helper the intervening file actually used.
+          return undefined;
+        }
+        caller = matchingCallers[0];
       }
       // Repeated frames inside a matching library do not identify its importer.
       if (matchingFilenames.includes(caller.filename)) {

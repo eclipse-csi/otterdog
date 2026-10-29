@@ -41,8 +41,32 @@ test("objects and lists are extended, other values are replaced", () => {
 // These unit tests supply the evaluator's argument count and the source hint
 // explicitly. Browser tests in tests/webapp/playground/test_completion.py check
 // that real Jsonnet templates produce those inputs and that completion works in
-// the editor. Here dispatch captures the edit CodeMirror would apply, and
-// describe returns tooltip data directly instead of rendering browser elements.
+// the editor.
+
+/**
+ * Select the newRepo suggestion in an empty editor and return what the user sees.
+ * The fixed alias, constructor and documentation are shared test scaffolding;
+ * each test supplies its own parameter hint and evaluated argument count.
+ * dispatch captures the edit CodeMirror would apply, while describe returns
+ * tooltip data directly instead of rendering browser elements.
+ */
+function selectRepositoryCompletion({parameterLabel, requiredArguments}) {
+  const completion = functionCompletion({
+    alias: "orgs",
+    name: "newRepo",
+    parameterLabel,
+    requiredArguments,
+    reference: REFERENCE,
+    describe: (info) => info,
+  });
+  let transaction;
+  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
+  return {
+    hint: completion.detail,
+    tooltip: completion.info().title,
+    insertedText: transaction.changes.insert,
+  };
+}
 
 test("a custom constructor without parameters is completed without an argument", () => {
   /**
@@ -52,21 +76,13 @@ test("a custom constructor without parameters is completed without an argument",
    * from the library. The evaluator sees the custom method and reports zero
    * required arguments. Selecting the suggestion must therefore insert newRepo().
    */
-  const completion = functionCompletion({
-    alias: "orgs",
-    name: "newRepo",
-    parameterLabel: "name",
-    requiredArguments: 0,
-    reference: REFERENCE,
-    describe: (info) => info,
+  const result = selectRepositoryCompletion({parameterLabel: "name", requiredArguments: 0});
+
+  assert.deepEqual(result, {
+    hint: "()",
+    tooltip: "orgs.newRepo()",
+    insertedText: "newRepo()",
   });
-  let transaction;
-
-  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
-
-  assert.equal(completion.detail, "()");
-  assert.equal(completion.info().title, "orgs.newRepo()");
-  assert.equal(transaction.changes.insert, "newRepo()");
 });
 
 test("a constructor with an unknown parameter name still offers an argument to fill in", () => {
@@ -76,21 +92,13 @@ test("a constructor with an unknown parameter name still offers an argument to f
    * The evaluator still reports one required argument. The suggestion shows (…)
    * and inserts newRepo(''), letting the user type the repository name.
    */
-  const completion = functionCompletion({
-    alias: "orgs",
-    name: "newRepo",
-    parameterLabel: undefined,
-    requiredArguments: 1,
-    reference: REFERENCE,
-    describe: (info) => info,
+  const result = selectRepositoryCompletion({parameterLabel: undefined, requiredArguments: 1});
+
+  assert.deepEqual(result, {
+    hint: "(…)",
+    tooltip: "orgs.newRepo(…)",
+    insertedText: "newRepo('')",
   });
-  let transaction;
-
-  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
-
-  assert.equal(completion.detail, "(…)");
-  assert.equal(completion.info().title, "orgs.newRepo(…)");
-  assert.equal(transaction.changes.insert, "newRepo('')");
 });
 
 test("an override requiring an argument is completed with a value even when the template hint is empty", () => {
@@ -100,21 +108,13 @@ test("an override requiring an argument is completed with a value even when the 
    * with newRepo(name). The evaluator now reports one required argument.
    * Selecting the suggestion must insert newRepo('') for the user to fill in.
    */
-  const completion = functionCompletion({
-    alias: "orgs",
-    name: "newRepo",
-    parameterLabel: "",
-    requiredArguments: 1,
-    reference: REFERENCE,
-    describe: (info) => info,
+  const result = selectRepositoryCompletion({parameterLabel: "", requiredArguments: 1});
+
+  assert.deepEqual(result, {
+    hint: "(…)",
+    tooltip: "orgs.newRepo(…)",
+    insertedText: "newRepo('')",
   });
-  let transaction;
-
-  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
-
-  assert.equal(completion.detail, "(…)");
-  assert.equal(completion.info().title, "orgs.newRepo(…)");
-  assert.equal(transaction.changes.insert, "newRepo('')");
 });
 
 test("a constructor with a known name parameter shows the hint and offers a value to fill in", () => {
@@ -123,21 +123,13 @@ test("a constructor with a known name parameter shows the hint and offers a valu
    * need for an argument are known. The suggestion shows (name), the tooltip
    * shows orgs.newRepo(name), and selecting it inserts newRepo('') to fill in.
    */
-  const completion = functionCompletion({
-    alias: "orgs",
-    name: "newRepo",
-    parameterLabel: "name",
-    requiredArguments: 1,
-    reference: REFERENCE,
-    describe: (info) => info,
+  const result = selectRepositoryCompletion({parameterLabel: "name", requiredArguments: 1});
+
+  assert.deepEqual(result, {
+    hint: "(name)",
+    tooltip: "orgs.newRepo(name)",
+    insertedText: "newRepo('')",
   });
-  let transaction;
-
-  completion.apply({dispatch: (value) => { transaction = value; }}, completion, 0, 0);
-
-  assert.equal(completion.detail, "(name)");
-  assert.equal(completion.info().title, "orgs.newRepo(name)");
-  assert.equal(transaction.changes.insert, "newRepo('')");
 });
 
 test("completion uses the custom template's parameter hints and keeps hints for inherited constructors", () => {
