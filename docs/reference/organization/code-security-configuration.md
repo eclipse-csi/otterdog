@@ -96,6 +96,19 @@ orgs.newOrgCodeSecurityConfiguration('<name>') {
 }
 ```
 
+## Default values
+
+The default configuration of otterdog creates a code security configuration with the following values. Its features
+are disabled, except the dependency graph: attaching a configuration disables the features it does not enable on the
+repository, set a feature to `not_set` to leave it to the repositories.
+
+``` jsonnet
+--8<-- "otterdog/resources/defaults/otterdog-defaults.libsonnet:code_security_configuration"
+```
+
+The default configuration of an instance of otterdog, set by `base_template`, might define other values, see
+`otterdog show-default` or the Defaults page of a project in the dashboard.
+
 ## Validation rules
 
 - specifying a value that is not allowed for a property triggers an error

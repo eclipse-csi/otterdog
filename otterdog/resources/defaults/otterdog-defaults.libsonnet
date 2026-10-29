@@ -227,6 +227,7 @@ local newOrgRuleset(name) = newRepoRuleset(name) {
   protect_repo_names: false,
 };
 
+# --8<-- [start:code_security_configuration]
 # Function to create a new organization code security configuration with default settings.
 # Settings set to null are not managed, e.g. as they are not available to every organization.
 local newOrgCodeSecurityConfiguration(name) = {
@@ -272,6 +273,7 @@ local newOrgCodeSecurityConfiguration(name) = {
   # 'none', 'all', 'public' or 'private_and_internal'
   default_for_new_repos: "none",
 };
+# --8<-- [end:code_security_configuration]
 
 # Function to create a new organization webhook with default settings.
 local newOrgWebhook(url) = {
