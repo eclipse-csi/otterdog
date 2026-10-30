@@ -163,9 +163,9 @@ async def _render_custom_template_pages(app: Quart, directory: Path) -> None:
     call and evaluate the result. The organization name comes from the custom
     helper, letting the snippet tests check which template they are using.
 
-    The fifth page makes the custom helper raise an error. Error navigation
-    must then select that helper's editor, even though the upstream library
-    contains a file with the same name.
+    The fifth page makes the custom helper raise an error. The evaluator reports
+    only its filename, which also belongs to the upstream helper. Error navigation
+    must leave both helpers unmarked and link only the uniquely identified caller.
     """
     org_config = OrganizationConfig.of(
         project_name="custom",
