@@ -129,29 +129,106 @@ async def test_global_playground_without_default_base_template(app, monkeypatch)
     render_playground.assert_not_awaited()
 
 
-async def test_instance_template_provides_the_files_of_the_default_configuration(monkeypatch, tmp_path):
+async def test_playground_loads_a_root_template_and_its_nested_helper(monkeypatch, tmp_path):
+    """A template in the repository root imports a helper from a subdirectory.
+
+    The template repository has this layout at v1.0.0:
+        otterdog-defaults.libsonnet     imports 'nested/helper.libsonnet'
+        nested/helper.libsonnet
+
+    The playground needs both files with their repository paths intact so that
+    the import works. Each file's source link must point to that path on GitHub.
+    """
+    org_config = OrganizationConfig.of(
+        project_name="playground",
+        github_id="playground",
+        config_repo=".otterdog",
+        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1.0.0",
+        credential_data={},
+        base_dir=str(tmp_path),
+        work_dir=str(tmp_path),
+    )
+    # Represent the downloaded repository with local files; skip cloning it from GitHub.
+    repository_dir = tmp_path / "playground" / "vendor" / "otterdog-defaults"
+    (repository_dir / "nested").mkdir(parents=True)
+    (repository_dir / "otterdog-defaults.libsonnet").write_text("local helper = import 'nested/helper.libsonnet'; {}")
+    (repository_dir / "nested" / "helper.libsonnet").write_text("{}")
     monkeypatch.setattr(JsonnetConfig, "init_template", mock.AsyncMock())
 
-    org_config = OrganizationConfig.of(
-        "playground", "playground", ".otterdog", _BASE_TEMPLATE, {}, str(tmp_path), str(tmp_path)
-    )
-    template_dir = tmp_path / "playground" / "vendor" / "otterdog-defaults"
-    template_dir.mkdir(parents=True)
-    (template_dir / "otterdog-defaults.libsonnet").write_text("{}")
+    template = await routes._instance_template(org_config)
 
-    assert await routes._instance_template(org_config) == {
-        "files": [
-            {
-                "filename": "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
-                "content": "{}",
-                "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
-            }
-        ],
-        "default_config": "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
-        "link": {
-            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
-            "label": "example/otterdog-defaults/otterdog-defaults.libsonnet@v1.0.0",
+    assert template["default_config"] == "vendor/otterdog-defaults/otterdog-defaults.libsonnet"
+    assert template["files"] == [
+        {
+            "filename": "vendor/otterdog-defaults/nested/helper.libsonnet",
+            "content": "{}",
+            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/nested/helper.libsonnet",
         },
+        {
+            "filename": "vendor/otterdog-defaults/otterdog-defaults.libsonnet",
+            "content": "local helper = import 'nested/helper.libsonnet'; {}",
+            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
+        },
+    ]
+    assert template["link"] == {
+        "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/otterdog-defaults.libsonnet",
+        "label": "example/otterdog-defaults/otterdog-defaults.libsonnet@v1.0.0",
+    }
+
+
+async def test_playground_loads_a_template_from_a_repository_subdirectory(monkeypatch, tmp_path):
+    """An organization selects templates/otterdog-defaults.libsonnet in a repository.
+
+    The template repository has this layout at v1.0.0:
+        templates/otterdog-defaults.libsonnet     imports 'nested/helper.libsonnet'
+        templates/nested/helper.libsonnet
+
+    Both playground filenames and GitHub source links must include 'templates/'.
+    The helper import is relative to the selected template, so its file lives
+    under templates/nested/, not directly under the repository's nested/ directory.
+    Exercise the real cache-to-vendor copy: keeping paths in the loader only helps
+    if initialization has preserved the nested helper. Unrelated root files stay out.
+    """
+    org_config = OrganizationConfig.of(
+        project_name="playground",
+        github_id="playground",
+        config_repo=".otterdog",
+        base_template="https://github.com/example/otterdog-defaults#templates/otterdog-defaults.libsonnet@v1.0.0",
+        credential_data={},
+        base_dir=str(tmp_path),
+        work_dir=str(tmp_path),
+    )
+    # Represent the downloaded repository in the template cache. Skip only Git;
+    # the real initialization must copy the selected subtree into vendor/ before
+    # the playground loader collects its libraries.
+    cached_repository = tmp_path / "templates" / "example" / "otterdog-defaults" / "v1.0.0"
+    selected_template_dir = cached_repository / "templates"
+    (selected_template_dir / "nested").mkdir(parents=True)
+    (selected_template_dir / "otterdog-defaults.libsonnet").write_text(
+        "local helper = import 'nested/helper.libsonnet'; {}"
+    )
+    (selected_template_dir / "nested" / "helper.libsonnet").write_text("{}")
+    (cached_repository / "unrelated.libsonnet").write_text("{}")
+    monkeypatch.setattr(JsonnetConfig, "_update_template_repo", mock.Mock())
+
+    template = await routes._instance_template(org_config)
+
+    assert template["default_config"] == "vendor/otterdog-defaults/templates/otterdog-defaults.libsonnet"
+    assert template["files"] == [
+        {
+            "filename": "vendor/otterdog-defaults/templates/nested/helper.libsonnet",
+            "content": "{}",
+            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/templates/nested/helper.libsonnet",
+        },
+        {
+            "filename": "vendor/otterdog-defaults/templates/otterdog-defaults.libsonnet",
+            "content": "local helper = import 'nested/helper.libsonnet'; {}",
+            "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/templates/otterdog-defaults.libsonnet",
+        },
+    ]
+    assert template["link"] == {
+        "url": "https://github.com/example/otterdog-defaults/blob/v1.0.0/templates/otterdog-defaults.libsonnet",
+        "label": "example/otterdog-defaults/templates/otterdog-defaults.libsonnet@v1.0.0",
     }
 
 

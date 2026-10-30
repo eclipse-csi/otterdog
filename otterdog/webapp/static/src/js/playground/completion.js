@@ -5,21 +5,31 @@ import {completionContext, topLevelLocals} from "./jsonnet.js";
 import {tooltipContent} from "./tooltip.js";
 import {formatValue, isObject} from "./values.js";
 
-// The completion of the playground: the functions of the default configuration after its alias, e.g. `orgs.newRepo`,
-// and the properties of the objects they create. Both are generated from the default configuration of otterdog (its
-// base_template, e.g. otterdog-defaults): its functions, and the objects that they return with their default values.
-// The properties are described by the reference of the documentation, see playground-reference.json, in the list of
-// completions and when hovering their name.
+// The playground edits Jsonnet code using a template chosen by the organization.
+// A snippet imports that template under an alias, e.g. `local orgs = import ...`.
+// Typing `orgs.newR` offers its constructor functions; editing the object returned
+// by `orgs.newRepo(...)` offers properties and their default values.
+// Evaluate the imported template to discover those functions and defaults, so
+// custom templates and functions defined in the snippet are reflected in the UI.
+// playground-reference.json supplies the documentation shown beside suggestions
+// and when hovering a name.
 
 // delay before describing a hovered name
 const HOVER_DELAY = 400;
 // evaluations kept for the completion, the local definitions of the code changing while it is edited
 const MAX_EVALUATIONS = 50;
 
-// the parameters of the functions of the default configuration, e.g. 'name' for `local newRepo(name) = {`
-export function functionParameters(templateFiles) {
+// Parameter names are only display hints, e.g. "(name)" next to newRepo.
+// Jsonnet can report how many arguments a function requires, but not their names.
+// Recognize the common `local newRepo(name) = ...` form without parsing Jsonnet.
+// Other forms can still be completed; they simply have no parameter-name hint.
+// Process the selected template last so its definitions override library hints.
+export function functionParameters(templateFiles, defaultConfig) {
+  const selected = templateFiles.find((file) => defaultConfig !== undefined && file.filename === defaultConfig);
+  const libraries = templateFiles.filter((file) => file !== selected);
+  const ordered = selected === undefined ? libraries : [...libraries, selected];
   const parameters = new Map();
-  for (const file of templateFiles) {
+  for (const file of ordered) {
     for (const match of file.content.matchAll(/^[ \t]*local[ \t]+(\w+)[ \t]*\(([^)]*)\)[ \t]*=/gm)) {
       parameters.set(match[1], match[2].trim());
     }
@@ -50,9 +60,9 @@ export function propertyInsertion(name, values) {
 }
 
 // Returns the extensions of the editor completing the names and describing them, see the description of the module.
-export function completionExtensions({evaluate, reference, documentationUrl, templateFiles}) {
+export function completionExtensions({evaluate, reference, documentationUrl, templateFiles, defaultConfig}) {
   const describe = (info) => tooltipContent(info, documentationUrl);
-  const candidates = createCandidates({evaluate, reference, describe, parameters: functionParameters(templateFiles)});
+  const candidates = createCandidates({evaluate, reference, describe, parameters: functionParameters(templateFiles, defaultConfig)});
 
   // the completions of the name at the cursor, proposed while typing it or after a dot, and with Ctrl+Space
   async function complete(context) {
@@ -102,8 +112,13 @@ function createCandidates({evaluate, reference, describe, parameters}) {
   return async (code, context) => {
     if (context.kind === "function") {
       const alias = context.alias;
-      const names = await evaluateOnce(code, context, `[name for name in std.objectFieldsAll(${alias}) if std.isFunction(${alias}[name])]`);
-      return names.map((name) => functionCompletion(alias, name, parameters.get(name) ?? "", reference, describe));
+      // std.length reads the required parameter count from the actual function,
+      // so overrides and functions with default arguments need no source parsing.
+      const functions = await evaluateOnce(code, context, `[{name: name, required: std.length(${alias}[name])}
+for name in std.objectFieldsAll(${alias}) if std.isFunction(${alias}[name])]`);
+      return functions.map(({name, required}) => functionCompletion({
+        alias, name, parameterLabel: parameters.get(name), requiredArguments: required, reference, describe,
+      }));
     }
 
     const path = JSON.stringify(context.scope.path);
@@ -114,15 +129,20 @@ function createCandidates({evaluate, reference, describe, parameters}) {
   };
 }
 
-function functionCompletion(alias, name, params, reference, describe) {
+// Build the menu entry, inserted call and tooltip from the same argument count.
+// The evaluated function decides whether a value is needed; source labels may
+// describe an upstream definition that the custom template has overridden.
+export function functionCompletion({alias, name, parameterLabel, requiredArguments, reference, describe}) {
+  const needsArgument = requiredArguments > 0;
+  const signature = needsArgument ? parameterLabel || "…" : "";
   return {
     label: name,
-    detail: "(" + params + ")",
+    detail: "(" + signature + ")",
     type: "function",
     // the cursor is placed in the first argument, e.g. the name of a repository
-    apply: insert(params === "" ? name + "()" : name + "('')", params === "" ? 0 : -2),
+    apply: insert(needsArgument ? name + "('')" : name + "()", needsArgument ? -2 : 0),
     info: () => describe({
-      title: alias + "." + name + "(" + params + ")",
+      title: alias + "." + name + "(" + signature + ")",
       description: "Returns a new object with the values of the default configuration, to extend with the properties that differ.",
       source: reference.objects[reference.functions[name]] ?? null,
     }),

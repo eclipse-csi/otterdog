@@ -7,10 +7,15 @@
 #  *******************************************************************************
 
 """
-Fixtures of the end-to-end tests of the playground, run in Firefox with Playwright: the pages of the playground are
-rendered through the routes, the example template of otterdog being the template of the instance, and served with the
-built assets of the webapp. The tests are skipped if the assets are not built (`npm run build` in
-otterdog/webapp/static) or if Firefox is not installed for Playwright (`python -m playwright install firefox`).
+Browser-test setup: render playground pages once, then serve them as static HTML.
+
+Python uses the real route/template rendering to embed the library contents in each
+page. A local HTTP server serves those snapshots and the built webapp assets.
+Firefox runs the real editor and Jsonnet WASM evaluator; evaluation is not mocked.
+The custom-template pages replace only the GitHub checkout with local fixture files.
+
+Tests are skipped if assets are missing (`npm run build` in otterdog/webapp/static)
+or Firefox is unavailable (`python -m playwright install firefox`).
 """
 
 import asyncio
@@ -23,9 +28,9 @@ from typing import ClassVar
 from unittest import mock
 
 import pytest
-from quart import render_template, request
+from quart import Quart, render_template, request
 
-from otterdog.config import OtterdogConfig
+from otterdog.config import OrganizationConfig, OtterdogConfig
 from otterdog.webapp import create_app
 from otterdog.webapp.config import TestingConfig
 from otterdog.webapp.home import routes
@@ -138,8 +143,102 @@ async def _render_pages(directory: Path) -> None:
         async with app.test_request_context("/admin/template-impact"):
             (directory / "template-impact.html").write_text(await routes.template_impact())
 
+    await _render_custom_template_pages(app, directory)
+
     (directory / "admin" / "template-impact").mkdir(parents=True)
     (directory / "admin" / "template-impact" / "configurations").write_text(json.dumps({"projects": PROJECTS}))
+
+
+async def _render_custom_template_pages(app: Quart, directory: Path) -> None:
+    """Render the custom-template pages used by completion and error-link tests.
+
+    The fake template repository contains:
+        nested/otterdog-defaults.libsonnet            selected custom template
+        nested/otterdog-functions.libsonnet           custom helper
+        nested/upstream/otterdog-defaults.libsonnet   library with newRepo(name)
+        nested/upstream/otterdog-functions.libsonnet  different helper, same basename
+
+    Four pages define newRepo in different ways, each allowing newRepo() to
+    return a repository named 'custom-repo'. The completion tests select this
+    call and evaluate the result. The organization name comes from the custom
+    helper, letting the snippet tests check which template they are using.
+
+    The fifth page makes the custom helper raise an error. The evaluator reports
+    only its filename, which also belongs to the upstream helper. Error navigation
+    must leave both helpers unmarked and link only the uniquely identified caller.
+    """
+    org_config = OrganizationConfig.of(
+        project_name="custom",
+        github_id="custom",
+        config_repo=".otterdog",
+        base_template="https://github.com/example/custom#nested/otterdog-defaults.libsonnet@main",
+        credential_data={},
+        base_dir=str(directory),
+        work_dir=str(directory),
+    )
+    jsonnet_config = org_config.jsonnet_config
+    repository_dir = Path(jsonnet_config.template_dir)
+    selected_template = repository_dir / "nested" / "otterdog-defaults.libsonnet"
+    custom_helper = repository_dir / "nested" / "otterdog-functions.libsonnet"
+    upstream_dir = repository_dir / "nested" / "upstream"
+    upstream_dir.mkdir(parents=True)
+    # Keep the library deliberately small: newRepo exposes the selected name in
+    # the output, and newOrg supplies the organization shape expected by the UI.
+    (upstream_dir / "otterdog-defaults.libsonnet").write_text(
+        """local newRepo(name) = { name: name };
+local newOrg(name, id) = {
+  project_name: name,
+  github_id: id,
+  settings: { name: id },
+  repositories: [],
+};
+{ newRepo: newRepo, newOrg: newOrg }
+"""
+    )
+    (upstream_dir / "otterdog-functions.libsonnet").write_text("{ name: 'Upstream helper' }")
+    organization = {
+        "name": "custom",
+        "jsonnet": f"local orgs = {jsonnet_config.import_statement}; orgs.newOrg('custom', 'custom')",
+        "url": "https://github.com/custom/.otterdog/blob/HEAD/otterdog/custom.jsonnet",
+    }
+
+    # Each expression is a complete Jsonnet object exporting a newRepo function.
+    # The library's newRepo(name) needs a name; these custom functions supply one.
+    repository_constructors = {
+        "custom-local.html": "local newRepo() = upstream.newRepo('custom-repo'); { newRepo: newRepo }",
+        "custom-method.html": "{ newRepo(): upstream.newRepo('custom-repo') }",
+        "custom-function.html": "{ newRepo: function() upstream.newRepo('custom-repo') }",
+        "custom-optional.html": "{ newRepo(name='custom-repo'): upstream.newRepo(name) }",
+        "custom-helper-error.html": "{ newRepo(): upstream.newRepo('custom-repo') }",
+    }
+    # Every rendered page embeds its own copy of the files. Reusing this checkout
+    # for the next variant cannot change the pages already written to disk.
+    for page_name, constructor in repository_constructors.items():
+        selected_template.write_text(
+            f"""local upstream = import 'upstream/otterdog-defaults.libsonnet';
+local helper = import 'otterdog-functions.libsonnet';
+local constructors =
+{constructor};
+constructors + {{
+  newOrg(project, id): upstream.newOrg(project, id) {{
+    settings+: {{ name: helper.name }},
+  }},
+}}
+"""
+        )
+        if page_name == "custom-helper-error.html":
+            custom_helper.write_text("error 'custom helper failed'")
+        else:
+            custom_helper.write_text("{ name: 'Custom helper' }")
+
+        # Use the local checkout above instead of downloading the fake GitHub repo.
+        # The real loader still builds the file map consumed by the WASM evaluator.
+        with mock.patch.object(jsonnet_config, "_init_base_template", mock.AsyncMock()):
+            template = await routes._instance_template(org_config)
+        with mock.patch.object(routes, "render_home_template", _render_home_template):
+            async with app.test_request_context("/projects/custom/playground"):
+                html = await routes._render_playground(template, "custom", organization)
+        (directory / page_name).write_text(html)
 
 
 @pytest.fixture(scope="session")

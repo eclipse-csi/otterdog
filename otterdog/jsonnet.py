@@ -9,6 +9,7 @@
 import os
 from asyncio import Lock, Task, create_task, shield, to_thread
 from functools import cached_property
+from pathlib import Path
 from shutil import ignore_patterns
 from typing import Any
 
@@ -399,13 +400,13 @@ class JsonnetConfig:
         )
 
     async def jsonnet_template_files(self):
-        import os
+        """Yield library paths from the whole template checkout, including subdirectories.
 
-        import aiofiles
-
-        for file in await aiofiles.os.listdir(self.template_dir):
-            if file.endswith(".libsonnet"):
-                yield os.path.join(self.template_dir, file)
+        The selected template may import sibling or nested libraries. Return paths
+        under the repository root so callers can preserve those import relationships.
+        """
+        for file in sorted(Path(self.template_dir).rglob("*.libsonnet")):
+            yield str(file)
 
     @property
     def base_dir(self) -> str:
@@ -454,21 +455,21 @@ class JsonnetConfig:
         # copy over the cloned template repository
         base_template_directory = os.path.dirname(self.base_template_file_name)
         if len(base_template_directory) > 0:
-            # if the base template is in a subdir, only copy this subdir
-            pattern = f"{base_template_directory}/**"
+            selected_directory = Path(template_dir) / base_template_directory
 
-            def _include_pattern(path, names):
-                from pathlib import PurePath
-
+            def _ignore_outside_template_directory(path, names):
+                # Keep the selected directory's entire subtree, including deeply
+                # nested helpers. Keep its ancestors too, so copytree can reach it.
                 ignored_names = []
                 for name in names:
-                    p = PurePath(os.path.join(path, name))
-                    relative_path = p.relative_to(template_dir)
-                    if not base_template_directory.startswith(str(relative_path)) and not p.match(pattern):
+                    candidate = Path(path) / name
+                    if not candidate.is_relative_to(selected_directory) and not selected_directory.is_relative_to(
+                        candidate
+                    ):
                         ignored_names.append(name)
-                return set(ignored_names)
+                return ignored_names
 
-            ignore = _include_pattern
+            ignore = _ignore_outside_template_directory
         else:
             ignore = ignore_patterns(".git")
         await copytree(template_dir, self.template_dir, ignore=ignore)
