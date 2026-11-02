@@ -275,7 +275,13 @@ class GraphQLClient:
         _logger.debug(f"retrieving team membership for user '{user_login}' in org '{org_id}'")
 
         variables = {"owner": org_id, "user": user_login}
-        return await self._run_paged_query(variables, "get-team-membership.gql", "data.organization.teams")
+        teams = await self._run_paged_query(variables, "get-team-membership.gql", "data.organization.teams")
+
+        # a team that GitHub failed to resolve is returned as a null node in a partial response
+        if None in teams:
+            _logger.warning(f"ignoring unresolved teams in team membership of user '{user_login}' in org '{org_id}'")
+
+        return [team for team in teams if team is not None]
 
     async def get_team_permissions(self, org_id: str) -> list[dict[str, Any]]:
         _logger.debug(f"retrieving team permissions in org '{org_id}'")
