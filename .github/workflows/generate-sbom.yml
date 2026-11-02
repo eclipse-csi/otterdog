@@ -40,7 +40,7 @@ jobs:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
       - name: Install cyclonedx-py
-        run: pipx install cyclonedx-bom==5.1.1
+        run: pipx install cyclonedx-bom==7.6.0
       - name: "Get project version and export requirements"
         id: export
         shell: bash
@@ -50,7 +50,7 @@ jobs:
           VERSION=$(poetry version -s | sed 's/.dev[0-9]*/.dev/')
           echo "PROJECT_VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Generate sbom
-        run: cyclonedx-py requirements -o otterdog-bom.json
+        run: cyclonedx-py requirements --spec-version 1.6 -o otterdog-bom.json
       - name: Upload sbom
         uses: eclipse-csi/workflows/upload-sbom@20e3c63807b2bd61b7f1a9f438e5ce588c054efc # main
         with:
