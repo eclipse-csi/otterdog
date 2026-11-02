@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from quart import render_template
 
 from otterdog.webapp.db.models import TaskModel
-from otterdog.webapp.db.service import find_pull_request
+from otterdog.webapp.db.service import find_pull_request, update_or_create_pull_request
 from otterdog.webapp.tasks import (
     InstallationBasedTask,
     Task,
@@ -47,21 +47,33 @@ class MergePullRequestTask(InstallationBasedTask, Task[None]):
             raise RuntimeError(
                 f"failed to fetch pull request #{self.pull_request_number} in repo '{self.org_id}/{self.repo_name}'"
             )
-        else:
-            self._pr_model = pr_model
 
         rest_api = await self.rest_api
+
+        response = await rest_api.pull_request.get_pull_request(
+            self.org_id, self.repo_name, str(self.pull_request_number)
+        )
+        pull_request = PullRequest.model_validate(response)
+
+        if pr_model.author_can_auto_merge is not True and pr_model.has_required_approvals is not True:
+            # approvals are only recorded when a review event is processed, check them again so that
+            # a missed event or a failed update does not keep the pull request from being merged
+            pr_model = await update_or_create_pull_request(
+                self.org_id,
+                self.repo_name,
+                pull_request,
+                has_required_approvals=await self.has_required_approvals(
+                    self.org_id, self.repo_name, self.pull_request_number
+                ),
+            )
+
+        self._pr_model = pr_model
 
         if await pr_model.automerge_problems():
             matching_teams = None
             if pr_model.author_can_auto_merge is not True and pr_model.has_required_approvals is not True:
                 matching_teams = await get_teams_matching_approval_pattern(rest_api, self.org_id)
             return await pr_model.automerge_problems(matching_teams=matching_teams)
-
-        response = await rest_api.pull_request.get_pull_request(
-            self.org_id, self.repo_name, str(self.pull_request_number)
-        )
-        pull_request = PullRequest.model_validate(response)
 
         if self.author != pull_request.user.login:
             # if somebody else as the creator of the pull requests added the comment,

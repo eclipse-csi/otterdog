@@ -74,11 +74,13 @@ jobs:
           source $VENV
           python -m playwright install firefox
 
-      # Run tests
+      # Run tests in parallel, the coverage is measured once by the job running the end-to-end tests
       - name: Run tests
+        env:
+          COVERAGE_OPTIONS: ${{ matrix.python-version == '3.14' && '--cov=otterdog --cov-report=term' || '' }}
         run: |
           source $VENV
-          pytest -ra tests --cov=otterdog --cov-report=term --cov-report=html
+          pytest -ra -n auto --dist worksteal tests $COVERAGE_OPTIONS
 
   # Run code analysis checks
   analyze:
