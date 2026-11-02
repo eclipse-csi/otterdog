@@ -39,6 +39,8 @@ jobs:
         with:
           virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
+      - name: Install lxml build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxslt1-dev
       - name: Install cyclonedx-py
         run: pipx install cyclonedx-bom==5.1.1
       - name: "Get project version and export requirements"
