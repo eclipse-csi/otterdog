@@ -10,11 +10,7 @@ from dataclasses import dataclass
 
 from otterdog.webapp.db.models import TaskModel
 from otterdog.webapp.db.service import update_or_create_pull_request
-from otterdog.webapp.tasks import (
-    InstallationBasedTask,
-    Task,
-    contains_valid_team_for_approval,
-)
+from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.webhook.github_models import PullRequest, Review
 
 
@@ -47,27 +43,9 @@ class UpdatePullRequestTask(InstallationBasedTask, Task[None]):
         )
 
         if self.review is not None:
-            rest_api = await self.rest_api
-
-            # check if the PR was approved by a team eligible for auto-merge
-            reviews = await rest_api.pull_request.get_reviews(
-                self.org_id, self.repo_name, str(self.pull_request_number)
+            has_required_approvals = await self.has_required_approvals(
+                self.org_id, self.repo_name, self.pull_request_number
             )
-
-            approved_by_users = [x["user"]["login"] for x in filter(lambda x: x["state"] == "APPROVED", reviews)]
-
-            self.logger.debug(f"approved by users: {approved_by_users}")
-
-            graphql_api = await self.graphql_api
-            approved_by_teams: set[str] = set()
-            for user_login in approved_by_users:
-                teams = await graphql_api.get_team_membership(self.org_id, user_login)
-                for team in teams:
-                    approved_by_teams.add(team["name"])
-
-            self.logger.debug(f"approved by teams: {approved_by_teams}")
-
-            has_required_approvals = await contains_valid_team_for_approval(approved_by_teams, self.org_id)
 
             pull_request_model = await update_or_create_pull_request(
                 self.org_id,

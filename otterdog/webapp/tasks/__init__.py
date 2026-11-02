@@ -242,6 +242,29 @@ class InstallationBasedTask(Protocol):
 
         return False
 
+    async def has_required_approvals(self, org_id: str, repo_name: str, pull_request_number: int) -> bool:
+        """Checks whether the pull request was approved by a team eligible for auto-merge."""
+        logger = getLogger(__name__)
+
+        rest_api = await self.rest_api
+        reviews = await rest_api.pull_request.get_reviews(org_id, repo_name, str(pull_request_number))
+
+        # the author of a review is null when the account has been deleted in the meantime
+        approved_by_users = [x["user"]["login"] for x in reviews if x["state"] == "APPROVED" and x["user"] is not None]
+
+        logger.debug(f"approved by users: {approved_by_users}")
+
+        graphql_api = await self.graphql_api
+        approved_by_teams: set[str] = set()
+        for user_login in approved_by_users:
+            teams = await graphql_api.get_team_membership(org_id, user_login)
+            for team in teams:
+                approved_by_teams.add(team["name"])
+
+        logger.debug(f"approved by teams: {approved_by_teams}")
+
+        return await contains_valid_team_for_approval(approved_by_teams, org_id)
+
     def schedule_automerge_task(self, org_id: str, repo_name: str, pull_request_number: int) -> None:
         from .auto_merge_comment import AutoMergeCommentTask
 
