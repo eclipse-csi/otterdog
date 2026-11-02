@@ -15,10 +15,28 @@ const POSITION = /(\d+):(\d+)(?:-(\d+))?|\((\d+):(\d+)\)-\((\d+):(\d+)\)/y;
 // the characters that end the name of a file in an error message
 const FILE_NAME_END = /[\s:()<>]/;
 // a file of a default configuration imported by the configuration of an organization, e.g.
-// 'vendor/otterdog-defaults/otterdog-defaults.libsonnet', with the name of the file
-const VENDOR_FILE = /^vendor\/[^/]+\/([^/]+)$/;
+// 'vendor/custom/nested/otterdog-defaults.libsonnet'. Capture the basename even
+// when the source repository stores its libraries in subdirectories.
+const VENDOR_FILE = /^vendor\/[^/]+\/(?:[^/]+\/)*([^/]+)$/;
 
 export const baseName = (path) => path.split("/").pop();
+
+// Compare browser filenames after resolving '.' and '..' directory segments.
+// Leading '..' segments stay intact: they cannot name a file inside the playground.
+export function normalizePath(path) {
+  const parts = [];
+  for (const part of path.split("/")) {
+    if (part === "." || part === "") {
+      continue;
+    }
+    if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") {
+      parts.pop();
+    } else {
+      parts.push(part);
+    }
+  }
+  return parts.join("/");
+}
 
 export function encodeSnippet(code) {
   const bytes = new TextEncoder().encode(code);
@@ -53,13 +71,29 @@ function decodeSnippet(encoded) {
   return new TextDecoder("utf-8", {fatal: true}).decode(bytes);
 }
 
-// Prepares a snippet to be evaluated with the files of the playground: maps imports of a default configuration
-// to these files, and imports the default configuration if the snippet does not.
+// Shared snippet URLs may refer to another project's vendor directory. Keep
+// imports that exist here; adapt missing vendor imports to the available files.
+// templateFiles contains browser filenames; defaultConfig is the selected
+// template's filename. Add its import when the snippet contains no import.
 export function normalizeSnippet(code, templateFiles, defaultConfig) {
   code = rewriteImports(code, ({path}) => {
+    // An available import keeps its original spelling, including './' and '../'.
+    if (templateFiles.includes(normalizePath(path))) {
+      return path;
+    }
     const name = VENDOR_FILE.exec(path)?.[1];
-    const file = name === undefined ? undefined : templateFiles.find((f) => f.endsWith("/" + name));
-    return file ?? path;
+    if (name === undefined) {
+      return path;
+    }
+    // Shared snippets prefer libraries beside the selected template when names collide.
+    const sibling = defaultConfig.slice(0, defaultConfig.lastIndexOf("/") + 1) + name;
+    if (templateFiles.includes(sibling)) {
+      return sibling;
+    }
+    // Some templates reuse a helper from another directory instead of having
+    // their own. Keep the original import if no matching library is available.
+    const availableLibrary = templateFiles.find((file) => file.endsWith("/" + name));
+    return availableLibrary ?? path;
   });
 
   if (!importsOf(code).some(({keyword}) => keyword === "import")) {

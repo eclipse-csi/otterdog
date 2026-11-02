@@ -4,27 +4,63 @@ import {EditorView} from "@codemirror/view";
 
 import {byId} from "./dom.js";
 import {editorExtensions, offsetOf, select} from "./editors.js";
-import {MAIN_FILE, baseName} from "./snippets.js";
+import {importsOf} from "./jsonnet.js";
+import {MAIN_FILE, baseName, normalizePath} from "./snippets.js";
 
-// The files of the playground: the editor of its documents, and the files of the default configuration shown read-only
-// in their own editor, listed in a menu with the files importing them.
+// The user edits one Jsonnet document. Template libraries are separate read-only
+// editors, reachable through the file menu and through links in evaluation errors.
+// Keep their full paths: a custom template and an upstream library can each have
+// a helper.libsonnet, and opening the wrong one would mislead the user.
 
-// Returns the files importing each file of the default configuration, by name.
+// templateFiles contains {filename, content} records. A filename is a full
+// browser path, e.g. vendor/custom/nested/helper.libsonnet, not a disk path.
+// defaultConfig names the entry file selected by the organization's base_template.
+// Return a Map from each imported filename to the names displayed under it in
+// the file menu, e.g. "helper.libsonnet — imported by defaults.libsonnet".
 export function fileRoles(templateFiles, defaultConfig) {
   const importers = new Map([[defaultConfig, ["the playground"]]]);
   for (const file of templateFiles) {
-    for (const imported of importsOf(file, templateFiles)) {
+    for (const imported of importedFiles(file, templateFiles)) {
       importers.set(imported, [...(importers.get(imported) ?? []), baseName(file.filename)]);
     }
   }
   return importers;
 }
 
-// the files of the default configuration imported by one of them, matched by their name
-function importsOf(file, templateFiles) {
-  return [...file.content.matchAll(/\bimport(?:str|bin)?\s*['"]([^'"]+)['"]/g)]
-    .map((match) => templateFiles.find((other) => baseName(other.filename) === baseName(match[1]))?.filename)
+// Returns the editor filename for an import, or undefined if the file is unavailable.
+// For example, importing 'helper.libsonnet' from 'vendor/custom/defaults.libsonnet'
+// selects 'vendor/custom/helper.libsonnet', even if another library has that basename.
+function resolveImportedFilename(path, importer, templateFiles) {
+  const directory = importer.slice(0, importer.lastIndexOf("/") + 1);
+  const relativeFilename = normalizePath(directory + path);
+  const relativeMatch = templateFiles.find((file) => file.filename === relativeFilename);
+  if (relativeMatch !== undefined) {
+    return relativeMatch.filename;
+  }
+
+  // Imports can also spell a full filename from the browser's file map.
+  return templateFiles.find((file) => file.filename === path)?.filename;
+}
+
+// The file menu lists actual importing files. Missing imports and self-imports
+// do not add an "imported by" entry.
+function importedFiles(file, templateFiles) {
+  return importsOf(file.content)
+    .map(({path}) => resolveImportedFilename(path, file.filename, templateFiles))
     .filter((imported) => imported !== undefined && imported !== file.filename);
+}
+
+// Error locations may contain a full path or only a filename. Link a shortened
+// path only when it identifies one editor; the caller's imports do not prove
+// where a failing function was defined. Ambiguous locations stay unlinked.
+export function fileResolver(editorFilenames) {
+  return (location) => {
+    if (editorFilenames.includes(location.file)) {
+      return location.file;
+    }
+    const matchingFilenames = editorFilenames.filter((name) => name.endsWith("/" + location.file));
+    return matchingFilenames.length === 1 ? matchingFilenames[0] : undefined;
+  };
 }
 
 // Creates the editors of the files, the editor of the documents being the one of the main file, onShow being called
@@ -65,14 +101,7 @@ export function createFiles({view, templateFiles, defaultConfig, onShow}) {
     files.get(filename).view.requestMeasure();
   }
 
-  // locations of errors may only have the name of a file, e.g. a file imported by the default configuration
-  function fileOf(location) {
-    if (files.has(location.file)) {
-      return location.file;
-    }
-    const matching = [...files.keys()].filter((name) => name.endsWith("/" + location.file));
-    return matching.length === 1 ? matching[0] : undefined;
-  }
+  const fileOf = fileResolver([...files.keys()]);
 
   // shows a range {from, to} of a file, of offsets or of the positions {line, ch} of an error location
   function goTo(filename, location) {
