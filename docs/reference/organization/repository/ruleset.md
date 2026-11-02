@@ -190,6 +190,7 @@ orgs.newCodeCoverage() {
 - setting `restricted_file_paths`, `max_file_path_length`, `restricted_file_extensions` or `max_file_size` for a ruleset whose `target` is not `push` triggers an error
 - setting a rule that rulesets with target `push` do not support, e.g. `copilot_code_review` or `commit_message_pattern`, for a ruleset with target `push` triggers an error, a warning for the rules `allows_*`, `requires_*`, `required_pull_request`, `required_status_checks` and `required_merge_queue`
 - setting `branch_name_pattern` for a ruleset whose `target` is not `branch`, or `tag_name_pattern` for a ruleset whose `target` is not `tag` triggers an error
+- setting `include_refs` or `exclude_refs` for a ruleset with target `push` triggers a warning, as push rulesets apply to all refs of a repository
 - setting `max_file_path_length` outside the range [0, 32767], `max_file_size` outside the range [0, 100], or more than 200 entries or an entry longer than 200 characters in the lists of the push rules triggers an error
 - setting `restricted_file_paths_exceptions` while `restricted_file_paths` is empty, or `max_file_size_exceptions` while `max_file_size` is `0` triggers a warning
 - setting an invalid `operator`, an empty `pattern`, an invalid code scanning tool or threshold, an invalid code quality severity or a code coverage threshold outside the range [0, 100] triggers an error

@@ -24,7 +24,7 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, ValidationContext
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repo_ruleset import RepositoryRuleset
-from otterdog.models.ruleset import CodeScanningSettings, WorkflowsSettings
+from otterdog.models.ruleset import CodeScanningSettings
 from otterdog.utils import IndentingPrinter, jsonnet_evaluate_snippet
 
 ORG_ID = "my-org"
@@ -302,17 +302,82 @@ class TestProviderMapping:
             {"type": "file_path_restriction", "parameters": {"restricted_file_paths": ["secrets/**"]}},
         ]
 
-    async def test_to_provider_resolves_the_workflow_repository_by_id(self):
-        settings = {"workflows": ["42:.github/workflows/build.yml"], "do_not_enforce_on_create": True}
-        provider = github_provider()
+    async def test_to_provider_sends_no_rule_if_all_rules_are_disabled(self):
+        # e.g. after disabling the last push rule, GitHub would keep it if the rules were not provided
+        ruleset = repo_ruleset(
+            'target: "push", allows_creations: true, allows_deletions: true, allows_force_pushes: true, '
+            "required_pull_request: null, required_status_checks: null"
+        )
 
-        data = await WorkflowsSettings.dict_to_provider_data(ORG_ID, settings, provider)
+        data = await ruleset.to_provider_data(ORG_ID, github_provider())
+
+        assert data["rules"] == []
+
+    async def test_to_provider_without_rules_in_the_data(self):
+        mapping = await RepositoryRuleset.get_mapping_to_provider(ORG_ID, {"name": "main"}, github_provider())
+
+        assert "rules" not in mapping
+
+    def test_rules_missing_from_the_configuration_are_not_managed(self):
+        # a template predating the rules does not define them, unlike null which disables a rule
+        model_data = evaluate("orgs.newRepoRuleset('main') { required_status_checks: null }")
+        for key in ["copilot_code_review", "required_code_scanning", "required_pull_request"]:
+            model_data.pop(key)
+        expected = RepositoryRuleset.from_model_data(model_data)
+        live = repo_ruleset(
+            """
+            copilot_code_review: orgs.newCopilotCodeReview(),
+            required_code_scanning: orgs.newCodeScanning() { code_scanning_tools+: ["CodeQL:all:all"] },
+            required_status_checks: null,
+            """
+        )
+
+        assert expected.get_difference_from(live) == {}
+        assert set(repo_ruleset("required_status_checks: null").get_difference_from(live)) == {
+            "copilot_code_review",
+            "required_code_scanning",
+        }
+
+    async def test_to_provider_omits_the_ref_conditions_of_push_rulesets(self):
+        ruleset = repo_ruleset(f'{ALL_PUSH_RULES} include_refs+: ["~DEFAULT_BRANCH"]')
+
+        data = await ruleset.to_provider_data(ORG_ID, github_provider())
 
         assert data == {
-            "do_not_enforce_on_create": True,
-            "workflows": [{"repository_id": 42, "path": ".github/workflows/build.yml"}],
+            "name": "main",
+            "target": "push",
+            "enforcement": "active",
+            "bypass_actors": [],
+            "rules": [
+                {
+                    "type": "file_path_restriction",
+                    "parameters": {
+                        "restricted_file_paths": ["secrets/**"],
+                        "ignored_file_paths": ["secrets/README.md"],
+                    },
+                },
+                {"type": "max_file_path_length", "parameters": {"max_file_path_length": 255}},
+                {"type": "file_extension_restriction", "parameters": {"restricted_file_extensions": ["*.exe"]}},
+                {"type": "max_file_size", "parameters": {"max_file_size": 10, "ignored_file_paths": ["assets/**"]}},
+            ],
         }
-        provider.rest_api.repo.get_repo_ids.assert_not_awaited()
+
+    async def test_to_provider_keeps_the_repository_conditions_of_organization_push_rulesets(self):
+        ruleset = org_ruleset(f'{ALL_PUSH_RULES} include_repo_names+: ["~ALL"]')
+
+        data = await ruleset.to_provider_data(ORG_ID, github_provider())
+
+        assert data["conditions"] == {"repository_name": {"include": ["~ALL"], "exclude": [], "protected": False}}
+
+    async def test_to_provider_keeps_the_ref_conditions_of_branch_rulesets(self):
+        ruleset = org_ruleset('include_repo_names+: ["~ALL"], include_refs+: ["~DEFAULT_BRANCH"]')
+
+        data = await ruleset.to_provider_data(ORG_ID, github_provider())
+
+        assert data["conditions"] == {
+            "ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []},
+            "repository_name": {"include": ["~ALL"], "exclude": [], "protected": False},
+        }
 
     async def test_code_scanning_tool_names_may_contain_colons(self):
         settings = {"code_scanning_tools": ["my:tool:all:all"]}
@@ -443,6 +508,15 @@ class TestValidation:
                 f"while it is not supported by rulesets with target 'push'."
             )
         ]
+
+    def test_refs_of_push_rulesets_are_ignored(self):
+        expected = repo_ruleset(f'{ALL_PUSH_RULES} include_refs+: ["~DEFAULT_BRANCH"]')
+        live = repo_ruleset(ALL_PUSH_RULES)
+
+        assert warnings(expected) == [
+            f"{expected.get_model_header()} has 'include_refs' set, which is ignored by rulesets with target 'push'."
+        ]
+        assert expected.get_difference_from(live) == {}
 
     def test_push_ruleset_with_the_default_rules_triggers_warnings(self):
         result = warnings(repo_ruleset('target: "push", max_file_size: 10'))
@@ -629,8 +703,16 @@ class TestValidation:
                     "'owner/repository:path[@ref]' are allowed."
                 ),
             ),
+            (
+                # a repository that could not be resolved when loading the ruleset
+                "required_workflows: orgs.newWorkflows() { workflows+: ['42:.github/workflows/ci.yml'] }",
+                (
+                    "containing value '42:.github/workflows/ci.yml' whose repository with id '42' could not be "
+                    "resolved, while a repository must be referenced by its full name 'owner/repository'."
+                ),
+            ),
         ],
-        ids=["no_workflow", "workflow_format"],
+        ids=["no_workflow", "workflow_format", "unresolved_repository"],
     )
     def test_invalid_required_workflows(self, extension, expected):
         ruleset = org_ruleset(extension)
@@ -664,6 +746,53 @@ class TestJsonnet:
             "default_workflows_config": evaluate("orgs.newWorkflows()"),
         }
         return stub(**names, **defaults)
+
+    def import_ruleset(self, live: RepositoryRuleset, default: RepositoryRuleset, jsonnet_config) -> str:
+        output = StringIO()
+        live.to_jsonnet(IndentingPrinter(output), jsonnet_config, stub(), False, default)
+        return output.getvalue().strip().rstrip(",")
+
+    def test_import_narrows_the_default_lists(self):
+        # a template requiring CodeQL and Semgrep by default, while the live ruleset only requires CodeQL
+        extension = """
+            required_code_scanning: orgs.newCodeScanning() {
+              code_scanning_tools+: ["CodeQL:all:all", "Semgrep:all:all"],
+            },
+            required_workflows: orgs.newWorkflows() {
+              workflows+: ["my-org/.github:a.yml", "my-org/.github:b.yml"],
+            },
+        """
+        default = repo_ruleset(extension)
+        live = repo_ruleset(
+            """
+            required_code_scanning: orgs.newCodeScanning() { code_scanning_tools+: ["CodeQL:all:all"] },
+            required_workflows: orgs.newWorkflows() { workflows+: ["my-org/.github:a.yml"] },
+            """
+        )
+
+        jsonnet = self.import_ruleset(live, default, self.jsonnet_config())
+
+        assert "code_scanning_tools: [" in jsonnet
+        assert "workflows: [" in jsonnet
+        # evaluated with the template whose rulesets require these lists by default
+        template = (
+            f"local defaults = import '{DEFAULTS}'; "
+            f"local orgs = defaults {{ newRepoRuleset(name):: defaults.newRepoRuleset(name) {{ {extension} }} }}; "
+        )
+        imported = RepositoryRuleset.from_model_data(jsonnet_evaluate_snippet(template + jsonnet))
+        assert imported.get_difference_from(live) == {}
+
+    def test_import_without_the_function_of_a_rule_in_the_template(self):
+        # a template predating the rule, e.g. pinned to an older version of otterdog
+        jsonnet_config = self.jsonnet_config()
+        jsonnet_config.default_copilot_code_review_config = None
+        live = repo_ruleset("copilot_code_review: orgs.newCopilotCodeReview() { review_on_push: true }")
+
+        jsonnet = self.import_ruleset(live, repo_ruleset(), jsonnet_config)
+
+        assert "newCopilotCodeReview" not in jsonnet
+        imported = RepositoryRuleset.from_model_data(evaluate(jsonnet))
+        assert imported.get_difference_from(live) == {}
 
     @pytest.mark.parametrize(
         "extension",

@@ -136,8 +136,7 @@ class OrganizationRuleset(Ruleset):
             repo_names["protected"] = K(data["protect_repo_names"])
 
         if len(repo_names) > 0:
-            conditions = mapping.get("conditions", {})
-            conditions.update({"repository_name": repo_names})
+            mapping.setdefault("conditions", {})["repository_name"] = repo_names
 
         return mapping
 

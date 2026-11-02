@@ -35,6 +35,8 @@ from otterdog.utils import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.providers.github import GitHubProvider
 
@@ -444,7 +446,8 @@ class CodeScanningSettings(EmbeddedModelObject):
     ]
     VALID_ALERTS_THRESHOLDS: ClassVar[list[str]] = ["none", "errors", "errors_and_warnings", "all"]
 
-    code_scanning_tools: list[str]
+    # written as a whole in a patch, so that a default list can be narrowed
+    code_scanning_tools: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         if is_unset(self.code_scanning_tools):
@@ -591,16 +594,21 @@ class CodeCoverageSettings(EmbeddedModelObject):
 class WorkflowsSettings(EmbeddedModelObject):
     """
     The parameters of the 'workflows' rule, a required workflow is encoded as 'repository:path[@ref]', the repository
-    being its full name, or its id if its name can not be resolved, and the ref a branch, a tag or a commit sha,
+    being its full name and the ref a branch, a tag or a commit sha,
     e.g. 'my-org/.github:.github/workflows/build.yml@refs/heads/main'.
+
+    A repository whose name can not be resolved when loading a ruleset, e.g. because it was deleted, is shown by its
+    id, which is not accepted in a configuration: the same workflow could otherwise be referenced in two ways.
     """
 
     _WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(?P<repository>\d+|[^/:@\s]+/[^/:@\s]+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
+        r"^(?P<repository>[^/:@\s]+/[^/:@\s]+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
     )
+    _UNRESOLVED_WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^(?P<repository_id>\d+):")
     _SHA_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 
-    workflows: list[str]
+    # written as a whole in a patch, so that a default list can be narrowed
+    workflows: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
     do_not_enforce_on_create: bool = dataclasses.field(default=False)
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
@@ -619,7 +627,14 @@ class WorkflowsSettings(EmbeddedModelObject):
             )
 
         for workflow in self.workflows:
-            if self._WORKFLOW_PATTERN.match(workflow) is None:
+            if (unresolved := self._UNRESOLVED_WORKFLOW_PATTERN.match(workflow)) is not None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
+                    f"'{workflow}' whose repository with id '{unresolved.group('repository_id')}' could not be "
+                    f"resolved, while a repository must be referenced by its full name 'owner/repository'.",
+                )
+            elif self._WORKFLOW_PATTERN.match(workflow) is None:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
@@ -660,11 +675,8 @@ class WorkflowsSettings(EmbeddedModelObject):
 
         repository_ids: dict[str, int] = {}
         for repository in {match.group("repository") for match in matches}:
-            if repository.isdigit():
-                repository_ids[repository] = int(repository)
-            else:
-                owner, name = repository.split("/")
-                repository_ids[repository] = (await provider.rest_api.repo.get_repo_ids(owner, [name]))[0]
+            owner, name = repository.split("/")
+            repository_ids[repository] = (await provider.rest_api.repo.get_repo_ids(owner, [name]))[0]
 
         def transform_workflow(workflow: str) -> dict[str, Any]:
             match = unwrap(cls._WORKFLOW_PATTERN.match(workflow))
@@ -681,6 +693,13 @@ class WorkflowsSettings(EmbeddedModelObject):
 
         mapping["workflows"] = S("workflows") >> Forall(transform_workflow)
         return mapping
+
+
+def _embedded_model_from_model_data(model: type[EmbeddedModelObject]) -> Callable[[Any], Any]:
+    def from_model_data(data: Any) -> Any:
+        return data if data is None or is_unset(data) else model.from_model_data(data)
+
+    return from_model_data
 
 
 @dataclasses.dataclass(frozen=True)
@@ -824,6 +843,20 @@ class Ruleset(ModelObject, abc.ABC):
         "requires_license_compliance_scanning",
     ]
 
+    # the keys modelling the rules of a ruleset
+    _rule_keys: ClassVar[list[str]] = [
+        "allows_creations",
+        "allows_deletions",
+        "allows_updates",
+        "allows_force_pushes",
+        "requires_commit_signatures",
+        "requires_linear_history",
+        "requires_license_compliance_scanning",
+        "requires_deployments",
+        *(rule.key for rule in _EMBEDDED_RULES),
+        *_push_rules,
+    ]
+
     # the push rules and their maximum values, 0 disables a rule
     _push_rule_limits: ClassVar[dict[str, int]] = {"max_file_path_length": 32767, "max_file_size": 100}
 
@@ -954,6 +987,18 @@ class Ruleset(ModelObject, abc.ABC):
             else:
                 settings.validate(context, owner)
 
+    def _report_configured_rules(
+        self,
+        context: ValidationContext,
+        parent_object: Any,
+        keys: list[str],
+        failure_type: FailureType,
+        message: Callable[[str], str],
+    ) -> None:
+        for key in keys:
+            if self.is_rule_configured(key):
+                context.add_failure(failure_type, f"{self.get_model_header(parent_object)} {message(key)}")
+
     def _validate_push_rules(self, context: ValidationContext, parent_object: Any) -> None:
         for key, maximum in self._push_rule_limits.items():
             value = self.__getattribute__(key)
@@ -971,34 +1016,36 @@ class Ruleset(ModelObject, abc.ABC):
             "max_file_size_exceptions",
         ]:
             values = self.__getattribute__(key)
-            if not is_set_and_valid(values):
-                continue
-
-            if len(values) > self._MAX_PUSH_RULE_ENTRIES:
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{self.get_model_header(parent_object)} has '{key}' with {len(values)} entries "
-                    f"while at most {self._MAX_PUSH_RULE_ENTRIES} entries are allowed.",
-                )
-
-            for value in values:
-                if len(value) > self._MAX_PUSH_RULE_ENTRIES:
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has '{key}' containing value '{value}' "
-                        f"which is longer than {self._MAX_PUSH_RULE_ENTRIES} characters.",
-                    )
+            if is_set_and_valid(values):
+                self._validate_push_rule_entries(context, parent_object, key, values)
 
         for exceptions_key, rule_key in [
             ("restricted_file_paths_exceptions", "restricted_file_paths"),
             ("max_file_size_exceptions", "max_file_size"),
         ]:
-            exceptions = self.__getattribute__(exceptions_key)
-            if is_set_and_valid(exceptions) and len(exceptions) > 0 and not self.is_rule_configured(rule_key):
+            if self.is_rule_configured(exceptions_key) and not self.is_rule_configured(rule_key):
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has '{exceptions_key}' set to '{exceptions}' "
-                    f"but '{rule_key}' is not set, setting will be ignored.",
+                    f"{self.get_model_header(parent_object)} has '{exceptions_key}' set to "
+                    f"'{self.__getattribute__(exceptions_key)}' but '{rule_key}' is not set, setting will be ignored.",
+                )
+
+    def _validate_push_rule_entries(
+        self, context: ValidationContext, parent_object: Any, key: str, values: list[str]
+    ) -> None:
+        if len(values) > self._MAX_PUSH_RULE_ENTRIES:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has '{key}' with {len(values)} entries "
+                f"while at most {self._MAX_PUSH_RULE_ENTRIES} entries are allowed.",
+            )
+
+        for value in values:
+            if len(value) > self._MAX_PUSH_RULE_ENTRIES:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' containing value '{value}' "
+                    f"which is longer than {self._MAX_PUSH_RULE_ENTRIES} characters.",
                 )
 
     def _validate_rule_targets(self, context: ValidationContext, parent_object: Any) -> None:
@@ -1006,29 +1053,36 @@ class Ruleset(ModelObject, abc.ABC):
             return
 
         if self.target == "push":
-            for key in self._non_push_rules:
-                if self.is_rule_configured(key):
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has '{key}' set, "
-                        f"while it is not supported by rulesets with target 'push'.",
-                    )
-
-            for key in self._legacy_non_push_rules:
-                if self.is_rule_configured(key):
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} requires the rule of '{key}', "
-                        f"while it is not supported by rulesets with target 'push'.",
-                    )
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._non_push_rules,
+                FailureType.ERROR,
+                lambda key: f"has '{key}' set, while it is not supported by rulesets with target 'push'.",
+            )
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._legacy_non_push_rules,
+                FailureType.WARNING,
+                lambda key: f"requires the rule of '{key}', while it is not supported by rulesets with target 'push'.",
+            )
+            # push rulesets apply to all refs of a repository
+            self._report_configured_rules(
+                context,
+                parent_object,
+                ["include_refs", "exclude_refs"],
+                FailureType.WARNING,
+                lambda key: f"has '{key}' set, which is ignored by rulesets with target 'push'.",
+            )
         else:
-            for key in self._push_rules:
-                if self.is_rule_configured(key):
-                    context.add_failure(
-                        FailureType.ERROR,
-                        f"{self.get_model_header(parent_object)} has '{key}' set, "
-                        f"while it is only supported by rulesets with target 'push'.",
-                    )
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._push_rules,
+                FailureType.ERROR,
+                lambda key: f"has '{key}' set, while it is only supported by rulesets with target 'push'.",
+            )
 
         for key, target in [("branch_name_pattern", "branch"), ("tag_name_pattern", "tag")]:
             if self.target != target and self.is_rule_configured(key):
@@ -1043,27 +1097,32 @@ class Ruleset(ModelObject, abc.ABC):
             return
 
         if plan == "free":
-            for key in self._team_plan_rules:
-                if self.is_rule_configured(key):
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} has '{key}' set, which requires at least "
-                        f"GitHub Team billing, currently using '{plan}' plan.",
-                    )
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._team_plan_rules,
+                FailureType.WARNING,
+                lambda key: (
+                    f"has '{key}' set, which requires at least GitHub Team billing, currently using '{plan}' plan."
+                ),
+            )
 
         if plan != "enterprise":
-            for key in self._enterprise_plan_rules:
-                if self.is_rule_configured(key):
-                    context.add_failure(
-                        FailureType.WARNING,
-                        f"{self.get_model_header(parent_object)} has '{key}' set, which requires an "
-                        f"'enterprise' plan, currently using '{plan}' plan.",
-                    )
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._enterprise_plan_rules,
+                FailureType.WARNING,
+                lambda key: f"has '{key}' set, which requires an 'enterprise' plan, currently using '{plan}' plan.",
+            )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.requires_deployments is False:
             if field.name in ["required_deployment_environments"]:
                 return False
+
+        if field.name in ["include_refs", "exclude_refs"] and self.target == "push":
+            return False
 
         if field.name == "restricted_file_paths_exceptions" and not self.is_rule_configured("restricted_file_paths"):
             return False
@@ -1080,12 +1139,10 @@ class Ruleset(ModelObject, abc.ABC):
     def get_mapping_from_model(cls) -> dict[str, Any]:
         mapping = super().get_mapping_from_model()
 
+        # a rule missing from the configuration, e.g. with a template predating it, is not managed, while null
+        # disables it
         for rule in _EMBEDDED_RULES:
-            mapping[rule.key] = If(
-                OptionalS(rule.key, default=None) == K(None),
-                K(None),
-                S(rule.key) >> F(rule.model.from_model_data),
-            )
+            mapping[rule.key] = OptionalS(rule.key, default=UNSET) >> F(_embedded_model_from_model_data(rule.model))
 
         return mapping
 
@@ -1220,7 +1277,7 @@ class Ruleset(ModelObject, abc.ABC):
                 if key_to_pop in mapping:
                     mapping.pop(key_to_pop)
 
-        # include / excludes
+        # include / excludes, push rulesets apply to all refs of a repository
         ref_names = {}
         if "include_refs" in data:
             mapping.pop("include_refs")
@@ -1230,7 +1287,7 @@ class Ruleset(ModelObject, abc.ABC):
             mapping.pop("exclude_refs")
             ref_names["exclude"] = K(data["exclude_refs"])
 
-        if len(ref_names) > 0:
+        if len(ref_names) > 0 and data.get("target") != "push":
             mapping["conditions"] = {"ref_name": ref_names}
 
         # bypass actors
@@ -1370,7 +1427,9 @@ class Ruleset(ModelObject, abc.ABC):
             ]
         )
 
-        if len(rules) > 0:
+        # GitHub keeps the rules of a ruleset if an update does not provide them, they are provided even if there
+        # are none to remove the last rule
+        if len(rules) > 0 or any(key in data for key in cls._rule_keys):
             mapping["rules"] = rules
 
         return mapping
@@ -1406,11 +1465,17 @@ class Ruleset(ModelObject, abc.ABC):
             default_settings = default_object.__getattribute__(rule.key)
             if is_set_and_present(default_settings):
                 embedded_extend = True
-            else:
-                default_settings = rule.model.from_model_data(
-                    jsonnet_config.__getattribute__(rule.default_config) or {}
-                )
+            elif (default_config := jsonnet_config.__getattribute__(rule.default_config)) is not None:
+                default_settings = rule.model.from_model_data(default_config)
                 embedded_extend = False
+            else:
+                # the template does not provide a function for the settings, e.g. a template predating the rule,
+                # they are written as an object on their own
+                printer.print(f"{rule.key}:")
+                write_patch_object_as_json(
+                    settings.to_model_dict(), printer, replace_keys=settings.replace_on_patch_keys()
+                )
+                continue
 
             embedded_patch = settings.get_patch_to(default_settings)
             # settings that are not required by default are written even if they equal their default values
