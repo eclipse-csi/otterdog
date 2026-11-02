@@ -49,6 +49,8 @@ class GitHubProvider:
         self._credentials = credentials
         self._user_logins: dict[int, str] = {}
         self._user_login_lock = asyncio.Lock()
+        self._repo_full_names: dict[int, str] = {}
+        self._repo_full_name_lock = asyncio.Lock()
         # the repositories whose patches are skipped by (org_id, repo_name), with the reason,
         # and the organizations all of whose repositories have their patches skipped
         self._skipped_repositories: dict[tuple[str, str], str] = {}
@@ -693,6 +695,17 @@ class GitHubProvider:
                     _logger.warning("failed to resolve login for user id '%s': %s", user_id, ex)
 
         return {user_id: self._user_logins[user_id] for user_id in user_ids if user_id in self._user_logins}
+
+    async def get_repo_full_names(self, repo_ids: set[int]) -> dict[int, str]:
+        async with self._repo_full_name_lock:
+            missing_repo_ids = repo_ids - self._repo_full_names.keys()
+            for repo_id in missing_repo_ids:
+                try:
+                    self._repo_full_names[repo_id] = (await self.rest_api.repo.get_repo_by_id(repo_id))["full_name"]
+                except RuntimeError as ex:
+                    _logger.warning("failed to resolve name of repository id '%s': %s", repo_id, ex)
+
+        return {repo_id: self._repo_full_names[repo_id] for repo_id in repo_ids if repo_id in self._repo_full_names}
 
     async def get_ref_for_pull_request(self, org_id: str, repo_name: str, pull_number: str) -> str:
         return await self.rest_api.repo.get_ref_for_pull_request(org_id, repo_name, pull_number)

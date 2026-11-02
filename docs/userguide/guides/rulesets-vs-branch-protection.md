@@ -75,14 +75,19 @@ orgs.newOrg('my-project', 'my-org') {
 
 ## Availability by GitHub plan
 
-| Feature                              | Availability on GitHub                                                                                        |
-|--------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| Branch protection rules and rulesets | public repositories with GitHub Free, public and private repositories with GitHub Pro, Team and Enterprise    |
-| Organization rulesets                | GitHub Team and GitHub Enterprise                                                                             |
-| Push rulesets                        | private and internal repositories                                                                             |
-| Enforcement `evaluate`               | GitHub Enterprise                                                                                             |
-| Merge queue                          | public repositories owned by an organization, private repositories with GitHub Enterprise Cloud              |
+| Feature                                                              | Availability on GitHub                                                                                        |
+|----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| Branch protection rules and rulesets                                 | public repositories with GitHub Free, public and private repositories with GitHub Pro, Team and Enterprise    |
+| Organization rulesets                                                | GitHub Team and GitHub Enterprise                                                                             |
+| Push rulesets                                                        | private and internal repositories                                                                             |
+| Metadata restrictions (commit message, emails, branch and tag names) | GitHub Enterprise                                                                                             |
+| Code quality and code coverage rules                                 | GitHub Team and GitHub Enterprise, repository rulesets only                                                   |
+| License compliance rule                                              | GitHub Enterprise, repository rulesets only                                                                   |
+| Required workflows rule                                              | organization rulesets only                                                                                    |
+| Enforcement `evaluate`                                               | GitHub Enterprise                                                                                             |
+| Merge queue                                                          | public repositories owned by an organization, private repositories with GitHub Enterprise Cloud               |
 
+`validate` warns about the rules of a ruleset that require a higher plan than the plan of the organization.
 Plans change over time, check the GitHub documentation before relying on a feature:
 [About rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets),
 [Organization rulesets for GitHub Team](https://github.blog/changelog/2025-06-16-organization-rulesets-now-available-for-github-team-plans/),
@@ -92,23 +97,33 @@ Plans change over time, check the GitHub documentation before relying on a featu
 
 Otterdog does not support all features of rulesets. The following table lists the rules that can be configured:
 
-| Rule on GitHub                                | Ruleset property in otterdog                                          |
-|-----------------------------------------------|-----------------------------------------------------------------------|
-| Restrict creations, updates and deletions     | `allows_creations`, `allows_updates`, `allows_deletions`              |
-| Block force pushes                            | `allows_force_pushes`                                                 |
-| Require linear history                        | `requires_linear_history`                                             |
-| Require signed commits                        | `requires_commit_signatures`                                          |
-| Require deployments to succeed                | `requires_deployments`, `required_deployment_environments`            |
-| Require a pull request before merging         | `required_pull_request`                                               |
-| Require status checks to pass                 | `required_status_checks`                                              |
-| Require merge queue                           | `required_merge_queue`                                                |
+| Rule on GitHub                                                   | Ruleset property in otterdog                                                       |
+|------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| Restrict creations, updates and deletions                        | `allows_creations`, `allows_updates`, `allows_deletions`                           |
+| Block force pushes                                               | `allows_force_pushes`                                                              |
+| Require linear history                                           | `requires_linear_history`                                                          |
+| Require signed commits                                           | `requires_commit_signatures`                                                       |
+| Require deployments to succeed                                   | `requires_deployments`, `required_deployment_environments`                         |
+| Require a pull request before merging                            | `required_pull_request`                                                            |
+| Require status checks to pass                                    | `required_status_checks`                                                           |
+| Require merge queue                                              | `required_merge_queue`                                                             |
+| Automatically request Copilot code review                        | `copilot_code_review`                                                              |
+| Restrict commit metadata                                         | `commit_message_pattern`, `commit_author_email_pattern`, `committer_email_pattern` |
+| Restrict branch names, restrict tag names                        | `branch_name_pattern`, `tag_name_pattern`                                          |
+| Require code scanning results                                    | `required_code_scanning`                                                           |
+| Require code quality results                                     | `required_code_quality`                                                            |
+| Restrict code coverage                                           | `required_code_coverage`                                                           |
+| Require license compliance results                               | `requires_license_compliance_scanning`                                             |
+| Require workflows to pass before merging (organization rulesets) | `required_workflows`                                                               |
+| Restrict file paths (push rulesets)                              | `restricted_file_paths`, `restricted_file_paths_exceptions`                        |
+| Restrict file path length (push rulesets)                        | `max_file_path_length`                                                             |
+| Restrict file extensions (push rulesets)                         | `restricted_file_extensions`                                                       |
+| Restrict file size (push rulesets)                               | `max_file_size`, `max_file_size_exceptions`                                        |
 
 The following features cannot be configured with otterdog:
 
-- metadata restrictions, e.g. commit message, author email or branch name patterns
-- file path, file extension and file size restrictions of push rulesets: a ruleset with `target: "push"` is
-  accepted, but none of its rules can be configured
-- required workflows, code scanning, code quality and Copilot code review rules
+- the parameter `update_allows_fetch_and_merge` of the rule restricting updates and the required reviewers of
+  the rule requiring a pull request
 - targeting the repositories of an organization ruleset by custom properties, only repository names are supported
 - deploy keys as bypass actors
 

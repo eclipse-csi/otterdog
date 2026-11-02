@@ -1201,6 +1201,7 @@ class GitHubOrganization:
                 _logger.debug("loading org rulesets for org '%s' (plan=%s)", github_id, org.settings.plan)
                 github_rulesets = await provider.get_org_rulesets(github_id)
                 await _enrich_user_bypass_actors(github_rulesets, provider)
+                await _enrich_workflow_repositories(github_rulesets, provider)
                 for ruleset in github_rulesets:
                     r = OrganizationRuleset.from_provider_data(github_id, ruleset)
 
@@ -1282,6 +1283,25 @@ async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: G
         for actor in ruleset.get("bypass_actors", []):
             if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
                 actor["user_login"] = user_logins[actor["actor_id"]]
+
+
+async def _enrich_workflow_repositories(rulesets: list[dict[str, Any]], provider: GitHubProvider) -> None:
+    # GitHub only provides the id of the repository of a required workflow
+    workflows = [
+        workflow
+        for ruleset in rulesets
+        for rule in ruleset.get("rules") or []
+        if rule.get("type") == "workflows"
+        for workflow in (rule.get("parameters") or {}).get("workflows") or []
+        if workflow.get("repository_id") is not None
+    ]
+    if not workflows:
+        return
+
+    repo_names = await provider.get_repo_full_names({workflow["repository_id"] for workflow in workflows})
+    for workflow in workflows:
+        if workflow["repository_id"] in repo_names:
+            workflow["repository_name"] = repo_names[workflow["repository_id"]]
 
 
 async def _enrich_team_bypass_reviewers(
@@ -1497,6 +1517,7 @@ async def _process_single_repo(
                         actor["team_slug"] = teams[actor_id]
 
             await _enrich_user_bypass_actors([github_ruleset], gh_client)
+            await _enrich_workflow_repositories([github_ruleset], gh_client)
 
             for rule in github_ruleset.get("rules", []):
                 if rule.get("type", None) == "required_status_checks":

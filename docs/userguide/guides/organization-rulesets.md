@@ -10,7 +10,8 @@ change or remove it. This guide shows how to define a baseline for all repositor
     GitHub provides organization rulesets with GitHub Team and GitHub Enterprise, see
     [Availability by GitHub plan](rulesets-vs-branch-protection.md#availability-by-github-plan). Otterdog currently
     only accepts them for organizations on the `enterprise` plan, `validate` reports them as error for other plans.
-    The rules that otterdog supports are the same as for repository rulesets, see
+    The rules that otterdog supports are the same as for repository rulesets, except the code quality, code
+    coverage and license compliance rules that GitHub only supports for repository rulesets, see
     [Otterdog specifics](rulesets-vs-branch-protection.md#otterdog-specifics).
 
 ## Protect the default branch of all repositories
@@ -95,6 +96,43 @@ orgs.newOrg('my-project', 'my-org') {
 Otterdog only selects repositories by name: targeting repositories by
 [custom properties](organization-settings.md#classify-repositories-with-custom-properties), which GitHub supports,
 cannot be configured with otterdog.
+
+## Require workflows in all repositories
+
+An organization ruleset can require workflows maintained in a single repository to pass before pull requests are
+merged into the default branch of all repositories:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    plan: "enterprise",
+  },
+  rulesets+: [
+    orgs.newOrgRuleset('required-workflows') {
+      include_repo_names+: [
+        "~ALL",
+      ],
+      include_refs+: [
+        "~DEFAULT_BRANCH",
+      ],
+      required_pull_request: null,
+      required_status_checks: null,
+      required_workflows: orgs.newWorkflows() {
+        workflows+: [
+          "my-org/.github:.github/workflows/license-check.yml@refs/heads/main", // (1)!
+        ],
+      },
+    },
+  ],
+  _repositories+:: [
+    orgs.newRepo('.github'),
+    orgs.newRepo('my-repo'),
+  ],
+}
+```
+
+1. A workflow is written as `<owner>/<repository>:<path>[@<ref>]`, the ref being a branch, a tag or a commit sha.
+   GitHub identifies the repository by its id, otterdog shows it by its full name.
 
 ## Combine organization and repository rulesets
 

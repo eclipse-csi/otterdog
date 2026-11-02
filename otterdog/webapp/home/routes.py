@@ -433,6 +433,16 @@ async def defaults(project_name: str):
             ("ruleset-pull-request", "Pull Request Settings", f"{jsonnet_config.create_pull_request}()"),
             ("ruleset-status-check", "Status Check Settings", f"{jsonnet_config.create_status_checks}()"),
             ("ruleset-merge-queue", "Merge Queue Settings", f"{jsonnet_config.create_merge_queue}()"),
+            (
+                "ruleset-copilot-code-review",
+                "Copilot Code Review Settings",
+                f"{jsonnet_config.create_copilot_code_review}()",
+            ),
+            ("ruleset-pattern", "Pattern Settings", f"{jsonnet_config.create_pattern}()"),
+            ("ruleset-code-scanning", "Code Scanning Settings", f"{jsonnet_config.create_code_scanning}()"),
+            ("ruleset-code-quality", "Code Quality Settings", f"{jsonnet_config.create_code_quality}()"),
+            ("ruleset-code-coverage", "Code Coverage Settings", f"{jsonnet_config.create_code_coverage}()"),
+            ("ruleset-workflows", "Required Workflows Settings", f"{jsonnet_config.create_workflows}()"),
         ]
 
         for element_id, name, function in elements:

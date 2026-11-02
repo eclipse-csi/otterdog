@@ -9,9 +9,9 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from otterdog.models import LivePatch, LivePatchType
+from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.ruleset import Ruleset
 from otterdog.utils import expect_type, unwrap
 
@@ -32,6 +32,17 @@ class RepositoryRuleset(Ruleset):
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_repo_ruleset}"
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        super().validate(context, parent_object)
+
+        # GitHub only provides required workflows for rulesets of an organization or an enterprise
+        if self.is_rule_configured("required_workflows"):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'required_workflows' set, "
+                f"while it is only supported by organization rulesets.",
+            )
 
     @classmethod
     async def apply_live_patch(

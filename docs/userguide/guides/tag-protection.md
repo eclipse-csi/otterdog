@@ -82,6 +82,45 @@ Bypass actors can also move or delete the matching tags. Combine both rulesets i
 everybody: since all matching rulesets apply, the first ruleset still blocks updates and deletions for the
 bypass actors of the second one.
 
+## Restrict the names of tags
+
+A pattern can enforce a naming scheme for tags, e.g. semantic versions:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    plan: "enterprise", // (1)!
+  },
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [
+        orgs.newRepoRuleset('tag-names') {
+          target: "tag",
+          include_refs+: [
+            "~ALL",
+          ],
+          allows_creations: true,
+          required_pull_request: null,
+          required_status_checks: null,
+          tag_name_pattern: orgs.newPattern() {
+            name: "Semantic version",
+            operator: "regex", // (2)!
+            pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+          },
+        },
+      ],
+    },
+  ],
+}
+```
+
+1. Read-only property that reflects the billing plan of the organization. Restricting the names of tags requires
+   GitHub Enterprise, `validate` warns otherwise.
+2. The operator is one of `starts_with`, `ends_with`, `contains` or `regex`, set `negate: true` to reject the tags
+   that match the pattern instead, see [Pattern Settings](../../reference/organization/repository/ruleset.md#pattern-settings).
+
+Only tags like `v1.2.3` can be pushed. A tag name pattern is only supported by rulesets with `target: "tag"`.
+
 ## Make releases immutable
 
 When a release is immutable, its tag cannot be moved or deleted while the release exists, and its assets cannot

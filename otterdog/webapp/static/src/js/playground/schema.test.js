@@ -70,6 +70,7 @@ test("missing properties, values not allowed and duplicates are errors", () => {
 test("the objects created by the functions of the default configuration are validated with their schema", () => {
   assert.equal(schemaOfFunction("newRepo"), "repository.json");
   assert.equal(schemaOfFunction("newPullRequest"), "ruleset.json#/$defs/pull_request");
+  assert.equal(schemaOfFunction("newCopilotCodeReview"), "ruleset.json#/$defs/copilot_code_review");
   assert.equal(schemaOfFunction("newOrgDependabotSecret"), "org-secret.json");
   assert.equal(schemaOfFunction("newRepoCodespacesSecret"), "repo-secret.json");
   assert.equal(schemaOfFunction("newOrgCodeSecurityConfiguration"), "org-code-security-configuration.json");

@@ -208,23 +208,26 @@ local newRepoRuleset(name) = {
 
   required_merge_queue: null,
 
-  required_copilot_review: null,
+  copilot_code_review: null,
 
-  # pattern rules
   commit_message_pattern: null,
   commit_author_email_pattern: null,
   committer_email_pattern: null,
   branch_name_pattern: null,
   tag_name_pattern: null,
 
-  # push restriction rules
+  # push rules, only supported by rulesets with target 'push', 0 disables a rule
   restricted_file_paths: [],
+  restricted_file_paths_exceptions: [],
   max_file_path_length: 0,
   restricted_file_extensions: [],
   max_file_size: 0,
+  max_file_size_exceptions: [],
 
-  # CI/security rules
   required_code_scanning: null,
+  required_code_quality: null,
+  required_code_coverage: null,
+  requires_license_compliance_scanning: false,
   required_workflows: null,
 };
 
@@ -239,13 +242,13 @@ local newMergeQueue() = {
   requires_all_group_entries_to_pass_required_checks: true,
 };
 
-# Function to create copilot review settings with default settings.
-local newCopilotReview() = {
-  review_new_pushes: false,
+# Function to create copilot code review settings with default settings.
+local newCopilotCodeReview() = {
+  review_on_push: false,
   review_draft_pull_requests: false,
 };
 
-# Function to create pattern settings with default settings.
+# Function to create the settings of a rule restricting commit metadata or ref names with default settings.
 local newPattern() = {
   name: "",
   negate: false,
@@ -258,7 +261,18 @@ local newCodeScanning() = {
   code_scanning_tools: [],
 };
 
-# Function to create workflows settings with default settings.
+# Function to create code quality settings with default settings.
+local newCodeQuality() = {
+  severity: "errors",
+};
+
+# Function to create code coverage settings with default settings.
+local newCodeCoverage() = {
+  minimum_coverage: null,
+  max_coverage_drop: null,
+};
+
+# Function to create required workflows settings with default settings.
 local newWorkflows() = {
   do_not_enforce_on_create: false,
   workflows: [],
@@ -593,8 +607,10 @@ local newOrg(name, id=name) = {
   newPullRequest:: newPullRequest,
   newStatusChecks:: newStatusChecks,
   newMergeQueue:: newMergeQueue,
-  newCopilotReview:: newCopilotReview,
+  newCopilotCodeReview:: newCopilotCodeReview,
   newPattern:: newPattern,
   newCodeScanning:: newCodeScanning,
+  newCodeQuality:: newCodeQuality,
+  newCodeCoverage:: newCodeCoverage,
   newWorkflows:: newWorkflows,
 }

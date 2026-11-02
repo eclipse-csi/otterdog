@@ -361,87 +361,134 @@ class _EmbeddedModelOwner:
         return self.header
 
 
-@dataclasses.dataclass
-class PatternSettings(EmbeddedModelObject):
-    """Shared settings for pattern-based rules (commit_message_pattern,
-    commit_author_email_pattern, committer_email_pattern, branch_name_pattern,
-    tag_name_pattern)."""
+def _quoted(values: list[str]) -> str:
+    return " | ".join(f"'{x}'" for x in values)
 
-    name: str
-    negate: bool
-    operator: str
-    pattern: str
+
+@dataclasses.dataclass
+class CopilotCodeReviewSettings(EmbeddedModelObject):
+    review_on_push: bool = dataclasses.field(default=False)
+    review_draft_pull_requests: bool = dataclasses.field(default=False)
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        if is_set_and_valid(self.operator):
-            if self.operator not in {"starts_with", "ends_with", "contains", "regex"}:
+        # both parameters are optional booleans, there is nothing to validate
+        pass
+
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
+        return f"orgs.{jsonnet_config.create_copilot_code_review}"
+
+
+@dataclasses.dataclass
+class PatternSettings(EmbeddedModelObject):
+    """
+    The parameters of a rule restricting the metadata of commits or the names of refs, e.g. 'commit_message_pattern'.
+    """
+
+    VALID_OPERATORS: ClassVar[list[str]] = ["starts_with", "ends_with", "contains", "regex"]
+
+    operator: str
+    pattern: str
+    name: str = dataclasses.field(default="")
+    negate: bool = dataclasses.field(default=False)
+
+    def validate(self, context: ValidationContext, parent_object: Any, key: str = "pattern") -> None:
+        for field in ["operator", "pattern"]:
+            if is_unset(self.__getattribute__(field)):
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has a pattern rule with "
-                    f"'operator' of value '{self.operator}', "
-                    f"only values ('starts_with' | 'ends_with' | 'contains' | 'regex') are allowed.",
+                    f"{parent_object.get_model_header()} has not set required parameter '{key}.{field}'.",
                 )
+
+        if is_set_and_valid(self.operator) and self.operator not in self.VALID_OPERATORS:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has '{key}.operator' of value '{self.operator}', "
+                f"while only values ({_quoted(self.VALID_OPERATORS)}) are allowed.",
+            )
+
+        if is_set_and_valid(self.pattern) and len(self.pattern) == 0:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has an empty '{key}.pattern'.",
+            )
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_pattern}"
 
     @classmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = super().get_mapping_from_provider(org_id, data)
-        mapping.update(
-            {
-                "name": OptionalS("name", default=""),
-                "negate": OptionalS("negate", default=False),
-                "operator": OptionalS("operator", default=UNSET),
-                "pattern": OptionalS("pattern", default=UNSET),
-            }
-        )
-        return mapping
-
-    @classmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        return {
-            "name": S("name"),
-            "negate": S("negate"),
-            "operator": S("operator"),
-            "pattern": S("pattern"),
-        }
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
+
+        # the name is optional, an empty name is not sent
+        if not data.get("name") and "name" in mapping:
+            mapping.pop("name")
+
+        return mapping
 
 
 @dataclasses.dataclass
 class CodeScanningSettings(EmbeddedModelObject):
-    """Settings for the code_scanning rule. Each tool is encoded as
-    'tool:security_alerts_threshold:alerts_threshold'."""
+    """
+    The parameters of the 'code_scanning' rule, a required tool is encoded as
+    'tool:security_alerts_threshold:alerts_threshold', e.g. 'CodeQL:high_or_higher:errors'.
+    """
+
+    VALID_SECURITY_ALERTS_THRESHOLDS: ClassVar[list[str]] = [
+        "none",
+        "critical",
+        "high_or_higher",
+        "medium_or_higher",
+        "all",
+    ]
+    VALID_ALERTS_THRESHOLDS: ClassVar[list[str]] = ["none", "errors", "errors_and_warnings", "all"]
 
     code_scanning_tools: list[str]
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        valid_severities = {"none", "errors", "errors_and_warnings", "all"}
-        for entry in self.code_scanning_tools:
-            parts = entry.split(":")
-            if len(parts) != 3:
+        if is_unset(self.code_scanning_tools):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has not set required parameter "
+                f"'required_code_scanning.code_scanning_tools'.",
+            )
+            return
+
+        if len(self.code_scanning_tools) == 0:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has an empty 'required_code_scanning.code_scanning_tools' "
+                f"while at least one tool must be required.",
+            )
+
+        for tool in self.code_scanning_tools:
+            parts = tool.rsplit(":", 2)
+            if len(parts) != 3 or len(parts[0]) == 0:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has code scanning tool entry "
-                    f"'{entry}' with invalid format, expected 'tool:security_alerts_threshold:alerts_threshold'.",
+                    f"{parent_object.get_model_header()} has 'required_code_scanning.code_scanning_tools' "
+                    f"containing value '{tool}' while only values of format "
+                    f"'tool:security_alerts_threshold:alerts_threshold' are allowed.",
                 )
                 continue
-            _, sec_threshold, alert_threshold = parts
-            if sec_threshold not in valid_severities:
+
+            _, security_alerts_threshold, alerts_threshold = parts
+            if security_alerts_threshold not in self.VALID_SECURITY_ALERTS_THRESHOLDS:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has code scanning tool entry "
-                    f"'{entry}' with invalid security_alerts_threshold '{sec_threshold}', "
-                    f"only values {valid_severities} are allowed.",
+                    f"{parent_object.get_model_header()} has 'required_code_scanning.code_scanning_tools' "
+                    f"containing value '{tool}' with a security alerts threshold of value "
+                    f"'{security_alerts_threshold}', while only values "
+                    f"({_quoted(self.VALID_SECURITY_ALERTS_THRESHOLDS)}) are allowed.",
                 )
-            if alert_threshold not in valid_severities:
+
+            if alerts_threshold not in self.VALID_ALERTS_THRESHOLDS:
                 context.add_failure(
                     FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has code scanning tool entry "
-                    f"'{entry}' with invalid alerts_threshold '{alert_threshold}', "
-                    f"only values {valid_severities} are allowed.",
+                    f"{parent_object.get_model_header()} has 'required_code_scanning.code_scanning_tools' "
+                    f"containing value '{tool}' with an alerts threshold of value '{alerts_threshold}', "
+                    f"while only values ({_quoted(self.VALID_ALERTS_THRESHOLDS)}) are allowed.",
                 )
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
@@ -451,47 +498,133 @@ class CodeScanningSettings(EmbeddedModelObject):
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
 
-        def transform_tool(tool: dict) -> str:
-            return f"{tool.get('tool', '')}:{tool.get('security_alerts_threshold', 'none')}:{tool.get('alerts_threshold', 'none')}"
+        def transform_tool(tool: dict[str, Any]) -> str:
+            security_alerts_threshold = tool.get("security_alerts_threshold", "none")
+            alerts_threshold = tool.get("alerts_threshold", "none")
+            return f"{tool['tool']}:{security_alerts_threshold}:{alerts_threshold}"
 
         mapping.update(
             {
                 "code_scanning_tools": OptionalS("code_scanning_tools", default=[]) >> Forall(transform_tool),
             }
         )
+
         return mapping
 
     @classmethod
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        def transform_tool(entry: str) -> dict:
-            parts = entry.split(":")
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
+
+        def transform_tool(tool: str) -> dict[str, Any]:
+            name, security_alerts_threshold, alerts_threshold = tool.rsplit(":", 2)
             return {
-                "tool": parts[0],
-                "security_alerts_threshold": parts[1] if len(parts) > 1 else "none",
-                "alerts_threshold": parts[2] if len(parts) > 2 else "none",
+                "tool": name,
+                "security_alerts_threshold": security_alerts_threshold,
+                "alerts_threshold": alerts_threshold,
             }
 
-        mapping: dict[str, Any] = {}
-        mapping.update(
-            {
-                "code_scanning_tools": S("code_scanning_tools") >> Forall(transform_tool),
-            }
-        )
+        if "code_scanning_tools" in mapping:
+            mapping["code_scanning_tools"] = S("code_scanning_tools") >> Forall(transform_tool)
+
         return mapping
 
 
 @dataclasses.dataclass
-class WorkflowsSettings(EmbeddedModelObject):
-    """Settings for the workflows rule. Each workflow is encoded as
-    'repository_id:path@ref'."""
+class CodeQualitySettings(EmbeddedModelObject):
+    VALID_SEVERITIES: ClassVar[list[str]] = ["errors", "warnings", "notes", "all"]
 
-    do_not_enforce_on_create: bool
-    workflows: list[str]
+    severity: str
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        pass
+        if is_unset(self.severity):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has not set required parameter 'required_code_quality.severity'.",
+            )
+        elif self.severity not in self.VALID_SEVERITIES:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has 'required_code_quality.severity' of value "
+                f"'{self.severity}', while only values ({_quoted(self.VALID_SEVERITIES)}) are allowed.",
+            )
+
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
+        return f"orgs.{jsonnet_config.create_code_quality}"
+
+
+@dataclasses.dataclass
+class CodeCoverageSettings(EmbeddedModelObject):
+    # GitHub does not enforce a threshold that is not set
+    minimum_coverage: float | None = dataclasses.field(default=None)
+    max_coverage_drop: float | None = dataclasses.field(default=None)
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        if self.minimum_coverage is None and self.max_coverage_drop is None:
+            context.add_failure(
+                FailureType.WARNING,
+                f"{parent_object.get_model_header()} has neither 'required_code_coverage.minimum_coverage' nor "
+                f"'required_code_coverage.max_coverage_drop' set, the rule has no effect.",
+            )
+
+        for key in ["minimum_coverage", "max_coverage_drop"]:
+            value = self.__getattribute__(key)
+            if is_set_and_valid(value) and not 0 <= value <= 100:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header()} has 'required_code_coverage.{key}' of value '{value}' "
+                    f"while only percentages in the range [0, 100] are allowed.",
+                )
+
+    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
+        return f"orgs.{jsonnet_config.create_code_coverage}"
+
+    @classmethod
+    async def get_mapping_to_provider(
+        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
+    ) -> dict[str, Any]:
+        return {key: S(key) for key in ["minimum_coverage", "max_coverage_drop"] if data.get(key) is not None}
+
+
+@dataclasses.dataclass
+class WorkflowsSettings(EmbeddedModelObject):
+    """
+    The parameters of the 'workflows' rule, a required workflow is encoded as 'repository:path[@ref]', the repository
+    being its full name, or its id if its name can not be resolved, and the ref a branch, a tag or a commit sha,
+    e.g. 'my-org/.github:.github/workflows/build.yml@refs/heads/main'.
+    """
+
+    _WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^(?P<repository>\d+|[^/:@\s]+/[^/:@\s]+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
+    )
+    _SHA_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
+
+    workflows: list[str]
+    do_not_enforce_on_create: bool = dataclasses.field(default=False)
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        if is_unset(self.workflows):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has not set required parameter 'required_workflows.workflows'.",
+            )
+            return
+
+        if len(self.workflows) == 0:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{parent_object.get_model_header()} has an empty 'required_workflows.workflows' "
+                f"while at least one workflow must be required.",
+            )
+
+        for workflow in self.workflows:
+            if self._WORKFLOW_PATTERN.match(workflow) is None:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
+                    f"'{workflow}' while only values of format 'owner/repository:path[@ref]' are allowed.",
+                )
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_workflows}"
@@ -500,65 +633,17 @@ class WorkflowsSettings(EmbeddedModelObject):
     def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
         mapping = super().get_mapping_from_provider(org_id, data)
 
-        def transform_workflow(wf: dict) -> str:
-            return f"{wf.get('repository_id', '')}:{wf.get('path', '')}@{wf.get('ref', 'HEAD')}"
+        def transform_workflow(workflow: dict[str, Any]) -> str:
+            # the name of the repository is added when loading the ruleset, GitHub only provides its id
+            repository = workflow.get("repository_name") or str(workflow["repository_id"])
+            ref = workflow.get("ref") or workflow.get("sha")
+            return f"{repository}:{workflow['path']}" + (f"@{ref}" if ref else "")
 
         mapping.update(
             {
-                "do_not_enforce_on_create": OptionalS("do_not_enforce_on_create", default=False),
                 "workflows": OptionalS("workflows", default=[]) >> Forall(transform_workflow),
             }
         )
-        return mapping
-
-    @classmethod
-    async def get_mapping_to_provider(
-        cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
-    ) -> dict[str, Any]:
-        def transform_workflow(entry: str) -> dict:
-            # format: repository_id:path@ref
-            repo_and_path, _, ref = entry.rpartition("@")
-            repo_id_str, _, path = repo_and_path.partition(":")
-            return {
-                "repository_id": int(repo_id_str),
-                "path": path,
-                "ref": ref if ref else "HEAD",
-            }
-
-        return {
-            "do_not_enforce_on_create": S("do_not_enforce_on_create"),
-            "workflows": S("workflows") >> Forall(transform_workflow),
-        }
-
-
-@dataclasses.dataclass
-class CopilotReviewSettings(EmbeddedModelObject):
-    review_new_pushes: bool
-    review_draft_pull_requests: bool
-
-    def validate(self, context: ValidationContext, parent_object: Any) -> None:
-        for key in self.keys(False):
-            value = self.__getattribute__(key)
-            if is_unset(value):
-                context.add_failure(
-                    FailureType.ERROR,
-                    f"{parent_object.get_model_header(parent_object)} has not set required parameter "
-                    f"'required_copilot_review.{key}'.",
-                )
-
-    def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
-        return f"orgs.{jsonnet_config.create_copilot_review}"
-
-    @classmethod
-    def get_mapping_from_provider(cls, org_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        mapping = super().get_mapping_from_provider(org_id, data)
-
-        mapping.update(
-            {
-                "review_new_pushes": OptionalS("review_new_pushes", default=UNSET),
-                "review_draft_pull_requests": OptionalS("review_draft_pull_requests", default=UNSET),
-            }
-        )
 
         return mapping
 
@@ -566,16 +651,77 @@ class CopilotReviewSettings(EmbeddedModelObject):
     async def get_mapping_to_provider(
         cls, org_id: str, data: dict[str, Any], provider: GitHubProvider
     ) -> dict[str, Any]:
-        mapping = super().get_mapping_from_provider(org_id, data)
+        mapping = await super().get_mapping_to_provider(org_id, data, provider)
 
-        mapping.update(
-            {
-                "review_new_pushes": S("review_new_pushes"),
-                "review_draft_pull_requests": S("review_draft_pull_requests"),
+        if "workflows" not in mapping:
+            return mapping
+
+        matches = [unwrap(cls._WORKFLOW_PATTERN.match(workflow)) for workflow in data["workflows"]]
+
+        repository_ids: dict[str, int] = {}
+        for repository in {match.group("repository") for match in matches}:
+            if repository.isdigit():
+                repository_ids[repository] = int(repository)
+            else:
+                owner, name = repository.split("/")
+                repository_ids[repository] = (await provider.rest_api.repo.get_repo_ids(owner, [name]))[0]
+
+        def transform_workflow(workflow: str) -> dict[str, Any]:
+            match = unwrap(cls._WORKFLOW_PATTERN.match(workflow))
+            result: dict[str, Any] = {
+                "repository_id": repository_ids[match.group("repository")],
+                "path": match.group("path"),
             }
-        )
 
+            ref = match.group("ref")
+            if ref is not None:
+                result["sha" if cls._SHA_PATTERN.match(ref) else "ref"] = ref
+
+            return result
+
+        mapping["workflows"] = S("workflows") >> Forall(transform_workflow)
         return mapping
+
+
+@dataclasses.dataclass(frozen=True)
+class _EmbeddedRule:
+    """
+    A rule of a ruleset whose parameters are modelled as embedded model, which is null if the rule is not required.
+    """
+
+    key: str
+    rule_type: str
+    model: type[EmbeddedModelObject]
+    # the property of the JsonnetConfig holding the default model data
+    default_config: str
+
+
+_PATTERN_RULES = [
+    "commit_message_pattern",
+    "commit_author_email_pattern",
+    "committer_email_pattern",
+    "branch_name_pattern",
+    "tag_name_pattern",
+]
+
+_EMBEDDED_RULES = [
+    _EmbeddedRule("required_pull_request", "pull_request", PullRequestSettings, "default_pull_request_config"),
+    _EmbeddedRule("required_merge_queue", "merge_queue", MergeQueueSettings, "default_merge_queue_config"),
+    _EmbeddedRule(
+        "required_status_checks", "required_status_checks", StatusCheckSettings, "default_status_checks_config"
+    ),
+    _EmbeddedRule(
+        "copilot_code_review",
+        "copilot_code_review",
+        CopilotCodeReviewSettings,
+        "default_copilot_code_review_config",
+    ),
+    *(_EmbeddedRule(key, key, PatternSettings, "default_pattern_config") for key in _PATTERN_RULES),
+    _EmbeddedRule("required_code_scanning", "code_scanning", CodeScanningSettings, "default_code_scanning_config"),
+    _EmbeddedRule("required_code_quality", "code_quality", CodeQualitySettings, "default_code_quality_config"),
+    _EmbeddedRule("required_code_coverage", "code_coverage", CodeCoverageSettings, "default_code_coverage_config"),
+    _EmbeddedRule("required_workflows", "workflows", WorkflowsSettings, "default_workflows_config"),
+]
 
 
 @dataclasses.dataclass
@@ -609,27 +755,99 @@ class Ruleset(ModelObject, abc.ABC):
     required_pull_request: PullRequestSettings | None = dataclasses.field(metadata={"embedded_model": True})
     required_status_checks: StatusCheckSettings | None = dataclasses.field(metadata={"embedded_model": True})
     required_merge_queue: MergeQueueSettings | None = dataclasses.field(metadata={"embedded_model": True})
-    required_copilot_review: CopilotReviewSettings | None = dataclasses.field(metadata={"embedded_model": True})
 
-    # pattern rules
+    copilot_code_review: CopilotCodeReviewSettings | None = dataclasses.field(metadata={"embedded_model": True})
+
     commit_message_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
     commit_author_email_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
     committer_email_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
     branch_name_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
     tag_name_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
 
-    # push restriction rules
     restricted_file_paths: list[str]
+    restricted_file_paths_exceptions: list[str]
     max_file_path_length: int
     restricted_file_extensions: list[str]
     max_file_size: int
+    max_file_size_exceptions: list[str]
 
-    # CI/security rules
     required_code_scanning: CodeScanningSettings | None = dataclasses.field(metadata={"embedded_model": True})
+    required_code_quality: CodeQualitySettings | None = dataclasses.field(metadata={"embedded_model": True})
+    required_code_coverage: CodeCoverageSettings | None = dataclasses.field(metadata={"embedded_model": True})
+    requires_license_compliance_scanning: bool
     required_workflows: WorkflowsSettings | None = dataclasses.field(metadata={"embedded_model": True})
 
     _roles: ClassVar[dict[str, str]] = {"5": "RepositoryAdmin", "4": "Write", "2": "Maintain", "1": "OrganizationAdmin"}
     _inverted_roles: ClassVar[dict[str, str]] = {v: k for k, v in _roles.items()}
+
+    # the rules that are only supported by rulesets with target 'push'
+    _push_rules: ClassVar[list[str]] = [
+        "restricted_file_paths",
+        "max_file_path_length",
+        "restricted_file_extensions",
+        "max_file_size",
+    ]
+
+    # the rules that are not supported by rulesets with target 'push', the ones supported by otterdog before
+    # the push rules only trigger a warning to keep configurations valid that define push rulesets with them
+    _non_push_rules: ClassVar[list[str]] = [
+        "copilot_code_review",
+        *_PATTERN_RULES,
+        "required_code_scanning",
+        "required_code_quality",
+        "required_code_coverage",
+        "requires_license_compliance_scanning",
+        "required_workflows",
+    ]
+    _legacy_non_push_rules: ClassVar[list[str]] = [
+        "allows_creations",
+        "allows_deletions",
+        "allows_updates",
+        "allows_force_pushes",
+        "requires_commit_signatures",
+        "requires_linear_history",
+        "requires_deployments",
+        "required_pull_request",
+        "required_status_checks",
+        "required_merge_queue",
+    ]
+
+    # the rules that GitHub only provides with a 'team' or 'enterprise' plan, resp. with an 'enterprise' plan,
+    # they only trigger a warning as the documentation of GitHub is not explicit about all of them
+    _team_plan_rules: ClassVar[list[str]] = [
+        *_push_rules,
+        "required_code_quality",
+        "required_code_coverage",
+    ]
+    _enterprise_plan_rules: ClassVar[list[str]] = [
+        *_PATTERN_RULES,
+        "requires_license_compliance_scanning",
+    ]
+
+    # the push rules and their maximum values, 0 disables a rule
+    _push_rule_limits: ClassVar[dict[str, int]] = {"max_file_path_length": 32767, "max_file_size": 100}
+
+    # the maximum number of entries of the lists of push rules, and the maximum length of an entry
+    _MAX_PUSH_RULE_ENTRIES: ClassVar[int] = 200
+
+    def is_rule_configured(self, key: str) -> bool:
+        """
+        Returns whether the rule modelled by the given key is required by this ruleset.
+        """
+        value = self.__getattribute__(key)
+
+        if not is_set_and_valid(value):
+            return False
+        elif key.startswith("allows_"):
+            return value is False
+        elif isinstance(value, bool):
+            return value
+        elif isinstance(value, int):
+            return value > 0
+        elif isinstance(value, list):
+            return len(value) > 0
+        else:
+            return True
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         org_settings = cast("GitHubOrganization", context.root_object).settings
@@ -719,25 +937,139 @@ class Ruleset(ModelObject, abc.ABC):
                         f"'{env_name}' which is not defined in the repository itself.",
                     )
 
+        self._validate_push_rules(context, parent_object)
+        self._validate_rule_targets(context, parent_object)
+        self._validate_rule_plans(context, parent_object, org_settings.plan)
+
         # the messages of the embedded models name the ruleset, not only its repository or organization
         owner = _EmbeddedModelOwner(self.get_model_header(parent_object))
 
-        if is_set_and_present(self.required_pull_request):
-            self.required_pull_request.validate(context, owner)
+        for rule in _EMBEDDED_RULES:
+            settings = self.__getattribute__(rule.key)
+            if not is_set_and_present(settings):
+                continue
 
-        if is_set_and_present(self.required_status_checks):
-            self.required_status_checks.validate(context, owner)
+            if isinstance(settings, PatternSettings):
+                settings.validate(context, owner, rule.key)
+            else:
+                settings.validate(context, owner)
 
-        if is_set_and_present(self.required_merge_queue):
-            self.required_merge_queue.validate(context, owner)
+    def _validate_push_rules(self, context: ValidationContext, parent_object: Any) -> None:
+        for key, maximum in self._push_rule_limits.items():
+            value = self.__getattribute__(key)
+            if is_set_and_valid(value) and not 0 <= value <= maximum:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' of value '{value}' "
+                    f"while only integers in the range [0, {maximum}] are allowed, 0 disabling the rule.",
+                )
 
-        if is_set_and_present(self.required_copilot_review):
-            self.required_copilot_review.validate(context, parent_object)
+        for key in [
+            "restricted_file_paths",
+            "restricted_file_paths_exceptions",
+            "restricted_file_extensions",
+            "max_file_size_exceptions",
+        ]:
+            values = self.__getattribute__(key)
+            if not is_set_and_valid(values):
+                continue
+
+            if len(values) > self._MAX_PUSH_RULE_ENTRIES:
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' with {len(values)} entries "
+                    f"while at most {self._MAX_PUSH_RULE_ENTRIES} entries are allowed.",
+                )
+
+            for value in values:
+                if len(value) > self._MAX_PUSH_RULE_ENTRIES:
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has '{key}' containing value '{value}' "
+                        f"which is longer than {self._MAX_PUSH_RULE_ENTRIES} characters.",
+                    )
+
+        for exceptions_key, rule_key in [
+            ("restricted_file_paths_exceptions", "restricted_file_paths"),
+            ("max_file_size_exceptions", "max_file_size"),
+        ]:
+            exceptions = self.__getattribute__(exceptions_key)
+            if is_set_and_valid(exceptions) and len(exceptions) > 0 and not self.is_rule_configured(rule_key):
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} has '{exceptions_key}' set to '{exceptions}' "
+                    f"but '{rule_key}' is not set, setting will be ignored.",
+                )
+
+    def _validate_rule_targets(self, context: ValidationContext, parent_object: Any) -> None:
+        if not is_set_and_valid(self.target):
+            return
+
+        if self.target == "push":
+            for key in self._non_push_rules:
+                if self.is_rule_configured(key):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has '{key}' set, "
+                        f"while it is not supported by rulesets with target 'push'.",
+                    )
+
+            for key in self._legacy_non_push_rules:
+                if self.is_rule_configured(key):
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} requires the rule of '{key}', "
+                        f"while it is not supported by rulesets with target 'push'.",
+                    )
+        else:
+            for key in self._push_rules:
+                if self.is_rule_configured(key):
+                    context.add_failure(
+                        FailureType.ERROR,
+                        f"{self.get_model_header(parent_object)} has '{key}' set, "
+                        f"while it is only supported by rulesets with target 'push'.",
+                    )
+
+        for key, target in [("branch_name_pattern", "branch"), ("tag_name_pattern", "tag")]:
+            if self.target != target and self.is_rule_configured(key):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' set, "
+                    f"while it is only supported by rulesets with target '{target}'.",
+                )
+
+    def _validate_rule_plans(self, context: ValidationContext, parent_object: Any, plan: str) -> None:
+        if not is_set_and_valid(plan):
+            return
+
+        if plan == "free":
+            for key in self._team_plan_rules:
+                if self.is_rule_configured(key):
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} has '{key}' set, which requires at least "
+                        f"GitHub Team billing, currently using '{plan}' plan.",
+                    )
+
+        if plan != "enterprise":
+            for key in self._enterprise_plan_rules:
+                if self.is_rule_configured(key):
+                    context.add_failure(
+                        FailureType.WARNING,
+                        f"{self.get_model_header(parent_object)} has '{key}' set, which requires an "
+                        f"'enterprise' plan, currently using '{plan}' plan.",
+                    )
 
     def include_field_for_diff_computation(self, field: dataclasses.Field) -> bool:
         if self.requires_deployments is False:
             if field.name in ["required_deployment_environments"]:
                 return False
+
+        if field.name == "restricted_file_paths_exceptions" and not self.is_rule_configured("restricted_file_paths"):
+            return False
+
+        if field.name == "max_file_size_exceptions" and not self.is_rule_configured("max_file_size"):
+            return False
 
         return True
 
@@ -748,65 +1080,12 @@ class Ruleset(ModelObject, abc.ABC):
     def get_mapping_from_model(cls) -> dict[str, Any]:
         mapping = super().get_mapping_from_model()
 
-        mapping.update(
-            {
-                "required_pull_request": If(
-                    OptionalS("required_pull_request", default=None) == K(None),
-                    K(None),
-                    S("required_pull_request") >> F(lambda x: PullRequestSettings.from_model_data(x)),
-                ),
-                "required_status_checks": If(
-                    OptionalS("required_status_checks", default=None) == K(None),
-                    K(None),
-                    S("required_status_checks") >> F(lambda x: StatusCheckSettings.from_model_data(x)),
-                ),
-                "required_merge_queue": If(
-                    OptionalS("required_merge_queue", default=None) == K(None),
-                    K(None),
-                    S("required_merge_queue") >> F(lambda x: MergeQueueSettings.from_model_data(x)),
-                ),
-                "required_copilot_review": If(
-                    OptionalS("required_copilot_review", default=None) == K(None),
-                    K(None),
-                    S("required_copilot_review") >> F(lambda x: CopilotReviewSettings.from_model_data(x)),
-                ),
-                "commit_message_pattern": If(
-                    OptionalS("commit_message_pattern", default=None) == K(None),
-                    K(None),
-                    S("commit_message_pattern") >> F(lambda x: PatternSettings.from_model_data(x)),
-                ),
-                "commit_author_email_pattern": If(
-                    OptionalS("commit_author_email_pattern", default=None) == K(None),
-                    K(None),
-                    S("commit_author_email_pattern") >> F(lambda x: PatternSettings.from_model_data(x)),
-                ),
-                "committer_email_pattern": If(
-                    OptionalS("committer_email_pattern", default=None) == K(None),
-                    K(None),
-                    S("committer_email_pattern") >> F(lambda x: PatternSettings.from_model_data(x)),
-                ),
-                "branch_name_pattern": If(
-                    OptionalS("branch_name_pattern", default=None) == K(None),
-                    K(None),
-                    S("branch_name_pattern") >> F(lambda x: PatternSettings.from_model_data(x)),
-                ),
-                "tag_name_pattern": If(
-                    OptionalS("tag_name_pattern", default=None) == K(None),
-                    K(None),
-                    S("tag_name_pattern") >> F(lambda x: PatternSettings.from_model_data(x)),
-                ),
-                "required_code_scanning": If(
-                    OptionalS("required_code_scanning", default=None) == K(None),
-                    K(None),
-                    S("required_code_scanning") >> F(lambda x: CodeScanningSettings.from_model_data(x)),
-                ),
-                "required_workflows": If(
-                    OptionalS("required_workflows", default=None) == K(None),
-                    K(None),
-                    S("required_workflows") >> F(lambda x: WorkflowsSettings.from_model_data(x)),
-                ),
-            }
-        )
+        for rule in _EMBEDDED_RULES:
+            mapping[rule.key] = If(
+                OptionalS(rule.key, default=None) == K(None),
+                K(None),
+                S(rule.key) >> F(rule.model.from_model_data),
+            )
 
         return mapping
 
@@ -827,6 +1106,13 @@ class Ruleset(ModelObject, abc.ABC):
 
         rules = data.get("rules") or []
 
+        def get_rule_parameters(rule_type: str) -> dict[str, Any] | None:
+            for rule in rules:
+                if rule["type"] == rule_type:
+                    return rule.get("parameters") or {}
+
+            return None
+
         def check_simple_rule(prop_key: str, rule_type: str, value_if_rule_is_present: bool) -> None:
             if any((_ := rule) for rule in rules if rule["type"] == rule_type):
                 mapping[prop_key] = K(value_if_rule_is_present)
@@ -840,6 +1126,7 @@ class Ruleset(ModelObject, abc.ABC):
 
         check_simple_rule("requires_commit_signatures", "required_signatures", True)
         check_simple_rule("requires_linear_history", "required_linear_history", True)
+        check_simple_rule("requires_license_compliance_scanning", "license_compliance_scanning", True)
 
         # bypass actors
         if "bypass_actors" in data:
@@ -890,93 +1177,33 @@ class Ruleset(ModelObject, abc.ABC):
         else:
             mapping["bypass_actors"] = K([])
 
-        # required pull request
-        if any((found := rule) for rule in rules if rule["type"] == "pull_request"):
-            parameters = found.get("parameters") or {}
-            mapping["required_pull_request"] = K(PullRequestSettings.from_provider_data(org_id, parameters))
-        else:
-            mapping["required_pull_request"] = K(None)
-
-        # required status checks
-        if any((found := rule) for rule in rules if rule["type"] == "required_status_checks"):
-            parameters = found.get("parameters") or {}
-            mapping["required_status_checks"] = K(StatusCheckSettings.from_provider_data(org_id, parameters))
-        else:
-            mapping["required_status_checks"] = K(None)
+        # rules modelled as embedded models
+        for rule in _EMBEDDED_RULES:
+            parameters = get_rule_parameters(rule.rule_type)
+            mapping[rule.key] = K(None if parameters is None else rule.model.from_provider_data(org_id, parameters))
 
         # required deployments
-        if any((found := rule) for rule in rules if rule["type"] == "required_deployments"):
+        if (parameters := get_rule_parameters("required_deployments")) is not None:
             mapping["requires_deployments"] = K(True)
-            deployment_environments = (found.get("parameters") or {}).get("required_deployment_environments", [])
-            mapping["required_deployment_environments"] = K(deployment_environments)
+            mapping["required_deployment_environments"] = K(parameters.get("required_deployment_environments", []))
         else:
             mapping["requires_deployments"] = K(False)
             mapping["required_deployment_environments"] = K([])
 
-        # required merge queue
-        if any((found := rule) for rule in rules if rule["type"] == "merge_queue"):
-            merge_queue_parameters = found.get("parameters") or {}
-            mapping["required_merge_queue"] = K(MergeQueueSettings.from_provider_data(org_id, merge_queue_parameters))
-        else:
-            mapping["required_merge_queue"] = K(None)
+        # push rules
+        file_path_restriction = get_rule_parameters("file_path_restriction") or {}
+        mapping["restricted_file_paths"] = K(file_path_restriction.get("restricted_file_paths") or [])
+        mapping["restricted_file_paths_exceptions"] = K(file_path_restriction.get("ignored_file_paths") or [])
 
-        # required copilot review
-        if any((found := rule) for rule in rules if rule["type"] == "copilot_review"):
-            copilot_review_parameters = found.get("parameters", {})
-            mapping["required_copilot_review"] = K(
-                CopilotReviewSettings.from_provider_data(org_id, copilot_review_parameters)
-            )
-        else:
-            mapping["required_copilot_review"] = K(None)
+        max_file_path_length = get_rule_parameters("max_file_path_length") or {}
+        mapping["max_file_path_length"] = K(max_file_path_length.get("max_file_path_length") or 0)
 
-        # pattern rules
-        for pattern_type in [
-            "commit_message_pattern",
-            "commit_author_email_pattern",
-            "committer_email_pattern",
-            "branch_name_pattern",
-            "tag_name_pattern",
-        ]:
-            if any((found := rule) for rule in rules if rule["type"] == pattern_type):
-                parameters = found.get("parameters", {})
-                mapping[pattern_type] = K(PatternSettings.from_provider_data(org_id, parameters))
-            else:
-                mapping[pattern_type] = K(None)
+        file_extension_restriction = get_rule_parameters("file_extension_restriction") or {}
+        mapping["restricted_file_extensions"] = K(file_extension_restriction.get("restricted_file_extensions") or [])
 
-        # push restriction rules
-        if any((found := rule) for rule in rules if rule["type"] == "file_path_restriction"):
-            mapping["restricted_file_paths"] = K(found.get("parameters", {}).get("restricted_file_paths", []))
-        else:
-            mapping["restricted_file_paths"] = K([])
-
-        if any((found := rule) for rule in rules if rule["type"] == "max_file_path_length"):
-            mapping["max_file_path_length"] = K(found.get("parameters", {}).get("max_file_path_length", 0))
-        else:
-            mapping["max_file_path_length"] = K(0)
-
-        if any((found := rule) for rule in rules if rule["type"] == "file_extension_restriction"):
-            mapping["restricted_file_extensions"] = K(found.get("parameters", {}).get("restricted_file_extensions", []))
-        else:
-            mapping["restricted_file_extensions"] = K([])
-
-        if any((found := rule) for rule in rules if rule["type"] == "max_file_size"):
-            mapping["max_file_size"] = K(found.get("parameters", {}).get("max_file_size", 0))
-        else:
-            mapping["max_file_size"] = K(0)
-
-        # code scanning
-        if any((found := rule) for rule in rules if rule["type"] == "code_scanning"):
-            parameters = found.get("parameters", {})
-            mapping["required_code_scanning"] = K(CodeScanningSettings.from_provider_data(org_id, parameters))
-        else:
-            mapping["required_code_scanning"] = K(None)
-
-        # workflows
-        if any((found := rule) for rule in rules if rule["type"] == "workflows"):
-            parameters = found.get("parameters", {})
-            mapping["required_workflows"] = K(WorkflowsSettings.from_provider_data(org_id, parameters))
-        else:
-            mapping["required_workflows"] = K(None)
+        max_file_size = get_rule_parameters("max_file_size") or {}
+        mapping["max_file_size"] = K(max_file_size.get("max_file_size") or 0)
+        mapping["max_file_size_exceptions"] = K(max_file_size.get("ignored_file_paths") or [])
 
         return mapping
 
@@ -1064,44 +1291,24 @@ class Ruleset(ModelObject, abc.ABC):
 
         add_simple_rule("requires_commit_signatures", "required_signatures", False)
         add_simple_rule("requires_linear_history", "required_linear_history", False)
+        add_simple_rule("requires_license_compliance_scanning", "license_compliance_scanning", False)
 
         def add_parameter(prop_key: str, param_key: str, params: dict[str, Any]):
             if prop_key in data:
                 params[param_key] = S(prop_key)
 
-        # required pull request
-        if "required_pull_request" in data:
-            mapping.pop("required_pull_request")
-            required_pull_request = data["required_pull_request"]
-            if required_pull_request is not None:
-                pull_request_parameters = await PullRequestSettings.dict_to_provider_data(
-                    org_id,
-                    required_pull_request,
-                    provider,
-                )
-                if pull_request_parameters and len(pull_request_parameters) > 0:
-                    rule = {
-                        "type": K("pull_request"),
-                        "parameters": K(pull_request_parameters),
-                    }
-                    rules.append(rule)
+        # rules modelled as embedded models
+        for embedded_rule in _EMBEDDED_RULES:
+            if embedded_rule.key in data:
+                mapping.pop(embedded_rule.key)
+                settings = data[embedded_rule.key]
+                if settings is not None:
+                    parameters = await embedded_rule.model.dict_to_provider_data(org_id, settings, provider)
+                    # an empty list of status checks is not required
+                    if embedded_rule.rule_type == "required_status_checks" and len(parameters) == 0:
+                        continue
 
-        # required status checks
-        if "required_status_checks" in data:
-            mapping.pop("required_status_checks")
-            required_status_checks = data["required_status_checks"]
-            if required_status_checks is not None:
-                status_check_parameters = await StatusCheckSettings.dict_to_provider_data(
-                    org_id,
-                    required_status_checks,
-                    provider,
-                )
-                if status_check_parameters and len(status_check_parameters) > 0:
-                    rule = {
-                        "type": K("required_status_checks"),
-                        "parameters": K(status_check_parameters),
-                    }
-                    rules.append(rule)
+                    rules.append({"type": K(embedded_rule.rule_type), "parameters": K(parameters)})
 
         # required deployments
         if "requires_deployments" in data:
@@ -1117,145 +1324,51 @@ class Ruleset(ModelObject, abc.ABC):
 
         pop_mapping(["requires_deployments", "required_deployment_environments"])
 
-        # required merge queue
-        if "required_merge_queue" in data:
-            mapping.pop("required_merge_queue")
-            required_merge_queue = data["required_merge_queue"]
-            if required_merge_queue is not None:
-                merge_queue_parameters = await MergeQueueSettings.dict_to_provider_data(
-                    org_id,
-                    required_merge_queue,
-                    provider,
-                )
-                if merge_queue_parameters and len(merge_queue_parameters) > 0:
-                    rule = {
-                        "type": K("merge_queue"),
-                        "parameters": K(merge_queue_parameters),
-                    }
-                    rules.append(rule)
+        # push rules, the exceptions of a rule are only sent if there are any
+        def add_push_rule(rule_type: str, parameters: dict[str, Any]) -> None:
+            rules.append(
+                {
+                    "type": K(rule_type),
+                    "parameters": {key: K(value) for key, value in parameters.items() if value},
+                }
+            )
 
-        # required copilot review
-        if "required_copilot_review" in data:
-            mapping.pop("required_copilot_review")
-            required_copilot_review = data["required_copilot_review"]
-            if required_copilot_review is not None:
-                copilot_review_parameters = await CopilotReviewSettings.dict_to_provider_data(
-                    org_id,
-                    required_copilot_review,
-                    provider,
-                )
-                if copilot_review_parameters and len(copilot_review_parameters) > 0:
-                    rule = {
-                        "type": K("copilot_review"),
-                        "parameters": K(copilot_review_parameters),
-                    }
-                    rules.append(rule)
+        if data.get("restricted_file_paths"):
+            add_push_rule(
+                "file_path_restriction",
+                {
+                    "restricted_file_paths": data["restricted_file_paths"],
+                    "ignored_file_paths": data.get("restricted_file_paths_exceptions"),
+                },
+            )
 
-        # pattern rules
-        for pattern_field, pattern_rule_type in [
-            ("commit_message_pattern", "commit_message_pattern"),
-            ("commit_author_email_pattern", "commit_author_email_pattern"),
-            ("committer_email_pattern", "committer_email_pattern"),
-            ("branch_name_pattern", "branch_name_pattern"),
-            ("tag_name_pattern", "tag_name_pattern"),
-        ]:
-            if pattern_field in data:
-                mapping.pop(pattern_field)
-                pattern_data = data[pattern_field]
-                if pattern_data is not None:
-                    pattern_parameters = await PatternSettings.dict_to_provider_data(
-                        org_id,
-                        pattern_data,
-                        provider,
-                    )
-                    if pattern_parameters and len(pattern_parameters) > 0:
-                        rules.append(
-                            {
-                                "type": K(pattern_rule_type),
-                                "parameters": K(pattern_parameters),
-                            }
-                        )
+        if data.get("max_file_path_length"):
+            add_push_rule("max_file_path_length", {"max_file_path_length": data["max_file_path_length"]})
 
-        # push restriction rules
-        if "restricted_file_paths" in data:
-            mapping.pop("restricted_file_paths")
-            file_paths = data["restricted_file_paths"]
-            if file_paths and len(file_paths) > 0:
-                rules.append(
-                    {
-                        "type": K("file_path_restriction"),
-                        "parameters": {"restricted_file_paths": K(file_paths)},
-                    }
-                )
+        if data.get("restricted_file_extensions"):
+            add_push_rule(
+                "file_extension_restriction", {"restricted_file_extensions": data["restricted_file_extensions"]}
+            )
 
-        if "max_file_path_length" in data:
-            mapping.pop("max_file_path_length")
-            max_path_length = data["max_file_path_length"]
-            if max_path_length and max_path_length > 0:
-                rules.append(
-                    {
-                        "type": K("max_file_path_length"),
-                        "parameters": {"max_file_path_length": K(max_path_length)},
-                    }
-                )
+        if data.get("max_file_size"):
+            add_push_rule(
+                "max_file_size",
+                {
+                    "max_file_size": data["max_file_size"],
+                    "ignored_file_paths": data.get("max_file_size_exceptions"),
+                },
+            )
 
-        if "restricted_file_extensions" in data:
-            mapping.pop("restricted_file_extensions")
-            file_extensions = data["restricted_file_extensions"]
-            if file_extensions and len(file_extensions) > 0:
-                rules.append(
-                    {
-                        "type": K("file_extension_restriction"),
-                        "parameters": {"restricted_file_extensions": K(file_extensions)},
-                    }
-                )
-
-        if "max_file_size" in data:
-            mapping.pop("max_file_size")
-            max_size = data["max_file_size"]
-            if max_size and max_size > 0:
-                rules.append(
-                    {
-                        "type": K("max_file_size"),
-                        "parameters": {"max_file_size": K(max_size)},
-                    }
-                )
-
-        # code scanning
-        if "required_code_scanning" in data:
-            mapping.pop("required_code_scanning")
-            required_code_scanning = data["required_code_scanning"]
-            if required_code_scanning is not None:
-                code_scanning_parameters = await CodeScanningSettings.dict_to_provider_data(
-                    org_id,
-                    required_code_scanning,
-                    provider,
-                )
-                if code_scanning_parameters and len(code_scanning_parameters) > 0:
-                    rules.append(
-                        {
-                            "type": K("code_scanning"),
-                            "parameters": K(code_scanning_parameters),
-                        }
-                    )
-
-        # workflows
-        if "required_workflows" in data:
-            mapping.pop("required_workflows")
-            required_workflows = data["required_workflows"]
-            if required_workflows is not None:
-                workflows_parameters = await WorkflowsSettings.dict_to_provider_data(
-                    org_id,
-                    required_workflows,
-                    provider,
-                )
-                if workflows_parameters and len(workflows_parameters) > 0:
-                    rules.append(
-                        {
-                            "type": K("workflows"),
-                            "parameters": K(workflows_parameters),
-                        }
-                    )
+        pop_mapping(
+            [
+                "restricted_file_paths",
+                "restricted_file_paths_exceptions",
+                "max_file_path_length",
+                "restricted_file_extensions",
+                "max_file_size",
+                "max_file_size_exceptions",
+            ]
+        )
 
         if len(rules) > 0:
             mapping["rules"] = rules
@@ -1279,194 +1392,31 @@ class Ruleset(ModelObject, abc.ABC):
 
         printer.print(f"{unwrap(template_function)}('{self.name}')")
 
-        if "required_pull_request" in patch and patch.get("required_pull_request") is not None:
-            patch.pop("required_pull_request")
-
-        if "required_merge_queue" in patch and patch.get("required_merge_queue") is not None:
-            patch.pop("required_merge_queue")
-
-        if "required_status_checks" in patch and patch.get("required_status_checks") is not None:
-            patch.pop("required_status_checks")
-
-        if "required_copilot_review" in patch and patch.get("required_copilot_review") is not None:
-            patch.pop("required_copilot_review")
-
-        for pattern_field in [
-            "commit_message_pattern",
-            "commit_author_email_pattern",
-            "committer_email_pattern",
-            "branch_name_pattern",
-            "tag_name_pattern",
-        ]:
-            if pattern_field in patch and patch.get(pattern_field) is not None:
-                patch.pop(pattern_field)
-
-        if "required_code_scanning" in patch and patch.get("required_code_scanning") is not None:
-            patch.pop("required_code_scanning")
-
-        if "required_workflows" in patch and patch.get("required_workflows") is not None:
-            patch.pop("required_workflows")
+        for rule in _EMBEDDED_RULES:
+            if rule.key in patch and patch.get(rule.key) is not None:
+                patch.pop(rule.key)
 
         write_patch_object_as_json(patch, printer, close_object=False)
 
-        if is_set_and_present(self.required_pull_request):
-            default_pull_request_config = cast("Ruleset", default_object).required_pull_request
-            if default_pull_request_config is None:
-                default_pull_request_config = PullRequestSettings.from_model_data(
-                    jsonnet_config.default_pull_request_config or {}
+        for rule in _EMBEDDED_RULES:
+            settings = self.__getattribute__(rule.key)
+            if not is_set_and_present(settings):
+                continue
+
+            default_settings = default_object.__getattribute__(rule.key)
+            if is_set_and_present(default_settings):
+                embedded_extend = True
+            else:
+                default_settings = rule.model.from_model_data(
+                    jsonnet_config.__getattribute__(rule.default_config) or {}
                 )
                 embedded_extend = False
-            else:
-                embedded_extend = True
 
-            if is_set_and_valid(default_pull_request_config):
-                patch = self.required_pull_request.get_patch_to(default_pull_request_config)
-                if len(patch) > 0:
-                    printer.print(f"required_pull_request{'+' if embedded_extend else ''}:")
-                    self.required_pull_request.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_pull_request_config,
-                    )
-
-        if is_set_and_present(self.required_merge_queue):
-            default_merge_queue_config = cast("Ruleset", default_object).required_merge_queue
-            if default_merge_queue_config is None:
-                default_merge_queue_config = MergeQueueSettings.from_model_data(
-                    jsonnet_config.default_merge_queue_config or {}
-                )
-                embedded_extend = False
-            else:
-                embedded_extend = True
-
-            if is_set_and_valid(default_merge_queue_config):
-                patch = self.required_merge_queue.get_patch_to(default_merge_queue_config)
-                if len(patch) > 0:
-                    printer.print(f"required_merge_queue{'+' if embedded_extend else ''}:")
-                    self.required_merge_queue.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_merge_queue_config,
-                    )
-
-        if is_set_and_present(self.required_status_checks):
-            default_status_check_config = cast("Ruleset", default_object).required_status_checks
-            if default_status_check_config is None:
-                default_status_check_config = StatusCheckSettings.from_model_data(
-                    jsonnet_config.default_status_checks_config or {}
-                )
-                embedded_extend = False
-            else:
-                embedded_extend = True
-
-            if is_set_and_valid(default_status_check_config):
-                patch = self.required_status_checks.get_patch_to(default_status_check_config)
-                if len(patch) > 0:
-                    printer.print(f"required_status_checks{'+' if embedded_extend else ''}:")
-                    self.required_status_checks.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_status_check_config,
-                    )
-
-        if is_set_and_present(self.required_copilot_review):
-            default_copilot_review_config = cast("Ruleset", default_object).required_copilot_review
-            if default_copilot_review_config is None:
-                default_copilot_review_config = CopilotReviewSettings.from_model_data(
-                    jsonnet_config.default_copilot_review_config
-                )
-                embedded_extend = False
-            else:
-                embedded_extend = True
-
-            if is_set_and_valid(default_copilot_review_config):
-                patch = self.required_copilot_review.get_patch_to(default_copilot_review_config)
-                if len(patch) > 0:
-                    printer.print(f"required_copilot_review{'+' if embedded_extend else ''}:")
-                    self.required_copilot_review.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_copilot_review_config,
-                    )
-
-        # pattern rules
-        for pattern_field in [
-            "commit_message_pattern",
-            "commit_author_email_pattern",
-            "committer_email_pattern",
-            "branch_name_pattern",
-            "tag_name_pattern",
-        ]:
-            pattern_value = getattr(self, pattern_field)
-            if is_set_and_present(pattern_value):
-                default_pattern_config = getattr(cast("Ruleset", default_object), pattern_field)
-                if default_pattern_config is None:
-                    default_pattern_config = PatternSettings.from_model_data(jsonnet_config.default_pattern_config)
-                    embedded_extend = False
-                else:
-                    embedded_extend = True
-
-                if is_set_and_valid(default_pattern_config):
-                    patch = pattern_value.get_patch_to(default_pattern_config)
-                    if len(patch) > 0:
-                        printer.print(f"{pattern_field}{'+' if embedded_extend else ''}:")
-                        pattern_value.to_jsonnet(
-                            printer,
-                            jsonnet_config,
-                            context,
-                            embedded_extend,
-                            default_pattern_config,
-                        )
-
-        if is_set_and_present(self.required_code_scanning):
-            default_code_scanning_config = cast("Ruleset", default_object).required_code_scanning
-            if default_code_scanning_config is None:
-                default_code_scanning_config = CodeScanningSettings.from_model_data(
-                    jsonnet_config.default_code_scanning_config
-                )
-                embedded_extend = False
-            else:
-                embedded_extend = True
-
-            if is_set_and_valid(default_code_scanning_config):
-                patch = self.required_code_scanning.get_patch_to(default_code_scanning_config)
-                if len(patch) > 0:
-                    printer.print(f"required_code_scanning{'+' if embedded_extend else ''}:")
-                    self.required_code_scanning.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_code_scanning_config,
-                    )
-
-        if is_set_and_present(self.required_workflows):
-            default_workflows_config = cast("Ruleset", default_object).required_workflows
-            if default_workflows_config is None:
-                default_workflows_config = WorkflowsSettings.from_model_data(jsonnet_config.default_workflows_config)
-                embedded_extend = False
-            else:
-                embedded_extend = True
-
-            if is_set_and_valid(default_workflows_config):
-                patch = self.required_workflows.get_patch_to(default_workflows_config)
-                if len(patch) > 0:
-                    printer.print(f"required_workflows{'+' if embedded_extend else ''}:")
-                    self.required_workflows.to_jsonnet(
-                        printer,
-                        jsonnet_config,
-                        context,
-                        embedded_extend,
-                        default_workflows_config,
-                    )
+            embedded_patch = settings.get_patch_to(default_settings)
+            # settings that are not required by default are written even if they equal their default values
+            if len(embedded_patch) > 0 or embedded_extend is False:
+                printer.print(f"{rule.key}{'+' if embedded_extend else ''}:")
+                settings.to_jsonnet(printer, jsonnet_config, context, embedded_extend, default_settings)
 
         # close the object
         printer.level_down()

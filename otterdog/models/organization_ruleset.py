@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import fnmatch
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from jsonbender import F, K, OptionalS  # type: ignore
 
@@ -34,6 +34,13 @@ class OrganizationRuleset(Ruleset):
     exclude_repo_names: list[str]
     protect_repo_names: bool
 
+    # the rules that GitHub does not support for organization rulesets
+    _repository_only_rules: ClassVar[list[str]] = [
+        "required_code_quality",
+        "required_code_coverage",
+        "requires_license_compliance_scanning",
+    ]
+
     @property
     def model_object_name(self) -> str:
         return "org_ruleset"
@@ -43,6 +50,14 @@ class OrganizationRuleset(Ruleset):
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         super().validate(context, parent_object)
+
+        for key in self._repository_only_rules:
+            if self.is_rule_configured(key):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' set, "
+                    f"while it is only supported by repository rulesets.",
+                )
 
         repositories = cast("GitHubOrganization", context.root_object).repositories
         all_repo_names = (x.name for x in repositories)

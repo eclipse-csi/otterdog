@@ -55,9 +55,11 @@ class JsonnetConfig:
     create_pull_request = "newPullRequest"
     create_status_checks = "newStatusChecks"
     create_merge_queue = "newMergeQueue"
-    create_copilot_review = "newCopilotReview"
+    create_copilot_code_review = "newCopilotCodeReview"
     create_pattern = "newPattern"
     create_code_scanning = "newCodeScanning"
+    create_code_quality = "newCodeQuality"
+    create_code_coverage = "newCodeCoverage"
     create_workflows = "newWorkflows"
 
     def __init__(
@@ -105,9 +107,11 @@ class JsonnetConfig:
         self._default_pull_request_config: dict[str, Any] | None = None
         self._default_status_checks_config: dict[str, Any] | None = None
         self._default_merge_queue_config: dict[str, Any] | None = None
-        self._default_copilot_review_config: dict[str, Any] | None = None
+        self._default_copilot_code_review_config: dict[str, Any] | None = None
         self._default_pattern_config: dict[str, Any] | None = None
         self._default_code_scanning_config: dict[str, Any] | None = None
+        self._default_code_quality_config: dict[str, Any] | None = None
+        self._default_code_coverage_config: dict[str, Any] | None = None
         self._default_workflows_config: dict[str, Any] | None = None
 
         self._initialized = False
@@ -385,13 +389,13 @@ class JsonnetConfig:
             return None
 
     @cached_property
-    def default_copilot_review_config(self):
+    def default_copilot_code_review_config(self):
         try:
-            # load the default copilot review config
-            copilot_review_snippet = f"(import '{self.template_file}').{self.create_copilot_review}()"
-            return jsonnet_evaluate_snippet(copilot_review_snippet)
+            # load the default copilot code review config
+            copilot_code_review_snippet = f"(import '{self.template_file}').{self.create_copilot_code_review}()"
+            return jsonnet_evaluate_snippet(copilot_code_review_snippet)
         except RuntimeError:
-            _logger.debug("no default copilot review config found, copilot reviews will be skipped")
+            _logger.debug("no default copilot code review config found, copilot code reviews will be skipped")
             return None
 
     @cached_property
@@ -412,6 +416,26 @@ class JsonnetConfig:
             return jsonnet_evaluate_snippet(code_scanning_snippet)
         except RuntimeError:
             _logger.debug("no default code scanning config found, code scanning will be skipped")
+            return None
+
+    @cached_property
+    def default_code_quality_config(self):
+        try:
+            # load the default code quality config
+            code_quality_snippet = f"(import '{self.template_file}').{self.create_code_quality}()"
+            return jsonnet_evaluate_snippet(code_quality_snippet)
+        except RuntimeError:
+            _logger.debug("no default code quality config found, code quality will be skipped")
+            return None
+
+    @cached_property
+    def default_code_coverage_config(self):
+        try:
+            # load the default code coverage config
+            code_coverage_snippet = f"(import '{self.template_file}').{self.create_code_coverage}()"
+            return jsonnet_evaluate_snippet(code_coverage_snippet)
+        except RuntimeError:
+            _logger.debug("no default code coverage config found, code coverage will be skipped")
             return None
 
     @cached_property

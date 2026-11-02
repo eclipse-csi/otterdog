@@ -486,8 +486,8 @@ class TestRuleset:
 
         assert result["required_merge_queue"] is not None
 
-    def test_get_mapping_from_provider_with_copilot_review(self):
-        """Test that copilot_review rule is processed correctly."""
+    def test_get_mapping_from_provider_with_copilot_code_review(self):
+        """Test that copilot_code_review rule is processed correctly."""
         data = {
             "id": 123,
             "name": "test-ruleset",
@@ -497,9 +497,9 @@ class TestRuleset:
             "bypass_actors": [],
             "rules": [
                 {
-                    "type": "copilot_review",
+                    "type": "copilot_code_review",
                     "parameters": {
-                        "review_new_pushes": True,
+                        "review_on_push": True,
                         "review_draft_pull_requests": False,
                     },
                 },
@@ -511,12 +511,12 @@ class TestRuleset:
 
         result = bend(mapping, data)
 
-        assert result["required_copilot_review"] is not None
-        assert result["required_copilot_review"].review_new_pushes is True
-        assert result["required_copilot_review"].review_draft_pull_requests is False
+        assert result["copilot_code_review"] is not None
+        assert result["copilot_code_review"].review_on_push is True
+        assert result["copilot_code_review"].review_draft_pull_requests is False
 
-    def test_get_mapping_from_provider_without_copilot_review(self):
-        """Test that missing copilot_review rule defaults to None."""
+    def test_get_mapping_from_provider_without_copilot_code_review(self):
+        """Test that missing copilot_code_review rule defaults to None."""
         data = {
             "id": 123,
             "name": "test-ruleset",
@@ -532,7 +532,7 @@ class TestRuleset:
 
         result = bend(mapping, data)
 
-        assert result["required_copilot_review"] is None
+        assert result["copilot_code_review"] is None
 
     def test_get_mapping_from_provider_with_pattern_rules(self):
         """Test that pattern rules are processed correctly."""
