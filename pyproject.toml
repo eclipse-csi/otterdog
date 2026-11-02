@@ -112,6 +112,7 @@ pytest = ">=9.0.3"
 pytest-asyncio = ">=0.24"
 parameterized  = ">=0.9"
 pytest-cov = ">=6.1.1"
+pytest-xdist = ">=3.8.0"
 pretend = "^1.0.9"
 referencing = "^0.37.0"
 

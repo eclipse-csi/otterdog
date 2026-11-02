@@ -187,8 +187,10 @@ class Playground:
     def file_editor(name: str) -> str:
         return f'.tab-pane[data-file$="{name}"]'
 
-    def examples(self):
-        return self.page.locator(".playground-example")
+    def examples(self, page: int | None = None):
+        if page is None:
+            return self.page.locator(".playground-example")
+        return self.page.locator(f'.playground-example[data-page="{page}"]')
 
 
 def validated_by_otterdog(page) -> list[str]:

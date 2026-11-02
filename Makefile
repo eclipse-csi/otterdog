@@ -45,7 +45,7 @@ endif
 		|| { ln -sf $(OTTERDOG_SCRIPT) $(OTTERDOG_LINK); echo "Updated symlink: $(OTTERDOG_LINK) -> $(OTTERDOG_SCRIPT)"; }
 
 test:  ## Run tests with coverage
-	poetry run pytest -rs tests --cov=otterdog --cov-report=term --cov-report=html
+	poetry run pytest -rs -n auto --dist worksteal tests --cov=otterdog --cov-report=term --cov-report=html
 
 clean:  ## Clean the development environment
 	rm -rf .venv
