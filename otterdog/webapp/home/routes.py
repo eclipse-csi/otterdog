@@ -10,11 +10,11 @@ import asyncio
 import functools
 import json
 import os.path
-import posixpath
 import re
 from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote
 
@@ -864,24 +864,30 @@ def _default_org_config(
 
 
 async def _instance_template(org_config: OrganizationConfig) -> dict[str, Any]:
+    """Load the selected template and its libraries for evaluation in the browser.
+
+    Browser filenames mirror the vendor checkout, e.g. vendor/custom/nested/helper.libsonnet.
+    The browser needs each file's contents for Jsonnet imports and its GitHub URL
+    for source links. default_config identifies the organization's selected entry file.
+    """
     import aiofiles
 
     jsonnet_config = org_config.jsonnet_config
     await jsonnet_config.init_template()
 
-    # the files of the template are next to its default configuration in its repository
-    repo_url, file, ref = parse_template_url(org_config.base_template)
-    directory = posixpath.dirname(file)
+    repo_url, _, ref = parse_template_url(org_config.base_template)
 
     files = []
     async for jsonnet_file in jsonnet_config.jsonnet_template_files():
-        name = os.path.basename(jsonnet_file)
+        # Imports and source links use paths from the repository root, even when
+        # the selected default configuration itself lives in a subdirectory.
+        repository_path = Path(jsonnet_file).relative_to(jsonnet_config.template_dir).as_posix()
         async with aiofiles.open(jsonnet_file) as f:
             files.append(
                 {
-                    "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{name}",
+                    "filename": f"vendor/{jsonnet_config.base_template_repo_name}/{repository_path}",
                     "content": await f.read(),
-                    "url": f"{repo_url}/blob/{ref}/{posixpath.join(directory, name)}",
+                    "url": f"{repo_url}/blob/{ref}/{repository_path}",
                 }
             )
 
