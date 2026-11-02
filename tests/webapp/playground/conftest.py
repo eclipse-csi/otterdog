@@ -157,6 +157,8 @@ def playground_url(tmp_path_factory):
     server.shutdown()
 
 
+# not shared by the session: the sync api of Playwright keeps an event loop running while it is open,
+# which breaks the asynchronous tests run in between
 @pytest.fixture(scope="module")
 def browser():
     from playwright.sync_api import Error, sync_playwright

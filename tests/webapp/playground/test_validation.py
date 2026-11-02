@@ -12,7 +12,11 @@ from pathlib import Path
 
 import pytest
 
+from otterdog.webapp.home import routes
+
 from .helpers import EDITOR, validated_by_otterdog
+
+CATALOG = routes._playground_examples()
 
 RULESET = """local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
 
@@ -131,10 +135,12 @@ def test_no_problem_is_reported(playground, code):
     assert warnings(playground) == []
 
 
-def test_the_examples_are_valid(playground):
+# one test per page of the guides, so that the examples are validated in parallel
+@pytest.mark.parametrize("page", range(len(CATALOG)), ids=[page["title"] for page in CATALOG])
+def test_the_examples_are_valid(playground, page):
     playground.open("example.html")
     invalid = []
-    for button in playground.examples().all():
+    for button in playground.examples(page).all():
         button.click()
         playground.wait_evaluated()
         if playground.note("problems") is not None:
