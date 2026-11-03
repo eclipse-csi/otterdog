@@ -15,7 +15,7 @@ import json
 import os
 import re
 from io import StringIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
@@ -28,6 +28,7 @@ from otterdog.models import (
     LivePatch,
     LivePatchContext,
     LivePatchHandler,
+    LivePatchType,
     ModelObject,
     PatchContext,
     ValidationContext,
@@ -1007,7 +1008,7 @@ class GitHubOrganization:
         )
 
         # organization rulesets are applied before the repositories, e.g. to lift the protection of a repository name
-        # before renaming it, except the ones requiring a workflow of a repository created by this apply
+        # before renaming it, except the required workflows of a repository created by this apply
         current_repository_names = {repo.name.lower(): repo.name for repo in current_organization.repositories}
         new_repositories = {
             f"{self.github_id}/{repo.name}".lower()
@@ -1023,7 +1024,7 @@ class GitHubOrganization:
                 and is_set_and_present(ruleset.required_workflows)
                 and not ruleset.required_workflows.get_repositories().isdisjoint(new_repositories)
             ):
-                deferred_ruleset_patches.append(patch)
+                deferred_ruleset_patches.append(self._apply_ruleset_changes_before_workflows(patch, handler))
             else:
                 handler(patch)
 
@@ -1051,6 +1052,32 @@ class GitHubOrganization:
 
         for patch in deferred_ruleset_patches:
             handler(patch)
+
+    @staticmethod
+    def _apply_ruleset_changes_before_workflows(patch: LivePatch, handler: LivePatchHandler) -> LivePatch:
+        """
+        Handles the changes of an organization ruleset other than its required workflows, which are applied before
+        the repositories with the current workflows, e.g. to lift the protection of a repository name before renaming
+        it. Returns the patch of the required workflows, which is applied after the repositories they require.
+        """
+        changes = patch.changes or {}
+        other_changes = {key: change for key, change in changes.items() if key != "required_workflows"}
+        if patch.patch_type != LivePatchType.CHANGE or "required_workflows" not in changes or len(other_changes) == 0:
+            return patch
+
+        expected_ruleset = cast("OrganizationRuleset", patch.expected_object)
+        current_ruleset = cast("OrganizationRuleset", patch.current_object)
+        handler(
+            dataclasses.replace(
+                patch,
+                expected_object=dataclasses.replace(
+                    expected_ruleset, required_workflows=current_ruleset.required_workflows
+                ),
+                changes=other_changes,
+            )
+        )
+
+        return dataclasses.replace(patch, changes={"required_workflows": changes["required_workflows"]})
 
     def _rulesets_with_current_workflow_repositories(
         self, current_repository_names: dict[str, str]
