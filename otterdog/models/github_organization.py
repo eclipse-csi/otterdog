@@ -73,6 +73,7 @@ if TYPE_CHECKING:
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
     from otterdog.models import Change
+    from otterdog.models.ruleset import WorkflowsSettings
     from otterdog.providers.github import GitHubProvider
     from otterdog.utils import ExclusionPatterns
 
@@ -1060,23 +1061,34 @@ class GitHubOrganization:
     @staticmethod
     def _apply_ruleset_changes_before_workflows(patch: LivePatch, handler: LivePatchHandler) -> LivePatch | None:
         """
-        Handles the changes of an organization ruleset other than its required workflows, which are applied before
-        the repositories with the current workflows, e.g. to lift the protection of a repository name before renaming
-        it. Returns the patch of the required workflows, which is applied after the repositories they require, if they
-        change.
+        Handles the patch of an organization ruleset requiring a workflow of a repository created by the apply, and
+        returns the patch applied after the repositories, if any. A new ruleset only adds protections, it is created
+        after the repositories. The changes of an existing ruleset are applied before the repositories with the
+        current workflows and their expected settings, e.g. to lift the protection of a repository name before
+        renaming it, or to allow the creation of a repository that the current workflows would block, and its
+        workflows after the repositories.
         """
         changes = patch.changes or {}
-        if patch.patch_type == LivePatchType.CHANGE and "required_workflows" not in changes:
+        if patch.patch_type != LivePatchType.CHANGE:
+            return patch
+
+        if "required_workflows" not in changes:
             # the current workflows only require existing repositories
             handler(patch)
             return None
 
-        other_changes = {key: change for key, change in changes.items() if key != "required_workflows"}
-        if patch.patch_type != LivePatchType.CHANGE or len(other_changes) == 0:
-            return patch
-
         expected_ruleset = cast("OrganizationRuleset", patch.expected_object)
         current_ruleset = cast("OrganizationRuleset", patch.current_object)
+        workflows_before, workflows_change = GitHubOrganization._current_workflows_with_expected_settings(
+            expected_ruleset, current_ruleset
+        )
+
+        changes_before = {key: change for key, change in changes.items() if key != "required_workflows"}
+        if workflows_change is not None:
+            changes_before["required_workflows"] = workflows_change
+
+        if len(changes_before) == 0:
+            return patch
 
         def patch_of(ruleset: OrganizationRuleset, ruleset_changes: dict[str, Change]) -> LivePatch:
             return LivePatch.of_changes(
@@ -1089,11 +1101,27 @@ class GitHubOrganization:
                 patch.changes_object_to_readonly,
             )
 
-        ruleset_with_current_workflows = copy.copy(expected_ruleset)
-        ruleset_with_current_workflows.required_workflows = current_ruleset.required_workflows
-        handler(patch_of(ruleset_with_current_workflows, other_changes))
+        ruleset_before = copy.copy(expected_ruleset)
+        ruleset_before.required_workflows = workflows_before
+        handler(patch_of(ruleset_before, changes_before))
 
         return patch_of(expected_ruleset, {"required_workflows": changes["required_workflows"]})
+
+    @staticmethod
+    def _current_workflows_with_expected_settings(
+        expected_ruleset: OrganizationRuleset, current_ruleset: OrganizationRuleset
+    ) -> tuple[WorkflowsSettings | None, Change | None]:
+        """
+        The current required workflows of a ruleset with their expected settings, and their change if any.
+        """
+        current_workflows = current_ruleset.required_workflows
+        expected_workflows = expected_ruleset.required_workflows
+        if not is_set_and_present(current_workflows) or not is_set_and_present(expected_workflows):
+            return current_workflows, None
+
+        workflows = copy.copy(current_workflows)
+        workflows.do_not_enforce_on_create = expected_workflows.do_not_enforce_on_create
+        return workflows, workflows.get_difference_from(current_workflows)
 
     def _rulesets_with_current_workflow_repositories(
         self, current_repository_names: dict[str, str]

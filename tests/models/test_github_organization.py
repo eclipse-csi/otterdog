@@ -254,7 +254,7 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         assert sorted(change.to_value) == sorted([repository_name, "other-repo"])
 
     def _generate_ruleset_and_repository_patches(
-        self, workflow_repository=None, rename=False, existing=False, lift_protection=False
+        self, workflow_repository=None, rename=False, existing=False, lift_protection=False, allow_creation=False
     ):
         expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
         current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
@@ -265,15 +265,18 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         else:
             expected_org.add_repository(dataclasses.replace(repository, name="new-name"))
 
-        def ruleset(repository_name, protect_repo_names=True):
+        def ruleset(repository_name, protect_repo_names=True, do_not_enforce_on_create=False):
             data = {"name": "main", "target": "branch", "protect_repo_names": protect_repo_names}
             if repository_name is not None:
                 workflow = f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"
-                data["required_workflows"] = {"workflows": [workflow]}
+                data["required_workflows"] = {
+                    "workflows": [workflow],
+                    "do_not_enforce_on_create": do_not_enforce_on_create,
+                }
             return OrganizationRuleset.from_model_data(data)
 
         expected_org.add_ruleset(
-            ruleset(workflow_repository and workflow_repository(repository.name), not lift_protection)
+            ruleset(workflow_repository and workflow_repository(repository.name), not lift_protection, allow_creation)
         )
         if existing:
             current_org.add_ruleset(ruleset(repository.name))
@@ -349,6 +352,29 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         assert ruleset_patches == [
             (True, {"protect_repo_names"}, [f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"]),
             (False, {"required_workflows"}, [f"{self.TEST_ORG}/New-Name:.github/workflows/build.yml"]),
+        ]
+
+    def test_live_patch_allows_the_creation_of_new_repositories_before_them(self):
+        # the current workflows could block the creation of a repository: they are not enforced on creation before the
+        # repositories, while the workflows of the new repository are required after them
+        patches, repository_name = self._generate_ruleset_and_repository_patches(
+            lambda _: "New-Name", existing=True, allow_creation=True
+        )
+
+        repository_index = self._index_of_first_patch(patches, Repository)
+        ruleset_patches = [
+            (
+                index < repository_index,
+                set(patch.changes),
+                patch.expected_object.required_workflows.workflows,
+                patch.expected_object.required_workflows.do_not_enforce_on_create,
+            )
+            for index, patch in enumerate(patches)
+            if isinstance(patch.expected_object, OrganizationRuleset)
+        ]
+        assert ruleset_patches == [
+            (True, {"required_workflows"}, [f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"], True),
+            (False, {"required_workflows"}, [f"{self.TEST_ORG}/New-Name:.github/workflows/build.yml"], True),
         ]
 
     def _generate_patches_with_a_repository_filter(self, existing):
