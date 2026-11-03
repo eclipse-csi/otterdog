@@ -11,8 +11,8 @@
   },
   "devDependencies": {
     "husky": "^9.1.7",
-    "sass-embedded": "^1.105.2",
-    "vite": "^8.3.4",
+    "sass-embedded": "^1.106.1",
+    "vite": "^8.3.5",
     "vite-plugin-static-copy": "^4.1.1"
   },
   "dependencies": {
@@ -27,7 +27,7 @@
     "@lezer/highlight": "^1.2.5",
     "admin-lte": "^4.10.0",
     "bootstrap": "^5.3.8",
-    "chart.js": "^4.5.1",
+    "chart.js": "^4.6.1",
     "cm6-graphql": "^0.2.2",
     "codemirror": "^6.0.2",
     "datatables.net": "^3.1.4",
@@ -36,7 +36,7 @@
     "datatables.net-responsive-bs5": "^4.1.1",
     "highlight.js": "^11.12.0",
     "jquery": "^4.0.0",
-    "marked": "^18.1.1",
+    "marked": "^18.1.2",
     "moment": "^2.31.0"
   }
 }
