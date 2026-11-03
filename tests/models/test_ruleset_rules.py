@@ -109,6 +109,7 @@ REQUIRED_WORKFLOWS = """
         "my-org/.github:.github/workflows/build.yml@refs/heads/main",
         "my-org/.github:.github/workflows/lint.yml#0123456789abcdef0123456789abcdef01234567",
         "my-org/.github:.github/workflows/test.yml@refs/heads/main#0123456789abcdef0123456789abcdef01234567",
+        "my-org/.github:.github/workflows/build%40nightly.yml@refs/heads/release%23a",
       ],
     },
 """
@@ -170,6 +171,12 @@ class TestProviderMapping:
                             "ref": "refs/heads/main",
                             "sha": "0123456789abcdef0123456789abcdef01234567",
                         },
+                        {
+                            "repository_id": 42,
+                            "repository_name": "my-org/.github",
+                            "path": ".github/workflows/100%@nightly.yml",
+                            "ref": "refs/heads/a#b",
+                        },
                     ],
                 },
             },
@@ -201,6 +208,8 @@ class TestProviderMapping:
             "44:.github/workflows/test.yml",
             # a ref and a sha may be provided together
             "my-org/.github:.github/workflows/release.yml@refs/heads/main#0123456789abcdef0123456789abcdef01234567",
+            # the delimiters of a path or a ref are escaped
+            "my-org/.github:.github/workflows/100%25%40nightly.yml@refs/heads/a%23b",
         ]
 
     def test_from_provider_reads_the_push_rules(self):
@@ -288,6 +297,7 @@ class TestProviderMapping:
                     "ref": "refs/heads/main",
                     "sha": "0123456789abcdef0123456789abcdef01234567",
                 },
+                {"repository_id": 42, "path": ".github/workflows/build@nightly.yml", "ref": "refs/heads/release#a"},
             ],
         }
         # the repository of both workflows is only resolved once
@@ -807,14 +817,27 @@ class TestValidation:
                 "required_workflows: orgs.newWorkflows() { workflows+: ['.github:.github/workflows/ci.yml'] }",
                 (
                     "containing value '.github:.github/workflows/ci.yml' while only values of format "
-                    "'owner/repository:path[@ref][#sha]' are allowed."
+                    "'owner/repository:path[@ref][#sha]' are allowed,"
                 ),
             ),
             (
                 "required_workflows: orgs.newWorkflows() { workflows+: ['my-org/.github:ci.yml@main#abc'] }",
                 (
                     "containing value 'my-org/.github:ci.yml@main#abc' while only values of format "
-                    "'owner/repository:path[@ref][#sha]' are allowed."
+                    "'owner/repository:path[@ref][#sha]' are allowed,"
+                ),
+            ),
+            (
+                # a delimiter of a ref must be escaped, so that each workflow has a single encoding
+                "required_workflows: orgs.newWorkflows() { workflows+: ['my-org/.github:ci.yml@a@b'] }",
+                "containing value 'my-org/.github:ci.yml@a@b' while only values of format",
+            ),
+            (
+                "required_workflows: orgs.newWorkflows() { workflows+: ['my-org/.github:ci%2F.yml'] }",
+                (
+                    "containing value 'my-org/.github:ci%2F.yml' while only values of format "
+                    "'owner/repository:path[@ref][#sha]' are allowed, '%', '@' and '#' being written '%25', '%40' "
+                    "and '%23' in a path or a ref."
                 ),
             ),
             (
@@ -826,7 +849,14 @@ class TestValidation:
                 ),
             ),
         ],
-        ids=["no_workflow", "workflow_format", "sha_format", "unresolved_repository"],
+        ids=[
+            "no_workflow",
+            "workflow_format",
+            "sha_format",
+            "unescaped_ref",
+            "invalid_escape",
+            "unresolved_repository",
+        ],
     )
     def test_invalid_required_workflows(self, extension, expected):
         ruleset = org_ruleset(extension)
@@ -836,6 +866,21 @@ class TestValidation:
         assert len(result) == 1
         assert result[0].startswith(ruleset.get_model_header())
         assert expected in result[0]
+
+    def test_required_workflow_path_without_workflow_file_triggers_a_warning(self):
+        # e.g. an unescaped '@' in the path, read as the start of the ref
+        ruleset = org_ruleset(
+            "required_workflows: orgs.newWorkflows() { workflows+: ['my-org/.github:build@nightly.yml'] }"
+        )
+
+        assert errors(ruleset) == []
+        assert warnings(ruleset) == [
+            (
+                f"{ruleset.get_model_header()} has 'required_workflows.workflows' containing value "
+                f"'my-org/.github:build@nightly.yml' whose path 'build' is not a workflow file '.yml' or '.yaml', "
+                f"'@' and '#' being written '%40' and '%23' in a path."
+            )
+        ]
 
     def test_code_coverage_without_threshold_triggers_a_warning(self):
         ruleset = repo_ruleset("required_code_coverage: orgs.newCodeCoverage()")

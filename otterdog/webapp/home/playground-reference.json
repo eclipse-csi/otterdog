@@ -1581,7 +1581,7 @@
         "workflows": {
           "type": "list[string]",
           "description": "List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main`",
-          "notes": "At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive"
+          "notes": "At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive. `%`, `@` and `#` are written `%25`, `%40` and `%23` in a path or a ref"
         }
       }
     },

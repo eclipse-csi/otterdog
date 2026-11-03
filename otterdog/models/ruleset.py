@@ -597,17 +597,22 @@ class WorkflowsSettings(EmbeddedModelObject):
     """
     The parameters of the 'workflows' rule, a required workflow is encoded as 'repository:path[@ref][#sha]', the
     repository being its full name, the ref a branch or a tag and the sha a commit, which GitHub accepts together,
-    e.g. 'my-org/.github:.github/workflows/build.yml@refs/heads/main'.
+    e.g. 'my-org/.github:.github/workflows/build.yml@refs/heads/main'. The delimiters '%', '@' and '#' are written
+    '%25', '%40' and '%23' in a path or a ref, which GitHub allows them in: each workflow has a single encoding.
 
     A repository whose name can not be resolved when loading a ruleset, e.g. because it was deleted, is shown by its
     id, which is not accepted in a configuration: the same workflow could otherwise be referenced in two ways.
     """
 
+    _ESCAPES: ClassVar[dict[str, str]] = {"%": "%25", "@": "%40", "#": "%23"}
+    _ESCAPE_PATTERN: ClassVar[re.Pattern[str]] = re.compile("%(25|40|23)")
+    _ESCAPED: ClassVar[str] = r"(?:[^@#%]|%25|%40|%23)+"
+    _REF_AND_SHA: ClassVar[str] = rf"(@(?P<ref>{_ESCAPED}))?(#(?P<sha>[0-9a-f]{{40}}))?$"
     _WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(?P<repository>[^/:@#\s]+/[^/:@#\s]+):(?P<path>[^@#]+)(@(?P<ref>[^#]+))?(#(?P<sha>[0-9a-f]{40}))?$"
+        rf"^(?P<repository>[^/:@#%\s]+/[^/:@#%\s]+):(?P<path>{_ESCAPED}){_REF_AND_SHA}"
     )
     _UNRESOLVED_WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(?P<repository_id>\d+):(?P<path>[^@#]+)(@(?P<ref>[^#]+))?(#(?P<sha>[0-9a-f]{40}))?$"
+        rf"^(?P<repository_id>\d+):(?P<path>{_ESCAPED}){_REF_AND_SHA}"
     )
 
     # written as a whole in a patch, so that a default list can be narrowed
@@ -637,11 +642,20 @@ class WorkflowsSettings(EmbeddedModelObject):
                     f"'{workflow}' whose repository with id '{unresolved.group('repository_id')}' could not be "
                     f"resolved, while a repository must be referenced by its full name 'owner/repository'.",
                 )
-            elif self._WORKFLOW_PATTERN.match(workflow) is None:
+            elif (match := self._WORKFLOW_PATTERN.match(workflow)) is None:
                 context.add_failure(
                     FailureType.ERROR,
                     f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
-                    f"'{workflow}' while only values of format 'owner/repository:path[@ref][#sha]' are allowed.",
+                    f"'{workflow}' while only values of format 'owner/repository:path[@ref][#sha]' are allowed, "
+                    f"'%', '@' and '#' being written '%25', '%40' and '%23' in a path or a ref.",
+                )
+            elif not match.group("path").endswith((".yml", ".yaml")):
+                # e.g. an unescaped '@' in the path, which is read as the start of the ref
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
+                    f"'{workflow}' whose path '{match.group('path')}' is not a workflow file '.yml' or '.yaml', "
+                    f"'@' and '#' being written '%40' and '%23' in a path.",
                 )
 
     def get_difference_from(self, other: Self) -> Change | None:
@@ -691,6 +705,14 @@ class WorkflowsSettings(EmbeddedModelObject):
 
         return dataclasses.replace(self, workflows=[rename(workflow) for workflow in self.workflows])
 
+    @classmethod
+    def _escape(cls, value: str) -> str:
+        return "".join(cls._ESCAPES.get(character, character) for character in value)
+
+    @classmethod
+    def _unescape(cls, value: str) -> str:
+        return cls._ESCAPE_PATTERN.sub(lambda match: chr(int(match.group(1), 16)), value)
+
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_workflows}"
 
@@ -701,9 +723,9 @@ class WorkflowsSettings(EmbeddedModelObject):
         def transform_workflow(workflow: dict[str, Any]) -> str:
             # the name of the repository is added when loading the ruleset, GitHub only provides its id
             repository = workflow.get("repository_name") or str(workflow["repository_id"])
-            ref = f"@{workflow['ref']}" if workflow.get("ref") else ""
+            ref = f"@{cls._escape(workflow['ref'])}" if workflow.get("ref") else ""
             sha = f"#{workflow['sha']}" if workflow.get("sha") else ""
-            return f"{repository}:{workflow['path']}{ref}{sha}"
+            return f"{repository}:{cls._escape(workflow['path'])}{ref}{sha}"
 
         mapping.update(
             {
@@ -741,12 +763,14 @@ class WorkflowsSettings(EmbeddedModelObject):
                     if match.re is cls._WORKFLOW_PATTERN
                     else int(match.group("repository_id"))
                 ),
-                "path": match.group("path"),
+                "path": cls._unescape(match.group("path")),
             }
 
-            for key in ["ref", "sha"]:
-                if (value := match.group(key)) is not None:
-                    result[key] = value
+            if (ref := match.group("ref")) is not None:
+                result["ref"] = cls._unescape(ref)
+
+            if (sha := match.group("sha")) is not None:
+                result["sha"] = sha
 
             return result
 

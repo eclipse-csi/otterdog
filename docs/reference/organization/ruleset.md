@@ -161,10 +161,10 @@ orgs.newCodeScanning() {
 
 ### Workflows Settings
 
-| Key                        | Value        | Description                                                                                                                                           | Notes                                                                                                                    |
-|----------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| _do_not_enforce_on_create_ | boolean      | If enabled, allow repositories and branches to be created if a workflow would otherwise prohibit it                                                   |                                                                                                                          |
-| _workflows_                | list[string] | List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main` | At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive |
+| Key                        | Value        | Description                                                                                                                                           | Notes                                                                                                                                                                                            |
+|----------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| _do_not_enforce_on_create_ | boolean      | If enabled, allow repositories and branches to be created if a workflow would otherwise prohibit it                                                   |                                                                                                                                                                                                  |
+| _workflows_                | list[string] | List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main` | At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive. `%`, `@` and `#` are written `%25`, `%40` and `%23` in a path or a ref |
 
 #### Jsonnet Function
 
@@ -186,6 +186,7 @@ orgs.newWorkflows() {
 - setting `max_file_path_length` outside the range [0, 32767], `max_file_size` outside the range [0, 100], or more than 200 entries or an entry longer than 200 characters in the lists of the push rules triggers an error
 - setting `restricted_file_paths_exceptions` while `restricted_file_paths` is empty, or `max_file_size_exceptions` while `max_file_size` is `0` triggers a warning
 - setting an invalid `operator`, an empty `pattern`, an invalid code scanning tool or threshold, an invalid code quality severity, a code coverage threshold outside the range [0, 100] or an invalid workflow triggers an error
+- setting a workflow whose path is not a `.yml` or `.yaml` file triggers a warning, e.g. because of an unescaped `@` in the path
 - referencing the repository of a workflow by its id triggers an error, otterdog shows a repository by its id only if it can not resolve its name, e.g. if the repository was deleted
 - setting a push rule, `required_code_quality` or `required_code_coverage` for an organization on a `free` plan triggers a warning, as they require at least GitHub Team
 - setting a pattern, e.g. `commit_message_pattern`, or `requires_license_compliance_scanning` for an organization on a non `enterprise` plan triggers a warning, as they require GitHub Enterprise

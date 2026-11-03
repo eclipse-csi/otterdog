@@ -1080,12 +1080,9 @@ class GitHubOrganization:
                 patch.changes_object_to_readonly,
             )
 
-        handler(
-            patch_of(
-                dataclasses.replace(expected_ruleset, required_workflows=current_ruleset.required_workflows),
-                other_changes,
-            )
-        )
+        ruleset_with_current_workflows = copy.copy(expected_ruleset)
+        ruleset_with_current_workflows.required_workflows = current_ruleset.required_workflows
+        handler(patch_of(ruleset_with_current_workflows, other_changes))
 
         return patch_of(expected_ruleset, {"required_workflows": changes["required_workflows"]})
 
