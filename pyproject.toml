@@ -103,13 +103,13 @@ semver               = "^3.1"
 python-slugify       = "^9.1"
 
 [tool.poetry.group.dev.dependencies]
-ruff = ">=0.17.1"
-prek = ">=0.5.6"
+ruff = ">=0.17.3"
+prek = ">=0.5.7"
 
 [tool.poetry.group.test.dependencies]
 tox = ">=4.67.1"
 pytest = ">=9.0.3"
-pytest-asyncio = ">=0.24"
+pytest-asyncio = ">=1.4.1"
 parameterized  = ">=0.9"
 pytest-cov = ">=6.1.1"
 pytest-xdist = ">=3.8.0"
@@ -131,7 +131,7 @@ types-python-slugify = ">=8.0"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.5"
-mkdocs-material = "^9.5"
+mkdocs-material = "^9.8"
 mkdocs-exclude = "^1.0"
 pymdown-extensions = "^12.3"
 mkdocs-include-markdown-plugin = "^7.1.6"
