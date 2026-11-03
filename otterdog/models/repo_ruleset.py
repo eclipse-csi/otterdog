@@ -74,10 +74,11 @@ class RepositoryRuleset(Ruleset):
 
             case LivePatchType.CHANGE:
                 current_object = unwrap(patch.current_object)
+                expected_object = unwrap(patch.expected_object).with_unset_rules_from(current_object)
                 await provider.update_repo_ruleset(
                     org_id,
                     repository.name,
                     current_object.id,
                     current_object.name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                    await expected_object.to_provider_data(org_id, provider),
                 )

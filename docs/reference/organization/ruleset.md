@@ -44,6 +44,10 @@ request requirement and required status checks still apply. See
 features of rulesets that are not supported, and [Protecting branches](../../userguide/guides/branch-protection.md) for
 examples.
 
+A rule missing from a ruleset, e.g. because the default template predates it, is not managed: `plan` reports no
+difference for it and `apply` keeps its current setting on GitHub, while a rule set to its disabled value, e.g. `null`,
+is removed.
+
 ## Jsonnet Function
 
 ``` jsonnet

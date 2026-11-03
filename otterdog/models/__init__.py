@@ -499,6 +499,8 @@ class ModelObject(_DefaultValuesMixin, ABC):
         if not isinstance(other, self.__class__):
             raise TypeError(f"'types do not match: {type(self)}' != '{type(other)}'")
 
+        replace_keys = self.replace_on_patch_keys()
+
         patch_result = {}
         for key in self.keys(
             for_diff=False,
@@ -512,11 +514,24 @@ class ModelObject(_DefaultValuesMixin, ABC):
             if is_unset(other_value):
                 continue
 
+            if key in replace_keys:
+                if is_different_ignoring_order(value, other_value):
+                    patch_result[key] = value
+                continue
+
             patch_needed, diff = patch_to_other(value, other_value)
             if patch_needed is True:
                 patch_result[key] = diff
 
         return patch_result
+
+    @classmethod
+    def replace_on_patch_keys(cls) -> set[str]:
+        """
+        Returns the keys whose value replaces the default value in a patch instead of
+        extending it, e.g. a list that may narrow a non-empty default.
+        """
+        return {field.name for field in cls.all_fields() if field.metadata.get("replace_on_patch", False) is True}
 
     @classmethod
     def all_fields(cls) -> list[dataclasses.Field]:
@@ -803,7 +818,7 @@ class ModelObject(_DefaultValuesMixin, ABC):
         else:
             printer.print(f"{unwrap(template_function)}")
 
-        write_patch_object_as_json(patch, printer)
+        write_patch_object_as_json(patch, printer, replace_keys=self.replace_on_patch_keys())
 
     @classmethod
     def generate_live_patch(

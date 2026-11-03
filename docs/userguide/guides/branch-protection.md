@@ -377,10 +377,12 @@ orgs.newOrg('my-project', 'my-org') {
   },
   _repositories+:: [
     orgs.newRepo('my-repo') {
+      private: true, // (2)!
+      allow_forking: false,
       rulesets: [
         orgs.newRepoRuleset('restrict-files') {
           target: "push",
-          allows_creations: true, // (2)!
+          allows_creations: true, // (3)!
           allows_deletions: true,
           allows_force_pushes: true,
           required_pull_request: null,
@@ -389,7 +391,7 @@ orgs.newOrg('my-project', 'my-org') {
             "*.exe",
             "*.jar",
           ],
-          max_file_size: 10, // (3)!
+          max_file_size: 10, // (4)!
           max_file_size_exceptions+: [
             "docs/assets/**",
           ],
@@ -402,8 +404,10 @@ orgs.newOrg('my-project', 'my-org') {
 
 1. Read-only property that reflects the billing plan of the organization. Push rulesets require at least GitHub
    Team, `validate` warns otherwise.
-2. A push ruleset only supports push rules, the branch rules required by `orgs.newRepoRuleset` have to be disabled.
-3. The maximum size of a file in megabytes, files stored with Git LFS are not limited.
+2. Push rulesets require a private or internal repository. The default settings of an organization disable the
+   forking of private repositories.
+3. A push ruleset only supports push rules, the branch rules required by `orgs.newRepoRuleset` have to be disabled.
+4. The maximum size of a file in megabytes, files stored with Git LFS are not limited.
 
 ## Protect maintenance and release branches
 

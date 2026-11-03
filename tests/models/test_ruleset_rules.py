@@ -21,10 +21,10 @@ import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
-from otterdog.models import FailureType, ValidationContext
+from otterdog.models import FailureType, LivePatch, ValidationContext
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repo_ruleset import RepositoryRuleset
-from otterdog.models.ruleset import CodeScanningSettings
+from otterdog.models.ruleset import CodeScanningSettings, WorkflowsSettings
 from otterdog.utils import IndentingPrinter, jsonnet_evaluate_snippet
 
 ORG_ID = "my-org"
@@ -336,6 +336,54 @@ class TestProviderMapping:
         assert set(repo_ruleset("required_status_checks: null").get_difference_from(live)) == {
             "copilot_code_review",
             "required_code_scanning",
+        }
+
+    async def test_update_keeps_the_rules_missing_from_the_configuration(self):
+        # GitHub replaces all the rules of a ruleset on update, the rules that are not managed have to be provided
+        model_data = evaluate(f"orgs.newOrgRuleset('main') {{ {ALL_PUSH_RULES} }} {{ max_file_size: 20 }}")
+        for key in ["restricted_file_paths", "restricted_file_paths_exceptions"]:
+            model_data.pop(key)
+        expected = OrganizationRuleset.from_model_data(model_data)
+        current = org_ruleset(ALL_PUSH_RULES)
+        changes = expected.get_difference_from(current)
+        provider = stub(update_org_ruleset=AsyncMock())
+
+        await LivePatch.of_changes(expected, current, changes, None, False, expected.apply_live_patch).apply(
+            ORG_ID, provider
+        )
+
+        assert set(changes) == {"max_file_size"}
+        rules = provider.update_org_ruleset.call_args.args[-1]["rules"]
+        assert {
+            "type": "file_path_restriction",
+            "parameters": {"restricted_file_paths": ["secrets/**"], "ignored_file_paths": ["secrets/README.md"]},
+        } in rules
+        assert {
+            "type": "max_file_size",
+            "parameters": {"max_file_size": 20, "ignored_file_paths": ["assets/**"]},
+        } in rules
+
+    def test_update_removes_the_rules_set_to_null(self):
+        current = repo_ruleset("copilot_code_review: orgs.newCopilotCodeReview()")
+        model_data = evaluate("orgs.newRepoRuleset('main') { copilot_code_review: null }")
+        model_data.pop("required_code_scanning")
+
+        expected = RepositoryRuleset.from_model_data(model_data).with_unset_rules_from(current)
+
+        assert expected.copilot_code_review is None
+        assert expected.required_code_scanning is None
+
+    async def test_to_provider_keeps_the_id_of_an_unresolved_workflow_repository(self):
+        # e.g. a rule kept from the current ruleset, whose repository was deleted
+        settings = {"workflows": ["42:.github/workflows/build.yml@refs/heads/main", "my-org/.github:lint.yml"]}
+
+        data = await WorkflowsSettings.dict_to_provider_data(ORG_ID, settings, github_provider({"my-org/.github": 7}))
+
+        assert data == {
+            "workflows": [
+                {"repository_id": 42, "path": ".github/workflows/build.yml", "ref": "refs/heads/main"},
+                {"repository_id": 7, "path": "lint.yml"},
+            ]
         }
 
     async def test_to_provider_omits_the_ref_conditions_of_push_rulesets(self):
@@ -753,7 +801,7 @@ class TestJsonnet:
         return output.getvalue().strip().rstrip(",")
 
     def test_import_narrows_the_default_lists(self):
-        # a template requiring CodeQL and Semgrep by default, while the live ruleset only requires CodeQL
+        # a template requiring more entries by default than the live ruleset, e.g. CodeQL and Semgrep vs CodeQL
         extension = """
             required_code_scanning: orgs.newCodeScanning() {
               code_scanning_tools+: ["CodeQL:all:all", "Semgrep:all:all"],
@@ -761,12 +809,16 @@ class TestJsonnet:
             required_workflows: orgs.newWorkflows() {
               workflows+: ["my-org/.github:a.yml", "my-org/.github:b.yml"],
             },
+            restricted_file_paths_exceptions+: ["secrets/README.md"],
+            restricted_file_extensions+: ["*.exe", "*.jar"],
         """
         default = repo_ruleset(extension)
         live = repo_ruleset(
             """
             required_code_scanning: orgs.newCodeScanning() { code_scanning_tools+: ["CodeQL:all:all"] },
             required_workflows: orgs.newWorkflows() { workflows+: ["my-org/.github:a.yml"] },
+            restricted_file_paths+: ["secrets/**"],
+            restricted_file_extensions+: ["*.exe"],
             """
         )
 
@@ -774,6 +826,8 @@ class TestJsonnet:
 
         assert "code_scanning_tools: [" in jsonnet
         assert "workflows: [" in jsonnet
+        assert "restricted_file_paths_exceptions: [" in jsonnet
+        assert "restricted_file_extensions: [" in jsonnet
         # evaluated with the template whose rulesets require these lists by default
         template = (
             f"local defaults = import '{DEFAULTS}'; "
@@ -791,6 +845,26 @@ class TestJsonnet:
         jsonnet = self.import_ruleset(live, repo_ruleset(), jsonnet_config)
 
         assert "newCopilotCodeReview" not in jsonnet
+        imported = RepositoryRuleset.from_model_data(evaluate(jsonnet))
+        assert imported.get_difference_from(live) == {}
+
+    @pytest.mark.parametrize("extension", [REPOSITORY_RULES, ALL_PUSH_RULES], ids=["branch", "push"])
+    def test_import_with_a_template_predating_the_rules(self, extension):
+        model_data = evaluate("orgs.newRepoRuleset('main')")
+        for key in [
+            "restricted_file_paths",
+            "restricted_file_paths_exceptions",
+            "max_file_path_length",
+            "restricted_file_extensions",
+            "max_file_size",
+            "max_file_size_exceptions",
+            "requires_license_compliance_scanning",
+        ]:
+            model_data.pop(key)
+        live = repo_ruleset(extension)
+
+        jsonnet = self.import_ruleset(live, RepositoryRuleset.from_model_data(model_data), self.jsonnet_config())
+
         imported = RepositoryRuleset.from_model_data(evaluate(jsonnet))
         assert imported.get_difference_from(live) == {}
 

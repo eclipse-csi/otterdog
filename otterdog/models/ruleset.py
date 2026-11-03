@@ -11,7 +11,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import re
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
 from jsonbender import F, Forall, If, K, OptionalS, S  # type: ignore
 
@@ -604,7 +604,9 @@ class WorkflowsSettings(EmbeddedModelObject):
     _WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
         r"^(?P<repository>[^/:@\s]+/[^/:@\s]+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
     )
-    _UNRESOLVED_WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^(?P<repository_id>\d+):")
+    _UNRESOLVED_WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^(?P<repository_id>\d+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
+    )
     _SHA_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 
     # written as a whole in a patch, so that a default list can be narrowed
@@ -671,17 +673,25 @@ class WorkflowsSettings(EmbeddedModelObject):
         if "workflows" not in mapping:
             return mapping
 
-        matches = [unwrap(cls._WORKFLOW_PATTERN.match(workflow)) for workflow in data["workflows"]]
+        # an unresolved repository keeps its id, e.g. in a rule kept from the current ruleset
+        def match_workflow(workflow: str) -> re.Match[str]:
+            return unwrap(cls._WORKFLOW_PATTERN.match(workflow) or cls._UNRESOLVED_WORKFLOW_PATTERN.match(workflow))
+
+        matches = [match_workflow(workflow) for workflow in data["workflows"]]
 
         repository_ids: dict[str, int] = {}
-        for repository in {match.group("repository") for match in matches}:
+        for repository in {match.group("repository") for match in matches if match.re is cls._WORKFLOW_PATTERN}:
             owner, name = repository.split("/")
             repository_ids[repository] = (await provider.rest_api.repo.get_repo_ids(owner, [name]))[0]
 
         def transform_workflow(workflow: str) -> dict[str, Any]:
-            match = unwrap(cls._WORKFLOW_PATTERN.match(workflow))
+            match = match_workflow(workflow)
             result: dict[str, Any] = {
-                "repository_id": repository_ids[match.group("repository")],
+                "repository_id": (
+                    repository_ids[match.group("repository")]
+                    if match.re is cls._WORKFLOW_PATTERN
+                    else int(match.group("repository_id"))
+                ),
                 "path": match.group("path"),
             }
 
@@ -783,12 +793,13 @@ class Ruleset(ModelObject, abc.ABC):
     branch_name_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
     tag_name_pattern: PatternSettings | None = dataclasses.field(metadata={"embedded_model": True})
 
-    restricted_file_paths: list[str]
-    restricted_file_paths_exceptions: list[str]
+    # the lists of push rules are written as a whole in a patch, so that a default list can be narrowed
+    restricted_file_paths: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
+    restricted_file_paths_exceptions: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
     max_file_path_length: int
-    restricted_file_extensions: list[str]
+    restricted_file_extensions: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
     max_file_size: int
-    max_file_size_exceptions: list[str]
+    max_file_size_exceptions: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
 
     required_code_scanning: CodeScanningSettings | None = dataclasses.field(metadata={"embedded_model": True})
     required_code_quality: CodeQualitySettings | None = dataclasses.field(metadata={"embedded_model": True})
@@ -857,6 +868,13 @@ class Ruleset(ModelObject, abc.ABC):
         *_push_rules,
     ]
 
+    # the keys modelling the parameters of rules, which are no rules on their own
+    _rule_parameter_keys: ClassVar[list[str]] = [
+        "required_deployment_environments",
+        "restricted_file_paths_exceptions",
+        "max_file_size_exceptions",
+    ]
+
     # the push rules and their maximum values, 0 disables a rule
     _push_rule_limits: ClassVar[dict[str, int]] = {"max_file_path_length": 32767, "max_file_size": 100}
 
@@ -881,6 +899,20 @@ class Ruleset(ModelObject, abc.ABC):
             return len(value) > 0
         else:
             return True
+
+    def with_unset_rules_from(self, current_object: Ruleset) -> Self:
+        """
+        Returns a copy of this ruleset whose rules missing from the configuration, e.g. with a template predating
+        them, keep the values of the current ruleset. GitHub replaces all the rules of a ruleset on update, these
+        rules would otherwise be removed although they are not managed.
+        """
+        current_values = {
+            key: current_object.__getattribute__(key)
+            for key in [*self._rule_keys, *self._rule_parameter_keys]
+            if is_unset(self.__getattribute__(key))
+        }
+
+        return dataclasses.replace(self, **current_values) if len(current_values) > 0 else self
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         org_settings = cast("GitHubOrganization", context.root_object).settings
@@ -1455,7 +1487,17 @@ class Ruleset(ModelObject, abc.ABC):
             if rule.key in patch and patch.get(rule.key) is not None:
                 patch.pop(rule.key)
 
-        write_patch_object_as_json(patch, printer, close_object=False)
+        # the rules missing from the template, e.g. a template predating them, are written if they are configured
+        embedded_keys = {rule.key for rule in _EMBEDDED_RULES}
+        for key in [*self._rule_keys, *self._rule_parameter_keys]:
+            if (
+                key not in embedded_keys
+                and is_unset(default_object.__getattribute__(key))
+                and self.is_rule_configured(key)
+            ):
+                patch[key] = self.__getattribute__(key)
+
+        write_patch_object_as_json(patch, printer, close_object=False, replace_keys=self.replace_on_patch_keys())
 
         for rule in _EMBEDDED_RULES:
             settings = self.__getattribute__(rule.key)
