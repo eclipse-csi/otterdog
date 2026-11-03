@@ -677,6 +677,21 @@ class WorkflowsSettings(EmbeddedModelObject):
             if match is not None
         }
 
+    def with_renamed_repositories(self, full_names: dict[str, str]) -> Self:
+        """
+        Returns a copy of these settings whose repositories are replaced by the given full names, keyed by the full
+        names to replace in lower case.
+        """
+
+        def rename(workflow: str) -> str:
+            match = self._WORKFLOW_PATTERN.match(workflow)
+            if match is None or (full_name := full_names.get(match.group("repository").lower())) is None:
+                return workflow
+
+            return full_name + workflow[match.end("repository") :]
+
+        return dataclasses.replace(self, workflows=[rename(workflow) for workflow in self.workflows])
+
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_workflows}"
 
@@ -852,16 +867,21 @@ class Ruleset(ModelObject, abc.ABC):
         "max_file_size",
     ]
 
-    # the rules that are not supported by rulesets with target 'push', the ones supported by otterdog before
-    # the push rules only trigger a warning to keep configurations valid that define push rulesets with them
-    _non_push_rules: ClassVar[list[str]] = [
+    # the rules required before merging a pull request, which are only supported by rulesets with target 'branch'
+    _merge_rules: ClassVar[list[str]] = [
         "copilot_code_review",
-        *_PATTERN_RULES,
         "required_code_scanning",
         "required_code_quality",
         "required_code_coverage",
         "requires_license_compliance_scanning",
         "required_workflows",
+    ]
+
+    # the rules that are not supported by rulesets with target 'push', the ones supported by otterdog before
+    # the push rules only trigger a warning to keep configurations valid that define push rulesets with them
+    _non_push_rules: ClassVar[list[str]] = [
+        *_merge_rules,
+        *_PATTERN_RULES,
     ]
     _legacy_non_push_rules: ClassVar[list[str]] = [
         "allows_creations",
@@ -1148,6 +1168,15 @@ class Ruleset(ModelObject, abc.ABC):
                 self._push_rules,
                 FailureType.ERROR,
                 lambda key: f"has '{key}' set, while it is only supported by rulesets with target 'push'.",
+            )
+
+        if self.target == "tag":
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._merge_rules,
+                FailureType.ERROR,
+                lambda key: f"has '{key}' set, while it is only supported by rulesets with target 'branch'.",
             )
 
         for key, target in [("branch_name_pattern", "branch"), ("tag_name_pattern", "tag")]:

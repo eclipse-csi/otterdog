@@ -578,6 +578,28 @@ class TestValidation:
             )
         ]
 
+    def test_merge_rules_are_not_supported_by_tag_rulesets(self):
+        result = errors(repo_ruleset(f'target: "tag", {REPOSITORY_RULES}'))
+
+        for key in [
+            "copilot_code_review",
+            "required_code_scanning",
+            "required_code_quality",
+            "required_code_coverage",
+            "requires_license_compliance_scanning",
+        ]:
+            assert any(f"'{key}' set, while it is only supported by rulesets with target 'branch'" in x for x in result)
+        # the restrictions of commit metadata apply to tags as well
+        assert not any("_email_pattern" in x or "commit_message_pattern" in x for x in result)
+
+        ruleset = org_ruleset(f'target: "tag", {REQUIRED_WORKFLOWS}')
+        assert errors(ruleset) == [
+            (
+                f"{ruleset.get_model_header()} has 'required_workflows' set, "
+                f"while it is only supported by rulesets with target 'branch'."
+            )
+        ]
+
     def test_refs_of_push_rulesets_are_ignored(self):
         expected = repo_ruleset(f'{ALL_PUSH_RULES} include_refs+: ["~DEFAULT_BRANCH"]')
         live = repo_ruleset(ALL_PUSH_RULES)

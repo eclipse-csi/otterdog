@@ -913,7 +913,7 @@
         "copilot_code_review": {
           "type": "CopilotCodeReviewSettings or null",
           "description": "If specified, request a review from Copilot automatically for new pull requests, if their author has access to Copilot code review",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "repository/ruleset.md#copilot-code-review-settings"
         },
         "commit_message_pattern": {
@@ -979,25 +979,25 @@
         "required_code_scanning": {
           "type": "CodeScanningSettings or null",
           "description": "If specified, code scanning tools must provide results before branches can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "repository/ruleset.md#code-scanning-settings"
         },
         "required_code_quality": {
           "type": "CodeQualitySettings or null",
           "description": "If specified, the code quality results of a pull request must be resolved before it can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "repository/ruleset.md#code-quality-settings"
         },
         "required_code_coverage": {
           "type": "CodeCoverageSettings or null",
           "description": "If specified, the line coverage of a pull request must meet thresholds before it can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`, in public preview on GitHub",
+          "notes": "Only supported by rulesets with target `branch`, in public preview on GitHub",
           "object": "repository/ruleset.md#code-coverage-settings"
         },
         "requires_license_compliance_scanning": {
           "type": "boolean",
           "description": "If enabled, the dependencies added or changed by a pull request must comply with the license policy of the organization before it can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`"
+          "notes": "Only supported by rulesets with target `branch`"
         }
       }
     },
@@ -1352,7 +1352,7 @@
         "copilot_code_review": {
           "type": "CopilotCodeReviewSettings or null",
           "description": "If specified, request a review from Copilot automatically for new pull requests, if their author has access to Copilot code review",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "ruleset.md#copilot-code-review-settings"
         },
         "commit_message_pattern": {
@@ -1418,13 +1418,13 @@
         "required_code_scanning": {
           "type": "CodeScanningSettings or null",
           "description": "If specified, code scanning tools must provide results before branches can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "ruleset.md#code-scanning-settings"
         },
         "required_workflows": {
           "type": "WorkflowsSettings or null",
           "description": "If specified, workflows must pass before branches can be merged into a matching branch",
-          "notes": "Not supported by rulesets with target `push`",
+          "notes": "Only supported by rulesets with target `branch`",
           "object": "ruleset.md#workflows-settings"
         }
       }

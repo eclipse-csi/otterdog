@@ -1007,12 +1007,12 @@ class GitHubOrganization:
         )
 
         # organization rulesets are applied before the repositories, e.g. to lift the protection of a repository name
-        # before renaming it, except the ones requiring a workflow of a repository created or renamed by this apply
-        current_repository_names = {repo.name.lower() for repo in current_organization.repositories}
+        # before renaming it, except the ones requiring a workflow of a repository created by this apply
+        current_repository_names = {repo.name.lower(): repo.name for repo in current_organization.repositories}
         new_repositories = {
             f"{self.github_id}/{repo.name}".lower()
             for repo in self.repositories
-            if repo.name.lower() not in current_repository_names
+            if not any(name.lower() in current_repository_names for name in repo.get_all_names())
         }
         deferred_ruleset_patches: list[LivePatch] = []
 
@@ -1028,7 +1028,11 @@ class GitHubOrganization:
                 handler(patch)
 
         OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handle_ruleset_patch
+            self._rulesets_with_current_workflow_repositories(current_repository_names),
+            current_organization.rulesets,
+            None,
+            context,
+            handle_ruleset_patch,
         )
         context.code_security_configuration_plan = self.plan_code_security_configurations(
             current_organization, context.delete_resources
@@ -1047,6 +1051,33 @@ class GitHubOrganization:
 
         for patch in deferred_ruleset_patches:
             handler(patch)
+
+    def _rulesets_with_current_workflow_repositories(
+        self, current_repository_names: dict[str, str]
+    ) -> list[OrganizationRuleset]:
+        # GitHub references the repository of a required workflow by its id: a workflow of a repository renamed by
+        # the same apply references it by its current name, which can be resolved before the rename and is no change
+        current_full_names: dict[str, str] = {}
+        for repo in self.repositories:
+            if repo.name.lower() in current_repository_names:
+                continue
+
+            for alias in repo.aliases:
+                if (current_name := current_repository_names.get(alias.lower())) is not None:
+                    current_full_names[f"{self.github_id}/{repo.name}".lower()] = f"{self.github_id}/{current_name}"
+                    break
+
+        if len(current_full_names) == 0:
+            return self.rulesets
+
+        return [
+            dataclasses.replace(
+                ruleset, required_workflows=ruleset.required_workflows.with_renamed_repositories(current_full_names)
+            )
+            if is_set_and_present(ruleset.required_workflows)
+            else ruleset
+            for ruleset in self.rulesets
+        ]
 
     def _settings_with_normalized_repository_names(
         self, current_settings: OrganizationSettings
