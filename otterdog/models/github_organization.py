@@ -1009,12 +1009,14 @@ class GitHubOrganization:
         )
 
         # organization rulesets are applied before the repositories, e.g. to lift the protection of a repository name
-        # before renaming it, except the required workflows of a repository created by this apply
+        # before renaming it, except the required workflows of a repository created by this apply; the current
+        # repositories are only the ones of the repository filter, as are the repositories this apply creates
         current_repository_names = {repo.name.lower(): repo.name for repo in current_organization.repositories}
         new_repositories = {
             f"{self.github_id}/{repo.name}".lower()
             for repo in self.repositories
-            if not any(name.lower() in current_repository_names for name in repo.get_all_names())
+            if repo.include_for_live_patch(context)
+            and not any(name.lower() in current_repository_names for name in repo.get_all_names())
         }
         deferred_ruleset_patches: list[LivePatch] = []
 
@@ -1025,7 +1027,8 @@ class GitHubOrganization:
                 and is_set_and_present(ruleset.required_workflows)
                 and not ruleset.required_workflows.get_repositories().isdisjoint(new_repositories)
             ):
-                deferred_ruleset_patches.append(self._apply_ruleset_changes_before_workflows(patch, handler))
+                if (deferred_patch := self._apply_ruleset_changes_before_workflows(patch, handler)) is not None:
+                    deferred_ruleset_patches.append(deferred_patch)
             else:
                 handler(patch)
 
@@ -1055,15 +1058,21 @@ class GitHubOrganization:
             handler(patch)
 
     @staticmethod
-    def _apply_ruleset_changes_before_workflows(patch: LivePatch, handler: LivePatchHandler) -> LivePatch:
+    def _apply_ruleset_changes_before_workflows(patch: LivePatch, handler: LivePatchHandler) -> LivePatch | None:
         """
         Handles the changes of an organization ruleset other than its required workflows, which are applied before
         the repositories with the current workflows, e.g. to lift the protection of a repository name before renaming
-        it. Returns the patch of the required workflows, which is applied after the repositories they require.
+        it. Returns the patch of the required workflows, which is applied after the repositories they require, if they
+        change.
         """
         changes = patch.changes or {}
+        if patch.patch_type == LivePatchType.CHANGE and "required_workflows" not in changes:
+            # the current workflows only require existing repositories
+            handler(patch)
+            return None
+
         other_changes = {key: change for key, change in changes.items() if key != "required_workflows"}
-        if patch.patch_type != LivePatchType.CHANGE or "required_workflows" not in changes or len(other_changes) == 0:
+        if patch.patch_type != LivePatchType.CHANGE or len(other_changes) == 0:
             return patch
 
         expected_ruleset = cast("OrganizationRuleset", patch.expected_object)
