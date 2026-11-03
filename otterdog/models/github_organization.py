@@ -1004,9 +1004,6 @@ class GitHubOrganization:
         OrganizationVariable.generate_live_patch_of_list(
             self.variables, current_organization.variables, None, context, handler
         )
-        OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handler
-        )
         context.code_security_configuration_plan = self.plan_code_security_configurations(
             current_organization, context.delete_resources
         )
@@ -1020,6 +1017,11 @@ class GitHubOrganization:
         )
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
+        )
+        # applied after the repositories, as a required workflow may reference a repository created or renamed
+        # by the same apply
+        OrganizationRuleset.generate_live_patch_of_list(
+            self.rulesets, current_organization.rulesets, None, context, handler
         )
 
     def _settings_with_normalized_repository_names(

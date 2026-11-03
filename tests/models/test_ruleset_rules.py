@@ -338,6 +338,27 @@ class TestProviderMapping:
             "required_code_scanning",
         }
 
+    @pytest.mark.parametrize(
+        ("live_workflow", "has_difference"),
+        [
+            ("my-org/.github:.github/workflows/build.yml@refs/heads/main", False),
+            ("my-org/.github:.github/workflows/Build.yml@refs/heads/main", True),
+            ("my-org/.github:.github/workflows/build.yml@refs/heads/Main", True),
+        ],
+        ids=["repository", "path", "ref"],
+    )
+    def test_workflow_repositories_are_compared_case_insensitively(self, live_workflow, has_difference):
+        expected = org_ruleset(
+            """
+            required_workflows: orgs.newWorkflows() {
+              workflows+: ["My-Org/.GitHub:.github/workflows/build.yml@refs/heads/main"],
+            },
+            """
+        )
+        live = org_ruleset(f'required_workflows: orgs.newWorkflows() {{ workflows+: ["{live_workflow}"] }}')
+
+        assert (expected.get_difference_from(live) != {}) is has_difference
+
     async def test_update_keeps_the_rules_missing_from_the_configuration(self):
         # GitHub replaces all the rules of a ruleset on update, the rules that are not managed have to be provided
         model_data = evaluate(f"orgs.newOrgRuleset('main') {{ {ALL_PUSH_RULES} }} {{ max_file_size: 20 }}")

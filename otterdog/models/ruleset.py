@@ -27,6 +27,7 @@ from otterdog.utils import (
     UNSET,
     IndentingPrinter,
     associate_by_key,
+    is_different_ignoring_order,
     is_set_and_present,
     is_set_and_valid,
     is_unset,
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models import Change
     from otterdog.providers.github import GitHubProvider
 
     from .github_organization import GitHubOrganization
@@ -642,6 +644,27 @@ class WorkflowsSettings(EmbeddedModelObject):
                     f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
                     f"'{workflow}' while only values of format 'owner/repository:path[@ref]' are allowed.",
                 )
+
+    def get_difference_from(self, other: Self) -> Change | None:
+        change = super().get_difference_from(other)
+        if change is None or not is_set_and_valid(self.workflows) or not is_set_and_valid(other.workflows):
+            return change
+
+        # the names of repositories are case-insensitive on GitHub, unlike the paths and refs of workflows
+        from_dict = {
+            **cast("dict[str, Any]", change.from_value),
+            "workflows": [self._normalize_workflow(x) for x in other.workflows],
+        }
+        to_dict = {
+            **cast("dict[str, Any]", change.to_value),
+            "workflows": [self._normalize_workflow(x) for x in self.workflows],
+        }
+        return change if is_different_ignoring_order(from_dict, to_dict) else None
+
+    @classmethod
+    def _normalize_workflow(cls, workflow: str) -> str:
+        match = cls._WORKFLOW_PATTERN.match(workflow)
+        return workflow if match is None else match.group("repository").lower() + workflow[match.end("repository") :]
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_workflows}"

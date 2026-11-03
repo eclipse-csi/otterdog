@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import dataclasses
 import os
 import unittest
 from unittest.mock import patch
@@ -14,8 +15,10 @@ import jsonschema
 import pretend
 
 from otterdog.config import OtterdogConfig
-from otterdog.models import FailureType, LivePatchContext
+from otterdog.models import FailureType, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.organization_ruleset import OrganizationRuleset
+from otterdog.models.repository import Repository
 from otterdog.utils import jsonnet_evaluate_file
 
 
@@ -249,3 +252,26 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         # the configured name of an already selected repository is replaced by the name retrieved from GitHub
         change = changes["immutable_releases_selected_repositories"]
         assert sorted(change.to_value) == sorted([repository_name, "other-repo"])
+
+    def test_live_patch_applies_organization_rulesets_after_repositories(self):
+        # a required workflow of an organization ruleset may reference a repository created by the same apply
+        expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+
+        expected_org.add_repository(dataclasses.replace(expected_org.repositories[0], name="workflows"))
+        expected_org.add_ruleset(OrganizationRuleset.from_model_data({"name": "workflows", "target": "branch"}))
+
+        context = LivePatchContext(
+            org_id=self.TEST_ORG,
+            repo_filter="*",
+            update_webhooks=False,
+            update_secrets=False,
+            update_filter="*",
+            current_org_settings=current_org.settings,
+            expected_org_settings=expected_org.settings,
+        )
+        patches = []
+        expected_org.generate_live_patch(current_org, context, patches.append)
+
+        added_types = [type(patch.expected_object) for patch in patches if patch.patch_type == LivePatchType.ADD]
+        assert added_types.index(OrganizationRuleset) > added_types.index(Repository)
