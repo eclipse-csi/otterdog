@@ -107,7 +107,8 @@ REQUIRED_WORKFLOWS = """
     required_workflows: orgs.newWorkflows() {
       workflows+: [
         "my-org/.github:.github/workflows/build.yml@refs/heads/main",
-        "my-org/.github:.github/workflows/lint.yml@0123456789abcdef0123456789abcdef01234567",
+        "my-org/.github:.github/workflows/lint.yml#0123456789abcdef0123456789abcdef01234567",
+        "my-org/.github:.github/workflows/test.yml@refs/heads/main#0123456789abcdef0123456789abcdef01234567",
       ],
     },
 """
@@ -162,6 +163,13 @@ class TestProviderMapping:
                         },
                         {"repository_id": 43, "path": ".github/workflows/lint.yml", "sha": "abc"},
                         {"repository_id": 44, "path": ".github/workflows/test.yml"},
+                        {
+                            "repository_id": 42,
+                            "repository_name": "my-org/.github",
+                            "path": ".github/workflows/release.yml",
+                            "ref": "refs/heads/main",
+                            "sha": "0123456789abcdef0123456789abcdef01234567",
+                        },
                     ],
                 },
             },
@@ -189,8 +197,10 @@ class TestProviderMapping:
         # the repository is named by its id if its name could not be resolved
         assert ruleset.required_workflows.workflows == [
             "my-org/.github:.github/workflows/build.yml@refs/heads/main",
-            "43:.github/workflows/lint.yml@abc",
+            "43:.github/workflows/lint.yml#abc",
             "44:.github/workflows/test.yml",
+            # a ref and a sha may be provided together
+            "my-org/.github:.github/workflows/release.yml@refs/heads/main#0123456789abcdef0123456789abcdef01234567",
         ]
 
     def test_from_provider_reads_the_push_rules(self):
@@ -270,6 +280,12 @@ class TestProviderMapping:
                 {
                     "repository_id": 42,
                     "path": ".github/workflows/lint.yml",
+                    "sha": "0123456789abcdef0123456789abcdef01234567",
+                },
+                {
+                    "repository_id": 42,
+                    "path": ".github/workflows/test.yml",
+                    "ref": "refs/heads/main",
                     "sha": "0123456789abcdef0123456789abcdef01234567",
                 },
             ],
@@ -791,7 +807,14 @@ class TestValidation:
                 "required_workflows: orgs.newWorkflows() { workflows+: ['.github:.github/workflows/ci.yml'] }",
                 (
                     "containing value '.github:.github/workflows/ci.yml' while only values of format "
-                    "'owner/repository:path[@ref]' are allowed."
+                    "'owner/repository:path[@ref][#sha]' are allowed."
+                ),
+            ),
+            (
+                "required_workflows: orgs.newWorkflows() { workflows+: ['my-org/.github:ci.yml@main#abc'] }",
+                (
+                    "containing value 'my-org/.github:ci.yml@main#abc' while only values of format "
+                    "'owner/repository:path[@ref][#sha]' are allowed."
                 ),
             ),
             (
@@ -803,7 +826,7 @@ class TestValidation:
                 ),
             ),
         ],
-        ids=["no_workflow", "workflow_format", "unresolved_repository"],
+        ids=["no_workflow", "workflow_format", "sha_format", "unresolved_repository"],
     )
     def test_invalid_required_workflows(self, extension, expected):
         ruleset = org_ruleset(extension)

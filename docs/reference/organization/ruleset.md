@@ -161,10 +161,10 @@ orgs.newCodeScanning() {
 
 ### Workflows Settings
 
-| Key                        | Value        | Description                                                                                                                                   | Notes                                                                                                                |
-|----------------------------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| _do_not_enforce_on_create_ | boolean      | If enabled, allow repositories and branches to be created if a workflow would otherwise prohibit it                                           |                                                                                                                      |
-| _workflows_                | list[string] | List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main` | At least one workflow must be listed. The ref is a branch, a tag or a commit sha, the repository is case-insensitive |
+| Key                        | Value        | Description                                                                                                                                           | Notes                                                                                                                    |
+|----------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| _do_not_enforce_on_create_ | boolean      | If enabled, allow repositories and branches to be created if a workflow would otherwise prohibit it                                                   |                                                                                                                          |
+| _workflows_                | list[string] | List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main` | At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive |
 
 #### Jsonnet Function
 

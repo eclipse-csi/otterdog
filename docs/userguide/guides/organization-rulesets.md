@@ -131,8 +131,9 @@ orgs.newOrg('my-project', 'my-org') {
 }
 ```
 
-1. A workflow is written as `<owner>/<repository>:<path>[@<ref>]`, the ref being a branch, a tag or a commit sha.
-   GitHub identifies the repository by its id, otterdog shows it by its full name.
+1. A workflow is written as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, the ref being a branch or a tag and the
+   sha a commit, e.g. `@refs/heads/main#<sha>` to pin the workflow to a commit of the branch. GitHub identifies the
+   repository by its id, otterdog shows it by its full name.
 
 ## Combine organization and repository rulesets
 

@@ -72,6 +72,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
+    from otterdog.models import Change
     from otterdog.providers.github import GitHubProvider
     from otterdog.utils import ExclusionPatterns
 
@@ -1067,17 +1068,26 @@ class GitHubOrganization:
 
         expected_ruleset = cast("OrganizationRuleset", patch.expected_object)
         current_ruleset = cast("OrganizationRuleset", patch.current_object)
+
+        def patch_of(ruleset: OrganizationRuleset, ruleset_changes: dict[str, Change]) -> LivePatch:
+            return LivePatch.of_changes(
+                ruleset,
+                current_ruleset,
+                ruleset_changes,
+                patch.parent_object,
+                patch.forced_update,
+                patch.fn,
+                patch.changes_object_to_readonly,
+            )
+
         handler(
-            dataclasses.replace(
-                patch,
-                expected_object=dataclasses.replace(
-                    expected_ruleset, required_workflows=current_ruleset.required_workflows
-                ),
-                changes=other_changes,
+            patch_of(
+                dataclasses.replace(expected_ruleset, required_workflows=current_ruleset.required_workflows),
+                other_changes,
             )
         )
 
-        return dataclasses.replace(patch, changes={"required_workflows": changes["required_workflows"]})
+        return patch_of(expected_ruleset, {"required_workflows": changes["required_workflows"]})
 
     def _rulesets_with_current_workflow_repositories(
         self, current_repository_names: dict[str, str]

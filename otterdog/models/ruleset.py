@@ -595,8 +595,8 @@ class CodeCoverageSettings(EmbeddedModelObject):
 @dataclasses.dataclass
 class WorkflowsSettings(EmbeddedModelObject):
     """
-    The parameters of the 'workflows' rule, a required workflow is encoded as 'repository:path[@ref]', the repository
-    being its full name and the ref a branch, a tag or a commit sha,
+    The parameters of the 'workflows' rule, a required workflow is encoded as 'repository:path[@ref][#sha]', the
+    repository being its full name, the ref a branch or a tag and the sha a commit, which GitHub accepts together,
     e.g. 'my-org/.github:.github/workflows/build.yml@refs/heads/main'.
 
     A repository whose name can not be resolved when loading a ruleset, e.g. because it was deleted, is shown by its
@@ -604,12 +604,11 @@ class WorkflowsSettings(EmbeddedModelObject):
     """
 
     _WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(?P<repository>[^/:@\s]+/[^/:@\s]+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
+        r"^(?P<repository>[^/:@#\s]+/[^/:@#\s]+):(?P<path>[^@#]+)(@(?P<ref>[^#]+))?(#(?P<sha>[0-9a-f]{40}))?$"
     )
     _UNRESOLVED_WORKFLOW_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^(?P<repository_id>\d+):(?P<path>[^@]+)(@(?P<ref>.+))?$"
+        r"^(?P<repository_id>\d+):(?P<path>[^@#]+)(@(?P<ref>[^#]+))?(#(?P<sha>[0-9a-f]{40}))?$"
     )
-    _SHA_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[0-9a-f]{40}$")
 
     # written as a whole in a patch, so that a default list can be narrowed
     workflows: list[str] = dataclasses.field(metadata={"replace_on_patch": True})
@@ -642,7 +641,7 @@ class WorkflowsSettings(EmbeddedModelObject):
                 context.add_failure(
                     FailureType.ERROR,
                     f"{parent_object.get_model_header()} has 'required_workflows.workflows' containing value "
-                    f"'{workflow}' while only values of format 'owner/repository:path[@ref]' are allowed.",
+                    f"'{workflow}' while only values of format 'owner/repository:path[@ref][#sha]' are allowed.",
                 )
 
     def get_difference_from(self, other: Self) -> Change | None:
@@ -702,8 +701,9 @@ class WorkflowsSettings(EmbeddedModelObject):
         def transform_workflow(workflow: dict[str, Any]) -> str:
             # the name of the repository is added when loading the ruleset, GitHub only provides its id
             repository = workflow.get("repository_name") or str(workflow["repository_id"])
-            ref = workflow.get("ref") or workflow.get("sha")
-            return f"{repository}:{workflow['path']}" + (f"@{ref}" if ref else "")
+            ref = f"@{workflow['ref']}" if workflow.get("ref") else ""
+            sha = f"#{workflow['sha']}" if workflow.get("sha") else ""
+            return f"{repository}:{workflow['path']}{ref}{sha}"
 
         mapping.update(
             {
@@ -744,9 +744,9 @@ class WorkflowsSettings(EmbeddedModelObject):
                 "path": match.group("path"),
             }
 
-            ref = match.group("ref")
-            if ref is not None:
-                result["sha" if cls._SHA_PATTERN.match(ref) else "ref"] = ref
+            for key in ["ref", "sha"]:
+                if (value := match.group(key)) is not None:
+                    result[key] = value
 
             return result
 
