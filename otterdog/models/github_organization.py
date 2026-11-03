@@ -25,6 +25,7 @@ from otterdog.logging import get_logger
 from otterdog.models import (
     EmbeddedModelObject,
     FailureType,
+    LivePatch,
     LivePatchContext,
     LivePatchHandler,
     ModelObject,
@@ -1004,6 +1005,31 @@ class GitHubOrganization:
         OrganizationVariable.generate_live_patch_of_list(
             self.variables, current_organization.variables, None, context, handler
         )
+
+        # organization rulesets are applied before the repositories, e.g. to lift the protection of a repository name
+        # before renaming it, except the ones requiring a workflow of a repository created or renamed by this apply
+        current_repository_names = {repo.name.lower() for repo in current_organization.repositories}
+        new_repositories = {
+            f"{self.github_id}/{repo.name}".lower()
+            for repo in self.repositories
+            if repo.name.lower() not in current_repository_names
+        }
+        deferred_ruleset_patches: list[LivePatch] = []
+
+        def handle_ruleset_patch(patch: LivePatch) -> None:
+            ruleset = patch.expected_object
+            if (
+                isinstance(ruleset, OrganizationRuleset)
+                and is_set_and_present(ruleset.required_workflows)
+                and not ruleset.required_workflows.get_repositories().isdisjoint(new_repositories)
+            ):
+                deferred_ruleset_patches.append(patch)
+            else:
+                handler(patch)
+
+        OrganizationRuleset.generate_live_patch_of_list(
+            self.rulesets, current_organization.rulesets, None, context, handle_ruleset_patch
+        )
         context.code_security_configuration_plan = self.plan_code_security_configurations(
             current_organization, context.delete_resources
         )
@@ -1018,11 +1044,9 @@ class GitHubOrganization:
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
         )
-        # applied after the repositories, as a required workflow may reference a repository created or renamed
-        # by the same apply
-        OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handler
-        )
+
+        for patch in deferred_ruleset_patches:
+            handler(patch)
 
     def _settings_with_normalized_repository_names(
         self, current_settings: OrganizationSettings

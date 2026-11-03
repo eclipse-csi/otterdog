@@ -666,6 +666,17 @@ class WorkflowsSettings(EmbeddedModelObject):
         match = cls._WORKFLOW_PATTERN.match(workflow)
         return workflow if match is None else match.group("repository").lower() + workflow[match.end("repository") :]
 
+    def get_repositories(self) -> set[str]:
+        """
+        Returns the full names of the repositories of the required workflows in lower case, as they are
+        case-insensitive.
+        """
+        return {
+            match.group("repository").lower()
+            for match in map(self._WORKFLOW_PATTERN.match, self.workflows)
+            if match is not None
+        }
+
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_workflows}"
 
