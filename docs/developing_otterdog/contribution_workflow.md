@@ -78,26 +78,33 @@ The scripts of the Playground also have unit tests, run with `npm test` in `otte
 
 ## Write docs
 
-Otterdog docs are built with [`mkdocs`](https://www.mkdocs.org/) and
-[`material`](https://squidfunk.github.io/mkdocs-material/). Check out their docs
-for specific Markdown flavors.
+Otterdog docs are built with [Zensical](https://zensical.org/), check out its docs
+for specific Markdown flavors (admonitions, content tabs, code annotations, snippets).
 
 Relevant sources are:
 
 * `docs/`: Site contents
-* `mkdocs.yml`: Site config
-* `.readthedocs.yaml`: Deployment config
+* `zensical.toml`: Site config (navigation, theme, Markdown extensions)
+* `docs-theme/` and `docs/assets/theme.css`: Theme overrides (Eclipse colors, hero of the home page)
+* `docs_site.py`: Staging of the site for Zensical (playground links, settings from the environment)
+* `.github/workflows/docs.yml`: Build of every pull request, deployment of `main` to GitHub Pages
+* `.github/workflows/docs-preview.yml`: Preview of every pull request, linked from a comment on it
 
 Please always review your changes locally (some things render
 differently, than you might be used from GitHub):
 
 ```bash
-make docs-serve
+make docs-serve              # live preview on http://127.0.0.1:8000/
+make docs                    # strict build into site/, broken links and anchors fail
 ```
+
+Every pull request that changes the documentation is built strictly, and its preview is published at
+`https://eclipse-csi.github.io/otterdog-website-preview/pr-preview/pr-<number>/` (a comment on the pull request links it)
+when it comes from the repository or from a member or collaborator of the organization.
 
 Complete jsonnet examples, i.e. examples that define an organization with `orgs.newOrg` without omitting content
 with `...` or using placeholders like `<github-id>`, get a link that opens them in the Playground of an otterdog
-dashboard. The link is added by the hook `docs/hooks/playground.py`, the url of the dashboard is set by the
+dashboard. The link is added by `docs_playground.py` when `docs_site.py` stages the site, the url of the dashboard is set by the
 environment variable `OTTERDOG_URL` (`https://otterdog.eclipse.org` by default, an empty value omits the links):
 
 ```bash
@@ -113,7 +120,7 @@ The jsonnet examples of the [Configuration Guides](../userguide/guides/index.md)
 The Playground of the dashboard lists these examples from a catalog generated from the guides, and describes the
 properties that it completes from a catalog generated from the [Reference](../reference/index.md), i.e. from the
 property tables of its pages and from their "Jsonnet Function" sections. After changing an example or the reference,
-update both catalogs, otherwise `tests/test_docs_playground_hook.py` fails:
+update both catalogs, otherwise `tests/test_docs_playground.py` fails:
 
 ```bash
 make playground-examples

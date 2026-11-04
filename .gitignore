@@ -38,3 +38,5 @@ htmlcov
 #### Ignoring swp files
 *.swp
 .project
+# the pages staged for Zensical by docs_site.py
+.docs-site/

@@ -3,7 +3,8 @@
 The guides in this section start from a need, e.g. protecting a release branch or limiting the permissions of
 workflows, and explain how to address it with otterdog: which properties to use, what the consequences of each
 choice are and which trade-offs to consider. They complement the [Reference](../../reference/index.md), which
-documents every supported property, and link to it instead of repeating it.
+documents every supported property, and link to it instead of repeating it. To add, rename or remove a resource, see
+[Making changes](../index.md#making-changes).
 
 ## How to read the guides
 
@@ -83,6 +84,7 @@ documents every supported property, and link to it instead of repeating it.
 | Guide                                    | Read it when you want to ...                                                             |
 |------------------------------------------|------------------------------------------------------------------------------------------|
 | [Troubleshooting](troubleshooting.md)    | understand a message of `validate` or an unexpected result of `plan` and `apply`          |
+| [Unsupported settings](../unsupported.md) | know which features and settings of GitHub otterdog cannot manage                        |
 
 Administrators who maintain the default configuration for several organizations will find related information in
 [Organization-wide policies](../../operating_otterdog/organization-policies.md).

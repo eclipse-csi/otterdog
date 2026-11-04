@@ -1,0 +1,209 @@
+# Previews of the documentation of the pull requests, on the GitHub Pages of eclipse-csi/otterdog-website-preview (branch
+# gh-pages-preview, one directory pr-preview/pr-<number>/ per pull request), linked from a comment on the pull request
+# and removed when it is closed, as for eclipse-cbi/cbi-website.
+#
+# docs.yml builds the preview of a pull request without any secret (also from forks) and uploads it as the artifact
+# docs-site. Once that run succeeds, the trigger workflow_run runs this workflow from main: it never checks out nor
+# runs the code of the pull request, it only publishes the files of the artifact. The pull request is looked up from
+# the commit of the run (never from the artifact) and must still be open at that commit; its preview is published
+# when it comes from this repository or from a member, owner or collaborator. The trigger pull_request_target
+# (closed) removes the preview, without checking out the pull request either.
+#
+# Setup, in the otterdog configuration of eclipse-csi: the repository eclipse-csi/otterdog-website-preview publishes
+# its branch gh-pages-preview with GitHub Pages (gh_pages_build_type "legacy", gh_pages_source_branch
+# "gh-pages-preview", its github-pages environment limited to that branch), and this repository has the environment
+# pull-request-preview (limited to main) and the secret GH_PREVIEW_TOKEN: a token that may push to
+# eclipse-csi/otterdog-website-preview (contents: write on that repository only). The secret is a repository secret
+# until the template of the Eclipse Foundation defines newEnvSecret, then a secret of the environment.
+name: docs-preview
+
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] only publishes the files built by docs.yml, never runs them
+    workflows: [docs]
+    types: [completed]
+  pull_request_target: # zizmor: ignore[dangerous-triggers] only removes the preview, the pull request is never checked out
+    types: [closed]
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "docs-theme/**"
+      - "zensical.toml"
+      - "docs_site.py"
+      - "docs_playground.py"
+      - "otterdog/resources/defaults/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".github/workflows/docs.yml"
+
+permissions: {}
+
+env:
+  PREVIEW_REPOSITORY: eclipse-csi/otterdog-website-preview
+  PREVIEW_BRANCH: gh-pages-preview
+  UMBRELLA_DIR: pr-preview
+  # marks the comment of this workflow on a pull request, updated by every deployment and by the removal
+  COMMENT_MARKER: "<!-- otterdog-docs-preview -->"
+
+jobs:
+  pull-request:
+    name: find the pull request
+    if: >-
+      github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      number: ${{ steps.find.outputs.number }}
+    steps:
+      - name: Find the open pull request at the commit of the run
+        id: find
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (!run.head_repository) {
+              core.notice(`The repository of ${run.head_sha} was deleted: no preview.`);
+              return;
+            }
+            // workflow_run.pull_requests is empty for the pull requests from forks: list them by their head instead
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              ...context.repo,
+              state: "open",
+              head: `${run.head_repository.owner.login}:${run.head_branch}`,
+            });
+            const pull = pulls.find((candidate) => candidate.head.sha === run.head_sha);
+            if (!pull) {
+              core.notice(`No open pull request at ${run.head_sha} (closed, or updated since): no preview.`);
+              return;
+            }
+            const trusted =
+              pull.head.repo?.full_name === repository ||
+              ["OWNER", "MEMBER", "COLLABORATOR"].includes(pull.author_association);
+            if (!trusted) {
+              core.notice(
+                `#${pull.number} comes from a fork of ${pull.user.login} (${pull.author_association}): no preview.`,
+              );
+              return;
+            }
+            core.setOutput("number", String(pull.number));
+
+  deploy:
+    name: publish the preview
+    needs: pull-request
+    if: needs.pull-request.outputs.number != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # one deployment or removal at a time per pull request
+    concurrency:
+      group: docs-preview-${{ needs.pull-request.outputs.number }}
+      cancel-in-progress: false
+    permissions:
+      # the artifact of the docs run
+      actions: read
+      contents: read
+      # the comment linking the preview
+      pull-requests: write
+    environment:
+      name: pull-request-preview
+      url: ${{ steps.preview.outputs.preview-url }}
+    steps:
+      # the default branch, as rossjrw/pr-preview-action needs a checkout: never the pull request
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the preview built by docs.yml
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: docs-site
+          path: preview-site
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Publish the preview
+        id: preview
+        uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+        with:
+          action: deploy
+          pr-number: ${{ needs.pull-request.outputs.number }}
+          source-dir: preview-site
+          deploy-repository: ${{ env.PREVIEW_REPOSITORY }}
+          preview-branch: ${{ env.PREVIEW_BRANCH }}
+          umbrella-dir: ${{ env.UMBRELLA_DIR }}
+          token: ${{ secrets.GH_PREVIEW_TOKEN }}
+          deploy-commit-message: Deploy the preview of pull request ${{ needs.pull-request.outputs.number }}
+          # the comment is written below (the one of the action needs a pull_request event), without a QR code service
+          comment: false
+          qr-code: false
+      - name: Link the preview from the pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          NUMBER: ${{ needs.pull-request.outputs.number }}
+          PREVIEW_URL: ${{ steps.preview.outputs.preview-url }}
+        with:
+          script: |
+            const { NUMBER, PREVIEW_URL, COMMENT_MARKER } = process.env;
+            const sha = context.payload.workflow_run.head_sha;
+            const body = [
+              COMMENT_MARKER,
+              `:book: The documentation of this pull request is previewed at ${PREVIEW_URL}`,
+              "",
+              `Built from ${sha} by [this run](${context.payload.workflow_run.html_url}), updated by every new commit ` +
+                "(GitHub Pages may take a minute to publish it). The preview is removed when the pull request is closed.",
+            ].join("\n");
+            const issue = { ...context.repo, issue_number: Number(NUMBER) };
+            const comments = await github.paginate(github.rest.issues.listComments, issue);
+            const existing = comments.find(
+              (comment) => comment.user.login === "github-actions[bot]" && comment.body.startsWith(COMMENT_MARKER),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...issue, body });
+            }
+
+  remove:
+    name: remove the preview
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: docs-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+    environment:
+      name: pull-request-preview
+    steps:
+      # the base branch, as rossjrw/pr-preview-action needs a checkout: never the pull request
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Remove the preview
+        uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+        with:
+          action: remove
+          pr-number: ${{ github.event.pull_request.number }}
+          deploy-repository: ${{ env.PREVIEW_REPOSITORY }}
+          preview-branch: ${{ env.PREVIEW_BRANCH }}
+          umbrella-dir: ${{ env.UMBRELLA_DIR }}
+          token: ${{ secrets.GH_PREVIEW_TOKEN }}
+          remove-commit-message: Remove the preview of pull request ${{ github.event.pull_request.number }}
+          comment: false
+          qr-code: false
+      - name: Update the comment linking the preview
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { COMMENT_MARKER } = process.env;
+            const issue = { ...context.repo, issue_number: context.payload.pull_request.number };
+            const comments = await github.paginate(github.rest.issues.listComments, issue);
+            const existing = comments.find(
+              (comment) => comment.user.login === "github-actions[bot]" && comment.body.startsWith(COMMENT_MARKER),
+            );
+            if (existing) {
+              const body = `${COMMENT_MARKER}\n:book: The preview of the documentation was removed (pull request closed).`;
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            }
