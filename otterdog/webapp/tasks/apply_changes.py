@@ -168,6 +168,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 self.repo_name,
                 self.pull_request_number,
                 unwrap(self._pull_request.merge_commit_sha),
+                self._pull_request.head.sha,
             )
 
             base_file = org_config.jsonnet_config.org_config_file + "-BASE"
