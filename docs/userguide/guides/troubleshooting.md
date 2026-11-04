@@ -128,6 +128,13 @@ Its **Validate** button also has the configuration of an organization validated 
 : Use `disabled` to prepare a ruleset without enforcing it, see
   [Prepare a ruleset before enforcing it](organization-rulesets.md#prepare-a-ruleset-before-enforcing-it).
 
+**`<ruleset> has 'restricted_file_paths' set, while push rules are only supported by private and internal repositories.`**
+
+: GitHub rejects the push rules, e.g. `restricted_file_paths` or `max_file_size`, of a ruleset of a public
+  repository when the ruleset is applied, whatever the plan of the organization. Push rulesets also require at least
+  GitHub Team. Remove the push ruleset or make the repository private, see
+  [Restrict the files that can be pushed](branch-protection.md#restrict-the-files-that-can-be-pushed).
+
 **`<ruleset> requires deployment environment '<environment>' which is not defined in the repository itself.`**
 
 : A ruleset or branch protection rule that requires a successful deployment can only reference an environment of

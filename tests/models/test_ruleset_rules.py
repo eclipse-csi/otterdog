@@ -56,7 +56,7 @@ def provider_data(rules: list[dict[str, Any]], target: str = "branch") -> dict[s
 
 
 def validate(
-    ruleset: RepositoryRuleset | OrganizationRuleset, plan: str = "enterprise"
+    ruleset: RepositoryRuleset | OrganizationRuleset, plan: str = "enterprise", private: bool = True
 ) -> list[tuple[FailureType, str]]:
     context = ValidationContext(
         root_object=stub(settings=stub(plan=plan), repositories=[]),
@@ -66,13 +66,15 @@ def validate(
         default_team_names=set(),
         exclude_teams_pattern=None,
     )
-    parent = stub(get_model_header=lambda _=None: 'repository[name="my-repo"]', environments=[])
+    parent = stub(get_model_header=lambda _=None: 'repository[name="my-repo"]', environments=[], private=private)
     ruleset.validate(context, parent)
     return context.validation_failures
 
 
-def errors(ruleset: RepositoryRuleset | OrganizationRuleset, plan: str = "enterprise") -> list[str]:
-    return [message for failure_type, message in validate(ruleset, plan) if failure_type == FailureType.ERROR]
+def errors(
+    ruleset: RepositoryRuleset | OrganizationRuleset, plan: str = "enterprise", private: bool = True
+) -> list[str]:
+    return [message for failure_type, message in validate(ruleset, plan, private) if failure_type == FailureType.ERROR]
 
 
 def warnings(ruleset: RepositoryRuleset | OrganizationRuleset, plan: str = "enterprise") -> list[str]:
@@ -577,6 +579,20 @@ class TestValidation:
 
         assert errors(ruleset) == []
         assert warnings(ruleset) == []
+
+    def test_push_rules_require_a_private_repository(self):
+        ruleset = repo_ruleset(ALL_PUSH_RULES)
+
+        assert errors(ruleset, private=False) == [
+            (
+                f"{ruleset.get_model_header()} has '{key}' set, "
+                f"while push rules are only supported by private and internal repositories."
+            )
+            for key in ["restricted_file_paths", "max_file_path_length", "restricted_file_extensions", "max_file_size"]
+        ]
+
+    def test_push_ruleset_without_push_rules_in_a_public_repository(self):
+        assert errors(repo_ruleset('target: "push", allows_force_pushes: true'), private=False) == []
 
     def test_push_rules_require_target_push(self):
         result = errors(repo_ruleset('restricted_file_paths+: ["secrets/**"], max_file_size: 10'))
