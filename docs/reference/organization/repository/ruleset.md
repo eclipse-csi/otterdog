@@ -50,8 +50,8 @@ the push rules in it, `restricted_file_paths`, `max_file_path_length`, `restrict
 or `required_code_scanning`, have to be defined in a separate ruleset with target `branch`.
 
 A rule missing from a ruleset, e.g. because the default template predates it, is not managed: `plan` reports no
-difference for it and `apply` keeps its current setting on GitHub, while a rule set to its disabled value, e.g. `null`,
-is removed.
+difference for it and `apply` keeps its current setting on GitHub, including its exceptions, e.g.
+`restricted_file_paths_exceptions`, while a rule set to its disabled value, e.g. `null`, is removed.
 
 ## Jsonnet Function
 

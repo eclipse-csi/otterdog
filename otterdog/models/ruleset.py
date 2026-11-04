@@ -953,6 +953,12 @@ class Ruleset(ModelObject, abc.ABC):
         "max_file_size_exceptions",
     ]
 
+    # the push rules having exceptions, which are only applied along with their rule
+    _push_rule_exceptions: ClassVar[dict[str, str]] = {
+        "restricted_file_paths": "restricted_file_paths_exceptions",
+        "max_file_size": "max_file_size_exceptions",
+    }
+
     # the push rules and their maximum values, 0 disables a rule
     _push_rule_limits: ClassVar[dict[str, int]] = {"max_file_path_length": 32767, "max_file_size": 100}
 
@@ -983,12 +989,19 @@ class Ruleset(ModelObject, abc.ABC):
         Returns a copy of this ruleset whose rules missing from the configuration, e.g. with a template predating
         them, keep the values of the current ruleset. GitHub replaces all the rules of a ruleset on update, these
         rules would otherwise be removed although they are not managed.
+
+        The exceptions of such a rule keep their current values as well, even if they are configured: they are
+        ignored without their rule, and would otherwise be applied without being reported as a change.
         """
         current_values = {
             key: current_object.__getattribute__(key)
             for key in [*self._rule_keys, *self._rule_parameter_keys]
             if is_unset(self.__getattribute__(key))
         }
+
+        for rule_key, exceptions_key in self._push_rule_exceptions.items():
+            if is_unset(self.__getattribute__(rule_key)):
+                current_values[exceptions_key] = current_object.__getattribute__(exceptions_key)
 
         return dataclasses.replace(self, **current_values) if len(current_values) > 0 else self
 
@@ -1129,10 +1142,7 @@ class Ruleset(ModelObject, abc.ABC):
             if is_set_and_valid(values):
                 self._validate_push_rule_entries(context, parent_object, key, values)
 
-        for exceptions_key, rule_key in [
-            ("restricted_file_paths_exceptions", "restricted_file_paths"),
-            ("max_file_size_exceptions", "max_file_size"),
-        ]:
+        for rule_key, exceptions_key in self._push_rule_exceptions.items():
             if self.is_rule_configured(exceptions_key) and not self.is_rule_configured(rule_key):
                 context.add_failure(
                     FailureType.WARNING,
@@ -1243,11 +1253,9 @@ class Ruleset(ModelObject, abc.ABC):
         if field.name in ["include_refs", "exclude_refs"] and self.target == "push":
             return False
 
-        if field.name == "restricted_file_paths_exceptions" and not self.is_rule_configured("restricted_file_paths"):
-            return False
-
-        if field.name == "max_file_size_exceptions" and not self.is_rule_configured("max_file_size"):
-            return False
+        for rule_key, exceptions_key in self._push_rule_exceptions.items():
+            if field.name == exceptions_key and not self.is_rule_configured(rule_key):
+                return False
 
         return True
 

@@ -412,6 +412,48 @@ class TestProviderMapping:
             "parameters": {"max_file_size": 20, "ignored_file_paths": ["assets/**"]},
         } in rules
 
+    @pytest.mark.parametrize(
+        "rule_key,exceptions_key,current_rule",
+        [
+            (
+                "restricted_file_paths",
+                "restricted_file_paths_exceptions",
+                {
+                    "type": "file_path_restriction",
+                    "parameters": {
+                        "restricted_file_paths": ["secrets/**"],
+                        "ignored_file_paths": ["secrets/README.md"],
+                    },
+                },
+            ),
+            (
+                "max_file_size",
+                "max_file_size_exceptions",
+                {"type": "max_file_size", "parameters": {"max_file_size": 10, "ignored_file_paths": ["assets/**"]}},
+            ),
+        ],
+    )
+    async def test_update_keeps_the_exceptions_of_the_rules_missing_from_the_configuration(
+        self, rule_key, exceptions_key, current_rule
+    ):
+        # the exceptions of a rule that is not managed are ignored, they must not be applied with the current rule
+        model_data = evaluate(
+            f"orgs.newOrgRuleset('main') {{ {ALL_PUSH_RULES} }} "
+            f'{{ {exceptions_key}: ["other/**"], max_file_path_length: 100 }}'
+        )
+        model_data.pop(rule_key)
+        expected = OrganizationRuleset.from_model_data(model_data)
+        current = org_ruleset(ALL_PUSH_RULES)
+        changes = expected.get_difference_from(current)
+        provider = stub(update_org_ruleset=AsyncMock())
+
+        await LivePatch.of_changes(expected, current, changes, None, False, expected.apply_live_patch).apply(
+            ORG_ID, provider
+        )
+
+        assert set(changes) == {"max_file_path_length"}
+        assert current_rule in provider.update_org_ruleset.call_args.args[-1]["rules"]
+
     def test_update_removes_the_rules_set_to_null(self):
         current = repo_ruleset("copilot_code_review: orgs.newCopilotCodeReview()")
         model_data = evaluate("orgs.newRepoRuleset('main') { copilot_code_review: null }")
