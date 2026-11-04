@@ -205,9 +205,9 @@
           "description": "The list of allowed values if either `single_select` or `multi_select` is used"
         },
         "values_editable_by": {
-          "type": "string or null",
+          "type": "string",
           "description": "Who can edit the values of this property on a repository",
-          "notes": "`org_actors`, `org_and_repo_actors` or `null`"
+          "notes": "`org_actors` (default) or `org_and_repo_actors`"
         }
       }
     },

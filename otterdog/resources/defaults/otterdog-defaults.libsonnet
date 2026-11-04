@@ -369,7 +369,7 @@ local newCustomProperty(name) = {
   default_value: null,
   description: null,
   allowed_values: [],
-  values_editable_by: null,
+  values_editable_by: "org_actors",
 };
 
 # Function to create a new organization with default settings.
