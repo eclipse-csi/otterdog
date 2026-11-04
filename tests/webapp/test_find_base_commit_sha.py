@@ -30,6 +30,7 @@ def _rest_api(commits: list[dict], *recorded_activities: list[dict]):
     """Returns a rest api whose activities of the base branch are the given ones at each successive lookup."""
     commits_by_sha = {commit["sha"]: commit for commit in commits}
     lookups = []
+    consumed = []
 
     async def get_commit(_org_id, _repo_name, sha):
         return commits_by_sha[sha]
@@ -38,12 +39,16 @@ def _rest_api(commits: list[dict], *recorded_activities: list[dict]):
         assert ref == "refs/heads/main"
         lookups.append(ref)
         activities = recorded_activities[min(len(lookups), len(recorded_activities)) - 1]
-        return [activity for activity in activities if activity["activity_type"] == activity_type]
+        for activity in activities:
+            if activity["activity_type"] == activity_type:
+                consumed.append(activity)
+                yield activity
 
     return stub(
         commit=stub(get_commit=get_commit),
         repo=stub(get_activities=get_activities),
         lookups=lookups,
+        consumed=consumed,
     )
 
 
@@ -65,6 +70,17 @@ async def test_find_base_commit_sha_for_squash_merge():
     )
 
     assert await _find_base_commit_sha(rest_api, "squashed") == "base"
+
+
+async def test_find_base_commit_sha_stops_at_the_merge_of_the_pull_request():
+    # the activities are retrieved page by page, older ones are not retrieved once the merge has been found
+    rest_api = _rest_api(
+        [_commit("squashed", ["base"])],
+        [_activity("squashed", "later"), _activity("base", "squashed"), _activity("previous", "base")],
+    )
+
+    assert await _find_base_commit_sha(rest_api, "squashed") == "base"
+    assert rest_api.consumed == [_activity("squashed", "later"), _activity("base", "squashed")]
 
 
 async def test_find_base_commit_sha_for_rebase_merge():

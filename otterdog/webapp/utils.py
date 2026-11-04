@@ -10,6 +10,7 @@ import asyncio
 import json
 import re
 from collections.abc import Iterable
+from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from logging import getLogger
@@ -454,9 +455,11 @@ async def find_base_commit_sha(
 
     ref = f"refs/heads/{base_ref}"
     for delay in (*_BASE_BRANCH_ACTIVITY_RETRY_DELAYS, None):
-        for activity in await rest_api.repo.get_activities(org_id, repo_name, ref, "pr_merge"):
-            if activity["after"] == merge_commit_sha:
-                return activity["before"]
+        # the activities are retrieved page by page, the merge is usually among the most recent ones
+        async with aclosing(rest_api.repo.get_activities(org_id, repo_name, ref, "pr_merge")) as activities:
+            async for activity in activities:
+                if activity["after"] == merge_commit_sha:
+                    return activity["before"]
 
         if delay is not None:
             await asyncio.sleep(delay)

@@ -7,7 +7,7 @@
 #  *******************************************************************************
 
 import json
-from collections.abc import AsyncIterable, Mapping
+from collections.abc import AsyncGenerator, AsyncIterable, Mapping
 from typing import Any
 
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
@@ -104,13 +104,23 @@ class Requester:
         params: dict[str, str] | None = None,
         entries_key: str | None = None,
     ) -> list[dict[str, Any]]:
+        return [entry async for entry in self.iter_paged_json(method, url_path, data, params, entries_key)]
+
+    async def iter_paged_json(
+        self,
+        method: str,
+        url_path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+        entries_key: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Yields the entries of each page in turn, the next page is only requested once all previous are consumed."""
         from urllib import parse
 
         json_data = None
         if data is not None:
             json_data = json.dumps(data)
 
-        result = []
         query_params: dict[str, str] | None = {"per_page": "100"}
 
         while query_params is not None:
@@ -130,9 +140,8 @@ class Requester:
             else:
                 query_params = {k: v[0] for k, v in parse.parse_qs(parse.urlparse(next_url).query).items()}
 
-            result.extend(entries)
-
-        return result
+            for entry in entries:
+                yield entry
 
     async def request_json(
         self,

@@ -233,6 +233,18 @@ async def test_every_page_is_a_request(requester):
     assert requester.statistics.total_requests == 3
 
 
+async def test_pages_are_only_requested_while_consumed(github, requester):
+    usage = ApiUsage()
+
+    with collect_api_usage(usage):
+        async for repo in requester.iter_paged_json("GET", "/orgs/acme/repos"):
+            if repo["name"] == "repo-2":
+                break
+
+    assert github.hits["/orgs/acme/repos"] == 2
+    assert usage.rest.total_requests == 2
+
+
 async def test_every_attempt_is_a_request(github, requester):
     usage = ApiUsage()
 
