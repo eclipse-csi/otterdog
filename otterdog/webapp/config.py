@@ -139,7 +139,7 @@ class AppConfig:
 
     PROJECTS_BASE_URL = config("PROJECTS_BASE_URL", default="https://projects.eclipse.org/projects/")
     # Base url of the otterdog documentation, linked from the examples of the playground.
-    DOCUMENTATION_URL = config("DOCUMENTATION_URL", default="https://otterdog.readthedocs.io/en/latest/")
+    DOCUMENTATION_URL = config("DOCUMENTATION_URL", default="https://csi.eclipse.dev/otterdog/")
     DEPENDENCY_TRACK_URL = config("DEPENDENCY_TRACK_URL")
     DEPENDENCY_TRACK_TOKEN = config("DEPENDENCY_TRACK_TOKEN")
 
