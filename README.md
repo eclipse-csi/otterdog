@@ -11,7 +11,7 @@
   <a href="https://pypi.org/project/otterdog"><img alt="PyPI - Python Versions" src="https://img.shields.io/pypi/pyversions/otterdog.svg?maxAge=600" /></a>
   <a href="https://github.com/eclipse-csi/otterdog/blob/main/LICENSE"><img alt="EPLv2 License" src="https://img.shields.io/github/license/eclipse-csi/otterdog" /></a>
   <a href="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml?query=branch%3Amain"><img alt="Build Status on GitHub" src="https://github.com/eclipse-csi/otterdog/actions/workflows/build.yml/badge.svg?branch:main&workflow:Build" /></a>
-  <a href="https://otterdog.readthedocs.io"><img alt="Documentation Status" src="https://readthedocs.org/projects/otterdog/badge/?version=latest" /></a><br>
+  <a href="https://csi.eclipse.dev/otterdog/"><img alt="Documentation Status" src="https://github.com/eclipse-csi/otterdog/actions/workflows/docs.yml/badge.svg?branch=main" /></a><br>
   <a href="https://scorecard.dev/viewer/?uri=github.com/eclipse-csi/otterdog"><img alt="OpenSSF Scorecard" src="https://api.securityscorecards.dev/projects/github.com/eclipse-csi/otterdog/badge" /></a>
   <a href="https://www.bestpractices.dev/projects/9624"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/9624/badge" /></a>
   <a href="https://slsa.dev"><img alt="OpenSSF SLSA Level 3" src="https://slsa.dev/images/gh-badge-level3.svg" /></a>
@@ -39,7 +39,7 @@ To install and use the cli part of otterdog you have to install the following:
 
 ## Documentation
 
-The documentation is available at [otterdog.readthedocs.io](https://otterdog.readthedocs.io).
+The documentation is available at [csi.eclipse.dev/otterdog](https://csi.eclipse.dev/otterdog/).
 
 ## Build instructions
 
@@ -117,7 +117,7 @@ However, when named `otterdog.jsonnet` or `otterdog.json`, the cli tool will aut
 
 ### Environment Variables
 
-The full list of environment variables read by the cli is available in the [documentation](https://otterdog.readthedocs.io/en/latest/operating_otterdog/setup/#environment-variables).
+The full list of environment variables read by the cli is available in the [documentation](https://csi.eclipse.dev/otterdog/operating_otterdog/setup/#environment-variables).
 
 #### OTTERDOG_CONFIG_ROOT
 

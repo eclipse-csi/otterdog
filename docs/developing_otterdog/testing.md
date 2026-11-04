@@ -35,7 +35,7 @@ Create a [Personal Access Token](https://github.com/settings/tokens) with suffic
 
 The GitHub API token needs to have the following scopes enabled: `repo`, `workflow`, `admin:org`, `admin:org_hook`, `delete_repo`.
 
-For more about credentials, see: https://otterdog.readthedocs.io/en/latest/operating_otterdog/setup/#credentials
+For more about credentials, see [Credentials](../operating_otterdog/setup.md#credentials).
 
 ### Credentials provider configuration
 
@@ -49,11 +49,11 @@ Add these environment variables at the GitHub org level: https://github.com/orga
 
 > **NOTE:** 2FA must be activated on your account.
 
-For other credential providers, see: https://otterdog.readthedocs.io/en/latest/operating_otterdog/setup/#credentials
+For other credential providers, see [Credentials](../operating_otterdog/setup.md#credentials).
 
 #### Configure your otterdog (source code) to work with your development organization
 
-Create a new repository named `otterdog-config` and set up the otterdog configuration: [otterdog-configuration](https://otterdog.readthedocs.io/en/latest/operating_otterdog/setup/#otterdog-configuration)
+Create a new repository named `otterdog-config` and set up the otterdog configuration: [Otterdog configuration](../operating_otterdog/setup.md#otterdog-configuration)
 
 Go to your organization `https://github.com/otterdog-<github username>` > Repositories > New repository
 
@@ -424,7 +424,7 @@ make docs-serve-ngrok DOCS_DEV_ADDR=127.0.0.1:8001
 The webapp gets this address as value `config.documentationUrl` of the Helm chart (environment variable
 `DOCUMENTATION_URL`), supported from version 1.6.0 of the chart: with an earlier chart, use the `-local` targets, which
 deploy the chart of a `helm-charts` checkout. Outside of development, the Playground links to
-`https://otterdog.readthedocs.io/en/latest/` unless `config.documentationUrl` is set.
+`https://csi.eclipse.dev/otterdog/` unless `config.documentationUrl` is set.
 
 The Playground of a project starts with the current configuration of its organization, once the webapp fetched it
 again, e.g. after calling `/internal/init`. Its button "Propose on GitHub" validates the modified configuration with

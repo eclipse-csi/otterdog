@@ -39,7 +39,7 @@ dynamic = [ "classifiers", "version" ]
 Homepage = "https://github.com/eclipse-csi/otterdog"
 Changelog = "https://github.com/eclipse-csi/otterdog/blob/main/CHANGELOG.md"
 Repository = "https://github.com/eclipse-csi/otterdog"
-Documentation = "https://otterdog.readthedocs.io"
+Documentation = "https://csi.eclipse.dev/otterdog/"
 
 [project.scripts]
 otterdog = "otterdog.cli:cli"
