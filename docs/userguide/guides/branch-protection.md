@@ -366,9 +366,14 @@ A branch name pattern is only supported by rulesets with `target: "branch"`.
 
 ## Restrict the files that can be pushed
 
-A ruleset with target `push` blocks pushes that add files matching restricted paths or extensions, or files that
-are too large, to any branch of the repository. Push rulesets are only available for private and internal
-repositories.
+A ruleset with target `push` blocks pushes that add files matching restricted paths or extensions, files whose path
+is too long or files that are too large, to any branch of the repository. Push rulesets are only available for
+private and internal repositories.
+
+A push ruleset checks the content of every push, to any ref of the repository and of its fork network: it has no
+target branch and no pull request to block. GitHub therefore only supports the push rules in a push ruleset, the
+rules protecting branches, e.g. `requires_linear_history`, and the rules blocking the merge of pull requests, e.g.
+`required_code_scanning` or `required_code_quality`, have to be defined in a separate ruleset with target `branch`:
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {
@@ -380,19 +385,36 @@ orgs.newOrg('my-project', 'my-org') {
       private: true, // (2)!
       allow_forking: false,
       rulesets: [
+        orgs.newRepoRuleset('default-branch') { // (3)!
+          include_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          requires_linear_history: true,
+          required_code_quality: orgs.newCodeQuality() {
+            severity: "warnings",
+          },
+        },
         orgs.newRepoRuleset('restrict-files') {
           target: "push",
-          allows_creations: true, // (3)!
+          allows_creations: true, // (4)!
           allows_deletions: true,
           allows_force_pushes: true,
           required_pull_request: null,
           required_status_checks: null,
+          restricted_file_paths+: [ // (5)!
+            ".env",
+            "secrets/**",
+          ],
+          restricted_file_paths_exceptions+: [ // (6)!
+            "secrets/README.md",
+          ],
+          max_file_path_length: 255, // (7)!
           restricted_file_extensions+: [
             "*.exe",
             "*.jar",
           ],
-          max_file_size: 10, // (4)!
-          max_file_size_exceptions+: [
+          max_file_size: 10, // (8)!
+          max_file_size_exceptions+: [ // (9)!
             "docs/assets/**",
           ],
         },
@@ -406,8 +428,19 @@ orgs.newOrg('my-project', 'my-org') {
    Team, `validate` warns otherwise.
 2. Push rulesets require a private or internal repository. The default settings of an organization disable the
    forking of private repositories.
-3. A push ruleset only supports push rules, the branch rules required by `orgs.newRepoRuleset` have to be disabled.
-4. The maximum size of a file in megabytes, files stored with Git LFS are not limited.
+3. The rules protecting the default branch and blocking the merge of pull requests into it are defined in a ruleset
+   with target `branch`, the default target of `orgs.newRepoRuleset`.
+4. A push ruleset only supports push rules, the branch rules enabled by `orgs.newRepoRuleset` have to be disabled.
+5. The paths of the files that can not be pushed, using `fnmatch` syntax.
+6. The paths of the files that can be pushed even if they match `restricted_file_paths`.
+7. The maximum number of characters of the path of a file, between 1 and 32767.
+8. The maximum size of a file in megabytes, between 1 and 100, files stored with Git LFS are not limited.
+9. The paths of the files that can exceed `max_file_size`.
+
+`validate` reports the rules that a push ruleset does not support: an error for the rules blocking the merge of
+pull requests and the patterns restricting commit metadata or names of refs, and a warning for the branch rules that
+`orgs.newRepoRuleset` enables by default, e.g. `allows_force_pushes` or `required_pull_request`, to keep the
+configurations defining push rulesets before otterdog supported push rules valid.
 
 ## Protect maintenance and release branches
 

@@ -41,7 +41,13 @@ exempted from all rules of a ruleset, while the bypass allowances of a Branch Pr
 request requirement and required status checks still apply. See
 [Rulesets or branch protection rules](../../../userguide/guides/rulesets-vs-branch-protection.md) for a comparison and the
 features of rulesets that are not supported, and [Protecting branches](../../../userguide/guides/branch-protection.md) for
-examples.
+examples, e.g. [restricting the files that can be pushed](../../../userguide/guides/branch-protection.md#restrict-the-files-that-can-be-pushed)
+with a ruleset with target `push`.
+
+A ruleset with target `push` checks the content of every push, to any ref of the repository: GitHub only supports
+the push rules in it, `restricted_file_paths`, `max_file_path_length`, `restricted_file_extensions` and
+`max_file_size`. The rules protecting branches or blocking the merge of pull requests, e.g. `requires_linear_history`
+or `required_code_scanning`, have to be defined in a separate ruleset with target `branch`.
 
 A rule missing from a ruleset, e.g. because the default template predates it, is not managed: `plan` reports no
 difference for it and `apply` keeps its current setting on GitHub, while a rule set to its disabled value, e.g. `null`,
