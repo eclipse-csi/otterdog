@@ -160,7 +160,8 @@ class Team(ModelObject, abc.ABC):
                 )
 
             case LivePatchType.REMOVE:
-                await provider.delete_org_team(org_id, unwrap(patch.current_object).slug)
+                current_object = unwrap(patch.current_object)
+                await provider.delete_org_team(org_id, current_object.slug, current_object.name)
 
             case LivePatchType.CHANGE:
                 await provider.update_org_team(

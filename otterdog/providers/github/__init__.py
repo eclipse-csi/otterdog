@@ -261,7 +261,10 @@ class GitHubProvider:
 
         await self.rest_api.team.update_team(org_id, team_slug, data)
 
-    async def delete_org_team(self, org_id: str, team_slug: str) -> None:
+    async def delete_org_team(self, org_id: str, team_slug: str, team_name: str) -> None:
+        if not is_set_and_present(team_slug):
+            team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+
         await self.rest_api.team.delete_team(org_id, team_slug)
 
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:

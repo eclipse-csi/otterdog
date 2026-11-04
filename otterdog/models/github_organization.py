@@ -156,6 +156,25 @@ class GitHubOrganization:
     def set_teams(self, teams: list[Team]) -> None:
         self.teams = teams
 
+    def remove_excluded_teams(
+        self, project_name: str, jsonnet_config: JsonnetConfig, exclude_teams: ExclusionPatterns | None
+    ) -> None:
+        """
+        Removes the teams matching the exclusion patterns that the default configuration does not declare,
+        as they are managed outside otterdog and therefore not loaded from GitHub either, see load_from_provider.
+        """
+        if exclude_teams is None:
+            return
+
+        default_org = GitHubOrganization.from_model_data(
+            jsonnet_config.default_org_config_for_org_id(project_name, self.github_id)
+        )
+        self.teams = [
+            team
+            for team in self.teams
+            if not exclude_teams.match(team.name) or default_org.get_team(team.name) is not None
+        ]
+
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)
 

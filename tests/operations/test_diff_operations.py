@@ -20,10 +20,11 @@ from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.operations.apply import ApplyOperation
 from otterdog.operations.check_status import CheckStatusOperation
+from otterdog.operations.local_apply import LocalApplyOperation
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.operations.plan import PlanOperation
 from otterdog.operations.validate import ValidationStatus
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import ExclusionPatterns, IndentingPrinter, LogLevel
 
 _BASE_TEMPLATE = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main"
 
@@ -106,6 +107,52 @@ async def test_local_plan_returns_failure_when_the_configuration_is_missing(tmp_
 
     assert result == 1
     assert "does not yet exist" in output.getvalue()
+
+
+_TEMPLATE_WITH_DEFAULT_TEAM = """
+{
+  newOrg(project_name, org_id):: {
+    project_name: project_name,
+    github_id: org_id,
+    settings: {},
+    teams: [{ name: "default-project-leads", privacy: "visible" }],
+  },
+}
+"""
+
+
+@pytest.mark.parametrize(
+    "create_operation",
+    [
+        pytest.param(lambda: LocalPlanOperation("-BASE", "*", False, False, False, "", True), id="local-plan"),
+        pytest.param(
+            lambda: LocalApplyOperation("-BASE", True, True, "*", False, False, False, "", True), id="local-apply"
+        ),
+    ],
+)
+async def test_local_operations_ignore_the_teams_managed_outside_otterdog(tmp_path, create_operation):
+    """
+    Like an organization loaded from GitHub, the BASE configuration of a local operation ignores the teams
+    matching the exclusion patterns that the default configuration does not declare, so they are not removed.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    jsonnet_config = org_config.jsonnet_config
+    Path(jsonnet_config.template_file).write_text(_TEMPLATE_WITH_DEFAULT_TEAM, encoding="utf-8")
+    base_file = Path(f"{jsonnet_config.org_config_file}-BASE")
+    base_data = json.loads(base_file.read_text(encoding="utf-8"))
+    base_data["teams"] = [
+        {"name": name, "privacy": "visible"} for name in ("default-project-leads", "my-project-leads", "my-team")
+    ]
+    base_file.write_text(json.dumps(base_data), encoding="utf-8")
+    operation = create_operation()
+    operation.init(
+        pretend.stub(exclude_teams_pattern=ExclusionPatterns([".*-project-leads"])),
+        IndentingPrinter(StringIO(), log_level=LogLevel.ERROR),
+    )
+
+    current_org = await operation.load_current_org("test-project", "test-org", jsonnet_config)
+
+    assert [team.name for team in current_org.teams] == ["default-project-leads", "my-team"]
 
 
 async def test_apply_reports_no_changes_for_matching_configurations(tmp_path, monkeypatch):
