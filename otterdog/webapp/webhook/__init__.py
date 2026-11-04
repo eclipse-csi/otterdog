@@ -257,6 +257,23 @@ async def on_push_received(data):
         logger.exception("failed to load push event data")
         return success()
 
+    # if the otterdog config repo has been updated, update all installations, checked first as the push
+    # is received through the installation of the app if the organization hosting the otterdog config
+    # has installed it, which is not necessarily defined in the otterdog config itself
+    if (
+        event.repository.name == current_app.config["OTTERDOG_CONFIG_REPO"]
+        and event.repository.owner.login == current_app.config["OTTERDOG_CONFIG_OWNER"]
+        and event.ref == f"refs/heads/{event.repository.default_branch}"
+    ):
+
+        async def update_installations() -> None:
+            config = await refresh_otterdog_config(event.after)
+            policies = await refresh_global_policies(event.after)
+            blueprints = await refresh_global_blueprints(event.after)
+            await update_installations_from_config(config, policies, blueprints)
+
+        current_app.add_background_task(update_installations)
+
     # check if the push targets the default branch of the config repo of an installation,
     # in such a case, update the current config in the database
     if event.installation is not None and event.organization is not None:
@@ -314,23 +331,6 @@ async def on_push_received(data):
                 )
             )
 
-        return success()
-
-    # if the otterdog config repo has been update, update all installations
-    if (
-        event.repository.name == current_app.config["OTTERDOG_CONFIG_REPO"]
-        and event.repository.owner.login == current_app.config["OTTERDOG_CONFIG_OWNER"]
-    ):
-        if event.ref != f"refs/heads/{event.repository.default_branch}":
-            return success()
-
-        async def update_installations() -> None:
-            config = await refresh_otterdog_config(event.after)
-            policies = await refresh_global_policies(event.after)
-            blueprints = await refresh_global_blueprints(event.after)
-            await update_installations_from_config(config, policies, blueprints)
-
-        current_app.add_background_task(update_installations)
         return success()
 
     return success()

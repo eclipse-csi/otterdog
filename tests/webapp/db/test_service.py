@@ -105,6 +105,144 @@ async def test_update_app_installations_refreshes_every_installation_once_when_f
     assert refreshed_installations == ["configured", "unconfigured"]
 
 
+class _AddedInstallation:
+    """The stubs add_app_installation relies on, for an app installation of org 'new-org'."""
+
+    def __init__(self, monkeypatch, stored: dict[str, InstallationModel], configured: dict[str, str]):
+        """
+        :param stored: the installations stored when the app is installed, by github id
+        :param configured: the orgs that the latest otterdog config defines, github id by project name
+        """
+
+        self.stored = stored
+        self.saved: list[InstallationModel] = []
+        self.deleted: list[InstallationModel] = []
+        self.refreshed: list[str] = []
+        # the operations on the database and the fetching of data, in their order
+        self.operations: list[str] = []
+
+        rest_api = mock.MagicMock()
+        rest_api.app.get_app_installation = mock.AsyncMock(
+            return_value={"id": 178172786, "account": {"login": "new-org"}, "suspended_at": None}
+        )
+
+        otterdog_config = OtterdogConfig.from_dict(
+            {
+                "defaults": {"jsonnet": {"base_template": "https://github.com/org/repo#base.libsonnet@main"}},
+                "organizations": [{"name": name, "github_id": github_id} for name, github_id in configured.items()],
+            },
+            False,
+            ".",
+        )
+
+        async def get_installation_by_github_id(github_id: str):
+            return self.stored.get(github_id)
+
+        async def get_installation_by_project_name(project_name: str):
+            return next((x for x in self.stored.values() if x.project_name == project_name), None)
+
+        async def save(model: InstallationModel) -> None:
+            self.saved.append(model)
+            self.operations.append(f"save {model.github_id}")
+
+        async def delete(model: InstallationModel) -> None:
+            self.deleted.append(model)
+            self.operations.append(f"delete {model.github_id}")
+
+        async def cleanup_data() -> None:
+            self.operations.append("cleanup")
+
+        async def update_data_for_installation(installation: InstallationModel) -> None:
+            self.refreshed.append(installation.github_id)
+            self.operations.append(f"fetch {installation.github_id}")
+
+        self.refresh_otterdog_config = mock.AsyncMock(return_value=otterdog_config)
+        # the other changes of the otterdog config are left to the processing of the push that made them
+        self.update_installations_from_config = mock.AsyncMock()
+
+        monkeypatch.setattr(service, "mongo", mock.MagicMock(odm=mock.MagicMock(save=save, delete=delete)))
+        monkeypatch.setattr(service, "get_rest_api_for_app", lambda: rest_api)
+        monkeypatch.setattr(service, "get_installation_by_github_id", get_installation_by_github_id)
+        monkeypatch.setattr(service, "get_installation_by_project_name", get_installation_by_project_name)
+        monkeypatch.setattr(service, "refresh_otterdog_config", self.refresh_otterdog_config)
+        monkeypatch.setattr(service, "update_installations_from_config", self.update_installations_from_config)
+        monkeypatch.setattr(service, "cleanup_data", cleanup_data)
+        monkeypatch.setattr(service, "update_data_for_installation", update_data_for_installation)
+        monkeypatch.setattr(service, "update_policies_and_blueprints_for_installation", mock.AsyncMock())
+
+    def saved_installations(self) -> list[tuple]:
+        return [(x.github_id, x.project_name, x.installation_id, x.installation_status) for x in self.saved]
+
+
+def _not_installed(github_id: str) -> InstallationModel:
+    model = _installation(github_id)
+    model.installation_id = 0
+    model.installation_status = InstallationStatus.NOT_INSTALLED
+    return model
+
+
+async def test_add_app_installation_of_known_org(monkeypatch):
+    added = _AddedInstallation(monkeypatch, stored={"new-org": _not_installed("new-org")}, configured={})
+
+    await service.add_app_installation(178172786, [], [])
+
+    assert added.saved_installations() == [("new-org", "project-new-org", 178172786, InstallationStatus.INSTALLED)]
+    assert added.operations == ["save new-org", "fetch new-org"]
+    added.refresh_otterdog_config.assert_not_awaited()
+
+
+async def test_add_app_installation_reloads_otterdog_config_for_unknown_org(monkeypatch, caplog):
+    # the app has been installed before the push adding the org to the otterdog config has been processed
+    added = _AddedInstallation(
+        monkeypatch,
+        stored={"other-org": _installation("other-org")},
+        configured={"project-other-org": "other-org", "technology.new": "new-org"},
+    )
+
+    with caplog.at_level("WARNING", logger=service.logger.name):
+        await service.add_app_installation(178172786, [], [])
+
+    added.refresh_otterdog_config.assert_awaited_once()
+    assert added.saved_installations() == [("new-org", "technology.new", 178172786, InstallationStatus.INSTALLED)]
+    assert added.deleted == []
+    assert added.refreshed == ["new-org"]
+    # the other orgs are left to the processing of the push that changed the otterdog config
+    added.update_installations_from_config.assert_not_awaited()
+    assert "org 'new-org' (installation id '178172786') that is not known yet" in caplog.text
+
+
+async def test_add_app_installation_replaces_installation_of_project_whose_org_has_changed(monkeypatch):
+    previous = _installation("previous-org")
+    previous.project_name = "technology.new"
+    added = _AddedInstallation(monkeypatch, stored={"previous-org": previous}, configured={"technology.new": "new-org"})
+
+    await service.add_app_installation(178172786, [], [])
+
+    assert added.deleted == [previous]
+    assert added.saved_installations() == [("new-org", "technology.new", 178172786, InstallationStatus.INSTALLED)]
+    # the data of the previous org, e.g. its configuration, holds the project name which is unique
+    assert added.operations == ["delete previous-org", "save new-org", "cleanup", "fetch new-org"]
+
+
+@pytest.mark.parametrize(
+    "configured",
+    [
+        pytest.param({}, id="not defined"),
+        pytest.param({"technology.new": "New-Org"}, id="defined with another case"),
+    ],
+)
+async def test_add_app_installation_ignores_org_not_defined_in_otterdog_config(monkeypatch, caplog, configured):
+    added = _AddedInstallation(monkeypatch, stored={}, configured=configured)
+
+    with caplog.at_level("WARNING", logger=service.logger.name):
+        await service.add_app_installation(178172786, [], [])
+
+    added.refresh_otterdog_config.assert_awaited_once()
+    assert added.saved == []
+    assert added.refreshed == []
+    assert "org 'new-org' (installation id '178172786') that the otterdog config does not define" in caplog.text
+
+
 async def test_installation_tasks_are_scheduled_through_the_bound(app, monkeypatch):
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
     from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask
