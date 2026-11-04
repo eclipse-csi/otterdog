@@ -17,13 +17,16 @@ import pytest
 
 from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
+from otterdog.models import LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.team import Team
 from otterdog.operations.apply import ApplyOperation
 from otterdog.operations.check_status import CheckStatusOperation
+from otterdog.operations.local_apply import LocalApplyOperation
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.operations.plan import PlanOperation
 from otterdog.operations.validate import ValidationStatus
-from otterdog.utils import IndentingPrinter, LogLevel
+from otterdog.utils import ExclusionPatterns, IndentingPrinter, LogLevel, unwrap
 
 _BASE_TEMPLATE = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main"
 
@@ -64,7 +67,9 @@ def _create_org_config(tmp_path: Path, with_config_files: bool, base_differs: bo
     )
 
 
-def _initialize_operation(operation, monkeypatch, output: StringIO, client, current_org=None):
+def _initialize_operation(
+    operation, monkeypatch, output: StringIO, client, current_org=None, exclude_teams_pattern=None
+):
     """
     Initialize an operation while replacing only GitHub and validation boundaries.
     """
@@ -73,7 +78,9 @@ def _initialize_operation(operation, monkeypatch, output: StringIO, client, curr
     if current_org is not None:
         monkeypatch.setattr(operation, "load_current_org", AsyncMock(return_value=current_org))
 
-    operation.init(pretend.stub(exclude_teams_pattern=None), IndentingPrinter(output, log_level=LogLevel.ERROR))
+    operation.init(
+        pretend.stub(exclude_teams_pattern=exclude_teams_pattern), IndentingPrinter(output, log_level=LogLevel.ERROR)
+    )
 
 
 async def test_local_plan_reports_changes_for_a_configuration_difference(tmp_path, monkeypatch):
@@ -106,6 +113,143 @@ async def test_local_plan_returns_failure_when_the_configuration_is_missing(tmp_
 
     assert result == 1
     assert "does not yet exist" in output.getvalue()
+
+
+_TEMPLATE_WITH_DEFAULT_TEAM = """
+{
+  newOrg(project_name, org_id):: {
+    project_name: project_name,
+    github_id: org_id,
+    settings: {},
+    teams: [{ name: "default-project-leads", privacy: "visible" }],
+  },
+}
+"""
+
+
+_GITHUB_TEAMS = [
+    {"name": "default-project-leads", "slug": "default-project-leads"},
+    {"name": "my-project-leads", "slug": "my-project-leads"},
+    {"name": "Other Project Leads", "slug": "other-project-leads"},
+    {"name": "my-team", "slug": "my-team"},
+    {"name": "other-team", "slug": "other-team"},
+]
+
+_LOCAL_OPERATIONS = pytest.mark.parametrize(
+    "create_operation",
+    [
+        pytest.param(lambda: LocalPlanOperation("-BASE", "*", False, False, False, "", True), id="local-plan"),
+        pytest.param(
+            lambda: LocalApplyOperation("-BASE", True, True, "*", False, False, False, "", True), id="local-apply"
+        ),
+    ],
+)
+
+
+async def _diff_teams(tmp_path, monkeypatch, operation, base_teams, expected_teams):
+    """
+    Runs a local operation between a BASE and a desired configuration that differ in their teams only,
+    with the teams matching '.*-project-leads' managed outside otterdog.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
+    jsonnet_config = org_config.jsonnet_config
+    Path(jsonnet_config.template_file).write_text(_TEMPLATE_WITH_DEFAULT_TEAM, encoding="utf-8")
+    for file_name, team_names in (
+        (jsonnet_config.org_config_file, expected_teams),
+        (f"{jsonnet_config.org_config_file}-BASE", base_teams),
+    ):
+        config_file = Path(file_name)
+        config_data = json.loads(config_file.read_text(encoding="utf-8"))
+        config_data["teams"] = [{"name": name, "privacy": "visible"} for name in team_names]
+        config_file.write_text(json.dumps(config_data), encoding="utf-8")
+
+    client = pretend.stub(
+        close=AsyncMock(),
+        get_org_teams=AsyncMock(return_value=_GITHUB_TEAMS),
+        add_org_team=AsyncMock(),
+        delete_org_team=AsyncMock(),
+    )
+    results = []
+    operation.set_callback(results.append)
+    _initialize_operation(
+        operation, monkeypatch, StringIO(), client, exclude_teams_pattern=ExclusionPatterns([".*-project-leads"])
+    )
+
+    assert await operation.execute(org_config) == 0
+    patches = [
+        (patch.patch_type, unwrap(patch.expected_object or patch.current_object).name) for patch in results[0].patches
+    ]
+    return patches, client
+
+
+@_LOCAL_OPERATIONS
+async def test_local_operations_do_not_remove_the_teams_managed_outside_otterdog(
+    tmp_path, monkeypatch, create_operation
+):
+    """
+    Like an organization loaded from GitHub, the BASE configuration of a local operation ignores the teams
+    whose slug matches the exclusion patterns and that the default configuration does not declare, so removing
+    them from the configuration does not delete them. The slug of a team is looked up on GitHub, as a
+    configuration only holds its name.
+    """
+    base_teams = [
+        "default-project-leads",
+        "my-project-leads",
+        # the slug, not the name, matches the exclusion pattern
+        "Other Project Leads",
+        # not on GitHub, its name is matched instead
+        "new-project-leads",
+        "my-team",
+        "other-team",
+    ]
+
+    patches, client = await _diff_teams(
+        tmp_path, monkeypatch, create_operation(), base_teams, ["default-project-leads", "my-team"]
+    )
+
+    assert patches == [(LivePatchType.REMOVE, "other-team")]
+    client.get_org_teams.assert_awaited_once_with("test-org")
+
+
+@_LOCAL_OPERATIONS
+async def test_local_operations_keep_an_unchanged_team_managed_outside_otterdog(
+    tmp_path, monkeypatch, create_operation
+):
+    """
+    A team whose slug, but not its name, matches the exclusion patterns passes the validation. When the
+    configuration keeps it unchanged, it is not ignored in BASE only, which would plan to add it again.
+    """
+    teams = ["default-project-leads", "Other Project Leads", "my-team"]
+
+    patches, client = await _diff_teams(tmp_path, monkeypatch, create_operation(), teams, teams)
+
+    assert patches == []
+    client.get_org_teams.assert_not_awaited()
+    client.add_org_team.assert_not_awaited()
+
+
+async def test_remove_excluded_teams_does_not_look_up_the_known_slugs(tmp_path):
+    """
+    The teams loaded from GitHub already have a slug, which is matched without looking it up again.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    jsonnet_config = org_config.jsonnet_config
+    Path(jsonnet_config.template_file).write_text(_TEMPLATE_WITH_DEFAULT_TEAM, encoding="utf-8")
+    org = GitHubOrganization.from_model_data(jsonnet_config.default_org_config_for_org_id("test-project", "test-org"))
+    org.set_teams(
+        [
+            Team.from_provider_data("test-org", {"name": "Other Project Leads", "slug": "other-project-leads"}),
+            Team.from_provider_data("test-org", {"name": "my-team", "slug": "my-team"}),
+        ]
+    )
+    provider = pretend.stub(get_org_teams=AsyncMock())
+
+    await org.remove_excluded_teams(
+        "test-project", jsonnet_config, ExclusionPatterns([".*-project-leads"]), provider, None
+    )
+
+    assert [team.name for team in org.teams] == ["my-team"]
+    provider.get_org_teams.assert_not_awaited()
 
 
 async def test_apply_reports_no_changes_for_matching_configurations(tmp_path, monkeypatch):

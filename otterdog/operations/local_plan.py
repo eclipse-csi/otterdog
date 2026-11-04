@@ -83,7 +83,12 @@ class LocalPlanOperation(PlanOperation):
         if not await ospath.exists(other_org_file_name):
             raise RuntimeError(f"configuration file '{other_org_file_name}' does not exist")
 
-        return GitHubOrganization.load_from_file(github_id, other_org_file_name)
+        github_organization = GitHubOrganization.load_from_file(github_id, other_org_file_name)
+        # like a plan against GitHub, do not remove the teams managed outside otterdog
+        await github_organization.remove_excluded_teams(
+            project_name, jsonnet_config, self.config.exclude_teams_pattern, self.gh_client, expected_org
+        )
+        return github_organization
 
     def preprocess_orgs(
         self, expected_org: GitHubOrganization, current_org: GitHubOrganization
