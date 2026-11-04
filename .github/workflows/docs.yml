@@ -53,7 +53,9 @@ env:
   PREVIEW_REPOSITORY: eclipse-csi/otterdog-website-preview
   PREVIEW_BRANCH: gh-pages-preview
   UMBRELLA_DIR: pr-preview
-  PREVIEW_BASE_URL: https://eclipse-csi.github.io/otterdog-website-preview/pr-preview
+  # the GitHub Pages of eclipse-csi are served at csi.eclipse.dev (eclipse-csi.github.io redirects there)
+  PREVIEW_PAGES_URL: csi.eclipse.dev/otterdog-website-preview
+  PREVIEW_BASE_URL: https://csi.eclipse.dev/otterdog-website-preview/pr-preview
   # marks the comment linking the preview on a pull request, updated by every deployment and by the removal
   COMMENT_MARKER: "<!-- otterdog-docs-preview -->"
 
@@ -168,6 +170,8 @@ jobs:
           deploy-repository: ${{ env.PREVIEW_REPOSITORY }}
           preview-branch: ${{ env.PREVIEW_BRANCH }}
           umbrella-dir: ${{ env.UMBRELLA_DIR }}
+          # the url of the comment and of the environment, else eclipse-csi.github.io/otterdog-website-preview
+          pages-base-url: ${{ env.PREVIEW_PAGES_URL }}
           token: ${{ secrets.GH_PREVIEW_TOKEN }}
           deploy-commit-message: Deploy the preview of pull request ${{ github.event.pull_request.number }}
           # the comment is written below, without a QR code service

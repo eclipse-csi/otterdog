@@ -99,7 +99,7 @@ make docs                    # strict build into site/, broken links and anchors
 ```
 
 Every pull request that changes the documentation is built strictly. When it comes from a branch of the repository,
-its preview is published at `https://eclipse-csi.github.io/otterdog-website-preview/pr-preview/pr-<number>/`, and a
+its preview is published at `https://csi.eclipse.dev/otterdog-website-preview/pr-preview/pr-<number>/`, and a
 comment on the pull request links it. The pull requests from forks are built without a preview: they have no access to
 the token that publishes it.
 

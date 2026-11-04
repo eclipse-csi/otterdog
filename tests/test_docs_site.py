@@ -33,7 +33,7 @@ def test_staged_config():
     assert config["docs_dir"] == "docs"
     assert config["site_dir"] == "site"
     assert config["theme"]["custom_dir"] == "theme"
-    assert config["site_url"] == "https://eclipse-csi.github.io/otterdog/"
+    assert config["site_url"] == "https://csi.eclipse.dev/otterdog/"
     assert config["markdown_extensions"]["pymdownx"]["snippets"]["base_path"] == [str(_ROOT_DIR)]
     assert config["extra"]["otterdog_url"] == "https://otterdog.eclipse.org"
     assert "preview_pr" not in config["extra"]
@@ -48,7 +48,7 @@ def test_staged_config_is_valid_toml():
 @pytest.mark.parametrize(
     ("environ", "site_url"),
     [
-        ({}, "https://eclipse-csi.github.io/otterdog/"),
+        ({}, "https://csi.eclipse.dev/otterdog/"),
         (
             {"READTHEDOCS_CANONICAL_URL": "https://otterdog.readthedocs.io/en/latest/"},
             "https://otterdog.readthedocs.io/en/latest/",
@@ -57,7 +57,7 @@ def test_staged_config_is_valid_toml():
             {"READTHEDOCS_CANONICAL_URL": "https://rtd.example/", "SITE_URL": "https://preview.example/pr-1/"},
             "https://preview.example/pr-1/",
         ),
-        ({"SITE_URL": ""}, "https://eclipse-csi.github.io/otterdog/"),
+        ({"SITE_URL": ""}, "https://csi.eclipse.dev/otterdog/"),
     ],
 )
 def test_site_url_from_environment(environ, site_url):
@@ -81,7 +81,7 @@ def test_preview_of_a_pull_request():
     config = docs_site.staged_config(_CONFIG, _ROOT_DIR, settings)
 
     assert config["extra"]["preview_pr"] == 123
-    assert config["extra"]["published_url"] == "https://eclipse-csi.github.io/otterdog/"
+    assert config["extra"]["published_url"] == "https://csi.eclipse.dev/otterdog/"
     assert config["site_url"] == "https://preview.example/"
 
 

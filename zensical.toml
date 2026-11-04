@@ -6,7 +6,8 @@
 [project]
 site_name = "otterdog"
 site_description = "Manage GitHub organizations at scale"
-site_url = "https://eclipse-csi.github.io/otterdog/"
+# the GitHub Pages of eclipse-csi are served at csi.eclipse.dev (eclipse-csi.github.io redirects there)
+site_url = "https://csi.eclipse.dev/otterdog/"
 repo_url = "https://github.com/eclipse-csi/otterdog"
 repo_name = "eclipse-csi/otterdog"
 edit_uri = "edit/main/docs/"
