@@ -105,6 +105,97 @@ async def test_update_app_installations_refreshes_every_installation_once_when_f
     assert refreshed_installations == ["configured", "unconfigured"]
 
 
+class _AddedInstallation:
+    """The stubs add_app_installation relies on, for an app installation of org 'new-org'."""
+
+    def __init__(self, monkeypatch, stored: dict[str, InstallationModel], configured: dict[str, InstallationModel]):
+        """
+        :param stored: the installations stored when the app is installed
+        :param configured: the installations that the otterdog config defines once reloaded
+        """
+
+        self.stored = stored
+        self.saved: list[InstallationModel] = []
+        self.refreshed: list[str] = []
+
+        rest_api = mock.MagicMock()
+        rest_api.app.get_app_installation = mock.AsyncMock(
+            return_value={"id": 178172786, "account": {"login": "new-org"}, "suspended_at": None}
+        )
+
+        async def get_installation_by_github_id(github_id: str):
+            return self.stored.get(github_id)
+
+        async def update_installations_from_config(_config, _policies, _blueprints, update_installations=True):
+            # only the installations stored in the database are synchronized, not the app installations
+            assert update_installations is False
+            self.stored.update(configured)
+
+        async def save(model: InstallationModel) -> None:
+            self.saved.append(model)
+
+        async def update_data_for_installation(installation: InstallationModel) -> None:
+            self.refreshed.append(installation.github_id)
+
+        self.refresh_otterdog_config = mock.AsyncMock()
+        self.update_installations_from_config = mock.AsyncMock(side_effect=update_installations_from_config)
+
+        monkeypatch.setattr(service, "mongo", mock.MagicMock(odm=mock.MagicMock(save=save)))
+        monkeypatch.setattr(service, "get_rest_api_for_app", lambda: rest_api)
+        monkeypatch.setattr(service, "get_installation_by_github_id", get_installation_by_github_id)
+        monkeypatch.setattr(service, "refresh_otterdog_config", self.refresh_otterdog_config)
+        monkeypatch.setattr(service, "update_installations_from_config", self.update_installations_from_config)
+        monkeypatch.setattr(service, "update_data_for_installation", update_data_for_installation)
+        monkeypatch.setattr(service, "update_policies_and_blueprints_for_installation", mock.AsyncMock())
+
+
+def _not_installed(github_id: str) -> InstallationModel:
+    model = _installation(github_id)
+    model.installation_id = 0
+    model.installation_status = InstallationStatus.NOT_INSTALLED
+    return model
+
+
+async def test_add_app_installation_of_known_org(monkeypatch):
+    added = _AddedInstallation(monkeypatch, stored={"new-org": _not_installed("new-org")}, configured={})
+
+    await service.add_app_installation(178172786, [], [])
+
+    assert [(x.github_id, x.installation_id, x.installation_status) for x in added.saved] == [
+        ("new-org", 178172786, InstallationStatus.INSTALLED)
+    ]
+    assert added.refreshed == ["new-org"]
+    added.refresh_otterdog_config.assert_not_awaited()
+
+
+async def test_add_app_installation_reloads_otterdog_config_for_unknown_org(monkeypatch, caplog):
+    # the app has been installed before the push adding the org to the otterdog config has been processed
+    added = _AddedInstallation(monkeypatch, stored={}, configured={"new-org": _not_installed("new-org")})
+
+    with caplog.at_level("WARNING", logger=service.logger.name):
+        await service.add_app_installation(178172786, [], [])
+
+    added.refresh_otterdog_config.assert_awaited_once()
+    added.update_installations_from_config.assert_awaited_once()
+    assert [(x.github_id, x.installation_id, x.installation_status) for x in added.saved] == [
+        ("new-org", 178172786, InstallationStatus.INSTALLED)
+    ]
+    assert added.refreshed == ["new-org"]
+    assert "org 'new-org' (installation id '178172786') that is not known yet" in caplog.text
+
+
+async def test_add_app_installation_ignores_org_not_defined_in_otterdog_config(monkeypatch, caplog):
+    added = _AddedInstallation(monkeypatch, stored={}, configured={})
+
+    with caplog.at_level("WARNING", logger=service.logger.name):
+        await service.add_app_installation(178172786, [], [])
+
+    added.refresh_otterdog_config.assert_awaited_once()
+    assert added.saved == []
+    assert added.refreshed == []
+    assert "org 'new-org' (installation id '178172786') that the otterdog config does not define" in caplog.text
+
+
 async def test_installation_tasks_are_scheduled_through_the_bound(app, monkeypatch):
     from otterdog.webapp.tasks.fetch_all_pull_requests import FetchAllPullRequestsTask
     from otterdog.webapp.tasks.fetch_blueprints import FetchBlueprintsTask

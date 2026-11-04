@@ -24,6 +24,7 @@ from otterdog.webapp.utils import (
     get_rest_api_for_app,
     refresh_global_blueprints,
     refresh_global_policies,
+    refresh_otterdog_config,
 )
 
 from .models import (
@@ -294,20 +295,40 @@ async def add_app_installation(
     rest_api = get_rest_api_for_app()
     app_installation = await rest_api.app.get_app_installation(installation_id)
 
-    async with mongo.odm.session() as session:
-        installation_id = app_installation["id"]
-        github_id = app_installation["account"]["login"]
-        suspended_at = app_installation["suspended_at"]
-        installation_status = InstallationStatus.INSTALLED if suspended_at is None else InstallationStatus.SUSPENDED
+    installation_id = app_installation["id"]
+    github_id = app_installation["account"]["login"]
+    suspended_at = app_installation["suspended_at"]
+    installation_status = InstallationStatus.INSTALLED if suspended_at is None else InstallationStatus.SUSPENDED
+
+    installation_model = await get_installation_by_github_id(github_id)
+    if installation_model is None:
+        # the app may be installed before the push adding the org to the otterdog config has been
+        # processed, the installation would then only be picked up upon the next change of the config
+        logger.warning(
+            "the github app has been installed for org '%s' (installation id '%d') that is not known yet, "
+            "reloading the otterdog config",
+            github_id,
+            int(installation_id),
+        )
+
+        otterdog_config = await refresh_otterdog_config()
+        await update_installations_from_config(
+            otterdog_config, global_policies, global_blueprints, update_installations=False
+        )
 
         installation_model = await get_installation_by_github_id(github_id)
-        if installation_model is not None:
-            installation_model.installation_id = int(installation_id)
-            installation_model.installation_status = installation_status
-
-            await session.save(installation_model)
-        else:
+        if installation_model is None:
+            logger.warning(
+                "the github app has been installed for org '%s' (installation id '%d') that the otterdog config "
+                "does not define, ignoring it, note that the github id is matched case-sensitively",
+                github_id,
+                int(installation_id),
+            )
             return
+
+    installation_model.installation_id = int(installation_id)
+    installation_model.installation_status = installation_status
+    await mongo.odm.save(installation_model)
 
     await update_data_for_installation(installation_model)
     await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
