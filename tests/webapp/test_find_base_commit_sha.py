@@ -22,8 +22,8 @@ def _commit(sha: str, parents: list[str]) -> dict:
     return {"sha": sha, "parents": [{"sha": parent} for parent in parents]}
 
 
-def _activity(before: str, after: str) -> dict:
-    return {"before": before, "after": after, "ref": "refs/heads/main", "activity_type": "pr_merge"}
+def _activity(before: str, after: str, activity_type: str = "pr_merge") -> dict:
+    return {"before": before, "after": after, "ref": "refs/heads/main", "activity_type": activity_type}
 
 
 def _rest_api(commits: list[dict], *recorded_activities: list[dict]):
@@ -34,14 +34,15 @@ def _rest_api(commits: list[dict], *recorded_activities: list[dict]):
     async def get_commit(_org_id, _repo_name, sha):
         return commits_by_sha[sha]
 
-    async def get_recent_activities(_org_id, _repo_name, ref):
+    async def get_activities(_org_id, _repo_name, ref, activity_type):
         assert ref == "refs/heads/main"
         lookups.append(ref)
-        return recorded_activities[min(len(lookups), len(recorded_activities)) - 1]
+        activities = recorded_activities[min(len(lookups), len(recorded_activities)) - 1]
+        return [activity for activity in activities if activity["activity_type"] == activity_type]
 
     return stub(
         commit=stub(get_commit=get_commit),
-        repo=stub(get_recent_activities=get_recent_activities),
+        repo=stub(get_activities=get_activities),
         lookups=lookups,
     )
 
@@ -85,11 +86,27 @@ async def test_find_base_commit_sha_once_github_records_the_merge():
     assert len(rest_api.lookups) == 2
 
 
-async def test_find_base_commit_sha_fails_if_github_does_not_record_the_merge():
-    # e.g. a merge queue merging several pull requests at once
-    rest_api = _rest_api([_commit("commit-3", ["commit-2"])], [_activity("previous", "commit-4")])
+async def test_find_base_commit_sha_ignores_other_changes_of_the_branch_to_the_merge_commit():
+    # e.g. the branch force-pushed back to the merge commit later on
+    rest_api = _rest_api(
+        [_commit("squashed", ["base"])],
+        [
+            _activity("later", "squashed", activity_type="force_push"),
+            _activity("squashed", "later"),
+            _activity("base", "squashed"),
+        ],
+    )
 
-    with pytest.raises(RuntimeError, match="no recent change of branch 'main' to commit 'commit-3'"):
+    assert await _find_base_commit_sha(rest_api, "squashed") == "base"
+
+
+async def test_find_base_commit_sha_fails_if_github_does_not_record_the_merge_of_the_pull_request():
+    rest_api = _rest_api(
+        [_commit("commit-3", ["commit-2"])],
+        [_activity("base", "commit-3", activity_type="merge_queue_merge"), _activity("previous", "base")],
+    )
+
+    with pytest.raises(RuntimeError, match="no merge of a pull request into branch 'main' up to commit 'commit-3'"):
         await _find_base_commit_sha(rest_api, "commit-3")
 
     assert len(rest_api.lookups) == 3

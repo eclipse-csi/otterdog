@@ -444,8 +444,9 @@ async def find_base_commit_sha(
     of its commits to the branch, keeping their author and message, and the parent of the merge
     commit would then already contain most of the changes.
 
-    Fails rather than guessing the base if the merge has not been recorded as a change of the
-    branch of its own, e.g. if a merge queue has merged several pull requests at once.
+    Only the merges of a pull request are considered, as another change of the branch could
+    later move it back to the merge commit, e.g. a force push. Fails rather than guessing the base
+    if the merge has not been recorded as such, e.g. if a merge queue has merged the pull request.
     """
     commit = await rest_api.commit.get_commit(org_id, repo_name, merge_commit_sha)
     if len(commit["parents"]) > 1:
@@ -453,7 +454,7 @@ async def find_base_commit_sha(
 
     ref = f"refs/heads/{base_ref}"
     for delay in (*_BASE_BRANCH_ACTIVITY_RETRY_DELAYS, None):
-        for activity in await rest_api.repo.get_recent_activities(org_id, repo_name, ref):
+        for activity in await rest_api.repo.get_activities(org_id, repo_name, ref, "pr_merge"):
             if activity["after"] == merge_commit_sha:
                 return activity["before"]
 
@@ -461,8 +462,8 @@ async def find_base_commit_sha(
             await asyncio.sleep(delay)
 
     raise RuntimeError(
-        f"unable to determine base of merged pull request, no recent change of branch '{base_ref}' "
-        f"to commit '{merge_commit_sha}' found in the activity of repo '{org_id}/{repo_name}'"
+        f"unable to determine base of merged pull request, no merge of a pull request into branch "
+        f"'{base_ref}' up to commit '{merge_commit_sha}' found in the activity of repo '{org_id}/{repo_name}'"
     )
 
 

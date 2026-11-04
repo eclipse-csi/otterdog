@@ -546,17 +546,31 @@ class TestRepoClientGitHubPagesCustomDomain:
 
 
 class TestRepoClientActivities:
-    async def test_get_recent_activities_of_ref(self):
+    async def test_get_activities_of_ref_and_type_from_all_pages(self):
         activities = [{"before": "base", "after": "merge", "ref": "refs/heads/main", "activity_type": "pr_merge"}]
 
-        async def mock_request_json(method, url, params=None):
+        async def mock_request_paged_json(method, url, params=None):
             return activities
 
-        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(request_paged_json=pretend.call_recorder(mock_request_paged_json))
+        )
         repo_client = RepoClient(mocked_restapi)
 
-        assert await repo_client.get_recent_activities("test-org", "test-repo", "refs/heads/main") == activities
+        assert await repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge") == activities
+        assert repo_client.requester.request_paged_json.calls == [
+            pretend.call(
+                "GET",
+                "/repos/test-org/test-repo/activity",
+                params={"ref": "refs/heads/main", "activity_type": "pr_merge"},
+            )
+        ]
 
-        call = repo_client.requester.request_json.calls[0]
-        assert call.args == ("GET", "/repos/test-org/test-repo/activity")
-        assert call.kwargs == {"params": {"ref": "refs/heads/main", "per_page": "100"}}
+    async def test_get_activities_raises_on_error(self):
+        async def mock_request_paged_json(method, url, params=None):
+            raise GitHubException(None, 500, "")
+
+        repo_client = RepoClient(pretend.stub(requester=pretend.stub(request_paged_json=mock_request_paged_json)))
+
+        with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
+            await repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge")
