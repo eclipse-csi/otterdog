@@ -162,11 +162,15 @@ class GitHubOrganization:
         jsonnet_config: JsonnetConfig,
         exclude_teams: ExclusionPatterns | None,
         provider: GitHubProvider,
+        expected_org: GitHubOrganization | None,
     ) -> None:
         """
-        Removes the teams whose slug matches the exclusion patterns and that the default configuration does not
-        declare, as they are managed outside otterdog and therefore not loaded from GitHub either,
-        see load_from_provider.
+        Removes the teams whose slug matches the exclusion patterns and that neither the default configuration
+        nor the expected organization declare. Such teams are managed outside otterdog and therefore not loaded
+        from GitHub either, see load_from_provider: removing them from the configuration must not delete them.
+
+        The teams that the expected organization still declares are kept, so that an unchanged team is not
+        planned to be added.
 
         A team loaded from a configuration has no slug: it is looked up on GitHub from the name of the team,
         and the name is matched for a team that does not exist on GitHub.
@@ -177,16 +181,24 @@ class GitHubOrganization:
         default_org = GitHubOrganization.from_model_data(
             jsonnet_config.default_org_config_for_org_id(project_name, self.github_id)
         )
+        removed_teams = [
+            team
+            for team in self.teams
+            if default_org.get_team(team.name) is None
+            and (expected_org is None or expected_org.get_team(team.name) is None)
+        ]
+        if len(removed_teams) == 0:
+            return
 
         github_slugs: dict[str, str] = {}
-        if any(not is_set_and_present(team.slug) for team in self.teams):
+        if any(not is_set_and_present(team.slug) for team in removed_teams):
             github_slugs = {team["name"]: team["slug"] for team in await provider.get_org_teams(self.github_id)}
 
-        def is_excluded(team: Team) -> bool:
-            team_slug = team.slug if is_set_and_present(team.slug) else github_slugs.get(team.name, team.name)
-            return exclude_teams.match(team_slug) and default_org.get_team(team.name) is None
+        def get_slug(team: Team) -> str:
+            return team.slug if is_set_and_present(team.slug) else github_slugs.get(team.name, team.name)
 
-        self.teams = [team for team in self.teams if not is_excluded(team)]
+        excluded_team_names = {team.name for team in removed_teams if exclude_teams.match(get_slug(team))}
+        self.teams = [team for team in self.teams if team.name not in excluded_team_names]
 
     def add_webhook(self, webhook: OrganizationWebhook) -> None:
         self.webhooks.append(webhook)

@@ -255,16 +255,23 @@ class GitHubProvider:
     async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
         await self.rest_api.team.add_team(org_id, team_name, data)
 
-    async def update_org_team(self, org_id: str, team_slug: str, team_name: str, data: dict[str, str]) -> None:
-        if not is_set_and_present(team_slug):
-            team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+    async def _resolve_team_slug(self, org_id: str, team_slug: str, team_name: str) -> str:
+        if is_set_and_present(team_slug):
+            return team_slug
 
+        # a team loaded from a configuration has no slug
+        resolved_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
+        if resolved_slug is None:
+            raise RuntimeError(f"failed to find team with name '{team_name}' in org '{org_id}'")
+
+        return resolved_slug
+
+    async def update_org_team(self, org_id: str, team_slug: str, team_name: str, data: dict[str, str]) -> None:
+        team_slug = await self._resolve_team_slug(org_id, team_slug, team_name)
         await self.rest_api.team.update_team(org_id, team_slug, data)
 
     async def delete_org_team(self, org_id: str, team_slug: str, team_name: str) -> None:
-        if not is_set_and_present(team_slug):
-            team_slug = await self.rest_api.team.get_team_slug(org_id, team_name)
-
+        team_slug = await self._resolve_team_slug(org_id, team_slug, team_name)
         await self.rest_api.team.delete_team(org_id, team_slug)
 
     async def get_org_custom_properties(self, org_id: str) -> list[dict[str, Any]]:

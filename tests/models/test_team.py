@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from typing import Any
 from unittest.mock import AsyncMock
 
+import pytest
 from pretend import stub
 
 from otterdog.jsonnet import JsonnetConfig
@@ -93,3 +94,25 @@ class TeamTest(ModelTest):
 
         rest_api.team.get_team_slug.assert_not_awaited()
         rest_api.team.delete_team.assert_awaited_once_with(self.org_id, "test-team")
+
+    async def test_remove_team_missing_on_github(self):
+        # e.g. a team of the BASE configuration that was already deleted or renamed on GitHub
+        team = Team.from_model_data(self.model_data)
+        rest_api = stub(team=stub(get_team_slug=AsyncMock(return_value=None), delete_team=AsyncMock()))
+        provider = GitHubProvider(None)
+        provider.rest_api = rest_api
+
+        with pytest.raises(RuntimeError, match="failed to find team with name 'Test Team'"):
+            await LivePatch.of_deletion(team, None, Team.apply_live_patch).apply(self.org_id, provider)
+
+        rest_api.team.delete_team.assert_not_awaited()
+
+    async def test_update_team_missing_on_github(self):
+        rest_api = stub(team=stub(get_team_slug=AsyncMock(return_value=None), update_team=AsyncMock()))
+        provider = GitHubProvider(None)
+        provider.rest_api = rest_api
+
+        with pytest.raises(RuntimeError, match="failed to find team with name 'Test Team'"):
+            await provider.update_org_team(self.org_id, UNSET, "Test Team", {"description": "changed"})
+
+        rest_api.team.update_team.assert_not_awaited()

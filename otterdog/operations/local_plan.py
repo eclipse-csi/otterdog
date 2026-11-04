@@ -86,7 +86,7 @@ class LocalPlanOperation(PlanOperation):
         github_organization = GitHubOrganization.load_from_file(github_id, other_org_file_name)
         # like a plan against GitHub, do not remove the teams managed outside otterdog
         await github_organization.remove_excluded_teams(
-            project_name, jsonnet_config, self.config.exclude_teams_pattern, self.gh_client
+            project_name, jsonnet_config, self.config.exclude_teams_pattern, self.gh_client, expected_org
         )
         return github_organization
 
