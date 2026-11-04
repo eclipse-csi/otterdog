@@ -18,6 +18,7 @@ import pytest
 from otterdog.config import OrganizationConfig
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.team import Team
 from otterdog.operations.apply import ApplyOperation
 from otterdog.operations.check_status import CheckStatusOperation
 from otterdog.operations.local_apply import LocalApplyOperation
@@ -133,7 +134,8 @@ _TEMPLATE_WITH_DEFAULT_TEAM = """
 async def test_local_operations_ignore_the_teams_managed_outside_otterdog(tmp_path, create_operation):
     """
     Like an organization loaded from GitHub, the BASE configuration of a local operation ignores the teams
-    matching the exclusion patterns that the default configuration does not declare, so they are not removed.
+    whose slug matches the exclusion patterns and that the default configuration does not declare, so they are
+    not removed. The slug of a team is looked up on GitHub, as a configuration only holds its name.
     """
     org_config = _create_org_config(tmp_path, with_config_files=True)
     jsonnet_config = org_config.jsonnet_config
@@ -141,7 +143,16 @@ async def test_local_operations_ignore_the_teams_managed_outside_otterdog(tmp_pa
     base_file = Path(f"{jsonnet_config.org_config_file}-BASE")
     base_data = json.loads(base_file.read_text(encoding="utf-8"))
     base_data["teams"] = [
-        {"name": name, "privacy": "visible"} for name in ("default-project-leads", "my-project-leads", "my-team")
+        {"name": name, "privacy": "visible"}
+        for name in (
+            "default-project-leads",
+            "my-project-leads",
+            # the slug, not the name, matches the exclusion pattern
+            "Other Project Leads",
+            # not on GitHub, its name is matched instead
+            "new-project-leads",
+            "my-team",
+        )
     ]
     base_file.write_text(json.dumps(base_data), encoding="utf-8")
     operation = create_operation()
@@ -149,10 +160,40 @@ async def test_local_operations_ignore_the_teams_managed_outside_otterdog(tmp_pa
         pretend.stub(exclude_teams_pattern=ExclusionPatterns([".*-project-leads"])),
         IndentingPrinter(StringIO(), log_level=LogLevel.ERROR),
     )
+    github_teams = [
+        {"name": "default-project-leads", "slug": "default-project-leads"},
+        {"name": "my-project-leads", "slug": "my-project-leads"},
+        {"name": "Other Project Leads", "slug": "other-project-leads"},
+        {"name": "my-team", "slug": "my-team"},
+    ]
+    operation._gh_client = pretend.stub(get_org_teams=AsyncMock(return_value=github_teams))
 
     current_org = await operation.load_current_org("test-project", "test-org", jsonnet_config)
 
     assert [team.name for team in current_org.teams] == ["default-project-leads", "my-team"]
+    operation.gh_client.get_org_teams.assert_awaited_once_with("test-org")
+
+
+async def test_remove_excluded_teams_does_not_look_up_the_known_slugs(tmp_path):
+    """
+    The teams loaded from GitHub already have a slug, which is matched without looking it up again.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    jsonnet_config = org_config.jsonnet_config
+    Path(jsonnet_config.template_file).write_text(_TEMPLATE_WITH_DEFAULT_TEAM, encoding="utf-8")
+    org = GitHubOrganization.from_model_data(jsonnet_config.default_org_config_for_org_id("test-project", "test-org"))
+    org.set_teams(
+        [
+            Team.from_provider_data("test-org", {"name": "Other Project Leads", "slug": "other-project-leads"}),
+            Team.from_provider_data("test-org", {"name": "my-team", "slug": "my-team"}),
+        ]
+    )
+    provider = pretend.stub(get_org_teams=AsyncMock())
+
+    await org.remove_excluded_teams("test-project", jsonnet_config, ExclusionPatterns([".*-project-leads"]), provider)
+
+    assert [team.name for team in org.teams] == ["my-team"]
+    provider.get_org_teams.assert_not_awaited()
 
 
 async def test_apply_reports_no_changes_for_matching_configurations(tmp_path, monkeypatch):
