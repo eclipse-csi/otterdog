@@ -10,6 +10,7 @@ import asyncio
 import json
 import re
 from collections.abc import Iterable
+from contextlib import aclosing
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from logging import getLogger
@@ -423,45 +424,49 @@ async def describe_approval_teams(matching_teams: list[str] | None, org_id: str 
         )
 
 
-# upper bound for the number of commits of a pull request, GitHub does not list more than 250 commits
-_MAX_PULL_REQUEST_COMMITS = 250
+# delays in seconds before looking again for the merge of a pull request in the activity of its base
+# branch, in case GitHub records it some time after notifying the merge
+_BASE_BRANCH_ACTIVITY_RETRY_DELAYS = (1, 2, 4, 8, 16)
 
 
 async def find_base_commit_sha(
     rest_api: RestApi,
     org_id: str,
     repo_name: str,
-    pull_request_number: int,
+    base_ref: str,
     merge_commit_sha: str,
 ) -> str:
     """
     Returns the sha of the commit on the base branch onto which a pull request has been merged.
 
-    For a merge commit, this is its first parent. For a squash or rebase merge, the first-parent
-    chain is walked up until reaching a commit that is not associated with the pull request, as a
-    rebase merge adds all commits of the pull request to the base branch and the parent of the
-    merge commit would then already contain most of the changes.
+    For a merge commit, this is its first parent. For a squash or rebase merge, this is the head
+    of the base branch before the merge, as recorded by GitHub in the activity of the branch: the
+    commits of the branch do not tell where the pull request starts, as a rebase merge adds all
+    of its commits to the branch, keeping their author and message, and the parent of the merge
+    commit would then already contain most of the changes.
+
+    Only the merges of a pull request are considered, as another change of the branch could
+    later move it back to the merge commit, e.g. a force push. Fails rather than guessing the base
+    if the merge has not been recorded as such, e.g. if a merge queue has merged the pull request.
     """
-    sha = merge_commit_sha
-    for _ in range(_MAX_PULL_REQUEST_COMMITS):
-        commit = await rest_api.commit.get_commit(org_id, repo_name, sha)
-        parents = commit["parents"]
-        if len(parents) == 0:
-            raise RuntimeError(f"commit '{sha}' has no parent, unable to determine base of merged pull request")
+    commit = await rest_api.commit.get_commit(org_id, repo_name, merge_commit_sha)
+    if len(commit["parents"]) > 1:
+        return commit["parents"][0]["sha"]
 
-        parent_sha = parents[0]["sha"]
-        if len(parents) > 1:
-            return parent_sha
+    ref = f"refs/heads/{base_ref}"
+    for delay in (*_BASE_BRANCH_ACTIVITY_RETRY_DELAYS, None):
+        # the activities are retrieved page by page, the merge is usually among the most recent ones
+        async with aclosing(rest_api.repo.get_activities(org_id, repo_name, ref, "pr_merge")) as activities:
+            async for activity in activities:
+                if activity["after"] == merge_commit_sha:
+                    return activity["before"]
 
-        associated_pull_requests = await rest_api.commit.get_associated_pull_requests(org_id, repo_name, parent_sha)
-        if not any(pr["number"] == pull_request_number for pr in associated_pull_requests):
-            return parent_sha
-
-        sha = parent_sha
+        if delay is not None:
+            await asyncio.sleep(delay)
 
     raise RuntimeError(
-        f"unable to determine base of pull request #{pull_request_number}, "
-        f"more than {_MAX_PULL_REQUEST_COMMITS} commits are associated with it"
+        f"unable to determine base of merged pull request, no merge of a pull request into branch "
+        f"'{base_ref}' up to commit '{merge_commit_sha}' found in the activity of repo '{org_id}/{repo_name}'"
     )
 
 

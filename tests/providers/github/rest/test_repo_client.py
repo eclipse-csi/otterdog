@@ -543,3 +543,61 @@ class TestRepoClientGitHubPagesCustomDomain:
         assert repo_client.requester.request_raw.calls == [
             pretend.call("GET", "/repos/test-org/test-org.github.io/pages"),
         ]
+
+
+class TestRepoClientActivities:
+    async def test_get_activities_of_ref_and_type(self):
+        activities = [
+            {"before": "base", "after": "merge", "ref": "refs/heads/main", "activity_type": "pr_merge"},
+            {"before": "previous", "after": "base", "ref": "refs/heads/main", "activity_type": "pr_merge"},
+        ]
+
+        async def mock_iter_paged_json(method, url, params=None):
+            for activity in activities:
+                yield activity
+
+        mocked_restapi = pretend.stub(
+            requester=pretend.stub(iter_paged_json=pretend.call_recorder(mock_iter_paged_json))
+        )
+        repo_client = RepoClient(mocked_restapi)
+
+        result = [
+            activity
+            async for activity in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge")
+        ]
+
+        assert result == activities
+        assert repo_client.requester.iter_paged_json.calls == [
+            pretend.call(
+                "GET",
+                "/repos/test-org/test-repo/activity",
+                params={"ref": "refs/heads/main", "activity_type": "pr_merge"},
+            )
+        ]
+
+    async def test_get_activities_stops_retrieving_them_once_no_longer_consumed(self):
+        consumed = []
+
+        async def mock_iter_paged_json(method, url, params=None):
+            for sha in ["merge", "base", "previous"]:
+                consumed.append(sha)
+                yield {"before": "parent", "after": sha, "ref": "refs/heads/main", "activity_type": "pr_merge"}
+
+        repo_client = RepoClient(pretend.stub(requester=pretend.stub(iter_paged_json=mock_iter_paged_json)))
+
+        async for activity in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
+            if activity["after"] == "base":
+                break
+
+        assert consumed == ["merge", "base"]
+
+    async def test_get_activities_raises_on_error(self):
+        async def mock_iter_paged_json(method, url, params=None):
+            raise GitHubException(None, 500, "")
+            yield
+
+        repo_client = RepoClient(pretend.stub(requester=pretend.stub(iter_paged_json=mock_iter_paged_json)))
+
+        with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
+            async for _ in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
+                pass

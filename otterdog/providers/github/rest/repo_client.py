@@ -13,6 +13,7 @@ import pathlib
 import re
 import tempfile
 import zipfile
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import aiofiles
@@ -64,6 +65,29 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(
                 f"failed retrieving data for branch '{branch_name}' in repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
+    async def get_activities(
+        self, org_id: str, repo_name: str, ref: str, activity_type: str
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """
+        Yields the changes of a ref of a type, the most recent first, with its sha before and after each.
+
+        The activities are retrieved page by page, as they are consumed, the history of a ref being possibly long.
+        """
+        _logger.debug(
+            "retrieving activities of type '%s' of ref '%s' in repo '%s/%s'", activity_type, ref, org_id, repo_name
+        )
+
+        try:
+            async for activity in self.requester.iter_paged_json(
+                "GET", f"/repos/{org_id}/{repo_name}/activity", params={"ref": ref, "activity_type": activity_type}
+            ):
+                yield activity
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving activities of type '{activity_type}' of ref '{ref}' "
+                f"in repo '{org_id}/{repo_name}':\n{ex}"
             ) from ex
 
     async def rename_branch(self, org_id: str, repo_name: str, branch: str, new_name: str) -> dict[str, Any]:

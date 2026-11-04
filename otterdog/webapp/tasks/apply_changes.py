@@ -166,7 +166,7 @@ class ApplyChangesTask(InstallationBasedTask, Task[ApplyResult]):
                 rest_api,
                 self.org_id,
                 self.repo_name,
-                self.pull_request_number,
+                self._pull_request.base.ref,
                 unwrap(self._pull_request.merge_commit_sha),
             )
 
