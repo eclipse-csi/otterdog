@@ -87,8 +87,8 @@ Relevant sources are:
 * `zensical.toml`: Site config (navigation, theme, Markdown extensions)
 * `docs-theme/` and `docs/assets/theme.css`: Theme overrides (Eclipse colors, hero of the home page)
 * `docs_site.py`: Staging of the site for Zensical (playground links, settings from the environment)
-* `.github/workflows/docs.yml`: Build of every pull request, deployment of `main` to GitHub Pages
-* `.github/workflows/docs-preview.yml`: Preview of every pull request, linked from a comment on it
+* `.github/workflows/docs.yml`: Build and preview of every pull request, deployment of `main` to GitHub Pages
+* `.github/workflows/docs-preview.yml`: Removal of the preview of a pull request when it is closed
 
 Please always review your changes locally (some things render
 differently, than you might be used from GitHub):
@@ -98,9 +98,10 @@ make docs-serve              # live preview on http://127.0.0.1:8000/
 make docs                    # strict build into site/, broken links and anchors fail
 ```
 
-Every pull request that changes the documentation is built strictly, and its preview is published at
-`https://eclipse-csi.github.io/otterdog-website-preview/pr-preview/pr-<number>/` (a comment on the pull request links it)
-when it comes from the repository or from a member or collaborator of the organization.
+Every pull request that changes the documentation is built strictly. When it comes from a branch of the repository,
+its preview is published at `https://eclipse-csi.github.io/otterdog-website-preview/pr-preview/pr-<number>/`, and a
+comment on the pull request links it. The pull requests from forks are built without a preview: they have no access to
+the token that publishes it.
 
 Complete jsonnet examples, i.e. examples that define an organization with `orgs.newOrg` without omitting content
 with `...` or using placeholders like `<github-id>`, get a link that opens them in the Playground of an otterdog

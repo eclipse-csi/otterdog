@@ -1,6 +1,6 @@
 # Documentation site, built by Zensical: `make docs` builds it strictly into site/, `make docs-serve` previews it. It is
-# published on GitHub Pages from main (.github/workflows/docs.yml), with a preview of every pull request
-# (.github/workflows/docs-preview.yml). Zensical runs no hooks: docs_site.py stages the pages first (.docs-site/:
+# published on GitHub Pages from main, with a preview of the pull requests from branches of the repository
+# (.github/workflows/docs.yml). Zensical runs no hooks: docs_site.py stages the pages first (.docs-site/:
 # the links to the playground below the jsonnet examples, docs_playground.py) with a copy of this file completed by the
 # environment (SITE_URL or READTHEDOCS_CANONICAL_URL, OTTERDOG_URL, DOCS_PREVIEW_PR).
 [project]

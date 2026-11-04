@@ -232,3 +232,52 @@ def test_the_links_of_the_webapp_to_the_documentation_exist():
 
     assert len(_documentation_links()) > 100
     assert broken == []
+
+
+def test_the_requirements_of_the_docs_group():
+    lock = tomllib.loads((_ROOT_DIR / "poetry.lock").read_text())
+    docs = {package["name"]: package for package in lock["package"] if "docs" in package.get("groups", [])}
+
+    text = docs_site.requirements((_ROOT_DIR / "poetry.lock").read_text())
+
+    entries = [entry.strip() for entry in text.replace("\\\n", " ").splitlines() if not entry.startswith("#")]
+    pinned = {entry.split()[0].split("==")[0]: entry for entry in entries}
+    assert set(pinned) == set(docs)
+    assert {"zensical", "pymdown-extensions"} <= set(pinned)
+    for name, entry in pinned.items():
+        assert entry.startswith(f"{name}=={docs[name]['version']}")
+        assert re.findall(r"--hash=(\S+)", entry) == [file["hash"] for file in docs[name]["files"]]
+
+
+def test_the_requirements_keep_the_markers_of_the_group():
+    lock = """
+[[package]]
+name = "colorama"
+version = "0.4.6"
+groups = ["main", "docs"]
+markers = {main = "sys_platform == \\"win32\\"", docs = "platform_system == \\"Windows\\""}
+files = [{file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:aaaa"}]
+
+[[package]]
+name = "quart"
+version = "0.20.0"
+groups = ["app"]
+files = [{file = "quart-0.20.0-py3-none-any.whl", hash = "sha256:bbbb"}]
+"""
+
+    assert docs_site.requirements(lock).splitlines()[1:] == [
+        'colorama==0.4.6 ; platform_system == "Windows" \\',
+        "    --hash=sha256:aaaa",
+    ]
+
+
+@pytest.mark.parametrize(
+    "lock",
+    [
+        '[[package]]\nname = "zensical"\nversion = "1"\ngroups = ["docs"]\nfiles = []\n',
+        '[[package]]\nname = "quart"\nversion = "1"\ngroups = ["app"]\nfiles = [{file = "q.whl", hash = "sha256:b"}]\n',
+    ],
+)
+def test_the_requirements_need_the_hashes_of_the_docs_group(lock):
+    with pytest.raises(docs_site.SiteError, match=r"poetry\.lock"):
+        docs_site.requirements(lock)
