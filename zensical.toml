@@ -1,0 +1,241 @@
+# Documentation site, built by Zensical: `make docs` builds it strictly into site/, `make docs-serve` previews it. It is
+# published on GitHub Pages from main, with a preview of the pull requests from branches of the repository
+# (.github/workflows/docs.yml). Zensical runs no hooks: docs_site.py stages the pages first (.docs-site/:
+# the links to the playground below the jsonnet examples, docs_playground.py) with a copy of this file completed by the
+# environment (SITE_URL or READTHEDOCS_CANONICAL_URL, OTTERDOG_URL, DOCS_PREVIEW_PR).
+[project]
+site_name = "otterdog"
+site_description = "Manage GitHub organizations at scale"
+# the GitHub Pages of eclipse-csi are served at csi.eclipse.dev (eclipse-csi.github.io redirects there)
+site_url = "https://csi.eclipse.dev/otterdog/"
+repo_url = "https://github.com/eclipse-csi/otterdog"
+repo_name = "eclipse-csi/otterdog"
+edit_uri = "edit/main/docs/"
+copyright = "otterdog is an Eclipse Foundation project licensed under the Eclipse Public License 2.0"
+
+# Zensical validates links and anchors (`zensical build --strict` fails on a broken one)
+
+nav = [
+  { "Home" = "index.md" },
+  { "Getting started" = "getting-started.md" },
+  { "Reference" = [
+    "reference/index.md",
+    { "Resources" = [
+      { "Format" = "reference/resource-format.md" },
+      { "GitHub Organization" = [
+        "reference/organization/index.md",
+        { "Organization Settings" = "reference/organization/settings.md" },
+        { "Organization Role" = "reference/organization/role.md" },
+        { "Organization Webhook" = "reference/organization/webhook.md" },
+        { "Organization Secret" = "reference/organization/secret.md" },
+        { "Organization Dependabot Secret" = "reference/organization/dependabot-secret.md" },
+        { "Organization Codespaces Secret" = "reference/organization/codespaces-secret.md" },
+        { "Organization Variable" = "reference/organization/variable.md" },
+        { "Organization Ruleset" = "reference/organization/ruleset.md" },
+        { "Organization Code Security Configuration" = "reference/organization/code-security-configuration.md" },
+        { "Custom Property" = "reference/organization/custom-property.md" },
+        { "Team" = "reference/organization/team.md" },
+        { "Repository" = [
+          "reference/organization/repository/index.md",
+          { "Repository Webhook" = "reference/organization/repository/webhook.md" },
+          { "Repository Secret" = "reference/organization/repository/secret.md" },
+          { "Repository Dependabot Secret" = "reference/organization/repository/dependabot-secret.md" },
+          { "Repository Codespaces Secret" = "reference/organization/repository/codespaces-secret.md" },
+          { "Repository Variable" = "reference/organization/repository/variable.md" },
+          { "Environment" = [
+            "reference/organization/repository/environment/index.md",
+            { "Environment Secret" = "reference/organization/repository/environment/secret.md" },
+            { "Environment Variable" = "reference/organization/repository/environment/variable.md" },
+          ] },
+          { "Branch Protection Rule" = "reference/organization/repository/branch-protection-rule.md" },
+          { "Repository Ruleset" = "reference/organization/repository/ruleset.md" },
+        ] },
+        { "Referenced Types" = [
+          { "Actor" = "reference/organization/repository/actor.md" },
+          { "Branch or Tag" = "reference/organization/repository/branch-or-tag.md" },
+          { "Bypass Actor" = "reference/organization/repository/bypass-actor.md" },
+          { "Repo Name Matcher" = "reference/organization/repo-name-matcher.md" },
+          { "Ref Matcher" = "reference/organization/repository/ref-matcher.md" },
+          { "Secret Value" = "reference/organization/secret-value.md" },
+          { "Status Check" = "reference/organization/repository/status-check.md" },
+        ] },
+      ] },
+    ] },
+    { "Policies" = [
+      "reference/policies/index.md",
+      { "Upload SBOM data to dependency track" = "reference/policies/dependency-track-upload.md" },
+      { "Usage of macOS large runners" = "reference/policies/macos-large-runners.md" },
+    ] },
+    { "Blueprints" = [
+      "reference/blueprints/index.md",
+      { "Required File" = "reference/blueprints/required-file.md" },
+      { "Pin Workflow" = "reference/blueprints/pin-workflow.md" },
+      { "Append Configuration" = "reference/blueprints/append-configuration.md" },
+      { "OSSF Scorecard Integration" = "reference/blueprints/scorecard-integration.md" },
+    ] },
+    { "CLI Operations" = [
+      "reference/operations/index.md",
+      { "Apply" = "reference/operations/apply.md" },
+      { "Import" = "reference/operations/import.md" },
+      { "Plan" = "reference/operations/plan.md" },
+      { "Validate" = "reference/operations/validate.md" },
+      { "List Advisories" = "reference/operations/list-advisories.md" },
+    ] },
+  ] },
+  { "User Guide" = [
+    "userguide/index.md",
+    { "Making changes" = [
+      { "Workflow for changes" = "userguide/workflow.md" },
+      { "Adding resources" = "userguide/adding.md" },
+      { "Renaming resources" = "userguide/renaming.md" },
+      { "Removing resources" = "userguide/removal.md" },
+    ] },
+    # the groups of the guides index (userguide/guides/index.md), whose order is the one of the Playground's catalog
+    { "Configuration Guides" = [
+      "userguide/guides/index.md",
+      { "Fundamentals" = [
+        { "Inherited and explicit values" = "userguide/guides/inheritance.md" },
+        { "Reusing configuration with Jsonnet" = "userguide/guides/reusable-configuration.md" },
+      ] },
+      { "Protecting code" = [
+        { "Protecting branches" = "userguide/guides/branch-protection.md" },
+        { "Organization-wide rulesets" = "userguide/guides/organization-rulesets.md" },
+        { "Rulesets or branch protection rules" = "userguide/guides/rulesets-vs-branch-protection.md" },
+        { "Migrating to rulesets" = "userguide/guides/migrating-to-rulesets.md" },
+        { "Protecting tags and releases" = "userguide/guides/tag-protection.md" },
+      ] },
+      { "Security and automation" = [
+        { "Securing GitHub Actions" = "userguide/guides/github-actions.md" },
+        { "Repository security features" = "userguide/guides/repository-security.md" },
+        { "Secrets and variables" = "userguide/guides/secrets-and-variables.md" },
+        { "Deployment environments" = "userguide/guides/environments.md" },
+        { "Webhooks" = "userguide/guides/webhooks.md" },
+      ] },
+      { "Organization and access" = [
+        { "Organization settings and member privileges" = "userguide/guides/organization-settings.md" },
+        { "Teams and access" = "userguide/guides/teams-and-access.md" },
+      ] },
+      { "Repositories" = [
+        { "Pull requests and merging" = "userguide/guides/pull-requests.md" },
+        { "Repository features and metadata" = "userguide/guides/repository-features.md" },
+        { "Common repository patterns" = "userguide/guides/repository-patterns.md" },
+      ] },
+    ] },
+    { "Troubleshooting & limits" = [
+      { "Troubleshooting" = "userguide/guides/troubleshooting.md" },
+      { "Unsupported settings" = "userguide/unsupported.md" },
+    ] },
+  ] },
+  { "Operating Otterdog" = [
+    "operating_otterdog/index.md",
+    "operating_otterdog/install.md",
+    "operating_otterdog/setup.md",
+    "operating_otterdog/usage.md",
+    "operating_otterdog/organization-policies.md",
+  ] },
+  { "Developing Otterdog" = [
+    { "Overview" = "developing_otterdog/index.md" },
+    { "Development Setup" = "developing_otterdog/development_setup.md" },
+    { "Architecture" = "developing_otterdog/architecture.md" },
+    { "Contribution Workflow" = "developing_otterdog/contribution_workflow.md" },
+    { "Coding & Style Guidelines" = "developing_otterdog/coding_style.md" },
+    { "Testing" = "developing_otterdog/testing.md" },
+    { "Release Process" = "developing_otterdog/release_process.md" },
+  ] },
+]
+
+# the Eclipse colors, the hero of the home page and the banner of the previews of pull requests
+extra_css = ["assets/theme.css"]
+
+[project.extra]
+# url of the otterdog dashboard whose playground is linked below the complete jsonnet examples (docs_playground.py)
+# and from the hero of the home page; the environment variable OTTERDOG_URL overrides it, empty to omit these links
+otterdog_url = "https://otterdog.eclipse.org"
+
+# the links of the footer
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/eclipse-csi/otterdog"
+name = "otterdog on GitHub"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/otterdog/"
+name = "otterdog on PyPI"
+
+[[project.extra.social]]
+icon = "lucide/layout-dashboard"
+link = "https://otterdog.eclipse.org"
+name = "the otterdog dashboard of the Eclipse Foundation"
+
+[project.theme]
+# main.html: the hero of the home page and the banner of a preview; partials/tabs.html: the sections of the active
+# tab as a second row of tabs
+custom_dir = "docs-theme"
+logo = "otterdog.png"
+favicon = "favicon.png"
+icon.repo = "fontawesome/brands/github"
+features = [
+  "announce.dismiss",
+  "content.action.edit",
+  "content.code.annotate",
+  "content.code.copy",
+  "content.tabs.link",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "search.suggest",
+  "toc.follow",
+]
+
+# the colors of the Eclipse Foundation, set by docs/assets/theme.css
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/weather-night"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/weather-sunny"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions]
+admonition = {}
+tables = {}
+# the default anchors of the toc extension: the playground and the webapp link to them (docs_playground._slugify)
+toc.permalink = true
+toc.title = "Page"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.line_spans = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+# `--8<-- "path"` reads a file of the repository (docs_site.py sets base_path to its root), a missing one fails
+pymdownx.snippets.check_paths = true
+# extra must be loaded before superfences
+pymdownx.extra = {}
+pymdownx.superfences.custom_fences = [
+  # ```mermaid blocks, rendered by the theme's own mermaid integration
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.details = {}
+pymdownx.caret = {}
+pymdownx.keys = {}
+pymdownx.mark = {}
+pymdownx.tilde = {}
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.tabbed.alternate_style = true

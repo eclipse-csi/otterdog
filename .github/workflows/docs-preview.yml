@@ -1,0 +1,101 @@
+# Removes the preview of the documentation of a pull request when it is closed: the job preview of docs.yml publishes
+# it on the GitHub Pages of eclipse-csi/otterdog-website-preview (see docs.yml for the setup).
+#
+# pull_request_target, not pull_request: GitHub runs no pull_request workflow, closed included, for a pull request that
+# conflicts with main. This workflow runs from main and never checks out nor runs the code of the pull request: it only
+# removes a directory of eclipse-csi/otterdog-website-preview and updates a comment. No path filter: a pull request may
+# have published a preview and then reverted its changes of the documentation, its preview is removed all the same.
+# The job does nothing when the pull request has no preview, and shares the concurrency group of the deployments of
+# the pull request.
+name: docs-preview
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] closed only, the pull request is never checked out nor run
+    types: [closed]
+    branches: [main]
+
+permissions: {}
+
+env:
+  # as in docs.yml
+  PREVIEW_REPOSITORY: eclipse-csi/otterdog-website-preview
+  PREVIEW_BRANCH: gh-pages-preview
+  UMBRELLA_DIR: pr-preview
+  COMMENT_MARKER: "<!-- otterdog-docs-preview -->"
+
+jobs:
+  remove:
+    name: remove the preview
+    # only the pull requests from branches of this repository have a preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: docs-preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      # the comment linking the preview
+      pull-requests: write
+    environment:
+      name: pull-request-preview
+    steps:
+      - name: Check that the pull request has a preview
+        id: check
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HAS_TOKEN: ${{ secrets.GH_PREVIEW_TOKEN != '' }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const { HAS_TOKEN, NUMBER, PREVIEW_REPOSITORY, PREVIEW_BRANCH, UMBRELLA_DIR } = process.env;
+            const [owner, repo] = PREVIEW_REPOSITORY.split("/");
+            try {
+              // the repository of the previews is public
+              await github.rest.repos.getContent({ owner, repo, ref: PREVIEW_BRANCH, path: `${UMBRELLA_DIR}/pr-${NUMBER}` });
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+              core.notice(`#${NUMBER} has no preview.`);
+              return;
+            }
+            if (HAS_TOKEN !== "true") {
+              core.setFailed("GH_PREVIEW_TOKEN is not available to this run: the preview stays published.");
+              return;
+            }
+            core.setOutput("remove", "true");
+      # rossjrw/pr-preview-action needs a checkout: the base branch (the default of pull_request_target), never the
+      # pull request, and the job runs nothing from it
+      - if: steps.check.outputs.remove == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Remove the preview
+        if: steps.check.outputs.remove == 'true'
+        uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+        with:
+          action: remove
+          pr-number: ${{ github.event.pull_request.number }}
+          deploy-repository: ${{ env.PREVIEW_REPOSITORY }}
+          preview-branch: ${{ env.PREVIEW_BRANCH }}
+          umbrella-dir: ${{ env.UMBRELLA_DIR }}
+          token: ${{ secrets.GH_PREVIEW_TOKEN }}
+          remove-commit-message: Remove the preview of pull request ${{ github.event.pull_request.number }}
+          comment: false
+          qr-code: false
+      - name: Update the comment linking the preview
+        if: steps.check.outputs.remove == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { COMMENT_MARKER } = process.env;
+            const issue = { ...context.repo, issue_number: context.payload.pull_request.number };
+            const comments = await github.paginate(github.rest.issues.listComments, issue);
+            const existing = comments.find(
+              (comment) => comment.user.login === "github-actions[bot]" && comment.body.startsWith(COMMENT_MARKER),
+            );
+            if (existing) {
+              const body = `${COMMENT_MARKER}\n:book: The preview of the documentation was removed (pull request closed).`;
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            }

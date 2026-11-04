@@ -1,19 +1,17 @@
-# adapted from https://docs.readthedocs.io/en/latest/build-customization.html#install-dependencies-with-poetry
+# Read the Docs keeps serving otterdog.readthedocs.io while the documentation moves to GitHub Pages
+# (.github/workflows/docs.yml): the same strict Zensical build, staged by docs_site.py, whose site_url is the
+# READTHEDOCS_CANONICAL_URL set by Read the Docs. See
+# https://docs.readthedocs.com/platform/stable/build-customization.html#override-the-build-process
 
 version: "2"
 
 build:
-  os: "ubuntu-22.04"
+  os: "ubuntu-24.04"
   tools:
-    python: "3.11"
-  jobs:
-    post_create_environment:
-      # Install poetry
-      # https://python-poetry.org/docs/#installing-manually
-      - pip install "poetry==2.0.0"
-    post_install:
-      # Install only dependencies of 'docs' dependency group
-      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH python -m poetry install --only=docs
-
-mkdocs:
-  configuration: mkdocs.yml
+    python: "3.12"
+  commands:
+    - python -m pip install --disable-pip-version-check "poetry==2.4.1"
+    - python -m poetry config virtualenvs.in-project true
+    - python -m poetry install --only=docs --no-root
+    - .venv/bin/python docs_site.py build --strict
+    - mkdir -p "$READTHEDOCS_OUTPUT/html" && cp -R site/. "$READTHEDOCS_OUTPUT/html/"

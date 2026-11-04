@@ -11,7 +11,6 @@ import importlib.util
 import re
 from pathlib import Path
 
-import pretend
 import pytest
 
 _ROOT_DIR = Path(__file__).parent.parent
@@ -27,7 +26,7 @@ _LINK = re.compile(
 
 @pytest.fixture(scope="module")
 def hook():
-    spec = importlib.util.spec_from_file_location("playground_hook", _ROOT_DIR / "docs" / "hooks" / "playground.py")
+    spec = importlib.util.spec_from_file_location("docs_playground", _ROOT_DIR / "docs_playground.py")
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -95,13 +94,6 @@ def test_link_added_after_code_annotations(hook):
     annotations_end = result.index("    2. Second annotation\n") + len("    2. Second annotation\n")
     assert result.index("Open in the Playground") > annotations_end
     assert result.endswith("\n\nText\n")
-
-
-def test_no_link_without_otterdog_url(hook):
-    markdown = "``` jsonnet\norgs.newOrg('my-org')\n```\n"
-    config = pretend.stub(extra={"otterdog_url": ""})
-
-    assert hook.on_page_markdown(markdown, page=None, config=config, files=None) == markdown
 
 
 def test_every_guide_example_has_a_link(hook):

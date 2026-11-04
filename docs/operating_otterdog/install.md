@@ -100,7 +100,7 @@ Make sure the following requirements are met before deployment:
 
 #### Create a GitHub App
 
-<!--github-app-start-->
+<!-- --8<-- [start:github-app] -->
 
 It is required if you are the integration with GitHub ([Create a GitHub app](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/adding-and-removing-github-app-managers-in-your-organization#giving-someone-the-ability-to-manage-all-github-apps-owned-by-the-organization))
 
@@ -180,7 +180,7 @@ Events
     permissions until an organization owner accepts the new ones in the organization settings
     (`Settings` > `GitHub Apps` > `Configure` > `Review request`).
 
-<!--github-app-end-->
+<!-- --8<-- [end:github-app] -->
 
 ### Deployment Steps
 

@@ -5,7 +5,7 @@ This document describes the coding and documentation style guidelines for contri
 
 ## Documentation
 
-Documentation is written in Markdown and built using [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/).
+Documentation is written in Markdown and built using [Zensical](https://zensical.org/), see [Write docs](contribution_workflow.md#write-docs).
 
 ## Code documentation
 

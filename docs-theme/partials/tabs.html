@@ -1,0 +1,46 @@
+{#-
+  Theme override of the documentation site (theme.custom_dir in zensical.toml): partials/tabs.html of zensical-ui 0.0.41
+  (Zensical 0.0.74), with a second row of tabs below them when the children of the active tab hold sections (Reference,
+  User Guide): its index page as "Overview", then one tab per section, opening its first page. The other pages of the
+  tab stay in the sidebar, "Overview" is active on them. It is hidden on small screens like the tabs (class md-tabs),
+  styled by docs/assets/theme.css. Compare with the upstream file when Zensical is upgraded.
+-#}
+{% import "partials/tabs-item.html" as item with context %}
+<nav class="md-tabs" aria-label="{{ lang.t('tabs') }}" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      {% for nav_item in nav.items %}
+        {{ item.render(nav_item) }}
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+{% for nav_item in nav.items %}
+  {% if nav_item.active and nav_item.children %}
+    {% set _ = namespace(sections = false, page_active = false) %}
+    {% for child in nav_item.children %}
+      {% if child.children %}
+        {% set _.sections = true %}
+      {% elif child.active %}
+        {% set _.page_active = true %}
+      {% endif %}
+    {% endfor %}
+    {% if _.sections %}
+      <nav class="md-tabs otterdog-subtabs" aria-label="{{ nav_item.title }}">
+        <div class="md-grid">
+          <ul class="md-tabs__list">
+            {% for child in nav_item.children %}
+              {% if child.is_index %}
+                <li class="md-tabs__item{% if _.page_active %} md-tabs__item--active{% endif %}">
+                  <a href="{{ child.url | url }}" class="md-tabs__link">Overview</a>
+                </li>
+              {% elif child.children %}
+                {{ item.render(child) }}
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+      </nav>
+    {% endif %}
+  {% endif %}
+{% endfor %}

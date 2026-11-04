@@ -9,11 +9,12 @@
 """
 Connects the jsonnet examples of the documentation with the playground of the otterdog dashboard.
 
-As MkDocs hook, it adds a link to the playground below every complete jsonnet example. An example is complete if
-it defines an organization with `orgs.newOrg`, does not omit content with `...` and does not contain placeholders
-like `<github-id>`. The snippet is passed to the playground base64url encoded in the fragment of the url, the
-playground evaluates it with the example template of otterdog, which the examples are validated with. The base
-url of the dashboard is configured with `extra.otterdog_url` in `mkdocs.yml`, no link is added if it is empty.
+When the documentation site is staged (`docs_site.py`), it adds a link to the playground below every complete
+jsonnet example. An example is complete if it defines an organization with `orgs.newOrg`, does not omit content
+with `...` and does not contain placeholders like `<github-id>`. The snippet is passed to the playground base64url
+encoded in the fragment of the url, the playground evaluates it with the example template of otterdog, which the
+examples are validated with. The base url of the dashboard is `extra.otterdog_url` of `zensical.toml`, overridden by
+the environment variable `OTTERDOG_URL`, no link is added if it is empty.
 
 As script, it generates the catalog of the examples of the configuration guides that the playground lists, and the
 catalog of the objects of the reference that the playground uses to complete and describe properties, see
@@ -25,8 +26,10 @@ import dataclasses
 import json
 import posixpath
 import re
+import tomllib
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +42,7 @@ _PLACEHOLDER = re.compile(r"<[A-Za-z][\w .-]*>")
 _ANNOTATION_MARKER = re.compile(r"// \(\d+\)!")
 _LINK_TEXT = ":material-play-circle-outline: Open in the Playground"
 
-_ROOT_DIR = Path(__file__).resolve().parents[2]
+_ROOT_DIR = Path(__file__).resolve().parent
 EXAMPLES_CATALOG = _ROOT_DIR / "otterdog" / "webapp" / "home" / "playground-examples.json"
 REFERENCE_CATALOG = _ROOT_DIR / "otterdog" / "webapp" / "home" / "playground-reference.json"
 
@@ -51,8 +54,6 @@ _ANNOTATION_LINK = re.compile(r"^\s*(?P<number>\d+)\.\s+see \[(?P<title>[^\]]+)\
 _LINK = re.compile(r"\]\((?P<path>[^)#]*)(?:#(?P<anchor>[\w-]+))?\)")
 # a markdown link, replaced by its text in the plain text of a heading or a cell of a table
 _LINK_WITH_TEXT = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-# an entry of the navigation of mkdocs.yml, e.g. '- Repository Webhook: reference/organization/repository/webhook.md'
-_NAV_ENTRY = re.compile(r"^\s*- (?P<entry>.*)$")
 _LINE_BREAK = re.compile(r"<br\s*/?>")
 
 
@@ -230,7 +231,7 @@ def extract_reference(docs_dir: Path) -> dict[str, Any]:
     """
 
     reference_dir = docs_dir / "reference" / "organization"
-    titles = _navigation_titles(docs_dir.parent / "mkdocs.yml", "reference/organization/")
+    titles = _navigation_titles(docs_dir.parent / "zensical.toml", "reference/organization/")
     objects: dict[str, dict[str, Any]] = {}
     functions: dict[str, str] = {}
     for page in sorted(reference_dir.rglob("*.md")):
@@ -314,33 +315,33 @@ class _ReferencePage:
             )
 
 
-def _navigation_titles(mkdocs_file: Path, prefix: str) -> dict[str, str]:
+def _navigation_titles(config_file: Path, prefix: str) -> dict[str, str]:
     """
-    Returns the titles of the pages under a prefix in the navigation of the documentation, the page of a section
-    without title getting the title of the section, e.g. 'Environment'.
-    """
-
-    titles: dict[str, str] = {}
-    section: str | None = None
-    for line in mkdocs_file.read_text().splitlines():
-        entry = _NAV_ENTRY.match(line)
-        title, page = _navigation_entry(entry.group("entry")) if entry is not None else (None, None)
-        name = title or section
-        if page is not None and page.startswith(prefix) and page.endswith(".md") and name is not None:
-            titles[page.removeprefix(prefix)] = name
-        # a section has a title without page
-        section = title if page == "" else None
-    return titles
-
-
-def _navigation_entry(entry: str) -> tuple[str | None, str]:
-    """
-    Returns the title and the page of an entry of the navigation, e.g. ('Webhook', 'webhook.md') for
-    'Webhook: webhook.md', (None, 'webhook.md') for 'webhook.md', and ('Section', '') for 'Section:'.
+    Returns the titles of the pages under a prefix in the navigation of the documentation (`nav` of zensical.toml),
+    the first page of a section without title getting the title of the section, e.g. 'Environment'.
     """
 
-    title, separator, page = entry.partition(":")
-    return (title.strip(), page.strip()) if separator else (None, title.strip())
+    nav = tomllib.loads(config_file.read_text())["project"]["nav"]
+    return {
+        page.removeprefix(prefix): title
+        for title, page in _navigation_pages(nav, None)
+        if title is not None and page.startswith(prefix) and page.endswith(".md")
+    }
+
+
+def _navigation_pages(entries: list[Any], section: str | None) -> Iterator[tuple[str | None, str]]:
+    """
+    Yields the title and the path of every page of the navigation, the first page of a section without title getting
+    the title of the section.
+    """
+
+    for position, entry in enumerate(entries):
+        # an entry is a page ("page.md") or a mapping of its title to a page or to the entries of a section
+        title, target = next(iter(entry.items())) if isinstance(entry, dict) else (None, entry)
+        if isinstance(target, list):
+            yield from _navigation_pages(target, title)
+        else:
+            yield title or (section if position == 0 else None), target
 
 
 def _property_row(page_id: str, line: str) -> tuple[str, dict[str, Any]] | None:
@@ -418,14 +419,6 @@ def _end_of_annotations(lines: list[str], start: int, indent: str) -> int:
             break
 
     return end
-
-
-def on_page_markdown(markdown: str, *, config: Any, **_: Any) -> str:
-    base_url = config.extra.get("otterdog_url")
-    if not base_url:
-        return markdown
-
-    return add_playground_links(markdown, base_url)
 
 
 if __name__ == "__main__":

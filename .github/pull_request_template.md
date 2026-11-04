@@ -73,7 +73,7 @@ messages/checks on PRs. Remove otherwise. -->
 
 ## Checklist
 
-- [ ] Documentation updated (`docs/`, reference docs for new/changed settings, `mkdocs` builds)
+- [ ] Documentation updated (`docs/`, reference docs for new/changed settings, `make docs` builds)
 - [ ] Default template / examples updated if the config schema changed (`otterdog/resources/defaults/otterdog-defaults.libsonnet`)
 
 ## Notes for reviewers

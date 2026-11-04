@@ -128,25 +128,26 @@ clean-webapp:  ## Clean Web App the development environment
 	@minikube delete
 	bash $(OTTERDOG_TS_CLEAN_SCRIPT)
 
-docs:  ## Generate documentation
-	poetry run mkdocs build
+# Zensical runs no hooks: docs_site.py stages the pages (.docs-site/) with the playground links, then runs it
+docs:  ## Strict build of the documentation into site/ (broken links and anchors fail)
+	poetry run python docs_site.py build --strict
 
 docs-serve:  ## Serve the documentation, Playground links target $OTTERDOG_URL (default: https://otterdog.eclipse.org)
-	poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+	poetry run python docs_site.py serve --dev-addr "$(DOCS_DEV_ADDR)"
 
 docs-serve-dev:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp` ($OTTERDOG_DEV_URL)
-	OTTERDOG_URL="$(OTTERDOG_DEV_URL)" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+	OTTERDOG_URL="$(OTTERDOG_DEV_URL)" poetry run python docs_site.py serve --dev-addr "$(DOCS_DEV_ADDR)"
 
 docs-serve-tunnel:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp-tunnel*` (tailscale)
 	@if [ -z "$$TS_DNS" ]; then echo 'Error: TS_DNS is not set'; exit 1; fi
-	OTTERDOG_URL="https://otterdog.$$TS_DNS" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+	OTTERDOG_URL="https://otterdog.$$TS_DNS" poetry run python docs_site.py serve --dev-addr "$(DOCS_DEV_ADDR)"
 
 docs-serve-ngrok:  ## Serve the documentation, Playground links target the webapp of `make dev-webapp-ngrok*`
 	@if [ -z "$$NGROK_DOMAIN" ]; then echo 'Error: NGROK_DOMAIN is not set'; exit 1; fi
-	OTTERDOG_URL="https://$$NGROK_DOMAIN" poetry run mkdocs serve --livereload --dev-addr "$(DOCS_DEV_ADDR)"
+	OTTERDOG_URL="https://$$NGROK_DOMAIN" poetry run python docs_site.py serve --dev-addr "$(DOCS_DEV_ADDR)"
 
 playground-examples:  ## Update the examples listed by the Playground from the configuration guides
-	poetry run python docs/hooks/playground.py
+	poetry run python docs_playground.py
 
 help:  ## Show this help
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

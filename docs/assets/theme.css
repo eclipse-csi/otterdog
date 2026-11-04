@@ -1,0 +1,227 @@
+/* Theme of the documentation site: the Eclipse Foundation colors (palette primary and accent "custom" in
+   zensical.toml), the banner of a preview and the hero of the home page (docs-theme/main.html). */
+:root {
+  --otterdog-eclipse-purple: #2c2255;
+  --otterdog-eclipse-orange: #f7941e;
+  /* the steps of a change on the home page */
+  --otterdog-flow-circle-start: #4b3f80;
+  --otterdog-flow-circle-end: var(--otterdog-eclipse-purple);
+  --otterdog-flow-icon: #fff;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--otterdog-eclipse-purple);
+  --md-primary-fg-color--light: #4b3f80;
+  --md-primary-fg-color--dark: #1d163a;
+  --md-accent-fg-color: #d9770a;
+  --md-accent-fg-color--transparent: rgba(247, 148, 30, 0.1);
+  /* the purple of the header is too dark for links in the text */
+  --md-typeset-a-color: #4b3f9e;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: var(--otterdog-eclipse-purple);
+  --md-primary-fg-color--light: #4b3f80;
+  --md-primary-fg-color--dark: #1d163a;
+  --md-accent-fg-color: #ffb459;
+  --md-accent-fg-color--transparent: rgba(247, 148, 30, 0.1);
+  --md-typeset-a-color: var(--otterdog-eclipse-orange);
+  --otterdog-flow-circle-start: #ffb459;
+  --otterdog-flow-circle-end: #d9770a;
+  --otterdog-flow-icon: var(--otterdog-eclipse-purple);
+}
+
+/* the header and the tabs in the purple of the Eclipse Foundation (the modern variant draws them on the page color) */
+.md-header,
+.md-tabs {
+  color: #fff;
+  background-color: var(--md-primary-fg-color);
+}
+
+.md-tabs__link--active,
+.md-tabs__item--active .md-tabs__link,
+.md-tabs__link:hover {
+  color: var(--otterdog-eclipse-orange);
+}
+
+/* the second row of tabs: the sections of the active tab (docs-theme/partials/tabs.html) */
+.md-tabs.otterdog-subtabs {
+  background-color: var(--md-primary-fg-color--dark);
+}
+
+.otterdog-subtabs .md-tabs__item {
+  height: 2rem;
+}
+
+.otterdog-subtabs .md-tabs__link {
+  margin-top: 0.6rem;
+  font-size: 0.65rem;
+}
+
+@media screen and (min-width: 45em) {
+  .md-header .md-search__button,
+  .md-header .md-search__button:focus,
+  .md-header .md-search__button:hover {
+    color: #fff;
+    /* white at 14% on the purple of the header, opaque */
+    background-color: #4a416d;
+  }
+}
+
+/* the announcement bar: the banner of a preview (block announce of docs-theme/main.html) */
+.md-banner {
+  color: #fff;
+  background-color: var(--md-primary-fg-color--dark);
+}
+
+.md-banner a {
+  color: var(--otterdog-eclipse-orange);
+}
+
+/* the hero of the home page */
+.otterdog-hero {
+  background: linear-gradient(135deg, var(--md-primary-fg-color--dark), var(--otterdog-eclipse-purple) 60%, #4b3f80);
+  color: #fff;
+}
+
+.otterdog-hero__inner {
+  padding: 2.4rem 0.8rem;
+}
+
+.md-typeset .otterdog-hero__title {
+  margin: 0 0 0.4rem;
+  color: inherit;
+  font-weight: 700;
+}
+
+.otterdog-hero__text {
+  max-width: 36rem;
+  margin: 0 0 1.2rem;
+  opacity: 0.9;
+}
+
+.otterdog-hero .md-typeset .md-button {
+  margin: 0 0.4rem 0.4rem 0;
+  color: #fff;
+  /* white at 14% on the purple of the hero, opaque */
+  background-color: #4a416d;
+}
+
+.otterdog-hero .md-typeset .md-button--primary {
+  color: var(--md-primary-fg-color--dark);
+  background-color: var(--otterdog-eclipse-orange);
+}
+
+.otterdog-hero .md-typeset .md-button:focus,
+.otterdog-hero .md-typeset .md-button:hover {
+  color: var(--md-primary-fg-color--dark);
+  background-color: #ffb459;
+  opacity: 1;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .otterdog-hero__inner {
+    text-align: center;
+  }
+}
+
+/* the hero shows the site's name: a title of the home page is not repeated below it */
+.md-container:has(.otterdog-hero) .md-content__inner > h1:first-of-type {
+  display: none;
+}
+
+/* the steps of a change on the home page (docs/index.md): an icon in a circle per step, a dashed arrow to the next
+   one, stacked on small screens */
+.md-typeset .otterdog-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1.6em 0;
+}
+
+.md-typeset .otterdog-flow__step {
+  position: relative;
+  padding: 0 0.5rem;
+  text-align: center;
+}
+
+.md-typeset .otterdog-flow__step > p {
+  margin: 0.3em 0;
+}
+
+.md-typeset .otterdog-flow__step > p:last-child {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.md-typeset .otterdog-flow__step strong {
+  font-size: 0.85rem;
+}
+
+.md-typeset .twemoji.otterdog-flow__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.2rem;
+  color: var(--otterdog-flow-icon);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--otterdog-flow-circle-start), var(--otterdog-flow-circle-end));
+  box-shadow: 0 0.2rem 0.6rem rgba(44, 34, 85, 0.25);
+}
+
+.md-typeset .twemoji.otterdog-flow__icon svg {
+  width: 1.5rem;
+  max-height: 1.5rem;
+}
+
+/* the arrow to the next step, from circle to circle: a dashed line and its head */
+.md-typeset .otterdog-flow__step:not(:last-child)::after,
+.md-typeset .otterdog-flow__step:not(:last-child)::before {
+  position: absolute;
+  content: "";
+  border-color: var(--md-default-fg-color--lighter);
+}
+
+.md-typeset .otterdog-flow__step:not(:last-child)::after {
+  top: 1.85rem;
+  right: calc(-50% + 2rem);
+  left: calc(50% + 2rem);
+  border-top: 0.1rem dashed;
+}
+
+.md-typeset .otterdog-flow__step:not(:last-child)::before {
+  top: calc(1.85rem - 0.25rem);
+  right: calc(-50% + 2rem);
+  width: 0.5rem;
+  height: 0.5rem;
+  border-top: 0.1rem solid;
+  border-right: 0.1rem solid;
+  transform: rotate(45deg);
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset .otterdog-flow {
+    grid-template-columns: 1fr;
+    row-gap: 2.4rem;
+  }
+
+  .md-typeset .otterdog-flow__step:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -2rem;
+    left: 50%;
+    height: 1.6rem;
+    border-top: 0;
+    border-left: 0.1rem dashed;
+  }
+
+  .md-typeset .otterdog-flow__step:not(:last-child)::before {
+    top: auto;
+    right: auto;
+    bottom: -2rem;
+    left: calc(50% - 0.2rem);
+    transform: rotate(135deg);
+  }
+}

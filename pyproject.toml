@@ -72,11 +72,14 @@ include = [
     "Makefile",
     "docker",
     "docs",
+    "docs-theme",
+    "docs_playground.py",
+    "docs_site.py",
     "examples",
-    "mkdocs.yml",
     "otterdog.sh",
     "poetry.lock",
-    "tests"
+    "tests",
+    "zensical.toml"
 ]
 exclude = [
     "otterdog/app.py",
@@ -129,13 +132,10 @@ types-hvac = ">=2.4.0.20251115"
 motor-types = ">=1.0.0b4"
 types-python-slugify = ">=8.0"
 
+# the documentation site (zensical.toml, docs_site.py, `make docs`)
 [tool.poetry.group.docs.dependencies]
-mkdocs = "^1.5"
-mkdocs-material = "^9.8"
-mkdocs-exclude = "^1.0"
+zensical = ">=0.0.74" # pre-1.0: the lock pins it, docs-theme/ overrides some of its templates
 pymdown-extensions = "^12.3"
-mkdocs-include-markdown-plugin = "^7.1.6"
-mkdocs-mermaid2-plugin = "^1.2.3"
 
 [tool.poetry-dynamic-versioning]
 enable     = true

@@ -1,0 +1,47 @@
+{#-
+  Theme override of the documentation site (theme.custom_dir in zensical.toml): main.html of zensical-ui 0.0.41
+  (Zensical 0.0.74) only extends base.html; this one also fills three of its blocks, styled by docs/assets/theme.css:
+  on the preview of a pull request (extra.preview_pr, set by docs_site.py from DOCS_PREVIEW_PR) the announcement bar
+  and a robots meta tag keeping the preview out of search engines, and, below the tabs, the hero of the home page,
+  whose buttons open pages of the nav (tests/test_docs_site.py checks them).
+-#}
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {%- if config.extra.preview_pr %}
+    <meta name="robots" content="noindex, nofollow">
+  {%- endif %}
+{% endblock %}
+
+{#- empty unless on a preview: base.html shows the announcement bar only when the block renders something #}
+{% block announce -%}
+  {%- if config.extra.preview_pr -%}
+    Preview of
+    <a href="{{ config.repo_url }}/pull/{{ config.extra.preview_pr }}">pull request #{{ config.extra.preview_pr }}</a>,
+    the published documentation is at <a href="{{ config.extra.published_url }}">{{ config.extra.published_url }}</a>.
+  {%- endif -%}
+{%- endblock %}
+
+{% block tabs %}
+  {{ super() }}
+  {#- Zensical 0.0.74 sets no page.is_homepage: the home page is the one at the root of the site #}
+  {% if page.url in ["", "./"] %}
+    <section class="otterdog-hero">
+      <div class="otterdog-hero__inner md-grid md-typeset">
+        <div>
+          <h1 class="otterdog-hero__title">{{ config.site_name }}</h1>
+          <p class="otterdog-hero__text">
+            {{ config.site_description }}: the configuration of an organization and of its repositories lives in a
+            repository, every change is a pull request.
+          </p>
+          <a class="md-button md-button--primary" href="{{ 'getting-started/' | url }}">Get started</a>
+          <a class="md-button" href="{{ 'userguide/guides/' | url }}">Configuration guides</a>
+          <a class="md-button" href="{{ 'reference/' | url }}">Reference</a>
+          {%- if config.extra.otterdog_url %}
+            <a class="md-button" href="{{ config.extra.otterdog_url }}/playground">Try the playground</a>
+          {%- endif %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

@@ -225,11 +225,7 @@ HTTPS Certificates -> Click `Enable HTTPS...`
  - You can always double check the URL at https://login.tailscale.com/admin/machines as multiple instances
  of your development environment can generate `otterdog-1`, `otterdog-2` ...
 
-{%
-    include-markdown "../operating_otterdog/install.md"
-    start="<!--github-app-start-->"
-    end="<!--github-app-end-->"
-%}
+--8<-- "docs/operating_otterdog/install.md:github-app"
 
 The otterdog app should appear in the organization settings > Third-party Access > GitHub Apps:
 https://github.com/organizations/otterdog-<GitHub Username>/settings/apps
