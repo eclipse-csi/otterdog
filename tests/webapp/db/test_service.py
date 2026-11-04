@@ -118,6 +118,8 @@ class _AddedInstallation:
         self.saved: list[InstallationModel] = []
         self.deleted: list[InstallationModel] = []
         self.refreshed: list[str] = []
+        # the operations on the database and the fetching of data, in their order
+        self.operations: list[str] = []
 
         rest_api = mock.MagicMock()
         rest_api.app.get_app_installation = mock.AsyncMock(
@@ -141,12 +143,18 @@ class _AddedInstallation:
 
         async def save(model: InstallationModel) -> None:
             self.saved.append(model)
+            self.operations.append(f"save {model.github_id}")
 
         async def delete(model: InstallationModel) -> None:
             self.deleted.append(model)
+            self.operations.append(f"delete {model.github_id}")
+
+        async def cleanup_data() -> None:
+            self.operations.append("cleanup")
 
         async def update_data_for_installation(installation: InstallationModel) -> None:
             self.refreshed.append(installation.github_id)
+            self.operations.append(f"fetch {installation.github_id}")
 
         self.refresh_otterdog_config = mock.AsyncMock(return_value=otterdog_config)
         # the other changes of the otterdog config are left to the processing of the push that made them
@@ -158,6 +166,7 @@ class _AddedInstallation:
         monkeypatch.setattr(service, "get_installation_by_project_name", get_installation_by_project_name)
         monkeypatch.setattr(service, "refresh_otterdog_config", self.refresh_otterdog_config)
         monkeypatch.setattr(service, "update_installations_from_config", self.update_installations_from_config)
+        monkeypatch.setattr(service, "cleanup_data", cleanup_data)
         monkeypatch.setattr(service, "update_data_for_installation", update_data_for_installation)
         monkeypatch.setattr(service, "update_policies_and_blueprints_for_installation", mock.AsyncMock())
 
@@ -178,7 +187,7 @@ async def test_add_app_installation_of_known_org(monkeypatch):
     await service.add_app_installation(178172786, [], [])
 
     assert added.saved_installations() == [("new-org", "project-new-org", 178172786, InstallationStatus.INSTALLED)]
-    assert added.refreshed == ["new-org"]
+    assert added.operations == ["save new-org", "fetch new-org"]
     added.refresh_otterdog_config.assert_not_awaited()
 
 
@@ -211,6 +220,8 @@ async def test_add_app_installation_replaces_installation_of_project_whose_org_h
 
     assert added.deleted == [previous]
     assert added.saved_installations() == [("new-org", "technology.new", 178172786, InstallationStatus.INSTALLED)]
+    # the data of the previous org, e.g. its configuration, holds the project name which is unique
+    assert added.operations == ["delete previous-org", "save new-org", "cleanup", "fetch new-org"]
 
 
 @pytest.mark.parametrize(

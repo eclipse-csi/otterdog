@@ -328,6 +328,7 @@ async def add_app_installation(
     installation_status = InstallationStatus.INSTALLED if suspended_at is None else InstallationStatus.SUSPENDED
 
     installation_model = await get_installation_by_github_id(github_id)
+    created_from_reloaded_config = installation_model is None
     if installation_model is None:
         # the app may be installed before the push adding the org to the otterdog config has been
         # processed, the installation would then only be picked up upon the next change of the config
@@ -351,6 +352,11 @@ async def add_app_installation(
     installation_model.installation_id = int(installation_id)
     installation_model.installation_status = installation_status
     await mongo.odm.save(installation_model)
+
+    if created_from_reloaded_config:
+        # the installation replaces the one of its project if the github id of the project has changed,
+        # remove the data of the latter before fetching the data of the org, as the project name is unique
+        await cleanup_data()
 
     await update_data_for_installation(installation_model)
     await update_policies_and_blueprints_for_installation(installation_model, global_policies, global_blueprints)
