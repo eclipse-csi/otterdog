@@ -79,7 +79,7 @@ orgs.newOrg('my-project', 'my-org') {
 |----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
 | Branch protection rules and rulesets                                 | public repositories with GitHub Free, public and private repositories with GitHub Pro, Team and Enterprise    |
 | Organization rulesets                                                | GitHub Team and GitHub Enterprise                                                                             |
-| Push rulesets                                                        | private and internal repositories                                                                             |
+| Push rulesets                                                        | private and internal repositories with GitHub Team and GitHub Enterprise                                      |
 | Metadata restrictions (commit message, emails, branch and tag names) | GitHub Enterprise                                                                                             |
 | Code quality and code coverage rules                                 | GitHub Team and GitHub Enterprise, repository rulesets only                                                   |
 | License compliance rule                                              | GitHub Enterprise, repository rulesets only                                                                   |
@@ -87,7 +87,10 @@ orgs.newOrg('my-project', 'my-org') {
 | Enforcement `evaluate`                                               | GitHub Enterprise                                                                                             |
 | Merge queue                                                          | public repositories owned by an organization, private repositories with GitHub Enterprise Cloud               |
 
-`validate` warns about the rules of a ruleset that require a higher plan than the plan of the organization.
+`validate` warns about the rules of a ruleset that require a higher plan than the `plan` of the organization in its
+configuration, it does not warn if neither the configuration nor its default configuration sets `plan`, see
+[Organization Settings](../../reference/organization/settings.md). `validate` reports push rules for a public
+repository as an error, whatever the plan.
 Plans change over time, check the GitHub documentation before relying on a feature:
 [About rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets),
 [Organization rulesets for GitHub Team](https://github.blog/changelog/2025-06-16-organization-rulesets-now-available-for-github-team-plans/),
