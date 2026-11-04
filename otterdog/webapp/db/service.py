@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 
     from odmantic.query import QueryExpression, SortExpression
 
-    from otterdog.config import OtterdogConfig
+    from otterdog.config import OrganizationConfig, OtterdogConfig
     from otterdog.webapp.blueprints import Blueprint
     from otterdog.webapp.policies import Policy
     from otterdog.webapp.tasks import Task
@@ -133,24 +133,7 @@ async def update_installations_from_config(
 
             model = await get_installation_by_github_id(github_id)
             if model is None:
-                # check if an installation for the project_name already exists
-                # in this case the github_id has changed, we need to delete this instance
-                # as we cant change the primary key.
-                model = await get_installation_by_project_name(project_name)
-                if model is not None:
-                    await mongo.odm.delete(model)
-
-                model = InstallationModel(  # type: ignore
-                    installation_id=0,
-                    installation_status=InstallationStatus.NOT_INSTALLED,
-                    project_name=project_name,
-                    github_id=github_id,
-                    config_repo=org_config.config_repo,
-                    base_template=org_config.base_template,
-                    approval_teams=org_config.approval_teams,
-                    admin_teams=org_config.admin_teams,
-                )
-
+                model = await _create_installation(github_id, project_name, org_config)
                 projects_to_update.add(project_name)
             else:
                 if model.project_name != project_name:
@@ -186,6 +169,50 @@ async def update_installations_from_config(
 
     if update_installations is True:
         await update_app_installations(global_policies, global_blueprints, projects_to_update, force_update_data)
+
+
+async def _create_installation(github_id: str, project_name: str, org_config: OrganizationConfig) -> InstallationModel:
+    """Returns a new installation of an org defined in the otterdog config, not saved yet, and not installed."""
+
+    # check if an installation for the project_name already exists
+    # in this case the github_id has changed, we need to delete this instance
+    # as we cant change the primary key.
+    model = await get_installation_by_project_name(project_name)
+    if model is not None:
+        await mongo.odm.delete(model)
+
+    return InstallationModel(  # type: ignore
+        installation_id=0,
+        installation_status=InstallationStatus.NOT_INSTALLED,
+        project_name=project_name,
+        github_id=github_id,
+        config_repo=org_config.config_repo,
+        base_template=org_config.base_template,
+        approval_teams=org_config.approval_teams,
+        admin_teams=org_config.admin_teams,
+    )
+
+
+async def _create_installation_from_reloaded_config(github_id: str) -> InstallationModel | None:
+    """
+    Returns a new installation of an org that is not known yet, if the latest otterdog config defines it.
+
+    Only the installation of this org is created, any other change of the otterdog config is left to the
+    processing of the push that made it, which refreshes the data of the installations it changes.
+    """
+
+    otterdog_config = await refresh_otterdog_config()
+
+    project_name = otterdog_config.get_project_name(github_id)
+    if project_name is None:
+        return None
+
+    org_config = otterdog_config.get_organization_config(project_name)
+    # the github id is matched case-sensitively, as when updating the installations from the otterdog config
+    if org_config.github_id != github_id:
+        return None
+
+    return await _create_installation(github_id, project_name, org_config)
 
 
 async def cleanup_data() -> None:
@@ -311,12 +338,7 @@ async def add_app_installation(
             int(installation_id),
         )
 
-        otterdog_config = await refresh_otterdog_config()
-        await update_installations_from_config(
-            otterdog_config, global_policies, global_blueprints, update_installations=False
-        )
-
-        installation_model = await get_installation_by_github_id(github_id)
+        installation_model = await _create_installation_from_reloaded_config(github_id)
         if installation_model is None:
             logger.warning(
                 "the github app has been installed for org '%s' (installation id '%d') that the otterdog config "
