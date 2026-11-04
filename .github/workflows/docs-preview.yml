@@ -1,13 +1,16 @@
 # Removes the preview of the documentation of a pull request when it is closed: the job preview of docs.yml publishes
 # it on the GitHub Pages of eclipse-csi/otterdog-website-preview (see docs.yml for the setup).
 #
-# No path filter: a pull request may have published a preview and then reverted its changes of the documentation, its
-# preview is removed all the same. The job does nothing when the pull request has no preview, and shares the
-# concurrency group of the deployments of the pull request.
+# pull_request_target, not pull_request: GitHub runs no pull_request workflow, closed included, for a pull request that
+# conflicts with main. This workflow runs from main and never checks out nor runs the code of the pull request: it only
+# removes a directory of eclipse-csi/otterdog-website-preview and updates a comment. No path filter: a pull request may
+# have published a preview and then reverted its changes of the documentation, its preview is removed all the same.
+# The job does nothing when the pull request has no preview, and shares the concurrency group of the deployments of
+# the pull request.
 name: docs-preview
 
 on:
-  pull_request:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] closed only, the pull request is never checked out nor run
     types: [closed]
     branches: [main]
 
@@ -62,7 +65,8 @@ jobs:
               return;
             }
             core.setOutput("remove", "true");
-      # rossjrw/pr-preview-action needs a checkout, the job runs nothing from it
+      # rossjrw/pr-preview-action needs a checkout: the base branch (the default of pull_request_target), never the
+      # pull request, and the job runs nothing from it
       - if: steps.check.outputs.remove == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -134,40 +134,48 @@ def toml_value(value: Any) -> str:
 def staged_config(text: str, root: Path, settings: Settings) -> dict[str, Any]:
     """The ``[project]`` table for Zensical in .docs-site/ (module docstring)."""
     config = read_config(text)
-    present = [key for key in STAGED_KEYS if key in config]
-    if present:
-        raise SiteError(f"{CONFIG}: {', '.join(present)} must not be set (docs_site.py sets the staged ones)")
-    theme = config.get("theme") or {}
-    if theme.get("custom_dir") != THEME:
-        raise SiteError(f"{CONFIG}: theme.custom_dir must be {THEME}")
-    extensions = config.get("markdown_extensions") or {}
-    snippets = (extensions.get("pymdownx") or {}).get("snippets")
-    if not isinstance(snippets, dict) or "base_path" in snippets:
-        raise SiteError(f"{CONFIG}: pymdownx.snippets must be enabled without base_path (docs_site.py sets it)")
-    snippets["base_path"] = [str(root)]
-
-    extra = dict(config.get("extra") or {})
-    if settings.otterdog_url is not None:
-        extra["otterdog_url"] = settings.otterdog_url
-    extra["otterdog_url"] = str(extra.get("otterdog_url") or "").rstrip("/")
+    _check_config(config)
+    # the files included by --8<-- are paths of the repository
+    config["markdown_extensions"]["pymdownx"]["snippets"]["base_path"] = [str(root)]
     published = str(config.get("site_url") or "")
-    if settings.preview_pr is not None:
-        if not _PULL_REQUEST_RE.fullmatch(settings.preview_pr):
-            raise SiteError(f"DOCS_PREVIEW_PR: expected the number of a pull request, not {settings.preview_pr!r}")
-        extra["preview_pr"] = int(settings.preview_pr)
-        extra["published_url"] = published
     staged = {
         **config,
         "site_url": settings.site_url or published,
-        "theme": {**theme, "custom_dir": STAGED_THEME},
+        "theme": {**config["theme"], "custom_dir": STAGED_THEME},
         "docs_dir": DOCS,
         "site_dir": SITE,
-        "extra": extra,
+        "extra": _staged_extra(config.get("extra") or {}, settings, published),
     }
     if settings.dev_addr is not None:
         if not _DEV_ADDR_RE.fullmatch(settings.dev_addr):
             raise SiteError(f"--dev-addr: expected <host>:<port>, not {settings.dev_addr!r}")
         staged["dev_addr"] = settings.dev_addr
+    return staged
+
+
+def _check_config(config: Mapping[str, Any]) -> None:
+    """Refuse a zensical.toml that sets what docs_site.py stages (SiteError)."""
+    present = [key for key in STAGED_KEYS if key in config]
+    if present:
+        raise SiteError(f"{CONFIG}: {', '.join(present)} must not be set (docs_site.py sets the staged ones)")
+    if (config.get("theme") or {}).get("custom_dir") != THEME:
+        raise SiteError(f"{CONFIG}: theme.custom_dir must be {THEME}")
+    snippets = ((config.get("markdown_extensions") or {}).get("pymdownx") or {}).get("snippets")
+    if not isinstance(snippets, dict) or "base_path" in snippets:
+        raise SiteError(f"{CONFIG}: pymdownx.snippets must be enabled without base_path (docs_site.py sets it)")
+
+
+def _staged_extra(extra: Mapping[str, Any], settings: Settings, published: str) -> dict[str, Any]:
+    """``extra`` with the url of the dashboard (OTTERDOG_URL) and the pull request of a preview (DOCS_PREVIEW_PR)."""
+    staged = dict(extra)
+    if settings.otterdog_url is not None:
+        staged["otterdog_url"] = settings.otterdog_url
+    staged["otterdog_url"] = str(staged.get("otterdog_url") or "").rstrip("/")
+    if settings.preview_pr is not None:
+        if not _PULL_REQUEST_RE.fullmatch(settings.preview_pr):
+            raise SiteError(f"DOCS_PREVIEW_PR: expected the number of a pull request, not {settings.preview_pr!r}")
+        staged["preview_pr"] = int(settings.preview_pr)
+        staged["published_url"] = published
     return staged
 
 
