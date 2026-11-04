@@ -66,6 +66,19 @@ class RepoClient(RestClient):
                 f"failed retrieving data for branch '{branch_name}' in repo '{org_id}/{repo_name}':\n{ex}"
             ) from ex
 
+    async def get_recent_activities(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
+        """Returns the most recent changes of a ref, the most recent first, with its sha before and after each."""
+        _logger.debug("retrieving recent activities of ref '%s' in repo '%s/%s'", ref, org_id, repo_name)
+
+        try:
+            return await self.requester.request_json(
+                "GET", f"/repos/{org_id}/{repo_name}/activity", params={"ref": ref, "per_page": "100"}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed retrieving activities of ref '{ref}' in repo '{org_id}/{repo_name}':\n{ex}"
+            ) from ex
+
     async def rename_branch(self, org_id: str, repo_name: str, branch: str, new_name: str) -> dict[str, Any]:
         _logger.debug("renaming branch '%s' to '%s' in repo '%s/%s'", branch, new_name, org_id, repo_name)
 

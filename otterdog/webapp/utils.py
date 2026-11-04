@@ -9,11 +9,11 @@
 import asyncio
 import json
 import re
-from collections.abc import Hashable, Iterable
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from logging import getLogger
-from typing import Any, cast
+from typing import cast
 
 import yaml
 from quart import Quart, current_app
@@ -423,84 +423,47 @@ async def describe_approval_teams(matching_teams: list[str] | None, org_id: str 
         )
 
 
-# upper bound for the number of commits of a pull request, GitHub does not list more than 250 commits
-_MAX_PULL_REQUEST_COMMITS = 250
+# delays in seconds before looking again for the merge of a pull request in the activity of its base
+# branch, in case GitHub records it some time after notifying the merge
+_BASE_BRANCH_ACTIVITY_RETRY_DELAYS = (1, 2, 4, 8, 16)
 
 
 async def find_base_commit_sha(
     rest_api: RestApi,
     org_id: str,
     repo_name: str,
-    pull_request_number: int,
+    base_ref: str,
     merge_commit_sha: str,
-    head_sha: str,
 ) -> str:
     """
     Returns the sha of the commit on the base branch onto which a pull request has been merged.
 
-    For a merge commit, this is its first parent. Otherwise, the first-parent chain is walked up
-    past the commits that the merge added to the base branch, as a rebase merge adds all commits
-    of the pull request and the parent of the merge commit would then already contain most of the
-    changes. These are:
+    For a merge commit, this is its first parent. For a squash or rebase merge, this is the head
+    of the base branch before the merge, as recorded by GitHub in the activity of the branch: the
+    commits of the branch do not tell where the pull request starts, as a rebase merge adds all
+    of its commits to the branch, keeping their author and message, and the parent of the merge
+    commit would then already contain most of the changes.
 
-    - the commits of the pull request themselves, if its head has been fast-forwarded onto the
-      base branch.
-    - otherwise, the commits that a squash or rebase merge committed at the time of the merge
-      commit, as it commits anew the commits it adds, and that are copies of commits of the pull
-      request, whose author and message a rebase merge keeps. The commit time bounds the walk at
-      the base branch, even if a commit of the pull request has been copied onto it before, and
-      the commits of the pull request are not needed to find the base of a squash merge.
-
-    The commits are not recognized by the pull requests associated with them, which GitHub only
-    lists some time after the merge.
+    Fails rather than guessing the base if the merge has not been recorded as a change of the
+    branch of its own, e.g. if a merge queue has merged several pull requests at once.
     """
     commit = await rest_api.commit.get_commit(org_id, repo_name, merge_commit_sha)
     if len(commit["parents"]) > 1:
         return commit["parents"][0]["sha"]
 
-    fast_forwarded = merge_commit_sha == head_sha
-    merged_at = commit["commit"]["committer"]["date"]
+    ref = f"refs/heads/{base_ref}"
+    for delay in (*_BASE_BRANCH_ACTIVITY_RETRY_DELAYS, None):
+        for activity in await rest_api.repo.get_recent_activities(org_id, repo_name, ref):
+            if activity["after"] == merge_commit_sha:
+                return activity["before"]
 
-    def get_merged_commit_key(merged_commit: dict[str, Any]) -> Hashable:
-        return merged_commit["sha"] if fast_forwarded else _get_copied_commit_key(merged_commit)
-
-    merged_commits: set[Hashable] | None = None
-    for _ in range(_MAX_PULL_REQUEST_COMMITS):
-        parents = commit["parents"]
-        if len(parents) == 0:
-            raise RuntimeError(
-                f"commit '{commit['sha']}' has no parent, unable to determine base of merged pull request"
-            )
-
-        commit = await rest_api.commit.get_commit(org_id, repo_name, parents[0]["sha"])
-        if not fast_forwarded and commit["commit"]["committer"]["date"] != merged_at:
-            return commit["sha"]
-
-        if merged_commits is None:
-            pull_request_commits = await rest_api.pull_request.get_commits(org_id, repo_name, str(pull_request_number))
-            if len(pull_request_commits) >= _MAX_PULL_REQUEST_COMMITS:
-                raise RuntimeError(
-                    f"unable to determine base of pull request #{pull_request_number}, "
-                    f"it has at least {_MAX_PULL_REQUEST_COMMITS} commits"
-                )
-
-            merged_commits = {
-                get_merged_commit_key(pull_request_commit) for pull_request_commit in pull_request_commits
-            }
-
-        if get_merged_commit_key(commit) not in merged_commits:
-            return commit["sha"]
+        if delay is not None:
+            await asyncio.sleep(delay)
 
     raise RuntimeError(
-        f"unable to determine base of pull request #{pull_request_number}, "
-        f"its merge added more than {_MAX_PULL_REQUEST_COMMITS} commits"
+        f"unable to determine base of merged pull request, no recent change of branch '{base_ref}' "
+        f"to commit '{merge_commit_sha}' found in the activity of repo '{org_id}/{repo_name}'"
     )
-
-
-def _get_copied_commit_key(commit: dict[str, Any]) -> tuple[str, str, str, str]:
-    """Returns what a rebase keeps of a commit, identifying the copy of a commit of a pull request."""
-    author = commit["commit"]["author"]
-    return author["name"], author["email"], author["date"], commit["commit"]["message"]
 
 
 async def fetch_config_from_github(

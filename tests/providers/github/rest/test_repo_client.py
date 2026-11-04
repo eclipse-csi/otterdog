@@ -543,3 +543,20 @@ class TestRepoClientGitHubPagesCustomDomain:
         assert repo_client.requester.request_raw.calls == [
             pretend.call("GET", "/repos/test-org/test-org.github.io/pages"),
         ]
+
+
+class TestRepoClientActivities:
+    async def test_get_recent_activities_of_ref(self):
+        activities = [{"before": "base", "after": "merge", "ref": "refs/heads/main", "activity_type": "pr_merge"}]
+
+        async def mock_request_json(method, url, params=None):
+            return activities
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        assert await repo_client.get_recent_activities("test-org", "test-repo", "refs/heads/main") == activities
+
+        call = repo_client.requester.request_json.calls[0]
+        assert call.args == ("GET", "/repos/test-org/test-repo/activity")
+        assert call.kwargs == {"params": {"ref": "refs/heads/main", "per_page": "100"}}
