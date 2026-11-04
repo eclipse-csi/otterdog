@@ -39,7 +39,39 @@
     },
 
     "required_status_checks": { "$ref": "#/$defs/status_check_or_null" },
-    "required_merge_queue": { "$ref": "#/$defs/merge_queue_or_null" }
+    "required_merge_queue": { "$ref": "#/$defs/merge_queue_or_null" },
+    "copilot_code_review": { "$ref": "#/$defs/copilot_code_review_or_null" },
+
+    "commit_message_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "commit_author_email_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "committer_email_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "branch_name_pattern": { "$ref": "#/$defs/pattern_or_null" },
+    "tag_name_pattern": { "$ref": "#/$defs/pattern_or_null" },
+
+    "restricted_file_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "restricted_file_paths_exceptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "max_file_path_length": { "type": "integer" },
+    "restricted_file_extensions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "max_file_size": { "type": "integer" },
+    "max_file_size_exceptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "required_code_scanning": { "$ref": "#/$defs/code_scanning_or_null" },
+    "required_code_quality": { "$ref": "#/$defs/code_quality_or_null" },
+    "required_code_coverage": { "$ref": "#/$defs/code_coverage_or_null" },
+    "requires_license_compliance_scanning": { "type": "boolean" },
+    "required_workflows": { "$ref": "#/$defs/workflows_or_null" }
   },
 
   "$defs": {
@@ -100,6 +132,96 @@
         "wait_time_for_minimum_group_size": { "type": "integer" },
         "status_check_timeout": { "type": "integer" },
         "requires_all_group_entries_to_pass_required_checks": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "copilot_code_review_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/copilot_code_review" },
+          { "type": "null" }
+        ]
+    },
+    "copilot_code_review": {
+      "type": "object",
+      "properties": {
+        "review_on_push": { "type": "boolean" },
+        "review_draft_pull_requests": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "pattern_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/pattern" },
+          { "type": "null" }
+        ]
+    },
+    "pattern": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "negate": { "type": "boolean" },
+        "operator": { "type": "string", "enum": ["starts_with", "ends_with", "contains", "regex"] },
+        "pattern": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "code_scanning_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/code_scanning" },
+          { "type": "null" }
+        ]
+    },
+    "code_scanning": {
+      "type": "object",
+      "properties": {
+        "code_scanning_tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "code_quality_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/code_quality" },
+          { "type": "null" }
+        ]
+    },
+    "code_quality": {
+      "type": "object",
+      "properties": {
+        "severity": { "type": "string", "enum": ["errors", "warnings", "notes", "all"] }
+      },
+      "additionalProperties": false
+    },
+    "code_coverage_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/code_coverage" },
+          { "type": "null" }
+        ]
+    },
+    "code_coverage": {
+      "type": "object",
+      "properties": {
+        "minimum_coverage": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "max_coverage_drop": { "anyOf": [{ "type": "number" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "workflows_or_null": {
+      "anyOf": [
+          { "$ref": "#/$defs/workflows" },
+          { "type": "null" }
+        ]
+    },
+    "workflows": {
+      "type": "object",
+      "properties": {
+        "do_not_enforce_on_create": { "type": "boolean" },
+        "workflows": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
       "additionalProperties": false
     }

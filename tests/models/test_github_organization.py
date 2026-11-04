@@ -6,6 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
+import dataclasses
 import os
 import unittest
 from unittest.mock import patch
@@ -14,8 +15,10 @@ import jsonschema
 import pretend
 
 from otterdog.config import OtterdogConfig
-from otterdog.models import FailureType, LivePatchContext
+from otterdog.models import Change, FailureType, LivePatch, LivePatchContext
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.organization_ruleset import OrganizationRuleset
+from otterdog.models.repository import Repository
 from otterdog.utils import jsonnet_evaluate_file
 
 
@@ -249,3 +252,184 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
         # the configured name of an already selected repository is replaced by the name retrieved from GitHub
         change = changes["immutable_releases_selected_repositories"]
         assert sorted(change.to_value) == sorted([repository_name, "other-repo"])
+
+    def _generate_ruleset_and_repository_patches(
+        self, workflow_repository=None, rename=False, existing=False, lift_protection=False, allow_creation=False
+    ):
+        expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+
+        repository = expected_org.repositories[0]
+        if rename:
+            expected_org.repositories[0] = dataclasses.replace(repository, name="new-name", aliases=[repository.name])
+        else:
+            expected_org.add_repository(dataclasses.replace(repository, name="new-name"))
+
+        def ruleset(repository_name, protect_repo_names=True, do_not_enforce_on_create=False):
+            data = {"name": "main", "target": "branch", "protect_repo_names": protect_repo_names}
+            if repository_name is not None:
+                workflow = f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"
+                data["required_workflows"] = {
+                    "workflows": [workflow],
+                    "do_not_enforce_on_create": do_not_enforce_on_create,
+                }
+            return OrganizationRuleset.from_model_data(data)
+
+        expected_org.add_ruleset(
+            ruleset(workflow_repository and workflow_repository(repository.name), not lift_protection, allow_creation)
+        )
+        if existing:
+            current_org.add_ruleset(ruleset(repository.name))
+
+        context = LivePatchContext(
+            org_id=self.TEST_ORG,
+            repo_filter="*",
+            update_webhooks=False,
+            update_secrets=False,
+            update_filter="*",
+            current_org_settings=current_org.settings,
+            expected_org_settings=expected_org.settings,
+        )
+        patches = []
+        expected_org.generate_live_patch(current_org, context, patches.append)
+        return patches, repository.name
+
+    @staticmethod
+    def _index_of_first_patch(patches, model_type):
+        return next(index for index, patch in enumerate(patches) if isinstance(patch.expected_object, model_type))
+
+    def _is_ruleset_applied_before_repositories(self, patches):
+        return self._index_of_first_patch(patches, OrganizationRuleset) < self._index_of_first_patch(
+            patches, Repository
+        )
+
+    def test_live_patch_applies_organization_rulesets_before_repositories(self):
+        # e.g. to lift the protection of a repository name before renaming the repository
+        patches, _ = self._generate_ruleset_and_repository_patches(rename=True)
+
+        assert self._is_ruleset_applied_before_repositories(patches)
+
+    def test_live_patch_applies_organization_rulesets_requiring_existing_workflows_before_repositories(self):
+        patches, _ = self._generate_ruleset_and_repository_patches(lambda name: name.upper())
+
+        assert self._is_ruleset_applied_before_repositories(patches)
+
+    def test_live_patch_resolves_workflows_of_renamed_repositories_by_their_current_name(self):
+        # the rename may require to lift the protection of the repository name first
+        patches, repository_name = self._generate_ruleset_and_repository_patches(lambda _: "New-Name", rename=True)
+
+        assert self._is_ruleset_applied_before_repositories(patches)
+        ruleset_patch = patches[self._index_of_first_patch(patches, OrganizationRuleset)]
+        assert ruleset_patch.expected_object.required_workflows.workflows == [
+            f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"
+        ]
+
+    def test_live_patch_ignores_workflows_of_renamed_repositories(self):
+        # GitHub references the repository of a required workflow by its id, which a rename does not change
+        patches, _ = self._generate_ruleset_and_repository_patches(lambda _: "new-name", rename=True, existing=True)
+
+        assert not any(isinstance(patch.expected_object, OrganizationRuleset) for patch in patches)
+
+    def test_live_patch_applies_organization_rulesets_requiring_new_workflows_after_repositories(self):
+        # a required workflow may reference a repository created by the same apply
+        patches, _ = self._generate_ruleset_and_repository_patches(lambda _: "New-Name")
+
+        assert not self._is_ruleset_applied_before_repositories(patches)
+
+    def test_live_patch_splits_organization_rulesets_requiring_new_workflows(self):
+        # the other changes are applied before the repositories, e.g. to lift the protection of a repository name
+        # before renaming it, with the current workflows
+        patches, repository_name = self._generate_ruleset_and_repository_patches(
+            lambda _: "New-Name", existing=True, lift_protection=True
+        )
+
+        repository_index = self._index_of_first_patch(patches, Repository)
+        ruleset_patches = [
+            (index < repository_index, set(patch.changes), patch.expected_object.required_workflows.workflows)
+            for index, patch in enumerate(patches)
+            if isinstance(patch.expected_object, OrganizationRuleset)
+        ]
+        assert ruleset_patches == [
+            (True, {"protect_repo_names"}, [f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"]),
+            (False, {"required_workflows"}, [f"{self.TEST_ORG}/New-Name:.github/workflows/build.yml"]),
+        ]
+
+    def test_live_patch_allows_the_creation_of_new_repositories_before_them(self):
+        # the current workflows could block the creation of a repository: they are not enforced on creation before the
+        # repositories, while the workflows of the new repository are required after them
+        patches, repository_name = self._generate_ruleset_and_repository_patches(
+            lambda _: "New-Name", existing=True, allow_creation=True
+        )
+
+        repository_index = self._index_of_first_patch(patches, Repository)
+        ruleset_patches = [
+            (
+                index < repository_index,
+                set(patch.changes),
+                patch.expected_object.required_workflows.workflows,
+                patch.expected_object.required_workflows.do_not_enforce_on_create,
+            )
+            for index, patch in enumerate(patches)
+            if isinstance(patch.expected_object, OrganizationRuleset)
+        ]
+        assert ruleset_patches == [
+            (True, {"required_workflows"}, [f"{self.TEST_ORG}/{repository_name}:.github/workflows/build.yml"], True),
+            (False, {"required_workflows"}, [f"{self.TEST_ORG}/New-Name:.github/workflows/build.yml"], True),
+        ]
+
+    def _generate_patches_with_a_repository_filter(self, existing):
+        # the repository of the workflow exists but is outside the repository filter: the current organization, loaded
+        # with the filter, does not contain it, while it is not created by the apply
+        expected_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        current_org = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+
+        renamed, workflow_repository = expected_org.repositories
+        expected_org.repositories[0] = dataclasses.replace(renamed, name="new-name", aliases=[renamed.name])
+        current_org.repositories = [repo for repo in current_org.repositories if repo.name == renamed.name]
+
+        def ruleset(protect_repo_names):
+            workflow = f"{self.TEST_ORG}/{workflow_repository.name}:.github/workflows/build.yml"
+            return OrganizationRuleset.from_model_data(
+                {
+                    "name": "main",
+                    "target": "branch",
+                    "protect_repo_names": protect_repo_names,
+                    "required_workflows": {"workflows": [workflow]},
+                }
+            )
+
+        # the rename requires to lift the protection of the repository names first
+        expected_org.add_ruleset(ruleset(False))
+        if existing:
+            current_org.add_ruleset(ruleset(True))
+
+        context = LivePatchContext(
+            org_id=self.TEST_ORG,
+            repo_filter="new-name",
+            update_webhooks=False,
+            update_secrets=False,
+            update_filter="*",
+            current_org_settings=current_org.settings,
+            expected_org_settings=expected_org.settings,
+        )
+        patches = []
+        expected_org.generate_live_patch(current_org, context, patches.append)
+        return patches
+
+    def test_live_patch_ignores_repositories_outside_the_repository_filter(self):
+        for existing in (False, True):
+            with self.subTest(existing=existing):
+                patches = self._generate_patches_with_a_repository_filter(existing)
+
+                assert self._is_ruleset_applied_before_repositories(patches)
+
+    def test_live_patch_applies_rulesets_with_unchanged_workflows_before_repositories(self):
+        # the current workflows only require existing repositories
+        ruleset = OrganizationRuleset.from_model_data({"name": "main", "target": "branch"})
+        patch = LivePatch.of_changes(
+            ruleset, ruleset, {"enforcement": Change("disabled", "active")}, None, False, ruleset.apply_live_patch
+        )
+        handled = []
+
+        assert GitHubOrganization._apply_ruleset_changes_before_workflows(patch, handled.append) is None
+        assert handled == [patch]

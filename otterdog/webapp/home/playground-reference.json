@@ -909,6 +909,95 @@
           "type": "MergeQueueSettings or null",
           "description": "If specified, merges must be performed via a merge queue",
           "object": "repository/ruleset.md#merge-queue-settings"
+        },
+        "copilot_code_review": {
+          "type": "CopilotCodeReviewSettings or null",
+          "description": "If specified, request a review from Copilot automatically for new pull requests, if their author has access to Copilot code review",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "repository/ruleset.md#copilot-code-review-settings"
+        },
+        "commit_message_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the message of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "repository/ruleset.md#pattern-settings"
+        },
+        "commit_author_email_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the email of the author of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "repository/ruleset.md#pattern-settings"
+        },
+        "committer_email_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the email of the committer of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "repository/ruleset.md#pattern-settings"
+        },
+        "branch_name_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the names of matching branches must match a pattern",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "repository/ruleset.md#pattern-settings"
+        },
+        "tag_name_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the names of matching tags must match a pattern",
+          "notes": "Only supported by rulesets with target `tag`",
+          "object": "repository/ruleset.md#pattern-settings"
+        },
+        "restricted_file_paths": {
+          "type": "list[string]",
+          "description": "List of file paths that can not be pushed, using `fnmatch` syntax, e.g. `secrets/**`",
+          "notes": "Only supported by rulesets with target `push`, at most 200 entries of up to 200 characters"
+        },
+        "restricted_file_paths_exceptions": {
+          "type": "list[string]",
+          "description": "List of file paths that can be pushed even if they match `restricted_file_paths`",
+          "notes": "Only taken into account when `restricted_file_paths` is not empty"
+        },
+        "max_file_path_length": {
+          "type": "integer",
+          "description": "The maximum number of characters of the paths of the files that can be pushed",
+          "notes": "Only supported by rulesets with target `push`, allowed values in the range [0, 32767], `0` disables the rule"
+        },
+        "restricted_file_extensions": {
+          "type": "list[string]",
+          "description": "List of file extensions that can not be pushed, e.g. `*.exe`",
+          "notes": "Only supported by rulesets with target `push`, at most 200 entries of up to 200 characters"
+        },
+        "max_file_size": {
+          "type": "integer",
+          "description": "The maximum size in megabytes of the files that can be pushed, files stored with Git LFS are not limited",
+          "notes": "Only supported by rulesets with target `push`, allowed values in the range [0, 100], `0` disables the rule"
+        },
+        "max_file_size_exceptions": {
+          "type": "list[string]",
+          "description": "List of file paths that can exceed `max_file_size`",
+          "notes": "Only taken into account when `max_file_size` is not `0`"
+        },
+        "required_code_scanning": {
+          "type": "CodeScanningSettings or null",
+          "description": "If specified, code scanning tools must provide results before branches can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "repository/ruleset.md#code-scanning-settings"
+        },
+        "required_code_quality": {
+          "type": "CodeQualitySettings or null",
+          "description": "If specified, the code quality results of a pull request must be resolved before it can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "repository/ruleset.md#code-quality-settings"
+        },
+        "required_code_coverage": {
+          "type": "CodeCoverageSettings or null",
+          "description": "If specified, the line coverage of a pull request must meet thresholds before it can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`, in public preview on GitHub",
+          "object": "repository/ruleset.md#code-coverage-settings"
+        },
+        "requires_license_compliance_scanning": {
+          "type": "boolean",
+          "description": "If enabled, the dependencies added or changed by a pull request must comply with the license policy of the organization before it can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`"
         }
       }
     },
@@ -1000,6 +1089,83 @@
         "requires_all_group_entries_to_pass_required_checks": {
           "type": "boolean",
           "description": "When this setting is disabled, only the commit at the head of the merge group, i.e. the commit containing changes from all of the PRs in the group, must pass its required checks to merge"
+        }
+      }
+    },
+    "repository/ruleset.md#copilot-code-review-settings": {
+      "title": "Copilot Code Review Settings",
+      "url": "reference/organization/repository/ruleset/#copilot-code-review-settings",
+      "properties": {
+        "review_on_push": {
+          "type": "boolean",
+          "description": "If enabled, Copilot reviews each new push to the pull request"
+        },
+        "review_draft_pull_requests": {
+          "type": "boolean",
+          "description": "If enabled, Copilot reviews draft pull requests before they are marked as ready for review"
+        }
+      }
+    },
+    "repository/ruleset.md#pattern-settings": {
+      "title": "Pattern Settings",
+      "url": "reference/organization/repository/ruleset/#pattern-settings",
+      "properties": {
+        "operator": {
+          "type": "string",
+          "description": "The operator used to match the pattern",
+          "notes": "Possible values are `starts_with`, `ends_with`, `contains` or `regex`"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "The pattern to match",
+          "notes": "Must not be empty"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the rule shown on GitHub",
+          "notes": "Not sent to GitHub if empty"
+        },
+        "negate": {
+          "type": "boolean",
+          "description": "If enabled, the rule fails if the pattern matches"
+        }
+      }
+    },
+    "repository/ruleset.md#code-scanning-settings": {
+      "title": "Code Scanning Settings",
+      "url": "reference/organization/repository/ruleset/#code-scanning-settings",
+      "properties": {
+        "code_scanning_tools": {
+          "type": "list[string]",
+          "description": "List of code scanning tools that must provide results, as `<tool>:<security_alerts_threshold>:<alerts_threshold>`, e.g. `CodeQL:high_or_higher:errors`",
+          "notes": "At least one tool must be listed. Possible security alerts thresholds are `none`, `critical`, `high_or_higher`, `medium_or_higher` or `all`, possible alerts thresholds are `none`, `errors`, `errors_and_warnings` or `all`"
+        }
+      }
+    },
+    "repository/ruleset.md#code-quality-settings": {
+      "title": "Code Quality Settings",
+      "url": "reference/organization/repository/ruleset/#code-quality-settings",
+      "properties": {
+        "severity": {
+          "type": "string",
+          "description": "The lowest severity of the code quality results that must be resolved before a pull request can be merged",
+          "notes": "Possible values are `errors`, `warnings`, `notes` or `all`"
+        }
+      }
+    },
+    "repository/ruleset.md#code-coverage-settings": {
+      "title": "Code Coverage Settings",
+      "url": "reference/organization/repository/ruleset/#code-coverage-settings",
+      "properties": {
+        "minimum_coverage": {
+          "type": "number or null",
+          "description": "The minimum line coverage of a pull request, in percent",
+          "notes": "Allowed values in the range [0, 100], not enforced if `null`"
+        },
+        "max_coverage_drop": {
+          "type": "number or null",
+          "description": "The maximum drop of the line coverage of a pull request compared to the default branch, in percentage points",
+          "notes": "Allowed values in the range [0, 100], not enforced if `null`"
         }
       }
     },
@@ -1182,6 +1348,84 @@
           "type": "MergeQueueSettings or null",
           "description": "If specified, merges must be performed via a merge queue",
           "object": "ruleset.md#merge-queue-settings"
+        },
+        "copilot_code_review": {
+          "type": "CopilotCodeReviewSettings or null",
+          "description": "If specified, request a review from Copilot automatically for new pull requests, if their author has access to Copilot code review",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "ruleset.md#copilot-code-review-settings"
+        },
+        "commit_message_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the message of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "ruleset.md#pattern-settings"
+        },
+        "commit_author_email_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the email of the author of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "ruleset.md#pattern-settings"
+        },
+        "committer_email_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the email of the committer of the commits pushed to matching refs must match a pattern",
+          "notes": "Not supported by rulesets with target `push`",
+          "object": "ruleset.md#pattern-settings"
+        },
+        "branch_name_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the names of matching branches must match a pattern",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "ruleset.md#pattern-settings"
+        },
+        "tag_name_pattern": {
+          "type": "PatternSettings or null",
+          "description": "If specified, the names of matching tags must match a pattern",
+          "notes": "Only supported by rulesets with target `tag`",
+          "object": "ruleset.md#pattern-settings"
+        },
+        "restricted_file_paths": {
+          "type": "list[string]",
+          "description": "List of file paths that can not be pushed, using `fnmatch` syntax, e.g. `secrets/**`",
+          "notes": "Only supported by rulesets with target `push`, at most 200 entries of up to 200 characters"
+        },
+        "restricted_file_paths_exceptions": {
+          "type": "list[string]",
+          "description": "List of file paths that can be pushed even if they match `restricted_file_paths`",
+          "notes": "Only taken into account when `restricted_file_paths` is not empty"
+        },
+        "max_file_path_length": {
+          "type": "integer",
+          "description": "The maximum number of characters of the paths of the files that can be pushed",
+          "notes": "Only supported by rulesets with target `push`, allowed values in the range [0, 32767], `0` disables the rule"
+        },
+        "restricted_file_extensions": {
+          "type": "list[string]",
+          "description": "List of file extensions that can not be pushed, e.g. `*.exe`",
+          "notes": "Only supported by rulesets with target `push`, at most 200 entries of up to 200 characters"
+        },
+        "max_file_size": {
+          "type": "integer",
+          "description": "The maximum size in megabytes of the files that can be pushed, files stored with Git LFS are not limited",
+          "notes": "Only supported by rulesets with target `push`, allowed values in the range [0, 100], `0` disables the rule"
+        },
+        "max_file_size_exceptions": {
+          "type": "list[string]",
+          "description": "List of file paths that can exceed `max_file_size`",
+          "notes": "Only taken into account when `max_file_size` is not `0`"
+        },
+        "required_code_scanning": {
+          "type": "CodeScanningSettings or null",
+          "description": "If specified, code scanning tools must provide results before branches can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "ruleset.md#code-scanning-settings"
+        },
+        "required_workflows": {
+          "type": "WorkflowsSettings or null",
+          "description": "If specified, workflows must pass before branches can be merged into a matching branch",
+          "notes": "Only supported by rulesets with target `branch`",
+          "object": "ruleset.md#workflows-settings"
         }
       }
     },
@@ -1273,6 +1517,71 @@
         "requires_all_group_entries_to_pass_required_checks": {
           "type": "boolean",
           "description": "When this setting is disabled, only the commit at the head of the merge group, i.e. the commit containing changes from all of the PRs in the group, must pass its required checks to merge"
+        }
+      }
+    },
+    "ruleset.md#copilot-code-review-settings": {
+      "title": "Copilot Code Review Settings",
+      "url": "reference/organization/ruleset/#copilot-code-review-settings",
+      "properties": {
+        "review_on_push": {
+          "type": "boolean",
+          "description": "If enabled, Copilot reviews each new push to the pull request"
+        },
+        "review_draft_pull_requests": {
+          "type": "boolean",
+          "description": "If enabled, Copilot reviews draft pull requests before they are marked as ready for review"
+        }
+      }
+    },
+    "ruleset.md#pattern-settings": {
+      "title": "Pattern Settings",
+      "url": "reference/organization/ruleset/#pattern-settings",
+      "properties": {
+        "operator": {
+          "type": "string",
+          "description": "The operator used to match the pattern",
+          "notes": "Possible values are `starts_with`, `ends_with`, `contains` or `regex`"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "The pattern to match",
+          "notes": "Must not be empty"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the rule shown on GitHub",
+          "notes": "Not sent to GitHub if empty"
+        },
+        "negate": {
+          "type": "boolean",
+          "description": "If enabled, the rule fails if the pattern matches"
+        }
+      }
+    },
+    "ruleset.md#code-scanning-settings": {
+      "title": "Code Scanning Settings",
+      "url": "reference/organization/ruleset/#code-scanning-settings",
+      "properties": {
+        "code_scanning_tools": {
+          "type": "list[string]",
+          "description": "List of code scanning tools that must provide results, as `<tool>:<security_alerts_threshold>:<alerts_threshold>`, e.g. `CodeQL:high_or_higher:errors`",
+          "notes": "At least one tool must be listed. Possible security alerts thresholds are `none`, `critical`, `high_or_higher`, `medium_or_higher` or `all`, possible alerts thresholds are `none`, `errors`, `errors_and_warnings` or `all`"
+        }
+      }
+    },
+    "ruleset.md#workflows-settings": {
+      "title": "Workflows Settings",
+      "url": "reference/organization/ruleset/#workflows-settings",
+      "properties": {
+        "do_not_enforce_on_create": {
+          "type": "boolean",
+          "description": "If enabled, allow repositories and branches to be created if a workflow would otherwise prohibit it"
+        },
+        "workflows": {
+          "type": "list[string]",
+          "description": "List of workflows that must pass, as `<owner>/<repository>:<path>[@<ref>][#<sha>]`, e.g. `my-org/.github:.github/workflows/build.yml@refs/heads/main`",
+          "notes": "At least one workflow must be listed. The ref is a branch or a tag, the sha a commit, the repository is case-insensitive. `%`, `@` and `#` are written `%25`, `%40` and `%23` in a path or a ref"
         }
       }
     },
@@ -1633,11 +1942,17 @@
     "newStatusChecks": "repository/ruleset.md#status-check-settings",
     "newPullRequest": "repository/ruleset.md#pull-request-settings",
     "newMergeQueue": "repository/ruleset.md#merge-queue-settings",
+    "newCopilotCodeReview": "repository/ruleset.md#copilot-code-review-settings",
+    "newPattern": "repository/ruleset.md#pattern-settings",
+    "newCodeScanning": "repository/ruleset.md#code-scanning-settings",
+    "newCodeQuality": "repository/ruleset.md#code-quality-settings",
+    "newCodeCoverage": "repository/ruleset.md#code-coverage-settings",
     "newRepoSecret": "repository/secret.md",
     "newRepoVariable": "repository/variable.md",
     "newRepoWebhook": "repository/webhook.md",
     "newOrgRole": "role.md",
     "newOrgRuleset": "ruleset.md",
+    "newWorkflows": "ruleset.md#workflows-settings",
     "newOrgSecret": "secret.md",
     "newTeam": "team.md",
     "newOrgVariable": "variable.md",

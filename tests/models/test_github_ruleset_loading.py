@@ -287,3 +287,66 @@ async def test_ruleset_actor_round_trip_preserves_user_and_bypass_mode():
         actor["user_login"] = "alice"
         assert RepositoryRuleset.from_provider_data("acme", response).bypass_actors == [configured]
         assert OrganizationRuleset.from_provider_data("acme", response).bypass_actors == [configured]
+
+
+def workflows_rule(*repository_ids):
+    return {
+        "type": "workflows",
+        "parameters": {
+            "workflows": [
+                {"repository_id": repository_id, "path": ".github/workflows/ci.yml"} for repository_id in repository_ids
+            ]
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_organization_loader_resolves_workflow_repositories_before_conversion():
+    ruleset = ruleset_data()
+    ruleset["rules"] = [workflows_rule(42, 43)]
+    provider = organization_provider([ruleset])
+    provider.get_repo_full_names = AsyncMock(return_value={42: "acme/.github"})
+
+    with patch("otterdog.models.github_organization.OrganizationSettings.from_provider_data") as settings_model:
+        settings_model.return_value = SimpleNamespace(plan="enterprise")
+        organization = await GitHubOrganization.load_from_provider("project", "acme", minimal_config(), provider)
+
+    provider.get_repo_full_names.assert_awaited_once_with({42, 43})
+    # an unresolved repository is named by its id
+    assert organization.rulesets[0].required_workflows.workflows == [
+        "acme/.github:.github/workflows/ci.yml",
+        "43:.github/workflows/ci.yml",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_repository_loader_resolves_workflow_repositories_before_conversion():
+    ruleset = ruleset_data()
+    ruleset["rules"] = [workflows_rule(42)]
+    provider, repository = repository_provider([ruleset])
+    provider.get_repo_full_names = AsyncMock(return_value={42: "acme/.github"})
+    config = minimal_config(default_repo_ruleset_config={})
+
+    with patch("otterdog.models.github_organization.Repository.from_provider_data", return_value=repository):
+        result = await _process_single_repo(provider, "acme", "backend", config, {}, None, {})
+
+    assert result[1].rulesets[0].required_workflows.workflows == ["acme/.github:.github/workflows/ci.yml"]
+
+
+@pytest.mark.asyncio
+async def test_provider_repo_full_name_cache_and_failure():
+    from otterdog.providers.github import GitHubProvider
+
+    calls = []
+
+    async def get_repo_by_id(repo_id):
+        calls.append(repo_id)
+        if repo_id == 43:
+            raise RuntimeError("not found")
+        return {"id": repo_id, "full_name": f"acme/repo-{repo_id}"}
+
+    provider = GitHubProvider(None)
+    provider.rest_api = stub(repo=stub(get_repo_by_id=get_repo_by_id))
+    assert await provider.get_repo_full_names({42, 43}) == {42: "acme/repo-42"}
+    assert await provider.get_repo_full_names({42}) == {42: "acme/repo-42"}
+    assert sorted(calls) == [42, 43]

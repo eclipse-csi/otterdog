@@ -83,6 +83,30 @@
           "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      branch_protection_rules: [\n        orgs.newBranchProtectionRule('main') {\n          required_approving_review_count: 1,\n          requires_status_checks: true,\n          requires_strict_status_checks: true,\n          required_status_checks+: [\n            \"build\",\n            \"test / unit-tests\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
         },
         {
+          "title": "Require code scanning results and Copilot reviews",
+          "variant": null,
+          "anchor": "require-code-scanning-results-and-copilot-reviews",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_code_scanning: orgs.newCodeScanning() {\n            code_scanning_tools+: [\n              \"CodeQL:high_or_higher:errors\",\n            ],\n          },\n          copilot_code_review: orgs.newCopilotCodeReview() {\n            review_on_push: true,\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Require code quality, coverage and license compliance",
+          "variant": null,
+          "anchor": "require-code-quality-coverage-and-license-compliance",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request+: {\n            required_approving_review_count: 1,\n          },\n          required_code_quality: orgs.newCodeQuality() {\n            severity: \"warnings\",\n          },\n          required_code_coverage: orgs.newCodeCoverage() {\n            minimum_coverage: 80,\n            max_coverage_drop: 1,\n          },\n          requires_license_compliance_scanning: true,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Restrict commit messages and branch names",
+          "variant": null,
+          "anchor": "restrict-commit-messages-and-branch-names",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('commit-messages') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n          commit_message_pattern: orgs.newPattern() {\n            name: \"Conventional Commits\",\n            operator: \"regex\",\n            pattern: \"^(feat|fix|docs|chore|refactor|test|ci|build|perf|revert)(\\\\(.+\\\\))?!?: \",\n          },\n        },\n        orgs.newRepoRuleset('branch-names') {\n          include_refs+: [\n            \"~ALL\",\n          ],\n          exclude_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          allows_creations: true,\n          allows_deletions: true,\n          allows_force_pushes: true,\n          required_pull_request: null,\n          required_status_checks: null,\n          branch_name_pattern: orgs.newPattern() {\n            name: \"Branch prefix\",\n            operator: \"regex\",\n            pattern: \"^(feature|fix|release|dependabot)/\",\n          },\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Restrict the files that can be pushed",
+          "variant": null,
+          "anchor": "restrict-the-files-that-can-be-pushed",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"team\",\n  },\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      private: true,\n      allow_forking: false,\n      rulesets: [\n        orgs.newRepoRuleset('default-branch') {\n          include_refs+: [\n            \"~DEFAULT_BRANCH\",\n          ],\n          requires_linear_history: true,\n          required_code_quality: orgs.newCodeQuality() {\n            severity: \"warnings\",\n          },\n        },\n        orgs.newRepoRuleset('restrict-files') {\n          target: \"push\",\n          allows_creations: true,\n          allows_deletions: true,\n          allows_force_pushes: true,\n          required_pull_request: null,\n          required_status_checks: null,\n          restricted_file_paths+: [\n            \".env\",\n            \"secrets/**\",\n          ],\n          restricted_file_paths_exceptions+: [\n            \"secrets/README.md\",\n          ],\n          max_file_path_length: 255,\n          restricted_file_extensions+: [\n            \"*.exe\",\n            \"*.jar\",\n          ],\n          max_file_size: 10,\n          max_file_size_exceptions+: [\n            \"docs/assets/**\",\n          ],\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
           "title": "Protect maintenance and release branches",
           "variant": "Ruleset",
           "anchor": "protect-maintenance-and-release-branches",
@@ -135,6 +159,12 @@
           "variant": null,
           "anchor": "target-repositories-by-name",
           "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('libraries') {\n      include_repo_names+: [\n        \"lib-*\",\n      ],\n      protect_repo_names: true,\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request+: {\n        required_approving_review_count: 1,\n      },\n      required_status_checks: null,\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('lib-core'),\n    orgs.newRepo('lib-cli'),\n  ],\n}\n"
+        },
+        {
+          "title": "Require workflows in all repositories",
+          "variant": null,
+          "anchor": "require-workflows-in-all-repositories",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  rulesets+: [\n    orgs.newOrgRuleset('required-workflows') {\n      include_repo_names+: [\n        \"~ALL\",\n      ],\n      include_refs+: [\n        \"~DEFAULT_BRANCH\",\n      ],\n      required_pull_request: null,\n      required_status_checks: null,\n      required_workflows: orgs.newWorkflows() {\n        workflows+: [\n          \"my-org/.github:.github/workflows/license-check.yml@refs/heads/main\",\n        ],\n      },\n    },\n  ],\n  _repositories+:: [\n    orgs.newRepo('.github'),\n    orgs.newRepo('my-repo'),\n  ],\n}\n"
         },
         {
           "title": "Prepare a ruleset before enforcing it",
@@ -195,6 +225,12 @@
           "variant": null,
           "anchor": "restrict-who-can-create-release-tags",
           "code": "orgs.newOrg('my-project', 'my-org') {\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('release-tags') {\n          target: \"tag\",\n          include_refs+: [\n            \"refs/tags/v*\",\n          ],\n          allows_creations: false,\n          allows_updates: false,\n          bypass_actors+: [\n            \"my-release-app\",\n            \"@my-org/release-managers\",\n          ],\n          required_pull_request: null,\n          required_status_checks: null,\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Restrict the names of tags",
+          "variant": null,
+          "anchor": "restrict-the-names-of-tags",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  settings+: {\n    plan: \"enterprise\",\n  },\n  _repositories+:: [\n    orgs.newRepo('my-repo') {\n      rulesets: [\n        orgs.newRepoRuleset('tag-names') {\n          target: \"tag\",\n          include_refs+: [\n            \"~ALL\",\n          ],\n          allows_creations: true,\n          required_pull_request: null,\n          required_status_checks: null,\n          tag_name_pattern: orgs.newPattern() {\n            name: \"Semantic version\",\n            operator: \"regex\",\n            pattern: \"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+$\",\n          },\n        },\n      ],\n    },\n  ],\n}\n"
         },
         {
           "title": "Make releases immutable",

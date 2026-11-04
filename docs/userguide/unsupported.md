@@ -9,7 +9,7 @@ by the means of `otterdog`. The following non-exhaustive list outlines settings 
 - managing pinned repositories for an organization
 - managing individual collaborators of repositories, use teams and `team_permissions` instead
 - supporting merge queue settings for a branch protection rule [#86](https://github.com/eclipse-csi/otterdog/issues/86), use the `required_merge_queue` setting of a [ruleset](../reference/organization/repository/ruleset.md) instead
-- ruleset rules other than those listed in [Rulesets or branch protection rules](guides/rulesets-vs-branch-protection.md#otterdog-specifics), e.g. metadata, file path or file size restrictions, code scanning or Copilot code review rules
+- ruleset rules and parameters other than those listed in [Rulesets or branch protection rules](guides/rulesets-vs-branch-protection.md#otterdog-specifics), e.g. the required reviewers of the rule requiring a pull request
 - targeting the repositories of an organization ruleset by custom properties
 - deploy keys as bypass actors of a ruleset
 - requiring actions to be pinned to a full-length commit SHA in the GitHub Actions settings

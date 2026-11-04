@@ -9,14 +9,15 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
-from otterdog.models import LivePatch, LivePatchType
+from otterdog.models import FailureType, LivePatch, LivePatchType, ValidationContext
 from otterdog.models.ruleset import Ruleset
 from otterdog.utils import expect_type, unwrap
 
 if TYPE_CHECKING:
     from otterdog.jsonnet import JsonnetConfig
+    from otterdog.models.repository import Repository
     from otterdog.providers.github import GitHubProvider
 
 
@@ -32,6 +33,29 @@ class RepositoryRuleset(Ruleset):
 
     def get_jsonnet_template_function(self, jsonnet_config: JsonnetConfig, extend: bool) -> str | None:
         return f"orgs.{jsonnet_config.create_repo_ruleset}"
+
+    def validate(self, context: ValidationContext, parent_object: Any) -> None:
+        super().validate(context, parent_object)
+
+        # GitHub only provides required workflows for rulesets of an organization or an enterprise
+        if self.is_rule_configured("required_workflows"):
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has 'required_workflows' set, "
+                f"while it is only supported by organization rulesets.",
+            )
+
+        # GitHub only provides push rules for private and internal repositories
+        if self.target == "push" and cast("Repository", parent_object).private is False:
+            self._report_configured_rules(
+                context,
+                parent_object,
+                self._push_rules,
+                FailureType.ERROR,
+                lambda key: (
+                    f"has '{key}' set, while push rules are only supported by private and internal repositories."
+                ),
+            )
 
     @classmethod
     async def apply_live_patch(
@@ -63,10 +87,11 @@ class RepositoryRuleset(Ruleset):
 
             case LivePatchType.CHANGE:
                 current_object = unwrap(patch.current_object)
+                expected_object = unwrap(patch.expected_object).with_unset_rules_from(current_object)
                 await provider.update_repo_ruleset(
                     org_id,
                     repository.name,
                     current_object.id,
                     current_object.name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                    await expected_object.to_provider_data(org_id, provider),
                 )

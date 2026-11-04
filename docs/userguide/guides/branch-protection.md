@@ -221,6 +221,227 @@ branch, at the cost of more rebases and CI runs in busy repositories. A
 provides the same guarantee without requiring authors to update their branches. Otterdog supports merge queues
 for rulesets only, see `required_merge_queue` in [Repository Ruleset](../../reference/organization/repository/ruleset.md).
 
+## Require code scanning results and Copilot reviews
+
+Rulesets can also block merges on the results of code scanning, and request a review from Copilot automatically
+for new pull requests.
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [
+        orgs.newRepoRuleset('default-branch') {
+          include_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          required_pull_request+: {
+            required_approving_review_count: 1,
+          },
+          required_code_scanning: orgs.newCodeScanning() {
+            code_scanning_tools+: [
+              "CodeQL:high_or_higher:errors", // (1)!
+            ],
+          },
+          copilot_code_review: orgs.newCopilotCodeReview() {
+            review_on_push: true, // (2)!
+          },
+        },
+      ],
+    },
+  ],
+}
+```
+
+1. Blocks the merge if CodeQL reports security alerts of severity high or critical, or alerts of severity error.
+2. Copilot also reviews the new pushes to a pull request, not only its first version.
+
+Code scanning has to be set up for the repository, see [Repository security features](repository-security.md).
+Copilot only reviews the pull requests of authors that have access to Copilot code review.
+
+## Require code quality, coverage and license compliance
+
+Repository rulesets can block merges on the code quality results, the line coverage and the license compliance
+of the dependencies of a pull request:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    plan: "enterprise", // (1)!
+  },
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [
+        orgs.newRepoRuleset('default-branch') {
+          include_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          required_pull_request+: {
+            required_approving_review_count: 1,
+          },
+          required_code_quality: orgs.newCodeQuality() {
+            severity: "warnings", // (2)!
+          },
+          required_code_coverage: orgs.newCodeCoverage() {
+            minimum_coverage: 80, // (3)!
+            max_coverage_drop: 1,
+          },
+          requires_license_compliance_scanning: true, // (4)!
+        },
+      ],
+    },
+  ],
+}
+```
+
+1. Read-only property that reflects the billing plan of the organization. The code quality and code coverage rules
+   require at least GitHub Team, the license compliance rule GitHub Enterprise, `validate` warns otherwise.
+2. Code quality results of severity warning or error must be resolved before a pull request can be merged.
+3. A pull request is blocked if its line coverage is below 80 %, or drops by more than 1 percentage point compared
+   to the default branch. GitHub does not wait for coverage uploads: make the checks that upload coverage data
+   required status checks. This rule is in public preview on GitHub.
+4. The dependencies added or changed by a pull request must comply with the license policy of the organization.
+
+These rules are only supported by repository rulesets, not by organization rulesets.
+
+## Restrict commit messages and branch names
+
+Patterns can enforce conventions for the metadata of commits, e.g. their message or the email of their author,
+and for the names of branches:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    plan: "enterprise", // (1)!
+  },
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      rulesets: [
+        orgs.newRepoRuleset('commit-messages') {
+          include_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          required_pull_request: null,
+          required_status_checks: null,
+          commit_message_pattern: orgs.newPattern() {
+            name: "Conventional Commits",
+            operator: "regex", // (2)!
+            pattern: "^(feat|fix|docs|chore|refactor|test|ci|build|perf|revert)(\\(.+\\))?!?: ",
+          },
+        },
+        orgs.newRepoRuleset('branch-names') {
+          include_refs+: [
+            "~ALL",
+          ],
+          exclude_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          allows_creations: true, // (3)!
+          allows_deletions: true,
+          allows_force_pushes: true,
+          required_pull_request: null,
+          required_status_checks: null,
+          branch_name_pattern: orgs.newPattern() {
+            name: "Branch prefix",
+            operator: "regex",
+            pattern: "^(feature|fix|release|dependabot)/", // (4)!
+          },
+        },
+      ],
+    },
+  ],
+}
+```
+
+1. Read-only property that reflects the billing plan of the organization. Restricting the metadata of commits and
+   the names of branches requires GitHub Enterprise, `validate` warns otherwise.
+2. The operator is one of `starts_with`, `ends_with`, `contains` or `regex`, set `negate: true` to reject the
+   values that match the pattern instead, see
+   [Pattern Settings](../../reference/organization/repository/ruleset.md#pattern-settings).
+3. The ruleset only restricts the names of branches: creating, deleting and force pushing branches stay allowed.
+4. Branches created by automation, e.g. Dependabot, must match the pattern too.
+
+`commit_author_email_pattern` and `committer_email_pattern` restrict the emails of the commits in the same way.
+A branch name pattern is only supported by rulesets with `target: "branch"`.
+
+## Restrict the files that can be pushed
+
+A ruleset with target `push` blocks pushes that add files matching restricted paths or extensions, files whose path
+is too long or files that are too large, to any branch of the repository. Push rulesets are only available for
+private and internal repositories.
+
+A push ruleset checks the content of every push, to any ref of the repository and of its fork network: it has no
+target branch and no pull request to block. GitHub therefore only supports the push rules in a push ruleset, the
+rules protecting branches, e.g. `requires_linear_history`, and the rules blocking the merge of pull requests, e.g.
+`required_code_scanning` or `required_code_quality`, have to be defined in a separate ruleset with target `branch`:
+
+``` jsonnet
+orgs.newOrg('my-project', 'my-org') {
+  settings+: {
+    plan: "team", // (1)!
+  },
+  _repositories+:: [
+    orgs.newRepo('my-repo') {
+      private: true, // (2)!
+      allow_forking: false,
+      rulesets: [
+        orgs.newRepoRuleset('default-branch') { // (3)!
+          include_refs+: [
+            "~DEFAULT_BRANCH",
+          ],
+          requires_linear_history: true,
+          required_code_quality: orgs.newCodeQuality() {
+            severity: "warnings",
+          },
+        },
+        orgs.newRepoRuleset('restrict-files') {
+          target: "push",
+          allows_creations: true, // (4)!
+          allows_deletions: true,
+          allows_force_pushes: true,
+          required_pull_request: null,
+          required_status_checks: null,
+          restricted_file_paths+: [ // (5)!
+            ".env",
+            "secrets/**",
+          ],
+          restricted_file_paths_exceptions+: [ // (6)!
+            "secrets/README.md",
+          ],
+          max_file_path_length: 255, // (7)!
+          restricted_file_extensions+: [
+            "*.exe",
+            "*.jar",
+          ],
+          max_file_size: 10, // (8)!
+          max_file_size_exceptions+: [ // (9)!
+            "docs/assets/**",
+          ],
+        },
+      ],
+    },
+  ],
+}
+```
+
+1. Read-only property that reflects the billing plan of the organization. Push rulesets require at least GitHub
+   Team, `validate` warns otherwise.
+2. Push rulesets require a private or internal repository. The default settings of an organization disable the
+   forking of private repositories.
+3. The rules protecting the default branch and blocking the merge of pull requests into it are defined in a ruleset
+   with target `branch`, the default target of `orgs.newRepoRuleset`.
+4. A push ruleset only supports push rules, the branch rules enabled by `orgs.newRepoRuleset` have to be disabled.
+5. The paths of the files that can not be pushed, using `fnmatch` syntax.
+6. The paths of the files that can be pushed even if they match `restricted_file_paths`.
+7. The maximum number of characters of the path of a file, between 1 and 32767.
+8. The maximum size of a file in megabytes, between 1 and 100, files stored with Git LFS are not limited.
+9. The paths of the files that can exceed `max_file_size`.
+
+`validate` reports the rules that a push ruleset does not support: an error for the rules blocking the merge of
+pull requests and the patterns restricting commit metadata or names of refs, and a warning for the branch rules that
+`orgs.newRepoRuleset` enables by default, e.g. `allows_force_pushes` or `required_pull_request`, to keep the
+configurations defining push rulesets before otterdog supported push rules valid.
+
 ## Protect maintenance and release branches
 
 Maintenance branches often need the same protection as the default branch. A ruleset can protect several branch

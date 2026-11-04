@@ -40,6 +40,10 @@ The following table captures all supported settings on organization level:
 | _custom_properties_                             | list\[[CustomProperty](custom-property.md)\] | Definition of custom properties                                                                                                                                                |                                                          |
 | _workflows_                                     | [Workflow Settings](#workflow-settings)      | Workflow settings on organizational level                                                                                                                                      |                                                          |
 
+The read-only property `plan` is not changed by `apply`. `validate` compares the settings and rules that require a
+paid plan, e.g. push rulesets, with the `plan` of the configuration, usually set by the default configuration: if
+`plan` is not set, `validate` does not warn about them.
+
 ## Embedded Models
 
 ### Workflow Settings

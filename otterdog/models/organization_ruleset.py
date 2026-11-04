@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import fnmatch
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from jsonbender import F, K, OptionalS  # type: ignore
 
@@ -34,6 +34,13 @@ class OrganizationRuleset(Ruleset):
     exclude_repo_names: list[str]
     protect_repo_names: bool
 
+    # the rules that GitHub does not support for organization rulesets
+    _repository_only_rules: ClassVar[list[str]] = [
+        "required_code_quality",
+        "required_code_coverage",
+        "requires_license_compliance_scanning",
+    ]
+
     @property
     def model_object_name(self) -> str:
         return "org_ruleset"
@@ -43,6 +50,14 @@ class OrganizationRuleset(Ruleset):
 
     def validate(self, context: ValidationContext, parent_object: Any) -> None:
         super().validate(context, parent_object)
+
+        for key in self._repository_only_rules:
+            if self.is_rule_configured(key):
+                context.add_failure(
+                    FailureType.ERROR,
+                    f"{self.get_model_header(parent_object)} has '{key}' set, "
+                    f"while it is only supported by repository rulesets.",
+                )
 
         repositories = cast("GitHubOrganization", context.root_object).repositories
         all_repo_names = (x.name for x in repositories)
@@ -121,8 +136,7 @@ class OrganizationRuleset(Ruleset):
             repo_names["protected"] = K(data["protect_repo_names"])
 
         if len(repo_names) > 0:
-            conditions = mapping.get("conditions", {})
-            conditions.update({"repository_name": repo_names})
+            mapping.setdefault("conditions", {})["repository_name"] = repo_names
 
         return mapping
 
@@ -146,9 +160,10 @@ class OrganizationRuleset(Ruleset):
 
             case LivePatchType.CHANGE:
                 current_object = unwrap(patch.current_object)
+                expected_object = unwrap(patch.expected_object).with_unset_rules_from(current_object)
                 await provider.update_org_ruleset(
                     org_id,
                     current_object.id,
                     current_object.name,
-                    await unwrap(patch.expected_object).to_provider_data(org_id, provider),
+                    await expected_object.to_provider_data(org_id, provider),
                 )

@@ -15,7 +15,7 @@ import json
 import os
 import re
 from io import StringIO
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from importlib_resources import as_file, files
 from jsonbender import F, Forall, OptionalS, S, bend  # type: ignore
@@ -25,8 +25,10 @@ from otterdog.logging import get_logger
 from otterdog.models import (
     EmbeddedModelObject,
     FailureType,
+    LivePatch,
     LivePatchContext,
     LivePatchHandler,
+    LivePatchType,
     ModelObject,
     PatchContext,
     ValidationContext,
@@ -70,6 +72,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
+    from otterdog.models import Change
+    from otterdog.models.ruleset import WorkflowsSettings
     from otterdog.providers.github import GitHubProvider
     from otterdog.utils import ExclusionPatterns
 
@@ -1004,8 +1008,37 @@ class GitHubOrganization:
         OrganizationVariable.generate_live_patch_of_list(
             self.variables, current_organization.variables, None, context, handler
         )
+
+        # organization rulesets are applied before the repositories, e.g. to lift the protection of a repository name
+        # before renaming it, except the required workflows of a repository created by this apply; the current
+        # repositories are only the ones of the repository filter, as are the repositories this apply creates
+        current_repository_names = {repo.name.lower(): repo.name for repo in current_organization.repositories}
+        new_repositories = {
+            f"{self.github_id}/{repo.name}".lower()
+            for repo in self.repositories
+            if repo.include_for_live_patch(context)
+            and not any(name.lower() in current_repository_names for name in repo.get_all_names())
+        }
+        deferred_ruleset_patches: list[LivePatch] = []
+
+        def handle_ruleset_patch(patch: LivePatch) -> None:
+            ruleset = patch.expected_object
+            if (
+                isinstance(ruleset, OrganizationRuleset)
+                and is_set_and_present(ruleset.required_workflows)
+                and not ruleset.required_workflows.get_repositories().isdisjoint(new_repositories)
+            ):
+                if (deferred_patch := self._apply_ruleset_changes_before_workflows(patch, handler)) is not None:
+                    deferred_ruleset_patches.append(deferred_patch)
+            else:
+                handler(patch)
+
         OrganizationRuleset.generate_live_patch_of_list(
-            self.rulesets, current_organization.rulesets, None, context, handler
+            self._rulesets_with_current_workflow_repositories(current_repository_names),
+            current_organization.rulesets,
+            None,
+            context,
+            handle_ruleset_patch,
         )
         context.code_security_configuration_plan = self.plan_code_security_configurations(
             current_organization, context.delete_resources
@@ -1021,6 +1054,101 @@ class GitHubOrganization:
         Repository.generate_live_patch_of_list(
             self.repositories, current_organization.repositories, None, context, handler
         )
+
+        for patch in deferred_ruleset_patches:
+            handler(patch)
+
+    @staticmethod
+    def _apply_ruleset_changes_before_workflows(patch: LivePatch, handler: LivePatchHandler) -> LivePatch | None:
+        """
+        Handles the patch of an organization ruleset requiring a workflow of a repository created by the apply, and
+        returns the patch applied after the repositories, if any. A new ruleset only adds protections, it is created
+        after the repositories. The changes of an existing ruleset are applied before the repositories with the
+        current workflows and their expected settings, e.g. to lift the protection of a repository name before
+        renaming it, or to allow the creation of a repository that the current workflows would block, and its
+        workflows after the repositories.
+        """
+        changes = patch.changes or {}
+        if patch.patch_type != LivePatchType.CHANGE:
+            return patch
+
+        if "required_workflows" not in changes:
+            # the current workflows only require existing repositories
+            handler(patch)
+            return None
+
+        expected_ruleset = cast("OrganizationRuleset", patch.expected_object)
+        current_ruleset = cast("OrganizationRuleset", patch.current_object)
+        workflows_before, workflows_change = GitHubOrganization._current_workflows_with_expected_settings(
+            expected_ruleset, current_ruleset
+        )
+
+        changes_before = {key: change for key, change in changes.items() if key != "required_workflows"}
+        if workflows_change is not None:
+            changes_before["required_workflows"] = workflows_change
+
+        if len(changes_before) == 0:
+            return patch
+
+        def patch_of(ruleset: OrganizationRuleset, ruleset_changes: dict[str, Change]) -> LivePatch:
+            return LivePatch.of_changes(
+                ruleset,
+                current_ruleset,
+                ruleset_changes,
+                patch.parent_object,
+                patch.forced_update,
+                patch.fn,
+                patch.changes_object_to_readonly,
+            )
+
+        ruleset_before = copy.copy(expected_ruleset)
+        ruleset_before.required_workflows = workflows_before
+        handler(patch_of(ruleset_before, changes_before))
+
+        return patch_of(expected_ruleset, {"required_workflows": changes["required_workflows"]})
+
+    @staticmethod
+    def _current_workflows_with_expected_settings(
+        expected_ruleset: OrganizationRuleset, current_ruleset: OrganizationRuleset
+    ) -> tuple[WorkflowsSettings | None, Change | None]:
+        """
+        The current required workflows of a ruleset with their expected settings, and their change if any.
+        """
+        current_workflows = current_ruleset.required_workflows
+        expected_workflows = expected_ruleset.required_workflows
+        if not is_set_and_present(current_workflows) or not is_set_and_present(expected_workflows):
+            return current_workflows, None
+
+        workflows = copy.copy(current_workflows)
+        workflows.do_not_enforce_on_create = expected_workflows.do_not_enforce_on_create
+        return workflows, workflows.get_difference_from(current_workflows)
+
+    def _rulesets_with_current_workflow_repositories(
+        self, current_repository_names: dict[str, str]
+    ) -> list[OrganizationRuleset]:
+        # GitHub references the repository of a required workflow by its id: a workflow of a repository renamed by
+        # the same apply references it by its current name, which can be resolved before the rename and is no change
+        current_full_names: dict[str, str] = {}
+        for repo in self.repositories:
+            if repo.name.lower() in current_repository_names:
+                continue
+
+            for alias in repo.aliases:
+                if (current_name := current_repository_names.get(alias.lower())) is not None:
+                    current_full_names[f"{self.github_id}/{repo.name}".lower()] = f"{self.github_id}/{current_name}"
+                    break
+
+        if len(current_full_names) == 0:
+            return self.rulesets
+
+        return [
+            dataclasses.replace(
+                ruleset, required_workflows=ruleset.required_workflows.with_renamed_repositories(current_full_names)
+            )
+            if is_set_and_present(ruleset.required_workflows)
+            else ruleset
+            for ruleset in self.rulesets
+        ]
 
     def _settings_with_normalized_repository_names(
         self, current_settings: OrganizationSettings
@@ -1201,6 +1329,7 @@ class GitHubOrganization:
                 _logger.debug("loading org rulesets for org '%s' (plan=%s)", github_id, org.settings.plan)
                 github_rulesets = await provider.get_org_rulesets(github_id)
                 await _enrich_user_bypass_actors(github_rulesets, provider)
+                await _enrich_workflow_repositories(github_rulesets, provider)
                 for ruleset in github_rulesets:
                     r = OrganizationRuleset.from_provider_data(github_id, ruleset)
 
@@ -1282,6 +1411,25 @@ async def _enrich_user_bypass_actors(rulesets: list[dict[str, Any]], provider: G
         for actor in ruleset.get("bypass_actors", []):
             if actor.get("actor_type") == "User" and actor.get("actor_id") in user_logins:
                 actor["user_login"] = user_logins[actor["actor_id"]]
+
+
+async def _enrich_workflow_repositories(rulesets: list[dict[str, Any]], provider: GitHubProvider) -> None:
+    # GitHub only provides the id of the repository of a required workflow
+    workflows = [
+        workflow
+        for ruleset in rulesets
+        for rule in ruleset.get("rules") or []
+        if rule.get("type") == "workflows"
+        for workflow in (rule.get("parameters") or {}).get("workflows") or []
+        if workflow.get("repository_id") is not None
+    ]
+    if not workflows:
+        return
+
+    repo_names = await provider.get_repo_full_names({workflow["repository_id"] for workflow in workflows})
+    for workflow in workflows:
+        if workflow["repository_id"] in repo_names:
+            workflow["repository_name"] = repo_names[workflow["repository_id"]]
 
 
 async def _enrich_team_bypass_reviewers(
@@ -1497,6 +1645,7 @@ async def _process_single_repo(
                         actor["team_slug"] = teams[actor_id]
 
             await _enrich_user_bypass_actors([github_ruleset], gh_client)
+            await _enrich_workflow_repositories([github_ruleset], gh_client)
 
             for rule in github_ruleset.get("rules", []):
                 if rule.get("type", None) == "required_status_checks":
