@@ -101,9 +101,10 @@ class TeamTest(ModelTest):
         rest_api = stub(team=stub(get_team_slug=AsyncMock(return_value=None), delete_team=AsyncMock()))
         provider = GitHubProvider(None)
         provider.rest_api = rest_api
+        patch = LivePatch.of_deletion(team, None, Team.apply_live_patch)
 
         with pytest.raises(RuntimeError, match="failed to find team with name 'Test Team'"):
-            await LivePatch.of_deletion(team, None, Team.apply_live_patch).apply(self.org_id, provider)
+            await patch.apply(self.org_id, provider)
 
         rest_api.team.delete_team.assert_not_awaited()
 
