@@ -65,22 +65,27 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      # poetry only exports the locked docs group, pip installs it
       - uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
         with:
-          virtualenvs-in-project: true
           version: ${{ env.POETRY_VERSION }}
       # no cache: this workflow publishes what it builds
-      - name: Install Zensical (the locked docs group)
-        run: poetry install --only=docs --no-root
+      - name: Export the locked docs group (the hashes of every file)
+        run: poetry export --only=docs --format=requirements.txt --output="$RUNNER_TEMP/docs-requirements.txt"
+      # wheels only: no setup script of a package runs during the installation
+      - name: Install Zensical (hash-checked wheels)
+        run: >-
+          python -m pip install --disable-pip-version-check --no-input --require-hashes --only-binary=:all: --no-deps
+          -r "$RUNNER_TEMP/docs-requirements.txt"
       - name: Build the site (staged by docs_site.py; strict, broken links and anchors fail)
         if: github.event_name != 'pull_request'
-        run: poetry run python docs_site.py build --strict
+        run: python docs_site.py build --strict
       - name: Build the preview of the pull request
         if: github.event_name == 'pull_request'
         env:
           SITE_URL: ${{ env.PREVIEW_BASE_URL }}/pr-${{ github.event.pull_request.number }}/
           DOCS_PREVIEW_PR: ${{ github.event.pull_request.number }}
-        run: poetry run python docs_site.py build --strict
+        run: python docs_site.py build --strict
       - name: Upload the preview (published by docs-preview.yml)
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

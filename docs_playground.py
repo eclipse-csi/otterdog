@@ -29,6 +29,7 @@ import re
 import tomllib
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -320,21 +321,27 @@ def _navigation_titles(config_file: Path, prefix: str) -> dict[str, str]:
     the first page of a section without title getting the title of the section, e.g. 'Environment'.
     """
 
-    titles: dict[str, str] = {}
+    nav = tomllib.loads(config_file.read_text())["project"]["nav"]
+    return {
+        page.removeprefix(prefix): title
+        for title, page in _navigation_pages(nav, None)
+        if title is not None and page.startswith(prefix) and page.endswith(".md")
+    }
 
-    def follow(entries: list[Any], section: str | None) -> None:
-        for position, entry in enumerate(entries):
-            # an entry is a page ("page.md") or a mapping of its title to a page or to the entries of a section
-            title, target = next(iter(entry.items())) if isinstance(entry, dict) else (None, entry)
-            if isinstance(target, list):
-                follow(target, title)
-                continue
-            name = title or (section if position == 0 else None)
-            if target.startswith(prefix) and target.endswith(".md") and name is not None:
-                titles[target.removeprefix(prefix)] = name
 
-    follow(tomllib.loads(config_file.read_text())["project"]["nav"], None)
-    return titles
+def _navigation_pages(entries: list[Any], section: str | None) -> Iterator[tuple[str | None, str]]:
+    """
+    Yields the title and the path of every page of the navigation, the first page of a section without title getting
+    the title of the section.
+    """
+
+    for position, entry in enumerate(entries):
+        # an entry is a page ("page.md") or a mapping of its title to a page or to the entries of a section
+        title, target = next(iter(entry.items())) if isinstance(entry, dict) else (None, entry)
+        if isinstance(target, list):
+            yield from _navigation_pages(target, title)
+        else:
+            yield title or (section if position == 0 else None), target
 
 
 def _property_row(page_id: str, line: str) -> tuple[str, dict[str, Any]] | None:

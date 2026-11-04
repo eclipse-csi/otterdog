@@ -3,6 +3,10 @@
 :root {
   --otterdog-eclipse-purple: #2c2255;
   --otterdog-eclipse-orange: #f7941e;
+  /* the steps of a change on the home page */
+  --otterdog-flow-circle-start: #4b3f80;
+  --otterdog-flow-circle-end: var(--otterdog-eclipse-purple);
+  --otterdog-flow-icon: #fff;
 }
 
 [data-md-color-scheme="default"] {
@@ -22,6 +26,9 @@
   --md-accent-fg-color: #ffb459;
   --md-accent-fg-color--transparent: rgba(247, 148, 30, 0.1);
   --md-typeset-a-color: var(--otterdog-eclipse-orange);
+  --otterdog-flow-circle-start: #ffb459;
+  --otterdog-flow-circle-end: #d9770a;
+  --otterdog-flow-icon: var(--otterdog-eclipse-purple);
 }
 
 /* the header and the tabs in the purple of the Eclipse Foundation (the modern variant draws them on the page color) */
@@ -56,7 +63,8 @@
   .md-header .md-search__button:focus,
   .md-header .md-search__button:hover {
     color: #fff;
-    background-color: rgba(255, 255, 255, 0.14);
+    /* white at 14% on the purple of the header, opaque */
+    background-color: #4a416d;
   }
 }
 
@@ -95,7 +103,8 @@
 .otterdog-hero .md-typeset .md-button {
   margin: 0 0.4rem 0.4rem 0;
   color: #fff;
-  background-color: rgba(255, 255, 255, 0.14);
+  /* white at 14% on the purple of the hero, opaque */
+  background-color: #4a416d;
 }
 
 .otterdog-hero .md-typeset .md-button--primary {
@@ -123,18 +132,6 @@
 
 /* the steps of a change on the home page (docs/index.md): an icon in a circle per step, a dashed arrow to the next
    one, stacked on small screens */
-:root {
-  --otterdog-flow-circle-start: #4b3f80;
-  --otterdog-flow-circle-end: var(--otterdog-eclipse-purple);
-  --otterdog-flow-icon: #fff;
-}
-
-[data-md-color-scheme="slate"] {
-  --otterdog-flow-circle-start: #ffb459;
-  --otterdog-flow-circle-end: #d9770a;
-  --otterdog-flow-icon: var(--otterdog-eclipse-purple);
-}
-
 .md-typeset .otterdog-flow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

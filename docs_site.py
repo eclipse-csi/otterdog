@@ -21,10 +21,11 @@ Zensical runs no hooks, so what the pages need beyond their sources happens befo
   directory of its configuration (its cache .docs-site/.cache/ too).
 
 ``build`` stages, runs ``zensical build`` into .docs-site/site/ and copies it to site/ (what the docs workflows
-publish); ``--strict`` also fails on Zensical's warnings (broken links and anchors). ``serve`` stages for
-http://<dev-addr>/, runs ``zensical serve`` and stages again whenever docs/, zensical.toml, docs-theme/ or
-docs_playground.py change (only the files that differ are written, so the preview reloads what changed). ``make docs``
-and ``make docs-serve*`` run them, the docs workflows run ``build --strict``.
+publish); ``--strict`` also fails on Zensical's warnings (broken links and anchors). ``serve`` stages for the address
+``--dev-addr`` (``dev_addr`` and ``site_url`` of the staged configuration), runs ``zensical serve`` and stages again
+whenever docs/, zensical.toml, docs-theme/ or docs_playground.py change (only the files that differ are written, so the
+preview reloads what changed). ``make docs`` and ``make docs-serve*`` run them, the docs workflows run
+``build --strict``.
 
 Only the standard library is needed: tests/test_docs_site.py imports this file without the docs group.
 """
@@ -63,7 +64,9 @@ DEV_ADDR = "127.0.0.1:8000"
 # the settings docs_site.py sets in the staged configuration, never in zensical.toml
 STAGED_KEYS = ("docs_dir", "site_dir", "hooks")
 STAGED_THEME = "theme"  # docs-theme/ copied below .docs-site/
-_PULL_REQUEST_RE = re.compile(r"[1-9][0-9]{0,9}")
+_PULL_REQUEST_RE = re.compile(r"[1-9]\d{0,9}", re.ASCII)
+# host:port of the preview, a host name, an IPv4 address or a bracketed IPv6 address
+_DEV_ADDR_RE = re.compile(r"(?:[A-Za-z\d][\w.-]*|\[[\da-fA-F:]+\]):\d{1,5}", re.ASCII)
 
 log = logging.getLogger("docs_site")
 
@@ -79,6 +82,8 @@ class Settings:
     site_url: str | None = None
     otterdog_url: str | None = None
     preview_pr: str | None = None
+    # the address of zensical serve (dev_addr), never passed on its command line
+    dev_addr: str | None = None
 
     @classmethod
     def from_environment(cls, environ: Mapping[str, str]) -> Settings:
@@ -143,7 +148,7 @@ def staged_config(text: str, root: Path, settings: Settings) -> dict[str, Any]:
             raise SiteError(f"DOCS_PREVIEW_PR: expected the number of a pull request, not {settings.preview_pr!r}")
         extra["preview_pr"] = int(settings.preview_pr)
         extra["published_url"] = published
-    return {
+    staged = {
         **config,
         "site_url": settings.site_url or published,
         "theme": {**theme, "custom_dir": STAGED_THEME},
@@ -151,6 +156,11 @@ def staged_config(text: str, root: Path, settings: Settings) -> dict[str, Any]:
         "site_dir": SITE,
         "extra": extra,
     }
+    if settings.dev_addr is not None:
+        if not _DEV_ADDR_RE.fullmatch(settings.dev_addr):
+            raise SiteError(f"--dev-addr: expected <host>:<port>, not {settings.dev_addr!r}")
+        staged["dev_addr"] = settings.dev_addr
+    return staged
 
 
 def render_config(config: Mapping[str, Any]) -> str:
@@ -246,11 +256,13 @@ def signature(root: Path, watched: Sequence[str] = WATCHED) -> tuple[tuple[str, 
 
 
 def serve(root: Path, settings: Settings, dev_addr: str, *, sleep: Callable[[float], None] = time.sleep) -> int:
-    """Stage for http://<dev_addr>/, run ``zensical serve`` and stage again on every change of the watched sources
-    until it stops."""
-    settings = Settings(site_url=f"http://{dev_addr}/", otterdog_url=settings.otterdog_url)
+    """Stage for ``dev_addr``, run ``zensical serve`` and stage again on every change of the watched sources until it
+    stops."""
+    # zensical serve only serves plain HTTP, on the loopback interface by default
+    site_url = f"http://{dev_addr}/"  # NOSONAR
+    settings = Settings(site_url=site_url, otterdog_url=settings.otterdog_url, dev_addr=dev_addr)
     config = prepare(root, settings)
-    process = subprocess.Popen(zensical("serve", "-f", str(config), "-a", dev_addr), cwd=root)  # noqa: S603
+    process = subprocess.Popen(zensical("serve", "-f", str(config)), cwd=root)  # noqa: S603
     seen = signature(root)
     try:
         while process.poll() is None:
@@ -260,8 +272,8 @@ def serve(root: Path, settings: Settings, dev_addr: str, *, sleep: Callable[[flo
                 seen = current
                 try:
                     result = stage(root, settings)
-                except SiteError as exc:
-                    log.error("%s", exc)
+                except SiteError:
+                    log.exception("cannot stage the site again")
                     continue
                 changed = write(root / STAGING, result.files)
                 log.info("staged again: %d file(s) changed", len(changed))

@@ -87,8 +87,28 @@ def test_preview_of_a_pull_request():
 
 @pytest.mark.parametrize("value", ["0", "-1", "12a", "1; rm -rf /", "1\n2", "\uff11\uff12"])
 def test_preview_requires_the_number_of_a_pull_request(value):
+    settings = docs_site.Settings(preview_pr=value)
+
     with pytest.raises(docs_site.SiteError, match="DOCS_PREVIEW_PR"):
-        docs_site.staged_config(_CONFIG, _ROOT_DIR, docs_site.Settings(preview_pr=value))
+        docs_site.staged_config(_CONFIG, _ROOT_DIR, settings)
+
+
+def test_the_address_of_the_preview_server():
+    settings = docs_site.Settings(site_url="http://127.0.0.1:8001/", dev_addr="127.0.0.1:8001")
+
+    config = docs_site.staged_config(_CONFIG, _ROOT_DIR, settings)
+
+    assert config["dev_addr"] == "127.0.0.1:8001"
+    assert config["site_url"] == "http://127.0.0.1:8001/"
+    assert "dev_addr" not in docs_site.staged_config(_CONFIG, _ROOT_DIR, docs_site.Settings())
+
+
+@pytest.mark.parametrize("value", ["127.0.0.1", "-a:8000", "localhost:8000 --strict", "host:port", ":8000"])
+def test_the_address_of_the_preview_server_is_host_and_port(value):
+    settings = docs_site.Settings(dev_addr=value)
+
+    with pytest.raises(docs_site.SiteError, match="--dev-addr"):
+        docs_site.staged_config(_CONFIG, _ROOT_DIR, settings)
 
 
 @pytest.mark.parametrize(
@@ -104,8 +124,10 @@ def test_preview_requires_the_number_of_a_pull_request(value):
     ],
 )
 def test_settings_set_by_the_staging_are_refused(change, message):
+    text, settings = change(_CONFIG), docs_site.Settings()
+
     with pytest.raises(docs_site.SiteError, match=message):
-        docs_site.staged_config(change(_CONFIG), _ROOT_DIR, docs_site.Settings())
+        docs_site.staged_config(text, _ROOT_DIR, settings)
 
 
 def test_stage_adds_playground_links():
