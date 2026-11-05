@@ -47,6 +47,22 @@ def statistics(monkeypatch):
     monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests_count", mock.AsyncMock(return_value=0))
     monkeypatch.setattr(routes, "get_merged_pull_requests_count", mock.AsyncMock(return_value=0))
     monkeypatch.setattr(routes, "get_project_navigation", mock.AsyncMock(return_value={}))
+    # the configuration of an installed organization changed recently, the average scorecard of the instance
+    installation = InstallationModel(
+        project_name="technology.csi",
+        github_id="eclipse-csi",
+        installation_status=InstallationStatus.INSTALLED,
+        config_repo=".eclipsefdn",
+    )
+    change = pretend.stub(
+        github_id="eclipse-csi",
+        project_name="technology.csi",
+        commit_sha="abc1234567",
+        committed_at=datetime.now(UTC) - timedelta(hours=2),
+    )
+    monkeypatch.setattr(routes, "get_installations", mock.AsyncMock(return_value=[installation]))
+    monkeypatch.setattr(routes, "get_latest_configuration_changes", mock.AsyncMock(return_value=[change]))
+    monkeypatch.setattr(routes, "get_scorecard_average", mock.AsyncMock(return_value=(6.35, 120)))
 
 
 async def test_the_home_page_opens_with_the_hero(app, statistics):
@@ -62,6 +78,43 @@ async def test_the_home_page_opens_with_the_hero(app, statistics):
     assert 'href="/allprojects">All projects</a>' in page
     assert f'href="{documentation_url}" target="_blank" rel="noopener">' in page
     assert f'href="{documentation_url}userguide/guides/" target="_blank" rel="noopener">' in page
+
+
+async def test_every_card_of_the_home_page_opens_a_page(app, statistics):
+    async with app.test_request_context("/index"):
+        page = await routes.index()
+
+    links = re.findall(r'<h3 class="card-title"><a class="stretched-link" href="([^"]+)">([^<]+)</a></h3>', page)
+    assert links == [
+        ("/admin/pullrequests#pr-stats", "Pull Request Automation"),
+        ("/allprojects?by=none&amp;sort=changed-recently", "Latest Changes"),
+        ("/scorecard/checks", "OpenSSF Scorecard"),
+        ("/allprojects?by=none&amp;sort=two-factor", "Two Factor Enforcement"),
+        ("/allprojects?by=none&amp;sort=secret-scanning", "Secret Scanning"),
+        ("/allprojects?by=none&amp;sort=dependabot", "Dependabot"),
+        ("/allprojects?by=none&amp;sort=branch-protection", "Branch Protections"),
+        ("/allprojects?by=none&amp;sort=vulnerability-reporting", "Private Vulnerability Reporting"),
+        ("/allprojects?by=none&amp;sort=code-scanning", "Code Scanning"),
+    ]
+    assert page.count("otterdog-card-link h-100 mb-0") == 3
+
+
+async def test_the_home_page_shows_the_latest_changes_and_the_scorecard_of_the_instance(app, statistics):
+    async with app.test_request_context("/index"):
+        page = await routes.index()
+
+    # the latest change of a configuration, linked to its project and to its commit
+    assert '<a href="/projects/technology.csi">technology.csi</a>' in page
+    assert re.search(
+        r'href="https://github.com/eclipse-csi/.eclipsefdn/commit/abc1234567" title="Commit abc1234">2 h ago</a>', page
+    )
+    # the average scorecard of the instance, on 10
+    assert re.search(r'otterdog-figure__value">6.3<small class="otterdog-figure__unit"> / 10</small>', page)
+    assert "average of 120 repositories" in page
+    assert 'style="width: 63.5%"' in page
+    # the automation of the pull requests: the bar of the merged ones, filled by the script of the page
+    assert 'id="pr-automation-bar-auto"' in page
+    assert 'id="pr-automation-bar-manual"' in page
 
 
 async def test_the_home_page_shows_the_figures_of_the_instance(app, statistics):
@@ -85,7 +138,9 @@ async def test_the_home_page_shows_the_shares_as_bars(app, statistics):
         page = await routes.index()
 
     # a segmented bar per share rather than a doughnut drawn by Chart.js
-    assert page.count('class="otterdog-share__bar"') == 6
+    # the six shares, and the merged pull requests of the automation
+    assert page.count('class="otterdog-share__bar"') == 7
+    assert page.count('<p class="visually-hidden">') == 6
     assert "<canvas" not in page
     assert "chart.umd.js" not in page
     # the bar hidden from screen readers, which read its parts in a hidden text
@@ -258,7 +313,8 @@ async def test_the_projects_can_be_filtered(app, projects):
     assert "js/projects.js" in page
     for group in ("ecd", "ee4j", "technology"):
         assert f'<option value="{group}">{group}</option>' in page
-    orders = ("security", "branch-protection", "secret-scanning", "dependabot", "code-scanning", "scorecard")
+    orders = ("security", "two-factor", "branch-protection", "secret-scanning", "dependabot", "code-scanning")
+    orders += ("vulnerability-reporting", "scorecard")
     orders += ("pull-requests", "blueprints", "changed-recently", "changed-long-ago", "repositories", "archived")
     for order in orders:
         assert f'<option value="{order}">' in page
@@ -268,6 +324,8 @@ async def test_the_projects_can_be_filtered(app, projects):
         'data-secret-scanning="100.0"',
         'data-dependabot="100.0"',
         'data-code-scanning="0.0"',
+        'data-vulnerability-reporting="0.0"',
+        'data-two-factor="1"',
         'data-scorecard="6.40"',
         'data-blueprints="0"',
     ):
@@ -283,6 +341,8 @@ async def test_the_projects_can_be_filtered(app, projects):
     for criterion in (
         "security branch-protection",
         "security code-scanning",
+        "security vulnerability-reporting",
+        "two-factor",
         "repositories archived",
         "pull-requests",
         "changed-recently changed-long-ago",

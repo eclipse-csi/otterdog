@@ -48,11 +48,13 @@ from otterdog.webapp.db.service import (
     get_installation_by_github_id,
     get_installation_by_project_name,
     get_installations,
+    get_latest_configuration_changes,
     get_latest_tasks_by_organization,
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests_count,
     get_open_pull_request_counts_by_organization,
     get_policies_status,
+    get_scorecard_average,
     get_scorecard_averages_by_organization,
     get_scorecard_results,
     get_statistics,
@@ -68,6 +70,8 @@ if TYPE_CHECKING:
     from otterdog.webapp.db.models import InstallationModel
 
 _PAGE_NOT_FOUND = "home/page-404.html"
+# the number of the latest changes of configurations on the home page
+_RECENT_CHANGES = 5
 
 logger = getLogger(__name__)
 
@@ -158,8 +162,24 @@ async def index():
         stats.repos_with_code_scanning,
     ]
 
+    # the configurations changed the most recently, linked to their commit
+    installations_by_key = associate_by_key(installations, lambda x: x.github_id)
+    recent_changes = []
+    for configuration in await get_latest_configuration_changes(_RECENT_CHANGES):
+        installation = installations_by_key.get(configuration.github_id)
+        change = projects.change_of(installation, configuration) if installation is not None else None
+        if change is not None:
+            recent_changes.append({"project_name": configuration.project_name, "change": change})
+
+    scorecard_average, scorecard_count = await get_scorecard_average()
+
     return await render_home_template(
         "index.html",
+        recent_changes=recent_changes,
+        scorecard_average=scorecard_average,
+        scorecard_count=scorecard_count,
+        now=projects.now(),
+        ago=projects.ago,
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
         merged_pull_request_count=await get_merged_pull_requests_count(),
         installations=installations,

@@ -154,6 +154,8 @@ async def test_the_index_shows_code_scanning(app, monkeypatch):
     monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests_count", mock.AsyncMock(return_value=0))
     monkeypatch.setattr(routes, "get_merged_pull_requests_count", mock.AsyncMock(return_value=0))
     monkeypatch.setattr(routes, "get_project_navigation", mock.AsyncMock(return_value={}))
+    monkeypatch.setattr(routes, "get_latest_configuration_changes", nothing)
+    monkeypatch.setattr(routes, "get_scorecard_average", mock.AsyncMock(return_value=(None, 0)))
 
     async with app.test_request_context("/index"):
         page = await routes.index()

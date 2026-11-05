@@ -161,7 +161,7 @@ def ago(at: datetime, now: datetime) -> str:
 
 
 def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
-    labels = ("Branch protection", "Secret scanning", "Dependabot", "Code scanning")
+    labels = ("Branch protection", "Secret scanning", "Dependabot", "Code scanning", "Vulnerability reporting")
     active = statistics.total_repos - statistics.archived_repos if statistics is not None else 0
     if statistics is None or active <= 0:
         return tuple(Share(label, None) for label in labels)
@@ -172,6 +172,7 @@ def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
         statistics.repos_with_secret_scanning + statistics.repos_with_secret_scanning_push_protection,
         statistics.repos_with_dependabot_alerts + statistics.repos_with_dependabot_security_updates,
         statistics.repos_with_code_scanning,
+        statistics.repos_with_private_vulnerability_reporting,
     )
     return tuple(Share(label, count / active * 100) for label, count in zip(labels, counts, strict=True))
 
@@ -223,7 +224,7 @@ def security_details(statistics: StatisticsModel) -> tuple[ShareDetail, ...]:
     )
 
 
-def _change(installation: InstallationModel, configuration: ConfigurationModel | None) -> Change | None:
+def change_of(installation: InstallationModel, configuration: ConfigurationModel | None) -> Change | None:
     """The latest change of the configuration, unknown for the ones fetched before it was stored."""
     sha = getattr(configuration, "commit_sha", None)
     at = getattr(configuration, "committed_at", None)
@@ -269,7 +270,7 @@ def project_card(
         if fetch_task is not None
         else None
     )
-    change = _change(installation, configuration)
+    change = change_of(installation, configuration)
 
     return ProjectCard(
         project_name=project_name,

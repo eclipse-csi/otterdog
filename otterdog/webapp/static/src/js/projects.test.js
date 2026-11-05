@@ -8,16 +8,19 @@ const CHE = {
   name: "ecd.che eclipse-che", group: "ecd", repositories: "23", security: "70.0", pullRequests: "2",
   branchProtection: "40.0", secretScanning: "100.0", dependabot: "60.0", codeScanning: "80.0",
   scorecard: "6.40", blueprints: "1", changed: "1762300000", archived: "2",
+  twoFactor: "0", vulnerabilityReporting: "20.0",
 };
 const PDE = {
   name: "eclipse.pde eclipse-pde", group: "eclipse", repositories: "-1", security: "-1", pullRequests: "0",
   branchProtection: "-1", secretScanning: "-1", dependabot: "-1", codeScanning: "-1",
   scorecard: "-1", blueprints: "0", changed: "-1", archived: "-1",
+  twoFactor: "-1", vulnerabilityReporting: "-1",
 };
 const CSI = {
   name: "technology.csi eclipse-csi", group: "technology", repositories: "17", security: "95.0", pullRequests: "0",
   branchProtection: "90.0", secretScanning: "100.0", dependabot: "100.0", codeScanning: "90.0",
   scorecard: "7.50", blueprints: "3", changed: "1762000000", archived: "0",
+  twoFactor: "1", vulnerabilityReporting: "10.0",
 };
 
 test("without filters every organization is shown", () => {
@@ -61,6 +64,9 @@ test("the organizations are sorted by each protection, their score, their bluepr
   assert.deepEqual(sorted("changed-recently"), ["ecd", "technology", "eclipse"]);
   assert.deepEqual(sorted("changed-long-ago"), ["technology", "ecd", "eclipse"]);
   assert.deepEqual(sorted("archived"), ["ecd", "technology", "eclipse"]);
+  // the organizations not enforcing 2FA first, the unknown ones last
+  assert.deepEqual(sorted("two-factor"), ["ecd", "technology", "eclipse"]);
+  assert.deepEqual(sorted("vulnerability-reporting"), ["technology", "ecd", "eclipse"]);
 });
 
 test("the count tells how many organizations are shown", () => {

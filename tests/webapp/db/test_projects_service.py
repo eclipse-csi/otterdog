@@ -133,6 +133,28 @@ async def test_the_blueprint_statuses_of_each_organization(database):
     }
 
 
+async def test_the_scorecard_average_of_the_instance(database):
+    collection = _AggregatingCollection([{"_id": None, "score": 6.25, "count": 40}])
+    database.get_collection.return_value = collection
+
+    assert await service.get_scorecard_average() == (6.25, 40)
+    assert collection.pipeline[0] == {"$match": {"score": {"$ne": None}}}
+
+
+async def test_the_scorecard_average_of_an_instance_without_score(database):
+    database.get_collection.return_value = _AggregatingCollection([])
+
+    assert await service.get_scorecard_average() == (None, 0)
+
+
+async def test_the_latest_changes_of_the_configurations(database):
+    configurations = [object()]
+    database.find = mock.AsyncMock(return_value=configurations)
+
+    assert await service.get_latest_configuration_changes(5) == configurations
+    assert database.find.call_args.kwargs["limit"] == 5
+
+
 async def test_the_scorecard_average_of_each_organization(database):
     collection = _AggregatingCollection([{"_id": "eclipse-che", "score": 6.5}])
     database.get_collection.return_value = collection

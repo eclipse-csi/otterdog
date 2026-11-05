@@ -41,6 +41,9 @@ const ORDERS = {
   "secret-scanning": ascending("secretScanning"),
   dependabot: ascending("dependabot"),
   "code-scanning": ascending("codeScanning"),
+  "vulnerability-reporting": ascending("vulnerabilityReporting"),
+  // the organizations not enforcing 2FA (0) first, the ones without configuration (-1) last
+  "two-factor": ascending("twoFactor"),
   scorecard: ascending("scorecard"),
   "pull-requests": descending("pullRequests"),
   blueprints: descending("blueprints"),

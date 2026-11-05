@@ -914,6 +914,27 @@ async def get_blueprint_status_counts_by_organization() -> dict[str, dict[str, i
     return counts
 
 
+async def get_scorecard_average() -> tuple[float | None, int]:
+    """The average OpenSSF Scorecard score of all the repositories with a score, and their number."""
+    pipeline: list[dict[str, Any]] = [
+        {_MATCH: {"score": {"$ne": None}}},
+        {_GROUP: {"_id": None, "score": {"$avg": "$score"}, "count": {"$sum": 1}}},
+    ]
+    collection = mongo.odm.get_collection(ScorecardResultModel)
+    documents = await collection.aggregate(pipeline).to_list(1)
+    return (documents[0]["score"], documents[0]["count"]) if documents else (None, 0)
+
+
+async def get_latest_configuration_changes(limit: int) -> list[ConfigurationModel]:
+    """The configurations changed the most recently, their latest change being known."""
+    return await mongo.odm.find(
+        ConfigurationModel,
+        query.ne(ConfigurationModel.committed_at, None),
+        sort=query.desc(ConfigurationModel.committed_at),
+        limit=limit,
+    )
+
+
 async def get_scorecard_averages_by_organization() -> dict[str, float]:
     """The average OpenSSF Scorecard score of the repositories of each organization with a score, by its id."""
     pipeline: list[dict[str, Any]] = [

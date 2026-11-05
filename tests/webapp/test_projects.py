@@ -138,14 +138,15 @@ def test_the_shares_of_the_active_repositories_with_each_protection():
         ("Secret scanning", 90.0, "good"),
         ("Dependabot", 50.0, "warning"),
         ("Code scanning", 100.0, "good"),
+        ("Vulnerability reporting", 0.0, "critical"),
     ]
-    assert card.security == 70.0
+    assert card.security == 56.0
 
 
 def test_the_shares_of_an_organization_without_active_repositories_are_unknown():
     card = _card(_configuration(), _statistics(total_repos=2, archived_repos=2))
 
-    assert [share.status for share in card.shares] == ["unknown"] * 4
+    assert [share.status for share in card.shares] == ["unknown"] * 5
     assert card.security is None
 
 
@@ -212,7 +213,7 @@ def test_the_cards_take_the_data_of_their_organization_and_are_grouped():
 
     assert [card.project_name for card in cards] == ["ecd.che", "ecd.theia", "technology.csi"]
     csi = cards[2]
-    assert (csi.state, csi.open_pull_requests, csi.scorecard, csi.security) == ("configured", 1, 7.5, 70.0)
+    assert (csi.state, csi.open_pull_requests, csi.scorecard, csi.security) == ("configured", 1, 7.5, 56.0)
     theia = cards[1]
     assert (theia.state, theia.open_pull_requests, theia.failing_blueprints) == ("unconfigured", 1, 1)
 

@@ -13,6 +13,7 @@
      data-name="{{ (card.project_name ~ ' ' ~ card.github_id)|lower }}" data-group="{{ card.group }}"
      data-repositories="{{ card.repositories if card.repositories is not none else -1 }}"
      data-archived="{{ card.archived if card.archived is not none else -1 }}"
+     data-two-factor="{{ -1 if card.two_factor is none else (1 if card.two_factor else 0) }}"
      data-security="{{ '%.1f'|format(card.security) if card.security is not none else -1 }}"
      {% for share in card.shares -%}
      data-{{ share.label|lower|replace(' ', '-') }}="{{ '%.1f'|format(share.percentage) if share.percentage is not none else -1 }}"
@@ -61,7 +62,8 @@
     {% set permissions_color = 'success' if card.workflow_permissions == 'read' else 'danger' %}
     <ul class="otterdog-project__facts">
       <li>
-        <{{ fact }} class="otterdog-project__fact"{% if linked %} href="{{ project_url }}#settings"{% endif %}>
+        <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="two-factor"
+                    {%- if linked %} href="{{ project_url }}#settings"{% endif %}>
           2FA
           {% if card.two_factor is none %}
           <span class="otterdog-project__unknown">&ndash;</span>

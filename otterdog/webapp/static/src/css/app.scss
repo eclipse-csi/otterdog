@@ -443,6 +443,18 @@ $otterdog-status-critical: #d03b3b;
   background-color: $otterdog-status-critical;
 }
 
+// the parts of the bar of the merged pull requests (home/index.html), which tell no status: auto-merged in purple,
+// merged manually in grey
+.otterdog-share__part--primary {
+  color: #fff;
+  background-color: $otterdog-violet;
+}
+
+.otterdog-share__part--neutral {
+  color: var(--#{$prefix}body-color);
+  background-color: var(--#{$prefix}secondary-bg);
+}
+
 .otterdog-share__part--empty {
   background-color: var(--#{$prefix}secondary-bg);
 }
@@ -642,6 +654,7 @@ a.otterdog-project__fact {
 }
 
 .otterdog-meter {
+  display: block;
   flex: 1 1 auto;
   height: 6px;
   overflow: hidden;
@@ -739,8 +752,9 @@ a.otterdog-project__fact {
 
 // the row of the order of the organizations on their cards (data-otterdog-sort set by js/projects.js on the list,
 // data-otterdog-criterion on the rows of a card, includes/project-card.html), tinted to tell why a card comes first
-$otterdog-criteria: security, branch-protection, secret-scanning, dependabot, code-scanning, scorecard, pull-requests,
-  blueprints, changed-recently, changed-long-ago, repositories, archived;
+$otterdog-criteria: security, two-factor, branch-protection, secret-scanning, dependabot, code-scanning,
+  vulnerability-reporting, scorecard, pull-requests, blueprints, changed-recently, changed-long-ago, repositories,
+  archived;
 
 @each $criterion in $otterdog-criteria {
   [data-otterdog-sort="#{$criterion}"] [data-otterdog-criterion~="#{$criterion}"] {
@@ -762,4 +776,98 @@ $otterdog-criteria: security, branch-protection, secret-scanning, dependabot, co
   margin-right: -.375rem;
   margin-left: -.375rem;
   border-radius: var(--#{$prefix}border-radius-sm);
+}
+
+// a card of the home page opening a page as a whole by the link of its title, highlighted when hovered like the
+// figures (home/index.html)
+.otterdog-card-link {
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+
+  .card-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &:hover {
+    border-right-color: $otterdog-violet;
+    border-bottom-color: $otterdog-violet;
+    border-left-color: $otterdog-violet;
+    box-shadow: var(--#{$prefix}box-shadow);
+  }
+}
+
+.otterdog-card-link__more {
+  color: var(--#{$prefix}tertiary-color);
+}
+
+.otterdog-card-link:hover .otterdog-card-link__more {
+  color: $otterdog-violet;
+}
+
+[data-bs-theme="dark"] .otterdog-card-link:hover {
+  border-right-color: $otterdog-lilac;
+  border-bottom-color: $otterdog-lilac;
+  border-left-color: $otterdog-lilac;
+
+  .otterdog-card-link__more {
+    color: $otterdog-lilac;
+  }
+}
+
+// the links inside a linked card stay above the link of its title, which covers the card
+.otterdog-card-link .card-body a {
+  position: relative;
+  z-index: 2;
+}
+
+// a figure of the automation of the pull requests: its icon tinted beside its value and its label
+.otterdog-tile {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+}
+
+.otterdog-tile__value {
+  display: block;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-tile__label {
+  display: block;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+// the unit of a figure, e.g. / 10 for a score
+.otterdog-figure__unit {
+  font-size: 1rem;
+  font-weight: normal;
+  color: var(--#{$prefix}secondary-color);
+}
+
+// the configurations changed the most recently, how long ago on the right
+.otterdog-changes {
+  padding: 0;
+  margin: 0;
+  font-size: .875rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: .5rem;
+    justify-content: space-between;
+    padding: .375rem 0;
+
+    + li {
+      border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+    }
+  }
+}
+
+.otterdog-changes__when {
+  flex: none;
+  color: var(--#{$prefix}secondary-color);
 }
