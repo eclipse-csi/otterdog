@@ -75,14 +75,15 @@ async def test_the_page_of_a_project_links_to_its_playground(app, project):
     assert '<h3 class="card-title">Help</h3>' not in page
 
 
-async def test_the_cards_of_the_page_of_a_project_have_their_color_on_top(app, project):
+async def test_the_cards_of_the_page_of_a_project_have_the_same_color_on_top(app, project):
     async with app.test_request_context("/projects/my-project"):
         page = await routes.project("my-project")
 
-    # like the cards of the home page: a header on the background of the card, a border of their color on top
+    # like the cards of the home page: a header on the background of the card, a border of the theme color on top, the
+    # same for every card, the level of a protection being given by its figure and its bar
     cards = re.findall(r'class="card card-[^"]*"', page)
     assert cards
-    assert [card for card in cards if "card-outline" not in card] == []
+    assert [card for card in cards if not card.startswith('class="card card-primary card-outline')] == []
 
 
 async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):

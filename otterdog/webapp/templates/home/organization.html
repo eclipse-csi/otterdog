@@ -233,12 +233,11 @@
                                 </div>
                               </div>
                             </div>
-                            {# a card per protection, its border on top in the color of its level (home/projects.py) #}
+                            {# a card per protection, its level given by its figure and its bar, its border the one of every card #}
                             {% for detail in security %}
                             {% set share = detail.share %}
-                            {% set color = {'good': 'success', 'warning': 'warning', 'critical': 'danger'}.get(share.status, 'secondary') %}
                             <div class="col-md-6">
-                              <div class="card card-{{ color }} card-outline h-100 mb-0">
+                              <div class="card card-primary card-outline h-100 mb-0">
                                 <div class="card-header">
                                   <h3 class="card-title">{{ detail.title }}</h3>
                                 </div>
@@ -295,7 +294,7 @@
                             </div>
                             {% if policy.id.policy_type in policies_status %}
                             {% set policy_status = policies_status[policy.id.policy_type] %}
-                            <div class="card card-info card-outline">
+                            <div class="card card-primary card-outline">
                               <div class="card-header">
                                 <h3 class="card-title">Status</h3>
                               </div>
@@ -372,7 +371,7 @@
                                 <pre><code class="language-json">{{ blueprint.config|pretty_format }}</code></pre>
                               </div>
                             </div>
-                            <div class="card card-info card-outline">
+                            <div class="card card-primary card-outline">
                               <div class="card-header" data-lte-toggle="card-collapse">
                                 <h3 class="card-title">Status</h3>
                                 <div class="card-tools" style="margin: 0px;">
