@@ -109,6 +109,29 @@ class TestExternalGroups:
 
         assert requester.requests == [("PATCH", TEAM_URL, {}), ("DELETE", EXTERNAL_GROUPS_URL, None)]
 
+    async def test_update_team_disconnects_external_group_before_updating_members(self):
+        # the members of a team connected to an external group can not be changed
+        requester = FakeRequester({("DELETE", EXTERNAL_GROUPS_URL): (204, "")})
+
+        await team_client(requester).update_team("org", "team", {"external_group_id": None, "members": ["netomi"]})
+
+        assert requester.requests == [
+            ("PATCH", TEAM_URL, {"members": ["netomi"]}),
+            ("DELETE", EXTERNAL_GROUPS_URL, None),
+            ("PUT", f"{TEAM_URL}/memberships/netomi", {"role": "member"}),
+        ]
+
+    async def test_update_team_connects_external_group_after_updating_members(self):
+        requester = FakeRequester()
+
+        await team_client(requester).update_team("org", "team", {"external_group_id": 123, "members": ["netomi"]})
+
+        assert requester.requests == [
+            ("PATCH", TEAM_URL, {"members": ["netomi"]}),
+            ("PUT", f"{TEAM_URL}/memberships/netomi", {"role": "member"}),
+            ("PATCH", EXTERNAL_GROUPS_URL, {"group_id": 123}),
+        ]
+
     async def test_update_team_without_external_group(self):
         requester = FakeRequester()
 

@@ -15,7 +15,8 @@ Team synchronization requires an organization on GitHub Enterprise Cloud with te
 it is not available for organizations that are part of an enterprise using Enterprise Managed Users.
 
 Like other resources managed by otterdog, a group that is removed from `team_sync` is only disconnected
-from the team when applying the configuration with deletions enabled (`--delete-resources`).
+from the team when applying the configuration with deletions enabled (`--delete-resources`). As long as
+a group stays connected, the members of the team are provisioned by the IdP and `members` is not applied.
 
 ## Jsonnet Function
 

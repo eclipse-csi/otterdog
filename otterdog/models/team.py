@@ -289,29 +289,47 @@ class Team(ModelObject, abc.ABC):
 
         if current_object is None:
             handler(LivePatch.of_addition(expected_object, parent_object, expected_object.apply_live_patch))
-        else:
-            modified_team: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+            # the team sync groups are connected once the team is created
+            TeamSync.generate_live_patch_of_list(expected_object.team_sync, [], expected_object, context, handler)
+            return
 
-            if len(modified_team) > 0:
-                handler(
-                    LivePatch.of_changes(
-                        expected_object,
-                        current_object,
-                        modified_team,
-                        parent_object,
-                        False,
-                        expected_object.apply_live_patch,
-                    )
-                )
-
-        # use the current team as parent if available, as it knows the slug of the team
+        # the team sync groups are updated first, a team connected to an IdP group rejects any change of its members,
+        # the current team is used as parent as it knows the slug of the team
         TeamSync.generate_live_patch_of_list(
-            expected_object.team_sync,
-            current_object.team_sync if current_object is not None else [],
-            current_object if current_object is not None else expected_object,
-            context,
-            handler,
+            expected_object.team_sync, current_object.team_sync, current_object, context, handler
         )
+
+        modified_team: dict[str, Change[Any]] = expected_object.get_difference_from(current_object)
+
+        if cls._remains_managed_by_identity_provider(expected_object, current_object, context):
+            modified_team.pop("members", None)
+
+        if len(modified_team) > 0:
+            handler(
+                LivePatch.of_changes(
+                    expected_object,
+                    current_object,
+                    modified_team,
+                    parent_object,
+                    False,
+                    expected_object.apply_live_patch,
+                )
+            )
+
+    @staticmethod
+    def _remains_managed_by_identity_provider(
+        expected_object: Team, current_object: Team, context: LivePatchContext
+    ) -> bool:
+        """
+        Returns whether the team is still connected to an IdP group once the patches are applied,
+        in which case its members are provisioned by the IdP and can not be changed.
+        """
+        if expected_object.is_managed_by_identity_provider():
+            return True
+
+        # groups removed from team_sync are only disconnected when deleting resources,
+        # while a removed external group is a change of the team that is always applied
+        return len(current_object.team_sync) > 0 and not context.delete_resources
 
     @classmethod
     async def apply_live_patch(

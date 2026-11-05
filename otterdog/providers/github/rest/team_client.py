@@ -106,15 +106,19 @@ class TeamClient(RestClient):
             team_data = {k: v for k, v in team.items() if k != _EXTERNAL_GROUP_ID_KEY}
             await self.requester.request_json("PATCH", f"/orgs/{org_id}/teams/{team_slug}", team_data)
 
+            # the members of a team connected to an external group can not be changed:
+            # disconnect the external group before updating the members, connect it afterward
+            update_external_group = _EXTERNAL_GROUP_ID_KEY in team
+            external_group_id = team.get(_EXTERNAL_GROUP_ID_KEY)
+
+            if update_external_group and external_group_id is None:
+                await self.delete_team_external_group(org_id, team_slug)
+
             if "members" in team:
                 await self.update_team_members(org_id, team_slug, team["members"])
 
-            if _EXTERNAL_GROUP_ID_KEY in team:
-                external_group_id = team[_EXTERNAL_GROUP_ID_KEY]
-                if external_group_id is None:
-                    await self.delete_team_external_group(org_id, team_slug)
-                else:
-                    await self.update_team_external_group(org_id, team_slug, int(external_group_id))
+            if update_external_group and external_group_id is not None:
+                await self.update_team_external_group(org_id, team_slug, int(external_group_id))
 
             _logger.debug("updated team '%s'", team_slug)
         except GitHubException as ex:
