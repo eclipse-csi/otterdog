@@ -9,6 +9,7 @@ const FUNCTION_SCHEMAS = {
   newCustomProperty: "custom-property.json",
   newOrgRole: "org-role.json",
   newTeam: "team.json",
+  newTeamSync: "team-sync.json",
   newOrgWebhook: "webhook.json",
   newOrgSecret: "org-secret.json",
   newOrgDependabotSecret: "org-secret.json",

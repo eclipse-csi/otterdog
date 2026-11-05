@@ -74,8 +74,17 @@ test("the objects created by the functions of the default configuration are vali
   assert.equal(schemaOfFunction("newOrgDependabotSecret"), "org-secret.json");
   assert.equal(schemaOfFunction("newRepoCodespacesSecret"), "repo-secret.json");
   assert.equal(schemaOfFunction("newOrgCodeSecurityConfiguration"), "org-code-security-configuration.json");
+  assert.equal(schemaOfFunction("newTeamSync"), "team-sync.json");
   assert.equal(schemaOfFunction("unknown"), null);
   assert.deepEqual(validate({required_approving_review_count: "0"}, schemaOfFunction("newPullRequest"), SCHEMAS).map((problem) => problem.path), [["required_approving_review_count"]]);
+  assert.deepEqual(validate({id: "123", name: 7, description: ""}, schemaOfFunction("newTeamSync"), SCHEMAS).map((problem) => problem.path), [["name"]]);
+});
+
+test("every function of the reference catalog is validated with a schema", () => {
+  const catalog = JSON.parse(fs.readFileSync(new URL("../../../../home/playground-reference.json", import.meta.url)));
+  const functionsWithoutSchema = Object.keys(catalog.functions).filter((name) => schemaOfFunction(name) === null);
+
+  assert.deepEqual(functionsWithoutSchema, []);
 });
 
 test("values that otterdog does not allow are errors, e.g. an unknown code scanning language", () => {
