@@ -1,28 +1,25 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
 
+  "type": "object",
   "properties": {
     "name": { "type": "string" },
-    "description": { "$ref": "types.json#/$defs/string-or-null" },
-    "privacy": { "type": "string", "enum": ["secret", "visible"] },
-    "notifications": { "type": "boolean" },
-    "skip_members": { "type": "boolean" },
-    "skip_non_organization_members": { "type": "boolean" },
-
+    "description": { "$ref": "types.json#/$defs/string-or-null"},
     "members": {
       "type": "array",
       "items": { "type": "string" }
     },
-
+    "privacy": { "type": "string", "enum": ["secret", "visible"] },
+    "notifications": { "type": "boolean" },
     "team_sync": {
       "type": "array",
-      "items": {
-        "$ref": "team_sync.json"
-      }
+      "items": { "$ref": "team-sync.json" }
     },
-    "external_groups": { "$ref": "types.json#/$defs/string-or-null" }
+    "external_group_id": { "$ref": "types.json#/$defs/integer-or-null" },
+    "skip_members": { "type": "boolean" },
+    "skip_non_organization_members": { "type": "boolean" }
   },
-  "required": ["name", "privacy"],
+
+  "required": [ "name", "privacy" ],
   "additionalProperties": false
 }

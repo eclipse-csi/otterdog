@@ -16,6 +16,14 @@ from otterdog.providers.github.rest import RestApi, RestClient
 
 _logger = get_logger(__name__)
 
+# status codes returned when team synchronization or external groups are not available for an organization,
+# e.g. team synchronization is not enabled, or the organization is not part of an enterprise using
+# Enterprise Managed Users (external groups) or is part of one (team synchronization)
+_FEATURE_NOT_AVAILABLE_STATUSES = (400, 402, 403, 404, 422)
+
+# key of the external group id in the team data, it is not part of the team itself
+_EXTERNAL_GROUP_ID_KEY = "external_group_id"
+
 
 class TeamClient(RestClient):
     def __init__(self, rest_api: RestApi):
@@ -64,7 +72,8 @@ class TeamClient(RestClient):
     async def add_team(self, org_id: str, team_name: str, data: dict[str, str]) -> str:
         _logger.debug("adding team '%s' for org '%s'", team_name, org_id)
 
-        status, body = await self.requester.request_raw("POST", f"/orgs/{org_id}/teams", json.dumps(data))
+        team_data = {k: v for k, v in data.items() if k != _EXTERNAL_GROUP_ID_KEY}
+        status, body = await self.requester.request_raw("POST", f"/orgs/{org_id}/teams", json.dumps(team_data))
 
         if status != 201:
             raise RuntimeError(f"failed to add team '{team_name}': {body}")
@@ -82,8 +91,10 @@ class TeamClient(RestClient):
             members = data["members"]
             for user in members:
                 await self.add_member_to_team(org_id, team_slug, user)
-        if "external_groups" in data and data["external_groups"] is not None:
-            await self.update_team_external_groups(org_id, team_slug, data["external_groups"])
+
+        external_group_id = data.get(_EXTERNAL_GROUP_ID_KEY)
+        if external_group_id is not None:
+            await self.update_team_external_group(org_id, team_slug, int(external_group_id))
 
         _logger.debug("added team '%s'", team_name)
         return team_slug
@@ -92,12 +103,18 @@ class TeamClient(RestClient):
         _logger.debug("updating team '%s' for org '%s'", team_slug, org_id)
 
         try:
-            await self.requester.request_json("PATCH", f"/orgs/{org_id}/teams/{team_slug}", team)
+            team_data = {k: v for k, v in team.items() if k != _EXTERNAL_GROUP_ID_KEY}
+            await self.requester.request_json("PATCH", f"/orgs/{org_id}/teams/{team_slug}", team_data)
 
             if "members" in team:
                 await self.update_team_members(org_id, team_slug, team["members"])
-            if "external_groups" in team:
-                await self.update_team_external_groups(org_id, team_slug, team["external_groups"])
+
+            if _EXTERNAL_GROUP_ID_KEY in team:
+                external_group_id = team[_EXTERNAL_GROUP_ID_KEY]
+                if external_group_id is None:
+                    await self.delete_team_external_group(org_id, team_slug)
+                else:
+                    await self.update_team_external_group(org_id, team_slug, int(external_group_id))
 
             _logger.debug("updated team '%s'", team_slug)
         except GitHubException as ex:
@@ -185,70 +202,69 @@ class TeamClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving membership for user '{user_name}' in org '{org_id}':\n{ex}") from ex
 
-    async def get_team_sync_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+    async def get_team_sync_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]] | None:
+        """
+        Returns the IdP groups connected to the team via team synchronization,
+        or None if team synchronization is not available.
+        """
         _logger.debug("retrieving team sync groups for team '%s/%s'", org_id, team_slug)
 
-        try:
-            response = await self.requester.request_json(
-                "GET", f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings"
-            )
-        except GitHubException as ex:
-            # Only suppress 404 (endpoint not available)
-            if ex.status in (403, 404):
-                _logger.debug("team sync endpoint not available for team '%s/%s' (404)", org_id, team_slug)
-                return []
-            # All other errors must be raised
-            raise RuntimeError(f"failed retrieving team sync groups for team '{org_id}/{team_slug}':\n{ex}") from ex
-
-        return response.get("groups", [])
-
-    async def update_team_sync_groups(self, org_id: str, team_slug: str, groups: list[dict[str, str]] | None) -> None:
-        _logger.debug("updating sync_groups for team '%s' in org '%s'", team_slug, org_id)
-        data = {"groups": []} if groups is None else {"groups": groups}
-        status, body = await self.requester.request_raw(
-            "PATCH", f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings", data=json.dumps(data)
+        response = await self._get_optional_json(
+            f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings",
+            feature_description=f"team synchronization for team '{org_id}/{team_slug}'",
+            unavailable_statuses=_FEATURE_NOT_AVAILABLE_STATUSES,
         )
 
-        if status == 200:
-            _logger.debug("updated team-syncs of team '%s' for org '%s'", team_slug, org_id)
-        else:
-            raise RuntimeError(f"failed updating team-syncs to team '{team_slug}' in org '{org_id}'\n{status}: {body}")
+        return None if response is None else response.get("groups", [])
 
-    async def get_team_external_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
-        _logger.debug("retrieving external groups for team '%s/%s'", org_id, team_slug)
+    async def update_team_sync_groups(self, org_id: str, team_slug: str, groups: list[dict[str, Any]]) -> None:
+        _logger.debug("updating team sync groups for team '%s/%s'", org_id, team_slug)
 
         try:
-            response = await self.requester.request_json("GET", f"/orgs/{org_id}/teams/{team_slug}/external-groups")
+            # the group mappings are replaced as a whole, an empty list disconnects all groups
+            await self.requester.request_json(
+                "PATCH", f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings", {"groups": groups}
+            )
         except GitHubException as ex:
-            # Only suppress 404 (endpoint not available)
-            if ex.status in (400, 404):
-                _logger.debug("external groups endpoint not available for team '%s/%s' (404)", org_id, team_slug)
-                return []
-            raise RuntimeError(f"failed retrieving external groups for team '{org_id}/{team_slug}':\n{ex}") from ex
+            raise RuntimeError(f"failed updating team sync groups for team '{org_id}/{team_slug}':\n{ex}") from ex
 
-        return response
+        _logger.debug("updated team sync groups for team '%s/%s'", org_id, team_slug)
 
-    async def update_team_external_groups(self, org_id: str, team_slug: str, group: str | None) -> None:
-        _logger.debug("updating external_groups for team '%s' in org '%s'", team_slug, org_id)
-        if group is None:
-            status, body = await self.requester.request_raw(
-                "DELETE", f"/orgs/{org_id}/teams/{team_slug}/external-groups"
+    async def get_team_external_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]] | None:
+        """
+        Returns the external groups connected to the team, or None if external groups are not available.
+        """
+        _logger.debug("retrieving external groups for team '%s/%s'", org_id, team_slug)
+
+        response = await self._get_optional_json(
+            f"/orgs/{org_id}/teams/{team_slug}/external-groups",
+            feature_description=f"external groups for team '{org_id}/{team_slug}'",
+            unavailable_statuses=_FEATURE_NOT_AVAILABLE_STATUSES,
+        )
+
+        return None if response is None else response.get("groups", [])
+
+    async def update_team_external_group(self, org_id: str, team_slug: str, group_id: int) -> None:
+        _logger.debug("connecting external group '%d' to team '%s/%s'", group_id, org_id, team_slug)
+
+        try:
+            await self.requester.request_json(
+                "PATCH", f"/orgs/{org_id}/teams/{team_slug}/external-groups", {"group_id": group_id}
             )
-            if status != 204:
-                raise RuntimeError(
-                    f"failed updating external groups from team '{team_slug}' in org '{org_id}'\n{status}: {body}"
-                )
+        except GitHubException as ex:
+            raise RuntimeError(
+                f"failed connecting external group '{group_id}' to team '{org_id}/{team_slug}':\n{ex}"
+            ) from ex
 
-            _logger.debug("updated external groups from team '%s' in org '%s'", team_slug, org_id)
-        else:
-            data = {"group_id": f"{group}"}
-            status, body = await self.requester.request_raw(
-                "PATCH", f"/orgs/{org_id}/teams/{team_slug}/external-groups", data=json.dumps(data)
+        _logger.debug("connected external group '%d' to team '%s/%s'", group_id, org_id, team_slug)
+
+    async def delete_team_external_group(self, org_id: str, team_slug: str) -> None:
+        _logger.debug("disconnecting external group from team '%s/%s'", org_id, team_slug)
+
+        status, body = await self.requester.request_raw("DELETE", f"/orgs/{org_id}/teams/{team_slug}/external-groups")
+        if status != 204:
+            raise RuntimeError(
+                f"failed disconnecting external group from team '{org_id}/{team_slug}'\n{status}: {body}"
             )
 
-            if status == 200:
-                _logger.debug("updated external groups  '%s' of team '%s' for org '%s'", group, team_slug, org_id)
-            else:
-                raise RuntimeError(
-                    f"failed updating external groups '{group}' to team '{team_slug}' in org '{org_id}'\n{status}: {body}"
-                )
+        _logger.debug("disconnected external group from team '%s/%s'", org_id, team_slug)

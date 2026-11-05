@@ -389,11 +389,12 @@ local newOrgRole(name) = {
   base_role: "none",
 };
 
-# Function to create a new team_sync with default settings.
-local newTeamSync(name) = {
-  name: name,
+# Function to create a new team sync entry, i.e. an identity provider group
+# connected to a team, with default settings.
+local newTeamSync(id) = {
+  id: id,
+  name: "",
   description: "",
-  id: "",
 };
 
 # Function to create a new team with default settings.
@@ -404,7 +405,7 @@ local newTeam(name) = {
   notifications: true,
   members: [],
   team_sync: [],
-  external_groups: null,
+  external_group_id: null,
   skip_members: false,
   skip_non_organization_members: false,
 };
