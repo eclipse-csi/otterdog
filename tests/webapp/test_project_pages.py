@@ -86,6 +86,35 @@ async def test_the_cards_of_the_page_of_a_project_have_the_same_color_on_top(app
     assert [card for card in cards if not card.startswith('class="card card-primary card-outline')] == []
 
 
+async def test_the_page_of_a_project_explains_its_facts_and_its_protections(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # the same explanations as on its card on the projects pages (includes/explanations.html)
+    assert 'data-bs-title=""' not in page
+    for label in (
+        "Default Config",
+        "Plan",
+        "2FA",
+        "Default workflow permissions",
+        "DCO sign-off",
+        "Default repository permission",
+        "Repositories",
+    ):
+        assert re.search(rf'data-bs-toggle="tooltip" data-bs-title="[^"]+">\s*{label}\b', page), label
+    for title in (
+        "Branch protection",
+        "Secret scanning",
+        "Dependabot",
+        "Code scanning",
+        "Private vulnerability reporting",
+    ):
+        assert re.search(
+            rf'<h3 class="card-title" data-bs-toggle="tooltip" data-bs-title="Share of the active [^"]+">{title}</h3>',
+            page,
+        ), title
+
+
 async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):
     async with app.test_request_context("/projects/my-project"):
         page = await routes.project("my-project")
@@ -99,7 +128,7 @@ async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):
         "Code scanning",
         "Private vulnerability reporting",
     ):
-        assert f'<h3 class="card-title">{title}</h3>' in page
+        assert re.search(rf'<h3 class="card-title"[^>]*>{title}</h3>', page), title
     assert "<canvas" not in page
     assert "chart.umd.js" not in page
 
@@ -113,7 +142,7 @@ async def test_the_page_of_a_project_shows_the_data_of_its_card_on_the_projects_
     assert "Default repository permission" in page
     # its activity: only the pull requests of the organization, its last fetch
     assert '<h3 class="card-title">Activity</h3>' in page
-    assert re.search(r'<a href="/admin/pullrequests#open-prs">1 open pull request</a>', page)
+    assert re.search(r'<a href="/admin/pullrequests#open-prs"[^>]*>1 open pull request</a>', page)
     assert "Configuration fetched" in page
 
 

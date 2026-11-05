@@ -278,6 +278,18 @@ async def test_a_card_shows_the_security_and_the_activity_of_its_organization(ap
     assert "Last fetch failed" in page
 
 
+async def test_a_card_explains_its_facts_its_protections_and_its_activity(app, projects):
+    page = await _projects_page(app)
+
+    explanations = re.findall(r'data-bs-toggle="tooltip" data-bs-title="([^"]*)"', page)
+    # the five facts and the five protections of the three cards, the scorecard of the one that has it
+    assert len(explanations) == 3 * (5 + 5) + 1
+    assert "" not in explanations
+    assert any(text.startswith("Base permission of every member of the organization") for text in explanations)
+    for protection in re.findall(r"<dt [^>]*>[^<]*</dt>", page):
+        assert 'data-bs-title="Share of the active repositories' in protection
+
+
 async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
     page = await _projects_page(app)
 

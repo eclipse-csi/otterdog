@@ -1,6 +1,7 @@
 {% extends "layouts/base.html" %}
 {% from "includes/share-bar.html" import share_bar, share_figure %}
 {% from "includes/project-card.html" import project_activity %}
+{% from "includes/explanations.html" import explain %}
 
 {% block title %} Profile {% endblock %}
 
@@ -151,18 +152,18 @@
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="{{ base_template.url }}" class="nav-link" target="_blank">
+                                  <a href="{{ base_template.url }}" class="nav-link" target="_blank"{{ explain("defaults") }}>
                                     Default Config
                                     <span class="float-end">{{ base_template.ref }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#settings" class="nav-link tab-link">
+                                  <a href="#settings" class="nav-link tab-link"{{ explain("plan") }}>
                                     Plan <span class="float-end">{{ (card.plan or '–')|capitalize }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#settings" class="nav-link tab-link">
+                                  <a href="#settings" class="nav-link tab-link"{{ explain("two-factor") }}>
                                     2FA
                                     <span class="float-end badge rounded-pill bg-{{ two_factor_color }}-subtle text-{{ two_factor_color }}-emphasis">
                                       {{ 'Enforced' if card.two_factor == true else 'Not enforced' }}
@@ -170,7 +171,7 @@
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#workflow-settings" class="nav-link tab-link">
+                                  <a href="#workflow-settings" class="nav-link tab-link"{{ explain("workflow-permissions") }}>
                                     Default workflow permissions
                                     <span class="float-end badge rounded-pill bg-{{ permissions_color }}-subtle text-{{ permissions_color }}-emphasis">
                                       {{ card.workflow_permissions }}
@@ -178,13 +179,13 @@
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#settings" class="nav-link tab-link">
+                                  <a href="#settings" class="nav-link tab-link"{{ explain("signoff") }}>
                                     DCO sign-off
                                     <span class="float-end">{{ 'Required' if card.signoff else 'Not required' }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#settings" class="nav-link tab-link">
+                                  <a href="#settings" class="nav-link tab-link"{{ explain("default-permission") }}>
                                     Default repository permission <span class="float-end">{{ card.default_permission }}</span>
                                   </a>
                                 </li>
@@ -209,7 +210,7 @@
                                   </a>
                                 </li>
                                 <li class="nav-item">
-                                  <a href="#repositories" class="nav-link tab-link">
+                                  <a href="#repositories" class="nav-link tab-link"{{ explain("repositories") }}>
                                     Repositories
                                     <span class="float-end">
                                       {%- if card.archived %}<span class="otterdog-project__archived">{{ card.archived }} archived &middot;</span> {% endif -%}
@@ -239,7 +240,7 @@
                             <div class="col-md-6">
                               <div class="card card-primary card-outline h-100 mb-0">
                                 <div class="card-header">
-                                  <h3 class="card-title">{{ detail.title }}</h3>
+                                  <h3 class="card-title"{{ explain(detail.title) }}>{{ detail.title }}</h3>
                                 </div>
                                 <div class="card-body">
                                   {{ share_figure(share.percentage or 0, detail.caption) }}

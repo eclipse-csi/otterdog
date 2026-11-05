@@ -26,6 +26,8 @@ $link-hover-color-dark: $otterdog-orange-light;
 // the font of the documentation, served with the assets (@fontsource-variable/inter below) rather than by Google Fonts
 $font-family-sans-serif: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
   "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+// the tooltips explaining the facts of the organizations hold one or two sentences, too narrow at 200px
+$tooltip-max-width: 18rem;
 // the active entry of the sidebar in orange on the purple, like the active tab of the documentation
 $lte-sidebar-menu-active-bg-dark: $otterdog-orange;
 $lte-sidebar-menu-active-color-dark: $otterdog-purple-dark;
@@ -552,6 +554,7 @@ $otterdog-status-critical: #d03b3b;
 .otterdog-project__meta,
 .otterdog-project__activity a,
 .otterdog-project__activity [title],
+.otterdog-project [data-bs-toggle="tooltip"],
 a.otterdog-project__fact {
   position: relative;
   z-index: 2;

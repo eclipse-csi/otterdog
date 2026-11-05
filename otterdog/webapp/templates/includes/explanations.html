@@ -1,0 +1,39 @@
+{#
+  What the facts, the protections and the activity of an organization mean, shown as tooltips (initialized by
+  js/app.js) on its card on the projects pages (includes/project-card.html) and on its page (home/organization.html),
+  with the setting of the configuration they come from.
+#}
+{% set _vulnerability_reporting = "Share of the active repositories where private vulnerability reporting is enabled: "
+  ~ "anyone can report a vulnerability privately to their maintainers." %}
+
+{% set EXPLANATIONS = {
+  "plan": "GitHub plan of the organization: free, team or enterprise. Some settings are only available with a paid "
+    ~ "plan.",
+  "defaults": "Version of the default configuration of otterdog that the configuration of the organization builds on.",
+  "two-factor": "Two-factor authentication required for everyone in the organization: its members, outside "
+    ~ "collaborators and billing managers. Setting: two_factor_requirement.",
+  "workflow-permissions": "Default permissions of the GITHUB_TOKEN of the workflows: read gives read access to the "
+    ~ "contents and the packages only, write gives read and write access to every scope. "
+    ~ "Setting: workflows.default_workflow_permissions.",
+  "signoff": "Commits made in the web interface of GitHub must be signed off by their author, who adds a "
+    ~ "Signed-off-by line. Setting: web_commit_signoff_required.",
+  "default-permission": "Base permission of every member of the organization on all its repositories: none, read, "
+    ~ "write or admin. Teams and collaborators can grant more, never less. Setting: default_repository_permission.",
+  "repositories": "Repositories of the organization. The archived ones are read-only and not counted in the shares "
+    ~ "of the protections.",
+  "Branch protection": "Share of the active repositories with at least one branch protection rule or ruleset.",
+  "Secret scanning": "Share of the active repositories where secret scanning is enabled: in alert mode, it reports "
+    ~ "the secrets found; with push protection, it also blocks the pushes containing secrets.",
+  "Dependabot": "Share of the active repositories with Dependabot alerts, which report their vulnerable "
+    ~ "dependencies, or with Dependabot security updates, which also open pull requests updating them.",
+  "Code scanning": "Share of the active repositories with the default setup of code scanning, which analyzes their "
+    ~ "code with CodeQL.",
+  "Vulnerability reporting": _vulnerability_reporting,
+  "Private vulnerability reporting": _vulnerability_reporting,
+  "pull-requests": "Open pull requests of the configuration repository of the organization: changes of its "
+    ~ "configuration waiting to be merged and applied.",
+  "scorecard": "Average OpenSSF Scorecard score of the repositories of the organization, out of 10.",
+} %}
+
+{# the attributes of the tooltip explaining one of them, e.g. <a href="..."{{ explain("two-factor") }}> #}
+{% macro explain(key) %} data-bs-toggle="tooltip" data-bs-title="{{ EXPLANATIONS[key] }}"{% endmacro %}
