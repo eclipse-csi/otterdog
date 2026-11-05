@@ -391,3 +391,17 @@ class TeamTest(ModelTest):
 
         assert _patch_summary(patches) == [("CHANGE", "Team")]
         assert set(patches[0].changes) == {"external_group_id", "members"}
+
+    def test_validate_team_sync_group_limit(self):
+        # at most 5 IdP groups can be connected to a team
+        groups = [{"id": str(index), "name": f"group-{index}", "description": ""} for index in range(6)]
+
+        for count, failures in [(5, 0), (6, 1)]:
+            with self.subTest(count=count):
+                context = _validation_context()
+
+                self.team_with(team_sync=groups[:count]).validate(context, None)
+
+                assert len(context.validation_failures) == failures
+                if failures > 0:
+                    assert "at most 5 groups can be connected" in context.validation_failures[0][1]

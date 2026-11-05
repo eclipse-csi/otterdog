@@ -13,6 +13,7 @@ The available IdP groups of an organization, including their id, name and descri
 
 Team synchronization requires an organization on GitHub Enterprise Cloud with team synchronization enabled,
 it is not available for organizations that are part of an enterprise using Enterprise Managed Users.
+Up to five IdP groups can be connected to a team.
 
 Like other resources managed by otterdog, a group that is removed from `team_sync` is only disconnected
 from the team when applying the configuration with deletions enabled (`--delete-resources`). As long as

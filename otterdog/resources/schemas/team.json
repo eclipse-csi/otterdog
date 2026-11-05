@@ -13,7 +13,8 @@
     "notifications": { "type": "boolean" },
     "team_sync": {
       "type": "array",
-      "items": { "$ref": "team-sync.json" }
+      "items": { "$ref": "team-sync.json" },
+      "maxItems": 5
     },
     "external_group_id": { "$ref": "types.json#/$defs/integer-or-null" },
     "skip_members": { "type": "boolean" },

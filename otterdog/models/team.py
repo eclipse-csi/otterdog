@@ -44,6 +44,9 @@ if TYPE_CHECKING:
 
 TT = TypeVar("TT", bound="Team")
 
+# the maximum number of IdP groups that can be connected to a team via team synchronization
+MAX_TEAM_SYNC_GROUPS = 5
+
 
 @dataclasses.dataclass
 class Team(ModelObject, abc.ABC):
@@ -143,6 +146,13 @@ class Team(ModelObject, abc.ABC):
                 FailureType.ERROR,
                 f"{self.get_model_header(parent_object)} has 'team_sync' and 'external_group_id' defined, "
                 f"while only one of them is allowed.",
+            )
+
+        if len(self.team_sync) > MAX_TEAM_SYNC_GROUPS:
+            context.add_failure(
+                FailureType.ERROR,
+                f"{self.get_model_header(parent_object)} has {len(self.team_sync)} groups in 'team_sync', "
+                f"while at most {MAX_TEAM_SYNC_GROUPS} groups can be connected to a team.",
             )
 
         if (

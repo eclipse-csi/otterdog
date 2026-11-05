@@ -214,6 +214,9 @@ function checkList(value, schema, context) {
   if (schema.minItems !== undefined && value.length < schema.minItems) {
     report(context, "error", "expected at least " + schema.minItems + " element(s)");
   }
+  if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+    report(context, "error", "expected at most " + schema.maxItems + " element(s)");
+  }
   if (schema.uniqueItems && new Set(value.map((item) => JSON.stringify(item))).size < value.length) {
     report(context, "error", "contains duplicate elements");
   }

@@ -80,6 +80,20 @@ test("the objects created by the functions of the default configuration are vali
   assert.deepEqual(validate({id: "123", name: 7, description: ""}, schemaOfFunction("newTeamSync"), SCHEMAS).map((problem) => problem.path), [["name"]]);
 });
 
+test("the number of elements of lists is validated", () => {
+  // at most 5 IdP groups can be connected to a team
+  const team = (count) => ({
+    name: "admins",
+    privacy: "visible",
+    team_sync: Array.from({length: count}, (_, index) => ({id: String(index), name: "group-" + index, description: ""})),
+  });
+
+  assert.deepEqual(validate(team(5), "team.json", SCHEMAS), []);
+  assert.deepEqual(validate(team(6), "team.json", SCHEMAS).map((problem) => [problem.path, problem.message]), [
+    [["team_sync"], "expected at most 5 element(s)"],
+  ]);
+});
+
 test("the length of strings is validated", () => {
   // the default name of a team sync group is empty
   assert.deepEqual(validate({id: "", name: "", description: ""}, "team-sync.json", SCHEMAS).map((problem) => [problem.path, problem.message]), [

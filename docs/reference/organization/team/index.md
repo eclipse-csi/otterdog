@@ -16,7 +16,7 @@ Definition of an organization `Team`, the following properties are supported:
 
 The membership of a team can be managed by an identity provider (IdP), with one of these mechanisms:
 
-- **team synchronization** (`team_sync`): one or more IdP groups are connected to the team, available for
+- **team synchronization** (`team_sync`): up to five IdP groups are connected to the team, available for
   organizations on GitHub Enterprise Cloud with team synchronization enabled
 - **external groups** (`external_group_id`): a single external group is connected to the team, available for
   organizations that are part of an enterprise using Enterprise Managed Users
@@ -44,6 +44,7 @@ orgs.newTeam('<name>') {
 - specifying both `team_sync` and `external_group_id`, triggers an error
 - specifying a non-empty list of `members` for a team connected to an identity provider group, triggers an error
 - specifying the same group `id` more than once in `team_sync`, triggers an error
+- specifying more than five groups in `team_sync`, triggers an error
 
 ## Example usage
 
