@@ -18,6 +18,7 @@ import pytest
 
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db import service
+from otterdog.webapp.db.models import InstallationStatus, PullRequestStatus, TaskModel, TaskStatus
 from otterdog.webapp.home import routes
 
 _TEMPLATE_DIR = Path(__file__).parents[2] / "otterdog" / "resources" / "defaults"
@@ -39,9 +40,19 @@ def project(tmp_path, monkeypatch):
         config=jsonnet_evaluate_file(str(tmp_path / "my-org.jsonnet"), str(tmp_path)),
     )
     installation = pretend.stub(
-        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1"
+        github_id="my-org",
+        project_name="my-project",
+        installation_status=InstallationStatus.INSTALLED,
+        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1",
+        config_repo=".otterdog",
     )
     nothing = mock.AsyncMock(return_value=[])
+    # an open pull request of the organization, and one of another one
+    pull_requests = [
+        pretend.stub(id=pretend.stub(org_id="my-org"), status=PullRequestStatus.OPEN),
+        pretend.stub(id=pretend.stub(org_id="other-org"), status=PullRequestStatus.OPEN),
+    ]
+    fetch = TaskModel(type="FetchConfigTask", org_id="my-org", repo_name=".otterdog", status=TaskStatus.FINISHED)
 
     monkeypatch.setattr(routes, "get_configuration_by_project_name", mock.AsyncMock(return_value=config))
     monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=installation))
@@ -51,6 +62,8 @@ def project(tmp_path, monkeypatch):
     for name in ["get_policies_status", "get_blueprints", "get_blueprints_status", "get_scorecard_results"]:
         monkeypatch.setattr(routes, name, nothing)
     monkeypatch.setattr(routes, "find_scorecard_result", mock.AsyncMock(return_value=None))
+    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", mock.AsyncMock(return_value=pull_requests))
+    monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"my-org": fetch}))
 
 
 async def test_the_page_of_a_project_links_to_its_playground(app, project):
@@ -78,10 +91,31 @@ async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):
     async with app.test_request_context("/projects/my-project"):
         page = await routes.project("my-project")
 
-    # a segmented bar per share rather than a doughnut drawn by Chart.js
-    assert page.count('class="otterdog-share__bar"') == 2
+    # a segmented bar per protection rather than a doughnut drawn by Chart.js
+    assert page.count('class="otterdog-share__bar"') == 5
+    for title in (
+        "Branch protection",
+        "Secret scanning",
+        "Dependabot",
+        "Code scanning",
+        "Private vulnerability reporting",
+    ):
+        assert f'<h3 class="card-title">{title}</h3>' in page
     assert "<canvas" not in page
     assert "chart.umd.js" not in page
+
+
+async def test_the_page_of_a_project_shows_the_data_of_its_card_on_the_projects_pages(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # its governance
+    assert re.search(r"DCO sign-off\s*<span class=\"float-end\">(Required|Not required)</span>", page)
+    assert "Default repository permission" in page
+    # its activity: only the pull requests of the organization, its last fetch
+    assert '<h3 class="card-title">Activity</h3>' in page
+    assert re.search(r'<a href="/admin/pullrequests#open-prs">1 open pull request</a>', page)
+    assert "Configuration fetched" in page
 
 
 async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(app, project):

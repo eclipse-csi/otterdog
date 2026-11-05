@@ -59,6 +59,33 @@ class Share:
 
 
 @dataclasses.dataclass(frozen=True)
+class SharePart:
+    """A part of the active repositories of an organization, e.g. the ones with secret scanning in alert mode."""
+
+    label: str
+    count: int
+    status: str
+
+
+@dataclasses.dataclass(frozen=True)
+class ShareDetail:
+    """
+    The share of the active repositories with a protection, split into its parts for the segmented bar of the page of
+    an organization (includes/share-bar.html), its last part being the repositories without the protection.
+    """
+
+    title: str
+    caption: str
+    parts: tuple[SharePart, ...]
+
+    @property
+    def share(self) -> Share:
+        """The share of the repositories protected, partly or fully: in every part but the last one."""
+        total = sum(part.count for part in self.parts)
+        return Share(self.title, (total - self.parts[-1].count) / total * 100 if total > 0 else None)
+
+
+@dataclasses.dataclass(frozen=True)
 class Fetch:
     """The last fetch of the configuration of an organization."""
 
@@ -148,6 +175,53 @@ def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
         statistics.repos_with_code_scanning,
     )
     return tuple(Share(label, count / active * 100) for label, count in zip(labels, counts, strict=True))
+
+
+def security_details(statistics: StatisticsModel) -> tuple[ShareDetail, ...]:
+    """The shares of the active repositories of an organization with each protection, split into their parts."""
+    active = statistics.total_repos - statistics.archived_repos
+    branch = statistics.repos_with_branch_protection
+    alerts = statistics.repos_with_secret_scanning
+    push = statistics.repos_with_secret_scanning_push_protection
+    dependabot_alerts = statistics.repos_with_dependabot_alerts
+    updates = statistics.repos_with_dependabot_security_updates
+    code = statistics.repos_with_code_scanning
+    reporting = statistics.repos_with_private_vulnerability_reporting
+    return (
+        ShareDetail(
+            "Branch protection",
+            "protected",
+            (SharePart("Protected", branch, "good"), SharePart("Not protected", active - branch, "critical")),
+        ),
+        ShareDetail(
+            "Secret scanning",
+            "with alert or protection",
+            (
+                SharePart("Protection mode", push, "good"),
+                SharePart("Alert mode", alerts, "warning"),
+                SharePart("Disabled", active - alerts - push, "critical"),
+            ),
+        ),
+        ShareDetail(
+            "Dependabot",
+            "with alerts or updates",
+            (
+                SharePart("Security updates", updates, "good"),
+                SharePart("Alerts", dependabot_alerts, "warning"),
+                SharePart("Disabled", active - dependabot_alerts - updates, "critical"),
+            ),
+        ),
+        ShareDetail(
+            "Code scanning",
+            "with default setup",
+            (SharePart("Default setup", code, "good"), SharePart("Not configured", active - code, "warning")),
+        ),
+        ShareDetail(
+            "Private vulnerability reporting",
+            "enabled",
+            (SharePart("Enabled", reporting, "good"), SharePart("Disabled", active - reporting, "warning")),
+        ),
+    )
 
 
 def _change(installation: InstallationModel, configuration: ConfigurationModel | None) -> Change | None:

@@ -871,10 +871,16 @@ async def get_statistics_by_github_id() -> dict[str, StatisticsModel]:
     return {statistics.github_id: statistics for statistics in await mongo.odm.find(StatisticsModel)}
 
 
-async def get_latest_tasks_by_organization(task_type: str) -> dict[str, TaskModel]:
-    """The latest task of a type that ran for each organization, e.g. the fetch of its configuration, by its id."""
+async def get_latest_tasks_by_organization(task_type: str, org_id: str | None = None) -> dict[str, TaskModel]:
+    """
+    The latest task of a type that ran for each organization, or for the given one, e.g. the fetch of its
+    configuration, by its id.
+    """
+    match: dict[str, Any] = {"type": task_type, "status": {"$ne": TaskStatus.CREATED.value}}
+    if org_id is not None:
+        match["org_id"] = org_id
     pipeline: list[dict[str, Any]] = [
-        {"$match": {"type": task_type, "status": {"$ne": TaskStatus.CREATED.value}}},
+        {"$match": match},
         {"$sort": {"created_at": -1}},
         {"$group": {"_id": "$org_id", "task": {"$first": "$$ROOT"}}},
     ]

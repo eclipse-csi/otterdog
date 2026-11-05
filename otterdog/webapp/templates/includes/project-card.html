@@ -128,52 +128,60 @@
       {% endfor %}
     </dl>
 
-    <ul class="otterdog-project__activity">
-      <li>
-        <i class="fas fa-code-pull-request fa-fw" aria-hidden="true"></i>
-        {% if card.open_pull_requests %}
-        <a href="/admin/pullrequests#open-prs">
-          {{- card.open_pull_requests }} open pull request{{ '' if card.open_pull_requests == 1 else 's' -}}
-        </a>
-        {% else %}
-        No open pull request
-        {% endif %}
-      </li>
-      <li>
-        <i class="fas fa-rotate fa-fw" aria-hidden="true"></i>
-        {# a failed fetch first, the stored configuration being older than the latest one; else the latest change of
-           the configuration, the fetch for the ones stored before their changes were #}
-        {% if card.fetch is not none and card.fetch.failed %}
-        <span class="otterdog-project__warning" title="{{ card.fetch.log or '' }}">
-          Last fetch failed {{ ago(card.fetch.at, now) }}
-        </span>
-        {% elif card.change is not none %}
-        <a href="{{ card.change.url }}" title="Commit {{ card.change.sha[:7] }}">
-          Configuration changed {{ ago(card.change.at, now) }}
-        </a>
-        {% elif card.fetch is not none %}
-        Configuration fetched {{ ago(card.fetch.at, now) }}
-        {% else %}
-        Configuration never fetched
-        {% endif %}
-      </li>
-      {% if card.failing_blueprints %}
-      <li>
-        <i class="fas fa-clipboard-list fa-fw" aria-hidden="true"></i>
-        {% if linked %}<a href="{{ project_url }}#blueprints">{% endif -%}
-        <span class="otterdog-project__warning">
-          {{- card.failing_blueprints }} failing blueprint{{ '' if card.failing_blueprints == 1 else 's' -}}
-        </span>
-        {%- if linked %}</a>{% endif %}
-      </li>
-      {% endif %}
-      {% if card.scorecard is not none %}
-      <li>
-        <i class="fas fa-star fa-fw" aria-hidden="true"></i>
-        <a href="/scorecard/checks">OpenSSF Scorecard {{ '%.1f'|format(card.scorecard) }}</a>
-      </li>
-      {% endif %}
-    </ul>
+    {{ project_activity(card, now, ago) }}
   </div>
 </div>
+{% endmacro %}
+
+{# the activity of an organization: the open pull requests of its configuration repository, the latest change of its
+   configuration or the failure of its last fetch, its failing blueprints and its average OpenSSF Scorecard #}
+{% macro project_activity(card, now, ago) %}
+{% set linked = card.linked %}
+{% set project_url = '/projects/' ~ card.project_name %}
+<ul class="otterdog-project__activity">
+  <li>
+    <i class="fas fa-code-pull-request fa-fw" aria-hidden="true"></i>
+    {% if card.open_pull_requests %}
+    <a href="/admin/pullrequests#open-prs">
+      {{- card.open_pull_requests }} open pull request{{ '' if card.open_pull_requests == 1 else 's' -}}
+    </a>
+    {% else %}
+    No open pull request
+    {% endif %}
+  </li>
+  <li>
+    <i class="fas fa-rotate fa-fw" aria-hidden="true"></i>
+    {# a failed fetch first, the stored configuration being older than the latest one; else the latest change of
+       the configuration, the fetch for the ones stored before their changes were #}
+    {% if card.fetch is not none and card.fetch.failed %}
+    <span class="otterdog-project__warning" title="{{ card.fetch.log or '' }}">
+      Last fetch failed {{ ago(card.fetch.at, now) }}
+    </span>
+    {% elif card.change is not none %}
+    <a href="{{ card.change.url }}" title="Commit {{ card.change.sha[:7] }}">
+      Configuration changed {{ ago(card.change.at, now) }}
+    </a>
+    {% elif card.fetch is not none %}
+    Configuration fetched {{ ago(card.fetch.at, now) }}
+    {% else %}
+    Configuration never fetched
+    {% endif %}
+  </li>
+  {% if card.failing_blueprints %}
+  <li>
+    <i class="fas fa-clipboard-list fa-fw" aria-hidden="true"></i>
+    {% if linked %}<a href="{{ project_url }}#blueprints">{% endif -%}
+    <span class="otterdog-project__warning">
+      {{- card.failing_blueprints }} failing blueprint{{ '' if card.failing_blueprints == 1 else 's' -}}
+    </span>
+    {%- if linked %}</a>{% endif %}
+  </li>
+  {% endif %}
+  {% if card.scorecard is not none %}
+  <li>
+    <i class="fas fa-star fa-fw" aria-hidden="true"></i>
+    <a href="/scorecard/checks">OpenSSF Scorecard {{ '%.1f'|format(card.scorecard) }}</a>
+  </li>
+  {% endif %}
+</ul>
 {% endmacro %}

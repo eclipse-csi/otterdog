@@ -1,5 +1,6 @@
 {% extends "layouts/base.html" %}
 {% from "includes/share-bar.html" import share_bar, share_figure %}
+{% from "includes/project-card.html" import project_activity %}
 
 {% block title %} Profile {% endblock %}
 
@@ -124,14 +125,18 @@
               <div class="card-body">
                 <div class="tab-content" id="organization-tabContent">
                   <div class="tab-pane show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                    <!-- the same data as the card of the organization on the projects pages (home/projects.py): its
+                         governance, its activity and the share of its repositories with each protection -->
                     <div class="container-fluid">
-                      <div class="row">
-                        <div class="col-sm-4">
-                          <div class="card card-primary card-outline">
+                      <div class="row g-3">
+                        <div class="col-xl-4">
+                          <div class="card card-primary card-outline h-100 mb-0">
                             <div class="card-header">
                               <h3 class="card-title">General</h3>
                             </div>
                             <div class="card-body">
+                              {% set two_factor_color = 'success' if card.two_factor == true else 'danger' %}
+                              {% set permissions_color = 'success' if card.workflow_permissions == 'read' else 'danger' %}
                               <ul class="nav flex-column">
                                 <li class="nav-item">
                                   <a href="{{ project_url }}" class="nav-link" target="_blank">
@@ -153,14 +158,34 @@
                                 </li>
                                 <li class="nav-item">
                                   <a href="#settings" class="nav-link tab-link">
-                                    {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                                    2FA enforced <span class="float-end badge text-bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
+                                    Plan <span class="float-end">{{ (card.plan or '–')|capitalize }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#settings" class="nav-link tab-link">
+                                    2FA
+                                    <span class="float-end badge rounded-pill bg-{{ two_factor_color }}-subtle text-{{ two_factor_color }}-emphasis">
+                                      {{ 'Enforced' if card.two_factor == true else 'Not enforced' }}
+                                    </span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
                                   <a href="#workflow-settings" class="nav-link tab-link">
-                                    {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                                    Default workflow permissions <span class="float-end badge text-bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
+                                    Default workflow permissions
+                                    <span class="float-end badge rounded-pill bg-{{ permissions_color }}-subtle text-{{ permissions_color }}-emphasis">
+                                      {{ card.workflow_permissions }}
+                                    </span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#settings" class="nav-link tab-link">
+                                    DCO sign-off
+                                    <span class="float-end">{{ 'Required' if card.signoff else 'Not required' }}</span>
+                                  </a>
+                                </li>
+                                <li class="nav-item">
+                                  <a href="#settings" class="nav-link tab-link">
+                                    Default repository permission <span class="float-end">{{ card.default_permission }}</span>
                                   </a>
                                 </li>
                                 <li class="nav-item">
@@ -185,49 +210,49 @@
                                 </li>
                                 <li class="nav-item">
                                   <a href="#repositories" class="nav-link tab-link">
-                                    Repositories <span class="float-end badge text-bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
+                                    Repositories
+                                    <span class="float-end">
+                                      {%- if card.archived %}<span class="otterdog-project__archived">{{ card.archived }} archived &middot;</span> {% endif -%}
+                                      <span class="badge text-bg-{{ config.repositories|length_to_color}}">{{ config.repositories|length }}</span>
+                                    </span>
                                   </a>
                                 </li>
                               </ul>
                             </div>
                           </div>
                         </div>
-                        <div class="col-sm-4">
-                          <div class="card card-{{ secret_scanning_data|from_json|first|int_status }} card-outline">
-                            <div class="card-header">
-                              <h3 class="card-title">Secret Scanning</h3>
+                        <div class="col-xl-8">
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <div class="card card-primary card-outline h-100 mb-0">
+                                <div class="card-header">
+                                  <h3 class="card-title">Activity</h3>
+                                </div>
+                                <div class="card-body">
+                                  {{ project_activity(card, now, ago) }}
+                                </div>
+                              </div>
                             </div>
-                            <div class="card-body">
-                              {% set data = secret_scanning_data|from_json %}
-                              {% set total = data|sum %}
-                              {{ share_figure((data[1] + data[2]) / total * 100 if total > 0 else 0, "with alert or protection") }}
-                              {{ share_bar("Secret scanning", [
-                                {"label": "Protection mode", "count": data[2], "status": "good"},
-                                {"label": "Alert mode", "count": data[1], "status": "warning"},
-                                {"label": "Disabled", "count": data[0], "status": "critical"}
-                              ]) }}
+                            {# a card per protection, its border on top in the color of its level (home/projects.py) #}
+                            {% for detail in security %}
+                            {% set share = detail.share %}
+                            {% set color = {'good': 'success', 'warning': 'warning', 'critical': 'danger'}.get(share.status, 'secondary') %}
+                            <div class="col-md-6">
+                              <div class="card card-{{ color }} card-outline h-100 mb-0">
+                                <div class="card-header">
+                                  <h3 class="card-title">{{ detail.title }}</h3>
+                                </div>
+                                <div class="card-body">
+                                  {{ share_figure(share.percentage or 0, detail.caption) }}
+                                  {{ share_bar(detail.title, detail.parts) }}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                        <div class="col-sm-4">
-                          <div class="card card-{{ branch_protection_data|from_json|first|int_status }} card-outline">
-                            <div class="card-header">
-                              <h3 class="card-title">Branch Protections</h3>
-                            </div>
-                            <div class="card-body">
-                              {% set data = branch_protection_data|from_json %}
-                              {% set total = data|sum %}
-                              {{ share_figure((data[1]) / total * 100 if total > 0 else 0, "enabled") }}
-                              {{ share_bar("Branch protections", [
-                                {"label": "Protected", "count": data[1], "status": "good"},
-                                {"label": "Not protected", "count": data[0], "status": "critical"}
-                              ]) }}
-                            </div>
+                            {% endfor %}
                           </div>
                         </div>
                       </div>
                     </div>
-                    <!-- /.card -->
                   </div>
                   <div class="tab-pane" id="policies" role="tabpanel" aria-labelledby="policies-tab">
                     <div class="row">

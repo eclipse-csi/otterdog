@@ -87,6 +87,16 @@ async def test_the_latest_task_of_each_organization(database):
     assert (tasks["eclipse-che"].status, tasks["eclipse-che"].log) == (TaskStatus.FAILED, "failed to evaluate")
 
 
+async def test_the_latest_task_of_an_organization(database):
+    collection = _AggregatingCollection([])
+    database.get_collection.return_value = collection
+
+    assert await service.get_latest_tasks_by_organization("FetchConfigTask", "eclipse-che") == {}
+    assert collection.pipeline[0] == {
+        "$match": {"type": "FetchConfigTask", "status": {"$ne": "created"}, "org_id": "eclipse-che"}
+    }
+
+
 async def test_the_blueprint_statuses_of_each_organization(database):
     database.get_collection.return_value = _AggregatingCollection(
         [

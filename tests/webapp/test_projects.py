@@ -236,3 +236,30 @@ def test_the_cards_take_the_data_of_their_organization_and_are_grouped():
         ("ecd", ["ecd.che", "ecd.theia"]),
         ("technology", ["technology.csi"]),
     ]
+
+
+def test_the_shares_of_an_organization_split_into_their_parts():
+    details = projects.security_details(_statistics(repos_with_private_vulnerability_reporting=3))
+
+    # 10 active repositories
+    assert [(x.title, [(part.label, part.count) for part in x.parts]) for x in details] == [
+        ("Branch protection", [("Protected", 4), ("Not protected", 6)]),
+        ("Secret scanning", [("Protection mode", 7), ("Alert mode", 2), ("Disabled", 1)]),
+        ("Dependabot", [("Security updates", 0), ("Alerts", 5), ("Disabled", 5)]),
+        ("Code scanning", [("Default setup", 10), ("Not configured", 0)]),
+        ("Private vulnerability reporting", [("Enabled", 3), ("Disabled", 7)]),
+    ]
+    # the share is the one of the repositories protected, partly or fully, its level the one of the projects pages
+    assert [(x.share.percentage, x.share.status) for x in details] == [
+        (40.0, "critical"),
+        (90.0, "good"),
+        (50.0, "warning"),
+        (100.0, "good"),
+        (30.0, "critical"),
+    ]
+
+
+def test_the_shares_of_an_organization_without_active_repositories_are_unknown_in_their_parts():
+    details = projects.security_details(_statistics(total_repos=1, archived_repos=1, repos_with_branch_protection=0))
+
+    assert details[0].share.percentage is None

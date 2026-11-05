@@ -11,6 +11,7 @@ import functools
 import json
 import os.path
 import re
+from collections import Counter
 from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
@@ -258,9 +259,12 @@ async def project(project_name: str):
 
     from otterdog.models.github_organization import GitHubOrganization
     from otterdog.webapp.db.service import get_policies
+    from otterdog.webapp.tasks.fetch_config import get_organization_statistics
 
     github_organization = GitHubOrganization.from_model_data(config.config)
     code_security_data = _get_code_security_data(github_organization)
+    # the statistics of the repositories as the fetch of the configuration computes them, for the projects pages
+    statistics = get_organization_statistics(config.project_name or project_name, config.github_id, github_organization)
     # the settings that the code security configuration of a repository sets take precedence over its own ones
     github_organization.set_repositories(
         [github_organization.get_effective_repository(x) for x in github_organization.repositories]
@@ -277,7 +281,20 @@ async def project(project_name: str):
         status_list = blueprints_status.setdefault(blueprint_id, [])
         status_list.append(status.model_dump())
 
-    scorecard_results = {m.id.repo_name: m.model_dump() for m in await get_scorecard_results(config.github_id)}
+    scorecards = await get_scorecard_results(config.github_id)
+    scorecard_results = {m.id.repo_name: m.model_dump() for m in scorecards}
+    scores = [m.score for m in scorecards if m.score is not None]
+
+    # the same card as on the projects pages, for its governance and its activity
+    card = projects.project_card(
+        installation,
+        config,
+        statistics,
+        [x for x in await get_open_or_incomplete_pull_requests() if x.id.org_id == config.github_id],
+        (await get_latest_tasks_by_organization(projects.FETCH_CONFIG_TASK, config.github_id)).get(config.github_id),
+        Counter(status.status.value for status in all_blueprints_status),
+        sum(scores) / len(scores) if scores else None,
+    )
 
     template = installation.base_template
     template_ref = "N/A"
@@ -301,8 +318,10 @@ async def project(project_name: str):
         policies_status=policies_status,
         blueprints=blueprints,
         blueprints_status=blueprints_status,
-        secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
-        branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
+        card=card,
+        security=projects.security_details(statistics),
+        now=projects.now(),
+        ago=projects.ago,
         scorecard_results=scorecard_results,
         code_security=code_security_data,
     )
@@ -330,41 +349,6 @@ def _get_code_security_data(org: GitHubOrganization) -> dict[str, Any]:
         "repositories": repositories,
         "without_configuration": without_configuration,
     }
-
-
-def _get_secret_scanning_data(org: GitHubOrganization) -> list[int]:
-    alert_mode = 0
-    protection_mode = 0
-    not_configured = 0
-
-    for repo in org.repositories:
-        if repo.archived is True:
-            continue
-
-        if repo.secret_scanning_push_protection == "enabled":
-            protection_mode += 1
-        elif repo.secret_scanning == "enabled":
-            alert_mode += 1
-        else:
-            not_configured += 1
-
-    return [not_configured, alert_mode, protection_mode]
-
-
-def _get_branch_protection_data(org: GitHubOrganization) -> list[int]:
-    protected = 0
-    not_protected = 0
-
-    for repo in org.repositories:
-        if repo.archived is True:
-            continue
-
-        if len(repo.rulesets) > 0 or len(repo.branch_protection_rules) > 0:
-            protected += 1
-        else:
-            not_protected += 1
-
-    return [not_protected, protected]
 
 
 @blueprint.route("/projects/<project_name>/defaults")

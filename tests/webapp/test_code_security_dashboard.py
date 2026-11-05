@@ -21,6 +21,7 @@ from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.api.graphql import schema
 from otterdog.webapp.db import service
+from otterdog.webapp.db.models import InstallationStatus
 from otterdog.webapp.db.service import Statistics
 from otterdog.webapp.home import routes
 from otterdog.webapp.tasks.fetch_config import get_organization_statistics
@@ -72,7 +73,11 @@ def config(tmp_path):
 @pytest.fixture
 def project(config, monkeypatch):
     installation = pretend.stub(
-        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1"
+        github_id="my-org",
+        project_name="my-project",
+        installation_status=InstallationStatus.INSTALLED,
+        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1",
+        config_repo=".otterdog",
     )
     nothing = mock.AsyncMock(return_value=[])
 
@@ -84,6 +89,9 @@ def project(config, monkeypatch):
     for name in ["get_policies_status", "get_blueprints", "get_blueprints_status", "get_scorecard_results"]:
         monkeypatch.setattr(routes, name, nothing)
     monkeypatch.setattr(routes, "find_scorecard_result", mock.AsyncMock(return_value=None))
+    # the activity of the organization (home/projects.py)
+    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", nothing)
+    monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={}))
 
 
 async def test_the_page_of_a_project_lists_its_code_security_configurations(app, project):

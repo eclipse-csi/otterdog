@@ -717,3 +717,15 @@ a.otterdog-project__fact {
 .otterdog-group[open] > .otterdog-group__title::before {
   transform: rotate(90deg);
 }
+
+// the activity of an organization in a card of its page (home/organization.html), rather than at the bottom of its
+// card on the projects pages
+.card-body > .otterdog-project__activity {
+  padding: 0;
+  font-size: .875rem;
+  border-top: 0;
+
+  li + li {
+    margin-top: .5rem;
+  }
+}
