@@ -1,0 +1,14 @@
+  <script>
+    // the color mode chosen with the toggle of the header, else the one of the system, set before the page renders so
+    // that it does not flash; js/color-scheme.js changes it with the same storage key
+    (function () {
+      var stored = null;
+      try {
+        stored = localStorage.getItem("otterdog-color-scheme");
+      } catch (e) {
+        // no storage, the mode of the system
+      }
+      var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-bs-theme", dark ? "dark" : "light");
+    })();
+  </script>

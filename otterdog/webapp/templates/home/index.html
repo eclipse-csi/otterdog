@@ -14,23 +14,29 @@
 
   <div class="app-main">
 
-    <!-- Content Header (Page header) -->
-    <div class="app-content-header">
+    <!-- the hero of the home page, like the one of the documentation: the white logo of the official artwork, the
+         name of the page being hidden text for screen readers (css/app.scss) -->
+    <section class="otterdog-hero">
       <div class="container-fluid">
-        <div class="row mb-2">
-          <div class="col-sm-6">
-            <h1 class="m-0 text-dark">Dashboard</h1>
-          </div>
-          <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-              <li class="breadcrumb-item"><a href="/index">Home</a></li>
-              <li class="breadcrumb-item active">Dashboard</li>
-            </ol>
-          </div>
-        </div>
+        <h1 class="otterdog-hero__title">
+          <span class="visually-hidden">Otterdog Dashboard</span>
+          <img class="otterdog-hero__logo" src="{{ asset('img/otterdog-logo-white.png') }}" alt="" width="1927" height="672">
+        </h1>
+        <p class="otterdog-hero__text">
+          Manage GitHub organizations at scale: the configuration of an organization and of its repositories lives in a
+          repository, every change is a pull request.
+        </p>
+        <a class="btn otterdog-hero__button otterdog-hero__button--primary" href="/playground">Try the playground</a>
+        <a class="btn otterdog-hero__button" href="/allprojects">All projects</a>
+        <a class="btn otterdog-hero__button" href="{{ documentation_url }}" target="_blank" rel="noopener">
+          Documentation <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+        </a>
+        <a class="btn otterdog-hero__button" href="{{ documentation_url }}userguide/guides/" target="_blank" rel="noopener">
+          Configuration guides <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+        </a>
       </div>
-    </div>
-    <!-- /.content-header -->
+    </section>
+    <!-- /.otterdog-hero -->
 
     <!-- Main content -->
     <section class="app-content">

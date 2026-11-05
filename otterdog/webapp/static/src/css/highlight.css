@@ -1,1 +1,67 @@
 @import '../../node_modules/highlight.js/styles/1c-light.css';
+
+/* the colors of 1c-light, too dark on the dark background of the dark mode (js/color-scheme.js), lighter ones for the
+   same tokens */
+[data-bs-theme="dark"] .hljs {
+  color: #8ab4ff;
+  background: var(--bs-tertiary-bg);
+}
+
+[data-bs-theme="dark"] .hljs-comment {
+  color: #6fcf6f;
+}
+
+[data-bs-theme="dark"] .hljs-tag,
+[data-bs-theme="dark"] .hljs-tag .hljs-name,
+[data-bs-theme="dark"] .hljs-tag .hljs-attr {
+  color: #adb5bd;
+}
+
+[data-bs-theme="dark"] .hljs-punctuation,
+[data-bs-theme="dark"] .hljs-function,
+[data-bs-theme="dark"] .hljs-keyword,
+[data-bs-theme="dark"] .hljs-attribute,
+[data-bs-theme="dark"] .hljs-selector-tag,
+[data-bs-theme="dark"] .hljs-doctag,
+[data-bs-theme="dark"] .hljs-name,
+[data-bs-theme="dark"] .hljs-literal {
+  color: #ff7b72;
+}
+
+[data-bs-theme="dark"] .hljs-type,
+[data-bs-theme="dark"] .hljs-params,
+[data-bs-theme="dark"] .hljs-title,
+[data-bs-theme="dark"] .hljs-section,
+[data-bs-theme="dark"] .hljs-built_in,
+[data-bs-theme="dark"] .hljs-bullet,
+[data-bs-theme="dark"] .hljs-code,
+[data-bs-theme="dark"] .hljs-addition {
+  color: #8ab4ff;
+}
+
+[data-bs-theme="dark"] .hljs-string,
+[data-bs-theme="dark"] .hljs-number,
+[data-bs-theme="dark"] .hljs-selector-id,
+[data-bs-theme="dark"] .hljs-selector-class,
+[data-bs-theme="dark"] .hljs-quote,
+[data-bs-theme="dark"] .hljs-template-tag,
+[data-bs-theme="dark"] .hljs-symbol,
+[data-bs-theme="dark"] .hljs-deletion {
+  color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .hljs-regexp,
+[data-bs-theme="dark"] .hljs-variable,
+[data-bs-theme="dark"] .hljs-template-variable,
+[data-bs-theme="dark"] .hljs-link,
+[data-bs-theme="dark"] .hljs-selector-attr,
+[data-bs-theme="dark"] .hljs-operator,
+[data-bs-theme="dark"] .hljs-selector-pseudo {
+  color: #e6a0a0;
+}
+
+[data-bs-theme="dark"] .hljs-meta,
+[data-bs-theme="dark"] .hljs-meta .hljs-string,
+[data-bs-theme="dark"] .hljs-meta .hljs-keyword {
+  color: #e0a060;
+}
