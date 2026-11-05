@@ -64,10 +64,10 @@ class TestTeamSyncGroups:
         assert await team_client(requester).get_team_sync_groups("org", "team") is None
 
     async def test_get_team_sync_groups_fails(self):
-        requester = FakeRequester({("GET", TEAM_SYNC_URL): (500, {"message": "error"})})
+        client = team_client(FakeRequester({("GET", TEAM_SYNC_URL): (500, {"message": "error"})}))
 
         with pytest.raises(RuntimeError, match="team synchronization for team 'org/team': 500"):
-            await team_client(requester).get_team_sync_groups("org", "team")
+            await client.get_team_sync_groups("org", "team")
 
     async def test_update_team_sync_groups(self):
         groups = [{"group_id": "123", "group_name": "admins", "group_description": ""}]
@@ -140,10 +140,10 @@ class TestExternalGroups:
         assert requester.requests == [("PATCH", TEAM_URL, {"description": "desc"})]
 
     async def test_disconnect_external_group_fails(self):
-        requester = FakeRequester({("DELETE", EXTERNAL_GROUPS_URL): (422, {"message": "error"})})
+        client = team_client(FakeRequester({("DELETE", EXTERNAL_GROUPS_URL): (422, {"message": "error"})}))
 
         with pytest.raises(RuntimeError, match="failed disconnecting external group"):
-            await team_client(requester).delete_team_external_group("org", "team")
+            await client.delete_team_external_group("org", "team")
 
     async def test_add_team_connects_external_group(self):
         requester = FakeRequester({("POST", "/orgs/org/teams"): (201, {"slug": "team"})})

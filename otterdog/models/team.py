@@ -132,6 +132,9 @@ class Team(ModelObject, abc.ABC):
                         f"but 'members' contains user '{member}' who is not an organization member.",
                     )
 
+        self._validate_identity_provider(context, parent_object)
+
+    def _validate_identity_provider(self, context: ValidationContext, parent_object: Any) -> None:
         has_team_sync = len(self.team_sync) > 0
         has_external_group = is_set_and_present(self.external_group_id)
 
