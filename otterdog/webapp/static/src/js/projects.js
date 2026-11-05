@@ -47,6 +47,7 @@ const ORDERS = {
   "changed-recently": descending("changed"),
   "changed-long-ago": ascending("changed"),
   repositories: descending("repositories"),
+  archived: descending("archived"),
 };
 
 export function compare(sort) {

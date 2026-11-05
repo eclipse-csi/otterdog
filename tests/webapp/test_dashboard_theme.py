@@ -73,6 +73,10 @@ async def test_the_home_page_shows_the_figures_of_the_instance(app, statistics):
     assert '<a class="otterdog-stat otterdog-stat--purple" href="/admin/organizations">' in page
     assert '<a class="otterdog-stat otterdog-stat--orange" href="/admin/pullrequests#open-prs">' in page
     assert '<a class="otterdog-stat otterdog-stat--green" href="/admin/pullrequests#merged-prs">' in page
+    # the repositories open the organizations in a single list, sorted by their repositories
+    assert page.count('href="/allprojects?by=none&amp;sort=repositories"') == 2
+    assert '<a class="otterdog-stat otterdog-stat--grey" href="/allprojects?by=none&amp;sort=archived">' in page
+    assert '<div class="otterdog-stat' not in page
     assert "small-box" not in page
 
 
@@ -255,7 +259,7 @@ async def test_the_projects_can_be_filtered(app, projects):
     for group in ("ecd", "ee4j", "technology"):
         assert f'<option value="{group}">{group}</option>' in page
     orders = ("security", "branch-protection", "secret-scanning", "dependabot", "code-scanning", "scorecard")
-    orders += ("pull-requests", "blueprints", "changed-recently", "changed-long-ago", "repositories")
+    orders += ("pull-requests", "blueprints", "changed-recently", "changed-long-ago", "repositories", "archived")
     for order in orders:
         assert f'<option value="{order}">' in page
     # the data the orders read: the shares of the repositories with each protection, the score, the blueprints
@@ -279,7 +283,7 @@ async def test_the_projects_can_be_filtered(app, projects):
     for criterion in (
         "security branch-protection",
         "security code-scanning",
-        "repositories",
+        "repositories archived",
         "pull-requests",
         "changed-recently changed-long-ago",
         "scorecard",

@@ -740,7 +740,7 @@ a.otterdog-project__fact {
 // the row of the order of the organizations on their cards (data-otterdog-sort set by js/projects.js on the list,
 // data-otterdog-criterion on the rows of a card, includes/project-card.html), tinted to tell why a card comes first
 $otterdog-criteria: security, branch-protection, secret-scanning, dependabot, code-scanning, scorecard, pull-requests,
-  blueprints, changed-recently, changed-long-ago, repositories;
+  blueprints, changed-recently, changed-long-ago, repositories, archived;
 
 @each $criterion in $otterdog-criteria {
   [data-otterdog-sort="#{$criterion}"] [data-otterdog-criterion~="#{$criterion}"] {

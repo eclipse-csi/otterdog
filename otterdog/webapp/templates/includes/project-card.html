@@ -12,6 +12,7 @@
 <div class="col-md-6 col-xxl-4" data-otterdog-project
      data-name="{{ (card.project_name ~ ' ' ~ card.github_id)|lower }}" data-group="{{ card.group }}"
      data-repositories="{{ card.repositories if card.repositories is not none else -1 }}"
+     data-archived="{{ card.archived if card.archived is not none else -1 }}"
      data-security="{{ '%.1f'|format(card.security) if card.security is not none else -1 }}"
      {% for share in card.shares -%}
      data-{{ share.label|lower|replace(' ', '-') }}="{{ '%.1f'|format(share.percentage) if share.percentage is not none else -1 }}"
@@ -104,7 +105,7 @@
         </{{ fact }}>
       </li>
       <li>
-        <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="repositories"
+        <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="repositories archived"
                     {%- if linked %} href="{{ project_url }}#repositories"{% endif %}>
           Repositories
           {% if card.repositories is none %}

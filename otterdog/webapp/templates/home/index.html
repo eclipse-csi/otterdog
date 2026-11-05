@@ -76,31 +76,35 @@
             </a>
           </div>
           <div class="col-sm-6 col-lg-4 col-xxl-2">
-            <div class="otterdog-stat otterdog-stat--purple">
+            <!-- the repositories open the organizations in a single list, the most repositories first -->
+            <a class="otterdog-stat otterdog-stat--purple" href="/allprojects?by=none&amp;sort=repositories">
               <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
               <span class="otterdog-stat__text">
                 <span class="otterdog-stat__value">{{ total_repository_count }}</span>
                 <span class="otterdog-stat__label">Total Repositories</span>
               </span>
-            </div>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
           <div class="col-sm-6 col-lg-4 col-xxl-2">
-            <div class="otterdog-stat otterdog-stat--green">
+            <a class="otterdog-stat otterdog-stat--green" href="/allprojects?by=none&amp;sort=repositories">
               <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
               <span class="otterdog-stat__text">
                 <span class="otterdog-stat__value">{{ active_repository_count }}</span>
                 <span class="otterdog-stat__label">Active Repositories</span>
               </span>
-            </div>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
           <div class="col-sm-6 col-lg-4 col-xxl-2">
-            <div class="otterdog-stat otterdog-stat--grey">
+            <a class="otterdog-stat otterdog-stat--grey" href="/allprojects?by=none&amp;sort=archived">
               <span class="otterdog-stat__icon"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
               <span class="otterdog-stat__text">
                 <span class="otterdog-stat__value">{{ archived_repository_count }}</span>
                 <span class="otterdog-stat__label">Archived Repositories</span>
               </span>
-            </div>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
         </div>
         <!-- ./row -->
