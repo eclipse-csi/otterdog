@@ -148,10 +148,10 @@ class TeamClient(RestClient):
         for member in current_members:
             await self.remove_member_from_team(org_id, team_slug, member)
 
-    async def add_member_to_team(self, org_id: str, team_slug: str, user: str) -> None:
+    async def add_member_to_team(self, org_id: str, team_slug: str, user: str, role: str = "member") -> None:
         _logger.debug("adding user with id '%s' to team '%s' in org '%s'", user, team_slug, org_id)
 
-        data = {"role": "member"}
+        data = {"role": role}
         status, body = await self.requester.request_raw(
             "PUT", f"/orgs/{org_id}/teams/{team_slug}/memberships/{user}", data=json.dumps(data)
         )
@@ -256,16 +256,69 @@ class TeamClient(RestClient):
         """
         Connects an existing team to an external group, removing its members first if the team is not yet
         connected to an external group, as required by GitHub: the members are then provisioned by the IdP.
+        The external group is checked beforehand, and the members are restored if the team can not be connected.
         """
         external_groups = await self.get_team_external_groups(org_id, team_slug)
         if external_groups is None:
             raise RuntimeError(f"external groups are not available for team '{org_id}/{team_slug}'")
 
-        if len(external_groups) == 0:
-            for member in await self.get_team_members(org_id, team_slug):
-                await self.remove_member_from_team(org_id, team_slug, member["login"])
+        if len(external_groups) > 0:
+            # the members of a team already connected to an external group are provisioned by the IdP
+            await self.update_team_external_group(org_id, team_slug, group_id)
+            return
 
-        await self.update_team_external_group(org_id, team_slug, group_id)
+        # check that the external group exists before removing the members of the team
+        await self.get_external_group(org_id, group_id)
+
+        # the removed members are restored with their role if the team can not be connected
+        member_roles = await self.get_team_member_roles(org_id, team_slug)
+        removed_members: dict[str, str] = {}
+        try:
+            for user, role in member_roles.items():
+                await self.remove_member_from_team(org_id, team_slug, user)
+                removed_members[user] = role
+
+            await self.update_team_external_group(org_id, team_slug, group_id)
+        except RuntimeError:
+            _logger.warning(
+                "failed connecting external group '%d' to team '%s/%s', restoring its members",
+                group_id,
+                org_id,
+                team_slug,
+            )
+            for user, role in removed_members.items():
+                await self.add_member_to_team(org_id, team_slug, user, role)
+            raise
+
+    async def get_external_group(self, org_id: str, group_id: int) -> dict[str, Any]:
+        _logger.debug("retrieving external group '%d' of org '%s'", group_id, org_id)
+
+        try:
+            # only the group itself is needed, not all its members
+            return await self.requester.request_json(
+                "GET", f"/orgs/{org_id}/external-group/{group_id}", params={"per_page": "1"}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving external group '{group_id}' of org '{org_id}':\n{ex}") from ex
+
+    async def get_team_member_roles(self, org_id: str, team_slug: str) -> dict[str, str]:
+        """
+        Returns the role of each member of a team, either 'member' or 'maintainer'.
+        """
+        _logger.debug("retrieving team member roles for team '%s/%s'", org_id, team_slug)
+
+        try:
+            maintainers = await self.requester.request_paged_json(
+                "GET", f"/orgs/{org_id}/teams/{team_slug}/members", params={"role": "maintainer"}
+            )
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving team maintainers for team '{org_id}/{team_slug}':\n{ex}") from ex
+
+        maintainer_logins = {maintainer["login"] for maintainer in maintainers}
+        return {
+            member["login"]: "maintainer" if member["login"] in maintainer_logins else "member"
+            for member in await self.get_team_members(org_id, team_slug)
+        }
 
     async def update_team_external_group(self, org_id: str, team_slug: str, group_id: int) -> None:
         _logger.debug("connecting external group '%d' to team '%s/%s'", group_id, org_id, team_slug)
