@@ -825,9 +825,10 @@ class Statistics:
         return self.total_repos - self.archived_repos
 
 
-# the stages of the aggregations of mongodb
+# the stages of the aggregations of mongodb, and the organization of a document whose id embeds it
 _GROUP = "$group"
 _MATCH = "$match"
+_ORG_ID_OF_ID = "$_id.org_id"
 
 
 async def get_statistics() -> Statistics:
@@ -899,14 +900,14 @@ async def get_open_pull_request_counts_by_organization(org_id: str | None = None
     match: dict[str, Any] = {"status": PullRequestStatus.OPEN.value}
     if org_id is not None:
         match["_id.org_id"] = org_id
-    pipeline: list[dict[str, Any]] = [{_MATCH: match}, {_GROUP: {"_id": "$_id.org_id", "count": {"$sum": 1}}}]
+    pipeline: list[dict[str, Any]] = [{_MATCH: match}, {_GROUP: {"_id": _ORG_ID_OF_ID, "count": {"$sum": 1}}}]
     collection = mongo.odm.get_collection(PullRequestModel)
     return {document["_id"]: document["count"] for document in await collection.aggregate(pipeline).to_list(None)}
 
 
 async def get_blueprint_status_counts_by_organization() -> dict[str, dict[str, int]]:
     """The number of repositories in each status of the blueprints of each organization, by its id."""
-    pipeline = [{_GROUP: {"_id": {"org_id": "$_id.org_id", "status": "$status"}, "count": {"$sum": 1}}}]
+    pipeline = [{_GROUP: {"_id": {"org_id": _ORG_ID_OF_ID, "status": "$status"}, "count": {"$sum": 1}}}]
     collection = mongo.odm.get_collection(BlueprintStatusModel)
     counts: dict[str, dict[str, int]] = {}
     for document in await collection.aggregate(pipeline).to_list(None):
@@ -939,7 +940,7 @@ async def get_scorecard_averages_by_organization() -> dict[str, float]:
     """The average OpenSSF Scorecard score of the repositories of each organization with a score, by its id."""
     pipeline: list[dict[str, Any]] = [
         {_MATCH: {"score": {"$ne": None}}},
-        {_GROUP: {"_id": "$_id.org_id", "score": {"$avg": "$score"}}},
+        {_GROUP: {"_id": _ORG_ID_OF_ID, "score": {"$avg": "$score"}}},
     ]
     collection = mongo.odm.get_collection(ScorecardResultModel)
     return {document["_id"]: document["score"] for document in await collection.aggregate(pipeline).to_list(None)}

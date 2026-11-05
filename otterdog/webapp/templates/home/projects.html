@@ -48,7 +48,8 @@
             </div>
           </div>
           <div class="col-sm-6 col-md-auto">
-            <select class="form-select" name="group" aria-label="Top-level projects">
+            <!-- its name as written in its visible label, its first option -->
+            <select class="form-select" name="group" aria-label="top-level projects">
               <option value="">All top-level projects</option>
               {% for group, cards in groups %}
               <option value="{{ group }}">{{ group }}</option>
