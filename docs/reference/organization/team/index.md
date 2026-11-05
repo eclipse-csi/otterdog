@@ -23,10 +23,13 @@ The membership of a team can be managed by an identity provider (IdP), with one 
 
 Both mechanisms are mutually exclusive. The members of a team connected to an IdP are provisioned by the IdP,
 so `members` must not be set for such a team, and the current members of the team are ignored.
+When an existing team is connected to an external group for the first time, its current members are removed
+beforehand, as required by GitHub.
 
 The connections to IdP groups are only retrieved from GitHub if the default configuration supports them,
 i.e. defines the `newTeamSync` function for team synchronization, or the `external_group_id` property in
-`newTeam` for external groups. If a mechanism is not available for an organization, it is skipped.
+`newTeam` for external groups. If a mechanism is not available for an organization, it is skipped, while
+missing permissions of the credentials to retrieve them are reported as an error.
 
 ## Jsonnet Function
 

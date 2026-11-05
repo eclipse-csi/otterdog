@@ -118,7 +118,7 @@ class TeamClient(RestClient):
                 await self.update_team_members(org_id, team_slug, team["members"])
 
             if update_external_group and external_group_id is not None:
-                await self.update_team_external_group(org_id, team_slug, int(external_group_id))
+                await self.connect_team_external_group(org_id, team_slug, int(external_group_id))
 
             _logger.debug("updated team '%s'", team_slug)
         except GitHubException as ex:
@@ -251,6 +251,21 @@ class TeamClient(RestClient):
         )
 
         return None if response is None else response.get("groups", [])
+
+    async def connect_team_external_group(self, org_id: str, team_slug: str, group_id: int) -> None:
+        """
+        Connects an existing team to an external group, removing its members first if the team is not yet
+        connected to an external group, as required by GitHub: the members are then provisioned by the IdP.
+        """
+        external_groups = await self.get_team_external_groups(org_id, team_slug)
+        if external_groups is None:
+            raise RuntimeError(f"external groups are not available for team '{org_id}/{team_slug}'")
+
+        if len(external_groups) == 0:
+            for member in await self.get_team_members(org_id, team_slug):
+                await self.remove_member_from_team(org_id, team_slug, member["login"])
+
+        await self.update_team_external_group(org_id, team_slug, group_id)
 
     async def update_team_external_group(self, org_id: str, team_slug: str, group_id: int) -> None:
         _logger.debug("connecting external group '%d' to team '%s/%s'", group_id, org_id, team_slug)

@@ -23,8 +23,11 @@ EXTERNAL_GROUPS_URL = f"{TEAM_URL}/external-groups"
 class FakeRequester:
     """Records the requests and returns the configured response for a method and url, (200, {}) by default."""
 
-    def __init__(self, responses: dict[tuple[str, str], tuple[int, Any]] | None = None):
+    def __init__(
+        self, responses: dict[tuple[str, str], tuple[int, Any]] | None = None, members: list[str] | None = None
+    ):
         self.responses = responses or {}
+        self.members = members or []
         self.requests: list[tuple[str, str, Any]] = []
 
     def _respond(self, method: str, url_path: str, data: Any) -> tuple[int, str]:
@@ -43,7 +46,7 @@ class FakeRequester:
 
     async def request_paged_json(self, method: str, url_path: str, data: Any = None, params: Any = None):
         # only used to retrieve the members of a team, not recorded
-        return []
+        return [{"login": member} for member in self.members]
 
 
 def team_client(requester: FakeRequester) -> TeamClient:
@@ -129,8 +132,55 @@ class TestExternalGroups:
 
         assert requester.requests == [
             ("PATCH", TEAM_URL, {"description": "desc"}),
+            ("GET", EXTERNAL_GROUPS_URL, None),
             ("PATCH", EXTERNAL_GROUPS_URL, {"group_id": 123}),
         ]
+
+    async def test_first_connection_to_external_group_removes_members(self):
+        # GitHub requires to remove the members of an existing team before connecting it to an IdP group
+        requester = FakeRequester(
+            {
+                ("GET", EXTERNAL_GROUPS_URL): (200, {"groups": []}),
+                ("DELETE", f"{TEAM_URL}/memberships/alice"): (204, ""),
+                ("DELETE", f"{TEAM_URL}/memberships/bob"): (204, ""),
+            },
+            members=["alice", "bob"],
+        )
+
+        await team_client(requester).update_team("org", "team", {"external_group_id": 123})
+
+        assert requester.requests == [
+            ("PATCH", TEAM_URL, {}),
+            ("GET", EXTERNAL_GROUPS_URL, None),
+            ("DELETE", f"{TEAM_URL}/memberships/alice", None),
+            ("DELETE", f"{TEAM_URL}/memberships/bob", None),
+            ("PATCH", EXTERNAL_GROUPS_URL, {"group_id": 123}),
+        ]
+
+    async def test_changing_external_group_keeps_members(self):
+        # the members of a team already connected to an external group are provisioned by the IdP
+        requester = FakeRequester(
+            {("GET", EXTERNAL_GROUPS_URL): (200, {"groups": [{"group_id": 1, "group_name": "previous"}]})},
+            members=["alice"],
+        )
+
+        await team_client(requester).update_team("org", "team", {"external_group_id": 123})
+
+        assert requester.requests == [
+            ("PATCH", TEAM_URL, {}),
+            ("GET", EXTERNAL_GROUPS_URL, None),
+            ("PATCH", EXTERNAL_GROUPS_URL, {"group_id": 123}),
+        ]
+
+    async def test_connect_external_group_fails_if_not_available(self):
+        # the members are not removed if the team can not be connected
+        requester = FakeRequester({("GET", EXTERNAL_GROUPS_URL): (404, {"message": "Not Found"})}, members=["alice"])
+        client = team_client(requester)
+
+        with pytest.raises(RuntimeError, match="external groups are not available for team 'org/team'"):
+            await client.connect_team_external_group("org", "team", 123)
+
+        assert requester.requests == [("GET", EXTERNAL_GROUPS_URL, None)]
 
     async def test_update_team_disconnects_external_group(self):
         requester = FakeRequester({("DELETE", EXTERNAL_GROUPS_URL): (204, "")})
@@ -159,6 +209,7 @@ class TestExternalGroups:
         assert requester.requests == [
             ("PATCH", TEAM_URL, {"members": ["netomi"]}),
             ("PUT", f"{TEAM_URL}/memberships/netomi", {"role": "member"}),
+            ("GET", EXTERNAL_GROUPS_URL, None),
             ("PATCH", EXTERNAL_GROUPS_URL, {"group_id": 123}),
         ]
 
