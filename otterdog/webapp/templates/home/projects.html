@@ -35,23 +35,83 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <!-- a card per organization (css/app.scss): its avatar, its project opening its page, its GitHub organization
-             and the facts of its configuration, the organizations not installed being muted with their status -->
+        {# the top-level projects, the first part of the name of a project, e.g. ecd of ecd.che #}
+        {% set groups = [] %}
+        {% for installation in installations %}
+        {% set group = (installation.project_name or installation.github_id).split('.')[0] %}
+        {% if group not in groups %}{% set _ = groups.append(group) %}{% endif %}
+        {% endfor %}
+
+        <!-- the filters of the organizations (js/projects.js), kept in the address of the page so that a filtered list
+             can be shared -->
+        <form class="row g-2 align-items-center mb-3" role="search" aria-label="Filter the organizations"
+              data-otterdog-project-filters>
+          <div class="col-12 col-md-4 col-xl-3">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+              <input type="search" class="form-control" name="q" placeholder="Project or organization"
+                     aria-label="Search a project or an organization" autocomplete="off">
+            </div>
+          </div>
+          <div class="col-sm-4 col-md-auto">
+            <select class="form-select" name="group" aria-label="Top-level project">
+              <option value="">All top-level projects</option>
+              {% for group in groups|sort %}
+              <option value="{{ group }}">{{ group }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-4 col-md-auto">
+            <select class="form-select" name="state" aria-label="State">
+              <option value="">Any state</option>
+              <option value="configured">Configured</option>
+              <option value="unconfigured">No configuration</option>
+              <option value="inactive">Not installed</option>
+            </select>
+          </div>
+          <div class="col-sm-4 col-md-auto">
+            <select class="form-select" name="settings" aria-label="Settings">
+              <option value="">Any settings</option>
+              <option value="two-factor">2FA not enforced</option>
+              <option value="write">Write workflow permissions</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-auto ms-md-auto text-body-secondary" data-otterdog-project-count aria-live="polite">
+            {{ installations|length }} organizations
+          </div>
+        </form>
+        <p class="text-body-secondary" data-otterdog-project-empty hidden>No organization matches the filters.</p>
+
+        <!-- a card per organization (css/app.scss), the same for all: its avatar, its project, its GitHub organization
+             and three facts of its configuration, a dash when the dashboard has none. Only the organizations installed
+             with a configuration open the page of their project, the others are muted with the reason as a badge. -->
         <div class="row g-3">
           {% for installation in installations %}
           {% set github_id = installation.github_id %}
           {% set project_name = installation.project_name %}
           {% set installation_status = installation.installation_status %}
           {% set installed = installation_status|status == 'success' %}
-          <div class="col-sm-6 col-xl-4 col-xxl-3">
-            <div class="otterdog-project{{ '' if installed else ' otterdog-project--inactive' }}">
+          {% set configuration = configurations.get(github_id) %}
+          {% set config = configuration.config if configuration else none %}
+          {% set settings = config.settings if config is not none else {} %}
+          {% set two_factor_enabled = settings.two_factor_requirement if config is not none else none %}
+          {% set default_workflow_permissions = settings.workflows.default_workflow_permissions if config is not none else none %}
+          {% set state = 'inactive' if not installed else ('configured' if config is not none else 'unconfigured') %}
+          {% set linked = state == 'configured' %}
+          {% set fact = 'a' if linked else 'span' %}
+          <div class="col-sm-6 col-xl-4 col-xxl-3" data-otterdog-project
+               data-name="{{ ((project_name or '') ~ ' ' ~ github_id)|lower }}"
+               data-group="{{ (project_name or github_id).split('.')[0] }}" data-state="{{ state }}"
+               data-two-factor="{{ '' if two_factor_enabled is none else (two_factor_enabled == true)|lower }}"
+               data-permissions="{{ default_workflow_permissions or '' }}">
+            <div class="otterdog-project{{ '' if linked else ' otterdog-project--inactive' }}">
               <div class="otterdog-project__head">
                 <!-- github.com/<login>.png redirects to the avatar of an organization as well as of a user, while
                      avatars.githubusercontent.com/<login> only knows the users and shows the default one -->
                 <img class="otterdog-project__avatar" src="https://github.com/{{ github_id }}.png?size=80"
                      alt="" width="40" height="40" loading="lazy">
                 <div class="otterdog-project__names">
-                  {% if installed %}
+                  {% if linked %}
                   <a class="otterdog-project__name stretched-link" href="/projects/{{ project_name }}">{{ project_name }}</a>
                   {% else %}
                   <span class="otterdog-project__name">{{ project_name }}</span>
@@ -59,45 +119,57 @@
                   <a class="otterdog-project__organization" href="https://github.com/{{ github_id }}">
                     <i class="fab fa-github" aria-hidden="true"></i> {{ github_id }}
                   </a>
-                  {% if not installed %}
+                  {% if state == 'inactive' %}
                   {% set color = installation_status|status %}
                   <span class="badge rounded-pill bg-{{ color }}-subtle text-{{ color }}-emphasis border border-{{ color }}-subtle">
                     {{ installation_status.value|replace('_', ' ')|capitalize }}
                   </span>
+                  {% elif state == 'unconfigured' %}
+                  <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                        title="The configuration of this organization was not loaded: the task fetching it did not run or failed, see the tasks">
+                    No configuration
+                  </span>
                   {% endif %}
                 </div>
               </div>
-              {% if installed and configurations[github_id] %}
-              {% set config = configurations[github_id].config %}
-              {% set two_factor_enabled = config.settings.two_factor_requirement %}
-              {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
               {% set two_factor_color = 'success' if two_factor_enabled == true else 'danger' %}
               {% set permissions_color = 'success' if default_workflow_permissions == 'read' else 'danger' %}
               <ul class="otterdog-project__facts">
                 <li>
-                  <a href="/projects/{{ project_name }}#settings">
+                  <{{ fact }} class="otterdog-project__fact"{% if linked %} href="/projects/{{ project_name }}#settings"{% endif %}>
                     2FA
+                    {% if two_factor_enabled is none %}
+                    <span class="otterdog-project__unknown">&ndash;</span>
+                    {% else %}
                     <span class="badge rounded-pill bg-{{ two_factor_color }}-subtle text-{{ two_factor_color }}-emphasis">
                       {{ 'Enforced' if two_factor_enabled == true else 'Not enforced' }}
                     </span>
-                  </a>
+                    {% endif %}
+                  </{{ fact }}>
                 </li>
                 <li>
-                  <a href="/projects/{{ project_name }}#workflow-settings">
+                  <{{ fact }} class="otterdog-project__fact"{% if linked %} href="/projects/{{ project_name }}#workflow-settings"{% endif %}>
                     Workflow permissions
+                    {% if default_workflow_permissions is none %}
+                    <span class="otterdog-project__unknown">&ndash;</span>
+                    {% else %}
                     <span class="badge rounded-pill bg-{{ permissions_color }}-subtle text-{{ permissions_color }}-emphasis">
                       {{ default_workflow_permissions }}
                     </span>
-                  </a>
+                    {% endif %}
+                  </{{ fact }}>
                 </li>
                 <li>
-                  <a href="/projects/{{ project_name }}#repositories">
+                  <{{ fact }} class="otterdog-project__fact"{% if linked %} href="/projects/{{ project_name }}#repositories"{% endif %}>
                     Repositories
+                    {% if config is none %}
+                    <span class="otterdog-project__unknown">&ndash;</span>
+                    {% else %}
                     <span class="otterdog-project__count">{{ config.repositories|length }}</span>
-                  </a>
+                    {% endif %}
+                  </{{ fact }}>
                 </li>
               </ul>
-              {% endif %}
             </div>
           </div>
           {% endfor %}
@@ -115,4 +187,9 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
+  <script type="module">
+    import {initProjectFilters} from '{{ asset('js/projects.js') }}';
+
+    initProjectFilters(document.querySelector('[data-otterdog-project-filters]'));
+  </script>
 {% endblock javascripts %}

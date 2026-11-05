@@ -465,6 +465,8 @@ $otterdog-status-critical: #d03b3b;
 // card opening the page of its project, the GitHub organization and the facts keeping their own links above it
 .otterdog-project {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   background-color: var(--#{$prefix}body-bg);
   border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
@@ -526,7 +528,7 @@ $otterdog-status-critical: #d03b3b;
 
 // the links of the card stay above the link of its project, which covers the card
 .otterdog-project__organization,
-.otterdog-project__facts a {
+a.otterdog-project__fact {
   position: relative;
   z-index: 2;
 }
@@ -545,34 +547,42 @@ $otterdog-status-critical: #d03b3b;
   margin-top: .25rem;
 }
 
+// at the bottom of the card, so that the facts of the cards of a row line up whatever the height of their head
 .otterdog-project__facts {
   padding: 0;
-  margin: 0;
+  margin: auto 0 0;
   list-style: none;
   border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
 
-  a {
+  // a link to the tab of the project, or a plain row when the organization has no page
+  .otterdog-project__fact {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    min-height: 2.375rem;
     padding: .5rem 1.25rem;
     font-size: .875rem;
     color: var(--#{$prefix}secondary-color);
-
-    &:hover {
-      color: var(--#{$prefix}body-color);
-      text-decoration: none;
-      background-color: rgba(var(--#{$prefix}primary-rgb), .06);
-    }
   }
 
-  li + li a {
+  a.otterdog-project__fact:hover {
+    color: var(--#{$prefix}body-color);
+    text-decoration: none;
+    background-color: rgba(var(--#{$prefix}primary-rgb), .06);
+  }
+
+  li + li .otterdog-project__fact {
     border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
   }
 
-  li:last-child a {
+  li:last-child .otterdog-project__fact {
     border-radius: 0 0 var(--#{$prefix}border-radius-lg) var(--#{$prefix}border-radius-lg);
   }
+}
+
+// a fact of an organization whose configuration the dashboard does not have
+.otterdog-project__unknown {
+  color: var(--#{$prefix}tertiary-color);
 }
 
 .otterdog-project__count {

@@ -8,6 +8,7 @@
 
 """The theme of the dashboard, like the one of the documentation: its color modes and the hero of its home page."""
 
+import re
 from pathlib import Path
 from unittest import mock
 
@@ -123,6 +124,8 @@ def projects(monkeypatch):
         pretend.stub(
             project_name="ee4j.jakartaee", github_id="jakartaee", installation_status=InstallationStatus.NOT_INSTALLED
         ),
+        # installed, but its configuration was not loaded
+        pretend.stub(project_name="ecd.che", github_id="eclipse-che", installation_status=InstallationStatus.INSTALLED),
     ]
     settings = {"two_factor_requirement": True, "workflows": {"default_workflow_permissions": "write"}}
     configuration = pretend.stub(github_id="eclipse-csi", config={"settings": settings, "repositories": [{}, {}, {}]})
@@ -149,9 +152,41 @@ async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
     async with app.test_request_context("/allprojects"):
         page = await routes.allprojects()
 
-    assert page.count('<div class="otterdog-project otterdog-project--inactive">') == 1
     assert '<span class="otterdog-project__name">ee4j.jakartaee</span>' in page
+    assert 'data-group="ee4j" data-state="inactive"' in page
     assert "Not installed" in page
+
+
+async def test_a_project_without_configuration_has_the_same_card_without_its_page(app, projects):
+    async with app.test_request_context("/allprojects"):
+        page = await routes.allprojects()
+
+    # the page of a project without configuration does not exist, its card does not link to it
+    assert '<span class="otterdog-project__name">ecd.che</span>' in page
+    assert 'href="/projects/ecd.che' not in page
+    assert 'data-group="ecd" data-state="unconfigured"' in page
+    assert "No configuration" in page
+    # every card has the three facts, a dash when they are not known
+    assert page.count('class="otterdog-project__fact"') == 9
+    assert page.count('<span class="otterdog-project__unknown">&ndash;</span>') == 6
+    assert page.count('<div class="otterdog-project otterdog-project--inactive">') == 2
+
+
+async def test_the_projects_can_be_filtered(app, projects):
+    async with app.test_request_context("/allprojects"):
+        page = await routes.allprojects()
+
+    assert "data-otterdog-project-filters" in page
+    assert "js/projects.js" in page
+    # the top-level projects of the organizations, sorted
+    assert page.index('<option value="ecd">ecd</option>') < page.index('<option value="ee4j">ee4j</option>')
+    assert page.index('<option value="ee4j">ee4j</option>') < page.index(
+        '<option value="technology">technology</option>'
+    )
+    # the facts the filters of the settings read
+    assert 'data-name="technology.csi eclipse-csi"' in page
+    assert re.search(r'data-two-factor="true"\s+data-permissions="write"', page)
+    assert re.search(r'data-two-factor=""\s+data-permissions=""', page)
 
 
 async def test_the_tables_have_the_style_of_the_dashboard(app):
