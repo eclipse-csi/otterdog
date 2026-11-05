@@ -825,10 +825,15 @@ class Statistics:
         return self.total_repos - self.archived_repos
 
 
+# the stages of the aggregations of mongodb
+_GROUP = "$group"
+_MATCH = "$match"
+
+
 async def get_statistics() -> Statistics:
     pipeline = [
         {
-            "$group": {
+            _GROUP: {
                 "_id": None,
                 "total_projects": {"$sum": 1},
                 "two_factor_enforced": {"$sum": "$two_factor_enforced"},
@@ -873,25 +878,35 @@ async def get_statistics_by_github_id() -> dict[str, StatisticsModel]:
 
 async def get_latest_tasks_by_organization(task_type: str, org_id: str | None = None) -> dict[str, TaskModel]:
     """
-    The latest task of a type that ran for each organization, or for the given one, e.g. the fetch of its
-    configuration, by its id.
+    The latest task of a type that ran to its end for each organization, or for the given one, e.g. the fetch of its
+    configuration, by its id: a task scheduled again after a failure is not one, its outcome is not known yet.
     """
-    match: dict[str, Any] = {"type": task_type, "status": {"$ne": TaskStatus.CREATED.value}}
+    match: dict[str, Any] = {"type": task_type, "status": {"$in": [TaskStatus.FINISHED.value, TaskStatus.FAILED.value]}}
     if org_id is not None:
         match["org_id"] = org_id
     pipeline: list[dict[str, Any]] = [
-        {"$match": match},
+        {_MATCH: match},
         {"$sort": {"created_at": -1}},
-        {"$group": {"_id": "$org_id", "task": {"$first": "$$ROOT"}}},
+        {_GROUP: {"_id": "$org_id", "task": {"$first": "$$ROOT"}}},
     ]
     collection = mongo.odm.get_collection(TaskModel)
     documents = await collection.aggregate(pipeline).to_list(None)
     return {document["_id"]: TaskModel.model_validate_doc(document["task"]) for document in documents}
 
 
+async def get_open_pull_request_counts_by_organization(org_id: str | None = None) -> dict[str, int]:
+    """The number of open pull requests of the configuration repository of each organization, or of the given one."""
+    match: dict[str, Any] = {"status": PullRequestStatus.OPEN.value}
+    if org_id is not None:
+        match["_id.org_id"] = org_id
+    pipeline: list[dict[str, Any]] = [{_MATCH: match}, {_GROUP: {"_id": "$_id.org_id", "count": {"$sum": 1}}}]
+    collection = mongo.odm.get_collection(PullRequestModel)
+    return {document["_id"]: document["count"] for document in await collection.aggregate(pipeline).to_list(None)}
+
+
 async def get_blueprint_status_counts_by_organization() -> dict[str, dict[str, int]]:
     """The number of repositories in each status of the blueprints of each organization, by its id."""
-    pipeline = [{"$group": {"_id": {"org_id": "$_id.org_id", "status": "$status"}, "count": {"$sum": 1}}}]
+    pipeline = [{_GROUP: {"_id": {"org_id": "$_id.org_id", "status": "$status"}, "count": {"$sum": 1}}}]
     collection = mongo.odm.get_collection(BlueprintStatusModel)
     counts: dict[str, dict[str, int]] = {}
     for document in await collection.aggregate(pipeline).to_list(None):
@@ -902,8 +917,8 @@ async def get_blueprint_status_counts_by_organization() -> dict[str, dict[str, i
 async def get_scorecard_averages_by_organization() -> dict[str, float]:
     """The average OpenSSF Scorecard score of the repositories of each organization with a score, by its id."""
     pipeline: list[dict[str, Any]] = [
-        {"$match": {"score": {"$ne": None}}},
-        {"$group": {"_id": "$_id.org_id", "score": {"$avg": "$score"}}},
+        {_MATCH: {"score": {"$ne": None}}},
+        {_GROUP: {"_id": "$_id.org_id", "score": {"$avg": "$score"}}},
     ]
     collection = mongo.odm.get_collection(ScorecardResultModel)
     return {document["_id"]: document["score"] for document in await collection.aggregate(pipeline).to_list(None)}

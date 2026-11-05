@@ -9,6 +9,6 @@
         // no storage, the mode of the system
       }
       var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.documentElement.setAttribute("data-bs-theme", dark ? "dark" : "light");
+      document.documentElement.dataset.bsTheme = dark ? "dark" : "light";
     })();
   </script>

@@ -84,7 +84,9 @@ async def test_the_home_page_shows_the_shares_as_bars(app, statistics):
     assert page.count('class="otterdog-share__bar"') == 6
     assert "<canvas" not in page
     assert "chart.umd.js" not in page
-    assert 'aria-label="Two factor enforcement: Enforced 1, Not required 1"' in page
+    # the bar hidden from screen readers, which read its parts in a hidden text
+    assert '<div class="otterdog-share__bar" aria-hidden="true">' in page
+    assert re.search(r'<p class="visually-hidden">\s*Two factor enforcement: Enforced 1, Not required 1\s*</p>', page)
 
 
 _SHARE_BAR = (
@@ -169,7 +171,7 @@ def projects(monkeypatch):
     monkeypatch.setattr(routes, "get_installations", mock.AsyncMock(return_value=installations))
     monkeypatch.setattr(routes, "get_configurations", mock.AsyncMock(return_value=[configuration]))
     monkeypatch.setattr(routes, "get_statistics_by_github_id", mock.AsyncMock(return_value={"eclipse-csi": statistics}))
-    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", mock.AsyncMock(return_value=[]))
+    monkeypatch.setattr(routes, "get_open_pull_request_counts_by_organization", mock.AsyncMock(return_value={}))
     monkeypatch.setattr(
         routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"eclipse-che": failed_fetch})
     )
@@ -307,7 +309,7 @@ async def test_a_page_sets_its_color_mode_before_its_styles(app, statistics):
     head = page.split("</head>")[0]
     # set before the stylesheets, the page renders in its color mode without a flash of the other one
     assert 'localStorage.getItem("otterdog-color-scheme")' in head
-    assert head.index('setAttribute("data-bs-theme"') < head.index('rel="stylesheet"')
+    assert head.index("dataset.bsTheme") < head.index('rel="stylesheet"')
     assert "family=Inter" in head
 
 

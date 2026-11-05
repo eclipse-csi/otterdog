@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from otterdog.webapp.db.models import BlueprintStatus, InstallationStatus, PullRequestStatus, TaskStatus
+from otterdog.webapp.db.models import BlueprintStatus, InstallationStatus, TaskStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from otterdog.webapp.db.models import (
         ConfigurationModel,
         InstallationModel,
-        PullRequestModel,
         StatisticsModel,
         TaskModel,
     )
@@ -237,14 +236,18 @@ def project_card(
     installation: InstallationModel,
     configuration: ConfigurationModel | None,
     statistics: StatisticsModel | None,
-    pull_requests: list[PullRequestModel],
+    open_pull_requests: int,
     fetch_task: TaskModel | None,
     blueprint_counts: Mapping[str, int],
     scorecard: float | None,
 ) -> ProjectCard:
-    installed = installation.installation_status == InstallationStatus.INSTALLED
     config: dict[str, Any] | None = configuration.config if configuration is not None else None
-    state = "inactive" if not installed else ("configured" if config is not None else "unconfigured")
+    if installation.installation_status != InstallationStatus.INSTALLED:
+        state = "inactive"
+    elif config is None:
+        state = "unconfigured"
+    else:
+        state = "configured"
     project_name = installation.project_name or installation.github_id
 
     facts: dict[str, Any] = {}
@@ -277,7 +280,7 @@ def project_card(
         base_template=installation.base_template,
         defaults_version=defaults_version(installation.base_template),
         shares=_shares(statistics),
-        open_pull_requests=sum(1 for x in pull_requests if x.status == PullRequestStatus.OPEN),
+        open_pull_requests=open_pull_requests,
         change=change,
         fetch=fetch,
         failing_blueprints=blueprint_counts.get(BlueprintStatus.FAILURE.value, 0),
@@ -290,22 +293,18 @@ def project_cards(
     installations: Iterable[InstallationModel],
     configurations: Mapping[str, ConfigurationModel],
     statistics: Mapping[str, StatisticsModel],
-    pull_requests: Iterable[PullRequestModel],
+    open_pull_requests: Mapping[str, int],
     fetch_tasks: Mapping[str, TaskModel],
     blueprint_counts: Mapping[str, Mapping[str, int]],
     scorecards: Mapping[str, float],
 ) -> list[ProjectCard]:
     """The cards of the organizations, sorted by their project."""
-    pull_requests_by_organization: dict[str, list[PullRequestModel]] = {}
-    for pull_request in pull_requests:
-        pull_requests_by_organization.setdefault(pull_request.id.org_id, []).append(pull_request)
-
     cards = [
         project_card(
             installation,
             configurations.get(installation.github_id),
             statistics.get(installation.github_id),
-            pull_requests_by_organization.get(installation.github_id, []),
+            open_pull_requests.get(installation.github_id, 0),
             fetch_tasks.get(installation.github_id),
             blueprint_counts.get(installation.github_id, {}),
             scorecards.get(installation.github_id),

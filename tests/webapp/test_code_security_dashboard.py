@@ -90,7 +90,7 @@ def project(config, monkeypatch):
         monkeypatch.setattr(routes, name, nothing)
     monkeypatch.setattr(routes, "find_scorecard_result", mock.AsyncMock(return_value=None))
     # the activity of the organization (home/projects.py)
-    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", nothing)
+    monkeypatch.setattr(routes, "get_open_pull_request_counts_by_organization", mock.AsyncMock(return_value={}))
     monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={}))
 
 
@@ -159,7 +159,7 @@ async def test_the_index_shows_code_scanning(app, monkeypatch):
         page = await routes.index()
 
     assert re.search(r'<span class="otterdog-figure__value">37\.5%</span>\s*with default setup', page)
-    assert 'aria-label="Code scanning: Default setup 3, Not configured 5"' in page
+    assert re.search(r'<p class="visually-hidden">\s*Code scanning: Default setup 3, Not configured 5\s*</p>', page)
     # the configurations are a means to set the security settings, which the index shows
     assert "Code Security Configurations" not in page
 

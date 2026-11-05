@@ -18,7 +18,7 @@ import pytest
 
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db import service
-from otterdog.webapp.db.models import InstallationStatus, PullRequestStatus, TaskModel, TaskStatus
+from otterdog.webapp.db.models import InstallationStatus, TaskModel, TaskStatus
 from otterdog.webapp.home import routes
 
 _TEMPLATE_DIR = Path(__file__).parents[2] / "otterdog" / "resources" / "defaults"
@@ -47,11 +47,6 @@ def project(tmp_path, monkeypatch):
         config_repo=".otterdog",
     )
     nothing = mock.AsyncMock(return_value=[])
-    # an open pull request of the organization, and one of another one
-    pull_requests = [
-        pretend.stub(id=pretend.stub(org_id="my-org"), status=PullRequestStatus.OPEN),
-        pretend.stub(id=pretend.stub(org_id="other-org"), status=PullRequestStatus.OPEN),
-    ]
     fetch = TaskModel(type="FetchConfigTask", org_id="my-org", repo_name=".otterdog", status=TaskStatus.FINISHED)
 
     monkeypatch.setattr(routes, "get_configuration_by_project_name", mock.AsyncMock(return_value=config))
@@ -62,7 +57,10 @@ def project(tmp_path, monkeypatch):
     for name in ["get_policies_status", "get_blueprints", "get_blueprints_status", "get_scorecard_results"]:
         monkeypatch.setattr(routes, name, nothing)
     monkeypatch.setattr(routes, "find_scorecard_result", mock.AsyncMock(return_value=None))
-    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", mock.AsyncMock(return_value=pull_requests))
+    # the open pull requests counted for the organization
+    monkeypatch.setattr(
+        routes, "get_open_pull_request_counts_by_organization", mock.AsyncMock(return_value={"my-org": 1})
+    )
     monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"my-org": fetch}))
 
 

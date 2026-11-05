@@ -48,7 +48,7 @@
             </div>
           </div>
           <div class="col-sm-6 col-md-auto">
-            <select class="form-select" name="group" aria-label="Top-level project">
+            <select class="form-select" name="group" aria-label="Top-level projects">
               <option value="">All top-level projects</option>
               {% for group, cards in groups %}
               <option value="{{ group }}">{{ group }}</option>
@@ -63,7 +63,7 @@
             </select>
           </div>
           <div class="col-sm-6 col-md-auto">
-            <select class="form-select" name="sort" aria-label="Order">
+            <select class="form-select" name="sort" aria-label="Sort by">
               <option value="">Sort by name</option>
               <optgroup label="Security">
                 <option value="security">Least protected first</option>

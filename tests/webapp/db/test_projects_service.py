@@ -80,8 +80,9 @@ async def test_the_latest_task_of_each_organization(database):
 
     tasks = await service.get_latest_tasks_by_organization("FetchConfigTask")
 
-    # the tasks of the type that ran, the latest first, the first one of each organization
-    assert collection.pipeline[0] == {"$match": {"type": "FetchConfigTask", "status": {"$ne": "created"}}}
+    # the tasks of the type that ran to their end, not the ones scheduled again, the latest first, the first one of
+    # each organization
+    assert collection.pipeline[0] == {"$match": {"type": "FetchConfigTask", "status": {"$in": ["finished", "failed"]}}}
     assert collection.pipeline[1] == {"$sort": {"created_at": -1}}
     assert isinstance(tasks["eclipse-che"], TaskModel)
     assert (tasks["eclipse-che"].status, tasks["eclipse-che"].log) == (TaskStatus.FAILED, "failed to evaluate")
@@ -93,8 +94,28 @@ async def test_the_latest_task_of_an_organization(database):
 
     assert await service.get_latest_tasks_by_organization("FetchConfigTask", "eclipse-che") == {}
     assert collection.pipeline[0] == {
-        "$match": {"type": "FetchConfigTask", "status": {"$ne": "created"}, "org_id": "eclipse-che"}
+        "$match": {"type": "FetchConfigTask", "status": {"$in": ["finished", "failed"]}, "org_id": "eclipse-che"}
     }
+
+
+async def test_the_open_pull_requests_of_each_organization(database):
+    collection = _AggregatingCollection([{"_id": "eclipse-che", "count": 2}])
+    database.get_collection.return_value = collection
+
+    assert await service.get_open_pull_request_counts_by_organization() == {"eclipse-che": 2}
+    # counted by mongodb, only the open ones
+    assert collection.pipeline == [
+        {"$match": {"status": "open"}},
+        {"$group": {"_id": "$_id.org_id", "count": {"$sum": 1}}},
+    ]
+
+
+async def test_the_open_pull_requests_of_an_organization(database):
+    collection = _AggregatingCollection([])
+    database.get_collection.return_value = collection
+
+    assert await service.get_open_pull_request_counts_by_organization("eclipse-che") == {}
+    assert collection.pipeline[0] == {"$match": {"status": "open", "_id.org_id": "eclipse-che"}}
 
 
 async def test_the_blueprint_statuses_of_each_organization(database):

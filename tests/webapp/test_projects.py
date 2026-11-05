@@ -10,15 +10,12 @@
 
 from datetime import UTC, datetime, timedelta
 
-import pretend
 import pytest
 
 from otterdog.webapp.db.models import (
-    ApplyStatus,
     ConfigurationModel,
     InstallationModel,
     InstallationStatus,
-    PullRequestStatus,
     StatisticsModel,
     TaskModel,
     TaskStatus,
@@ -70,12 +67,6 @@ def _statistics(github_id="eclipse-che", **counts):
     return StatisticsModel(project_name="ecd.che", github_id=github_id, **values)
 
 
-def _pull_request(status=PullRequestStatus.OPEN, org_id="eclipse-che", **fields):
-    values = {"requires_manual_apply": False, "in_sync": True, "apply_status": ApplyStatus.NOT_APPLIED}
-    values.update(fields)
-    return pretend.stub(id=pretend.stub(org_id=org_id), status=status, **values)
-
-
 def _task(status=TaskStatus.FINISHED, log=None, hours=2):
     return TaskModel(
         type=projects.FETCH_CONFIG_TASK,
@@ -87,9 +78,9 @@ def _task(status=TaskStatus.FINISHED, log=None, hours=2):
     )
 
 
-def _card(configuration=None, statistics=None, pull_requests=(), task=None, blueprints=None, scorecard=None, **kw):
+def _card(configuration=None, statistics=None, open_pull_requests=0, task=None, blueprints=None, scorecard=None, **kw):
     return projects.project_card(
-        _installation(**kw), configuration, statistics, list(pull_requests), task, blueprints or {}, scorecard
+        _installation(**kw), configuration, statistics, open_pull_requests, task, blueprints or {}, scorecard
     )
 
 
@@ -175,16 +166,9 @@ def test_an_organization_not_installed_does_not_open_its_project():
 
 
 def test_the_activity_of_an_organization():
-    pull_requests = [
-        _pull_request(),
-        _pull_request(requires_manual_apply=True),
-        _pull_request(in_sync=False),
-        # merged, but not completely applied
-        _pull_request(PullRequestStatus.MERGED, apply_status=ApplyStatus.FAILED),
-    ]
     card = _card(
         _configuration(),
-        pull_requests=pull_requests,
+        open_pull_requests=3,
         task=_task(),
         blueprints={"failure": 2, "success": 5},
         scorecard=6.4,
@@ -220,7 +204,7 @@ def test_the_cards_take_the_data_of_their_organization_and_are_grouped():
         installations,
         {"eclipse-csi": _configuration("eclipse-csi")},
         {"eclipse-csi": _statistics("eclipse-csi")},
-        [_pull_request(org_id="eclipse-csi"), _pull_request(org_id="eclipse-theia", requires_manual_apply=True)],
+        {"eclipse-csi": 1, "eclipse-theia": 1},
         {},
         {"eclipse-theia": {"failure": 1}},
         {"eclipse-csi": 7.5},

@@ -166,7 +166,44 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
   display: none;
 }
 
+// the colors of the syntax in the CodeMirror editors (js/code-theme.js): the default ones of CodeMirror on the light
+// background, lighter ones on the dark background (below)
+:root,
+[data-bs-theme="light"] {
+  --otterdog-code-meta: #404740;
+  --otterdog-code-keyword: #708;
+  --otterdog-code-atom: #219;
+  --otterdog-code-literal: #164;
+  --otterdog-code-string: #a11;
+  --otterdog-code-escape: #e40;
+  --otterdog-code-definition: #00f;
+  --otterdog-code-local: #30a;
+  --otterdog-code-type: #085;
+  --otterdog-code-class: #167;
+  --otterdog-code-special: #256;
+  --otterdog-code-property: #00c;
+  --otterdog-code-comment: #940;
+  --otterdog-code-invalid: #f00;
+}
+
+// the dark mode: the colors of the syntax, the logos, the purple too dark on the dark background
 [data-bs-theme="dark"] {
+  --otterdog-code-meta: #abb2bf;
+  --otterdog-code-keyword: #c678dd;
+  --otterdog-code-atom: #56b6c2;
+  --otterdog-code-literal: #d19a66;
+  --otterdog-code-string: #98c379;
+  --otterdog-code-escape: #e5c07b;
+  --otterdog-code-definition: #61afef;
+  --otterdog-code-local: #c3a6ff;
+  --otterdog-code-type: #e5c07b;
+  --otterdog-code-class: #e5c07b;
+  --otterdog-code-special: #56b6c2;
+  --otterdog-code-property: #61afef;
+  --otterdog-code-comment: #7f848e;
+  --otterdog-code-invalid: #ff6b6b;
+
+
   .otterdog-logo-light {
     display: none;
   }
@@ -175,10 +212,14 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
     display: inline-block;
   }
 
-  // the purple of text-primary, text-info and of the outline buttons is too dark on the dark background
-  .text-primary,
+  // the purple of text-primary, text-info and of the outline buttons is too dark on the dark background: their color
+  // reads the variable of their theme color, set on them
+  .text-primary {
+    --#{$prefix}primary-rgb: #{to-rgb($otterdog-lilac)};
+  }
+
   .text-info {
-    color: $otterdog-lilac !important;
+    --#{$prefix}info-rgb: #{to-rgb($otterdog-lilac)};
   }
 
   .btn-outline-primary {
@@ -204,43 +245,15 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
     --#{$prefix}btn-active-bg: #{$white};
     --#{$prefix}btn-active-border-color: #{$white};
   }
-}
 
-// the colors of the syntax in the CodeMirror editors (js/code-theme.js): the default ones of CodeMirror on the light
-// background, lighter ones on the dark background
-:root,
-[data-bs-theme="light"] {
-  --otterdog-code-meta: #404740;
-  --otterdog-code-keyword: #708;
-  --otterdog-code-atom: #219;
-  --otterdog-code-literal: #164;
-  --otterdog-code-string: #a11;
-  --otterdog-code-escape: #e40;
-  --otterdog-code-definition: #00f;
-  --otterdog-code-local: #30a;
-  --otterdog-code-type: #085;
-  --otterdog-code-class: #167;
-  --otterdog-code-special: #256;
-  --otterdog-code-property: #00c;
-  --otterdog-code-comment: #940;
-  --otterdog-code-invalid: #f00;
-}
+  // the figures of the home page
+  .otterdog-stat--purple {
+    --otterdog-stat-color: #{$otterdog-lilac};
+  }
 
-[data-bs-theme="dark"] {
-  --otterdog-code-meta: #abb2bf;
-  --otterdog-code-keyword: #c678dd;
-  --otterdog-code-atom: #56b6c2;
-  --otterdog-code-literal: #d19a66;
-  --otterdog-code-string: #98c379;
-  --otterdog-code-escape: #e5c07b;
-  --otterdog-code-definition: #61afef;
-  --otterdog-code-local: #c3a6ff;
-  --otterdog-code-type: #e5c07b;
-  --otterdog-code-class: #e5c07b;
-  --otterdog-code-special: #56b6c2;
-  --otterdog-code-property: #61afef;
-  --otterdog-code-comment: #7f848e;
-  --otterdog-code-invalid: #ff6b6b;
+  .otterdog-stat--grey {
+    --otterdog-stat-color: #{$gray-500};
+  }
 }
 
 // the figures of the home page (home/index.html): a card on the background of the page, the icon in a square tinted
@@ -284,16 +297,6 @@ a.otterdog-stat:focus-visible {
 
 .otterdog-stat--grey {
   --otterdog-stat-color: #{$gray-600};
-}
-
-[data-bs-theme="dark"] {
-  .otterdog-stat--purple {
-    --otterdog-stat-color: #{$otterdog-lilac};
-  }
-
-  .otterdog-stat--grey {
-    --otterdog-stat-color: #{$gray-500};
-  }
 }
 
 .otterdog-stat__icon {
@@ -410,31 +413,33 @@ $otterdog-status-critical: #d03b3b;
   height: 28px;
 }
 
+// a block as wide as its share, without padding which would widen the small ones, its share centered in it
 .otterdog-share__part {
   display: flex;
   flex: 1 1 0;
   align-items: center;
+  justify-content: center;
   min-width: 2px;
-  padding: 0 .5rem;
   overflow: hidden;
   font-size: .75rem;
   font-weight: 600;
-  color: #fff;
   white-space: nowrap;
   border-radius: 4px;
 }
 
+// the share printed in near-black on the good and warning colors, in white on the critical one, each reaching 4.5:1
 .otterdog-share__part--good {
+  color: #0b0b0b;
   background-color: $otterdog-status-good;
 }
 
-// the share printed on the warning in near-black, white being too light on it
 .otterdog-share__part--warning {
   color: #0b0b0b;
   background-color: $otterdog-status-warning;
 }
 
 .otterdog-share__part--critical {
+  color: #fff;
   background-color: $otterdog-status-critical;
 }
 
@@ -702,20 +707,22 @@ a.otterdog-project__fact {
     display: none;
   }
 
-  // a chevron, turned when the section is open
+  // a chevron drawn by two borders, pointing right, down when the section is open
   &::before {
     display: inline-block;
-    font-family: "Font Awesome 7 Free", "Font Awesome 6 Free";
-    font-size: .75rem;
-    font-weight: 900;
-    color: var(--#{$prefix}tertiary-color);
-    content: "\f054";
+    width: .45rem;
+    height: .45rem;
+    margin-right: .25rem;
+    content: "";
+    border-right: 2px solid var(--#{$prefix}tertiary-color);
+    border-bottom: 2px solid var(--#{$prefix}tertiary-color);
+    transform: rotate(-45deg);
     transition: transform .15s ease-in-out;
   }
 }
 
 .otterdog-group[open] > .otterdog-group__title::before {
-  transform: rotate(90deg);
+  transform: rotate(45deg);
 }
 
 // the activity of an organization in a card of its page (home/organization.html), rather than at the bottom of its

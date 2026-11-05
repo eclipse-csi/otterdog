@@ -2,7 +2,7 @@
   The split of a whole into parts, e.g. the repositories by their secret scanning, as a segmented bar styled by
   css/app.scss (otterdog-share): each part a block as wide as its share in its status color, the share printed in the
   blocks wide enough for it, every part named in the legend, its count and share in the tooltip of its block and in
-  the accessible name of the bar.
+  a text for screen readers, the bar itself being hidden from them.
 
   name: the name of the whole, for screen readers
   parts: a list of {label, count, status}, in the order of the bar, status being good, warning or critical
@@ -10,8 +10,10 @@
 {% macro share_bar(name, parts) %}
 {% set total = parts|sum(attribute="count") %}
 <div class="otterdog-share">
-  <div class="otterdog-share__bar" role="img"
-       aria-label="{{ name }}: {% for part in parts %}{{ part.label }} {{ part.count }}{{ '' if loop.last else ', ' }}{% endfor %}">
+  <p class="visually-hidden">
+    {{ name }}: {% for part in parts %}{{ part.label }} {{ part.count }}{{ '' if loop.last else ', ' }}{% endfor %}
+  </p>
+  <div class="otterdog-share__bar" aria-hidden="true">
     {% for part in parts if part.count > 0 %}
     {% set share = part.count / total * 100 %}
     <div class="otterdog-share__part otterdog-share__part--{{ part.status }}" style="flex-grow: {{ part.count }}"

@@ -43,5 +43,7 @@ async def test_the_latest_commit_translates_github_errors():
     async def request_json(method, url, params=None):
         raise GitHubException(url, 404, "not found")
 
+    client = _client(request_json)
+
     with pytest.raises(RuntimeError, match="failed retrieving the latest commit"):
-        await _client(request_json).get_latest_commit_for_path("org", "repo", "otterdog/org.jsonnet")
+        await client.get_latest_commit_for_path("org", "repo", "otterdog/org.jsonnet")
