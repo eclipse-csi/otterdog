@@ -63,6 +63,14 @@ class TestTeamSyncGroups:
 
         assert await team_client(requester).get_team_sync_groups("org", "team") is None
 
+    async def test_get_team_sync_groups_rate_limited(self):
+        # a rate limit must not be taken as team synchronization not being available for the organization
+        rate_limit = {"message": "API rate limit exceeded for installation ID 1."}
+        client = team_client(FakeRequester({("GET", TEAM_SYNC_URL): (403, rate_limit)}))
+
+        with pytest.raises(RuntimeError, match="team synchronization for team 'org/team': 403"):
+            await client.get_team_sync_groups("org", "team")
+
     async def test_get_team_sync_groups_fails(self):
         client = team_client(FakeRequester({("GET", TEAM_SYNC_URL): (500, {"message": "error"})}))
 

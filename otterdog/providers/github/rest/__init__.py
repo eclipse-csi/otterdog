@@ -171,11 +171,12 @@ class RestClient:
         """Fetch a GitHub endpoint that might not be available depending on the plan or add-ons.
 
         Returns None (after warning once per endpoint) if the response status is one of
-        ``unavailable_statuses``, instead of raising.
+        ``unavailable_statuses``, instead of raising. A rate limit is not an unavailable endpoint
+        and raises, even if its status is one of ``unavailable_statuses``.
         """
         status, body = await self.requester.request_raw("GET", url_path)
 
-        if status in unavailable_statuses:
+        if status in unavailable_statuses and not _is_rate_limited(status, body):
             _logger.warning(
                 "%s not available (status=%s), any configured setting will not be validated",
                 feature_description,
@@ -187,6 +188,14 @@ class RestClient:
             raise RuntimeError(f"failed retrieving {feature_description}: {status}: {body}")
 
         return json.loads(body)
+
+
+def _is_rate_limited(status: int, body: str) -> bool:
+    """
+    Whether a response is due to a primary or secondary rate limit, returned by GitHub with status 403 or 429,
+    and a message like 'API rate limit exceeded for ...' or 'You have exceeded a secondary rate limit ...'.
+    """
+    return status in (403, 429) and "rate limit" in body.lower()
 
 
 def encrypt_value(public_key: str, secret_value: str) -> str:
