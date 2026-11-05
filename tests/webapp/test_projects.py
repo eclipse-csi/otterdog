@@ -31,11 +31,15 @@ _NOW = datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
 
 def _installation(project_name="ecd.che", github_id="eclipse-che", status=InstallationStatus.INSTALLED):
     return InstallationModel(
-        github_id=github_id, project_name=project_name, installation_status=status, base_template=_BASE_TEMPLATE
+        github_id=github_id,
+        project_name=project_name,
+        installation_status=status,
+        base_template=_BASE_TEMPLATE,
+        config_repo=".eclipsefdn",
     )
 
 
-def _configuration(github_id="eclipse-che", two_factor=True, permissions="read", repositories=None):
+def _configuration(github_id="eclipse-che", two_factor=True, permissions="read", repositories=None, **commit):
     settings = {
         "two_factor_requirement": two_factor,
         "web_commit_signoff_required": True,
@@ -46,7 +50,7 @@ def _configuration(github_id="eclipse-che", two_factor=True, permissions="read",
     if repositories is None:
         repositories = [{"name": "che"}, {"name": "che-docs"}, {"name": "old", "archived": True}]
     config = {"settings": settings, "repositories": repositories}
-    return ConfigurationModel(github_id=github_id, project_name=None, config=config, sha="1")
+    return ConfigurationModel(github_id=github_id, project_name=None, config=config, sha="1", **commit)
 
 
 def _statistics(github_id="eclipse-che", **counts):
@@ -190,6 +194,20 @@ def test_the_activity_of_an_organization():
     assert card.fetch == projects.Fetch(False, _NOW - timedelta(hours=2), None)
     assert card.failing_blueprints == 2
     assert card.scorecard == 6.4
+
+
+def test_the_latest_change_of_the_configuration_links_to_its_commit():
+    committed_at = _NOW - timedelta(days=3)
+    card = _card(_configuration(commit_sha="abc123", committed_at=committed_at))
+
+    assert card.change == projects.Change(
+        "abc123", committed_at, "https://github.com/eclipse-che/.eclipsefdn/commit/abc123"
+    )
+
+
+def test_the_latest_change_of_a_configuration_fetched_before_it_was_stored_is_unknown():
+    assert _card(_configuration()).change is None
+    assert _card().change is None
 
 
 def test_the_cards_take_the_data_of_their_organization_and_are_grouped():

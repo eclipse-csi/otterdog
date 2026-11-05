@@ -9,6 +9,7 @@
 """The theme of the dashboard, like the one of the documentation: its color modes and the hero of its home page."""
 
 import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -124,6 +125,7 @@ def projects(monkeypatch):
             github_id="eclipse-csi",
             installation_status=InstallationStatus.INSTALLED,
             base_template=base_template,
+            config_repo=".eclipsefdn",
         ),
         InstallationModel(
             project_name="ee4j.jakartaee", github_id="jakartaee", installation_status=InstallationStatus.NOT_INSTALLED
@@ -140,7 +142,12 @@ def projects(monkeypatch):
         "plan": "free",
         "workflows": {"default_workflow_permissions": "write"},
     }
-    configuration = pretend.stub(github_id="eclipse-csi", config={"settings": settings, "repositories": [{}, {}, {}]})
+    configuration = pretend.stub(
+        github_id="eclipse-csi",
+        config={"settings": settings, "repositories": [{}, {}, {}]},
+        commit_sha="abc1234567",
+        committed_at=datetime.now(UTC) - timedelta(hours=5),
+    )
     statistics = StatisticsModel(
         project_name="technology.csi",
         github_id="eclipse-csi",
@@ -200,6 +207,14 @@ async def test_a_card_shows_the_security_and_the_activity_of_its_organization(ap
     assert '<span class="otterdog-meter__fill otterdog-share__part--good" style="width: 100.0%"></span>' in page
     assert "OpenSSF Scorecard 6.4" in page
     assert "No open pull request" in page
+    # the latest change of the configuration, linked to its commit
+    assert re.search(
+        r'<a href="https://github.com/eclipse-csi/.eclipsefdn/commit/abc1234567" title="Commit abc1234">\s*'
+        r"Configuration changed 5 h ago",
+        page,
+    )
+    # the failed fetch of an organization without configuration
+    assert "Last fetch failed" in page
 
 
 async def test_a_project_not_installed_is_muted_with_its_status(app, projects):

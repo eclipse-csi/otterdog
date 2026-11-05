@@ -72,6 +72,10 @@ class ConfigurationModel(Model):
     jsonnet: str | None = None
     # default branch of the configuration repository, the playground of the project proposes changes to it
     branch: str | None = None
+    # the latest commit changing the configuration, and when it was committed, shown on the projects pages; unknown
+    # for the configurations fetched before they were stored
+    commit_sha: str | None = None
+    committed_at: datetime | None = None
 
 
 class PullRequestStatus(StrEnum):

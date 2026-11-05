@@ -8,6 +8,8 @@
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 import aiofiles
 
@@ -18,6 +20,29 @@ from otterdog.webapp.db.models import ConfigurationModel, StatisticsModel, TaskM
 from otterdog.webapp.db.service import save_config, save_statistics
 from otterdog.webapp.tasks import InstallationBasedTask, Task
 from otterdog.webapp.utils import fetch_config_from_github
+
+if TYPE_CHECKING:
+    from otterdog.providers.github.rest import RestApi
+
+
+async def latest_change(
+    rest_api: "RestApi", org_id: str, repo_name: str, path: str
+) -> tuple[str | None, datetime | None]:
+    """
+    The latest commit changing the configuration of an organization on the default branch of its repository, and when
+    it was committed, e.g. the merge of a pull request; unknown when GitHub does not tell, which leaves the fetch of the
+    configuration unaffected.
+    """
+    try:
+        commit = await rest_api.commit.get_latest_commit_for_path(org_id, repo_name, path)
+    except RuntimeError:
+        return None, None
+
+    if commit is None:
+        return None, None
+
+    date = commit.get("commit", {}).get("committer", {}).get("date")
+    return commit.get("sha"), datetime.fromisoformat(date) if date else None
 
 
 @dataclass(repr=False)
@@ -58,6 +83,9 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             async with aiofiles.open(config_file) as file:
                 config_jsonnet = await file.read()
             branch = await rest_api.repo.get_default_branch(self.org_id, org_config.config_repo)
+            commit_sha, committed_at = await latest_change(
+                rest_api, self.org_id, org_config.config_repo, f"otterdog/{self.org_id}.jsonnet"
+            )
 
             config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,
@@ -66,6 +94,8 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 sha=sha,
                 jsonnet=config_jsonnet,
                 branch=branch,
+                commit_sha=commit_sha,
+                committed_at=committed_at,
             )
             await save_config(config)
 

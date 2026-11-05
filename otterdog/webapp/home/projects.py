@@ -68,6 +68,15 @@ class Fetch:
 
 
 @dataclasses.dataclass(frozen=True)
+class Change:
+    """The latest commit changing the configuration of an organization, e.g. the merge of a pull request."""
+
+    sha: str
+    at: datetime
+    url: str
+
+
+@dataclasses.dataclass(frozen=True)
 class ProjectCard:
     project_name: str
     github_id: str
@@ -86,6 +95,7 @@ class ProjectCard:
     archived: int | None = None
     shares: tuple[Share, ...] = ()
     open_pull_requests: int = 0
+    change: Change | None = None
     fetch: Fetch | None = None
     failing_blueprints: int = 0
     scorecard: float | None = None
@@ -140,6 +150,15 @@ def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
     return tuple(Share(label, count / active * 100) for label, count in zip(labels, counts, strict=True))
 
 
+def _change(installation: InstallationModel, configuration: ConfigurationModel | None) -> Change | None:
+    """The latest change of the configuration, unknown for the ones fetched before it was stored."""
+    sha = getattr(configuration, "commit_sha", None)
+    at = getattr(configuration, "committed_at", None)
+    if sha is None or at is None or not installation.config_repo:
+        return None
+    return Change(sha, at, f"https://github.com/{installation.github_id}/{installation.config_repo}/commit/{sha}")
+
+
 def project_card(
     installation: InstallationModel,
     configuration: ConfigurationModel | None,
@@ -173,6 +192,7 @@ def project_card(
         if fetch_task is not None
         else None
     )
+    change = _change(installation, configuration)
 
     return ProjectCard(
         project_name=project_name,
@@ -184,6 +204,7 @@ def project_card(
         defaults_version=defaults_version(installation.base_template),
         shares=_shares(statistics),
         open_pull_requests=sum(1 for x in pull_requests if x.status == PullRequestStatus.OPEN),
+        change=change,
         fetch=fetch,
         failing_blueprints=blueprint_counts.get(BlueprintStatus.FAILURE.value, 0),
         scorecard=scorecard,
