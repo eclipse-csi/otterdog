@@ -62,6 +62,7 @@ def project(tmp_path, monkeypatch):
         routes, "get_open_pull_request_counts_by_organization", mock.AsyncMock(return_value={"my-org": 1})
     )
     monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"my-org": fetch}))
+    return config
 
 
 async def test_the_page_of_a_project_links_to_its_playground(app, project):
@@ -113,6 +114,18 @@ async def test_the_page_of_a_project_explains_its_facts_and_its_protections(app,
             rf'<h3 class="card-title" data-bs-toggle="tooltip" data-bs-title="Share of the active [^"]+">{title}</h3>',
             page,
         ), title
+
+
+async def test_the_page_of_a_project_without_active_repositories_shows_no_share(app, project):
+    for repository in project.config["repositories"]:
+        repository["archived"] = True
+
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # no share of 0% for the protections, which no repository could have
+    assert page.count("No active repositories") == 5
+    assert '<span class="otterdog-figure__value">0.0%</span>' not in page
 
 
 async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):

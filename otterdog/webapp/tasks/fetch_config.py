@@ -73,6 +73,12 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
         async with self.get_organization_config() as org_config:
             rest_api = await self.rest_api
 
+            # the latest change first, the configuration being read at its commit, so that the configuration and its
+            # change describe the same revision even when a change is pushed in between; else from the default branch
+            commit_sha, committed_at = await latest_change(
+                rest_api, self.org_id, org_config.config_repo, f"otterdog/{self.org_id}.jsonnet"
+            )
+
             config_file = org_config.jsonnet_config.org_config_file
             sha = await fetch_config_from_github(
                 rest_api,
@@ -80,6 +86,7 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
                 self.org_id,
                 org_config.config_repo,
                 config_file,
+                commit_sha,
             )
 
             # save configuration — confine imports to the org config directory,
@@ -88,9 +95,6 @@ class FetchConfigTask(InstallationBasedTask, Task[None]):
             async with aiofiles.open(config_file) as file:
                 config_jsonnet = await file.read()
             branch = await rest_api.repo.get_default_branch(self.org_id, org_config.config_repo)
-            commit_sha, committed_at = await latest_change(
-                rest_api, self.org_id, org_config.config_repo, f"otterdog/{self.org_id}.jsonnet"
-            )
 
             config = ConfigurationModel(  # type: ignore
                 github_id=self.org_id,

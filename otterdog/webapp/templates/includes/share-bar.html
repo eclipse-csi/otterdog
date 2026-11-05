@@ -30,10 +30,18 @@
 </div>
 {% endmacro %}
 
-{# a figure above a share bar: the share that counts, e.g. 95.0%, and what it is #}
-{% macro share_figure(percentage, caption) %}
+{#
+  a figure above a share bar: the share that counts, e.g. 95.0%, and what it is; without a share, e.g. without active
+  repositories, a dash and why, a share of 0% being one that was measured
+#}
+{% macro share_figure(percentage, caption, missing="No data") %}
 <p class="otterdog-figure">
+  {% if percentage is none %}
+  <span class="otterdog-figure__value">&ndash;</span>
+  {{ missing }}
+  {% else %}
   <span class="otterdog-figure__value">{{ '%0.1f' % percentage|float }}%</span>
   {{ caption }}
+  {% endif %}
 </p>
 {% endmacro %}
