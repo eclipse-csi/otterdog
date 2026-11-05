@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from otterdog.webapp.db.models import ApplyStatus, BlueprintStatus, InstallationStatus, PullRequestStatus, TaskStatus
+from otterdog.webapp.db.models import BlueprintStatus, InstallationStatus, PullRequestStatus, TaskStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -59,14 +59,6 @@ class Share:
 
 
 @dataclasses.dataclass(frozen=True)
-class Attention:
-    """Something to look at in an organization, its key being the value of the filter of the page."""
-
-    key: str
-    label: str
-
-
-@dataclasses.dataclass(frozen=True)
 class Fetch:
     """The last fetch of the configuration of an organization."""
 
@@ -94,11 +86,9 @@ class ProjectCard:
     archived: int | None = None
     shares: tuple[Share, ...] = ()
     open_pull_requests: int = 0
-    pull_requests_to_look_at: int = 0
     fetch: Fetch | None = None
     failing_blueprints: int = 0
     scorecard: float | None = None
-    attention: tuple[Attention, ...] = ()
 
     @property
     def linked(self) -> bool:
@@ -134,10 +124,6 @@ def ago(at: datetime, now: datetime) -> str:
     return f"{seconds // 86400} d ago"
 
 
-def _plural(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
-
-
 def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
     labels = ("Branch protection", "Secret scanning", "Dependabot", "Code scanning")
     active = statistics.total_repos - statistics.archived_repos if statistics is not None else 0
@@ -152,13 +138,6 @@ def _shares(statistics: StatisticsModel | None) -> tuple[Share, ...]:
         statistics.repos_with_code_scanning,
     )
     return tuple(Share(label, count / active * 100) for label, count in zip(labels, counts, strict=True))
-
-
-def _to_look_at(pull_request: PullRequestModel) -> bool:
-    """Whether a pull request of a configuration needs someone: to apply it, to sync it, or to finish its apply."""
-    if pull_request.status == PullRequestStatus.OPEN:
-        return pull_request.requires_manual_apply is True or pull_request.in_sync is False
-    return pull_request.status == PullRequestStatus.MERGED and pull_request.apply_status != ApplyStatus.COMPLETED
 
 
 def project_card(
@@ -194,24 +173,6 @@ def project_card(
         if fetch_task is not None
         else None
     )
-    open_pull_requests = sum(1 for x in pull_requests if x.status == PullRequestStatus.OPEN)
-    to_look_at = sum(1 for x in pull_requests if _to_look_at(x))
-    failing_blueprints = blueprint_counts.get(BlueprintStatus.FAILURE.value, 0)
-
-    attention: list[Attention] = []
-    if installed:
-        if config is None:
-            attention.append(Attention("unconfigured", "No configuration"))
-        if facts.get("two_factor") is False:
-            attention.append(Attention("two-factor", "2FA not enforced"))
-        if facts.get("workflow_permissions") == "write":
-            attention.append(Attention("write", "Write workflow permissions"))
-        if fetch is not None and fetch.failed:
-            attention.append(Attention("fetch", "The last fetch of the configuration failed"))
-        if failing_blueprints > 0:
-            attention.append(Attention("blueprints", _plural(failing_blueprints, "failing blueprint")))
-        if to_look_at > 0:
-            attention.append(Attention("pull-requests", _plural(to_look_at, "pull request") + " to look at"))
 
     return ProjectCard(
         project_name=project_name,
@@ -222,12 +183,10 @@ def project_card(
         base_template=installation.base_template,
         defaults_version=defaults_version(installation.base_template),
         shares=_shares(statistics),
-        open_pull_requests=open_pull_requests,
-        pull_requests_to_look_at=to_look_at,
+        open_pull_requests=sum(1 for x in pull_requests if x.status == PullRequestStatus.OPEN),
         fetch=fetch,
-        failing_blueprints=failing_blueprints,
+        failing_blueprints=blueprint_counts.get(BlueprintStatus.FAILURE.value, 0),
         scorecard=scorecard,
-        attention=tuple(attention),
         **facts,
     )
 
@@ -265,16 +224,6 @@ def group_cards(cards: list[ProjectCard]) -> list[tuple[str, list[ProjectCard]]]
     """The cards by their top-level project, e.g. ecd for ecd.che, sorted by it."""
     ordered = sorted(cards, key=lambda card: (card.group, card.project_name))
     return [(group, list(members)) for group, members in groupby(ordered, key=lambda card: card.group)]
-
-
-def summary(cards: list[ProjectCard]) -> dict[str, int]:
-    """The number of organizations in each state and to look at, shown at the top of the page."""
-    return {
-        "configured": sum(1 for card in cards if card.state == "configured"),
-        "unconfigured": sum(1 for card in cards if card.state == "unconfigured"),
-        "inactive": sum(1 for card in cards if card.state == "inactive"),
-        "attention": sum(1 for card in cards if card.attention),
-    }
 
 
 def now() -> datetime:

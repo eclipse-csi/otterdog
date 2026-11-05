@@ -3,11 +3,7 @@
 // matching, to sort them in their group and to count them. The filters are kept in the query string of the address of
 // the page, so that a filtered list can be shared and survives a reload.
 
-export const FIELDS = ["q", "group", "state", "attention", "sort"];
-
-function reasons(organization) {
-  return organization.attention ? organization.attention.split(" ") : [];
-}
+export const FIELDS = ["q", "group", "sort"];
 
 // whether an organization, the dataset of its card, matches the filters, a filter without value matching every one
 export function matches(organization, filters) {
@@ -15,26 +11,13 @@ export function matches(organization, filters) {
   if (query && !organization.name.includes(query)) {
     return false;
   }
-  if (filters.group && organization.group !== filters.group) {
-    return false;
-  }
-  if (filters.state && organization.state !== filters.state) {
-    return false;
-  }
-  if (filters.attention === "any") {
-    return reasons(organization).length > 0;
-  }
-  if (filters.attention && !reasons(organization).includes(filters.attention)) {
-    return false;
-  }
-  return true;
+  return !filters.group || organization.group === filters.group;
 }
 
 const number = (value) => Number(value ?? -1);
 
 // the orders of the organizations, the name breaking the ties
 const ORDERS = {
-  attention: (a, b) => reasons(b).length - reasons(a).length,
   // the least protected first, the organizations without statistics (-1) last
   security: (a, b) => {
     const value = (organization) => (number(organization.security) < 0 ? Infinity : number(organization.security));
@@ -67,7 +50,6 @@ export function initProjectFilters(form) {
   const total = document.querySelectorAll("[data-otterdog-project]").length;
   const count = form.querySelector("[data-otterdog-project-count]");
   const empty = document.querySelector("[data-otterdog-project-empty]");
-  const summaries = [...document.querySelectorAll("[data-otterdog-project-summary]")];
 
   const params = new URLSearchParams(window.location.search);
   for (const field of FIELDS) {
@@ -98,27 +80,10 @@ export function initProjectFilters(form) {
     count.textContent = countText(shown, total);
     empty.hidden = shown > 0;
 
-    for (const summary of summaries) {
-      summary.setAttribute("aria-pressed", String(filters[summary.dataset.field] === summary.dataset.value));
-    }
-
     const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
     const search = query.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
   };
-
-  // a figure of the summary filters the organizations it counts, a second click shows them all again
-  for (const summary of summaries) {
-    summary.addEventListener("click", () => {
-      const pressed = summary.getAttribute("aria-pressed") === "true";
-      form.elements.state.value = "";
-      form.elements.attention.value = "";
-      if (!pressed) {
-        form.elements[summary.dataset.field].value = summary.dataset.value;
-      }
-      apply();
-    });
-  }
 
   form.addEventListener("input", apply);
   form.addEventListener("change", apply);

@@ -132,7 +132,6 @@ def test_an_organization_with_its_configuration_opens_its_project():
         "free",
     )
     assert (card.repositories, card.archived) == (3, 1)
-    assert card.attention == ()
 
 
 def test_the_shares_of_the_active_repositories_with_each_protection():
@@ -155,34 +154,32 @@ def test_the_shares_of_an_organization_without_active_repositories_are_unknown()
     assert card.security is None
 
 
-def test_an_organization_installed_without_configuration_is_to_look_at():
+def test_an_organization_installed_without_configuration_does_not_open_its_project():
     card = _card(task=_task(TaskStatus.FAILED, log="failed to evaluate"))
 
     assert card.state == "unconfigured"
     assert not card.linked
     assert card.repositories is None
     assert card.fetch == projects.Fetch(True, _NOW - timedelta(hours=2), "failed to evaluate")
-    assert [x.key for x in card.attention] == ["unconfigured", "fetch"]
 
 
-def test_an_organization_not_installed_has_nothing_to_look_at():
-    card = _card(_configuration(two_factor=False), status=InstallationStatus.NOT_INSTALLED)
+def test_an_organization_not_installed_does_not_open_its_project():
+    card = _card(_configuration(), status=InstallationStatus.NOT_INSTALLED)
 
     assert card.state == "inactive"
     assert not card.linked
-    assert card.attention == ()
 
 
-def test_the_reasons_to_look_at_an_organization():
+def test_the_activity_of_an_organization():
     pull_requests = [
         _pull_request(),
         _pull_request(requires_manual_apply=True),
         _pull_request(in_sync=False),
+        # merged, but not completely applied
         _pull_request(PullRequestStatus.MERGED, apply_status=ApplyStatus.FAILED),
-        _pull_request(PullRequestStatus.MERGED, apply_status=ApplyStatus.COMPLETED),
     ]
     card = _card(
-        _configuration(two_factor=False, permissions="write"),
+        _configuration(),
         pull_requests=pull_requests,
         task=_task(),
         blueprints={"failure": 2, "success": 5},
@@ -190,15 +187,9 @@ def test_the_reasons_to_look_at_an_organization():
     )
 
     assert card.open_pull_requests == 3
-    assert card.pull_requests_to_look_at == 3
+    assert card.fetch == projects.Fetch(False, _NOW - timedelta(hours=2), None)
     assert card.failing_blueprints == 2
     assert card.scorecard == 6.4
-    assert [(x.key, x.label) for x in card.attention] == [
-        ("two-factor", "2FA not enforced"),
-        ("write", "Write workflow permissions"),
-        ("blueprints", "2 failing blueprints"),
-        ("pull-requests", "3 pull requests to look at"),
-    ]
 
 
 def test_the_cards_take_the_data_of_their_organization_and_are_grouped():
@@ -221,10 +212,9 @@ def test_the_cards_take_the_data_of_their_organization_and_are_grouped():
     csi = cards[2]
     assert (csi.state, csi.open_pull_requests, csi.scorecard, csi.security) == ("configured", 1, 7.5, 70.0)
     theia = cards[1]
-    assert [x.key for x in theia.attention] == ["unconfigured", "blueprints", "pull-requests"]
+    assert (theia.state, theia.open_pull_requests, theia.failing_blueprints) == ("unconfigured", 1, 1)
 
     assert [(group, [card.project_name for card in members]) for group, members in projects.group_cards(cards)] == [
         ("ecd", ["ecd.che", "ecd.theia"]),
         ("technology", ["technology.csi"]),
     ]
-    assert projects.summary(cards) == {"configured": 1, "unconfigured": 1, "inactive": 1, "attention": 1}

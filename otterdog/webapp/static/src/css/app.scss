@@ -263,10 +263,7 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
 }
 
 a.otterdog-stat:hover,
-a.otterdog-stat:focus-visible,
-button.otterdog-stat:hover,
-button.otterdog-stat:focus-visible,
-button.otterdog-stat[aria-pressed="true"] {
+a.otterdog-stat:focus-visible {
   color: var(--#{$prefix}body-color);
   text-decoration: none;
   border-color: var(--otterdog-stat-color);
@@ -287,26 +284,6 @@ button.otterdog-stat[aria-pressed="true"] {
 
 .otterdog-stat--grey {
   --otterdog-stat-color: #{$gray-600};
-}
-
-.otterdog-stat--red {
-  --otterdog-stat-color: #d03b3b;
-}
-
-// a figure filtering a list (home/projects.html): a button, the icon beside the figure
-button.otterdog-stat {
-  width: 100%;
-  text-align: left;
-}
-
-.otterdog-stat--compact {
-  flex-direction: row;
-  align-items: center;
-  padding: .75rem 1rem;
-
-  .otterdog-stat__value {
-    font-size: 1.5rem;
-  }
 }
 
 [data-bs-theme="dark"] {
@@ -549,10 +526,9 @@ $otterdog-status-critical: #d03b3b;
   }
 }
 
-// the links of the card and the tooltips of its reasons stay above the link of its project, which covers the card
+// the links of the card and its tooltips stay above the link of its project, which covers the card
 .otterdog-project__organization,
 .otterdog-project__meta,
-.otterdog-project__attention,
 .otterdog-project__activity a,
 .otterdog-project__activity [title],
 a.otterdog-project__fact {
@@ -623,19 +599,6 @@ a.otterdog-project__fact {
   display: block;
   font-size: .75rem;
   color: var(--#{$prefix}tertiary-color);
-}
-
-// the number of things to look at in an organization, its reasons in its tooltip
-.otterdog-project__attention {
-  flex: none;
-  align-self: flex-start;
-  padding: .125rem .5rem;
-  font-size: .75rem;
-  font-weight: 600;
-  color: var(--#{$prefix}danger-text-emphasis);
-  cursor: help;
-  background-color: var(--#{$prefix}danger-bg-subtle);
-  border-radius: var(--#{$prefix}border-radius-pill);
 }
 
 .otterdog-project__value {

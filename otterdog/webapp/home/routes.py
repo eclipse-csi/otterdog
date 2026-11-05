@@ -214,7 +214,6 @@ async def _render_projects(title: str, installations: list["InstallationModel"])
         "projects.html",
         title=title,
         groups=projects.group_cards(cards),
-        summary=projects.summary(cards),
         total=len(cards),
         now=projects.now(),
         ago=projects.ago,

@@ -36,27 +36,6 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <!-- the number of organizations in each state and to look at, each one filtering the list (js/projects.js) -->
-        <div class="row g-3 mb-3">
-          {% for key, color, icon, label, field, value in [
-            ("configured", "green", "fas fa-circle-check", "Configured", "state", "configured"),
-            ("unconfigured", "orange", "fas fa-circle-question", "No configuration", "state", "unconfigured"),
-            ("inactive", "grey", "fas fa-circle-pause", "Not installed", "state", "inactive"),
-            ("attention", "red", "fas fa-triangle-exclamation", "To look at", "attention", "any"),
-          ] %}
-          <div class="col-6 col-lg-3">
-            <button type="button" class="otterdog-stat otterdog-stat--compact otterdog-stat--{{ color }}"
-                    data-otterdog-project-summary data-field="{{ field }}" data-value="{{ value }}" aria-pressed="false">
-              <span class="otterdog-stat__icon"><i class="{{ icon }}" aria-hidden="true"></i></span>
-              <span class="otterdog-stat__text">
-                <span class="otterdog-stat__value">{{ summary[key] }}</span>
-                <span class="otterdog-stat__label">{{ label }}</span>
-              </span>
-            </button>
-          </div>
-          {% endfor %}
-        </div>
-
         <!-- the filters and the order of the organizations (js/projects.js), kept in the address of the page so that a
              filtered list can be shared -->
         <form class="row g-2 align-items-center mb-3" role="search" aria-label="Filter the organizations"
@@ -77,28 +56,8 @@
             </select>
           </div>
           <div class="col-sm-6 col-md-auto">
-            <select class="form-select" name="state" aria-label="State">
-              <option value="">Any state</option>
-              <option value="configured">Configured</option>
-              <option value="unconfigured">No configuration</option>
-              <option value="inactive">Not installed</option>
-            </select>
-          </div>
-          <div class="col-sm-6 col-md-auto">
-            <select class="form-select" name="attention" aria-label="To look at">
-              <option value="">Anything</option>
-              <option value="any">To look at</option>
-              <option value="two-factor">2FA not enforced</option>
-              <option value="write">Write workflow permissions</option>
-              <option value="fetch">Failed configuration fetch</option>
-              <option value="blueprints">Failing blueprints</option>
-              <option value="pull-requests">Pull requests to look at</option>
-            </select>
-          </div>
-          <div class="col-sm-6 col-md-auto">
             <select class="form-select" name="sort" aria-label="Order">
               <option value="">Sort by name</option>
-              <option value="attention">To look at first</option>
               <option value="security">Least protected first</option>
               <option value="repositories">Most repositories first</option>
               <option value="pull-requests">Most open pull requests first</option>

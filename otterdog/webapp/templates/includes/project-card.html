@@ -1,8 +1,8 @@
 {#
   The card of an organization on the projects pages (home/projects.html), built by home/projects.py and styled by
   css/app.scss (otterdog-project): its avatar, its project and GitHub organization, the version of its default
-  configuration and its plan, the things to look at, the facts of its configuration, the share of its repositories
-  with each protection and its activity. Only the organizations installed with a configuration open the page of their
+  configuration and its plan, the facts of its configuration, the share of its repositories with each protection and
+  its activity. Only the organizations installed with a configuration open the page of their
   project, the others are muted with the reason as a badge. Its data attributes are read by js/projects.js.
 #}
 {% macro project_card(card, now, ago) %}
@@ -11,7 +11,6 @@
 {% set project_url = '/projects/' ~ card.project_name %}
 <div class="col-md-6 col-xxl-4" data-otterdog-project
      data-name="{{ (card.project_name ~ ' ' ~ card.github_id)|lower }}" data-group="{{ card.group }}"
-     data-state="{{ card.state }}" data-attention="{{ card.attention|map(attribute='key')|join(' ') }}"
      data-repositories="{{ card.repositories if card.repositories is not none else -1 }}"
      data-security="{{ '%.1f'|format(card.security) if card.security is not none else -1 }}"
      data-pull-requests="{{ card.open_pull_requests }}">
@@ -49,13 +48,6 @@
         </span>
         {% endif %}
       </div>
-      {% if card.attention %}
-      {% set reasons = card.attention|map(attribute='label')|join(', ') %}
-      <span class="otterdog-project__attention" title="To look at: {{ reasons }}">
-        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i> {{ card.attention|length }}
-        <span class="visually-hidden">to look at: {{ reasons }}</span>
-      </span>
-      {% endif %}
     </div>
 
     {% set two_factor_color = 'success' if card.two_factor == true else 'danger' %}
@@ -139,13 +131,10 @@
     <ul class="otterdog-project__activity">
       <li>
         <i class="fas fa-code-pull-request fa-fw" aria-hidden="true"></i>
-        {% if card.open_pull_requests or card.pull_requests_to_look_at %}
+        {% if card.open_pull_requests %}
         <a href="/admin/pullrequests#open-prs">
           {{- card.open_pull_requests }} open pull request{{ '' if card.open_pull_requests == 1 else 's' -}}
         </a>
-        {%- if card.pull_requests_to_look_at %}
-        &middot; <span class="otterdog-project__warning">{{ card.pull_requests_to_look_at }} to look at</span>
-        {%- endif %}
         {% else %}
         No open pull request
         {% endif %}

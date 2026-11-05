@@ -200,8 +200,6 @@ async def test_a_card_shows_the_security_and_the_activity_of_its_organization(ap
     assert '<span class="otterdog-meter__fill otterdog-share__part--good" style="width: 100.0%"></span>' in page
     assert "OpenSSF Scorecard 6.4" in page
     assert "No open pull request" in page
-    # the write workflow permissions of the organization are to look at
-    assert re.search(r'title="To look at: Write workflow permissions">', page)
 
 
 async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
@@ -209,7 +207,6 @@ async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
 
     assert '<span class="otterdog-project__name">ee4j.jakartaee</span>' in page
     assert 'data-group="ee4j"' in page
-    assert 'data-state="inactive"' in page
     assert "Not installed" in page
 
 
@@ -219,7 +216,6 @@ async def test_a_project_without_configuration_has_the_same_card_without_its_pag
     # the page of a project without configuration does not exist, its card does not link to it
     assert '<span class="otterdog-project__name">ecd.che</span>' in page
     assert 'href="/projects/ecd.che' not in page
-    assert 'data-state="unconfigured" data-attention="unconfigured fetch"' in page
     assert "No configuration" in page
     assert 'title="boom">' in page
     # every card has the five facts, a dash when they are not known
@@ -239,17 +235,14 @@ async def test_the_projects_can_be_filtered(app, projects):
 
     assert "data-otterdog-project-filters" in page
     assert "js/projects.js" in page
-    # the summary counts the organizations of each state and to look at, each one filtering the list
-    assert re.search(
-        r'data-field="state" data-value="configured"[^>]*>\s*<span[^>]*>[^<]*<i[^>]*></i></span>\s*'
-        r'<span class="otterdog-stat__text">\s*<span class="otterdog-stat__value">1</span>',
-        page,
-    )
-    assert re.search(r'data-value="any"[\s\S]*?otterdog-stat__value">2</span>', page)
-    for option in ("two-factor", "write", "fetch", "blueprints", "pull-requests"):
-        assert f'<option value="{option}">' in page
-    for order in ("attention", "security", "repositories", "pull-requests"):
+    for group in ("ecd", "ee4j", "technology"):
+        assert f'<option value="{group}">{group}</option>' in page
+    for order in ("security", "repositories", "pull-requests"):
         assert f'<option value="{order}">' in page
+    # neither a summary of the states nor things to look at
+    assert "data-otterdog-project-summary" not in page
+    assert 'name="state"' not in page
+    assert "look at" not in page.lower()
 
 
 async def test_the_tables_have_the_style_of_the_dashboard(app):
