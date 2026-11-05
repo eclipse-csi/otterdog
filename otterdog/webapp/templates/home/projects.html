@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/project-card.html" import project_card %}
 
 {% block title %} Dashboard {% endblock %}
 
@@ -19,7 +20,7 @@
       <div class="container-fluid">
         <div class="row mb-2">
           <div class="col-sm-6">
-            <h1 class="m-0 text-dark">{{ title }}</h1>
+            <h1 class="m-0">{{ title }}</h1>
           </div><!-- /.col -->
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">
@@ -35,66 +36,96 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <div class="row">
-          {% for installation in installations %}
-          {% set github_id = installation.github_id %}
-          {% set project_name = installation.project_name %}
-          {% set installation_status = installation.installation_status %}
-          <div class="col-md-3">
-            <div class="card">
-              {% if installation_status|status == 'success' %}
-              <a class="text-reset" href="/projects/{{ project_name }}">
-                <div class="card-header text-bg-{{ installation_status|status }}">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                  <div class="float-end">
-                    <i class="fas fa-arrow-circle-right"></i>
-                  </div>
-                </div>
-              </a>
-              {% else %}
-              <a class="text-reset" href="#">
-                <div class="card-header text-bg-{{ installation_status|status }}">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                </div>
-              </a>
-              {% endif %}
-              <div class="card-body">
-                <a href="https://github.com/{{ github_id }}"><i class="fab fa-github"></i> &nbsp; {{ github_id }}</a>
-              </div>
-              <div class="card-footer p-0">
-                {% if installation_status|status == 'success' %}
-                <ul class="nav flex-column">
-                  {% if configurations[github_id] %}
-                  {% set config = configurations[github_id].config %}
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#settings" class="nav-link">
-                      {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                      2FA enforced <span class="float-end badge text-bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
-                      {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                      Default workflow permissions <span class="float-end badge text-bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#repositories" class="nav-link">
-                      Repositories <span class="float-end badge text-bg-primary">{{ config.repositories|length }}</span>
-                    </a>
-                  </li>
-                  {% endif %}
-                </ul>
-                {% endif %}
-              </div>
-              <!-- /.card-body -->
+        <!-- the filters and the order of the organizations (js/projects.js), kept in the address of the page so that a
+             filtered list can be shared -->
+        <form class="row g-2 align-items-center mb-3" role="search" aria-label="Filter the organizations"
+              data-otterdog-project-filters>
+          <div class="col-12 col-md-4 col-xl-3">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+              <input type="search" class="form-control" name="q" placeholder="Project or organization"
+                     aria-label="Search a project or an organization" autocomplete="off">
             </div>
-            <!-- /.card -->
           </div>
+          <div class="col-sm-6 col-md-auto">
+            <!-- the top-level projects in a group of options: the loop directly in the select would be text of the
+                 select for the analysis of SonarCloud, which does not know Jinja, missing from its accessible name -->
+            <select class="form-select" name="group" aria-label="Top-level projects">
+              <option value="">All top-level projects</option>
+              <optgroup label="Top-level projects">
+                {% for group, cards in groups %}
+                <option value="{{ group }}">{{ group }}</option>
+                {% endfor %}
+              </optgroup>
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-auto">
+            <!-- the groups, or a single list sorted over all the organizations -->
+            <select class="form-select" name="by" aria-label="Group by">
+              <option value="">Group by top-level project</option>
+              <option value="none">No groups</option>
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-auto">
+            <select class="form-select" name="sort" aria-label="Sort by">
+              <option value="">Sort by name</option>
+              <optgroup label="Security">
+                <option value="security">Least protected first</option>
+                <option value="two-factor">2FA not enforced first</option>
+                <option value="branch-protection">Least branch protection first</option>
+                <option value="secret-scanning">Least secret scanning first</option>
+                <option value="dependabot">Least Dependabot first</option>
+                <option value="code-scanning">Least code scanning first</option>
+                <option value="vulnerability-reporting">Least vulnerability reporting first</option>
+                <option value="scorecard">Lowest OpenSSF Scorecard first</option>
+              </optgroup>
+              <optgroup label="Activity">
+                <option value="pull-requests">Most open pull requests first</option>
+                <option value="blueprints">Most failing blueprints first</option>
+                <option value="changed-recently">Configuration changed most recently first</option>
+                <option value="changed-long-ago">Configuration changed least recently first</option>
+              </optgroup>
+              <optgroup label="Size">
+                <option value="repositories">Most repositories first</option>
+                <option value="archived">Most archived repositories first</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="col-auto">
+            <!-- folds or unfolds all the groups, its icon and its label set by js/projects.js -->
+            <button type="button" class="btn btn-outline-secondary" data-otterdog-groups-toggle
+                    aria-label="Collapse all the groups" title="Collapse all the groups">
+              <i class="fas fa-angles-up" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="col-12 col-md-auto ms-md-auto text-body-secondary" data-otterdog-project-count aria-live="polite">
+            {{ total }} organizations
+          </div>
+        </form>
+        <p class="text-body-secondary" data-otterdog-project-empty hidden>No organization matches the filters.</p>
+
+        <!-- the organizations, the row of the order chosen tinted on their cards (data-otterdog-sort, css/app.scss) -->
+        <div data-otterdog-projects>
+          <!-- a section per top-level project, e.g. ecd for ecd.che, folded with its title -->
+          {% for group, cards in groups %}
+          <details class="otterdog-group" open data-otterdog-group="{{ group }}">
+            <summary class="otterdog-group__title">
+              {{ group }}
+              <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis" data-otterdog-group-count>
+                {{ cards|length }}
+              </span>
+            </summary>
+            <div class="row g-3" data-otterdog-group-cards>
+              {% for card in cards %}
+              {{ project_card(card, now, ago) }}
+              {% endfor %}
+            </div>
+          </details>
           {% endfor %}
-          <!-- /.col -->
+
+          <!-- a single list of the organizations without groups, filled by js/projects.js -->
+          <div class="row g-3" data-otterdog-flat hidden></div>
         </div>
-        <!-- /.row -->
 
       </div><!-- /.container-fluid -->
     </section>
@@ -107,4 +138,9 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
+  <script type="module">
+    import {initProjectFilters} from '{{ asset('js/projects.js') }}';
+
+    initProjectFilters(document.querySelector('[data-otterdog-project-filters]'));
+  </script>
 {% endblock javascripts %}

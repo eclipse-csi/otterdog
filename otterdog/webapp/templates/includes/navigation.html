@@ -1,5 +1,6 @@
   <!-- Header -->
-  <nav class="app-header navbar navbar-expand bg-body">
+  <!-- in the purple of the Eclipse Foundation in both color modes, like the header of the documentation -->
+  <nav class="app-header navbar navbar-expand otterdog-header" data-bs-theme="dark">
     <div class="container-fluid">
       <!-- Left navbar links -->
       <ul class="navbar-nav">
@@ -12,6 +13,13 @@
       </ul>
 
       <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <!-- js/color-scheme.js sets its label and its icon to the mode it switches to -->
+          <button type="button" class="nav-link" data-otterdog-color-scheme-toggle
+                  aria-label="Switch color mode" title="Switch color mode">
+            <i class="fas fa-moon" aria-hidden="true"></i>
+          </button>
+        </li>
         {% if current_user.is_authenticated %}
         <li class="nav-item dropdown user-menu">
           <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" aria-label="{{ current_user.username }}">

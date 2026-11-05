@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/share-bar.html" import share_bar, share_figure %}
 
 {% block title %} Dashboard {% endblock %}
 
@@ -14,135 +15,210 @@
 
   <div class="app-main">
 
-    <!-- Content Header (Page header) -->
-    <div class="app-content-header">
+    <!-- the hero of the home page, like the one of the documentation: the white logo of the official artwork, the
+         name of the page being hidden text for screen readers (css/app.scss) -->
+    <section class="otterdog-hero">
       <div class="container-fluid">
-        <div class="row mb-2">
-          <div class="col-sm-6">
-            <h1 class="m-0 text-dark">Dashboard</h1>
-          </div>
-          <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-              <li class="breadcrumb-item"><a href="/index">Home</a></li>
-              <li class="breadcrumb-item active">Dashboard</li>
-            </ol>
-          </div>
-        </div>
+        <h1 class="otterdog-hero__title">
+          <span class="visually-hidden">Otterdog Dashboard</span>
+          <img class="otterdog-hero__logo" src="{{ asset('img/otterdog-logo-white.png') }}" alt="" width="1927" height="672">
+        </h1>
+        <p class="otterdog-hero__text">
+          Manage GitHub organizations at scale: the configuration of an organization and of its repositories lives in a
+          repository, every change is a pull request.
+        </p>
+        <a class="btn otterdog-hero__button otterdog-hero__button--primary" href="/playground">Try the playground</a>
+        <a class="btn otterdog-hero__button" href="/allprojects">All projects</a>
+        <a class="btn otterdog-hero__button" href="{{ documentation_url }}" target="_blank" rel="noopener">
+          Documentation <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+        </a>
+        <a class="btn otterdog-hero__button" href="{{ documentation_url }}userguide/guides/" target="_blank" rel="noopener">
+          Configuration guides <i class="fas fa-arrow-up-right-from-square fa-xs ms-1" aria-hidden="true"></i>
+        </a>
       </div>
-    </div>
-    <!-- /.content-header -->
+    </section>
+    <!-- /.otterdog-hero -->
 
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <!-- Small boxes (Stat box) -->
-        <div class="row">
-          <div class="col-lg-2">
-            <div class="small-box text-bg-info">
-              <div class="inner">
-                <h3>{{ installations|length }}</h3>
-                <p>GitHub Organizations</p>
-              </div>
-              <i class="small-box-icon fas fa-sitemap"></i>
-              <a href="/admin/organizations" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
+        <!-- the figures of the instance, in the colors of what they count: the open pull requests to look at in
+             orange, the merged ones and the active repositories in green, the archived repositories in grey -->
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--purple" href="/admin/organizations">
+              <span class="otterdog-stat__icon"><i class="fas fa-sitemap" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ installations|length }}</span>
+                <span class="otterdog-stat__label">GitHub Organizations</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-warning">
-              <div class="inner">
-                <h3>{{ open_pull_request_count }}</h3>
-                <p>Open Pull Requests</p>
-              </div>
-              <i class="small-box-icon fas fa-code-pull-request"></i>
-              <a href="/admin/pullrequests#open-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--orange" href="/admin/pullrequests#open-prs">
+              <span class="otterdog-stat__icon"><i class="fas fa-code-pull-request" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ open_pull_request_count }}</span>
+                <span class="otterdog-stat__label">Open Pull Requests</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-success">
-              <div class="inner">
-                <h3>{{ merged_pull_request_count }}</h3>
-                <p>Merged Pull Requests</p>
-              </div>
-              <i class="small-box-icon fas fa-code-merge"></i>
-              <a href="/admin/pullrequests#merged-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--green" href="/admin/pullrequests#merged-prs">
+              <span class="otterdog-stat__icon"><i class="fas fa-code-merge" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ merged_pull_request_count }}</span>
+                <span class="otterdog-stat__label">Merged Pull Requests</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-info">
-              <div class="inner">
-                <h3>{{ total_repository_count }}</h3>
-                <p>Total Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
-            </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <!-- the repositories open the organizations in a single list, the most repositories first -->
+            <a class="otterdog-stat otterdog-stat--purple" href="/allprojects?by=none&amp;sort=repositories">
+              <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ total_repository_count }}</span>
+                <span class="otterdog-stat__label">Total Repositories</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-success">
-              <div class="inner">
-                <h3>{{ active_repository_count }}</h3>
-                <p>Active Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
-            </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--green" href="/allprojects?by=none&amp;sort=repositories">
+              <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ active_repository_count }}</span>
+                <span class="otterdog-stat__label">Active Repositories</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-secondary">
-              <div class="inner">
-                <h3>{{ archived_repository_count }}</h3>
-                <p>Archived Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
-            </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--grey" href="/allprojects?by=none&amp;sort=archived">
+              <span class="otterdog-stat__icon"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ archived_repository_count }}</span>
+                <span class="otterdog-stat__label">Archived Repositories</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
           </div>
         </div>
         <!-- ./row -->
 
-        <div class="row">
-          <div class="col-12">
-            <div class="card card-info">
+        <!-- the cards of the home page are links as a whole, highlighted when hovered (css/app.scss) -->
+        <div class="row g-3 mb-3">
+          <div class="col-xl-6">
+            <div class="card card-primary card-outline otterdog-card-link h-100 mb-0">
               <div class="card-header">
-                <h3 class="card-title">Pull Request Automation</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/admin/pullrequests#pr-stats">Pull Request Automation</a></h3>
                 <div class="card-tools">
-                  <a href="/admin/pullrequests#pr-stats" class="btn btn-tool" title="Open the statistics">
-                    <i class="fas fa-chart-bar"></i>
-                  </a>
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
                 </div>
               </div>
               <div class="card-body">
                 <p class="text-center text-muted" id="pr-automation-loading">Loading the statistics...</p>
                 <div class="alert alert-warning" id="pr-automation-warning" style="display: none;"></div>
-                <div class="row" id="pr-automation" style="display: none;">
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-rate">&mdash;</h3>
-                    <p class="text-muted mb-3"><small>Auto-merge rate</small></p>
+                <div id="pr-automation" style="display: none;">
+                  <!-- the share of the merged pull requests auto-merged, then the cycle times and the oldest open one -->
+                  <p class="otterdog-figure">
+                    <span class="otterdog-figure__value" id="pr-automation-rate">&mdash;</span>
+                    of the merged pull requests auto-merged
+                  </p>
+                  <div class="otterdog-share">
+                    <div class="otterdog-share__bar" aria-hidden="true">
+                      <div class="otterdog-share__part otterdog-share__part--primary" id="pr-automation-bar-auto"></div>
+                      <div class="otterdog-share__part otterdog-share__part--neutral" id="pr-automation-bar-manual"></div>
+                    </div>
+                    <ul class="otterdog-share__legend">
+                      <li><span class="otterdog-share__swatch otterdog-share__part--primary" aria-hidden="true"></span>Auto-merged&nbsp;<strong id="pr-automation-auto-merged">0</strong></li>
+                      <li><span class="otterdog-share__swatch otterdog-share__part--neutral" aria-hidden="true"></span>Merged manually&nbsp;<strong id="pr-automation-merged">0</strong></li>
+                    </ul>
                   </div>
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-auto-merged">0</h3>
-                    <p class="text-muted mb-3"><small>Auto-merged</small></p>
-                  </div>
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-merged">0</h3>
-                    <p class="text-muted mb-3"><small>Merged manually</small></p>
-                  </div>
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-cycle-auto">&mdash;</h3>
-                    <p class="text-muted mb-3"><small>Cycle time (auto)</small></p>
-                  </div>
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-cycle-manual">&mdash;</h3>
-                    <p class="text-muted mb-3"><small>Cycle time (manual)</small></p>
-                  </div>
-                  <div class="col-6 col-md-4 col-xl-2 text-center">
-                    <h3 class="text-secondary mb-0" id="pr-automation-oldest">&mdash;</h3>
-                    <p class="text-muted mb-3"><small>Oldest open PR</small></p>
+                  <div class="row g-3 mt-1">
+                    <div class="col-sm-4">
+                      <div class="otterdog-tile">
+                        <span class="otterdog-stat__icon otterdog-stat--purple"><i class="fas fa-robot" aria-hidden="true"></i></span>
+                        <span>
+                          <span class="otterdog-tile__value" id="pr-automation-cycle-auto">&mdash;</span>
+                          <span class="otterdog-tile__label">Cycle time (auto)</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="col-sm-4">
+                      <div class="otterdog-tile">
+                        <span class="otterdog-stat__icon otterdog-stat--grey"><i class="fas fa-user-check" aria-hidden="true"></i></span>
+                        <span>
+                          <span class="otterdog-tile__value" id="pr-automation-cycle-manual">&mdash;</span>
+                          <span class="otterdog-tile__label">Cycle time (manual)</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="col-sm-4">
+                      <div class="otterdog-tile">
+                        <span class="otterdog-stat__icon otterdog-stat--orange"><i class="fas fa-hourglass-half" aria-hidden="true"></i></span>
+                        <span>
+                          <span class="otterdog-tile__value" id="pr-automation-oldest">&mdash;</span>
+                          <span class="otterdog-tile__label">Oldest open PR</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p class="text-center text-muted mb-0">
-                  <small>
-                    Over the last 12 months, across every organization that could be read.
-                    <a href="/admin/pullrequests#pr-stats">See the full statistics</a>.
-                  </small>
+                <p class="text-body-secondary mb-0 mt-3">
+                  <small>Over the last 12 months, across every organization that could be read.</small>
                 </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-xl-3">
+            <div class="card card-primary card-outline otterdog-card-link h-100 mb-0">
+              <div class="card-header">
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=changed-recently">Latest Changes</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div class="card-body">
+                <!-- the configurations changed the most recently, each one linked to its commit -->
+                <ul class="otterdog-changes">
+                  {% for item in recent_changes %}
+                  <li>
+                    <a href="/projects/{{ item.project_name }}">{{ item.project_name }}</a>
+                    <a class="otterdog-changes__when" href="{{ item.change.url }}" title="Commit {{ item.change.sha[:7] }}">
+                      {{- ago(item.change.at, now) -}}
+                    </a>
+                  </li>
+                  {% else %}
+                  <li class="text-body-secondary">No change known yet</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-xl-3">
+            <div class="card card-primary card-outline otterdog-card-link h-100 mb-0">
+              <div class="card-header">
+                <h3 class="card-title"><a class="stretched-link" href="/scorecard/checks">OpenSSF Scorecard</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
+              </div>
+              <div class="card-body">
+                {% if scorecard_average is not none %}
+                <p class="otterdog-figure">
+                  <span class="otterdog-figure__value">{{ '%.1f'|format(scorecard_average) }}<small class="otterdog-figure__unit"> / 10</small></span>
+                  average of {{ scorecard_count }} repositories
+                </p>
+                <span class="otterdog-meter" aria-hidden="true">
+                  <span class="otterdog-meter__fill otterdog-share__part--primary" style="width: {{ '%.1f'|format(scorecard_average * 10) }}%"></span>
+                </span>
+                {% else %}
+                <p class="text-body-secondary mb-0">No score yet</p>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -150,69 +226,113 @@
         <!-- ./row -->
 
         <div class="row">
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Two Factor Enforcement</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=two-factor">Two Factor Enforcement</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % two_factor_percentage|float  }}% enforced</h3>
-                <canvas id="two-factor-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = two_factor_data|from_json %}
+                {{ share_figure(two_factor_percentage, "enforced") }}
+                {{ share_bar("Two factor enforcement", [
+                  {"label": "Enforced", "count": data[1], "status": "good"},
+                  {"label": "Not required", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Secret Scanning</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=secret-scanning">Secret Scanning</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % secret_scanning_percentage|float  }}% with alert or protection</h3>
-                <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = secret_scanning_data|from_json %}
+                {{ share_figure(secret_scanning_percentage, "with alert or protection") }}
+                {{ share_bar("Secret scanning", [
+                  {"label": "Protection mode", "count": data[2], "status": "good"},
+                  {"label": "Alert mode", "count": data[1], "status": "warning"},
+                  {"label": "Disabled", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Dependabot</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=dependabot">Dependabot</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % dependabot_percentage|float  }}% with alert or updates</h3>
-                <canvas id="dependabot-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = dependabot_data|from_json %}
+                {{ share_figure(dependabot_percentage, "with alerts or updates") }}
+                {{ share_bar("Dependabot", [
+                  {"label": "Security updates", "count": data[2], "status": "good"},
+                  {"label": "Alerts", "count": data[1], "status": "warning"},
+                  {"label": "Disabled", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Branch Protections</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=branch-protection">Branch Protections</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % branch_protection_percentage|float  }}% enabled</h3>
-                <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = branch_protection_data|from_json %}
+                {{ share_figure(branch_protection_percentage, "enabled") }}
+                {{ share_bar("Branch protections", [
+                  {"label": "Protected", "count": data[1], "status": "good"},
+                  {"label": "Not protected", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Private Vulnerability Reporting</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=vulnerability-reporting">Private Vulnerability Reporting</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % private_vulnerability_reporting_percentage|float  }}% enabled</h3>
-                <canvas id="private-vulnerability-reporting-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = private_vulnerability_reporting_data|from_json %}
+                {{ share_figure(private_vulnerability_reporting_percentage, "enabled") }}
+                {{ share_bar("Private vulnerability reporting", [
+                  {"label": "Enabled", "count": data[1], "status": "good"},
+                  {"label": "Disabled", "count": data[0], "status": "warning"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
-            <div class="card card-info">
+          <div class="col-md-6 col-xl-4">
+            <div class="card card-primary card-outline otterdog-card-link">
               <div class="card-header">
-                <h3 class="card-title">Code Scanning</h3>
+                <h3 class="card-title"><a class="stretched-link" href="/allprojects?by=none&amp;sort=code-scanning">Code Scanning</a></h3>
+                <div class="card-tools">
+                  <i class="otterdog-card-link__more fas fa-arrow-right" aria-hidden="true"></i>
+                </div>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % code_scanning_percentage|float  }}% with default setup</h3>
-                <canvas id="code-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = code_scanning_data %}
+                {{ share_figure(code_scanning_percentage, "with default setup") }}
+                {{ share_bar("Code scanning", [
+                  {"label": "Default setup", "count": data[1], "status": "good"},
+                  {"label": "Not configured", "count": data[0], "status": "warning"}
+                ]) }}
               </div>
             </div>
           </div>
@@ -230,8 +350,6 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
-  <!-- Chart.js -->
-  <script src="{{ asset('vendor/chartjs/chart.umd.js') }}"></script>
 
   <script type="module">
     // the statistics are read from GitHub and may need a moment the very first time, so give up
@@ -282,6 +400,17 @@
       });
     }
 
+    // a block of the bar of the merged pull requests as wide as its share, its share printed when it fits, like the
+    // segmented bars of the shares (includes/share-bar.html)
+    function showMergedPart(selector, label, count, merged) {
+      var share = merged > 0 ? (count / merged) * 100 : 0;
+      $(selector)
+        .css("flex-grow", count)
+        .toggle(count > 0)
+        .attr("title", label + ": " + count.toLocaleString() + " (" + share.toFixed(1) + "%)")
+        .text(share >= 10 ? Math.round(share) + "%" : "");
+    }
+
     function showPullRequestAutomation(result) {
       var merged = 0;
       var autoMerged = 0;
@@ -301,6 +430,8 @@
       $("#pr-automation-rate").text(merged > 0 ? Math.round((autoMerged / merged) * 100) + "%" : "n/a");
       $("#pr-automation-auto-merged").text(autoMerged.toLocaleString());
       $("#pr-automation-merged").text((merged - autoMerged).toLocaleString());
+      showMergedPart("#pr-automation-bar-auto", "Auto-merged", autoMerged, merged);
+      showMergedPart("#pr-automation-bar-manual", "Merged manually", merged - autoMerged, merged);
       $("#pr-automation-cycle-auto").text(formatHours((byLabel["Auto-merge"] || {}).median_hours));
       $("#pr-automation-cycle-manual").text(formatHours((byLabel["Manual merge"] || {}).median_hours));
       $("#pr-automation-oldest").text(oldest ? formatAge(oldest.age_days) : "n/a");
@@ -323,163 +454,7 @@
 
     $(document).ready(function() {
       loadPullRequestAutomation(1);
-      drawTwoFactorChart();
-      drawSecretScanningChart();
-      drawDependabotChart();
-      drawBranchProtectionChart();
-      drawPrivateVulnerabilityReportingChart();
-      drawCodeScanningChart();
     });
-
-    function drawTwoFactorChart() {
-      const two_factor_ctx = document.getElementById('two-factor-chart');
-
-      new Chart(two_factor_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['not required', 'enforced'],
-          datasets: [{
-            label: 'two factor requirement',
-            data: {{ two_factor_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawSecretScanningChart() {
-      const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
-
-      new Chart(secret_scanning_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'alert mode', 'protection mode'],
-          datasets: [{
-            label: 'secret scanning',
-            data: {{ secret_scanning_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#ffc107',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawDependabotChart() {
-      const chart_ctx = document.getElementById('dependabot-chart');
-
-      new Chart(chart_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'alerts', 'security updates'],
-          datasets: [{
-            label: 'dependabot',
-            data: {{ dependabot_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#ffc107',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawBranchProtectionChart() {
-      const branch_protections_ctx = document.getElementById('branch-protection-chart');
-
-      new Chart(branch_protections_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['not protected', 'protected'],
-          datasets: [{
-            label: 'branch protections',
-            data: {{ branch_protection_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawPrivateVulnerabilityReportingChart() {
-      const private_vuln_ctx = document.getElementById('private-vulnerability-reporting-chart');
-
-      new Chart(private_vuln_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'enabled'],
-          datasets: [{
-            label: 'private vulnerability reporting',
-            data: {{ private_vulnerability_reporting_data|safe }},
-            backgroundColor: [
-              '#ffc107',
-              '#28a745',
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawCodeScanningChart() {
-      new Chart(document.getElementById('code-scanning-chart'), {
-        type: 'doughnut',
-        data: {
-          labels: ['not configured', 'default setup'],
-          datasets: [{
-            label: 'code scanning',
-            data: {{ code_scanning_data|tojson }},
-            backgroundColor: [
-              '#ffc107',
-              '#28a745',
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
   </script>
 
 {% endblock javascripts %}

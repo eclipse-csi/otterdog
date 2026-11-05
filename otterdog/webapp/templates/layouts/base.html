@@ -7,6 +7,8 @@
   <link rel="icon" href="{{ asset('img/favicon-32x32.png') }}" type="image/png" sizes="32x32">
   <link rel="canonical" href="https://otterdog.eclipse.org/"/>
 
+  {% include 'includes/color-scheme.html' %}
+
   <title>
     Otterdog Dashboard - {% block title %}{% endblock %} | Eclipse Foundation
   </title>
@@ -15,8 +17,6 @@
   {% endblock headscripts %}
 
   {% block stylesheets %}
-  <!-- Google Font: Source Sans 3 -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,700;1,400&display=fallback">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}">
   <!-- Theme style, includes Bootstrap 5 -->

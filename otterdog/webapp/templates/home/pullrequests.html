@@ -14,7 +14,7 @@
 
   <style>
     .stats-tile {
-      border: 1px solid #dee2e6;
+      border: 1px solid var(--bs-border-color);
       border-radius: .25rem;
       padding: .5rem .75rem;
     }
@@ -412,7 +412,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, checkbox, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
+    import {boolean, createPagedTable, dateTime, organizationLink, pullRequestLink, repositoryLink, status} from '{{ asset('js/datagrid.js') }}';
 
     createPagedTable("#openPullRequests", {
       url: "/api/pullrequests/open",
@@ -420,13 +420,13 @@
         { data: "id.org_id", filter: "text", render: organizationLink },
         { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
         { data: "id.pull_request", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") },
-        { data: "created_at", filter: "text", className: "text-center" },
-        { data: "status", filter: "text", className: "text-center", render: upperCase },
-        { data: "draft", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "in_sync", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "requires_manual_apply", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "supports_auto_merge", filter: "boolean", className: "text-center", render: checkbox },
-        { data: "has_required_approvals", filter: "boolean", className: "text-center", render: checkbox }
+        { data: "created_at", filter: "text", className: "text-center text-nowrap", render: dateTime },
+        { data: "status", filter: "text", className: "text-center", render: status },
+        { data: "draft", filter: "boolean", className: "text-center", render: boolean },
+        { data: "in_sync", filter: "boolean", className: "text-center", render: boolean },
+        { data: "requires_manual_apply", filter: "boolean", className: "text-center", render: boolean },
+        { data: "supports_auto_merge", filter: "boolean", className: "text-center", render: boolean },
+        { data: "has_required_approvals", filter: "boolean", className: "text-center", render: boolean }
       ]
     });
 
@@ -436,9 +436,9 @@
         { data: "id.org_id", filter: "text", render: organizationLink },
         { data: "id.repo_name", filter: "text", render: repositoryLink("id.org_id") },
         { data: "id.pull_request", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") },
-        { data: "merged_at", filter: "text", className: "text-center" },
-        { data: "status", filter: "text", className: "text-center", render: upperCase },
-        { data: "apply_status", filter: "text", className: "text-center", render: upperCase }
+        { data: "merged_at", filter: "text", className: "text-center text-nowrap", render: dateTime },
+        { data: "status", filter: "text", className: "text-center", render: status },
+        { data: "apply_status", filter: "text", className: "text-center", render: status }
       ]
     });
   </script>
@@ -1050,8 +1050,11 @@
               label: 'merged manually',
               data: merged,
               backgroundColor: '#28a745',
-              // a surface coloured gap keeps the two merged segments readable as separate fills
-              borderColor: '#ffffff',
+              // a surface coloured gap keeps the two merged segments readable as separate fills, read when the
+              // chart is drawn as the surface follows the color mode
+              borderColor: function() {
+                return getComputedStyle(document.body).getPropertyValue('--bs-body-bg').trim();
+              },
               borderWidth: {top: 2},
               stack: 'merged',
               order: 2

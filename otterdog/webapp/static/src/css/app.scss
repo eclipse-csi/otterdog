@@ -1,19 +1,44 @@
-// AdminLTE 3 palette, so that the dashboard keeps its colors with AdminLTE 4 / Bootstrap 5
-$primary: #007bff;
+// The colors of the Eclipse Foundation, like the documentation (docs/assets/theme.css): the purple of the header and
+// of the sidebar, the orange of the active entry, a lighter purple for the links, the buttons and the cards
+$otterdog-purple: #2c2255;
+$otterdog-purple-dark: #1d163a;
+$otterdog-purple-light: #4b3f80;
+$otterdog-violet: #4b3f9e;
+// the purple text of a link or of text-primary is too dark on the dark background, this one is lighter
+$otterdog-lilac: #a99ee6;
+$otterdog-orange: #f7941e;
+$otterdog-orange-light: #ffb459;
+// opaque white at 14% on the purple of the header and of the hero, like the documentation
+$otterdog-purple-button: #4a416d;
+
+$primary: $otterdog-violet;
+$info: $otterdog-purple;
+// AdminLTE 3 palette for the status colors, the charts use the same ones
 $success: #28a745;
-$info: #17a2b8;
 // AdminLTE 3 puts white text on info and success, Bootstrap 5 does so only below this contrast ratio
 $min-contrast-ratio: 3;
 // AdminLTE 3 links are not underlined
 $link-decoration: none;
 $link-hover-decoration: underline;
-// AdminLTE 3 highlights the active sidebar entry with the primary color
-$lte-sidebar-menu-active-bg-dark: $primary;
-$lte-sidebar-menu-active-color-dark: #fff;
+// the links of the dark mode in orange, like the documentation
+$link-color-dark: $otterdog-orange;
+$link-hover-color-dark: $otterdog-orange-light;
+// the font of the documentation, served with the assets (@fontsource-variable/inter below) rather than by Google Fonts
+$font-family-sans-serif: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
+  "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+// the tooltips explaining the facts of the organizations hold one or two sentences, too narrow at 200px
+$tooltip-max-width: 18rem;
+// the active entry of the sidebar in orange on the purple, like the active tab of the documentation
+$lte-sidebar-menu-active-bg-dark: $otterdog-orange;
+$lte-sidebar-menu-active-color-dark: $otterdog-purple-dark;
 // and the active entry of a submenu with a light background
 $lte-sidebar-submenu-active-bg-dark: rgba(255, 255, 255, .9);
-$lte-sidebar-submenu-active-color-dark: #343a40;
+$lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
 
+// Inter, a variable font covering every weight, upright and italic: an @font-face per subset of characters, the
+// browser downloading only the files of the characters of the page; Vite copies the files into the bundled assets
+@import "@fontsource-variable/inter/wght";
+@import "@fontsource-variable/inter/wght-italic";
 @import "admin-lte/src/scss/adminlte";
 
 // AdminLTE 3 spaced the cards and used a smaller page title
@@ -58,7 +83,800 @@ $lte-sidebar-submenu-active-color-dark: #343a40;
   }
 }
 
-// wide tables, like the one of the scorecards, scroll horizontally rather than overflowing their card
+// a paged table in a frame with rounded corners; wide tables, like the one of the scorecards, scroll horizontally
+// rather than overflowing their card
 .dt-container .dt-layout-table > .dt-layout-full {
   overflow-x: auto;
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+  border-radius: var(--#{$prefix}border-radius-lg);
+}
+
+// the header in the purple of the Eclipse Foundation and the sidebar in a darker one, in both color modes like the
+// header of the documentation (data-bs-theme="dark" in includes/navigation.html and includes/sidebar.html)
+.app-header.otterdog-header {
+  --#{$prefix}border-color: rgba(255, 255, 255, .1);
+  background-color: $otterdog-purple;
+}
+
+.app-sidebar.otterdog-sidebar {
+  --#{$prefix}border-color: rgba(255, 255, 255, .1);
+  background-color: $otterdog-purple-dark;
+
+  // the brand continues the header
+  .sidebar-brand {
+    background-color: $otterdog-purple;
+  }
+}
+
+// the hero of the home page (home/index.html), like the one of the documentation
+.otterdog-hero {
+  padding: 2rem 0 1.5rem;
+  margin-bottom: 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, $otterdog-purple-dark, $otterdog-purple 60%, $otterdog-purple-light);
+}
+
+.otterdog-hero__title {
+  margin: 0 0 .75rem;
+}
+
+// the white logo of the official artwork, the name of the page being hidden text of the title
+.otterdog-hero__logo {
+  display: block;
+  width: min(100%, 16rem);
+  height: auto;
+}
+
+.otterdog-hero__text {
+  max-width: 40rem;
+  margin-bottom: 1.25rem;
+  opacity: .9;
+}
+
+.otterdog-hero__button {
+  --#{$prefix}btn-color: #fff;
+  --#{$prefix}btn-bg: #{$otterdog-purple-button};
+  --#{$prefix}btn-border-color: transparent;
+  --#{$prefix}btn-hover-color: #{$otterdog-purple-dark};
+  --#{$prefix}btn-hover-bg: #{$otterdog-orange-light};
+  --#{$prefix}btn-hover-border-color: transparent;
+  --#{$prefix}btn-active-color: #{$otterdog-purple-dark};
+  --#{$prefix}btn-active-bg: #{$otterdog-orange-light};
+  --#{$prefix}btn-active-border-color: transparent;
+  --#{$prefix}btn-focus-shadow-rgb: #{to-rgb($otterdog-orange)};
+  --#{$prefix}btn-padding-x: 1.25rem;
+  --#{$prefix}btn-font-weight: 600;
+  --#{$prefix}btn-border-radius: var(--#{$prefix}border-radius-pill);
+  margin: 0 .5rem .5rem 0;
+}
+
+.otterdog-hero__button--primary {
+  --#{$prefix}btn-color: #{$otterdog-purple-dark};
+  --#{$prefix}btn-bg: #{$otterdog-orange};
+}
+
+@include media-breakpoint-down(md) {
+  .otterdog-hero {
+    text-align: center;
+  }
+
+  .otterdog-hero__logo,
+  .otterdog-hero__text {
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+// the logo of the login and error pages: the color one on the light background, the white one on the dark background
+.otterdog-logo-dark {
+  display: none;
+}
+
+// the colors of the syntax in the CodeMirror editors (js/code-theme.js): the default ones of CodeMirror on the light
+// background, lighter ones on the dark background (below)
+:root,
+[data-bs-theme="light"] {
+  --otterdog-code-meta: #404740;
+  --otterdog-code-keyword: #708;
+  --otterdog-code-atom: #219;
+  --otterdog-code-literal: #164;
+  --otterdog-code-string: #a11;
+  --otterdog-code-escape: #e40;
+  --otterdog-code-definition: #00f;
+  --otterdog-code-local: #30a;
+  --otterdog-code-type: #085;
+  --otterdog-code-class: #167;
+  --otterdog-code-special: #256;
+  --otterdog-code-property: #00c;
+  --otterdog-code-comment: #940;
+  --otterdog-code-invalid: #f00;
+}
+
+// the dark mode: the colors of the syntax, the logos, the purple too dark on the dark background
+[data-bs-theme="dark"] {
+  --otterdog-code-meta: #abb2bf;
+  --otterdog-code-keyword: #c678dd;
+  --otterdog-code-atom: #56b6c2;
+  --otterdog-code-literal: #d19a66;
+  --otterdog-code-string: #98c379;
+  --otterdog-code-escape: #e5c07b;
+  --otterdog-code-definition: #61afef;
+  --otterdog-code-local: #c3a6ff;
+  --otterdog-code-type: #e5c07b;
+  --otterdog-code-class: #e5c07b;
+  --otterdog-code-special: #56b6c2;
+  --otterdog-code-property: #61afef;
+  --otterdog-code-comment: #7f848e;
+  --otterdog-code-invalid: #ff6b6b;
+
+
+  .otterdog-logo-light {
+    display: none;
+  }
+
+  .otterdog-logo-dark {
+    display: inline-block;
+  }
+
+  // the purple of text-primary, text-info and of the outline buttons is too dark on the dark background: their color
+  // reads the variable of their theme color, set on them
+  .text-primary {
+    --#{$prefix}primary-rgb: #{to-rgb($otterdog-lilac)};
+  }
+
+  .text-info {
+    --#{$prefix}info-rgb: #{to-rgb($otterdog-lilac)};
+  }
+
+  .btn-outline-primary {
+    --#{$prefix}btn-color: #{$otterdog-lilac};
+    --#{$prefix}btn-border-color: #{$otterdog-lilac};
+    --#{$prefix}btn-hover-color: #{$otterdog-purple-dark};
+    --#{$prefix}btn-hover-bg: #{$otterdog-lilac};
+    --#{$prefix}btn-hover-border-color: #{$otterdog-lilac};
+    --#{$prefix}btn-active-color: #{$otterdog-purple-dark};
+    --#{$prefix}btn-active-bg: #{$otterdog-lilac};
+    --#{$prefix}btn-active-border-color: #{$otterdog-lilac};
+  }
+
+  // the dark buttons, e.g. the sign in with GitHub of the login page, are light on the dark background
+  .btn-dark {
+    --#{$prefix}btn-color: #{$gray-900};
+    --#{$prefix}btn-bg: #{$gray-100};
+    --#{$prefix}btn-border-color: #{$gray-100};
+    --#{$prefix}btn-hover-color: #{$gray-900};
+    --#{$prefix}btn-hover-bg: #{$white};
+    --#{$prefix}btn-hover-border-color: #{$white};
+    --#{$prefix}btn-active-color: #{$gray-900};
+    --#{$prefix}btn-active-bg: #{$white};
+    --#{$prefix}btn-active-border-color: #{$white};
+  }
+
+  // the figures of the home page
+  .otterdog-stat--purple {
+    --otterdog-stat-color: #{$otterdog-lilac};
+  }
+
+  .otterdog-stat--grey {
+    --otterdog-stat-color: #{$gray-500};
+  }
+}
+
+// the figures of the home page (home/index.html): a card on the background of the page, the icon in a square tinted
+// with the color of what it counts above the figure and its label, the whole card opening its page when it has one,
+// shown by an arrow in its corner
+.otterdog-stat {
+  --otterdog-stat-color: #{$otterdog-violet};
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  height: 100%;
+  padding: 1rem 1.25rem;
+  color: var(--#{$prefix}body-color);
+  background-color: var(--#{$prefix}body-bg);
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+  box-shadow: var(--#{$prefix}box-shadow-sm);
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+}
+
+a.otterdog-stat:hover,
+a.otterdog-stat:focus-visible {
+  color: var(--#{$prefix}body-color);
+  text-decoration: none;
+  border-color: var(--otterdog-stat-color);
+  box-shadow: var(--#{$prefix}box-shadow);
+}
+
+.otterdog-stat--purple {
+  --otterdog-stat-color: #{$otterdog-violet};
+}
+
+.otterdog-stat--orange {
+  --otterdog-stat-color: #{$otterdog-orange};
+}
+
+.otterdog-stat--green {
+  --otterdog-stat-color: #{$success};
+}
+
+.otterdog-stat--grey {
+  --otterdog-stat-color: #{$gray-600};
+}
+
+.otterdog-stat__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.25rem;
+  color: var(--otterdog-stat-color);
+  background-color: color-mix(in srgb, var(--otterdog-stat-color) 14%, transparent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+}
+
+.otterdog-stat__text {
+  min-width: 0;
+}
+
+.otterdog-stat__value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-stat__label {
+  display: block;
+  font-size: .875rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+.otterdog-stat__more {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+a.otterdog-stat:hover .otterdog-stat__more {
+  color: var(--otterdog-stat-color);
+}
+
+// the tables of the dashboard (includes/datagrid.html and the tables of the pages of a project): rows separated by a
+// line without vertical borders, the titles of the columns small on a tinted background, a purple tint on hover
+.otterdog-table {
+  --#{$prefix}table-hover-bg: rgba(var(--#{$prefix}primary-rgb), .06);
+  margin-bottom: 0;
+
+  > thead > tr > th {
+    background-color: var(--#{$prefix}tertiary-bg);
+  }
+
+  > thead > tr:first-child > th {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--#{$prefix}secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    vertical-align: bottom;
+  }
+
+  // the row of the filters of a paged table, below the titles
+  > thead > tr + tr > th {
+    padding-top: 0;
+  }
+
+  > tbody > tr:last-child > td {
+    border-bottom-width: 0;
+  }
+}
+
+[data-bs-theme="dark"] .otterdog-table {
+  --#{$prefix}table-hover-bg: rgba(255, 255, 255, .05);
+}
+
+// the booleans of a table (js/datagrid.js): a check mark, a dash
+.otterdog-yes {
+  color: $otterdog-violet;
+}
+
+[data-bs-theme="dark"] .otterdog-yes {
+  color: $otterdog-lilac;
+}
+
+.otterdog-no {
+  color: var(--#{$prefix}tertiary-color);
+}
+
+// the split of a whole into parts (includes/share-bar.html), e.g. the repositories by their secret scanning: a
+// segmented bar rather than a doughnut, each part its own block as wide as its share with a gap of 2px between them,
+// in the status colors of the data visualization guidelines, the same in both color modes (good, warning, critical)
+$otterdog-status-good: #0ca30c;
+$otterdog-status-warning: #fab219;
+$otterdog-status-critical: #d03b3b;
+
+// the share that counts, above its bar
+.otterdog-figure {
+  margin-bottom: 1rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+.otterdog-figure__value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-share__bar {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+}
+
+// a block as wide as its share, without padding which would widen the small ones, its share centered in it
+.otterdog-share__part {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  overflow: hidden;
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+
+// the share printed in near-black on the good and warning colors, in white on the critical one, each reaching 4.5:1
+.otterdog-share__part--good {
+  color: #0b0b0b;
+  background-color: $otterdog-status-good;
+}
+
+.otterdog-share__part--warning {
+  color: #0b0b0b;
+  background-color: $otterdog-status-warning;
+}
+
+.otterdog-share__part--critical {
+  color: #fff;
+  background-color: $otterdog-status-critical;
+}
+
+// the parts of the bar of the merged pull requests (home/index.html), which tell no status: auto-merged in purple,
+// merged manually in grey
+.otterdog-share__part--primary {
+  color: #fff;
+  background-color: $otterdog-violet;
+}
+
+.otterdog-share__part--neutral {
+  color: var(--#{$prefix}body-color);
+  background-color: var(--#{$prefix}secondary-bg);
+}
+
+.otterdog-share__part--empty {
+  background-color: var(--#{$prefix}secondary-bg);
+}
+
+.otterdog-share__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+  padding: 0;
+  margin: .75rem 0 0;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+  list-style: none;
+}
+
+.otterdog-share__swatch {
+  display: inline-block;
+  width: .625rem;
+  height: .625rem;
+  margin-right: .375rem;
+  border-radius: 2px;
+}
+
+// the organizations of the projects pages (home/projects.html): a card like the figures of the home page, the whole
+// card opening the page of its project, the GitHub organization and the facts keeping their own links above it
+.otterdog-project {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--#{$prefix}body-bg);
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+  box-shadow: var(--#{$prefix}box-shadow-sm);
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+
+  &:not(.otterdog-project--inactive):hover {
+    border-color: $primary;
+    box-shadow: var(--#{$prefix}box-shadow);
+  }
+}
+
+[data-bs-theme="dark"] .otterdog-project:not(.otterdog-project--inactive):hover {
+  border-color: $otterdog-lilac;
+}
+
+.otterdog-project--inactive {
+  background-color: var(--#{$prefix}tertiary-bg);
+  box-shadow: none;
+
+  .otterdog-project__avatar {
+    filter: grayscale(1);
+    opacity: .6;
+  }
+}
+
+.otterdog-project__head {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+}
+
+.otterdog-project__avatar {
+  flex: none;
+  background-color: var(--#{$prefix}secondary-bg);
+  border-radius: var(--#{$prefix}border-radius);
+}
+
+.otterdog-project__names {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.otterdog-project__name {
+  display: block;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--#{$prefix}emphasis-color);
+    text-decoration: none;
+  }
+}
+
+// the links of the card and its tooltips stay above the link of its project, which covers the card
+.otterdog-project__organization,
+.otterdog-project__meta,
+.otterdog-project__activity a,
+.otterdog-project__activity [title],
+.otterdog-project [data-bs-toggle="tooltip"],
+a.otterdog-project__fact {
+  position: relative;
+  z-index: 2;
+}
+
+.otterdog-project__organization {
+  display: block;
+  overflow: hidden;
+  font-size: .875rem;
+  color: var(--#{$prefix}secondary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// the status of an organization not installed, below its name
+.otterdog-project__names .badge {
+  margin-top: .25rem;
+}
+
+// at the bottom of the card, so that the facts of the cards of a row line up whatever the height of their head
+.otterdog-project__facts {
+  padding: 0;
+  margin: auto 0 0;
+  list-style: none;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  // a link to the tab of the project, or a plain row when the organization has no page
+  .otterdog-project__fact {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.125rem;
+    padding: .375rem 1.25rem;
+    font-size: .8125rem;
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  a.otterdog-project__fact:hover {
+    color: var(--#{$prefix}body-color);
+    text-decoration: none;
+    background-color: rgba(var(--#{$prefix}primary-rgb), .06);
+  }
+
+  li + li .otterdog-project__fact {
+    border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  }
+
+  li:last-child .otterdog-project__fact {
+    border-radius: 0 0 var(--#{$prefix}border-radius-lg) var(--#{$prefix}border-radius-lg);
+  }
+}
+
+// a fact of an organization whose configuration the dashboard does not have
+.otterdog-project__unknown {
+  color: var(--#{$prefix}tertiary-color);
+}
+
+.otterdog-project__count {
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+// the version of the default configuration and the plan of an organization, below its name
+.otterdog-project__meta {
+  display: block;
+  font-size: .75rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+.otterdog-project__value {
+  font-weight: 600;
+  color: var(--#{$prefix}body-color);
+}
+
+.otterdog-project__archived {
+  font-size: .8125rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+// the share of the active repositories with each protection: a thin meter in the color of its level, its value as
+// text beside it (home/projects.py)
+.otterdog-project__security {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .375rem .75rem;
+  align-items: center;
+  padding: .75rem 1.25rem;
+  margin: 0;
+  font-size: .8125rem;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  dt {
+    font-weight: normal;
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  dd {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    margin: 0;
+  }
+}
+
+.otterdog-meter {
+  display: block;
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  background-color: var(--#{$prefix}secondary-bg);
+  border-radius: 3px;
+}
+
+.otterdog-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.otterdog-meter__value {
+  flex: none;
+  width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--#{$prefix}body-color);
+  text-align: right;
+}
+
+// the activity of an organization: its pull requests, the last fetch of its configuration, its blueprints, its
+// scorecard
+.otterdog-project__activity {
+  padding: .75rem 1.25rem;
+  margin: 0;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+  list-style: none;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  li + li {
+    margin-top: .25rem;
+  }
+
+  .fa-fw {
+    margin-right: .375rem;
+    color: var(--#{$prefix}tertiary-color);
+  }
+}
+
+.otterdog-project__warning {
+  color: var(--#{$prefix}warning-text-emphasis);
+}
+
+// a section of the projects pages per top-level project, folded with its title
+.otterdog-group {
+  margin-bottom: 1.5rem;
+}
+
+.otterdog-group__title {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  // a chevron drawn by two borders, pointing right, down when the section is open
+  &::before {
+    display: inline-block;
+    width: .45rem;
+    height: .45rem;
+    margin-right: .25rem;
+    content: "";
+    border-right: 2px solid var(--#{$prefix}tertiary-color);
+    border-bottom: 2px solid var(--#{$prefix}tertiary-color);
+    transform: rotate(-45deg);
+    transition: transform .15s ease-in-out;
+  }
+}
+
+.otterdog-group[open] > .otterdog-group__title::before {
+  transform: rotate(45deg);
+}
+
+// the activity of an organization in a card of its page (home/organization.html), rather than at the bottom of its
+// card on the projects pages
+.card-body > .otterdog-project__activity {
+  padding: 0;
+  font-size: .875rem;
+  border-top: 0;
+
+  li + li {
+    margin-top: .5rem;
+  }
+}
+
+// the row of the order of the organizations on their cards (data-otterdog-sort set by js/projects.js on the list,
+// data-otterdog-criterion on the rows of a card, includes/project-card.html), tinted to tell why a card comes first
+$otterdog-criteria: security, two-factor, branch-protection, secret-scanning, dependabot, code-scanning,
+  vulnerability-reporting, scorecard, pull-requests, blueprints, changed-recently, changed-long-ago, repositories,
+  archived;
+
+@each $criterion in $otterdog-criteria {
+  [data-otterdog-sort="#{$criterion}"] [data-otterdog-criterion~="#{$criterion}"] {
+    font-weight: 600;
+    color: var(--#{$prefix}emphasis-color);
+    background-color: color-mix(in srgb, #{$otterdog-orange} 14%, transparent);
+  }
+}
+
+// a tinted row of the security of a card spans its label and its meter
+.otterdog-project__security [data-otterdog-criterion] {
+  padding: .125rem .375rem;
+  margin: -.125rem -.375rem;
+  border-radius: var(--#{$prefix}border-radius-sm);
+}
+
+.otterdog-project__activity [data-otterdog-criterion] {
+  padding: .125rem .375rem;
+  margin-right: -.375rem;
+  margin-left: -.375rem;
+  border-radius: var(--#{$prefix}border-radius-sm);
+}
+
+// a card of the home page opening a page as a whole by the link of its title, highlighted when hovered like the
+// figures (home/index.html)
+.otterdog-card-link {
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+
+  .card-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  &:hover {
+    border-right-color: $otterdog-violet;
+    border-bottom-color: $otterdog-violet;
+    border-left-color: $otterdog-violet;
+    box-shadow: var(--#{$prefix}box-shadow);
+  }
+}
+
+.otterdog-card-link__more {
+  color: var(--#{$prefix}tertiary-color);
+}
+
+.otterdog-card-link:hover .otterdog-card-link__more {
+  color: $otterdog-violet;
+}
+
+[data-bs-theme="dark"] .otterdog-card-link:hover {
+  border-right-color: $otterdog-lilac;
+  border-bottom-color: $otterdog-lilac;
+  border-left-color: $otterdog-lilac;
+
+  .otterdog-card-link__more {
+    color: $otterdog-lilac;
+  }
+}
+
+// the links inside a linked card and the blocks of its bars, whose tooltips give their counts, stay above the link of
+// its title, which covers the card
+.otterdog-card-link .card-body a,
+.otterdog-card-link .otterdog-share__part {
+  position: relative;
+  z-index: 2;
+}
+
+// a figure of the automation of the pull requests: its icon tinted beside its value and its label
+.otterdog-tile {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+}
+
+.otterdog-tile__value {
+  display: block;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-tile__label {
+  display: block;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+// the unit of a figure, e.g. / 10 for a score
+.otterdog-figure__unit {
+  font-size: 1rem;
+  font-weight: normal;
+  color: var(--#{$prefix}secondary-color);
+}
+
+// the configurations changed the most recently, how long ago on the right
+.otterdog-changes {
+  padding: 0;
+  margin: 0;
+  font-size: .875rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: .5rem;
+    justify-content: space-between;
+    padding: .375rem 0;
+
+    + li {
+      border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+    }
+  }
+}
+
+.otterdog-changes__when {
+  flex: none;
+  color: var(--#{$prefix}secondary-color);
 }

@@ -6,8 +6,9 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-"""The pages of a project and of its repositories link to its playground, the menu to the reference guide."""
+"""The pages of a project and of its repositories link to its playground, the menu to the documentation."""
 
+import re
 import shutil
 from pathlib import Path
 from unittest import mock
@@ -17,6 +18,7 @@ import pytest
 
 from otterdog.utils import jsonnet_evaluate_file
 from otterdog.webapp.db import service
+from otterdog.webapp.db.models import InstallationStatus, TaskModel, TaskStatus
 from otterdog.webapp.home import routes
 
 _TEMPLATE_DIR = Path(__file__).parents[2] / "otterdog" / "resources" / "defaults"
@@ -38,9 +40,14 @@ def project(tmp_path, monkeypatch):
         config=jsonnet_evaluate_file(str(tmp_path / "my-org.jsonnet"), str(tmp_path)),
     )
     installation = pretend.stub(
-        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1"
+        github_id="my-org",
+        project_name="my-project",
+        installation_status=InstallationStatus.INSTALLED,
+        base_template="https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@v1",
+        config_repo=".otterdog",
     )
     nothing = mock.AsyncMock(return_value=[])
+    fetch = TaskModel(type="FetchConfigTask", org_id="my-org", repo_name=".otterdog", status=TaskStatus.FINISHED)
 
     monkeypatch.setattr(routes, "get_configuration_by_project_name", mock.AsyncMock(return_value=config))
     monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=installation))
@@ -50,6 +57,12 @@ def project(tmp_path, monkeypatch):
     for name in ["get_policies_status", "get_blueprints", "get_blueprints_status", "get_scorecard_results"]:
         monkeypatch.setattr(routes, name, nothing)
     monkeypatch.setattr(routes, "find_scorecard_result", mock.AsyncMock(return_value=None))
+    # the open pull requests counted for the organization
+    monkeypatch.setattr(
+        routes, "get_open_pull_request_counts_by_organization", mock.AsyncMock(return_value={"my-org": 1})
+    )
+    monkeypatch.setattr(routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"my-org": fetch}))
+    return config
 
 
 async def test_the_page_of_a_project_links_to_its_playground(app, project):
@@ -63,6 +76,94 @@ async def test_the_page_of_a_project_links_to_its_playground(app, project):
     assert '<h3 class="card-title">Help</h3>' not in page
 
 
+async def test_the_cards_of_the_page_of_a_project_have_the_same_color_on_top(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # like the cards of the home page: a header on the background of the card, a border of the theme color on top, the
+    # same for every card, the level of a protection being given by its figure and its bar
+    cards = re.findall(r'class="card card-[^"]*"', page)
+    assert cards
+    assert [card for card in cards if not card.startswith('class="card card-primary card-outline')] == []
+
+
+async def test_the_page_of_a_project_explains_its_facts_and_its_protections(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # the same explanations as on its card on the projects pages (includes/explanations.html)
+    assert 'data-bs-title=""' not in page
+    # every element with a tooltip can be focused with the keyboard, which shows it: a link, or made focusable
+    tags = re.findall(r'<\w+[^>]*data-bs-toggle="tooltip"[^>]*>', page)
+    assert len(tags) >= 12
+    assert [tag for tag in tags if not (tag.startswith("<a ") and " href=" in tag) and 'tabindex="0"' not in tag] == []
+    for label in (
+        "Default Config",
+        "Plan",
+        "2FA",
+        "Default workflow permissions",
+        "DCO sign-off",
+        "Default repository permission",
+        "Repositories",
+    ):
+        assert re.search(rf'data-bs-toggle="tooltip" data-bs-title="[^"]+">\s*{label}\b', page), label
+    for title in (
+        "Branch protection",
+        "Secret scanning",
+        "Dependabot",
+        "Code scanning",
+        "Private vulnerability reporting",
+    ):
+        assert re.search(
+            rf'<h3 class="card-title" data-bs-toggle="tooltip" data-bs-title="Share of the active [^"]+"'
+            rf' tabindex="0">{title}</h3>',
+            page,
+        ), title
+
+
+async def test_the_page_of_a_project_without_active_repositories_shows_no_share(app, project):
+    for repository in project.config["repositories"]:
+        repository["archived"] = True
+
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # no share of 0% for the protections, which no repository could have
+    assert page.count("No active repositories") == 5
+    assert '<span class="otterdog-figure__value">0.0%</span>' not in page
+
+
+async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # a segmented bar per protection rather than a doughnut drawn by Chart.js
+    assert page.count('class="otterdog-share__bar"') == 5
+    for title in (
+        "Branch protection",
+        "Secret scanning",
+        "Dependabot",
+        "Code scanning",
+        "Private vulnerability reporting",
+    ):
+        assert re.search(rf'<h3 class="card-title"[^>]*>{title}</h3>', page), title
+    assert "<canvas" not in page
+    assert "chart.umd.js" not in page
+
+
+async def test_the_page_of_a_project_shows_the_data_of_its_card_on_the_projects_pages(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # its governance
+    assert re.search(r"DCO sign-off\s*<span class=\"float-end\">(Required|Not required)</span>", page)
+    assert "Default repository permission" in page
+    # its activity: only the pull requests of the organization, its last fetch
+    assert '<h3 class="card-title">Activity</h3>' in page
+    assert re.search(r'<a href="/admin/pullrequests#open-prs"[^>]*>1 open pull request</a>', page)
+    assert "Configuration fetched" in page
+
+
 async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(app, project):
     async with app.test_request_context("/projects/my-project/repos/my-repo"):
         page = await routes.repository("my-project", "my-repo")
@@ -71,9 +172,11 @@ async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(a
     assert "Edit in Playground" in page
 
 
-async def test_the_menu_links_to_the_reference_guide(app, project):
+async def test_the_menu_links_to_the_documentation(app, project):
     async with app.test_request_context("/projects/my-project"):
         page = await routes.project("my-project")
 
-    assert f'href="{app.config["DOCUMENTATION_URL"]}reference/"' in page
-    assert "Reference guide" in page
+    # the home page of the documentation, its reference being one of its sections
+    assert f'href="{app.config["DOCUMENTATION_URL"]}" class="nav-link" target="_blank" rel="noopener">' in page
+    assert "Documentation" in page
+    assert "Reference guide" not in page

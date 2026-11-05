@@ -91,7 +91,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, escapeHtml, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, escapeHtml, organizationLink, pullRequestLink, repositoryLink, status} from '{{ asset('js/datagrid.js') }}';
 
     var columns = [
       { data: "id.org_id", filter: "text", render: organizationLink },
@@ -102,7 +102,7 @@
         })
       },
       { data: "updated_at", filter: "text" },
-      { data: "status", filter: "text", className: "text-center", render: upperCase },
+      { data: "status", filter: "text", className: "text-center", render: status },
       { data: "remediation_pr", filter: "number", className: "text-center", render: pullRequestLink("id.org_id", "id.repo_name") }
     ];
 

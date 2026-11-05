@@ -1,8 +1,10 @@
 import {defaultKeymap, history, historyKeymap, indentLess, indentMore} from "@codemirror/commands";
-import {StreamLanguage, bracketMatching, defaultHighlightStyle, indentUnit, syntaxHighlighting} from "@codemirror/language";
+import {StreamLanguage, bracketMatching, indentUnit} from "@codemirror/language";
 import {lintGutter} from "@codemirror/lint";
 import {EditorState, StateEffect, StateField} from "@codemirror/state";
 import {Decoration, EditorView, drawSelection, highlightSpecialChars, keymap, lineNumbers} from "@codemirror/view";
+
+import {codeTheme} from "../code-theme.js";
 
 // The setup of the CodeMirror editors of the playground: the editor of its documents, the read-only editors of the files
 // of the default configuration and of the output.
@@ -157,7 +159,7 @@ export function editorExtensions({readOnly = false, diagnostics = true} = {}) {
     highlightSpecialChars(),
     drawSelection(),
     bracketMatching(),
-    syntaxHighlighting(defaultHighlightStyle, {fallback: true}),
+    codeTheme(),
     jsonnet,
     indentUnit.of("  "),
     EditorState.tabSize.of(2),

@@ -11,6 +11,7 @@ import functools
 import json
 import os.path
 import re
+from collections import Counter
 from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from importlib.resources import files
 from logging import getLogger
@@ -38,6 +39,7 @@ from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
 from otterdog.webapp.db.service import (
     find_scorecard_result,
     get_active_installations,
+    get_blueprint_status_counts_by_organization,
     get_blueprints,
     get_blueprints_status,
     get_configuration_by_project_name,
@@ -46,21 +48,30 @@ from otterdog.webapp.db.service import (
     get_installation_by_github_id,
     get_installation_by_project_name,
     get_installations,
+    get_latest_configuration_changes,
+    get_latest_tasks_by_organization,
     get_merged_pull_requests_count,
     get_open_or_incomplete_pull_requests_count,
+    get_open_pull_request_counts_by_organization,
     get_policies_status,
+    get_scorecard_average,
+    get_scorecard_averages_by_organization,
     get_scorecard_results,
     get_statistics,
+    get_statistics_by_github_id,
 )
 from otterdog.webapp.tasks import get_organization_config
 from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get_temporary_base_directory
 
-from . import blueprint
+from . import blueprint, projects
 
 if TYPE_CHECKING:
     from otterdog.webapp.auth import User
+    from otterdog.webapp.db.models import InstallationModel
 
 _PAGE_NOT_FOUND = "home/page-404.html"
+# the number of the latest changes of configurations on the home page
+_RECENT_CHANGES = 5
 
 logger = getLogger(__name__)
 
@@ -151,8 +162,24 @@ async def index():
         stats.repos_with_code_scanning,
     ]
 
+    # the configurations changed the most recently, linked to their commit
+    installations_by_key = associate_by_key(installations, lambda x: x.github_id)
+    recent_changes = []
+    for configuration in await get_latest_configuration_changes(_RECENT_CHANGES):
+        installation = installations_by_key.get(configuration.github_id)
+        change = projects.change_of(installation, configuration) if installation is not None else None
+        if change is not None:
+            recent_changes.append({"project_name": configuration.project_name, "change": change})
+
+    scorecard_average, scorecard_count = await get_scorecard_average()
+
     return await render_home_template(
         "index.html",
+        recent_changes=recent_changes,
+        scorecard_average=scorecard_average,
+        scorecard_count=scorecard_count,
+        now=projects.now(),
+        ago=projects.ago,
         open_pull_request_count=await get_open_or_incomplete_pull_requests_count(),
         merged_pull_request_count=await get_merged_pull_requests_count(),
         installations=installations,
@@ -182,29 +209,35 @@ def _percentage(count: int, total: int) -> float:
 @blueprint.route("/myprojects")
 @login_required
 async def myprojects():
-    projects = set(await current_user.projects)
+    user_projects = set(await current_user.projects)
 
-    installations = list(filter(lambda x: x.project_name in projects, await get_installations()))
-    configurations = await get_configurations()
-    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
-    return await render_home_template(
-        "projects.html",
-        title="My Projects",
-        installations=installations,
-        configurations=configurations_by_key,
-    )
+    installations = [x for x in await get_installations() if x.project_name in user_projects]
+    return await _render_projects("My Projects", installations)
 
 
 @blueprint.route("/allprojects")
 async def allprojects():
-    installations = await get_installations()
-    configurations = await get_configurations()
-    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await _render_projects("All Projects", await get_installations())
+
+
+async def _render_projects(title: str, installations: list["InstallationModel"]) -> str:
+    """A page of organizations, a card for each one grouped by its top-level project (home/projects.py)."""
+    cards = projects.project_cards(
+        installations,
+        associate_by_key(await get_configurations(), lambda x: x.github_id),
+        await get_statistics_by_github_id(),
+        await get_open_pull_request_counts_by_organization(),
+        await get_latest_tasks_by_organization(projects.FETCH_CONFIG_TASK),
+        await get_blueprint_status_counts_by_organization(),
+        await get_scorecard_averages_by_organization(),
+    )
     return await render_home_template(
         "projects.html",
-        title="All Projects",
-        installations=installations,
-        configurations=configurations_by_key,
+        title=title,
+        groups=projects.group_cards(cards),
+        total=len(cards),
+        now=projects.now(),
+        ago=projects.ago,
     )
 
 
@@ -246,9 +279,12 @@ async def project(project_name: str):
 
     from otterdog.models.github_organization import GitHubOrganization
     from otterdog.webapp.db.service import get_policies
+    from otterdog.webapp.tasks.fetch_config import get_organization_statistics
 
     github_organization = GitHubOrganization.from_model_data(config.config)
     code_security_data = _get_code_security_data(github_organization)
+    # the statistics of the repositories as the fetch of the configuration computes them, for the projects pages
+    statistics = get_organization_statistics(config.project_name or project_name, config.github_id, github_organization)
     # the settings that the code security configuration of a repository sets take precedence over its own ones
     github_organization.set_repositories(
         [github_organization.get_effective_repository(x) for x in github_organization.repositories]
@@ -265,7 +301,20 @@ async def project(project_name: str):
         status_list = blueprints_status.setdefault(blueprint_id, [])
         status_list.append(status.model_dump())
 
-    scorecard_results = {m.id.repo_name: m.model_dump() for m in await get_scorecard_results(config.github_id)}
+    scorecards = await get_scorecard_results(config.github_id)
+    scorecard_results = {m.id.repo_name: m.model_dump() for m in scorecards}
+    scores = [m.score for m in scorecards if m.score is not None]
+
+    # the same card as on the projects pages, for its governance and its activity
+    card = projects.project_card(
+        installation,
+        config,
+        statistics,
+        (await get_open_pull_request_counts_by_organization(config.github_id)).get(config.github_id, 0),
+        (await get_latest_tasks_by_organization(projects.FETCH_CONFIG_TASK, config.github_id)).get(config.github_id),
+        Counter(status.status.value for status in all_blueprints_status),
+        sum(scores) / len(scores) if scores else None,
+    )
 
     template = installation.base_template
     template_ref = "N/A"
@@ -289,8 +338,10 @@ async def project(project_name: str):
         policies_status=policies_status,
         blueprints=blueprints,
         blueprints_status=blueprints_status,
-        secret_scanning_data=json.dumps(_get_secret_scanning_data(github_organization)),
-        branch_protection_data=json.dumps(_get_branch_protection_data(github_organization)),
+        card=card,
+        security=projects.security_details(statistics),
+        now=projects.now(),
+        ago=projects.ago,
         scorecard_results=scorecard_results,
         code_security=code_security_data,
     )
@@ -318,41 +369,6 @@ def _get_code_security_data(org: GitHubOrganization) -> dict[str, Any]:
         "repositories": repositories,
         "without_configuration": without_configuration,
     }
-
-
-def _get_secret_scanning_data(org: GitHubOrganization) -> list[int]:
-    alert_mode = 0
-    protection_mode = 0
-    not_configured = 0
-
-    for repo in org.repositories:
-        if repo.archived is True:
-            continue
-
-        if repo.secret_scanning_push_protection == "enabled":
-            protection_mode += 1
-        elif repo.secret_scanning == "enabled":
-            alert_mode += 1
-        else:
-            not_configured += 1
-
-    return [not_configured, alert_mode, protection_mode]
-
-
-def _get_branch_protection_data(org: GitHubOrganization) -> list[int]:
-    protected = 0
-    not_protected = 0
-
-    for repo in org.repositories:
-        if repo.archived is True:
-            continue
-
-        if len(repo.rulesets) > 0 or len(repo.branch_protection_rules) > 0:
-            protected += 1
-        else:
-            not_protected += 1
-
-    return [not_protected, protected]
 
 
 @blueprint.route("/projects/<project_name>/defaults")

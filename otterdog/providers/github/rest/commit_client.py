@@ -29,6 +29,23 @@ class CommitClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving commit:\n{ex}") from ex
 
+    async def get_latest_commit_for_path(
+        self, org_id: str, repo_name: str, path: str, ref: str | None = None
+    ) -> dict[str, Any] | None:
+        """The latest commit changing a file, on a ref or on the default branch, None when no commit changed it."""
+        _logger.debug("getting the latest commit changing '%s' in repo '%s/%s'", path, org_id, repo_name)
+
+        params = {"path": path, "per_page": "1"}
+        if ref is not None:
+            params["sha"] = ref
+
+        try:
+            commits = await self.requester.request_json("GET", f"/repos/{org_id}/{repo_name}/commits", params=params)
+        except GitHubException as ex:
+            raise RuntimeError(f"failed retrieving the latest commit of '{path}':\n{ex}") from ex
+
+        return commits[0] if commits else None
+
     async def get_commit_statuses(self, org_id: str, repo_name: str, ref: str) -> list[dict[str, Any]]:
         _logger.debug("getting commit statuses for ref '%s' from repo '%s/%s'", ref, org_id, repo_name)
 
