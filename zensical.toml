@@ -172,8 +172,11 @@ name = "the otterdog dashboard of the Eclipse Foundation"
 # main.html: the hero of the home page and the banner of a preview; partials/tabs.html: the sections of the active
 # tab as a second row of tabs
 custom_dir = "docs-theme"
-logo = "otterdog.png"
-favicon = "favicon.png"
+# the official artwork of otterdog (eclipse-csi/.github, artwork/eclipse-otterdog), copied unaltered as its brand
+# guidelines require: the emblem is drawn on a white disc by docs/assets/theme.css, its blue being too dark for the
+# purple of the header
+logo = "assets/images/otterdog-emblem.png"
+favicon = "assets/images/favicon-32x32.png"
 icon.repo = "fontawesome/brands/github"
 features = [
   "announce.dismiss",

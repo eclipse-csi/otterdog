@@ -137,7 +137,8 @@ def test_stage_adds_playground_links():
         "Open in the Playground](https://otterdog.example.org/playground?"
         in files["docs/userguide/guides/webhooks.md"].decode()
     )
-    assert files["docs/otterdog.png"] == (_ROOT_DIR / "docs" / "otterdog.png").read_bytes()
+    logo = "docs/assets/images/otterdog-emblem.png"
+    assert files[logo] == (_ROOT_DIR / logo).read_bytes()
     assert files["theme/main.html"] == (_ROOT_DIR / "docs-theme" / "main.html").read_bytes()
     assert tomllib.loads(files["zensical.toml"].decode())["project"]["docs_dir"] == "docs"
 
@@ -180,6 +181,22 @@ def test_hero_buttons_open_pages_of_the_nav():
     assert links
     # a page of the nav is served at <page>/, an index page at its directory
     assert [link for link in links if f"{link}index.md" not in pages and f"{link.rstrip('/')}.md" not in pages] == []
+
+
+def test_the_images_of_the_theme_exist():
+    theme = tomllib.loads(_CONFIG)["project"]["theme"]
+    main = (_ROOT_DIR / "docs-theme" / "main.html").read_text()
+
+    # the logo and the favicon, the logo of the hero and the social card, all served from docs/
+    images = [
+        theme["logo"],
+        theme["favicon"],
+        *re.findall(r"""src="\{\{ '([^']*)' \| url \}\}\"""", main),
+        *re.findall(r"""\{\{ config\.site_url \}\}([^"]*)""", main),
+    ]
+
+    assert len(images) == 4
+    assert [image for image in images if not (_ROOT_DIR / "docs" / image).is_file()] == []
 
 
 def _anchors(page: Path) -> set[str]:

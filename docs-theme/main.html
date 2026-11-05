@@ -1,13 +1,20 @@
 {#-
   Theme override of the documentation site (theme.custom_dir in zensical.toml): main.html of zensical-ui 0.0.41
   (Zensical 0.0.74) only extends base.html; this one also fills three of its blocks, styled by docs/assets/theme.css:
-  on the preview of a pull request (extra.preview_pr, set by docs_site.py from DOCS_PREVIEW_PR) the announcement bar
-  and a robots meta tag keeping the preview out of search engines, and, below the tabs, the hero of the home page,
-  whose buttons open pages of the nav (tests/test_docs_site.py checks them).
+  the social card of the site and, on the preview of a pull request (extra.preview_pr, set by docs_site.py from
+  DOCS_PREVIEW_PR), the announcement bar and a robots meta tag keeping the preview out of search engines, and, below
+  the tabs, the hero of the home page with the white logo, whose buttons open pages of the nav (tests/test_docs_site.py
+  checks them and the images).
 -#}
 {% extends "base.html" %}
 
 {% block extrahead %}
+  {#- the image of a link to the site shared in a chat or a post: the social card of the official artwork #}
+  {%- if config.site_url %}
+    <meta property="og:image" content="{{ config.site_url }}assets/images/otterdog-social.png">
+    <meta property="og:image:alt" content="Eclipse Otterdog">
+    <meta name="twitter:card" content="summary_large_image">
+  {%- endif %}
   {%- if config.extra.preview_pr %}
     <meta name="robots" content="noindex, nofollow">
   {%- endif %}
@@ -29,7 +36,12 @@
     <section class="otterdog-hero">
       <div class="otterdog-hero__inner md-grid md-typeset">
         <div>
-          <h1 class="otterdog-hero__title">{{ config.site_name }}</h1>
+          {#- the name as text for screen readers (class of zensical-ui), the logo that shows it is decorative #}
+          <h1 class="otterdog-hero__title">
+            <span class="md-visually-hidden">Eclipse Otterdog</span>
+            <img class="otterdog-hero__logo" src="{{ 'assets/images/otterdog-logo-white.png' | url }}"
+                 alt="" width="1927" height="672">
+          </h1>
           <p class="otterdog-hero__text">
             {{ config.site_description }}: the configuration of an organization and of its repositories lives in a
             repository, every change is a pull request.
@@ -39,6 +51,7 @@
           <a class="md-button" href="{{ 'reference/' | url }}">Reference</a>
           {%- if config.extra.otterdog_url %}
             <a class="md-button" href="{{ config.extra.otterdog_url }}/playground">Try the playground</a>
+            <a class="md-button" href="{{ config.extra.otterdog_url }}">Open the dashboard</a>
           {%- endif %}
         </div>
       </div>
