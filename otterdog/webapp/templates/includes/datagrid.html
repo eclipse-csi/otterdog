@@ -1,9 +1,10 @@
 {#
   Table paged, sorted and filtered server side with createPagedTable() of static/src/js/datagrid.js,
-  given the title of each of its columns, the row of filters being added below them by the script.
+  given the title of each of its columns, the row of filters being added below them by the script, styled by
+  css/app.scss (otterdog-table).
 #}
 {% macro paged_table(id, titles, extra_class="") %}
-<table id="{{ id }}" class="table {{ extra_class }} table-bordered table-hover">
+<table id="{{ id }}" class="table {{ extra_class }} table-hover align-middle otterdog-table">
   <thead>
     <tr>
       {% for title in titles %}

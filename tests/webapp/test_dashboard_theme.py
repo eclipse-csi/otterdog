@@ -13,7 +13,7 @@ from unittest import mock
 
 import pretend
 import pytest
-from quart import render_template
+from quart import render_template, render_template_string
 
 from otterdog.webapp.home import routes
 
@@ -59,6 +59,28 @@ async def test_the_home_page_opens_with_the_hero(app, statistics):
     assert 'href="/allprojects">All projects</a>' in page
     assert f'href="{documentation_url}" target="_blank" rel="noopener">' in page
     assert f'href="{documentation_url}userguide/guides/" target="_blank" rel="noopener">' in page
+
+
+async def test_the_home_page_shows_the_figures_of_the_instance(app, statistics):
+    async with app.test_request_context("/index"):
+        page = await routes.index()
+
+    assert page.count('class="otterdog-stat otterdog-stat--') == 6
+    # the cards of the figures with a page open it
+    assert '<a class="otterdog-stat otterdog-stat--purple" href="/admin/organizations">' in page
+    assert '<a class="otterdog-stat otterdog-stat--orange" href="/admin/pullrequests#open-prs">' in page
+    assert '<a class="otterdog-stat otterdog-stat--green" href="/admin/pullrequests#merged-prs">' in page
+    assert "small-box" not in page
+
+
+async def test_the_tables_have_the_style_of_the_dashboard(app):
+    async with app.app_context():
+        table = await render_template_string(
+            '{% from "includes/datagrid.html" import paged_table %}{{ paged_table("pulls", ["Status"]) }}'
+        )
+
+    assert 'class="table  table-hover align-middle otterdog-table"' in table
+    assert "table-bordered" not in table
 
 
 async def test_a_page_sets_its_color_mode_before_its_styles(app, statistics):

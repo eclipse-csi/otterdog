@@ -8,7 +8,8 @@
 // The header of a table, with the title of each column, is part of its markup (see includes/datagrid.html),
 // DataTables is loaded as a vendor script by the pages using this module.
 
-const DataTable = window.DataTable;
+// read from globalThis rather than window, so that the formatting functions can be tested with node
+const DataTable = globalThis.DataTable;
 
 const FILTER_DELAY = 400;
 
@@ -20,11 +21,58 @@ export function display(render) {
   return (value, type, row) => (type === "display" ? render(value, row) : value);
 }
 
-export const checkbox = display((value) =>
-  '<input class="form-check-input" type="checkbox" disabled' + (value ? " checked" : "") + ">"
+// renders a boolean as a check mark or a dash (css/app.scss), its value as text for screen readers
+export const boolean = display((value) =>
+  value
+    ? '<i class="fas fa-check otterdog-yes" aria-hidden="true"></i><span class="visually-hidden">Yes</span>'
+    : '<span class="otterdog-no" aria-hidden="true">&ndash;</span><span class="visually-hidden">No</span>'
 );
 
-export const upperCase = display((value) => escapeHtml(value.toUpperCase()));
+// the colors of the statuses of the pull requests, of their apply, of the tasks and of the blueprints
+const STATUS_COLORS = {
+  merged: "success",
+  completed: "success",
+  finished: "success",
+  success: "success",
+  failed: "danger",
+  failure: "danger",
+  partially_applied: "warning",
+  remediation_prepared: "warning",
+  open: "primary",
+  scheduled: "primary",
+  recheck: "primary",
+};
+
+export function statusColor(value) {
+  return STATUS_COLORS[String(value).toLowerCase()] ?? "secondary";
+}
+
+// the text of a status, e.g. NOT APPLIED for not_applied
+export function statusText(value) {
+  return String(value).replaceAll("_", " ").toUpperCase();
+}
+
+// renders a status as a badge in its color, in the subtle variant of Bootstrap that follows the color mode
+export const status = display((value) => {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  const color = statusColor(value);
+  return (
+    '<span class="badge rounded-pill bg-' + color + "-subtle text-" + color + "-emphasis border border-" + color +
+    '-subtle">' + escapeHtml(statusText(value)) + "</span>"
+  );
+});
+
+// a date and time of the api, e.g. 2026-11-04T15:48:04.123456, to the minute: 2026-11-04 15:48
+export function shortDateTime(value) {
+  return String(value).replace("T", " ").slice(0, 16);
+}
+
+// renders a date and time to the minute, the full value in its title
+export const dateTime = display((value) =>
+  value ? '<time title="' + escapeHtml(value) + '">' + escapeHtml(shortDateTime(value)) + "</time>" : ""
+);
 
 const gitHubLink = (path, text) =>
   '<a href="https://github.com/' + escapeHtml(path) + '">' + escapeHtml(text) + "</a>";

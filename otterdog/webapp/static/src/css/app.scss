@@ -77,9 +77,12 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
   }
 }
 
-// wide tables, like the one of the scorecards, scroll horizontally rather than overflowing their card
+// a paged table in a frame with rounded corners; wide tables, like the one of the scorecards, scroll horizontally
+// rather than overflowing their card
 .dt-container .dt-layout-table > .dt-layout-full {
   overflow-x: auto;
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color);
+  border-radius: var(--#{$prefix}border-radius-lg);
 }
 
 // the header in the purple of the Eclipse Foundation and the sidebar in a darker one, in both color modes like the
@@ -238,4 +241,144 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
   --otterdog-code-property: #61afef;
   --otterdog-code-comment: #7f848e;
   --otterdog-code-invalid: #ff6b6b;
+}
+
+// the figures of the home page (home/index.html): a card on the background of the page, the icon in a square tinted
+// with the color of what it counts above the figure and its label, the whole card opening its page when it has one,
+// shown by an arrow in its corner
+.otterdog-stat {
+  --otterdog-stat-color: #{$otterdog-violet};
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  height: 100%;
+  padding: 1rem 1.25rem;
+  color: var(--#{$prefix}body-color);
+  background-color: var(--#{$prefix}body-bg);
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+  box-shadow: var(--#{$prefix}box-shadow-sm);
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+}
+
+a.otterdog-stat:hover,
+a.otterdog-stat:focus-visible {
+  color: var(--#{$prefix}body-color);
+  text-decoration: none;
+  border-color: var(--otterdog-stat-color);
+  box-shadow: var(--#{$prefix}box-shadow);
+}
+
+.otterdog-stat--purple {
+  --otterdog-stat-color: #{$otterdog-violet};
+}
+
+.otterdog-stat--orange {
+  --otterdog-stat-color: #{$otterdog-orange};
+}
+
+.otterdog-stat--green {
+  --otterdog-stat-color: #{$success};
+}
+
+.otterdog-stat--grey {
+  --otterdog-stat-color: #{$gray-600};
+}
+
+[data-bs-theme="dark"] {
+  .otterdog-stat--purple {
+    --otterdog-stat-color: #{$otterdog-lilac};
+  }
+
+  .otterdog-stat--grey {
+    --otterdog-stat-color: #{$gray-500};
+  }
+}
+
+.otterdog-stat__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.25rem;
+  color: var(--otterdog-stat-color);
+  background-color: color-mix(in srgb, var(--otterdog-stat-color) 14%, transparent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+}
+
+.otterdog-stat__text {
+  min-width: 0;
+}
+
+.otterdog-stat__value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-stat__label {
+  display: block;
+  font-size: .875rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+.otterdog-stat__more {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+a.otterdog-stat:hover .otterdog-stat__more {
+  color: var(--otterdog-stat-color);
+}
+
+// the tables of the dashboard (includes/datagrid.html and the tables of the pages of a project): rows separated by a
+// line without vertical borders, the titles of the columns small on a tinted background, a purple tint on hover
+.otterdog-table {
+  --#{$prefix}table-hover-bg: rgba(var(--#{$prefix}primary-rgb), .06);
+  margin-bottom: 0;
+
+  > thead > tr > th {
+    background-color: var(--#{$prefix}tertiary-bg);
+  }
+
+  > thead > tr:first-child > th {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--#{$prefix}secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    vertical-align: bottom;
+  }
+
+  // the row of the filters of a paged table, below the titles
+  > thead > tr + tr > th {
+    padding-top: 0;
+  }
+
+  > tbody > tr:last-child > td {
+    border-bottom-width: 0;
+  }
+}
+
+[data-bs-theme="dark"] .otterdog-table {
+  --#{$prefix}table-hover-bg: rgba(255, 255, 255, .05);
+}
+
+// the booleans of a table (js/datagrid.js): a check mark, a dash
+.otterdog-yes {
+  color: $otterdog-violet;
+}
+
+[data-bs-theme="dark"] .otterdog-yes {
+  color: $otterdog-lilac;
+}
+
+.otterdog-no {
+  color: var(--#{$prefix}tertiary-color);
 }

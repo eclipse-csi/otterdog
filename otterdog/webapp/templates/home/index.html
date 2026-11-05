@@ -41,63 +41,64 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <!-- Small boxes (Stat box) -->
-        <div class="row">
-          <div class="col-lg-2">
-            <div class="small-box text-bg-info">
-              <div class="inner">
-                <h3>{{ installations|length }}</h3>
-                <p>GitHub Organizations</p>
-              </div>
-              <i class="small-box-icon fas fa-sitemap"></i>
-              <a href="/admin/organizations" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
+        <!-- the figures of the instance, in the colors of what they count: the open pull requests to look at in
+             orange, the merged ones and the active repositories in green, the archived repositories in grey -->
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--purple" href="/admin/organizations">
+              <span class="otterdog-stat__icon"><i class="fas fa-sitemap" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ installations|length }}</span>
+                <span class="otterdog-stat__label">GitHub Organizations</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--orange" href="/admin/pullrequests#open-prs">
+              <span class="otterdog-stat__icon"><i class="fas fa-code-pull-request" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ open_pull_request_count }}</span>
+                <span class="otterdog-stat__label">Open Pull Requests</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <a class="otterdog-stat otterdog-stat--green" href="/admin/pullrequests#merged-prs">
+              <span class="otterdog-stat__icon"><i class="fas fa-code-merge" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ merged_pull_request_count }}</span>
+                <span class="otterdog-stat__label">Merged Pull Requests</span>
+              </span>
+              <i class="otterdog-stat__more fas fa-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <div class="otterdog-stat otterdog-stat--purple">
+              <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ total_repository_count }}</span>
+                <span class="otterdog-stat__label">Total Repositories</span>
+              </span>
             </div>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-warning">
-              <div class="inner">
-                <h3>{{ open_pull_request_count }}</h3>
-                <p>Open Pull Requests</p>
-              </div>
-              <i class="small-box-icon fas fa-code-pull-request"></i>
-              <a href="/admin/pullrequests#open-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <div class="otterdog-stat otterdog-stat--green">
+              <span class="otterdog-stat__icon"><i class="fab fa-github" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ active_repository_count }}</span>
+                <span class="otterdog-stat__label">Active Repositories</span>
+              </span>
             </div>
           </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-success">
-              <div class="inner">
-                <h3>{{ merged_pull_request_count }}</h3>
-                <p>Merged Pull Requests</p>
-              </div>
-              <i class="small-box-icon fas fa-code-merge"></i>
-              <a href="/admin/pullrequests#merged-prs" class="small-box-footer text-decoration-none">More info <i class="fas fa-arrow-circle-right"></i></a>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-info">
-              <div class="inner">
-                <h3>{{ total_repository_count }}</h3>
-                <p>Total Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-success">
-              <div class="inner">
-                <h3>{{ active_repository_count }}</h3>
-                <p>Active Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="small-box text-bg-secondary">
-              <div class="inner">
-                <h3>{{ archived_repository_count }}</h3>
-                <p>Archived Repositories</p>
-              </div>
-              <i class="small-box-icon fab fa-github"></i>
+          <div class="col-sm-6 col-lg-4 col-xxl-2">
+            <div class="otterdog-stat otterdog-stat--grey">
+              <span class="otterdog-stat__icon"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
+              <span class="otterdog-stat__text">
+                <span class="otterdog-stat__value">{{ archived_repository_count }}</span>
+                <span class="otterdog-stat__label">Archived Repositories</span>
+              </span>
             </div>
           </div>
         </div>
@@ -105,7 +106,7 @@
 
         <div class="row">
           <div class="col-12">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Pull Request Automation</h3>
                 <div class="card-tools">
@@ -157,7 +158,7 @@
 
         <div class="row">
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Two Factor Enforcement</h3>
               </div>
@@ -168,7 +169,7 @@
             </div>
           </div>
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Secret Scanning</h3>
               </div>
@@ -179,7 +180,7 @@
             </div>
           </div>
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Dependabot</h3>
               </div>
@@ -190,7 +191,7 @@
             </div>
           </div>
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Branch Protections</h3>
               </div>
@@ -201,7 +202,7 @@
             </div>
           </div>
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Private Vulnerability Reporting</h3>
               </div>
@@ -212,7 +213,7 @@
             </div>
           </div>
           <div class="col-sm-3">
-            <div class="card card-info">
+            <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Code Scanning</h3>
               </div>

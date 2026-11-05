@@ -72,7 +72,7 @@
 
   <!-- page script -->
   <script type="module">
-    import {createPagedTable, display, organizationLink, pullRequestLink, repositoryLink, upperCase} from '{{ asset('js/datagrid.js') }}';
+    import {createPagedTable, display, organizationLink, pullRequestLink, repositoryLink, status} from '{{ asset('js/datagrid.js') }}';
 
     var renderDate = display(function(value) {
       return moment(value).locale('en').format('YYYY-MM-DD HH:mm:ss.SSS');
@@ -85,12 +85,12 @@
         { data: "org_id", filter: "text", render: organizationLink },
         { data: "repo_name", filter: "text", render: repositoryLink("org_id") },
         { data: "pull_request", filter: "number", className: "text-center", render: pullRequestLink("org_id", "repo_name") },
-        { data: "status", filter: "text", className: "text-center", render: upperCase },
+        { data: "status", filter: "text", className: "text-center", render: status },
         { data: "log", filter: "text" },
         { data: "cache_stats", filter: "text" },
         { data: "rate_limit_remaining", filter: "text" },
-        { data: "created_at", render: renderDate },
-        { data: "updated_at", render: renderDate }
+        { data: "created_at", className: "text-nowrap", render: renderDate },
+        { data: "updated_at", className: "text-nowrap", render: renderDate }
       ]
     });
   </script>

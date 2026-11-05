@@ -8,6 +8,7 @@
 
 """The pages of a project and of its repositories link to its playground, the menu to the reference guide."""
 
+import re
 import shutil
 from pathlib import Path
 from unittest import mock
@@ -61,6 +62,16 @@ async def test_the_page_of_a_project_links_to_its_playground(app, project):
     # each repository is edited in the playground, which shows it
     assert 'href="/projects/my-project/playground?repository=my-repo"' in page
     assert '<h3 class="card-title">Help</h3>' not in page
+
+
+async def test_the_cards_of_the_page_of_a_project_have_their_color_on_top(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # like the cards of the home page: a header on the background of the card, a border of their color on top
+    cards = re.findall(r'class="card card-[^"]*"', page)
+    assert cards
+    assert [card for card in cards if "card-outline" not in card] == []
 
 
 async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(app, project):

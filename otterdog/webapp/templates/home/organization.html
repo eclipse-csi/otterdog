@@ -126,7 +126,7 @@
                     <div class="container-fluid">
                       <div class="row">
                         <div class="col-sm-4">
-                          <div class="card card-primary">
+                          <div class="card card-primary card-outline">
                             <div class="card-header">
                               <h3 class="card-title">General</h3>
                             </div>
@@ -192,7 +192,7 @@
                           </div>
                         </div>
                         <div class="col-sm-4">
-                          <div class="card card-{{ secret_scanning_data|from_json|first|int_status }}">
+                          <div class="card card-{{ secret_scanning_data|from_json|first|int_status }} card-outline">
                             <div class="card-header">
                               <h3 class="card-title">Secret Scanning</h3>
                             </div>
@@ -202,7 +202,7 @@
                           </div>
                         </div>
                         <div class="col-sm-4">
-                          <div class="card card-{{ branch_protection_data|from_json|first|int_status }}">
+                          <div class="card card-{{ branch_protection_data|from_json|first|int_status }} card-outline">
                             <div class="card-header">
                               <h3 class="card-title">Branch Protections</h3>
                             </div>
@@ -231,7 +231,7 @@
                           {% for policy in policies %}
                           {% set id = 'policy-' ~ loop.index %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                            <div class="card card-primary">
+                            <div class="card card-primary card-outline">
                               <div class="card-header">
                                 <h3 class="card-title">{{ policy.name if policy.name is not none else 'Overview' }}</h3>
                               </div>
@@ -246,7 +246,7 @@
                                 Reference: <a href="{{ policy.path }}" target="_blank">{{ policy.path }}</a>
                               </div>
                             </div>
-                            <div class="card card-primary">
+                            <div class="card card-primary card-outline">
                               <div class="card-header">
                                 <h3 class="card-title">Config</h3>
                               </div>
@@ -256,13 +256,13 @@
                             </div>
                             {% if policy.id.policy_type in policies_status %}
                             {% set policy_status = policies_status[policy.id.policy_type] %}
-                            <div class="card card-info">
+                            <div class="card card-info card-outline">
                               <div class="card-header">
                                 <h3 class="card-title">Status</h3>
                               </div>
                               <div class="card-body">
                                 <div class="table-responsive p-0">
-                                  <table class="table table-hover text-nowrap">
+                                  <table class="table table-hover text-nowrap otterdog-table">
                                     <thead>
                                       <tr>
                                         {% for key, value in policy_status.status.items() %}
@@ -305,7 +305,7 @@
                           {% set blueprint_id = blueprint.id %}
                           {% set id = 'blueprint-' ~ blueprint_id.blueprint_id %}
                           <div class="tab-pane show {{ 'active' if loop.index == 1 else '' }}" id="{{ id }}" role="tabpanel" aria-labelledby="{{ id }}-tab">
-                            <div class="card card-primary">
+                            <div class="card card-primary card-outline">
                               <div class="card-header">
                                 <h3 class="card-title">{{ blueprint.name if blueprint.name is not none else 'Overview' }}</h3>
                               </div>
@@ -320,7 +320,7 @@
                                 Reference: <a href="{{ blueprint.path }}" target="_blank">{{ blueprint.path }}</a>
                               </div>
                             </div>
-                            <div class="card card-primary collapsed-card">
+                            <div class="card card-primary card-outline collapsed-card">
                               <div class="card-header" data-lte-toggle="card-collapse">
                                 <h3 class="card-title">Config</h3>
                                 <div class="card-tools" style="margin: 0px;">
@@ -333,7 +333,7 @@
                                 <pre><code class="language-json">{{ blueprint.config|pretty_format }}</code></pre>
                               </div>
                             </div>
-                            <div class="card card-info">
+                            <div class="card card-info card-outline">
                               <div class="card-header" data-lte-toggle="card-collapse">
                                 <h3 class="card-title">Status</h3>
                                 <div class="card-tools" style="margin: 0px;">
@@ -344,7 +344,7 @@
                               </div>
                               <div class="card-body">
                                 <div class="table-responsive p-0">
-                                  <table class="table table-hover text-nowrap">
+                                  <table class="table table-hover text-nowrap otterdog-table">
                                     <thead>
                                       <tr>
                                         <th>Repository</th>
@@ -384,7 +384,7 @@
                   </div>
                   <div class="tab-pane" id="roles" role="tabpanel" aria-labelledby="roles-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -450,7 +450,7 @@
                   </div>
                   <div class="tab-pane" id="custom-properties" role="tabpanel" aria-labelledby="custom-properties-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -492,7 +492,7 @@
                   </div>
                   <div class="tab-pane" id="secrets" role="tabpanel" aria-labelledby="secrets-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -528,7 +528,7 @@
                   </div>
                   <div class="tab-pane" id="variables" role="tabpanel" aria-labelledby="variables-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -556,7 +556,7 @@
                   </div>
                   <div class="tab-pane" id="webhooks" role="tabpanel" aria-labelledby="webhooks-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>URL</th>
@@ -690,7 +690,7 @@
                   </div>
                   <div class="tab-pane" id="repositories" role="tabpanel" aria-labelledby="repositories-tab">
                     <div class="table-responsive p-0">
-                      <table class="table table-hover text-nowrap">
+                      <table class="table table-hover text-nowrap otterdog-table">
                         <thead>
                           <tr>
                             <th>Repository</th>
