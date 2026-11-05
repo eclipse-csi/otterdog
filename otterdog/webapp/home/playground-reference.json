@@ -1826,7 +1826,7 @@
         }
       }
     },
-    "team.md": {
+    "team/index.md": {
       "title": "Team",
       "url": "reference/organization/team/",
       "properties": {
@@ -1858,6 +1858,37 @@
         "skip_non_organization_members": {
           "type": "boolean",
           "description": "If `true`, users which are not yet organization members can not be added to the team"
+        },
+        "team_sync": {
+          "type": "list[TeamSync]",
+          "description": "List of identity provider groups connected to the team via team synchronization",
+          "notes": "GitHub Enterprise Cloud only",
+          "object": "team/team-sync.md"
+        },
+        "external_group_id": {
+          "type": "integer or null",
+          "description": "The id of the external group connected to the team",
+          "notes": "Enterprise Managed Users (EMU) only"
+        }
+      }
+    },
+    "team/team-sync.md": {
+      "title": "Team Sync",
+      "url": "reference/organization/team/team-sync/",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The id of the IdP group",
+          "notes": "identifies the group"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the IdP group",
+          "notes": "required by the GitHub API"
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the IdP group"
         }
       }
     },
@@ -1954,7 +1985,8 @@
     "newOrgRuleset": "ruleset.md",
     "newWorkflows": "ruleset.md#workflows-settings",
     "newOrgSecret": "secret.md",
-    "newTeam": "team.md",
+    "newTeam": "team/index.md",
+    "newTeamSync": "team/team-sync.md",
     "newOrgVariable": "variable.md",
     "newOrgWebhook": "webhook.md"
   }
