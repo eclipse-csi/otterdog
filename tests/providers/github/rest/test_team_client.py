@@ -71,6 +71,21 @@ class TestTeamSyncGroups:
         with pytest.raises(RuntimeError, match="team synchronization for team 'org/team': 403"):
             await client.get_team_sync_groups("org", "team")
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Resource not accessible by integration",
+            "Resource not accessible by personal access token",
+            "Resource protected by organization SAML enforcement. You must grant your Personal Access token access.",
+        ],
+    )
+    async def test_get_team_sync_groups_access_denied(self, message):
+        # unknown connections to IdP groups must not be taken as not connected
+        client = team_client(FakeRequester({("GET", TEAM_SYNC_URL): (403, {"message": message})}))
+
+        with pytest.raises(RuntimeError, match="team synchronization for team 'org/team': 403"):
+            await client.get_team_sync_groups("org", "team")
+
     async def test_get_team_sync_groups_fails(self):
         client = team_client(FakeRequester({("GET", TEAM_SYNC_URL): (500, {"message": "error"})}))
 
@@ -99,6 +114,13 @@ class TestExternalGroups:
         requester = FakeRequester({("GET", EXTERNAL_GROUPS_URL): (status, {"message": "not available"})})
 
         assert await team_client(requester).get_team_external_groups("org", "team") is None
+
+    async def test_get_team_external_groups_access_denied(self):
+        denied = {"message": "Resource not accessible by integration"}
+        client = team_client(FakeRequester({("GET", EXTERNAL_GROUPS_URL): (403, denied)}))
+
+        with pytest.raises(RuntimeError, match="external groups for team 'org/team': 403"):
+            await client.get_team_external_groups("org", "team")
 
     async def test_update_team_connects_external_group(self):
         requester = FakeRequester()

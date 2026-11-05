@@ -217,6 +217,8 @@ class TeamClient(RestClient):
             f"/orgs/{org_id}/teams/{team_slug}/team-sync/group-mappings",
             feature_description=f"team synchronization for team '{org_id}/{team_slug}'",
             unavailable_statuses=_FEATURE_NOT_AVAILABLE_STATUSES,
+            # unknown connections to IdP groups must not be taken as not connected
+            raise_on_access_denied=True,
         )
 
         return None if response is None else response.get("groups", [])
@@ -244,6 +246,8 @@ class TeamClient(RestClient):
             f"/orgs/{org_id}/teams/{team_slug}/external-groups",
             feature_description=f"external groups for team '{org_id}/{team_slug}'",
             unavailable_statuses=_FEATURE_NOT_AVAILABLE_STATUSES,
+            # unknown connections to IdP groups must not be taken as not connected
+            raise_on_access_denied=True,
         )
 
         return None if response is None else response.get("groups", [])

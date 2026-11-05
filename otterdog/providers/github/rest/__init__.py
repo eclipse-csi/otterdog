@@ -167,16 +167,24 @@ class RestClient:
         *,
         feature_description: str,
         unavailable_statuses: tuple[int, ...] = (402, 403, 404),
+        raise_on_access_denied: bool = False,
     ) -> dict[str, Any] | None:
         """Fetch a GitHub endpoint that might not be available depending on the plan or add-ons.
 
         Returns None (after warning once per endpoint) if the response status is one of
         ``unavailable_statuses``, instead of raising. A rate limit is not an unavailable endpoint
-        and raises, even if its status is one of ``unavailable_statuses``.
+        and raises, even if its status is one of ``unavailable_statuses``, as well as a denied access
+        if ``raise_on_access_denied`` is enabled, e.g. missing permissions of the GitHub App.
         """
         status, body = await self.requester.request_raw("GET", url_path)
 
-        if status in unavailable_statuses and not _is_rate_limited(status, body):
+        is_unavailable = (
+            status in unavailable_statuses
+            and not _is_rate_limited(status, body)
+            and not (raise_on_access_denied and _is_access_denied(status, body))
+        )
+
+        if is_unavailable:
             _logger.warning(
                 "%s not available (status=%s), any configured setting will not be validated",
                 feature_description,
@@ -196,6 +204,25 @@ def _is_rate_limited(status: int, body: str) -> bool:
     and a message like 'API rate limit exceeded for ...' or 'You have exceeded a secondary rate limit ...'.
     """
     return status in (403, 429) and "rate limit" in body.lower()
+
+
+# the messages of GitHub when the access to a resource is denied to the credentials, e.g. missing permissions
+# of a GitHub App or of a fine-grained personal access token, or a token not authorized for SAML single sign-on
+_ACCESS_DENIED_MESSAGES = (
+    "resource not accessible by integration",
+    "resource not accessible by personal access token",
+    "saml enforcement",
+    "must have admin rights",
+)
+
+
+def _is_access_denied(status: int, body: str) -> bool:
+    """
+    Whether a response denies the access to a resource to the credentials, rather than the resource not being
+    available, returned by GitHub with status 403.
+    """
+    message = body.lower()
+    return status == 403 and any(denied in message for denied in _ACCESS_DENIED_MESSAGES)
 
 
 def encrypt_value(public_key: str, secret_value: str) -> str:
