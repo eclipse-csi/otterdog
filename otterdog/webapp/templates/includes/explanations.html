@@ -35,5 +35,9 @@
   "scorecard": "Average OpenSSF Scorecard score of the repositories of the organization, out of 10.",
 } %}
 
-{# the attributes of the tooltip explaining one of them, e.g. <a href="..."{{ explain("two-factor") }}> #}
-{% macro explain(key) %} data-bs-toggle="tooltip" data-bs-title="{{ EXPLANATIONS[key] }}"{% endmacro %}
+{#
+  the attributes of the tooltip explaining one of them, e.g. <a href="..."{{ explain("two-factor") }}>; focusable for
+  an element that is not, e.g. a label or a heading, so that its tooltip shows on its focus with the keyboard too
+#}
+{% macro explain(key, focusable=false) %} data-bs-toggle="tooltip" data-bs-title="{{ EXPLANATIONS[key] }}"
+{%- if focusable %} tabindex="0"{% endif %}{% endmacro %}

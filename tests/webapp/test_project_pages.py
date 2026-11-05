@@ -93,6 +93,10 @@ async def test_the_page_of_a_project_explains_its_facts_and_its_protections(app,
 
     # the same explanations as on its card on the projects pages (includes/explanations.html)
     assert 'data-bs-title=""' not in page
+    # every element with a tooltip can be focused with the keyboard, which shows it: a link, or made focusable
+    tags = re.findall(r'<\w+[^>]*data-bs-toggle="tooltip"[^>]*>', page)
+    assert len(tags) >= 12
+    assert [tag for tag in tags if not (tag.startswith("<a ") and " href=" in tag) and 'tabindex="0"' not in tag] == []
     for label in (
         "Default Config",
         "Plan",
@@ -111,7 +115,8 @@ async def test_the_page_of_a_project_explains_its_facts_and_its_protections(app,
         "Private vulnerability reporting",
     ):
         assert re.search(
-            rf'<h3 class="card-title" data-bs-toggle="tooltip" data-bs-title="Share of the active [^"]+">{title}</h3>',
+            rf'<h3 class="card-title" data-bs-toggle="tooltip" data-bs-title="Share of the active [^"]+"'
+            rf' tabindex="0">{title}</h3>',
             page,
         ), title
 

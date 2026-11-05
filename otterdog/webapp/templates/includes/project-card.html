@@ -65,7 +65,7 @@
     <ul class="otterdog-project__facts">
       <li>
         <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="two-factor"
-                    {%- if linked %} href="{{ project_url }}#settings"{% endif %}{{ explain("two-factor") }}>
+                    {%- if linked %} href="{{ project_url }}#settings"{% endif %}{{ explain("two-factor", not linked) }}>
           2FA
           {% if card.two_factor is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -78,7 +78,7 @@
       </li>
       <li>
         <{{ fact }} class="otterdog-project__fact"{% if linked %} href="{{ project_url }}#workflow-settings"{% endif %}
-                    {{- explain("workflow-permissions") }}>
+                    {{- explain("workflow-permissions", not linked) }}>
           Workflow permissions
           {% if card.workflow_permissions is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -91,7 +91,7 @@
       </li>
       <li>
         <{{ fact }} class="otterdog-project__fact"{% if linked %} href="{{ project_url }}#settings"{% endif %}
-                    {{- explain("signoff") }}>
+                    {{- explain("signoff", not linked) }}>
           DCO sign-off
           {% if card.signoff is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -102,7 +102,7 @@
       </li>
       <li>
         <{{ fact }} class="otterdog-project__fact"{% if linked %} href="{{ project_url }}#settings"{% endif %}
-                    {{- explain("default-permission") }}>
+                    {{- explain("default-permission", not linked) }}>
           Default permission
           {% if card.default_permission is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -113,7 +113,7 @@
       </li>
       <li>
         <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="repositories archived"
-                    {%- if linked %} href="{{ project_url }}#repositories"{% endif %}{{ explain("repositories") }}>
+                    {%- if linked %} href="{{ project_url }}#repositories"{% endif %}{{ explain("repositories", not linked) }}>
           Repositories
           {% if card.repositories is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -132,7 +132,7 @@
     <dl class="otterdog-project__security">
       {% for share in card.shares %}
       {% set criterion = 'security ' ~ share.label|lower|replace(' ', '-') %}
-      <dt data-otterdog-criterion="{{ criterion }}"{{ explain(share.label) }}>{{ share.label }}</dt>
+      <dt data-otterdog-criterion="{{ criterion }}"{{ explain(share.label, true) }}>{{ share.label }}</dt>
       <dd data-otterdog-criterion="{{ criterion }}">
         <span class="otterdog-meter" aria-hidden="true">
           {% if share.percentage is not none %}

@@ -288,6 +288,14 @@ async def test_a_card_explains_its_facts_its_protections_and_its_activity(app, p
     assert any(text.startswith("Base permission of every member of the organization") for text in explanations)
     for protection in re.findall(r"<dt [^>]*>[^<]*</dt>", page):
         assert 'data-bs-title="Share of the active repositories' in protection
+    # the cards without a page, whose facts are not links, included
+    assert _tooltips_not_focusable(page) == []
+
+
+def _tooltips_not_focusable(page):
+    """The elements with a tooltip that the keyboard cannot focus, neither links nor focusable, which would hide it."""
+    tags = re.findall(r'<\w+[^>]*data-bs-toggle="tooltip"[^>]*>', page)
+    return [tag for tag in tags if not (tag.startswith("<a ") and " href=" in tag) and 'tabindex="0"' not in tag]
 
 
 async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
