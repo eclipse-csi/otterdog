@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {compare, countText, matches} from "./projects.js";
+import {compare, countText, groupsToggle, matches} from "./projects.js";
 
 // the datasets of cards (includes/project-card.html)
 const CHE = {name: "ecd.che eclipse-che", group: "ecd", repositories: "23", security: "70.0", pullRequests: "2"};
@@ -40,4 +40,9 @@ test("the count tells how many organizations are shown", () => {
   assert.equal(countText(120, 120), "120 organizations");
   assert.equal(countText(42, 120), "42 of 120 organizations");
   assert.equal(countText(1, 1), "1 organization");
+});
+
+test("the button of the groups folds them when one is open, else unfolds them", () => {
+  assert.deepEqual(groupsToggle(true), {label: "Collapse all the groups", icon: "fa-angles-up"});
+  assert.deepEqual(groupsToggle(false), {label: "Expand all the groups", icon: "fa-angles-down"});
 });

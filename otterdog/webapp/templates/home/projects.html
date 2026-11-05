@@ -63,6 +63,13 @@
               <option value="pull-requests">Most open pull requests first</option>
             </select>
           </div>
+          <div class="col-auto">
+            <!-- folds or unfolds all the groups, its icon and its label set by js/projects.js -->
+            <button type="button" class="btn btn-outline-secondary" data-otterdog-groups-toggle
+                    aria-label="Collapse all the groups" title="Collapse all the groups">
+              <i class="fas fa-angles-up" aria-hidden="true"></i>
+            </button>
+          </div>
           <div class="col-12 col-md-auto ms-md-auto text-body-secondary" data-otterdog-project-count aria-live="polite">
             {{ total }} organizations
           </div>

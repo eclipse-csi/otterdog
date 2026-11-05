@@ -254,6 +254,9 @@ async def test_the_projects_can_be_filtered(app, projects):
         assert f'<option value="{group}">{group}</option>' in page
     for order in ("security", "repositories", "pull-requests"):
         assert f'<option value="{order}">' in page
+    # a button folds or unfolds all the groups
+    assert "data-otterdog-groups-toggle" in page
+    assert page.count('<details class="otterdog-group" open') == 3
     # neither a summary of the states nor things to look at
     assert "data-otterdog-project-summary" not in page
     assert 'name="state"' not in page

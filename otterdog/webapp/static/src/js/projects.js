@@ -37,6 +37,13 @@ export function countText(shown, total) {
   return shown === total ? `${total} ${noun}` : `${shown} of ${total} ${noun}`;
 }
 
+// the button folding or unfolding all the groups: it folds them when one of them is open, else it unfolds them
+export function groupsToggle(anyOpen) {
+  return anyOpen
+    ? {label: "Collapse all the groups", icon: "fa-angles-up"}
+    : {label: "Expand all the groups", icon: "fa-angles-down"};
+}
+
 function readFilters(form) {
   return Object.fromEntries(FIELDS.map((field) => [field, form.elements[field]?.value ?? ""]));
 }
@@ -50,6 +57,15 @@ export function initProjectFilters(form) {
   const total = document.querySelectorAll("[data-otterdog-project]").length;
   const count = form.querySelector("[data-otterdog-project-count]");
   const empty = document.querySelector("[data-otterdog-project-empty]");
+  const toggle = form.querySelector("[data-otterdog-groups-toggle]");
+
+  const anyOpen = () => groups.some((group) => !group.hidden && group.open);
+  const updateToggle = () => {
+    const {label, icon} = groupsToggle(anyOpen());
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+    toggle.querySelector("i").className = `fas ${icon}`;
+  };
 
   const params = new URLSearchParams(window.location.search);
   for (const field of FIELDS) {
@@ -73,17 +89,33 @@ export function initProjectFilters(form) {
         visible += organization.hidden ? 0 : 1;
       }
       group.hidden = visible === 0;
+      // a search or a top-level project shows its matches, even in the groups folded before
+      if (visible > 0 && (filters.q.trim() || filters.group)) {
+        group.open = true;
+      }
       group.querySelector("[data-otterdog-group-count]").textContent =
         visible === organizations.length ? `${visible}` : `${visible} of ${organizations.length}`;
       shown += visible;
     }
     count.textContent = countText(shown, total);
     empty.hidden = shown > 0;
+    updateToggle();
 
     const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
     const search = query.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
   };
+
+  toggle.addEventListener("click", () => {
+    const open = !anyOpen();
+    for (const group of groups) {
+      group.open = open;
+    }
+    updateToggle();
+  });
+  for (const group of groups) {
+    group.addEventListener("toggle", updateToggle);
+  }
 
   form.addEventListener("input", apply);
   form.addEventListener("change", apply);
