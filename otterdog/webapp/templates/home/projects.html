@@ -46,7 +46,9 @@
           <div class="col-sm-6 col-xl-4 col-xxl-3">
             <div class="otterdog-project{{ '' if installed else ' otterdog-project--inactive' }}">
               <div class="otterdog-project__head">
-                <img class="otterdog-project__avatar" src="https://avatars.githubusercontent.com/{{ github_id }}?s=80"
+                <!-- github.com/<login>.png redirects to the avatar of an organization as well as of a user, while
+                     avatars.githubusercontent.com/<login> only knows the users and shows the default one -->
+                <img class="otterdog-project__avatar" src="https://github.com/{{ github_id }}.png?size=80"
                      alt="" width="40" height="40" loading="lazy">
                 <div class="otterdog-project__names">
                   {% if installed %}

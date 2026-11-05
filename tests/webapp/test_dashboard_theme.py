@@ -137,7 +137,8 @@ async def test_a_project_opens_its_page_from_its_card(app, projects):
         page = await routes.allprojects()
 
     assert '<a class="otterdog-project__name stretched-link" href="/projects/technology.csi">technology.csi</a>' in page
-    assert 'src="https://avatars.githubusercontent.com/eclipse-csi?s=80"' in page
+    # the avatar of the organization, which avatars.githubusercontent.com/<login> does not give
+    assert 'src="https://github.com/eclipse-csi.png?size=80"' in page
     assert "Enforced" in page
     # the facts of the configuration in the colors of what they mean
     assert "bg-danger-subtle text-danger-emphasis" in page
