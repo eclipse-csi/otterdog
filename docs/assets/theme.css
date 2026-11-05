@@ -1,5 +1,5 @@
 /* Theme of the documentation site: the Eclipse Foundation colors (palette primary and accent "custom" in
-   zensical.toml), the banner of a preview and the hero of the home page (docs-theme/main.html). */
+   zensical.toml), the logo, the banner of a preview and the hero of the home page (docs-theme/main.html). */
 :root {
   --otterdog-eclipse-purple: #2c2255;
   --otterdog-eclipse-orange: #f7941e;
@@ -36,6 +36,22 @@
 .md-tabs {
   color: #fff;
   background-color: var(--md-primary-fg-color);
+}
+
+/* the emblem of otterdog (theme.logo in zensical.toml) on a white disc, like on the white background of the official
+   artwork: its blue is too dark for the purple of the header and of the title of the drawer on small screens */
+.md-header__button.md-logo {
+  padding: 0.2rem;
+}
+
+.md-header__button.md-logo img {
+  height: 1.6rem;
+}
+
+.md-logo img {
+  padding: 0.05rem;
+  background-color: #fff;
+  border-radius: 50%;
 }
 
 .md-tabs__link--active,
@@ -92,6 +108,19 @@
   margin: 0 0 0.4rem;
   color: inherit;
   font-weight: 700;
+}
+
+/* the white logo of the official artwork, its name in the alternative text */
+.otterdog-hero__logo {
+  display: block;
+  width: min(100%, 16rem);
+  height: auto;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .otterdog-hero__logo {
+    margin: 0 auto;
+  }
 }
 
 .otterdog-hero__text {
