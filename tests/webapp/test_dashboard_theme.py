@@ -16,7 +16,7 @@ import pretend
 import pytest
 from quart import render_template, render_template_string
 
-from otterdog.webapp.db.models import InstallationStatus
+from otterdog.webapp.db.models import InstallationModel, InstallationStatus, StatisticsModel, TaskModel, TaskStatus
 from otterdog.webapp.home import routes
 
 _STATIC_DIR = Path(routes.__file__).parents[1] / "static"
@@ -117,76 +117,139 @@ async def test_a_share_bar_of_nothing_is_empty(app):
 
 @pytest.fixture
 def projects(monkeypatch):
+    base_template = "https://github.com/EclipseFdn/otterdog-defaults#otterdog-defaults.libsonnet@v0.15.0"
     installations = [
-        pretend.stub(
-            project_name="technology.csi", github_id="eclipse-csi", installation_status=InstallationStatus.INSTALLED
+        InstallationModel(
+            project_name="technology.csi",
+            github_id="eclipse-csi",
+            installation_status=InstallationStatus.INSTALLED,
+            base_template=base_template,
         ),
-        pretend.stub(
+        InstallationModel(
             project_name="ee4j.jakartaee", github_id="jakartaee", installation_status=InstallationStatus.NOT_INSTALLED
         ),
         # installed, but its configuration was not loaded
-        pretend.stub(project_name="ecd.che", github_id="eclipse-che", installation_status=InstallationStatus.INSTALLED),
+        InstallationModel(
+            project_name="ecd.che", github_id="eclipse-che", installation_status=InstallationStatus.INSTALLED
+        ),
     ]
-    settings = {"two_factor_requirement": True, "workflows": {"default_workflow_permissions": "write"}}
+    settings = {
+        "two_factor_requirement": True,
+        "web_commit_signoff_required": True,
+        "default_repository_permission": "read",
+        "plan": "free",
+        "workflows": {"default_workflow_permissions": "write"},
+    }
     configuration = pretend.stub(github_id="eclipse-csi", config={"settings": settings, "repositories": [{}, {}, {}]})
+    statistics = StatisticsModel(
+        project_name="technology.csi",
+        github_id="eclipse-csi",
+        two_factor_enforced=1,
+        total_repos=3,
+        archived_repos=0,
+        repos_with_secret_scanning=0,
+        repos_with_secret_scanning_push_protection=3,
+        repos_with_branch_protection=1,
+        repos_with_dependabot_alerts=3,
+        repos_with_dependabot_security_updates=0,
+        repos_with_private_vulnerability_reporting=0,
+        repos_with_code_scanning=0,
+    )
+    failed_fetch = TaskModel(
+        type="FetchConfigTask", org_id="eclipse-che", repo_name=".eclipsefdn", status=TaskStatus.FAILED, log="boom"
+    )
 
     monkeypatch.setattr(routes, "get_installations", mock.AsyncMock(return_value=installations))
     monkeypatch.setattr(routes, "get_configurations", mock.AsyncMock(return_value=[configuration]))
+    monkeypatch.setattr(routes, "get_statistics_by_github_id", mock.AsyncMock(return_value={"eclipse-csi": statistics}))
+    monkeypatch.setattr(routes, "get_open_or_incomplete_pull_requests", mock.AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        routes, "get_latest_tasks_by_organization", mock.AsyncMock(return_value={"eclipse-che": failed_fetch})
+    )
+    monkeypatch.setattr(routes, "get_blueprint_status_counts_by_organization", mock.AsyncMock(return_value={}))
+    monkeypatch.setattr(
+        routes, "get_scorecard_averages_by_organization", mock.AsyncMock(return_value={"eclipse-csi": 6.4})
+    )
     monkeypatch.setattr(routes, "get_project_navigation", mock.AsyncMock(return_value={}))
 
 
-async def test_a_project_opens_its_page_from_its_card(app, projects):
+async def _projects_page(app):
     async with app.test_request_context("/allprojects"):
-        page = await routes.allprojects()
+        return await routes.allprojects()
+
+
+async def test_a_project_opens_its_page_from_its_card(app, projects):
+    page = await _projects_page(app)
 
     assert '<a class="otterdog-project__name stretched-link" href="/projects/technology.csi">technology.csi</a>' in page
     # the avatar of the organization, which avatars.githubusercontent.com/<login> does not give
     assert 'src="https://github.com/eclipse-csi.png?size=80"' in page
+    assert "Defaults v0.15.0 &middot; Free plan" in page
     assert "Enforced" in page
+    assert '<span class="otterdog-project__value">Required</span>' in page
     # the facts of the configuration in the colors of what they mean
     assert "bg-danger-subtle text-danger-emphasis" in page
     assert '<span class="otterdog-project__count">3</span>' in page
 
 
+async def test_a_card_shows_the_security_and_the_activity_of_its_organization(app, projects):
+    page = await _projects_page(app)
+
+    # 1 of 3 active repositories with branch protection, all of them with secret scanning
+    assert '<span class="otterdog-meter__fill otterdog-share__part--critical" style="width: 33.3%"></span>' in page
+    assert '<span class="otterdog-meter__fill otterdog-share__part--good" style="width: 100.0%"></span>' in page
+    assert "OpenSSF Scorecard 6.4" in page
+    assert "No open pull request" in page
+    # the write workflow permissions of the organization are to look at
+    assert re.search(r'title="To look at: Write workflow permissions">', page)
+
+
 async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
-    async with app.test_request_context("/allprojects"):
-        page = await routes.allprojects()
+    page = await _projects_page(app)
 
     assert '<span class="otterdog-project__name">ee4j.jakartaee</span>' in page
-    assert 'data-group="ee4j" data-state="inactive"' in page
+    assert 'data-group="ee4j"' in page
+    assert 'data-state="inactive"' in page
     assert "Not installed" in page
 
 
 async def test_a_project_without_configuration_has_the_same_card_without_its_page(app, projects):
-    async with app.test_request_context("/allprojects"):
-        page = await routes.allprojects()
+    page = await _projects_page(app)
 
     # the page of a project without configuration does not exist, its card does not link to it
     assert '<span class="otterdog-project__name">ecd.che</span>' in page
     assert 'href="/projects/ecd.che' not in page
-    assert 'data-group="ecd" data-state="unconfigured"' in page
+    assert 'data-state="unconfigured" data-attention="unconfigured fetch"' in page
     assert "No configuration" in page
-    # every card has the three facts, a dash when they are not known
-    assert page.count('class="otterdog-project__fact"') == 9
-    assert page.count('<span class="otterdog-project__unknown">&ndash;</span>') == 6
+    assert 'title="boom">' in page
+    # every card has the five facts, a dash when they are not known
+    assert page.count('class="otterdog-project__fact"') == 15
     assert page.count('<div class="otterdog-project otterdog-project--inactive">') == 2
 
 
+async def test_the_projects_are_grouped_by_their_top_level_project(app, projects):
+    page = await _projects_page(app)
+
+    groups = re.findall(r'data-otterdog-group="([^"]+)"', page)
+    assert groups == ["ecd", "ee4j", "technology"]
+
+
 async def test_the_projects_can_be_filtered(app, projects):
-    async with app.test_request_context("/allprojects"):
-        page = await routes.allprojects()
+    page = await _projects_page(app)
 
     assert "data-otterdog-project-filters" in page
     assert "js/projects.js" in page
-    # the top-level projects of the organizations, sorted
-    assert page.index('<option value="ecd">ecd</option>') < page.index('<option value="ee4j">ee4j</option>')
-    assert page.index('<option value="ee4j">ee4j</option>') < page.index(
-        '<option value="technology">technology</option>'
+    # the summary counts the organizations of each state and to look at, each one filtering the list
+    assert re.search(
+        r'data-field="state" data-value="configured"[^>]*>\s*<span[^>]*>[^<]*<i[^>]*></i></span>\s*'
+        r'<span class="otterdog-stat__text">\s*<span class="otterdog-stat__value">1</span>',
+        page,
     )
-    # the facts the filters of the settings read
-    assert 'data-name="technology.csi eclipse-csi"' in page
-    assert re.search(r'data-two-factor="true"\s+data-permissions="write"', page)
-    assert re.search(r'data-two-factor=""\s+data-permissions=""', page)
+    assert re.search(r'data-value="any"[\s\S]*?otterdog-stat__value">2</span>', page)
+    for option in ("two-factor", "write", "fetch", "blueprints", "pull-requests"):
+        assert f'<option value="{option}">' in page
+    for order in ("attention", "security", "repositories", "pull-requests"):
+        assert f'<option value="{order}">' in page
 
 
 async def test_the_tables_have_the_style_of_the_dashboard(app):

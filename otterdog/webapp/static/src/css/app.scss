@@ -263,7 +263,10 @@ $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
 }
 
 a.otterdog-stat:hover,
-a.otterdog-stat:focus-visible {
+a.otterdog-stat:focus-visible,
+button.otterdog-stat:hover,
+button.otterdog-stat:focus-visible,
+button.otterdog-stat[aria-pressed="true"] {
   color: var(--#{$prefix}body-color);
   text-decoration: none;
   border-color: var(--otterdog-stat-color);
@@ -284,6 +287,26 @@ a.otterdog-stat:focus-visible {
 
 .otterdog-stat--grey {
   --otterdog-stat-color: #{$gray-600};
+}
+
+.otterdog-stat--red {
+  --otterdog-stat-color: #d03b3b;
+}
+
+// a figure filtering a list (home/projects.html): a button, the icon beside the figure
+button.otterdog-stat {
+  width: 100%;
+  text-align: left;
+}
+
+.otterdog-stat--compact {
+  flex-direction: row;
+  align-items: center;
+  padding: .75rem 1rem;
+
+  .otterdog-stat__value {
+    font-size: 1.5rem;
+  }
 }
 
 [data-bs-theme="dark"] {
@@ -526,8 +549,12 @@ $otterdog-status-critical: #d03b3b;
   }
 }
 
-// the links of the card stay above the link of its project, which covers the card
+// the links of the card and the tooltips of its reasons stay above the link of its project, which covers the card
 .otterdog-project__organization,
+.otterdog-project__meta,
+.otterdog-project__attention,
+.otterdog-project__activity a,
+.otterdog-project__activity [title],
 a.otterdog-project__fact {
   position: relative;
   z-index: 2;
@@ -557,11 +584,12 @@ a.otterdog-project__fact {
   // a link to the tab of the project, or a plain row when the organization has no page
   .otterdog-project__fact {
     display: flex;
+    gap: .5rem;
     align-items: center;
     justify-content: space-between;
-    min-height: 2.375rem;
-    padding: .5rem 1.25rem;
-    font-size: .875rem;
+    min-height: 2.125rem;
+    padding: .375rem 1.25rem;
+    font-size: .8125rem;
     color: var(--#{$prefix}secondary-color);
   }
 
@@ -588,4 +616,141 @@ a.otterdog-project__fact {
 .otterdog-project__count {
   font-weight: 600;
   color: var(--#{$prefix}emphasis-color);
+}
+
+// the version of the default configuration and the plan of an organization, below its name
+.otterdog-project__meta {
+  display: block;
+  font-size: .75rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+// the number of things to look at in an organization, its reasons in its tooltip
+.otterdog-project__attention {
+  flex: none;
+  align-self: flex-start;
+  padding: .125rem .5rem;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--#{$prefix}danger-text-emphasis);
+  cursor: help;
+  background-color: var(--#{$prefix}danger-bg-subtle);
+  border-radius: var(--#{$prefix}border-radius-pill);
+}
+
+.otterdog-project__value {
+  font-weight: 600;
+  color: var(--#{$prefix}body-color);
+}
+
+.otterdog-project__archived {
+  font-size: .8125rem;
+  color: var(--#{$prefix}tertiary-color);
+}
+
+// the share of the active repositories with each protection: a thin meter in the color of its level, its value as
+// text beside it (home/projects.py)
+.otterdog-project__security {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .375rem .75rem;
+  align-items: center;
+  padding: .75rem 1.25rem;
+  margin: 0;
+  font-size: .8125rem;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  dt {
+    font-weight: normal;
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  dd {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    margin: 0;
+  }
+}
+
+.otterdog-meter {
+  flex: 1 1 auto;
+  height: 6px;
+  overflow: hidden;
+  background-color: var(--#{$prefix}secondary-bg);
+  border-radius: 3px;
+}
+
+.otterdog-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.otterdog-meter__value {
+  flex: none;
+  width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--#{$prefix}body-color);
+  text-align: right;
+}
+
+// the activity of an organization: its pull requests, the last fetch of its configuration, its blueprints, its
+// scorecard
+.otterdog-project__activity {
+  padding: .75rem 1.25rem;
+  margin: 0;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+  list-style: none;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  li + li {
+    margin-top: .25rem;
+  }
+
+  .fa-fw {
+    margin-right: .375rem;
+    color: var(--#{$prefix}tertiary-color);
+  }
+}
+
+.otterdog-project__warning {
+  color: var(--#{$prefix}warning-text-emphasis);
+}
+
+// a section of the projects pages per top-level project, folded with its title
+.otterdog-group {
+  margin-bottom: 1.5rem;
+}
+
+.otterdog-group__title {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  // a chevron, turned when the section is open
+  &::before {
+    display: inline-block;
+    font-family: "Font Awesome 7 Free", "Font Awesome 6 Free";
+    font-size: .75rem;
+    font-weight: 900;
+    color: var(--#{$prefix}tertiary-color);
+    content: "\f054";
+    transition: transform .15s ease-in-out;
+  }
+}
+
+.otterdog-group[open] > .otterdog-group__title::before {
+  transform: rotate(90deg);
 }

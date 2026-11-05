@@ -866,6 +866,43 @@ async def get_statistics() -> Statistics:
         )
 
 
+async def get_statistics_by_github_id() -> dict[str, StatisticsModel]:
+    """The statistics of each organization, saved with its configuration, by its GitHub id."""
+    return {statistics.github_id: statistics for statistics in await mongo.odm.find(StatisticsModel)}
+
+
+async def get_latest_tasks_by_organization(task_type: str) -> dict[str, TaskModel]:
+    """The latest task of a type that ran for each organization, e.g. the fetch of its configuration, by its id."""
+    pipeline: list[dict[str, Any]] = [
+        {"$match": {"type": task_type, "status": {"$ne": TaskStatus.CREATED.value}}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {"_id": "$org_id", "task": {"$first": "$$ROOT"}}},
+    ]
+    collection = mongo.odm.get_collection(TaskModel)
+    documents = await collection.aggregate(pipeline).to_list(None)
+    return {document["_id"]: TaskModel.model_validate_doc(document["task"]) for document in documents}
+
+
+async def get_blueprint_status_counts_by_organization() -> dict[str, dict[str, int]]:
+    """The number of repositories in each status of the blueprints of each organization, by its id."""
+    pipeline = [{"$group": {"_id": {"org_id": "$_id.org_id", "status": "$status"}, "count": {"$sum": 1}}}]
+    collection = mongo.odm.get_collection(BlueprintStatusModel)
+    counts: dict[str, dict[str, int]] = {}
+    for document in await collection.aggregate(pipeline).to_list(None):
+        counts.setdefault(document["_id"]["org_id"], {})[document["_id"]["status"]] = document["count"]
+    return counts
+
+
+async def get_scorecard_averages_by_organization() -> dict[str, float]:
+    """The average OpenSSF Scorecard score of the repositories of each organization with a score, by its id."""
+    pipeline: list[dict[str, Any]] = [
+        {"$match": {"score": {"$ne": None}}},
+        {"$group": {"_id": "$_id.org_id", "score": {"$avg": "$score"}}},
+    ]
+    collection = mongo.odm.get_collection(ScorecardResultModel)
+    return {document["_id"]: document["score"] for document in await collection.aggregate(pipeline).to_list(None)}
+
+
 async def cleanup_statistics(valid_orgs: list[str]) -> None:
     await mongo.odm.remove(StatisticsModel, query.not_in(StatisticsModel.github_id, valid_orgs))
 

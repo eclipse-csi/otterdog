@@ -38,6 +38,7 @@ from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
 from otterdog.webapp.db.service import (
     find_scorecard_result,
     get_active_installations,
+    get_blueprint_status_counts_by_organization,
     get_blueprints,
     get_blueprints_status,
     get_configuration_by_project_name,
@@ -46,19 +47,24 @@ from otterdog.webapp.db.service import (
     get_installation_by_github_id,
     get_installation_by_project_name,
     get_installations,
+    get_latest_tasks_by_organization,
     get_merged_pull_requests_count,
+    get_open_or_incomplete_pull_requests,
     get_open_or_incomplete_pull_requests_count,
     get_policies_status,
+    get_scorecard_averages_by_organization,
     get_scorecard_results,
     get_statistics,
+    get_statistics_by_github_id,
 )
 from otterdog.webapp.tasks import get_organization_config
 from otterdog.webapp.utils import get_otterdog_config, get_project_base_url, get_temporary_base_directory
 
-from . import blueprint
+from . import blueprint, projects
 
 if TYPE_CHECKING:
     from otterdog.webapp.auth import User
+    from otterdog.webapp.db.models import InstallationModel
 
 _PAGE_NOT_FOUND = "home/page-404.html"
 
@@ -182,29 +188,36 @@ def _percentage(count: int, total: int) -> float:
 @blueprint.route("/myprojects")
 @login_required
 async def myprojects():
-    projects = set(await current_user.projects)
+    user_projects = set(await current_user.projects)
 
-    installations = list(filter(lambda x: x.project_name in projects, await get_installations()))
-    configurations = await get_configurations()
-    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
-    return await render_home_template(
-        "projects.html",
-        title="My Projects",
-        installations=installations,
-        configurations=configurations_by_key,
-    )
+    installations = [x for x in await get_installations() if x.project_name in user_projects]
+    return await _render_projects("My Projects", installations)
 
 
 @blueprint.route("/allprojects")
 async def allprojects():
-    installations = await get_installations()
-    configurations = await get_configurations()
-    configurations_by_key = associate_by_key(configurations, lambda x: x.github_id)
+    return await _render_projects("All Projects", await get_installations())
+
+
+async def _render_projects(title: str, installations: list["InstallationModel"]) -> str:
+    """A page of organizations, a card for each one grouped by its top-level project (home/projects.py)."""
+    cards = projects.project_cards(
+        installations,
+        associate_by_key(await get_configurations(), lambda x: x.github_id),
+        await get_statistics_by_github_id(),
+        await get_open_or_incomplete_pull_requests(),
+        await get_latest_tasks_by_organization(projects.FETCH_CONFIG_TASK),
+        await get_blueprint_status_counts_by_organization(),
+        await get_scorecard_averages_by_organization(),
+    )
     return await render_home_template(
         "projects.html",
-        title="All Projects",
-        installations=installations,
-        configurations=configurations_by_key,
+        title=title,
+        groups=projects.group_cards(cards),
+        summary=projects.summary(cards),
+        total=len(cards),
+        now=projects.now(),
+        ago=projects.ago,
     )
 
 
