@@ -48,12 +48,15 @@
             </div>
           </div>
           <div class="col-sm-6 col-md-auto">
-            <!-- its name as written in its visible label, its first option -->
-            <select class="form-select" name="group" aria-label="top-level projects">
+            <!-- the top-level projects in a group of options: the loop directly in the select would be text of the
+                 select for the analysis of SonarCloud, which does not know Jinja, missing from its accessible name -->
+            <select class="form-select" name="group" aria-label="Top-level projects">
               <option value="">All top-level projects</option>
-              {% for group, cards in groups %}
-              <option value="{{ group }}">{{ group }}</option>
-              {% endfor %}
+              <optgroup label="Top-level projects">
+                {% for group, cards in groups %}
+                <option value="{{ group }}">{{ group }}</option>
+                {% endfor %}
+              </optgroup>
             </select>
           </div>
           <div class="col-sm-6 col-md-auto">
