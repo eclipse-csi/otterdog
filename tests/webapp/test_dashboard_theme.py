@@ -374,7 +374,16 @@ async def test_a_page_sets_its_color_mode_before_its_styles(app, statistics):
     # set before the stylesheets, the page renders in its color mode without a flash of the other one
     assert 'localStorage.getItem("otterdog-color-scheme")' in head
     assert head.index("dataset.bsTheme") < head.index('rel="stylesheet"')
-    assert "family=Inter" in head
+
+
+@pytest.mark.parametrize("layout", ["home/index.html", "home/page-404.html"])
+async def test_the_pages_load_no_font_from_google(app, statistics, layout):
+    async with app.test_request_context("/index"):
+        page = await (routes.index() if layout == "home/index.html" else render_template(layout))
+
+    # Inter is served with the assets (css/app.scss), the address of a visitor is not sent to Google
+    assert "fonts.googleapis.com" not in page
+    assert "fonts.gstatic.com" not in page
 
 
 async def test_the_header_toggles_the_color_mode(app, statistics):

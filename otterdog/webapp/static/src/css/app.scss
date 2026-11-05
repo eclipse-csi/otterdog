@@ -23,8 +23,8 @@ $link-hover-decoration: underline;
 // the links of the dark mode in orange, like the documentation
 $link-color-dark: $otterdog-orange;
 $link-hover-color-dark: $otterdog-orange-light;
-// the font of the documentation
-$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
+// the font of the documentation, served with the assets (@fontsource-variable/inter below) rather than by Google Fonts
+$font-family-sans-serif: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans",
   "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 // the active entry of the sidebar in orange on the purple, like the active tab of the documentation
 $lte-sidebar-menu-active-bg-dark: $otterdog-orange;
@@ -33,6 +33,10 @@ $lte-sidebar-menu-active-color-dark: $otterdog-purple-dark;
 $lte-sidebar-submenu-active-bg-dark: rgba(255, 255, 255, .9);
 $lte-sidebar-submenu-active-color-dark: $otterdog-purple-dark;
 
+// Inter, a variable font covering every weight, upright and italic: an @font-face per subset of characters, the
+// browser downloading only the files of the characters of the page; Vite copies the files into the bundled assets
+@import "@fontsource-variable/inter/wght";
+@import "@fontsource-variable/inter/wght-italic";
 @import "admin-lte/src/scss/adminlte";
 
 // AdminLTE 3 spaced the cards and used a smaller page title
