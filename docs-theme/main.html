@@ -36,9 +36,11 @@
     <section class="otterdog-hero">
       <div class="otterdog-hero__inner md-grid md-typeset">
         <div>
+          {#- the name as text for screen readers (class of zensical-ui), the logo that shows it is decorative #}
           <h1 class="otterdog-hero__title">
+            <span class="md-visually-hidden">Eclipse Otterdog</span>
             <img class="otterdog-hero__logo" src="{{ 'assets/images/otterdog-logo-white.png' | url }}"
-                 alt="Eclipse Otterdog" width="1927" height="672">
+                 alt="" width="1927" height="672">
           </h1>
           <p class="otterdog-hero__text">
             {{ config.site_description }}: the configuration of an organization and of its repositories lives in a

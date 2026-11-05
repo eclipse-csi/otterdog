@@ -110,7 +110,7 @@
   font-weight: 700;
 }
 
-/* the white logo of the official artwork, its name in the alternative text */
+/* the white logo of the official artwork, the name of the title being hidden text (docs-theme/main.html) */
 .otterdog-hero__logo {
   display: block;
   width: min(100%, 16rem);
