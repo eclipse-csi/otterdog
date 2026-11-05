@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/share-bar.html" import share_bar, share_figure %}
 
 {% block title %} Profile {% endblock %}
 
@@ -197,7 +198,14 @@
                               <h3 class="card-title">Secret Scanning</h3>
                             </div>
                             <div class="card-body">
-                              <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                              {% set data = secret_scanning_data|from_json %}
+                              {% set total = data|sum %}
+                              {{ share_figure((data[1] + data[2]) / total * 100 if total > 0 else 0, "with alert or protection") }}
+                              {{ share_bar("Secret scanning", [
+                                {"label": "Protection mode", "count": data[2], "status": "good"},
+                                {"label": "Alert mode", "count": data[1], "status": "warning"},
+                                {"label": "Disabled", "count": data[0], "status": "critical"}
+                              ]) }}
                             </div>
                           </div>
                         </div>
@@ -207,7 +215,13 @@
                               <h3 class="card-title">Branch Protections</h3>
                             </div>
                             <div class="card-body">
-                              <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                              {% set data = branch_protection_data|from_json %}
+                              {% set total = data|sum %}
+                              {{ share_figure((data[1]) / total * 100 if total > 0 else 0, "enabled") }}
+                              {{ share_bar("Branch protections", [
+                                {"label": "Protected", "count": data[1], "status": "good"},
+                                {"label": "Not protected", "count": data[0], "status": "critical"}
+                              ]) }}
                             </div>
                           </div>
                         </div>
@@ -820,16 +834,12 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
-  <!-- Chart.js -->
-  <script src="{{ asset('vendor/chartjs/chart.umd.js') }}"></script>
   <script type="module" src="{{ asset('js/highlight.js') }}"></script>
 
   <script type="module">
     $(document).ready(function() {
       enableTabFromHash();
 
-      drawSecretScanningChart();
-      drawBranchProtectionChart();
 
       window.onhashchange = function() {
         enableTabFromHash();
@@ -878,56 +888,5 @@
       // `this` is the clicked <a> tag
       $('[data-bs-toggle="pill"][href="' + this.hash + '"]').get(0)?.click();
     });
-
-    function drawSecretScanningChart() {
-      const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
-
-      new Chart(secret_scanning_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'alert mode', 'protection mode'],
-          datasets: [{
-            label: 'secret scanning',
-            data: {{ secret_scanning_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#ffc107',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawBranchProtectionChart() {
-      const branch_protections_ctx = document.getElementById('branch-protection-chart');
-
-      new Chart(branch_protections_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['not protected', 'protected'],
-          datasets: [{
-            label: 'branch protections',
-            data: {{ branch_protection_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
   </script>
 {% endblock javascripts %}

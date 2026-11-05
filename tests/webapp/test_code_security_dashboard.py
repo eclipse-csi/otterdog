@@ -150,8 +150,8 @@ async def test_the_index_shows_code_scanning(app, monkeypatch):
     async with app.test_request_context("/index"):
         page = await routes.index()
 
-    assert "37.5% with default setup" in page
-    assert "data: [5, 3]," in page
+    assert re.search(r'<span class="otterdog-figure__value">37\.5%</span>\s*with default setup', page)
+    assert 'aria-label="Code scanning: Default setup 3, Not configured 5"' in page
     # the configurations are a means to set the security settings, which the index shows
     assert "Code Security Configurations" not in page
 

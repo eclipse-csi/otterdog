@@ -1,0 +1,37 @@
+{#
+  The split of a whole into parts, e.g. the repositories by their secret scanning, as a segmented bar styled by
+  css/app.scss (otterdog-share): each part a block as wide as its share in its status color, the share printed in the
+  blocks wide enough for it, every part named in the legend, its count and share in the tooltip of its block and in
+  the accessible name of the bar.
+
+  name: the name of the whole, for screen readers
+  parts: a list of {label, count, status}, in the order of the bar, status being good, warning or critical
+#}
+{% macro share_bar(name, parts) %}
+{% set total = parts|sum(attribute="count") %}
+<div class="otterdog-share">
+  <div class="otterdog-share__bar" role="img"
+       aria-label="{{ name }}: {% for part in parts %}{{ part.label }} {{ part.count }}{{ '' if loop.last else ', ' }}{% endfor %}">
+    {% for part in parts if part.count > 0 %}
+    {% set share = part.count / total * 100 %}
+    <div class="otterdog-share__part otterdog-share__part--{{ part.status }}" style="flex-grow: {{ part.count }}"
+         title="{{ part.label }}: {{ part.count }} ({{ '%.1f' % share }}%)">{% if share >= 10 %}{{ '%.0f' % share }}%{% endif %}</div>
+    {% else %}
+    <div class="otterdog-share__part otterdog-share__part--empty" title="No data"></div>
+    {% endfor %}
+  </div>
+  <ul class="otterdog-share__legend">
+    {% for part in parts %}
+    <li><span class="otterdog-share__swatch otterdog-share__part--{{ part.status }}" aria-hidden="true"></span>{{ part.label }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endmacro %}
+
+{# a figure above a share bar: the share that counts, e.g. 95.0%, and what it is #}
+{% macro share_figure(percentage, caption) %}
+<p class="otterdog-figure">
+  <span class="otterdog-figure__value">{{ '%0.1f' % percentage|float }}%</span>
+  {{ caption }}
+</p>
+{% endmacro %}

@@ -6,7 +6,7 @@
 #  SPDX-License-Identifier: EPL-2.0
 #  *******************************************************************************
 
-"""The pages of a project and of its repositories link to its playground, the menu to the reference guide."""
+"""The pages of a project and of its repositories link to its playground, the menu to the documentation."""
 
 import re
 import shutil
@@ -74,6 +74,16 @@ async def test_the_cards_of_the_page_of_a_project_have_their_color_on_top(app, p
     assert [card for card in cards if "card-outline" not in card] == []
 
 
+async def test_the_page_of_a_project_shows_the_shares_as_bars(app, project):
+    async with app.test_request_context("/projects/my-project"):
+        page = await routes.project("my-project")
+
+    # a segmented bar per share rather than a doughnut drawn by Chart.js
+    assert page.count('class="otterdog-share__bar"') == 2
+    assert "<canvas" not in page
+    assert "chart.umd.js" not in page
+
+
 async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(app, project):
     async with app.test_request_context("/projects/my-project/repos/my-repo"):
         page = await routes.repository("my-project", "my-repo")
@@ -82,9 +92,11 @@ async def test_the_page_of_a_repository_links_to_the_playground_of_its_project(a
     assert "Edit in Playground" in page
 
 
-async def test_the_menu_links_to_the_reference_guide(app, project):
+async def test_the_menu_links_to_the_documentation(app, project):
     async with app.test_request_context("/projects/my-project"):
         page = await routes.project("my-project")
 
-    assert f'href="{app.config["DOCUMENTATION_URL"]}reference/"' in page
-    assert "Reference guide" in page
+    # the home page of the documentation, its reference being one of its sections
+    assert f'href="{app.config["DOCUMENTATION_URL"]}" class="nav-link" target="_blank" rel="noopener">' in page
+    assert "Documentation" in page
+    assert "Reference guide" not in page

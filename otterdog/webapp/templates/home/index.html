@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% from "includes/share-bar.html" import share_bar, share_figure %}
 
 {% block title %} Dashboard {% endblock %}
 
@@ -157,69 +158,95 @@
         <!-- ./row -->
 
         <div class="row">
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Two Factor Enforcement</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % two_factor_percentage|float  }}% enforced</h3>
-                <canvas id="two-factor-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = two_factor_data|from_json %}
+                {{ share_figure(two_factor_percentage, "enforced") }}
+                {{ share_bar("Two factor enforcement", [
+                  {"label": "Enforced", "count": data[1], "status": "good"},
+                  {"label": "Not required", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Secret Scanning</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % secret_scanning_percentage|float  }}% with alert or protection</h3>
-                <canvas id="secret-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = secret_scanning_data|from_json %}
+                {{ share_figure(secret_scanning_percentage, "with alert or protection") }}
+                {{ share_bar("Secret scanning", [
+                  {"label": "Protection mode", "count": data[2], "status": "good"},
+                  {"label": "Alert mode", "count": data[1], "status": "warning"},
+                  {"label": "Disabled", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Dependabot</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % dependabot_percentage|float  }}% with alert or updates</h3>
-                <canvas id="dependabot-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = dependabot_data|from_json %}
+                {{ share_figure(dependabot_percentage, "with alerts or updates") }}
+                {{ share_bar("Dependabot", [
+                  {"label": "Security updates", "count": data[2], "status": "good"},
+                  {"label": "Alerts", "count": data[1], "status": "warning"},
+                  {"label": "Disabled", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Branch Protections</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % branch_protection_percentage|float  }}% enabled</h3>
-                <canvas id="branch-protection-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = branch_protection_data|from_json %}
+                {{ share_figure(branch_protection_percentage, "enabled") }}
+                {{ share_bar("Branch protections", [
+                  {"label": "Protected", "count": data[1], "status": "good"},
+                  {"label": "Not protected", "count": data[0], "status": "critical"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Private Vulnerability Reporting</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % private_vulnerability_reporting_percentage|float  }}% enabled</h3>
-                <canvas id="private-vulnerability-reporting-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = private_vulnerability_reporting_data|from_json %}
+                {{ share_figure(private_vulnerability_reporting_percentage, "enabled") }}
+                {{ share_bar("Private vulnerability reporting", [
+                  {"label": "Enabled", "count": data[1], "status": "good"},
+                  {"label": "Disabled", "count": data[0], "status": "warning"}
+                ]) }}
               </div>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-md-6 col-xl-4">
             <div class="card card-primary card-outline">
               <div class="card-header">
                 <h3 class="card-title">Code Scanning</h3>
               </div>
               <div class="card-body">
-                <h3 class="text-center text-secondary">{{ '%0.1f' % code_scanning_percentage|float  }}% with default setup</h3>
-                <canvas id="code-scanning-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                {% set data = code_scanning_data %}
+                {{ share_figure(code_scanning_percentage, "with default setup") }}
+                {{ share_bar("Code scanning", [
+                  {"label": "Default setup", "count": data[1], "status": "good"},
+                  {"label": "Not configured", "count": data[0], "status": "warning"}
+                ]) }}
               </div>
             </div>
           </div>
@@ -237,8 +264,6 @@
 <!-- Specific Page JS goes HERE  -->
 {% block javascripts %}
   {{ super() }}
-  <!-- Chart.js -->
-  <script src="{{ asset('vendor/chartjs/chart.umd.js') }}"></script>
 
   <script type="module">
     // the statistics are read from GitHub and may need a moment the very first time, so give up
@@ -330,163 +355,7 @@
 
     $(document).ready(function() {
       loadPullRequestAutomation(1);
-      drawTwoFactorChart();
-      drawSecretScanningChart();
-      drawDependabotChart();
-      drawBranchProtectionChart();
-      drawPrivateVulnerabilityReportingChart();
-      drawCodeScanningChart();
     });
-
-    function drawTwoFactorChart() {
-      const two_factor_ctx = document.getElementById('two-factor-chart');
-
-      new Chart(two_factor_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['not required', 'enforced'],
-          datasets: [{
-            label: 'two factor requirement',
-            data: {{ two_factor_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawSecretScanningChart() {
-      const secret_scanning_ctx = document.getElementById('secret-scanning-chart');
-
-      new Chart(secret_scanning_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'alert mode', 'protection mode'],
-          datasets: [{
-            label: 'secret scanning',
-            data: {{ secret_scanning_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#ffc107',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawDependabotChart() {
-      const chart_ctx = document.getElementById('dependabot-chart');
-
-      new Chart(chart_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'alerts', 'security updates'],
-          datasets: [{
-            label: 'dependabot',
-            data: {{ dependabot_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#ffc107',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawBranchProtectionChart() {
-      const branch_protections_ctx = document.getElementById('branch-protection-chart');
-
-      new Chart(branch_protections_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['not protected', 'protected'],
-          datasets: [{
-            label: 'branch protections',
-            data: {{ branch_protection_data|safe }},
-            backgroundColor: [
-              '#dc3545',
-              '#28a745'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawPrivateVulnerabilityReportingChart() {
-      const private_vuln_ctx = document.getElementById('private-vulnerability-reporting-chart');
-
-      new Chart(private_vuln_ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['disabled', 'enabled'],
-          datasets: [{
-            label: 'private vulnerability reporting',
-            data: {{ private_vulnerability_reporting_data|safe }},
-            backgroundColor: [
-              '#ffc107',
-              '#28a745',
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
-
-    function drawCodeScanningChart() {
-      new Chart(document.getElementById('code-scanning-chart'), {
-        type: 'doughnut',
-        data: {
-          labels: ['not configured', 'default setup'],
-          datasets: [{
-            label: 'code scanning',
-            data: {{ code_scanning_data|tojson }},
-            backgroundColor: [
-              '#ffc107',
-              '#28a745',
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          animation: {
-            animateRotate: false
-          }
-        }
-      });
-    };
   </script>
 
 {% endblock javascripts %}

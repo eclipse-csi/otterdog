@@ -15,6 +15,7 @@ import pretend
 import pytest
 from quart import render_template, render_template_string
 
+from otterdog.webapp.db.models import InstallationStatus
 from otterdog.webapp.home import routes
 
 _STATIC_DIR = Path(routes.__file__).parents[1] / "static"
@@ -71,6 +72,85 @@ async def test_the_home_page_shows_the_figures_of_the_instance(app, statistics):
     assert '<a class="otterdog-stat otterdog-stat--orange" href="/admin/pullrequests#open-prs">' in page
     assert '<a class="otterdog-stat otterdog-stat--green" href="/admin/pullrequests#merged-prs">' in page
     assert "small-box" not in page
+
+
+async def test_the_home_page_shows_the_shares_as_bars(app, statistics):
+    async with app.test_request_context("/index"):
+        page = await routes.index()
+
+    # a segmented bar per share rather than a doughnut drawn by Chart.js
+    assert page.count('class="otterdog-share__bar"') == 6
+    assert "<canvas" not in page
+    assert "chart.umd.js" not in page
+    assert 'aria-label="Two factor enforcement: Enforced 1, Not required 1"' in page
+
+
+_SHARE_BAR = (
+    '{% from "includes/share-bar.html" import share_bar %}'
+    '{{ share_bar("Secret scanning", [{"label": "Protection mode", "count": protection, "status": "good"},'
+    ' {"label": "Alert mode", "count": alert, "status": "warning"},'
+    ' {"label": "Disabled", "count": disabled, "status": "critical"}]) }}'
+)
+
+
+async def test_a_share_bar_has_a_block_per_part_as_wide_as_its_share(app):
+    async with app.app_context():
+        bar = await render_template_string(_SHARE_BAR, protection=90, alert=5, disabled=0)
+
+    assert '<div class="otterdog-share__part otterdog-share__part--good" style="flex-grow: 90"' in bar
+    assert '<div class="otterdog-share__part otterdog-share__part--warning" style="flex-grow: 5"' in bar
+    # a part at zero draws nothing but stays in the legend
+    assert 'otterdog-share__part--critical" style' not in bar
+    assert "</span>Disabled</li>" in bar
+    # the share is printed in the blocks wide enough for it, every share is in the tooltip of its block
+    assert 'title="Protection mode: 90 (94.7%)">95%</div>' in bar
+    assert 'title="Alert mode: 5 (5.3%)"></div>' in bar
+
+
+async def test_a_share_bar_of_nothing_is_empty(app):
+    async with app.app_context():
+        bar = await render_template_string(_SHARE_BAR, protection=0, alert=0, disabled=0)
+
+    assert 'otterdog-share__part--empty" title="No data"' in bar
+
+
+@pytest.fixture
+def projects(monkeypatch):
+    installations = [
+        pretend.stub(
+            project_name="technology.csi", github_id="eclipse-csi", installation_status=InstallationStatus.INSTALLED
+        ),
+        pretend.stub(
+            project_name="ee4j.jakartaee", github_id="jakartaee", installation_status=InstallationStatus.NOT_INSTALLED
+        ),
+    ]
+    settings = {"two_factor_requirement": True, "workflows": {"default_workflow_permissions": "write"}}
+    configuration = pretend.stub(github_id="eclipse-csi", config={"settings": settings, "repositories": [{}, {}, {}]})
+
+    monkeypatch.setattr(routes, "get_installations", mock.AsyncMock(return_value=installations))
+    monkeypatch.setattr(routes, "get_configurations", mock.AsyncMock(return_value=[configuration]))
+    monkeypatch.setattr(routes, "get_project_navigation", mock.AsyncMock(return_value={}))
+
+
+async def test_a_project_opens_its_page_from_its_card(app, projects):
+    async with app.test_request_context("/allprojects"):
+        page = await routes.allprojects()
+
+    assert '<a class="otterdog-project__name stretched-link" href="/projects/technology.csi">technology.csi</a>' in page
+    assert 'src="https://avatars.githubusercontent.com/eclipse-csi?s=80"' in page
+    assert "Enforced" in page
+    # the facts of the configuration in the colors of what they mean
+    assert "bg-danger-subtle text-danger-emphasis" in page
+    assert '<span class="otterdog-project__count">3</span>' in page
+
+
+async def test_a_project_not_installed_is_muted_with_its_status(app, projects):
+    async with app.test_request_context("/allprojects"):
+        page = await routes.allprojects()
+
+    assert page.count('<div class="otterdog-project otterdog-project--inactive">') == 1
+    assert '<span class="otterdog-project__name">ee4j.jakartaee</span>' in page
+    assert "Not installed" in page
 
 
 async def test_the_tables_have_the_style_of_the_dashboard(app):

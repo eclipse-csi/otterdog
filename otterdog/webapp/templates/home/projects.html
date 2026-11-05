@@ -35,64 +35,70 @@
     <!-- Main content -->
     <section class="app-content">
       <div class="container-fluid">
-        <div class="row">
+        <!-- a card per organization (css/app.scss): its avatar, its project opening its page, its GitHub organization
+             and the facts of its configuration, the organizations not installed being muted with their status -->
+        <div class="row g-3">
           {% for installation in installations %}
           {% set github_id = installation.github_id %}
           {% set project_name = installation.project_name %}
           {% set installation_status = installation.installation_status %}
-          <div class="col-md-3">
-            <div class="card card-{{ installation_status|status }} card-outline">
-              {% if installation_status|status == 'success' %}
-              <a class="text-reset" href="/projects/{{ project_name }}">
-                <div class="card-header">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                  <div class="float-end">
-                    <i class="fas fa-arrow-circle-right"></i>
-                  </div>
-                </div>
-              </a>
-              {% else %}
-              <a class="text-reset" href="#">
-                <div class="card-header">
-                  <h3 class="card-title">{{ project_name }}</h3>
-                </div>
-              </a>
-              {% endif %}
-              <div class="card-body">
-                <a href="https://github.com/{{ github_id }}"><i class="fab fa-github"></i> &nbsp; {{ github_id }}</a>
-              </div>
-              <div class="card-footer p-0">
-                {% if installation_status|status == 'success' %}
-                <ul class="nav flex-column">
-                  {% if configurations[github_id] %}
-                  {% set config = configurations[github_id].config %}
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#settings" class="nav-link">
-                      {% set two_factor_enabled = config.settings.two_factor_requirement %}
-                      2FA enforced <span class="float-end badge text-bg-{{ 'success' if two_factor_enabled == true else 'danger' }}">{{ two_factor_enabled }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#workflow-settings" class="nav-link tab-link">
-                      {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
-                      Default workflow permissions <span class="float-end badge text-bg-{{ 'success' if default_workflow_permissions == 'read' else 'danger' }}">{{ default_workflow_permissions }}</span>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="/projects/{{ project_name }}#repositories" class="nav-link">
-                      Repositories <span class="float-end badge text-bg-primary">{{ config.repositories|length }}</span>
-                    </a>
-                  </li>
+          {% set installed = installation_status|status == 'success' %}
+          <div class="col-sm-6 col-xl-4 col-xxl-3">
+            <div class="otterdog-project{{ '' if installed else ' otterdog-project--inactive' }}">
+              <div class="otterdog-project__head">
+                <img class="otterdog-project__avatar" src="https://avatars.githubusercontent.com/{{ github_id }}?s=80"
+                     alt="" width="40" height="40" loading="lazy">
+                <div class="otterdog-project__names">
+                  {% if installed %}
+                  <a class="otterdog-project__name stretched-link" href="/projects/{{ project_name }}">{{ project_name }}</a>
+                  {% else %}
+                  <span class="otterdog-project__name">{{ project_name }}</span>
                   {% endif %}
-                </ul>
-                {% endif %}
+                  <a class="otterdog-project__organization" href="https://github.com/{{ github_id }}">
+                    <i class="fab fa-github" aria-hidden="true"></i> {{ github_id }}
+                  </a>
+                  {% if not installed %}
+                  {% set color = installation_status|status %}
+                  <span class="badge rounded-pill bg-{{ color }}-subtle text-{{ color }}-emphasis border border-{{ color }}-subtle">
+                    {{ installation_status.value|replace('_', ' ')|capitalize }}
+                  </span>
+                  {% endif %}
+                </div>
               </div>
-              <!-- /.card-body -->
+              {% if installed and configurations[github_id] %}
+              {% set config = configurations[github_id].config %}
+              {% set two_factor_enabled = config.settings.two_factor_requirement %}
+              {% set default_workflow_permissions = config.settings.workflows.default_workflow_permissions %}
+              {% set two_factor_color = 'success' if two_factor_enabled == true else 'danger' %}
+              {% set permissions_color = 'success' if default_workflow_permissions == 'read' else 'danger' %}
+              <ul class="otterdog-project__facts">
+                <li>
+                  <a href="/projects/{{ project_name }}#settings">
+                    2FA
+                    <span class="badge rounded-pill bg-{{ two_factor_color }}-subtle text-{{ two_factor_color }}-emphasis">
+                      {{ 'Enforced' if two_factor_enabled == true else 'Not enforced' }}
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/projects/{{ project_name }}#workflow-settings">
+                    Workflow permissions
+                    <span class="badge rounded-pill bg-{{ permissions_color }}-subtle text-{{ permissions_color }}-emphasis">
+                      {{ default_workflow_permissions }}
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/projects/{{ project_name }}#repositories">
+                    Repositories
+                    <span class="otterdog-project__count">{{ config.repositories|length }}</span>
+                  </a>
+                </li>
+              </ul>
+              {% endif %}
             </div>
-            <!-- /.card -->
           </div>
           {% endfor %}
-          <!-- /.col -->
         </div>
         <!-- /.row -->
 

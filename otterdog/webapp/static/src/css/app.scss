@@ -382,3 +382,200 @@ a.otterdog-stat:hover .otterdog-stat__more {
 .otterdog-no {
   color: var(--#{$prefix}tertiary-color);
 }
+
+// the split of a whole into parts (includes/share-bar.html), e.g. the repositories by their secret scanning: a
+// segmented bar rather than a doughnut, each part its own block as wide as its share with a gap of 2px between them,
+// in the status colors of the data visualization guidelines, the same in both color modes (good, warning, critical)
+$otterdog-status-good: #0ca30c;
+$otterdog-status-warning: #fab219;
+$otterdog-status-critical: #d03b3b;
+
+// the share that counts, above its bar
+.otterdog-figure {
+  margin-bottom: 1rem;
+  color: var(--#{$prefix}secondary-color);
+}
+
+.otterdog-figure__value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--#{$prefix}emphasis-color);
+}
+
+.otterdog-share__bar {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+}
+
+.otterdog-share__part {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 2px;
+  padding: 0 .5rem;
+  overflow: hidden;
+  font-size: .75rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+
+.otterdog-share__part--good {
+  background-color: $otterdog-status-good;
+}
+
+// the share printed on the warning in near-black, white being too light on it
+.otterdog-share__part--warning {
+  color: #0b0b0b;
+  background-color: $otterdog-status-warning;
+}
+
+.otterdog-share__part--critical {
+  background-color: $otterdog-status-critical;
+}
+
+.otterdog-share__part--empty {
+  background-color: var(--#{$prefix}secondary-bg);
+}
+
+.otterdog-share__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+  padding: 0;
+  margin: .75rem 0 0;
+  font-size: .8125rem;
+  color: var(--#{$prefix}secondary-color);
+  list-style: none;
+}
+
+.otterdog-share__swatch {
+  display: inline-block;
+  width: .625rem;
+  height: .625rem;
+  margin-right: .375rem;
+  border-radius: 2px;
+}
+
+// the organizations of the projects pages (home/projects.html): a card like the figures of the home page, the whole
+// card opening the page of its project, the GitHub organization and the facts keeping their own links above it
+.otterdog-project {
+  position: relative;
+  height: 100%;
+  background-color: var(--#{$prefix}body-bg);
+  border: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  border-radius: var(--#{$prefix}border-radius-lg);
+  box-shadow: var(--#{$prefix}box-shadow-sm);
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+
+  &:not(.otterdog-project--inactive):hover {
+    border-color: $primary;
+    box-shadow: var(--#{$prefix}box-shadow);
+  }
+}
+
+[data-bs-theme="dark"] .otterdog-project:not(.otterdog-project--inactive):hover {
+  border-color: $otterdog-lilac;
+}
+
+.otterdog-project--inactive {
+  background-color: var(--#{$prefix}tertiary-bg);
+  box-shadow: none;
+
+  .otterdog-project__avatar {
+    filter: grayscale(1);
+    opacity: .6;
+  }
+}
+
+.otterdog-project__head {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+}
+
+.otterdog-project__avatar {
+  flex: none;
+  background-color: var(--#{$prefix}secondary-bg);
+  border-radius: var(--#{$prefix}border-radius);
+}
+
+.otterdog-project__names {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.otterdog-project__name {
+  display: block;
+  overflow: hidden;
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--#{$prefix}emphasis-color);
+    text-decoration: none;
+  }
+}
+
+// the links of the card stay above the link of its project, which covers the card
+.otterdog-project__organization,
+.otterdog-project__facts a {
+  position: relative;
+  z-index: 2;
+}
+
+.otterdog-project__organization {
+  display: block;
+  overflow: hidden;
+  font-size: .875rem;
+  color: var(--#{$prefix}secondary-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// the status of an organization not installed, below its name
+.otterdog-project__names .badge {
+  margin-top: .25rem;
+}
+
+.otterdog-project__facts {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+
+  a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .5rem 1.25rem;
+    font-size: .875rem;
+    color: var(--#{$prefix}secondary-color);
+
+    &:hover {
+      color: var(--#{$prefix}body-color);
+      text-decoration: none;
+      background-color: rgba(var(--#{$prefix}primary-rgb), .06);
+    }
+  }
+
+  li + li a {
+    border-top: var(--#{$prefix}border-width) solid var(--#{$prefix}border-color-translucent);
+  }
+
+  li:last-child a {
+    border-radius: 0 0 var(--#{$prefix}border-radius-lg) var(--#{$prefix}border-radius-lg);
+  }
+}
+
+.otterdog-project__count {
+  font-weight: 600;
+  color: var(--#{$prefix}emphasis-color);
+}
