@@ -3,7 +3,13 @@
 // matching, to sort them in their group and to count them. The filters are kept in the query string of the address of
 // the page, so that a filtered list can be shared and survives a reload.
 
-export const FIELDS = ["q", "group", "sort"];
+export const FIELDS = ["q", "group", "by", "sort"];
+
+// whether the organizations are shown in the groups of their top-level project, else in a single list sorted over all
+// of them
+export function grouped(filters) {
+  return filters.by !== "none";
+}
 
 // whether an organization, the dataset of its card, matches the filters, a filter without value matching every one
 export function matches(organization, filters) {
@@ -69,8 +75,11 @@ export function initProjectFilters(form) {
     return;
   }
 
+  const projects = document.querySelector("[data-otterdog-projects]");
   const groups = [...document.querySelectorAll("[data-otterdog-group]")];
-  const total = document.querySelectorAll("[data-otterdog-project]").length;
+  const cardsOf = new Map(groups.map((group) => [group.dataset.otterdogGroup, group.querySelector("[data-otterdog-group-cards]")]));
+  const flat = document.querySelector("[data-otterdog-flat]");
+  const organizations = [...document.querySelectorAll("[data-otterdog-project]")];
   const count = form.querySelector("[data-otterdog-project-count]");
   const empty = document.querySelector("[data-otterdog-project-empty]");
   const toggle = form.querySelector("[data-otterdog-groups-toggle]");
@@ -92,28 +101,33 @@ export function initProjectFilters(form) {
 
   const apply = () => {
     const filters = readFilters(form);
-    let shown = 0;
-    for (const group of groups) {
-      const cards = group.querySelector("[data-otterdog-group-cards]");
-      const organizations = [...cards.querySelectorAll("[data-otterdog-project]")];
-      organizations.sort((a, b) => compare(filters.sort)(a.dataset, b.dataset));
-      cards.append(...organizations);
+    const byGroup = grouped(filters);
 
-      let visible = 0;
-      for (const organization of organizations) {
-        organization.hidden = !matches(organization.dataset, filters);
-        visible += organization.hidden ? 0 : 1;
-      }
-      group.hidden = visible === 0;
+    // the organizations sorted, then placed in their group or in the single list, in that order
+    organizations.sort((a, b) => compare(filters.sort)(a.dataset, b.dataset));
+    for (const organization of organizations) {
+      organization.hidden = !matches(organization.dataset, filters);
+      (byGroup ? cardsOf.get(organization.dataset.group) : flat).append(organization);
+    }
+    const shown = organizations.filter((organization) => !organization.hidden).length;
+
+    flat.hidden = byGroup;
+    toggle.parentElement.hidden = !byGroup;
+    for (const group of groups) {
+      const members = [...cardsOf.get(group.dataset.otterdogGroup).children];
+      const visible = members.filter((organization) => !organization.hidden).length;
+      group.hidden = !byGroup || visible === 0;
       // a search or a top-level project shows its matches, even in the groups folded before
       if (visible > 0 && (filters.q.trim() || filters.group)) {
         group.open = true;
       }
       group.querySelector("[data-otterdog-group-count]").textContent =
-        visible === organizations.length ? `${visible}` : `${visible} of ${organizations.length}`;
-      shown += visible;
+        visible === members.length ? `${visible}` : `${visible} of ${members.length}`;
     }
-    count.textContent = countText(shown, total);
+
+    // the row of the order on the cards is tinted (css/app.scss)
+    projects.dataset.otterdogSort = filters.sort;
+    count.textContent = countText(shown, organizations.length);
     empty.hidden = shown > 0;
     updateToggle();
 

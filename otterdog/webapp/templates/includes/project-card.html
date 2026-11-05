@@ -104,7 +104,8 @@
         </{{ fact }}>
       </li>
       <li>
-        <{{ fact }} class="otterdog-project__fact"{% if linked %} href="{{ project_url }}#repositories"{% endif %}>
+        <{{ fact }} class="otterdog-project__fact" data-otterdog-criterion="repositories"
+                    {%- if linked %} href="{{ project_url }}#repositories"{% endif %}>
           Repositories
           {% if card.repositories is none %}
           <span class="otterdog-project__unknown">&ndash;</span>
@@ -122,8 +123,9 @@
          partial from 50% (home/projects.py) -->
     <dl class="otterdog-project__security">
       {% for share in card.shares %}
-      <dt>{{ share.label }}</dt>
-      <dd>
+      {% set criterion = 'security ' ~ share.label|lower|replace(' ', '-') %}
+      <dt data-otterdog-criterion="{{ criterion }}">{{ share.label }}</dt>
+      <dd data-otterdog-criterion="{{ criterion }}">
         <span class="otterdog-meter" aria-hidden="true">
           {% if share.percentage is not none %}
           <span class="otterdog-meter__fill otterdog-share__part--{{ share.status }}" style="width: {{ '%.1f'|format(share.percentage) }}%"></span>
@@ -145,7 +147,7 @@
 {% set linked = card.linked %}
 {% set project_url = '/projects/' ~ card.project_name %}
 <ul class="otterdog-project__activity">
-  <li>
+  <li data-otterdog-criterion="pull-requests">
     <i class="fas fa-code-pull-request fa-fw" aria-hidden="true"></i>
     {% if card.open_pull_requests %}
     <a href="/admin/pullrequests#open-prs">
@@ -155,7 +157,7 @@
     No open pull request
     {% endif %}
   </li>
-  <li>
+  <li data-otterdog-criterion="changed-recently changed-long-ago">
     <i class="fas fa-rotate fa-fw" aria-hidden="true"></i>
     {# a failed fetch first, the stored configuration being older than the latest one; else the latest change of
        the configuration, the fetch for the ones stored before their changes were #}
@@ -174,7 +176,7 @@
     {% endif %}
   </li>
   {% if card.failing_blueprints %}
-  <li>
+  <li data-otterdog-criterion="blueprints">
     <i class="fas fa-clipboard-list fa-fw" aria-hidden="true"></i>
     {% if linked %}<a href="{{ project_url }}#blueprints">{% endif -%}
     <span class="otterdog-project__warning">
@@ -184,7 +186,7 @@
   </li>
   {% endif %}
   {% if card.scorecard is not none %}
-  <li>
+  <li data-otterdog-criterion="scorecard">
     <i class="fas fa-star fa-fw" aria-hidden="true"></i>
     <a href="/scorecard/checks">OpenSSF Scorecard {{ '%.1f'|format(card.scorecard) }}</a>
   </li>

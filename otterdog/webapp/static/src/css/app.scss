@@ -729,3 +729,30 @@ a.otterdog-project__fact {
     margin-top: .5rem;
   }
 }
+
+// the row of the order of the organizations on their cards (data-otterdog-sort set by js/projects.js on the list,
+// data-otterdog-criterion on the rows of a card, includes/project-card.html), tinted to tell why a card comes first
+$otterdog-criteria: security, branch-protection, secret-scanning, dependabot, code-scanning, scorecard, pull-requests,
+  blueprints, changed-recently, changed-long-ago, repositories;
+
+@each $criterion in $otterdog-criteria {
+  [data-otterdog-sort="#{$criterion}"] [data-otterdog-criterion~="#{$criterion}"] {
+    font-weight: 600;
+    color: var(--#{$prefix}emphasis-color);
+    background-color: color-mix(in srgb, #{$otterdog-orange} 14%, transparent);
+  }
+}
+
+// a tinted row of the security of a card spans its label and its meter
+.otterdog-project__security [data-otterdog-criterion] {
+  padding: .125rem .375rem;
+  margin: -.125rem -.375rem;
+  border-radius: var(--#{$prefix}border-radius-sm);
+}
+
+.otterdog-project__activity [data-otterdog-criterion] {
+  padding: .125rem .375rem;
+  margin-right: -.375rem;
+  margin-left: -.375rem;
+  border-radius: var(--#{$prefix}border-radius-sm);
+}

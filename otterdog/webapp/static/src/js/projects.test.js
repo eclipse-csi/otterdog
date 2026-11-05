@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 
-import {compare, countText, groupsToggle, matches} from "./projects.js";
+import {compare, countText, grouped, groupsToggle, matches} from "./projects.js";
 
 // the datasets of cards (includes/project-card.html)
 const CHE = {
@@ -71,4 +71,10 @@ test("the count tells how many organizations are shown", () => {
 test("the button of the groups folds them when one is open, else unfolds them", () => {
   assert.deepEqual(groupsToggle(true), {label: "Collapse all the groups", icon: "fa-angles-up"});
   assert.deepEqual(groupsToggle(false), {label: "Expand all the groups", icon: "fa-angles-down"});
+});
+
+test("the organizations are grouped by their top-level project unless no groups are chosen", () => {
+  assert.ok(grouped({by: ""}));
+  assert.ok(grouped({}));
+  assert.ok(!grouped({by: "none"}));
 });

@@ -269,8 +269,20 @@ async def test_the_projects_can_be_filtered(app, projects):
     # the latest change, unknown for the organizations without configuration
     assert re.search(r'data-changed="\d{10}"', page)
     assert 'data-changed="-1"' in page
-    # a button folds or unfolds all the groups
+    # a button folds or unfolds all the groups, which can also be replaced by a single list over all the organizations
     assert "data-otterdog-groups-toggle" in page
+    assert '<option value="none">No groups</option>' in page
+    assert '<div class="row g-3" data-otterdog-flat hidden></div>' in page
+    # the rows of a card tinted by the order they tell about
+    for criterion in (
+        "security branch-protection",
+        "security code-scanning",
+        "repositories",
+        "pull-requests",
+        "changed-recently changed-long-ago",
+        "scorecard",
+    ):
+        assert f'data-otterdog-criterion="{criterion}"' in page
     assert page.count('<details class="otterdog-group" open') == 3
     # neither a summary of the states nor things to look at
     assert "data-otterdog-project-summary" not in page

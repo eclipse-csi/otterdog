@@ -56,6 +56,13 @@
             </select>
           </div>
           <div class="col-sm-6 col-md-auto">
+            <!-- the groups, or a single list sorted over all the organizations -->
+            <select class="form-select" name="by" aria-label="Group by">
+              <option value="">Group by top-level project</option>
+              <option value="none">No groups</option>
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-auto">
             <select class="form-select" name="sort" aria-label="Order">
               <option value="">Sort by name</option>
               <optgroup label="Security">
@@ -90,22 +97,28 @@
         </form>
         <p class="text-body-secondary" data-otterdog-project-empty hidden>No organization matches the filters.</p>
 
-        <!-- a section per top-level project, e.g. ecd for ecd.che, folded with its title -->
-        {% for group, cards in groups %}
-        <details class="otterdog-group" open data-otterdog-group="{{ group }}">
-          <summary class="otterdog-group__title">
-            {{ group }}
-            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis" data-otterdog-group-count>
-              {{ cards|length }}
-            </span>
-          </summary>
-          <div class="row g-3" data-otterdog-group-cards>
-            {% for card in cards %}
-            {{ project_card(card, now, ago) }}
-            {% endfor %}
-          </div>
-        </details>
-        {% endfor %}
+        <!-- the organizations, the row of the order chosen tinted on their cards (data-otterdog-sort, css/app.scss) -->
+        <div data-otterdog-projects>
+          <!-- a section per top-level project, e.g. ecd for ecd.che, folded with its title -->
+          {% for group, cards in groups %}
+          <details class="otterdog-group" open data-otterdog-group="{{ group }}">
+            <summary class="otterdog-group__title">
+              {{ group }}
+              <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis" data-otterdog-group-count>
+                {{ cards|length }}
+              </span>
+            </summary>
+            <div class="row g-3" data-otterdog-group-cards>
+              {% for card in cards %}
+              {{ project_card(card, now, ago) }}
+              {% endfor %}
+            </div>
+          </details>
+          {% endfor %}
+
+          <!-- a single list of the organizations without groups, filled by js/projects.js -->
+          <div class="row g-3" data-otterdog-flat hidden></div>
+        </div>
 
       </div><!-- /.container-fluid -->
     </section>
