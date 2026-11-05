@@ -54,12 +54,15 @@ orgs.newTeam('<name>') {
 
 === "jsonnet"
     ``` jsonnet
-    orgs.newOrg('OtterdogTest') {
-      ...
+    orgs.newOrg('my-project', 'my-org') {
       teams+: [
         orgs.newTeam('committers') {
           description: "The project committers",
           privacy: "visible",
+          members+: [
+            "alice",
+            "bob",
+          ],
         },
         orgs.newTeam('admins') {
           description: "The project admins, managed by the identity provider",
@@ -67,6 +70,5 @@ orgs.newTeam('<name>') {
           external_group_id: 1234,
         },
       ],
-      ...
     }
     ```

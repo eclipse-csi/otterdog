@@ -35,8 +35,7 @@ orgs.newTeamSync('<id>') {
 
 === "jsonnet"
     ``` jsonnet
-    orgs.newOrg('OtterdogTest') {
-      ...
+    orgs.newOrg('my-project', 'my-org') {
       teams+: [
         orgs.newTeam('admins') {
           description: "The project admins",
@@ -49,6 +48,5 @@ orgs.newTeamSync('<id>') {
           ],
         },
       ],
-      ...
     }
     ```
