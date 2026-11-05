@@ -9,6 +9,7 @@
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
+from logging import getLogger
 from typing import TYPE_CHECKING
 
 import aiofiles
@@ -24,6 +25,8 @@ from otterdog.webapp.utils import fetch_config_from_github
 if TYPE_CHECKING:
     from otterdog.providers.github.rest import RestApi
 
+_logger = getLogger(__name__)
+
 
 async def latest_change(
     rest_api: "RestApi", org_id: str, repo_name: str, path: str
@@ -35,14 +38,16 @@ async def latest_change(
     """
     try:
         commit = await rest_api.commit.get_latest_commit_for_path(org_id, repo_name, path)
-    except RuntimeError:
-        return None, None
+        if commit is None:
+            return None, None
 
-    if commit is None:
+        date = commit.get("commit", {}).get("committer", {}).get("date")
+        return commit.get("sha"), datetime.fromisoformat(date) if date else None
+    except Exception as ex:
+        # optional, any failure, e.g. a timeout of the request or an unexpected date, leaves the change unknown rather
+        # than preventing the configuration from being saved
+        _logger.warning("failed to get the latest change of '%s' in repo '%s/%s': %s", path, org_id, repo_name, ex)
         return None, None
-
-    date = commit.get("commit", {}).get("committer", {}).get("date")
-    return commit.get("sha"), datetime.fromisoformat(date) if date else None
 
 
 @dataclass(repr=False)

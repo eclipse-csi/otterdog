@@ -814,8 +814,10 @@ $otterdog-criteria: security, two-factor, branch-protection, secret-scanning, de
   }
 }
 
-// the links inside a linked card stay above the link of its title, which covers the card
-.otterdog-card-link .card-body a {
+// the links inside a linked card and the blocks of its bars, whose tooltips give their counts, stay above the link of
+// its title, which covers the card
+.otterdog-card-link .card-body a,
+.otterdog-card-link .otterdog-share__part {
   position: relative;
   z-index: 2;
 }

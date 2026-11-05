@@ -10,6 +10,8 @@
 
 from datetime import UTC, datetime
 
+import aiohttp
+import pytest
 from pretend import stub
 
 from otterdog.webapp.tasks.fetch_config import latest_change
@@ -36,8 +38,19 @@ async def test_the_latest_change_is_unknown_without_commit():
     assert await latest_change(_rest_api(get_latest_commit_for_path), "org", "repo", "path") == (None, None)
 
 
-async def test_the_latest_change_is_unknown_when_github_fails_without_failing_the_fetch():
+@pytest.mark.parametrize(
+    "error",
+    [RuntimeError("failed retrieving the latest commit"), TimeoutError(), aiohttp.ClientConnectionError("reset")],
+)
+async def test_the_latest_change_is_unknown_when_github_fails_without_failing_the_fetch(error):
     async def get_latest_commit_for_path(org_id, repo_name, path):
-        raise RuntimeError("failed retrieving the latest commit")
+        raise error
+
+    assert await latest_change(_rest_api(get_latest_commit_for_path), "org", "repo", "path") == (None, None)
+
+
+async def test_the_latest_change_is_unknown_with_an_unexpected_date():
+    async def get_latest_commit_for_path(org_id, repo_name, path):
+        return {"sha": "abc123", "commit": {"committer": {"date": "yesterday"}}}
 
     assert await latest_change(_rest_api(get_latest_commit_for_path), "org", "repo", "path") == (None, None)

@@ -36,15 +36,34 @@ export const HIGHLIGHT_VARIABLES = HIGHLIGHT_STYLE.specs
 
 const scheme = new Compartment();
 
-function darkTheme() {
-  return EditorView.darkTheme.of(document.documentElement.dataset.bsTheme === "dark");
+function dark() {
+  return document.documentElement.dataset.bsTheme === "dark";
 }
 
-// the base theme of CodeMirror (cursor, selection, panels, tooltips) follows the color mode when it changes
+function darkTheme() {
+  return EditorView.darkTheme.of(dark());
+}
+
+// the base theme of CodeMirror (cursor, selection, panels, tooltips) follows the color mode when it changes, and when
+// a state created before a change is attached to the editor again, e.g. a document of the playground shown again
 const FOLLOW_COLOR_MODE = ViewPlugin.define((view) => {
-  const observer = new MutationObserver(() => view.dispatch({effects: scheme.reconfigure(darkTheme())}));
+  let destroyed = false;
+  const sync = () => {
+    if (!destroyed && view.state.facet(EditorView.darkTheme) !== dark()) {
+      view.dispatch({effects: scheme.reconfigure(darkTheme())});
+    }
+  };
+
+  const observer = new MutationObserver(sync);
   observer.observe(document.documentElement, {attributes: true, attributeFilter: ["data-bs-theme"]});
-  return {destroy: () => observer.disconnect()};
+  // after the construction of the plugin, which cannot update the editor itself
+  queueMicrotask(sync);
+  return {
+    destroy: () => {
+      destroyed = true;
+      observer.disconnect();
+    },
+  };
 });
 
 // the extensions giving an editor the colors of the color mode of the page
