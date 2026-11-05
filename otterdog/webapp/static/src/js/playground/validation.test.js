@@ -178,6 +178,27 @@ orgs.newOrg('my-project', 'my-org') {
   assert.deepEqual(located, ["description: 'repository'", "description: 'team'"]);
 });
 
+test("problems are located in the objects created by functions whose first argument is not their name", () => {
+  // the first argument of newTeamSync is the id of the group, its name is another property
+  const code = `local orgs = import 'vendor/otterdog-defaults/otterdog-defaults.libsonnet';
+
+orgs.newOrg('my-project', 'my-org') {
+  teams+: [
+    orgs.newTeam('admins') {
+      team_sync: [
+        orgs.newTeamSync('123') {
+          name: "admins",
+          description: 7,
+        },
+      ],
+    },
+  ],
+}`;
+  const value = {teams: [{name: "admins", privacy: "visible", team_sync: [{id: "123", name: "admins", description: 7}]}]};
+
+  assert.deepEqual(located(["teams", 0, "team_sync", 0, "description"], value, code), ["description: 7"]);
+});
+
 test("the functions creating the objects of a kind are recognized", () => {
   const creating = (kind) => ["newOrg", "newRepo", "extendRepo", "newBinaryRepo", "newRepoRuleset", "newOrgRuleset", "newTeam",
     "newRepoSecret", "newRepoDependabotSecret", "newBranchProtectionRule", "newCustomProperty"].filter((name) => createsKind(name, kind));
