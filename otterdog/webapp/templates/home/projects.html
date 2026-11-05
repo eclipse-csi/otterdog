@@ -58,9 +58,23 @@
           <div class="col-sm-6 col-md-auto">
             <select class="form-select" name="sort" aria-label="Order">
               <option value="">Sort by name</option>
-              <option value="security">Least protected first</option>
-              <option value="repositories">Most repositories first</option>
-              <option value="pull-requests">Most open pull requests first</option>
+              <optgroup label="Security">
+                <option value="security">Least protected first</option>
+                <option value="branch-protection">Least branch protection first</option>
+                <option value="secret-scanning">Least secret scanning first</option>
+                <option value="dependabot">Least Dependabot first</option>
+                <option value="code-scanning">Least code scanning first</option>
+                <option value="scorecard">Lowest OpenSSF Scorecard first</option>
+              </optgroup>
+              <optgroup label="Activity">
+                <option value="pull-requests">Most open pull requests first</option>
+                <option value="blueprints">Most failing blueprints first</option>
+                <option value="changed-recently">Configuration changed most recently first</option>
+                <option value="changed-long-ago">Configuration changed least recently first</option>
+              </optgroup>
+              <optgroup label="Size">
+                <option value="repositories">Most repositories first</option>
+              </optgroup>
             </select>
           </div>
           <div class="col-auto">

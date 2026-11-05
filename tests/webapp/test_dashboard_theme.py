@@ -252,8 +252,23 @@ async def test_the_projects_can_be_filtered(app, projects):
     assert "js/projects.js" in page
     for group in ("ecd", "ee4j", "technology"):
         assert f'<option value="{group}">{group}</option>' in page
-    for order in ("security", "repositories", "pull-requests"):
+    orders = ("security", "branch-protection", "secret-scanning", "dependabot", "code-scanning", "scorecard")
+    orders += ("pull-requests", "blueprints", "changed-recently", "changed-long-ago", "repositories")
+    for order in orders:
         assert f'<option value="{order}">' in page
+    # the data the orders read: the shares of the repositories with each protection, the score, the blueprints
+    for attribute in (
+        'data-branch-protection="33.3"',
+        'data-secret-scanning="100.0"',
+        'data-dependabot="100.0"',
+        'data-code-scanning="0.0"',
+        'data-scorecard="6.40"',
+        'data-blueprints="0"',
+    ):
+        assert attribute in page
+    # the latest change, unknown for the organizations without configuration
+    assert re.search(r'data-changed="\d{10}"', page)
+    assert 'data-changed="-1"' in page
     # a button folds or unfolds all the groups
     assert "data-otterdog-groups-toggle" in page
     assert page.count('<details class="otterdog-group" open') == 3

@@ -16,15 +16,31 @@ export function matches(organization, filters) {
 
 const number = (value) => Number(value ?? -1);
 
-// the orders of the organizations, the name breaking the ties
+// the lowest values of a data attribute first, the unknown ones (-1) last, e.g. no statistics, score or change
+function ascending(key) {
+  const value = (organization) => (number(organization[key]) < 0 ? Infinity : number(organization[key]));
+  return (a, b) => value(a) - value(b);
+}
+
+// the highest values of a data attribute first, the unknown ones (-1) last
+function descending(key) {
+  return (a, b) => number(b[key]) - number(a[key]);
+}
+
+// the orders of the organizations, by the data attributes of their cards (includes/project-card.html), the name
+// breaking the ties
 const ORDERS = {
-  // the least protected first, the organizations without statistics (-1) last
-  security: (a, b) => {
-    const value = (organization) => (number(organization.security) < 0 ? Infinity : number(organization.security));
-    return value(a) - value(b);
-  },
-  repositories: (a, b) => number(b.repositories) - number(a.repositories),
-  "pull-requests": (a, b) => number(b.pullRequests) - number(a.pullRequests),
+  security: ascending("security"),
+  "branch-protection": ascending("branchProtection"),
+  "secret-scanning": ascending("secretScanning"),
+  dependabot: ascending("dependabot"),
+  "code-scanning": ascending("codeScanning"),
+  scorecard: ascending("scorecard"),
+  "pull-requests": descending("pullRequests"),
+  blueprints: descending("blueprints"),
+  "changed-recently": descending("changed"),
+  "changed-long-ago": ascending("changed"),
+  repositories: descending("repositories"),
 };
 
 export function compare(sort) {

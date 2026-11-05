@@ -13,6 +13,12 @@
      data-name="{{ (card.project_name ~ ' ' ~ card.github_id)|lower }}" data-group="{{ card.group }}"
      data-repositories="{{ card.repositories if card.repositories is not none else -1 }}"
      data-security="{{ '%.1f'|format(card.security) if card.security is not none else -1 }}"
+     {% for share in card.shares -%}
+     data-{{ share.label|lower|replace(' ', '-') }}="{{ '%.1f'|format(share.percentage) if share.percentage is not none else -1 }}"
+     {% endfor -%}
+     data-scorecard="{{ '%.2f'|format(card.scorecard) if card.scorecard is not none else -1 }}"
+     data-blueprints="{{ card.failing_blueprints }}"
+     data-changed="{{ '%d'|format(card.change.at.timestamp()) if card.change is not none else -1 }}"
      data-pull-requests="{{ card.open_pull_requests }}">
   <div class="otterdog-project{{ '' if linked else ' otterdog-project--inactive' }}">
     <div class="otterdog-project__head">
