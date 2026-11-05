@@ -80,6 +80,20 @@ test("the objects created by the functions of the default configuration are vali
   assert.deepEqual(validate({id: "123", name: 7, description: ""}, schemaOfFunction("newTeamSync"), SCHEMAS).map((problem) => problem.path), [["name"]]);
 });
 
+test("the length of strings is validated", () => {
+  // the default name of a team sync group is empty
+  assert.deepEqual(validate({id: "", name: "", description: ""}, "team-sync.json", SCHEMAS).map((problem) => [problem.path, problem.message]), [
+    [["id"], "expected at least 1 character(s)"],
+    [["name"], "expected at least 1 character(s)"],
+  ]);
+  assert.deepEqual(validate({id: "123", name: "admins", description: ""}, "team-sync.json", SCHEMAS), []);
+  // characters are counted as code points
+  const configuration = (description) => validate({name: "config", description}, "org-code-security-configuration.json", SCHEMAS)
+    .filter((problem) => problem.path[0] === "description");
+  assert.deepEqual(configuration("🦦".repeat(255)), []);
+  assert.deepEqual(configuration("a".repeat(256)).map((problem) => problem.message), ["expected at most 255 character(s)"]);
+});
+
 test("every function of the reference catalog is validated with a schema", () => {
   const catalog = JSON.parse(fs.readFileSync(new URL("../../../../home/playground-reference.json", import.meta.url)));
   const functionsWithoutSchema = Object.keys(catalog.functions).filter((name) => schemaOfFunction(name) === null);
