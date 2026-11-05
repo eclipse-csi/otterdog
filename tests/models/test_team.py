@@ -356,3 +356,38 @@ class TeamTest(ModelTest):
         )
 
         assert _patch_summary(patches) == [("ADD", "Team"), ("ADD", "TeamSync"), ("ADD", "TeamSync")]
+
+    def test_members_not_updated_while_external_group_stays_connected(self):
+        # a configuration not defining external_group_id does not disconnect the external group
+        current = Team.from_provider_data(
+            self.org_id,
+            {
+                **self.provider_data,
+                "members": [{"login": "idp-user"}],
+                "external_groups": [{"group_id": 123, "group_name": "admins"}],
+            },
+        )
+        expected = self.team_with(members=["netomi"])
+        assert expected.external_group_id is UNSET
+
+        for delete_resources in [False, True]:
+            with self.subTest(delete_resources=delete_resources):
+                patches: list[LivePatch] = []
+                Team.generate_live_patch(
+                    expected, current, None, _live_patch_context(delete_resources=delete_resources), patches.append
+                )
+
+                assert patches == []
+
+        # an external group set to null is disconnected, the members are managed by otterdog again
+        patches = []
+        Team.generate_live_patch(
+            self.team_with(members=["netomi"], external_group_id=None),
+            current,
+            None,
+            _live_patch_context(),
+            patches.append,
+        )
+
+        assert _patch_summary(patches) == [("CHANGE", "Team")]
+        assert set(patches[0].changes) == {"external_group_id", "members"}

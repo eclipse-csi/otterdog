@@ -330,8 +330,12 @@ class Team(ModelObject, abc.ABC):
         if expected_object.is_managed_by_identity_provider():
             return True
 
-        # groups removed from team_sync are only disconnected when deleting resources,
-        # while a removed external group is a change of the team that is always applied
+        # an external group is only disconnected if 'external_group_id' is set to null,
+        # a change of the team that is always applied
+        if is_unset(expected_object.external_group_id) and is_set_and_present(current_object.external_group_id):
+            return True
+
+        # groups removed from team_sync are only disconnected when deleting resources
         return len(current_object.team_sync) > 0 and not context.delete_resources
 
     @classmethod
