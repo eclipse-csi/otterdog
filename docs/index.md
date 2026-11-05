@@ -107,13 +107,15 @@ Others cannot be managed at all, see [Unsupported settings](userguide/unsupporte
 
     [:material-arrow-right: Reference](reference/index.md)
 
--   :material-play-circle-outline:{ .lg .middle } **Playground**
+-   :material-view-dashboard-outline:{ .lg .middle } **Dashboard and Playground**
 
     ---
 
-    Evaluate a configuration in your browser and check its values like otterdog does, before you open a pull
-    request. Every complete example of the guides opens in it.
+    Browse the organizations managed by otterdog at the Eclipse Foundation and their configuration. Its Playground
+    evaluates a configuration in your browser and checks its values like otterdog does, before you open a pull
+    request: every complete example of the guides opens in it.
 
+    [:material-arrow-right: Open the dashboard](https://otterdog.eclipse.org)<br>
     [:material-arrow-right: Open the Playground](https://otterdog.eclipse.org/playground)
 
 -   :material-server-outline:{ .lg .middle } **Operating otterdog**

@@ -8,7 +8,8 @@ organization through pull requests and never install anything.
 For the members and contributors of a project whose GitHub organization is managed by otterdog.
 
 1. **Find the configuration repository** of the organization, e.g. `.eclipsefdn` for the projects of the Eclipse
-   Foundation. The configuration of the organization is `otterdog/<organization>.jsonnet`.
+   Foundation. The configuration of the organization is `otterdog/<organization>.jsonnet`, and the
+   [dashboard](https://otterdog.eclipse.org) shows the current one of each organization of the Eclipse Foundation.
 2. **Find what to change**: the [Configuration Guides](userguide/guides/index.md) start from a need, e.g.
    protecting a branch or providing a secret to a workflow, the [Reference](reference/index.md) documents every
    property. The configuration only declares what differs from the default configuration, see
