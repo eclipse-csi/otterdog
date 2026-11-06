@@ -87,12 +87,15 @@ class Webhook(ModelObject, abc.ABC):
                 f"{self.get_model_header(parent_object)} has a secret set, but only a dummy secret '{self.secret}' "
                 f"is provided in the configuration, will be skipped.",
             )
-        elif is_set_and_present(self.secret) and ":" not in self.secret:
-            context.add_failure(
-                FailureType.WARNING,
-                f"{self.get_model_header(parent_object)} has a secret '{self.secret}' "
-                f"that does not use a credential provider.",
-            )
+        elif is_set_and_present(self.secret):
+            if ":" not in self.secret:
+                context.add_failure(
+                    FailureType.WARNING,
+                    f"{self.get_model_header(parent_object)} has a secret '{self.secret}' "
+                    f"that does not use a credential provider.",
+                )
+            else:
+                context.validate_secret_reference(self.get_model_header(parent_object), self.secret)
 
         if is_set_and_valid(self.content_type):
             if self.content_type not in {"json", "form"}:

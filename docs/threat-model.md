@@ -316,6 +316,13 @@ Controls:
 * Externalize secrets: do not commit them; use Kubernetes external secrets or sealed secrets.
 * Scan repos for accidental secret commits (secret scanning + pre-commit hooks).
 
+Threat I4: Disclosure of the secrets of another organization
+The configuration of an organization, changed by pull requests, references secrets in the credential providers of the operator, who usually has access to the secrets of all organizations, e.g. `pass:bots/<other organization>/token`. Applying it copies the secret of another organization into a secret of this organization, readable by its workflows.
+Controls:
+
+* Restrict the references of each organization with a [secret access policy](operating_otterdog/setup.md#secret-access-policy), checked when validating pull requests and before resolving secrets during `apply`.
+* Review the references to secrets in configuration pull requests.
+
 ### 8.5 Denial of service
 
 Threat D1: Broad PAT scopes allow destructive operations (`delete_repo`) causing org-wide disruption ([otterdog.readthedocs.io][3])

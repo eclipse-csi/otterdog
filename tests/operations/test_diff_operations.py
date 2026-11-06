@@ -10,12 +10,14 @@ import json
 from copy import deepcopy
 from io import StringIO
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pretend
 import pytest
 
 from otterdog.config import OrganizationConfig
+from otterdog.credentials import CredentialPlaceHolders
+from otterdog.credentials.secret_access_policy import SecretAccessMode, SecretAccessPolicy
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
@@ -68,7 +70,13 @@ def _create_org_config(tmp_path: Path, with_config_files: bool, base_differs: bo
 
 
 def _initialize_operation(
-    operation, monkeypatch, output: StringIO, client, current_org=None, exclude_teams_pattern=None
+    operation,
+    monkeypatch,
+    output: StringIO,
+    client,
+    current_org=None,
+    exclude_teams_pattern=None,
+    secret_access_policy=None,
 ):
     """
     Initialize an operation while replacing only GitHub and validation boundaries.
@@ -78,9 +86,12 @@ def _initialize_operation(
     if current_org is not None:
         monkeypatch.setattr(operation, "load_current_org", AsyncMock(return_value=current_org))
 
-    operation.init(
-        pretend.stub(exclude_teams_pattern=exclude_teams_pattern), IndentingPrinter(output, log_level=LogLevel.ERROR)
+    config = pretend.stub(
+        exclude_teams_pattern=exclude_teams_pattern,
+        configuration={},
+        get_secret_access_policy=lambda org_config: secret_access_policy,
     )
+    operation.init(config, IndentingPrinter(output, log_level=LogLevel.ERROR))
 
 
 async def test_local_plan_reports_changes_for_a_configuration_difference(tmp_path, monkeypatch):
@@ -292,6 +303,40 @@ async def test_apply_processes_a_non_empty_plan(tmp_path, monkeypatch):
     assert result == 0
     assert "Executed plan" in output.getvalue()
     update_repo.assert_awaited_once()
+
+
+async def test_apply_never_reads_a_secret_the_organization_is_not_allowed_to_use(tmp_path, monkeypatch):
+    """
+    Apply aborts before reading from the credential provider a secret outside of the allowed references.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
+    config_file = Path(org_config.jsonnet_config.org_config_file)
+    current_org = GitHubOrganization.load_from_file(org_config.github_id, f"{config_file}-BASE")
+    expected_data = json.loads(config_file.read_text(encoding="utf-8"))
+    expected_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": "pass:bots/other-project/token"}]
+    config_file.write_text(json.dumps(expected_data), encoding="utf-8")
+
+    credential_provider = MagicMock()
+    monkeypatch.setattr(
+        "otterdog.config.CredentialProvider.create", lambda provider_type, defaults: credential_provider
+    )
+    policy = SecretAccessPolicy(
+        SecretAccessMode.ENFORCE,
+        {"pass": ["bots/{org_name}/**"]},
+        CredentialPlaceHolders(org_name=org_config.name, github_id=org_config.github_id),
+    )
+    output = StringIO()
+    operation = ApplyOperation(True, True, "*", False, False, False, "", False)
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(operation, monkeypatch, output, client, current_org, secret_access_policy=policy)
+
+    result = await operation.execute(org_config)
+
+    assert result == 1
+    assert "organization 'test-project' is not allowed to reference secret 'pass:bots/other-project/token'" in (
+        " ".join(output.getvalue().split())
+    )
+    credential_provider.get_secret.assert_not_called()
 
 
 async def test_check_status_reports_the_status_of_matching_configurations(tmp_path, monkeypatch):

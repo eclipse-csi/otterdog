@@ -349,6 +349,81 @@ Hint: You can combine this provider with GitHub Actions secrets to securely stor
     OTTER_API_TOKEN: ${{ secrets.OTTER_API_TOKEN }}
 ```
 
+### Secret access policy
+
+The configuration of an organization references secrets in a credential provider, see
+[Secret Value](../reference/organization/secret-value.md). This configuration can be changed with pull requests, and
+otterdog resolves the references with the credentials of the operator, who usually has access to the secrets of all
+organizations. To prevent an organization from using the secrets of another one, the secrets that an organization
+can reference can be restricted in the `defaults` of the `otterdog.json` file:
+
+```json
+{
+  "defaults": {
+    "secrets": {
+      "mode": "enforce",
+      "allowed_references": {
+        "pass": ["bots/{org_name}/**"],
+        "vault": ["{org_name}/**"]
+      }
+    }
+  }
+}
+```
+
+Additional references can be allowed for an organization, e.g. secrets shared by several organizations:
+
+```json
+{
+  "organizations": [
+    {
+      "name": "<org name>",
+      "github_id": "<github org id>",
+      "secrets": {
+        "allowed_references": {
+          "pass": ["bots/shared/sonatype/**"],
+          "bitwarden": ["<bitwarden item id>"]
+        }
+      }
+    }
+  ]
+}
+```
+
+| Key                  | Default   | Description                                                                                                                                                                                                                                         |
+|----------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `mode`               | `enforce` | `enforce`: a reference that is not allowed is a validation error, and `apply` aborts before reading it from the credential provider; `warn`: it is a validation warning and `apply` resolves it, e.g. to find such references before enforcing the policy |
+| `allowed_references` | `{}`      | the patterns of the allowed references of each credential provider (`pass`, `vault`, `bitwarden`), the secrets of a provider without patterns can not be referenced                                                                                    |
+
+The `mode` can only be set in the `defaults`. Without `defaults.secrets`, only the organizations with `secrets` have
+their references restricted, in `enforce` mode.
+
+The patterns are matched against the path of a reference, segment by segment:
+
+* `*` matches any part of a segment, e.g. `bots/{org_name}/*-token`
+* `**` matches any number of segments, at least one at the end of a pattern: `bots/{org_name}/**` does not match
+  `bots/{org_name}` itself
+
+The patterns can use the following placeholders, the examples are given for an organization with the `name`
+`technology.apoapsis` and the `github_id` `eclipse-apoapsis`:
+
+| Placeholder   | Replaced by                                            | Example pattern      | Example of an allowed reference                    |
+|---------------|--------------------------------------------------------|----------------------|----------------------------------------------------|
+| `{org_name}`  | the `name` of the organization in `otterdog.json`      | `bots/{org_name}/**` | `pass:bots/technology.apoapsis/gpg/key_id`         |
+| `{github_id}` | the `github_id` of the organization in `otterdog.json` | `{github_id}/**`     | `vault:eclipse-apoapsis/oss.sonatype.org/password` |
+
+The placeholders are replaced by the values of `otterdog.json`, never by the names in the configuration of the
+organization, which a pull request can change. Their values are matched literally, e.g. the `.` of
+`technology.apoapsis` is not a wildcard. Any other placeholder is rejected when loading `otterdog.json`.
+
+A Bitwarden reference `<item id>@<field>` is matched against its item id, each item has to be allowed explicitly.
+
+A reference must consist of segments separated by `/` that only contain letters, digits, `.`, `_`, `@`, `+` and `-`.
+Segments `.` and `..` are not allowed, so that a reference can not leave the allowed paths.
+
+The policy is checked when validating a configuration, including the validation of pull requests by the WebApp, and
+before resolving each secret during `apply`.
+
 ### Environment variables
 
 The cli of otterdog reads the following environment variables:

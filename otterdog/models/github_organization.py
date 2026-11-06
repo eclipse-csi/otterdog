@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterable, Iterator
 
     from otterdog.config import JsonnetConfig, OtterdogConfig, SecretResolver
+    from otterdog.credentials.secret_access_policy import SecretAccessPolicy
     from otterdog.models import Change
     from otterdog.models.ruleset import WorkflowsSettings
     from otterdog.providers.github import GitHubProvider
@@ -486,6 +487,7 @@ class GitHubOrganization:
         jsonnet_config: JsonnetConfig,
         secret_resolver: SecretResolver,
         provider: GitHubProvider | None,
+        secret_access_policy: SecretAccessPolicy | None = None,
     ) -> ValidationContext:
         """
         Validates the organization. Without provider, e.g. in the playground of the dashboard, the validations
@@ -514,6 +516,7 @@ class GitHubOrganization:
             {t.name for t in default_org.teams},
             config.exclude_teams_pattern,
             provider=provider,
+            secret_access_policy=secret_access_policy,
         )
         self.settings.validate(context, self)
 

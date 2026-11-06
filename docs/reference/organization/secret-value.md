@@ -29,4 +29,7 @@ that a value changed in the credential provider. Use the `--update-secrets` or `
 ## Validation rules
 
 - a value that does not reference a supported credential provider triggers a warning
+- a reference that the organization is not allowed to use, see
+  [Secret access policy](../../operating_otterdog/setup.md#secret-access-policy), triggers an error, or a warning in
+  `warn` mode
 - a redacted value (`********`) triggers a validation info, the resource will be skipped during processing

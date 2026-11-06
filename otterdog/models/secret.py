@@ -59,6 +59,8 @@ class Secret(ModelObject, abc.ABC):
                     FailureType.WARNING,
                     f"{self.get_model_header()} has a value '{self.value}' that does not use a credential provider.",
                 )
+            else:
+                context.validate_secret_reference(self.get_model_header(), self.value)
 
         if self.name.startswith("GITHUB_"):
             context.add_failure(
