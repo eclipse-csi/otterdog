@@ -81,6 +81,53 @@ class TestRepoClientCodeScanningConfig:
         assert len(repo_client.requester.request_raw.calls) == 1
         assert "code_scanning_default_config" not in repo_data
 
+    @pytest.mark.parametrize(
+        "languages,expected_languages",
+        [
+            (["actions", "javascript", "typescript"], ["actions", "javascript-typescript"]),
+            (["javascript", "python", "typescript"], ["javascript-typescript", "python"]),
+            (["javascript"], ["javascript-typescript"]),
+            (["typescript"], ["javascript-typescript"]),
+            (["actions", "java-kotlin"], ["actions", "java-kotlin"]),
+            ([], []),
+        ],
+    )
+    async def test_update_code_scanning_config_combines_javascript_and_typescript(self, languages, expected_languages):
+        async def mock_request_json(method, url, data=None):
+            return {}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        code_scanning = {"state": "configured", "languages": languages}
+
+        await repo_client._update_code_scanning_config("test-org", "test-repo", code_scanning)
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call(
+                "PATCH",
+                "/repos/test-org/test-repo/code-scanning/default-setup",
+                data={"state": "configured", "languages": expected_languages},
+            ),
+        ]
+        # the config passed by the caller is left untouched
+        assert code_scanning == {"state": "configured", "languages": languages}
+
+    async def test_update_code_scanning_config_without_languages(self):
+        async def mock_request_json(method, url, data=None):
+            return {}
+
+        mocked_restapi = pretend.stub(requester=pretend.stub(request_json=pretend.call_recorder(mock_request_json)))
+        repo_client = RepoClient(mocked_restapi)
+
+        await repo_client._update_code_scanning_config("test-org", "test-repo", {"state": "not-configured"})
+
+        assert repo_client.requester.request_json.calls == [
+            pretend.call(
+                "PATCH", "/repos/test-org/test-repo/code-scanning/default-setup", data={"state": "not-configured"}
+            ),
+        ]
+
 
 class TestRepoClientUpdateRepo:
     async def test_update_repo_with_rename_and_topics_correct_order(self):
