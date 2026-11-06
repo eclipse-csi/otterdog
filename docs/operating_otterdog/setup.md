@@ -60,6 +60,38 @@ However, when named `otterdog.json`, the cli tool will automatically detect and 
     In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
     However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
+### Local base template
+
+Instead of a file in a GitHub repository, `base_template` can also be the path to a local file, e.g. to adjust the
+default configuration for one organization without maintaining a repository for it:
+
+```json
+{
+  "defaults": {
+    "jsonnet": {
+      "base_template": "defaults/otterdog-defaults.libsonnet"
+    }
+  },
+  "organizations": [
+    {
+      "name": "<project-name>",
+      "github_id": "<github-id>",
+      "base_template": "/path/to/other/otterdog-defaults.libsonnet"
+    }
+  ]
+}
+```
+
+- A relative path is relative to the directory of the `otterdog.json` file. `~` is expanded.
+- The directory of the file is linked as `vendor/<directory-name>` of the organization, so the configuration of the
+  organization imports it like a template from a repository, e.g. `import 'vendor/defaults/otterdog-defaults.libsonnet'`.
+  The template can import the other files in its directory, and its hooks are looked up there.
+- The link is recreated on every run, changes of the template are picked up right away. It is also done with `--local`,
+  as there is nothing to fetch.
+- The directory of the template must not contain the configuration of the organization, so it cannot be the directory
+  of `otterdog.json` itself. Keep the template in a directory of its own.
+- A value without `://` is a path, everything else is the url of a GitHub repository, see above.
+
 ### Skipping the web UI
 
 Some settings can only be read and changed via the GitHub web interface, which requires the `username`, `password` and

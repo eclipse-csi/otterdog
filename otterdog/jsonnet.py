@@ -17,7 +17,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from .logging import get_logger
-from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_url
+from .utils import is_local_template, jsonnet_evaluate_snippet, parse_github_url, parse_template_url
 
 _template_lock = Lock()
 # the updates of the cached templates, see JsonnetConfig._init_base_template, referenced until they complete
@@ -77,12 +77,26 @@ class JsonnetConfig:
         self._base_dir = base_dir
         self._base_org_dir = org_dir if org_dir is not None else base_dir
 
-        repo_url, file, ref = parse_template_url(base_template_url)
+        # the directory of a local base template, None if the base template is located in a GitHub repository
+        self._base_template_local_dir: str | None = None
 
-        self._base_template_repo_url = repo_url
-        self._base_template_repo_name = os.path.basename(repo_url)
-        self._base_template_file = file
-        self._base_template_ref = ref
+        if is_local_template(base_template_url):
+            local_file = Path(base_template_url).expanduser().absolute()
+            if len(local_file.parent.name) == 0:
+                raise ValueError(f"the local base template must not be located in the root directory: {local_file}")
+
+            self._base_template_local_dir = str(local_file.parent)
+            self._base_template_repo_url = ""
+            self._base_template_repo_name = local_file.parent.name
+            self._base_template_file = local_file.name
+            self._base_template_ref = ""
+        else:
+            repo_url, file, ref = parse_template_url(base_template_url)
+
+            self._base_template_repo_url = repo_url
+            self._base_template_repo_name = os.path.basename(repo_url)
+            self._base_template_file = file
+            self._base_template_ref = ref
 
         self._local_only = local_only
 
@@ -127,7 +141,10 @@ class JsonnetConfig:
         if self._initialized is True:
             return
 
-        if not self._local_only:
+        if self._base_template_local_dir is not None:
+            # nothing to fetch, so also done in local mode
+            await self._init_local_base_template(self._base_template_local_dir)
+        elif not self._local_only:
             await self._init_base_template()
 
         template_file = self.template_file
@@ -512,6 +529,30 @@ class JsonnetConfig:
     @property
     def import_statement(self) -> str:
         return f"import 'vendor/{self._base_template_repo_name}/{self._base_template_file}'"
+
+    async def _init_local_base_template(self, local_dir: str) -> None:
+        """Links the directory of the local base template as the vendor directory of the organization."""
+        from aiofiles.os import makedirs, symlink
+        from aiofiles.ospath import exists
+        from aioshutil import rmtree
+
+        local_file = Path(local_dir) / self._base_template_file
+        if not await exists(local_file):
+            raise RuntimeError(f"local base template '{local_file}' does not exist")
+
+        if Path(self.org_dir).resolve().is_relative_to(Path(local_dir).resolve()):
+            raise RuntimeError(
+                f"the directory '{local_dir}' of the local base template contains the configuration of "
+                f"organization '{self.org_id}', move the template into a directory of its own"
+            )
+
+        _logger.debug("linking local base template '%s'", local_file)
+
+        if await exists(f"{self.org_dir}/vendor"):
+            await rmtree(f"{self.org_dir}/vendor")
+
+        await makedirs(os.path.dirname(self.template_dir))
+        await symlink(local_dir, self.template_dir, target_is_directory=True)
 
     async def _init_base_template(self) -> None:
         from aiofiles.os import makedirs

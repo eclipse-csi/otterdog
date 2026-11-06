@@ -514,6 +514,11 @@ def camel_to_snake_case(string: str) -> str:
     return string.lower()
 
 
+def is_local_template(base_template: str) -> bool:
+    """A base template is either a url of a file in a GitHub repository, or the path to a local file."""
+    return "://" not in base_template
+
+
 def parse_template_url(url: str) -> tuple[str, str, str]:
     parts = urlparse(url)
 

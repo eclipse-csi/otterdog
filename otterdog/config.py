@@ -22,7 +22,7 @@ from otterdog.models import CostPolicy
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger
-from .utils import ExclusionPatterns, deep_merge_dict, jsonnet_evaluate_file, query_json
+from .utils import ExclusionPatterns, deep_merge_dict, is_local_template, jsonnet_evaluate_file, query_json
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -122,6 +122,9 @@ class OrganizationConfig:
 
         config_repo = data.get("config_repo", otterdog_config.default_config_repo)
         base_template = data.get("base_template", otterdog_config.default_base_template)
+        if is_local_template(base_template):
+            # a relative path of a local base template is relative to the directory of the otterdog configuration
+            base_template = os.path.join(otterdog_config.working_dir, os.path.expanduser(base_template))
 
         approval_teams = cls._normalize_team_list(data.get("approval_teams"), "approval_teams", name)
         admin_teams = cls._normalize_team_list(data.get("admin_teams"), "admin_teams", name)
