@@ -42,6 +42,8 @@ def test_default_no_web_ui_of_the_configuration(tmp_path, github_defaults, expec
 def run_show_live(tmp_path, monkeypatch):
     operations = []
     monkeypatch.setattr(cli, "_execute_operation", lambda organizations, operation: operations.append(operation))
+    # do not reconfigure the logging of the test session
+    monkeypatch.setattr(cli, "init_logging", lambda *args, **kwargs: None)
 
     def run(github_defaults: dict, *args: str) -> bool:
         config_file = _config_file(tmp_path, github_defaults)

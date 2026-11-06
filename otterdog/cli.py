@@ -256,13 +256,16 @@ def show(organizations: list[str], markdown, output_dir):
     _execute_operation(organizations, ShowOperation(markdown, output_dir))
 
 
-@cli.command(cls=StdCommand)
-@click.option(
+_no_web_ui_option = click.option(
     "-n",
     "--no-web-ui/--web-ui",
     default=None,
     help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
+
+
+@cli.command(cls=StdCommand)
+@_no_web_ui_option
 def show_live(organizations: list[str], no_web_ui):
     """
     Displays the live configuration for organizations.
@@ -451,12 +454,7 @@ def approve_blueprints(organizations: list[str], blueprint_id):
     default=False,
     help="skips interactive approvals",
 )
-@click.option(
-    "-n",
-    "--no-web-ui/--web-ui",
-    default=None,
-    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
-)
+@_no_web_ui_option
 def import_command(organizations: list[str], force, no_web_ui):
     """
     Imports existing resources for a GitHub organization.
@@ -467,12 +465,7 @@ def import_command(organizations: list[str], force, no_web_ui):
 
 
 @cli.command(cls=StdCommand, short_help="Show changes to live configuration on GitHub.")
-@click.option(
-    "-n",
-    "--no-web-ui/--web-ui",
-    default=None,
-    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
-)
+@_no_web_ui_option
 @click.option(
     "-r",
     "--repo-filter",
@@ -530,12 +523,7 @@ def plan(
 
 
 @cli.command(cls=StdCommand, short_help="Check for sync with live configuration on GitHub.")
-@click.option(
-    "-n",
-    "--no-web-ui/--web-ui",
-    default=None,
-    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
-)
+@_no_web_ui_option
 @click.option(
     "-r",
     "--repo-filter",
@@ -639,12 +627,7 @@ def local_plan(
     default=False,
     help="skips interactive approvals",
 )
-@click.option(
-    "-n",
-    "--no-web-ui/--web-ui",
-    default=None,
-    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
-)
+@_no_web_ui_option
 @click.option(
     "-r",
     "--repo-filter",
@@ -734,12 +717,7 @@ def apply(
     default=False,
     help="skips interactive approvals",
 )
-@click.option(
-    "-n",
-    "--no-web-ui/--web-ui",
-    default=None,
-    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
-)
+@_no_web_ui_option
 @click.option(
     "-r",
     "--repo-filter",
