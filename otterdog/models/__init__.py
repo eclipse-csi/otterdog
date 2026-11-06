@@ -90,8 +90,8 @@ class ValidationContext:
         if violation is not None:
             self.add_failure(
                 FailureType.ERROR if self.secret_access_policy.is_enforced else FailureType.WARNING,
-                f"{model_header} references secret '{secret_data}' that the organization is not allowed to use: "
-                f"{violation}.",
+                f"{model_header} references secret '{escape(secret_data)}' that the organization is not allowed to "
+                f"use: {escape(violation)}.",
             )
 
     def property_equals(self, model_object, key, value):

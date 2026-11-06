@@ -17,6 +17,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from rich.markup import escape
+
 from otterdog.credentials import SECRET_PROVIDER_TYPES, CredentialPlaceHolders, CredentialProvider
 from otterdog.credentials.secret_access_policy import SecretAccessMode, SecretAccessPolicy
 from otterdog.models import CostPolicy
@@ -276,7 +278,8 @@ class CredentialResolver(SecretResolver):
         self._check_secret_access(secret_data)
 
         if secret_data and ":" in secret_data:
-            provider_type, data = re.split(":", secret_data)
+            # the data of the provider can contain ':'
+            provider_type, data = re.split(":", secret_data, maxsplit=1)
             provider = self._get_credential_provider(provider_type)
             if provider is not None:
                 return provider.get_secret(data)
@@ -298,7 +301,8 @@ class CredentialResolver(SecretResolver):
         if policy.is_enforced:
             raise RuntimeError(message)
         else:
-            print_warn(message)
+            # the reference comes from the configuration, it must not be read as markup
+            print_warn(escape(message))
 
 
 @dataclasses.dataclass(frozen=True)

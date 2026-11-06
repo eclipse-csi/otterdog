@@ -15,6 +15,7 @@ import re
 from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from jsonbender import K  # type: ignore
+from rich.markup import escape
 
 from otterdog.models import (
     FailureType,
@@ -49,7 +50,7 @@ class Secret(ModelObject, abc.ABC):
             )
         else:
             if ":" in self.value:
-                provider_type, _ = re.split(":", self.value)
+                provider_type, _ = re.split(":", self.value, maxsplit=1)
                 resolved_secret = context.secret_resolver.is_supported_secret_provider(provider_type)
             else:
                 resolved_secret = False
@@ -57,7 +58,8 @@ class Secret(ModelObject, abc.ABC):
             if resolved_secret is False:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header()} has a value '{self.value}' that does not use a credential provider.",
+                    f"{self.get_model_header()} has a value '{escape(self.value)}' that does not use a credential "
+                    f"provider.",
                 )
             else:
                 context.validate_secret_reference(self.get_model_header(), self.value)

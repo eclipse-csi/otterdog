@@ -14,6 +14,7 @@ import fnmatch
 from typing import TYPE_CHECKING, Any, Self, TypeVar, cast
 
 from jsonbender import OptionalS, S  # type: ignore
+from rich.markup import escape
 
 from otterdog.models import (
     FailureType,
@@ -91,7 +92,7 @@ class Webhook(ModelObject, abc.ABC):
             if ":" not in self.secret:
                 context.add_failure(
                     FailureType.WARNING,
-                    f"{self.get_model_header(parent_object)} has a secret '{self.secret}' "
+                    f"{self.get_model_header(parent_object)} has a secret '{escape(self.secret)}' "
                     f"that does not use a credential provider.",
                 )
             else:

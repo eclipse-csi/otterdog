@@ -13,6 +13,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from rich.text import Text
 
 from otterdog.config import CredentialResolver, OrganizationConfig, OtterdogConfig
 from otterdog.credentials import CredentialPlaceHolders
@@ -395,6 +396,21 @@ def test_a_denied_secret_is_resolved_with_a_warning_in_warn_mode(tmp_path, pass_
     assert "'pass:bots/technology.other/key_id'" in warnings[0]
 
 
+def test_a_denied_secret_looking_like_markup_is_resolved_in_warn_mode(tmp_path, pass_provider, capsys):
+    # printed by the console of otterdog, which reads markup
+    resolver = _resolver(tmp_path, "warn")
+
+    assert resolver.get_secret("pass:bots/technology.other/[/x]") == "secret of bots/technology.other/[/x]"
+    assert "[/x]" in capsys.readouterr().out
+
+
+def test_a_reference_with_several_colons_is_resolved_in_warn_mode(tmp_path, pass_provider, monkeypatch):
+    monkeypatch.setattr("otterdog.config.print_warn", lambda message: None)
+    resolver = _resolver(tmp_path, "warn")
+
+    assert resolver.get_secret("pass:bots/technology.apoapsis/key:id") == "secret of bots/technology.apoapsis/key:id"
+
+
 def test_the_resolvers_of_organizations_share_the_credential_providers(tmp_path, pass_provider, monkeypatch):
     created: list[str] = []
     monkeypatch.setattr(
@@ -483,3 +499,38 @@ def test_validation_ignores_dummy_secrets(model):
     model("********").validate(context, None)
 
     assert _secret_access_failures(context) == []
+
+
+def _printed(message: str) -> str:
+    """Returns a message as printed by the console of otterdog, which fails on invalid markup."""
+    return Text.from_markup(message).plain
+
+
+@pytest.mark.parametrize("model", [_secret, _webhook])
+def test_validation_escapes_a_denied_reference_looking_like_markup(model):
+    context = _validation_context(_policy())
+
+    model("pass:bots/technology.other/[/x]").validate(context, None)
+
+    (failure,) = _secret_access_failures(context)
+    assert "references secret 'pass:bots/technology.other/[/x]'" in _printed(failure[1])
+
+
+@pytest.mark.parametrize("model", [_secret, _webhook])
+def test_validation_escapes_a_value_looking_like_markup(model):
+    context = _validation_context(None)
+
+    model("[/x]").validate(context, None)
+
+    printed = [_printed(message) for _, message in context.validation_failures]
+    assert any("'[/x]' that does not use a credential provider" in message for message in printed)
+
+
+@pytest.mark.parametrize("model", [_secret, _webhook])
+def test_validation_reports_a_reference_with_several_colons(model):
+    context = _validation_context(_policy())
+
+    model("pass:bots/technology.apoapsis/key:id").validate(context, None)
+
+    (failure,) = _secret_access_failures(context)
+    assert "'bots/technology.apoapsis/key:id' is not a valid reference" in failure[1]
