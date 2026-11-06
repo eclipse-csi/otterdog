@@ -192,3 +192,52 @@ def test_cost_policy_rejects_invalid_free_cache_size(value):
 
     with pytest.raises(RuntimeError, match="free_max_cache_size_gb"):
         _ = config.cost_policy
+
+
+def _config_with_templates(working_dir: Path, base_template: str, org_template: str | None = None) -> OtterdogConfig:
+    organization = {"name": "my-org", "github_id": "my-org", "credentials": {"provider": "plain"}}
+    if org_template is not None:
+        organization["base_template"] = org_template
+
+    return OtterdogConfig.from_dict(
+        {"defaults": {"jsonnet": {"base_template": base_template}}, "organizations": [organization]},
+        False,
+        str(working_dir),
+    )
+
+
+def test_a_relative_local_base_template_is_relative_to_the_otterdog_configuration(tmp_path):
+    config = _config_with_templates(tmp_path, "defaults/my-defaults.libsonnet")
+    jsonnet_config = config.get_organization_config("my-org").jsonnet_config
+
+    assert jsonnet_config.base_template_repo_name == "defaults"
+    assert jsonnet_config.base_template_file_name == "my-defaults.libsonnet"
+    assert jsonnet_config._base_template_local_dir == str(tmp_path / "defaults")
+
+
+def test_an_absolute_local_base_template_is_kept(tmp_path):
+    config = _config_with_templates(tmp_path, "/etc/otterdog/shared/my-defaults.libsonnet")
+    jsonnet_config = config.get_organization_config("my-org").jsonnet_config
+
+    assert jsonnet_config._base_template_local_dir == "/etc/otterdog/shared"
+
+
+def test_the_base_template_of_an_organization_overrides_the_default(tmp_path):
+    config = _config_with_templates(
+        tmp_path,
+        "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@main",
+        org_template="local/my-defaults.libsonnet",
+    )
+    jsonnet_config = config.get_organization_config("my-org").jsonnet_config
+
+    assert jsonnet_config._base_template_local_dir == str(tmp_path / "local")
+
+
+def test_a_github_base_template_is_not_changed(tmp_path):
+    config = _config_with_templates(
+        tmp_path, "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@main"
+    )
+    jsonnet_config = config.get_organization_config("my-org").jsonnet_config
+
+    assert jsonnet_config._base_template_local_dir is None
+    assert jsonnet_config.base_template_repo_name == "otterdog-defaults"

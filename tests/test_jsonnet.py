@@ -15,6 +15,7 @@ import pytest
 
 from otterdog import jsonnet
 from otterdog.jsonnet import JsonnetConfig
+from otterdog.utils import is_local_template, jsonnet_evaluate_snippet
 
 _BASE_TEMPLATE = "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@main"
 _TEMPLATE_URL = "https://github.com/example/otterdog-defaults#otterdog-defaults.libsonnet@{ref}"
@@ -96,3 +97,77 @@ async def test_a_cancelled_initialization_keeps_the_lock_of_the_templates_until_
     await update
 
     assert not jsonnet._template_lock.locked()
+
+
+@pytest.mark.parametrize(
+    "base_template,expected",
+    [
+        (_BASE_TEMPLATE, False),
+        ("https://github.com/example/otterdog-defaults#otterdog/defaults.libsonnet@v1.0.0", False),
+        ("defaults/otterdog-defaults.libsonnet", True),
+        ("../shared/otterdog-defaults.libsonnet", True),
+        ("/etc/otterdog/otterdog-defaults.libsonnet", True),
+        ("~/otterdog-defaults.libsonnet", True),
+    ],
+)
+def test_a_base_template_is_a_url_or_a_local_path(base_template, expected):
+    assert is_local_template(base_template) is expected
+
+
+def _local_template(tmp_path):
+    template_dir = tmp_path / "defaults"
+    template_dir.mkdir()
+    (template_dir / "helper.libsonnet").write_text("{ greeting: 'hello' }")
+    (template_dir / "my-defaults.libsonnet").write_text(
+        "local helper = import 'helper.libsonnet';\n{ newOrg(name, id):: { name: name, github_id: id, greeting: helper.greeting } }"
+    )
+    return template_dir / "my-defaults.libsonnet"
+
+
+@pytest.mark.parametrize("local_mode", [False, True])
+async def test_a_local_base_template_is_linked_into_the_vendor_directory(tmp_path, local_mode):
+    template_file = _local_template(tmp_path)
+    config = JsonnetConfig("my-org", str(tmp_path / "orgs"), str(template_file), local_mode)
+
+    await config.init_template()
+
+    assert config.base_template_repo_name == "defaults"
+    assert config.import_statement == "import 'vendor/defaults/my-defaults.libsonnet'"
+    assert config.template_dir == str(tmp_path / "orgs" / "my-org" / "vendor" / "defaults")
+    assert (tmp_path / "orgs" / "my-org" / "vendor" / "defaults").resolve() == template_file.parent.resolve()
+    # the template is evaluated through the vendor directory, including the libraries it imports
+    organization = jsonnet_evaluate_snippet(f"(import '{config.template_file}').newOrg('p', 'my-org')")
+    assert organization == {"name": "p", "github_id": "my-org", "greeting": "hello"}
+
+
+async def test_a_local_base_template_is_linked_again_on_every_initialization(tmp_path):
+    template_file = _local_template(tmp_path)
+
+    for _ in range(2):
+        config = JsonnetConfig("my-org", str(tmp_path / "orgs"), str(template_file), False)
+        await config.init_template()
+
+    assert (tmp_path / "orgs" / "my-org" / "vendor" / "defaults" / "my-defaults.libsonnet").is_file()
+    # removing the vendor directory never removes the local template
+    assert template_file.is_file()
+
+
+async def test_a_missing_local_base_template_is_reported(tmp_path):
+    config = JsonnetConfig("my-org", str(tmp_path / "orgs"), str(tmp_path / "defaults" / "missing.libsonnet"), False)
+
+    with pytest.raises(RuntimeError, match=r"local base template .* does not exist"):
+        await config.init_template()
+
+
+async def test_a_local_base_template_must_not_contain_the_organization_configuration(tmp_path):
+    template_file = tmp_path / "my-defaults.libsonnet"
+    template_file.write_text("{}")
+    config = JsonnetConfig("my-org", str(tmp_path / "orgs"), str(template_file), False)
+
+    with pytest.raises(RuntimeError, match="move the template into a directory of its own"):
+        await config.init_template()
+
+
+def test_a_local_base_template_must_not_be_located_in_the_root_directory(tmp_path):
+    with pytest.raises(ValueError, match="root directory"):
+        JsonnetConfig("my-org", str(tmp_path / "orgs"), "/my-defaults.libsonnet", False)
