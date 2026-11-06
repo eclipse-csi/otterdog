@@ -23,7 +23,8 @@ When the `apply` operation is executed, the following happens:
   -c, --config FILE       configuration file to use  [default: otterdog.json]
   -v, --verbose           enable verbose output (-vvv for more verbose output)
   -f, --force             skips interactive approvals
-  -n, --no-web-ui         skip settings retrieved via web ui
+  -n, --no-web-ui / --web-ui  skip settings retrieved via web ui, defaults to the
+                              'no_web_ui' setting of the otterdog configuration
   --repo-filter TEXT      a valid shell pattern to match repository names to be included  [default: *]
   --update-webhooks       updates webhook with secrets regardless of changes
   --update-secrets        updates secrets regardless of changes

@@ -60,6 +60,28 @@ However, when named `otterdog.json`, the cli tool will automatically detect and 
     In this example the `plain` provider is being used to access credentials to avoid setting up a `real` credential provider (see below) for a quick setup.
     However, the `plain` provider should *NOT* be used for anything else to avoid leakage of data in case the `otterdog.json` file is shared with other users.
 
+### Skipping the web UI
+
+Some settings can only be read and changed via the GitHub web interface, which requires the `username`, `password` and
+`twofa_seed` of the credentials. The operations `plan`, `apply`, `import`, `show-live`, `check-status` and
+`local-apply` skip these settings when called with `-n` / `--no-web-ui`.
+
+To skip them by default, e.g. if you only use an access token, set `no_web_ui` in the `defaults` of the
+`otterdog.json` file:
+
+```json
+{
+  "defaults": {
+    "github": {
+      "no_web_ui": true
+    }
+  }
+}
+```
+
+The default can be overridden per call: `--web-ui` uses the web interface although `no_web_ui` is set, `--no-web-ui`
+skips it although it is not.
+
 ### Cost policy
 
 Pull requests that may incur costs cannot be auto-merged and require a review by the designated team.

@@ -294,6 +294,10 @@ class OtterdogConfig:
         return self._github_config.get("config_repo", ".otterdog")
 
     @property
+    def default_no_web_ui(self) -> bool:
+        return bool(self._github_config.get("no_web_ui", False))
+
+    @property
     def default_team_exclusions(self) -> list[str]:
         return self._github_config.get("exclude_teams", [])
 

@@ -6,7 +6,8 @@ them locally in a file `<github-id>/<github-id>.jsonnet` in the organization spe
 ```shell
   -c, --config FILE  configuration file to use  [default: otterdog.json]
   -f, --force        skips interactive approvals
-  -n, --no-web-ui    skip settings retrieved via web ui
+  -n, --no-web-ui / --web-ui  skip settings retrieved via web ui, defaults to the
+                              'no_web_ui' setting of the otterdog configuration
 
   --stats            print the GitHub API usage statistics to stderr at the end  [env var: OTTERDOG_STATS]
   --stats-file FILE  write the GitHub API usage statistics as JSON to the given file  [env var: OTTERDOG_STATS_FILE]
