@@ -57,8 +57,9 @@ Similarly, scripts can run when `apply` creates resources:
 
     These scripts are executed as Python code by otterdog, with the permissions and credentials of the process that
     runs it. Anybody who can change the default configuration can therefore run code in this context. Restrict and
-    review changes to the repository of the default configuration accordingly, and reference released versions
-    only.
+    review changes to the repository of the default configuration accordingly, and reference a tag or a commit SHA
+    in `base_template`: a branch is pulled on every run, so every push to it takes effect immediately, and otterdog
+    logs a warning for it. See also the [threat model](../threat-model.md#trusted-and-untrusted-inputs).
 
 ## Teams managed by another tool
 

@@ -135,6 +135,7 @@ nav = [
     "operating_otterdog/setup.md",
     "operating_otterdog/usage.md",
     "operating_otterdog/organization-policies.md",
+    { "Threat model" = "threat-model.md" },
   ] },
   { "Developing Otterdog" = [
     { "Overview" = "developing_otterdog/index.md" },
