@@ -38,6 +38,73 @@ class SecretAccessMode(StrEnum):
     ENFORCE = "enforce"
 
 
+class _SegmentPattern:
+    """
+    A segment of a pattern other than '**': literal parts separated by '*', each '*' matching any part of a segment.
+    It is matched without regular expressions, so that several '*' can not backtrack on a long segment.
+    """
+
+    def __init__(self, pattern: str, segment: str, placeholders: Mapping[str, str]):
+        if segment in ("", ".", ".."):
+            raise ValueError(f"invalid pattern '{pattern}': empty, '.' and '..' segments are not allowed")
+        if "**" in segment:
+            raise ValueError(f"invalid pattern '{pattern}': '**' must be a whole segment")
+
+        parts = [""]
+        position = 0
+        for token in _PATTERN_TOKEN.finditer(segment):
+            parts[-1] += _literal(pattern, segment[position : token.start()])
+            if token.group(0) == "*":
+                parts.append("")
+            else:
+                # the value of a placeholder is matched literally, whatever it contains
+                parts[-1] += _placeholder_value(pattern, token.group(1), placeholders)
+            position = token.end()
+        parts[-1] += _literal(pattern, segment[position:])
+
+        self._parts = tuple(parts)
+
+    def matches(self, segment: str) -> bool:
+        if len(self._parts) == 1:
+            return segment == self._parts[0]
+
+        first, *middle, last = self._parts
+        if len(segment) < len(first) + len(last) or not segment.startswith(first) or not segment.endswith(last):
+            return False
+
+        # the leftmost occurrence of each part leaves the most room to the next ones
+        position, end = len(first), len(segment) - len(last)
+        for part in middle:
+            index = segment.find(part, position, end)
+            if index < 0:
+                return False
+            position = index + len(part)
+
+        return True
+
+    def __str__(self) -> str:
+        return "*".join(self._parts)
+
+
+def _literal(pattern: str, literal: str) -> str:
+    if literal and _SEGMENT.fullmatch(literal) is None:
+        raise ValueError(
+            f"invalid pattern '{pattern}': only letters, digits, '.', '_', '@', '+', '-', '*' and placeholders "
+            f"are allowed in a segment"
+        )
+    return literal
+
+
+def _placeholder_value(pattern: str, name: str, placeholders: Mapping[str, str]) -> str:
+    value = placeholders.get(name)
+    if value is None:
+        raise ValueError(
+            f"invalid pattern '{pattern}': unknown placeholder '{{{name}}}', "
+            f"supported placeholders are '{{org_name}}' and '{{github_id}}'"
+        )
+    return value
+
+
 class _Pattern:
     """
     A pattern of the references allowed for an organization, matched segment by segment: '*' matches any part of
@@ -46,62 +113,12 @@ class _Pattern:
     """
 
     def __init__(self, pattern: str, placeholders: Mapping[str, str]):
-        self._segments: list[re.Pattern[str] | None] = []
-        displayed_segments: list[str] = []
-
-        for segment in pattern.split("/"):
-            if segment == "**":
-                self._segments.append(None)
-                displayed_segments.append(segment)
-                continue
-
-            if segment in ("", ".", ".."):
-                raise ValueError(f"invalid pattern '{pattern}': empty, '.' and '..' segments are not allowed")
-            if "**" in segment:
-                raise ValueError(f"invalid pattern '{pattern}': '**' must be a whole segment")
-
-            regex = ""
-            displayed = ""
-            position = 0
-            for token in _PATTERN_TOKEN.finditer(segment):
-                literal = segment[position : token.start()]
-                regex += self._literal(pattern, literal)
-                displayed += literal
-
-                if token.group(0) == "*":
-                    regex += "[^/]*"
-                    displayed += "*"
-                else:
-                    name = token.group(1)
-                    value = placeholders.get(name)
-                    if value is None:
-                        raise ValueError(
-                            f"invalid pattern '{pattern}': unknown placeholder '{{{name}}}', "
-                            f"supported placeholders are '{{org_name}}' and '{{github_id}}'"
-                        )
-                    # the value of a placeholder is matched literally, whatever it contains
-                    regex += re.escape(value)
-                    displayed += value
-
-                position = token.end()
-
-            literal = segment[position:]
-            regex += self._literal(pattern, literal)
-            displayed += literal
-
-            self._segments.append(re.compile(regex))
-            displayed_segments.append(displayed)
-
-        self._displayed = "/".join(displayed_segments)
-
-    @staticmethod
-    def _literal(pattern: str, literal: str) -> str:
-        if literal and _SEGMENT.fullmatch(literal) is None:
-            raise ValueError(
-                f"invalid pattern '{pattern}': only letters, digits, '.', '_', '@', '+', '-', '*' and placeholders "
-                f"are allowed in a segment"
-            )
-        return re.escape(literal)
+        # None for '**'
+        self._segments = [
+            None if segment == "**" else _SegmentPattern(pattern, segment, placeholders)
+            for segment in pattern.split("/")
+        ]
+        self._displayed = "/".join("**" if segment is None else str(segment) for segment in self._segments)
 
     def matches(self, segments: Sequence[str]) -> bool:
         # the positions in the segments reachable after matching the segments of the pattern seen so far, each
@@ -121,7 +138,7 @@ class _Pattern:
                 positions = {
                     position + 1
                     for position in positions
-                    if position < len(segments) and pattern_segment.fullmatch(segments[position]) is not None
+                    if position < len(segments) and pattern_segment.matches(segments[position])
                 }
 
         return len(segments) in positions

@@ -143,10 +143,33 @@ def test_values_not_read_from_a_secret_store_are_not_restricted(secret_data: str
         ("{github_id}/**", "eclipse-apoapsis/oss.sonatype.org/password", True),
         ("{github_id}/**", "technology.apoapsis/oss.sonatype.org/password", False),
         ("bots/{github_id}-{org_name}/*", "bots/eclipse-apoapsis-technology.apoapsis/token", True),
+        # several '*' in a segment
+        ("bots/*-*-token", "bots/a-b-token", True),
+        ("bots/*-*-token", "bots/a-token", False),
+        ("bots/*a*a*", "bots/aa", True),
+        ("bots/{org_name}*{org_name}", "bots/technology.apoapsis.technology.apoapsis", True),
+        # the parts before the first '*' and after the last one do not overlap
+        ("bots/{org_name}*{org_name}", "bots/technology.apoapsis", False),
     ],
 )
 def test_wildcards_and_placeholders(pattern: str, reference: str, allowed: bool):
     assert (_policy({"pass": [pattern]}).check(f"pass:{reference}") is None) is allowed
+
+
+@pytest.mark.parametrize(
+    ("pattern", "segment", "allowed"),
+    [
+        ("*-*-*-token", "-" * 100_000, False),
+        ("*-*-*-token", "-" * 100_000 + "token", True),
+        ("a*-x-*-y-*b", "a" + "-x-" * 50_000 + "b", False),
+        ("a*-x-*-y-*b", "a" + "-x-" * 50_000 + "-y-b", True),
+    ],
+)
+def test_long_segments_are_matched_without_backtracking(pattern: str, segment: str, allowed: bool):
+    # several '*' in a segment do not backtrack: a reference posted in a pull request can not stall the validation
+    policy = _policy({"pass": [f"bots/{pattern}"]})
+
+    assert (policy.check(f"pass:bots/{segment}") is None) is allowed
 
 
 def test_long_references_are_matched_in_linear_time():
@@ -228,7 +251,8 @@ def test_the_default_policy_uses_the_values_of_the_organization(tmp_path):
     apoapsis = config.get_secret_access_policy(config.get_organization_config(_GITHUB_ID))
     other = config.get_secret_access_policy(config.get_organization_config("eclipse-other"))
 
-    assert apoapsis is not None and other is not None
+    assert apoapsis is not None
+    assert other is not None
     assert apoapsis.is_enforced
     assert apoapsis.check("pass:bots/technology.apoapsis/key_id") is None
     assert apoapsis.check("pass:bots/technology.other/key_id") is not None
@@ -247,7 +271,8 @@ def test_the_policy_of_an_organization_is_found_by_its_github_id(tmp_path):
 
     policy = config.get_secret_access_policy(config.get_organization_config("project-a"))
 
-    assert policy is not None and policy.is_enforced
+    assert policy is not None
+    assert policy.is_enforced
     assert policy.check("pass:bots/project-a/token") is None
     assert policy.check("pass:bots/a/token") is not None
 
@@ -257,7 +282,8 @@ def test_the_mode_can_be_warn(tmp_path):
 
     policy = config.get_secret_access_policy(config.get_organization_config(_GITHUB_ID))
 
-    assert policy is not None and policy.mode == SecretAccessMode.WARN
+    assert policy is not None
+    assert policy.mode == SecretAccessMode.WARN
 
 
 def test_the_references_of_an_organization_extend_the_default_ones(tmp_path):
@@ -271,7 +297,8 @@ def test_the_references_of_an_organization_extend_the_default_ones(tmp_path):
     apoapsis = config.get_secret_access_policy(config.get_organization_config(_GITHUB_ID))
     other = config.get_secret_access_policy(config.get_organization_config("eclipse-other"))
 
-    assert apoapsis is not None and other is not None
+    assert apoapsis is not None
+    assert other is not None
     assert apoapsis.check("pass:bots/technology.apoapsis/key_id") is None
     assert apoapsis.check("pass:bots/shared/sonatype/token") is None
     assert apoapsis.check("vault:eclipse-apoapsis/token") is None
@@ -283,7 +310,8 @@ def test_the_references_of_an_organization_alone_enable_an_enforced_policy(tmp_p
 
     policy = config.get_secret_access_policy(config.get_organization_config(_GITHUB_ID))
 
-    assert policy is not None and policy.is_enforced
+    assert policy is not None
+    assert policy.is_enforced
     assert policy.check("pass:bots/technology.other/key_id") is not None
 
 
@@ -318,8 +346,10 @@ def test_the_policy_applies_to_organization_configurations_of_the_webapp(tmp_pat
     ],
 )
 def test_invalid_configurations_are_rejected(tmp_path, defaults_secrets, organization_secrets, error: str):
+    organization = _organization(organization_secrets)
+
     with pytest.raises((RuntimeError, TypeError), match=re.escape(error)):
-        _config(tmp_path, defaults_secrets, _organization(organization_secrets))
+        _config(tmp_path, defaults_secrets, organization)
 
 
 @pytest.fixture
@@ -361,7 +391,8 @@ def test_a_denied_secret_is_resolved_with_a_warning_in_warn_mode(tmp_path, pass_
     resolver = _resolver(tmp_path, "warn")
 
     assert resolver.get_secret("pass:bots/technology.other/key_id") == "secret of bots/technology.other/key_id"
-    assert len(warnings) == 1 and "'pass:bots/technology.other/key_id'" in warnings[0]
+    assert len(warnings) == 1
+    assert "'pass:bots/technology.other/key_id'" in warnings[0]
 
 
 def test_the_resolvers_of_organizations_share_the_credential_providers(tmp_path, pass_provider, monkeypatch):

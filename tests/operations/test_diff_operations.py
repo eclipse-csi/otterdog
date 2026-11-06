@@ -308,15 +308,16 @@ async def test_apply_processes_a_non_empty_plan(tmp_path, monkeypatch):
     update_repo.assert_awaited_once()
 
 
-def _org_config_with_secret(tmp_path: Path, secret_value: str) -> tuple[OrganizationConfig, GitHubOrganization]:
+def _org_config_referencing(tmp_path: Path, reference: str) -> tuple[OrganizationConfig, GitHubOrganization]:
     """
-    Returns an organization config whose desired configuration adds a repository secret, and the current organization.
+    Returns an organization config whose desired configuration adds a repository secret with the given reference to
+    a credential provider, never an actual value, and the current organization.
     """
     org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
     config_file = Path(org_config.jsonnet_config.org_config_file)
     current_org = GitHubOrganization.load_from_file(org_config.github_id, f"{config_file}-BASE")
     expected_data = json.loads(config_file.read_text(encoding="utf-8"))
-    expected_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": secret_value}]
+    expected_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": reference}]
     config_file.write_text(json.dumps(expected_data), encoding="utf-8")
     return org_config, current_org
 
@@ -341,7 +342,7 @@ async def test_apply_never_reads_a_secret_the_organization_is_not_allowed_to_use
     """
     Apply aborts before reading from the credential provider a secret outside of the allowed references.
     """
-    org_config, current_org = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    org_config, current_org = _org_config_referencing(tmp_path, "pass:bots/other-project/token")
     credential_provider = _credential_provider(monkeypatch)
     output = StringIO()
     operation = ApplyOperation(True, True, "*", False, False, False, "", False)
@@ -364,7 +365,7 @@ async def test_apply_fails_on_a_secret_rejected_by_the_validation(tmp_path, monk
     The validation of otterdog rejects a secret outside of the allowed references, and apply fails without applying
     or resolving anything.
     """
-    org_config, current_org = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    org_config, current_org = _org_config_referencing(tmp_path, "pass:bots/other-project/token")
     monkeypatch.setattr(
         org_config.jsonnet_config,
         "default_org_config_for_org_id",
@@ -398,7 +399,7 @@ async def test_a_diff_generated_without_execute_validates_with_the_policy_of_the
     """
     push-config and open-pull-request call generate_diff directly, without execute.
     """
-    org_config, _ = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    org_config, _ = _org_config_referencing(tmp_path, "pass:bots/other-project/token")
     monkeypatch.setattr(
         org_config.jsonnet_config,
         "default_org_config_for_org_id",
