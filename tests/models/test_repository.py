@@ -240,6 +240,38 @@ class TestRepository:
         provider.update_team_permission.assert_not_awaited()
         provider.add_team_permission.assert_not_awaited()
 
+    async def test_team_permissions_are_not_sent_with_repository_settings(self, repository_test):
+        repo = Repository.from_model_data(repository_test.model_data)
+        repo.set_team_permissions({"committers": "push"})
+
+        provider_data = await repo.to_provider_data(repository_test.org_id, repository_test.provider)
+
+        assert "team_permissions" not in provider_data
+
+    async def test_team_permission_change_of_archived_repository_does_not_update_its_settings(self, repository_test):
+        expected = Repository.from_model_data(repository_test.model_data)
+        current = Repository.from_model_data(repository_test.model_data)
+        expected.archived = True
+        current.archived = True
+        expected.set_team_permissions({})
+        current.set_team_permissions({"committers": "push"})
+        changes = expected.get_difference_from(current)
+
+        assert list(changes) == ["team_permissions"]
+
+        provider = pretend.stub(
+            get_skipped_repository_reason=lambda org_id, repo_name: None,
+            update_repo=AsyncMock(),
+            delete_team_permission=AsyncMock(),
+            update_team_permission=AsyncMock(),
+            add_team_permission=AsyncMock(),
+        )
+        patch = LivePatch.of_changes(expected, current, changes, None, False, expected.apply_live_patch)
+        await Repository.apply_live_patch(patch, "test-org", provider)
+
+        provider.update_repo.assert_awaited_once_with("test-org", current.name, {})
+        provider.delete_team_permission.assert_awaited_once_with("test-org", expected.name, "committers")
+
     def test_unset_team_permissions_remain_unmanaged(self, repository_test):
         expected = Repository.from_model_data(repository_test.model_data)
         current = Repository.from_model_data(repository_test.model_data)

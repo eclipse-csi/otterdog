@@ -1232,6 +1232,11 @@ class Repository(ModelObject):
         # code security configurations are attached with a separate request
         mapping.pop("code_security_configuration", None)
 
+        # team permissions are granted through the teams API, not by updating the repository. Sending them
+        # would also make a change of only the team permissions of an archived repository fail, as GitHub
+        # rejects any update of the settings of an archived repository.
+        mapping.pop("team_permissions", None)
+
         return mapping
 
     def resolve_secrets(self, secret_resolver: Callable[[str], str]) -> None:
