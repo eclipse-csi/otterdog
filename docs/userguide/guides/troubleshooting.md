@@ -55,6 +55,14 @@ Its **Validate** button also has the configuration of an organization validated 
 
 ## Secrets and webhooks
 
+**`<organization_codespaces|repository_codespaces> secrets of '<org>' are not available (GitHub answers 404 for '<path>'), they are skipped`** (Warning)
+
+: GitHub answers the Codespaces secrets endpoint with `404`, e.g. because Codespaces is not available for the
+  organization. Otterdog skips these secrets, other secrets are not affected. If the configuration declares
+  Codespaces secrets, the operation fails instead with `declares ... secrets which cannot be managed`, as they cannot
+  be compared with the live state: remove them, or make the endpoint available. To not read Codespaces secrets at
+  all, use a default configuration without `newOrgCodespacesSecret` and `newRepoCodespacesSecret`.
+
 **`<secret> only has a dummy value, resource will be skipped.`** (Info)
 **`<webhook> has a secret set, but only a dummy secret '********' is provided in the configuration, will be skipped.`** (Info)
 

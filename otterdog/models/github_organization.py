@@ -60,6 +60,7 @@ from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
+from otterdog.providers.github.rest.secret_client import SecretScope, SecretsNotAvailableError
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -1318,7 +1319,12 @@ class GitHubOrganization:
         @debug_times("codespaces_secrets")
         async def _load_codespaces_secrets() -> None:
             if jsonnet_config.default_org_codespaces_secret_config is not None:
-                github_secrets = await provider.get_org_codespaces_secrets(github_id)
+                try:
+                    github_secrets = await provider.get_org_codespaces_secrets(github_id)
+                except SecretsNotAvailableError as ex:
+                    _skip_unavailable_secrets(ex, github_id, expected_org.codespaces_secrets if expected_org else None)
+                    return
+
                 for secret in github_secrets:
                     org.add_codespaces_secret(OrganizationCodespacesSecret.from_provider_data(github_id, secret))
             else:
@@ -1612,6 +1618,35 @@ class _TeamIdentityProviderGroupLoader:
         return [TeamSync.from_provider_data(self._github_id, group) for group in groups or []]
 
 
+_warned_unavailable_secrets: set[tuple[str, SecretScope]] = set()
+
+
+def _skip_unavailable_secrets(
+    error: SecretsNotAvailableError, github_id: str, declared_secrets: Iterable[Any] | None
+) -> None:
+    """
+    Skip secrets that GitHub does not make available, e.g. Codespaces secrets of an organization
+    for which Codespaces is not enabled.
+
+    Declared secrets cannot be compared with the live state, so that is an error instead.
+    """
+    if is_set_and_present(declared_secrets) and len(list(declared_secrets)) > 0:  # type: ignore[arg-type]
+        raise RuntimeError(
+            f"{error}\nThe configuration of '{github_id}' declares {error.scope.value} secrets which cannot be "
+            f"managed, remove them or make the secrets available."
+        ) from error
+
+    # repositories are processed one by one, warn only once per organization and scope
+    if (github_id, error.scope) not in _warned_unavailable_secrets:
+        _warned_unavailable_secrets.add((github_id, error.scope))
+        _logger.warning(
+            "%s secrets of '%s' are not available (GitHub answers 404 for '%s'), they are skipped",
+            error.scope.value,
+            github_id,
+            error.path,
+        )
+
+
 async def _process_single_repo(
     gh_client: GitHubProvider,
     github_id: str,
@@ -1729,7 +1764,14 @@ async def _process_single_repo(
         _logger.debug("not reading repo Dependabot secrets, no default config available")
 
     if jsonnet_config.default_repo_codespaces_secret_config is not None:
-        secrets = await gh_client.get_repo_codespaces_secrets(github_id, repo_name)
+        try:
+            secrets = await gh_client.get_repo_codespaces_secrets(github_id, repo_name)
+        except SecretsNotAvailableError as ex:
+            _skip_unavailable_secrets(
+                ex, github_id, expected_repo.codespaces_secrets if expected_repo is not None else None
+            )
+            secrets = []
+
         for github_secret in secrets:
             repo.add_codespaces_secret(RepositoryCodespacesSecret.from_provider_data(github_id, github_secret))
     else:
