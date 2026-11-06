@@ -44,6 +44,10 @@ def is_org_settings_key_retrieved_via_web_ui(key: str) -> bool:
     return key in _SETTINGS_WEB_KEYS
 
 
+# the properties of an IdP group accepted when updating the team synchronization group mappings of a team
+_TEAM_SYNC_GROUP_KEYS = ("group_id", "group_name", "group_description")
+
+
 class GitHubProvider:
     def __init__(self, credentials: Credentials | None):
         self._credentials = credentials
@@ -253,6 +257,59 @@ class GitHubProvider:
 
     async def get_org_team_members(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
         return await self.rest_api.team.get_team_members(org_id, team_slug)
+
+    async def get_org_team_sync_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]] | None:
+        """
+        Returns the IdP groups connected to a team via team synchronization,
+        or None if team synchronization is not available for the organization.
+        """
+        return await self.rest_api.team.get_team_sync_groups(org_id, team_slug)
+
+    async def _get_org_team_sync_groups_for_update(self, org_id: str, team_slug: str) -> list[dict[str, Any]]:
+        groups = await self.get_org_team_sync_groups(org_id, team_slug)
+        if groups is None:
+            raise RuntimeError(f"team synchronization is not available for team '{org_id}/{team_slug}'")
+
+        # the group mappings are replaced as a whole when updated, only keep the supported properties
+        return [{key: group.get(key) or "" for key in _TEAM_SYNC_GROUP_KEYS} for group in groups]
+
+    async def update_org_team_sync_group(
+        self, org_id: str, team_slug: str, team_name: str, data: dict[str, Any]
+    ) -> None:
+        """
+        Connects an IdP group to a team or updates an already connected group, identified by its group_id,
+        keeping all other connected groups.
+        """
+        team_slug = await self._resolve_team_slug(org_id, team_slug, team_name)
+        groups = await self._get_org_team_sync_groups_for_update(org_id, team_slug)
+
+        group_id = data["group_id"]
+        new_groups = [data if group["group_id"] == group_id else group for group in groups]
+        if not any(group["group_id"] == group_id for group in groups):
+            new_groups.append(data)
+
+        await self.rest_api.team.update_team_sync_groups(org_id, team_slug, new_groups)
+
+    async def delete_org_team_sync_group(self, org_id: str, team_slug: str, team_name: str, group_id: str) -> None:
+        """
+        Disconnects an IdP group from a team, keeping all other connected groups.
+        """
+        team_slug = await self._resolve_team_slug(org_id, team_slug, team_name)
+        groups = await self._get_org_team_sync_groups_for_update(org_id, team_slug)
+
+        new_groups = [group for group in groups if group["group_id"] != group_id]
+        if len(new_groups) == len(groups):
+            _logger.debug("team sync group '%s' not connected to team '%s/%s'", group_id, org_id, team_slug)
+            return
+
+        await self.rest_api.team.update_team_sync_groups(org_id, team_slug, new_groups)
+
+    async def get_org_team_external_groups(self, org_id: str, team_slug: str) -> list[dict[str, Any]] | None:
+        """
+        Returns the external groups connected to a team,
+        or None if external groups are not available for the organization.
+        """
+        return await self.rest_api.team.get_team_external_groups(org_id, team_slug)
 
     async def add_org_team(self, org_id: str, team_name: str, data: dict[str, str]) -> None:
         await self.rest_api.team.add_team(org_id, team_name, data)

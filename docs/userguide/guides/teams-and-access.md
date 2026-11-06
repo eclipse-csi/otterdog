@@ -32,7 +32,7 @@ Related settings restrict what members can do on organization level, e.g. `membe
 
 ## Teams
 
-Teams are defined with [`orgs.newTeam`](../../reference/organization/team.md). Their members can be managed in the
+Teams are defined with [`orgs.newTeam`](../../reference/organization/team/index.md). Their members can be managed in the
 configuration or elsewhere:
 
 | Members managed ...                                     | Configuration                                                                                 |
@@ -40,6 +40,7 @@ configuration or elsewhere:
 | in the configuration                                    | `members` lists the GitHub logins                                                             |
 | elsewhere, e.g. in the GitHub web interface             | `skip_members: true`, otterdog manages the team but ignores its members                       |
 | by an external tool, including the team itself          | the team is excluded with `exclude_teams`, see [Organization-wide policies](../../operating_otterdog/organization-policies.md#teams-managed-by-another-tool) |
+| by an identity provider (IdP), with GitHub Enterprise Cloud | `team_sync` or `external_group_id` connects the team to IdP groups, see [Teams managed by an identity provider](#teams-managed-by-an-identity-provider) |
 
 ``` jsonnet
 orgs.newOrg('my-project', 'my-org') {
@@ -68,6 +69,56 @@ orgs.newOrg('my-project', 'my-org') {
 Teams with `privacy: "secret"` are only visible to their members and organization owners. Secret teams cannot be
 used as bypass actors of rulesets, see
 [Creating rulesets for a repository](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#granting-bypass-permissions-for-your-branch-or-tag-ruleset).
+
+### Teams managed by an identity provider
+
+On GitHub Enterprise Cloud, the members of a team can be provisioned by groups of an identity provider (IdP),
+depending on how the organization authenticates its members:
+
+- with [team synchronization](../../reference/organization/team/team-sync.md), up to five IdP groups, identified by
+  their id, are connected to a team with `team_sync`
+- with Enterprise Managed Users (EMU), a single external group is connected to a team with `external_group_id`
+
+The members of such a team are provisioned by the IdP, so `members` is not set and the current members of the team
+are ignored, see [Identity provider integration](../../reference/organization/team/index.md#identity-provider-integration).
+
+=== "Team synchronization"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      teams+: [
+        orgs.newTeam('admins') {
+          description: "Admins, provisioned by the IdP groups",
+          team_sync: [
+            orgs.newTeamSync('5d4b0a8e-2c19-4b5f-8d6c-1f2e3a4b5c6d') {
+              name: "git-admins",
+              description: "Admin access via the IdP",
+            },
+            orgs.newTeamSync('9f8e7d6c-5b4a-4321-8fed-cba987654321') {
+              name: "git-release-managers",
+            },
+          ],
+        },
+      ],
+    }
+    ```
+
+=== "External group (EMU)"
+
+    ``` jsonnet
+    orgs.newOrg('my-project', 'my-org') {
+      teams+: [
+        orgs.newTeam('admins') {
+          description: "Admins, provisioned by an external group",
+          external_group_id: 1234,
+        },
+      ],
+    }
+    ```
+
+The ids of the available groups can be listed with the GitHub REST API, see
+[List IdP groups for an organization](https://docs.github.com/en/enterprise-cloud@latest/rest/teams/team-sync#list-idp-groups-for-an-organization)
+and [List external groups available to an organization](https://docs.github.com/en/enterprise-cloud@latest/rest/teams/external-groups#list-external-groups-available-to-an-organization).
 
 ## Grant teams access to repositories
 

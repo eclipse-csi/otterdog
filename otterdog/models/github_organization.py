@@ -59,6 +59,7 @@ from otterdog.models.repo_webhook import RepositoryWebhook
 from otterdog.models.repo_workflow_settings import RepositoryWorkflowSettings
 from otterdog.models.repository import Repository
 from otterdog.models.team import Team
+from otterdog.models.team_sync import TeamSync
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -1260,6 +1261,8 @@ class GitHubOrganization:
                     jsonnet_config.default_org_config_for_org_id(project_name, github_id)
                 )
 
+                idp_group_loader = _TeamIdentityProviderGroupLoader(provider, github_id, jsonnet_config)
+
                 github_teams = await provider.get_org_teams(github_id)
                 for team in github_teams:
                     team_name = team["name"]
@@ -1274,7 +1277,14 @@ class GitHubOrganization:
                         continue
                     team_members = await provider.get_org_team_members(github_id, team_slug)
                     team["members"] = team_members
-                    org.add_team(Team.from_provider_data(github_id, team))
+
+                    await idp_group_loader.add_external_groups(team_slug, team)
+
+                    team_model = Team.from_provider_data(github_id, team)
+                    for team_sync in await idp_group_loader.get_team_sync_groups(team_slug):
+                        team_model.add_team_sync(team_sync)
+
+                    org.add_team(team_model)
             else:
                 _logger.debug("not reading teams, no default config available")
 
@@ -1564,6 +1574,42 @@ def _get_attached_code_security_configurations(
         for repo in current_organization.repositories
         if is_set_and_present(repo.code_security_configuration) and repo.code_security_configuration in by_name
     }
+
+
+class _TeamIdentityProviderGroupLoader:
+    """
+    Retrieves the identity provider groups connected to the teams of an organization.
+
+    The groups are only retrieved if supported by the default configuration, and a mechanism
+    is skipped for the remaining teams once it is not available for the organization.
+    """
+
+    def __init__(self, provider: GitHubProvider, github_id: str, jsonnet_config: JsonnetConfig) -> None:
+        self._provider = provider
+        self._github_id = github_id
+        self._load_external_groups = "external_group_id" in (jsonnet_config.default_team_config or {})
+        self._external_groups_available = self._load_external_groups
+        self._team_sync_available = jsonnet_config.default_team_sync_config is not None
+
+    async def add_external_groups(self, team_slug: str, team_data: dict[str, Any]) -> None:
+        if not self._load_external_groups:
+            return
+
+        external_groups = None
+        if self._external_groups_available:
+            external_groups = await self._provider.get_org_team_external_groups(self._github_id, team_slug)
+            self._external_groups_available = external_groups is not None
+
+        # if external groups are not available, the team is not connected to any
+        team_data["external_groups"] = external_groups or []
+
+    async def get_team_sync_groups(self, team_slug: str) -> list[TeamSync]:
+        if not self._team_sync_available:
+            return []
+
+        groups = await self._provider.get_org_team_sync_groups(self._github_id, team_slug)
+        self._team_sync_available = groups is not None
+        return [TeamSync.from_provider_data(self._github_id, group) for group in groups or []]
 
 
 async def _process_single_repo(

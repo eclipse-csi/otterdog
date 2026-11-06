@@ -278,22 +278,22 @@ export function literalsOf(problem, value, literals) {
 
 // Whether the object at a path can have been created by a call: validated with the schema of the objects that its
 // function creates, see validate, if it is known, e.g. for newRepo but not for a function of the configuration, and
-// having the name passed to the call if it is named.
+// having the name, or the key, passed to the call if it is named.
 function createdBy(call, path, value, refs) {
   const schema = schemaOfFunction(call.function);
   return (schema === null || refs.some((ref) => ref.ref === schema && samePath(ref.path, path)))
-    && hasName(valueAt(value, path), call.firstArgument);
+    && hasFirstArgument(valueAt(value, path), call);
 }
 
 // Whether the object at a path is within the objects created by calls, innermost first: the nearest object containing
-// it that was validated with the schema of the objects of a call, if any, has the name passed to the call.
+// it that was validated with the schema of the objects of a call, if any, has the name, or the key, passed to the call.
 function isWithin(calls, path, value, refs) {
   let inner = path;
   for (const call of calls) {
     const schema = schemaOfFunction(call.function);
     const ref = refs.findLast((r) => r.ref === schema && r.path.length < inner.length && startsWith(inner, r.path));
     if (ref !== undefined) {
-      if (!hasName(valueAt(value, ref.path), call.firstArgument)) {
+      if (!hasFirstArgument(valueAt(value, ref.path), call)) {
         return false;
       }
       inner = ref.path;
@@ -302,7 +302,15 @@ function isWithin(calls, path, value, refs) {
   return true;
 }
 
-const hasName = (object, name) => name === undefined || !isObject(object) || !("name" in object) || object.name === name;
+// the property set to the first argument of the functions creating objects whose key is not their name,
+// e.g. newTeamSync('<id>') { name: "<name>" }
+const FIRST_ARGUMENT_PROPERTIES = {newTeamSync: "id"};
+
+// whether an object has the first argument passed to the call creating it, if the call is named
+function hasFirstArgument(object, call) {
+  const property = FIRST_ARGUMENT_PROPERTIES[call.function] ?? "name";
+  return call.firstArgument === undefined || !isObject(object) || !(property in object) || object[property] === call.firstArgument;
+}
 
 const valueAt = (value, path) => path.reduce((parent, key) => parent?.[key], value);
 

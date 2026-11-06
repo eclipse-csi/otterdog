@@ -59,7 +59,7 @@ by many organizations, and administrators can also apply changes with the `otter
 ## What otterdog manages
 
 - **Organizations**: [settings](reference/organization/settings.md), [roles](reference/organization/role.md),
-  [teams](reference/organization/team.md), [webhooks](reference/organization/webhook.md),
+  [teams](reference/organization/team/index.md), [webhooks](reference/organization/webhook.md),
   [secrets](reference/organization/secret.md) and [variables](reference/organization/variable.md),
   [rulesets](reference/organization/ruleset.md), [custom properties](reference/organization/custom-property.md) and
   [code security configurations](reference/organization/code-security-configuration.md).

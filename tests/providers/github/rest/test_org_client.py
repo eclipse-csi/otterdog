@@ -50,6 +50,40 @@ class TestRestClientOptionalJson:
 
         assert result is None
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            '{"message": "API rate limit exceeded for installation ID 1."}',
+            '{"message": "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}',
+        ],
+    )
+    async def test_get_optional_json_raises_when_rate_limited(self, body):
+        # a rate limit does not mean that the endpoint is not available
+        async def mock_request(method, url):
+            return 403, body
+
+        org_client = OrgClient(pretend.stub(requester=pretend.stub(request_raw=mock_request)))
+
+        with pytest.raises(RuntimeError, match="cache size for org 'org': 403"):
+            await org_client._get_optional_json(
+                "/orgs/org/actions/cache/storage-limit",
+                feature_description="cache size for org 'org'",
+            )
+
+    async def test_get_optional_json_access_denied(self):
+        # a denied access is only taken as an unavailable endpoint if not requested otherwise
+        async def mock_request(method, url):
+            return 403, '{"message": "Resource not accessible by integration"}'
+
+        org_client = OrgClient(pretend.stub(requester=pretend.stub(request_raw=mock_request)))
+        url = "/orgs/org/actions/cache/storage-limit"
+
+        assert await org_client._get_optional_json(url, feature_description="cache size for org 'org'") is None
+        with pytest.raises(RuntimeError, match="cache size for org 'org': 403"):
+            await org_client._get_optional_json(
+                url, feature_description="cache size for org 'org'", raise_on_access_denied=True
+            )
+
     async def test_get_optional_json_raises_for_unexpected_status(self):
         async def mock_request(method, url):
             return 500, "internal server error"

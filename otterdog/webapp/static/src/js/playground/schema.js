@@ -9,6 +9,7 @@ const FUNCTION_SCHEMAS = {
   newCustomProperty: "custom-property.json",
   newOrgRole: "org-role.json",
   newTeam: "team.json",
+  newTeamSync: "team-sync.json",
   newOrgWebhook: "webhook.json",
   newOrgSecret: "org-secret.json",
   newOrgDependabotSecret: "org-secret.json",
@@ -112,6 +113,8 @@ function check(value, schema, context) {
     checkObject(value, schema, context, evaluated);
   } else if (Array.isArray(value)) {
     checkList(value, schema, context);
+  } else if (typeof value === "string") {
+    checkString(value, schema, context);
   }
   return evaluated;
 }
@@ -193,12 +196,26 @@ function checkProperty(value, schema, context) {
   }
 }
 
+// the length of a string is its number of characters (code points), like for JSON schema
+function checkString(value, schema, context) {
+  const length = [...value].length;
+  if (schema.minLength !== undefined && length < schema.minLength) {
+    report(context, "error", "expected at least " + schema.minLength + " character(s)");
+  }
+  if (schema.maxLength !== undefined && length > schema.maxLength) {
+    report(context, "error", "expected at most " + schema.maxLength + " character(s)");
+  }
+}
+
 function checkList(value, schema, context) {
   if (schema.items !== undefined) {
     value.forEach((item, index) => check(item, schema.items, {...context, path: [...context.path, index]}));
   }
   if (schema.minItems !== undefined && value.length < schema.minItems) {
     report(context, "error", "expected at least " + schema.minItems + " element(s)");
+  }
+  if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+    report(context, "error", "expected at most " + schema.maxItems + " element(s)");
   }
   if (schema.uniqueItems && new Set(value.map((item) => JSON.stringify(item))).size < value.length) {
     report(context, "error", "contains duplicate elements");

@@ -74,8 +74,45 @@ test("the objects created by the functions of the default configuration are vali
   assert.equal(schemaOfFunction("newOrgDependabotSecret"), "org-secret.json");
   assert.equal(schemaOfFunction("newRepoCodespacesSecret"), "repo-secret.json");
   assert.equal(schemaOfFunction("newOrgCodeSecurityConfiguration"), "org-code-security-configuration.json");
+  assert.equal(schemaOfFunction("newTeamSync"), "team-sync.json");
   assert.equal(schemaOfFunction("unknown"), null);
   assert.deepEqual(validate({required_approving_review_count: "0"}, schemaOfFunction("newPullRequest"), SCHEMAS).map((problem) => problem.path), [["required_approving_review_count"]]);
+  assert.deepEqual(validate({id: "123", name: 7, description: ""}, schemaOfFunction("newTeamSync"), SCHEMAS).map((problem) => problem.path), [["name"]]);
+});
+
+test("the number of elements of lists is validated", () => {
+  // at most 5 IdP groups can be connected to a team
+  const team = (count) => ({
+    name: "admins",
+    privacy: "visible",
+    team_sync: Array.from({length: count}, (_, index) => ({id: String(index), name: "group-" + index, description: ""})),
+  });
+
+  assert.deepEqual(validate(team(5), "team.json", SCHEMAS), []);
+  assert.deepEqual(validate(team(6), "team.json", SCHEMAS).map((problem) => [problem.path, problem.message]), [
+    [["team_sync"], "expected at most 5 element(s)"],
+  ]);
+});
+
+test("the length of strings is validated", () => {
+  // the default name of a team sync group is empty
+  assert.deepEqual(validate({id: "", name: "", description: ""}, "team-sync.json", SCHEMAS).map((problem) => [problem.path, problem.message]), [
+    [["id"], "expected at least 1 character(s)"],
+    [["name"], "expected at least 1 character(s)"],
+  ]);
+  assert.deepEqual(validate({id: "123", name: "admins", description: ""}, "team-sync.json", SCHEMAS), []);
+  // characters are counted as code points
+  const configuration = (description) => validate({name: "config", description}, "org-code-security-configuration.json", SCHEMAS)
+    .filter((problem) => problem.path[0] === "description");
+  assert.deepEqual(configuration("🦦".repeat(255)), []);
+  assert.deepEqual(configuration("a".repeat(256)).map((problem) => problem.message), ["expected at most 255 character(s)"]);
+});
+
+test("every function of the reference catalog is validated with a schema", () => {
+  const catalog = JSON.parse(fs.readFileSync(new URL("../../../../home/playground-reference.json", import.meta.url)));
+  const functionsWithoutSchema = Object.keys(catalog.functions).filter((name) => schemaOfFunction(name) === null);
+
+  assert.deepEqual(functionsWithoutSchema, []);
 });
 
 test("values that otterdog does not allow are errors, e.g. an unknown code scanning language", () => {

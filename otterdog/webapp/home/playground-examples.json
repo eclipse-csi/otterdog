@@ -437,6 +437,18 @@
           "code": "orgs.newOrg('my-project', 'my-org') {\n  teams+: [\n    orgs.newTeam('maintainers') {\n      description: \"Maintainers of the project\",\n      members+: [\n        \"alice\",\n        \"bob\",\n      ],\n    },\n    orgs.newTeam('contributors') {\n      description: \"Contributors, managed in the GitHub web interface\",\n      skip_members: true,\n    },\n  ],\n}\n"
         },
         {
+          "title": "Teams managed by an identity provider",
+          "variant": "Team synchronization",
+          "anchor": "teams-managed-by-an-identity-provider",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  teams+: [\n    orgs.newTeam('admins') {\n      description: \"Admins, provisioned by the IdP groups\",\n      team_sync: [\n        orgs.newTeamSync('5d4b0a8e-2c19-4b5f-8d6c-1f2e3a4b5c6d') {\n          name: \"git-admins\",\n          description: \"Admin access via the IdP\",\n        },\n        orgs.newTeamSync('9f8e7d6c-5b4a-4321-8fed-cba987654321') {\n          name: \"git-release-managers\",\n        },\n      ],\n    },\n  ],\n}\n"
+        },
+        {
+          "title": "Teams managed by an identity provider",
+          "variant": "External group (EMU)",
+          "anchor": "teams-managed-by-an-identity-provider",
+          "code": "orgs.newOrg('my-project', 'my-org') {\n  teams+: [\n    orgs.newTeam('admins') {\n      description: \"Admins, provisioned by an external group\",\n      external_group_id: 1234,\n    },\n  ],\n}\n"
+        },
+        {
           "title": "Grant teams access to repositories",
           "variant": null,
           "anchor": "grant-teams-access-to-repositories",

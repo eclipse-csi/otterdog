@@ -102,7 +102,7 @@ team_permissions: {
 | `admin`    | Admin       | Full access to the repository, including sensitive and destructive actions      |
 
 Teams are referenced by their slug (e.g. a team named `Project Leads` has the slug `project-leads`), not by their
-display name. The team must exist in the organization, e.g. defined via [orgs.newTeam](../team.md).
+display name. The team must exist in the organization, e.g. defined via [orgs.newTeam](../team/index.md).
 
 !!! note
 
