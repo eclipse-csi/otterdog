@@ -11,7 +11,10 @@ To start using the cli part of `otterdog` right away on a specific organization 
 ### Default configuration
 
 The example [default config](https://github.com/eclipse-csi/otterdog/blob/main/otterdog/resources/defaults/otterdog-defaults.libsonnet) has all supported features enabled and can be used right away.
-However, it is advised to use a released tag instead of `main` to avoid incompatibilities.
+However, reference a released tag or a commit SHA instead of `main` in `base_template`, the ref after `@` in the
+example below, to avoid incompatibilities and unreviewed changes. A branch is pulled on every run: every push to it
+changes the inherited values of your organizations and the [validation scripts](organization-policies.md#enforce-settings-with-validation-scripts) that otterdog executes
+with your credentials. Otterdog logs a warning when `base_template` references a branch.
 
 A change of the default configuration applies to all the organizations using it. Its impact can be evaluated
 beforehand on the **Template impact** page of the administration of the otterdog dashboard: the files of the default

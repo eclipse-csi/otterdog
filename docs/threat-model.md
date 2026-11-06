@@ -48,6 +48,32 @@ A4. WebApp dependencies include MongoDB and Redis/Valkey; the install guide stat
 
 A5. WebApp exposes internal management endpoints under `/internal/`, including an initialization endpoint `/internal/init`, and the install guide recommends restricting internal endpoints via ingress rules. ([otterdog.readthedocs.io][4])
 
+A6. Otterdog runs with the credentials of an organization owner (CLI) or of the GitHub App (WebApp). Whoever controls a trusted input below controls what otterdog does with these credentials.
+
+### Trusted and untrusted inputs
+
+Trusted inputs are provided by the operators of otterdog and are equivalent to code:
+
+| Input | Why it is trusted |
+|-------|-------------------|
+| `otterdog.json` | Written by the operator. It selects the organizations, the credential providers and their parameters, and the default configuration (`base_template`). |
+| Default configuration: the repository and ref referenced by `base_template` | Provides the inherited value of every setting of every organization that uses it. Its Python scripts (`validate-org-settings.py`, `validate-team.py`, `pre-add-object-hook.py`, `post-add-objects-hook.py`) are executed by otterdog during `validate`, `plan`, `apply` and the validation of pull requests, with the permissions and credentials of the process, see [Organization-wide policies](operating_otterdog/organization-policies.md#enforce-settings-with-validation-scripts). |
+| Local working directory | The configurations of the organizations and their `vendor/` directory. With `--local`, the default configuration in `vendor/` is used as is, without fetching it. |
+| Installation | The otterdog package and its dependencies, the credential tools it calls (`pass`, `bw`, Vault). |
+| WebApp deployment | Helm values and environment variables, the GitHub App private key, the token of the configuration repository. |
+
+Untrusted inputs must not lead to code execution, to file access outside the directory of the organization, or to the disclosure of credentials:
+
+| Input | Handling |
+|-------|----------|
+| Pull requests to the configuration repository of an organization (WebApp) | Only `otterdog/<github-id>.jsonnet` is fetched from the pull request and written to a fixed path. It is evaluated with imports restricted to the directory of the organization. The default configuration comes from `otterdog.json`, never from the pull request. |
+| Webhook deliveries | Rejected unless their signature matches the webhook secret. |
+| Data returned by GitHub (APIs and Web UI) | Processed as data. |
+
+### Not considered vulnerabilities
+
+Issues that require control of a trusted input, e.g. a malicious `otterdog.json`, a compromised default configuration repository, or files placed in the local working directory, are not vulnerabilities of otterdog: controlling these inputs already gives control over the managed organizations. Their protection is part of operating otterdog, see T5 below. Report an issue anyway if an untrusted party can reach a trusted input in a documented setup. Hardening suggestions are welcome as regular issues.
+
 ## 5. Assets (what must be protected)
 
 ### A. GitHub organization integrity (highest priority)
@@ -74,7 +100,7 @@ WebApp side:
 ### C. Configuration repository integrity
 
 * Jsonnet/JSON files defining desired state
-* Defaults templates and imports
+* Default configuration referenced by `base_template`: its Jsonnet defaults, and the Python scripts that otterdog executes
 * CI policy/validation logic
 
 ### D. Audit evidence
@@ -95,6 +121,7 @@ TB2. Config repository boundary (PRs, reviews, CI checks, merge protection)
 TB3. Network boundary to GitHub (API + Web UI automation)
 TB4. Kubernetes cluster boundary (WebApp ingress, internal endpoints, service-to-service traffic)
 TB5. Persistence boundary (MongoDB, Redis/Valkey without auth) ([otterdog.readthedocs.io][4])
+TB6. Default configuration boundary (repository referenced by `base_template`, its ref, who can push to it)
 
 ### Data flow diagram (DFD)
 
@@ -115,6 +142,7 @@ flowchart LR
     API["REST/GraphQL APIs"]
     WEB[Web UI]
     ORG[Org state]
+    DEFAULTS["Default configuration repo (base_template)"]
   end
 
   subgraph K8S["Kubernetes (Otterdog WebApp)"]
@@ -134,6 +162,9 @@ flowchart LR
   CLI --> WEB
   API --> ORG
   WEB --> ORG
+
+  DEFAULTS -->|"clone of the ref: Jsonnet + Python scripts"| CLI
+  DEFAULTS -->|"clone of the ref: Jsonnet + Python scripts"| APP
 
   GH -->|webhooks| INGRESS --> APP
   APP --> MONGO
@@ -159,7 +190,12 @@ Admin laptop / CLI:
 Config repo:
 
 * Pull requests and merges (governance and CI enforcement)
-* Jsonnet evaluation and imports
+* Jsonnet evaluation and imports (in the WebApp, imports of a pull request are restricted to the directory of the organization)
+
+Default configuration repository:
+
+* Pushes to the ref referenced by `base_template`; a branch is pulled on every run
+* Python scripts executed by otterdog with its credentials
 
 WebApp:
 
@@ -233,6 +269,15 @@ Controls:
 * Restrict `/internal/*` at ingress to a management CIDR/VPN only.
 * Add another auth layer (mTLS or an auth proxy) if feasible.
 * Alert on any access to `/internal/*`.
+
+Threat T5: Compromised or mutable default configuration
+The default configuration referenced by `base_template` defines the inherited values of every organization using it, and otterdog executes its Python scripts with its credentials: organization owner credentials on admin laptops, the GitHub App private key in the WebApp. Whoever can push to the referenced ref controls all these organizations, and can run code at the next `validate`, `plan` or pull request validation, without any change to the configuration of an organization. A branch, e.g. `@main`, is pulled on every run, so every push to it takes effect immediately.
+Controls:
+
+* Reference a tag or a commit SHA in `base_template`, not a branch. A tag or a commit is checked out once and not updated afterwards; otterdog logs a warning when `base_template` references a branch.
+* Prefer a commit SHA when the repository of the default configuration is not under your control; otherwise protect its tags with a ruleset that prevents their update and deletion.
+* Protect the repository of the default configuration like code: restricted push access, required reviews, no force pushes.
+* Review the Python scripts with every new version of the default configuration, and run `plan` for the affected organizations before switching to it.
 
 ### 8.3 Repudiation (denying actions)
 
@@ -313,6 +358,7 @@ Controls:
 | R-04 | Redis/Valkey abuse in-cluster (no auth)                   |     Medium |     High |       P1 | NetworkPolicies + namespace isolation + monitoring               |
 | R-05 | Over-scoped PAT includes `delete_repo`                    |     Medium | Critical |       P0 | Remove scope, split tokens, break-glass process                  |
 | R-06 | Lack of apply audit trail                                 |       High |   Medium |       P1 | Wrapper logging + immutable central store + correlation          |
+| R-07 | Default configuration referenced by a branch or compromised runs code with otterdog credentials | Low | Critical | P1 | Tag or commit SHA in `base_template`, protected repository and tags, review of scripts |
 
 ## 10. Security requirements (opinionated baseline)
 
@@ -342,6 +388,11 @@ Controls:
   * new webhooks without explicit approval
   * reductions in ruleset/protection strictness
   * expansions of bypass actors and admin roles without security approval
+* Default configuration:
+
+  * `base_template` references a tag or a commit SHA, never a branch
+  * the repository of the default configuration and its tags are protected like the configuration repository
+  * changes to its Python scripts are reviewed like code
 
 ### 10.4 WebApp hardening (MUST)
 
@@ -391,6 +442,9 @@ These are intentionally strict “guardrails” you can implement as CI policy c
 
   * configs must not reference `provider: plain` ([otterdog.readthedocs.io][3])
   * break-glass credentials must not be used by default in daily workflows
+* Default configuration:
+
+  * every `base_template` in `otterdog.json` ends with a tag or a commit SHA, not a branch
 
 
 [1]: https://otterdog.readthedocs.io/en/latest/developing_otterdog/architecture/ "Architecture - otterdog"

@@ -188,6 +188,6 @@ default configuration.
 
 !!! tip "Recommendation"
 
-    Reference a released version of the default configuration in `base_template`, e.g. `...@v1.2.0` instead of
-    `...@main`. Before switching to a newer version, review its changes and run a `plan` operation for the
+    Reference a released version of the default configuration in `base_template`, e.g. `...@v1.2.0`, or a commit
+    SHA instead of `...@main`. Before switching to a newer version, review its changes and run a `plan` operation for the
     affected organizations to see their impact.

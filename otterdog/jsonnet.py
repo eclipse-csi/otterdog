@@ -22,6 +22,8 @@ from .utils import jsonnet_evaluate_snippet, parse_github_url, parse_template_ur
 _template_lock = Lock()
 # the updates of the cached templates, see JsonnetConfig._init_base_template, referenced until they complete
 _template_updates: set[Task] = set()
+# the base templates referencing a branch that have been reported, to warn once per process instead of on every use
+_reported_branch_templates: set[tuple[str, str]] = set()
 _logger = get_logger(__name__)
 
 
@@ -571,15 +573,35 @@ class JsonnetConfig:
             _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
             with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
                 repo.git.checkout(self._base_template_ref)
+                references_branch = not repo.head.is_detached
         else:
             with git.Repo(template_dir) as repo:
-                if not repo.head.is_detached:
+                # a tag or a commit is checked out as a detached head and never pulled again
+                references_branch = not repo.head.is_detached
+                if references_branch:
                     _logger.debug(
                         "pulling changes from base template url '%s' with ref '%s'",
                         self._base_template_repo_url,
                         repo.head.ref,
                     )
                     repo.remotes.origin.pull()
+
+        if references_branch:
+            self._warn_about_branch_reference()
+
+    def _warn_about_branch_reference(self) -> None:
+        # the content of a branch, including the python scripts of the template that otterdog executes,
+        # changes with every push to it, see docs/threat-model.md
+        template = (self._base_template_repo_url, self._base_template_ref)
+        if template in _reported_branch_templates:
+            return
+
+        _reported_branch_templates.add(template)
+        _logger.warning(
+            "base template '%s' references the branch '%s': every push to it changes the default configuration and "
+            "the python scripts that otterdog executes from it, reference a tag or a commit SHA instead",
+            *template,
+        )
 
     def __repr__(self) -> str:
         return f"JsonnetConfig('{self.base_dir}, '{self._base_template_file}')"

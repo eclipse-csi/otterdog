@@ -29,3 +29,11 @@ Please include as much of the information listed below as you can to help us bet
 * Proof-of-concept or exploit code (if possible)
 
 This information will help us triage your report more quickly.
+
+## Scope
+
+Otterdog executes with the credentials of the organizations it manages. Some of its inputs are trusted and are equivalent
+to code, in particular the `otterdog.json` configuration and the default configuration referenced by its
+`base_template`, whose Python scripts otterdog executes. Issues that require control of such an input are not considered
+vulnerabilities. The trusted and untrusted inputs are listed in the
+[threat model](docs/threat-model.md#trusted-and-untrusted-inputs).
