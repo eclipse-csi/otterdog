@@ -191,7 +191,7 @@ class DiffOperation(Operation):
         diff_status = DiffStatus()
         live_patches = []
 
-        validation_status = await self.validate(expected_org, jsonnet_config)
+        validation_status = await self.validate(expected_org, jsonnet_config, org_config)
         if self.handle_validation_status(validation_status):
             try:
                 current_org = await self.load_current_org(org_config.name, github_id, jsonnet_config, expected_org)
@@ -243,9 +243,11 @@ class DiffOperation(Operation):
 
             # resolve secrets for collected patches
             if self.resolve_secrets():
+                # enforces the secret access policy of the organization
+                secret_resolver = self.credential_resolver.for_organization(org_config)
                 for live_patch in live_patches:
                     if live_patch.expected_object is not None:
-                        live_patch.expected_object.resolve_secrets(self.credential_resolver.get_secret)
+                        live_patch.expected_object.resolve_secrets(secret_resolver.get_secret)
 
         return DiffResult(github_id, diff_status, validation_status, live_patches)
 
@@ -259,8 +261,11 @@ class DiffOperation(Operation):
     def coerce_current_org(self) -> bool:
         return False
 
-    async def validate(self, expected_org: GitHubOrganization, jsonnet_config: JsonnetConfig) -> ValidationStatus:
-        return await self._validator.validate(expected_org, jsonnet_config, self.gh_client)
+    async def validate(
+        self, expected_org: GitHubOrganization, jsonnet_config: JsonnetConfig, org_config: OrganizationConfig
+    ) -> ValidationStatus:
+        # org_config is passed, as generate_diff can be called without execute, e.g. by push-config
+        return await self._validator.validate(expected_org, jsonnet_config, self.gh_client, org_config)
 
     def handle_validation_status(self, validation_status: ValidationStatus) -> bool:
         if validation_status.infos > 0 and not self.printer.is_info_enabled():

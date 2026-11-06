@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 
 _logger = get_logger(__name__)
 
+# the credential providers from which the configuration of an organization can reference secrets
+SECRET_PROVIDER_TYPES = frozenset({"pass", "bitwarden", "vault"})
+
 
 @dataclasses.dataclass
 class Credentials:

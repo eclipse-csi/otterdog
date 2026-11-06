@@ -33,6 +33,7 @@ from werkzeug.routing import BuildError
 import otterdog
 from otterdog import resources
 from otterdog.config import OrganizationConfig, OtterdogConfig
+from otterdog.credentials.secret_access_policy import SecretAccessPolicy
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.utils import PrettyFormatter, associate_by_key, parse_template_url
@@ -632,7 +633,11 @@ async def validate_playground(project_name: str):
         base_dir = get_temporary_base_directory()
         async with aiofiles.tempfile.TemporaryDirectory(dir=base_dir) as work_dir:
             org_config = await get_organization_config(installation, "", base_dir, work_dir)
-            return await _validate_playground_configuration(otterdog_config, org_config.jsonnet_config, data, origin)
+            # the policy of the project of the url, not of the names in the posted configuration
+            secret_access_policy = otterdog_config.get_secret_access_policy(org_config)
+            return await _validate_playground_configuration(
+                otterdog_config, org_config.jsonnet_config, data, origin, secret_access_policy
+            )
 
     result = await _validation_slots.run(validate)
     return _too_many_validations(origin) if result is None else result
@@ -742,7 +747,11 @@ _VALIDATED_NAME = re.compile(r"[\w.-]+")
 
 
 async def _validate_playground_configuration(
-    otterdog_config: OtterdogConfig, jsonnet_config: JsonnetConfig, data: dict[str, Any], origin: str
+    otterdog_config: OtterdogConfig,
+    jsonnet_config: JsonnetConfig,
+    data: dict[str, Any],
+    origin: str,
+    secret_access_policy: SecretAccessPolicy | None = None,
 ) -> dict[str, Any]:
     """
     Validates an evaluated configuration, returns its problems {severity, message}, severity being 'error', 'warning'
@@ -777,7 +786,9 @@ async def _validate_playground_configuration(
     # without provider, the validation never waits, e.g. evaluating the default configuration, it is run apart too
     context = await to_thread(
         asyncio.run,
-        organization.validate(otterdog_config, jsonnet_config, CredentialResolver(otterdog_config), None),
+        organization.validate(
+            otterdog_config, jsonnet_config, CredentialResolver(otterdog_config), None, secret_access_policy
+        ),
     )
     # otterdog only logs the unknown properties, which it ignores
     problems = [

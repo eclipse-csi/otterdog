@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping, Sequence
 
     from otterdog.config import SecretResolver
+    from otterdog.credentials.secret_access_policy import SecretAccessPolicy
     from otterdog.jsonnet import JsonnetConfig
     from otterdog.models.organization_code_security_configuration import CodeSecurityConfigurationPlan
     from otterdog.providers.github import GitHubProvider
@@ -74,9 +75,24 @@ class ValidationContext:
     exclude_teams_pattern: ExclusionPatterns | None
     validation_failures: list[tuple[FailureType, str]] = dataclasses.field(default_factory=list)
     provider: GitHubProvider | None = None
+    # None if the secrets that the organization can reference are not restricted
+    secret_access_policy: SecretAccessPolicy | None = None
 
     def add_failure(self, failure_type: FailureType, message: str):
         self.validation_failures.append((failure_type, message))
+
+    def validate_secret_reference(self, model_header: str, secret_data: str) -> None:
+        """Reports a reference to a secret that the organization is not allowed to use, see SecretAccessPolicy."""
+        if self.secret_access_policy is None:
+            return
+
+        violation = self.secret_access_policy.check(secret_data)
+        if violation is not None:
+            self.add_failure(
+                FailureType.ERROR if self.secret_access_policy.is_enforced else FailureType.WARNING,
+                f"{model_header} references secret '{escape(secret_data)}' that the organization is not allowed to "
+                f"use: {escape(violation)}.",
+            )
 
     def property_equals(self, model_object, key, value):
         current_value = model_object.__getattribute__(key)

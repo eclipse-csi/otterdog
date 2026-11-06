@@ -702,7 +702,7 @@ async def test_project_playground_validates_with_the_template_of_the_organizatio
         jsonnet_config = await routes._example_jsonnet_config(work_dir)
         script = Path(jsonnet_config.template_dir) / "validate-org-settings.py"
         script.write_text('context.property_equals(self, "default_repository_permission", "none")\n')
-        return pretend.stub(jsonnet_config=jsonnet_config)
+        return pretend.stub(name="my-project", github_id="my-org", jsonnet_config=jsonnet_config)
 
     monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
     monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=_otterdog_config({})))
@@ -721,6 +721,43 @@ async def test_project_playground_validates_with_the_template_of_the_organizatio
         "validated a configuration for the playground of project 'my-project' by an anonymous user in "
     )
     assert "posted-org" not in record.getMessage()
+
+
+async def test_project_playground_validates_the_secrets_with_the_policy_of_the_project(app, monkeypatch, tmp_path):
+    installation = pretend.stub(project_name="my-project", github_id="my-org")
+
+    async def organization_config(org_model, token, base_dir, work_dir):
+        jsonnet_config = await routes._example_jsonnet_config(work_dir)
+        return pretend.stub(name="my-project", github_id="my-org", jsonnet_config=jsonnet_config)
+
+    otterdog_config = OtterdogConfig.from_dict(
+        {"defaults": {"secrets": {"allowed_references": {"pass": ["bots/{org_name}/**"]}}}, "organizations": []},
+        False,
+        str(tmp_path),
+    )
+    monkeypatch.setattr(routes, "get_temporary_base_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(routes, "get_otterdog_config", mock.AsyncMock(return_value=otterdog_config))
+    monkeypatch.setattr(routes, "get_installation_by_project_name", mock.AsyncMock(return_value=installation))
+    monkeypatch.setattr(routes, "get_organization_config", organization_config)
+
+    # the names posted with the configuration do not change the allowed references
+    secrets = """
+  secrets+: [
+    orgs.newOrgSecret('ALLOWED') { value: 'pass:bots/my-project/token' },
+    orgs.newOrgSecret('DENIED') { value: 'pass:bots/other-project/token' },
+  ],
+"""
+    data = _evaluated(secrets, project_name="other-project", github_id="other-org")
+    async with app.test_request_context("/projects/my-project/playground/validate", method="POST", json=data):
+        result = await routes.validate_playground("my-project")
+
+    assert _errors(result) == [
+        (
+            "org_secret[name=\"DENIED\"] references secret 'pass:bots/other-project/token' that the organization is "
+            "not allowed to use: 'bots/other-project/token' does not match the allowed references of provider "
+            "'pass': 'bots/my-project/**'."
+        )
+    ]
 
 
 async def test_project_playground_validation_of_an_unknown_project(app, monkeypatch):

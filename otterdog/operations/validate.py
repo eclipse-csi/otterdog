@@ -76,7 +76,7 @@ class ValidateOperation(Operation):
                 return 1
 
             async with GitHubProvider(credentials) as provider:
-                validation_status = await self.validate(organization, jsonnet_config, provider)
+                validation_status = await self.validate(organization, jsonnet_config, provider, org_config)
 
             if validation_status.total_notices() == 0:
                 self.printer.println("[green]Validation succeeded[/]")
@@ -110,11 +110,18 @@ class ValidateOperation(Operation):
         organization: GitHubOrganization,
         jsonnet_config: JsonnetConfig,
         provider: GitHubProvider,
+        org_config: OrganizationConfig,
     ) -> ValidationStatus:
         if organization.secrets_resolved is True:
             raise RuntimeError("validation requires an unresolved model.")
 
-        context = await organization.validate(self.config, jsonnet_config, self.credential_resolver, provider)
+        context = await organization.validate(
+            self.config,
+            jsonnet_config,
+            self.credential_resolver,
+            provider,
+            self.config.get_secret_access_policy(org_config),
+        )
 
         validation_status = ValidationStatus()
 
