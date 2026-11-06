@@ -259,11 +259,9 @@ def show(organizations: list[str], markdown, output_dir):
 @cli.command(cls=StdCommand)
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 def show_live(organizations: list[str], no_web_ui):
     """
@@ -271,7 +269,7 @@ def show_live(organizations: list[str], no_web_ui):
     """
     from otterdog.operations.show_live import ShowLiveOperation
 
-    _execute_operation(organizations, ShowLiveOperation(no_web_ui=no_web_ui))
+    _execute_operation(organizations, ShowLiveOperation(no_web_ui=_resolve_no_web_ui(no_web_ui)))
 
 
 @cli.command(cls=StdCommand)
@@ -455,11 +453,9 @@ def approve_blueprints(organizations: list[str], blueprint_id):
 )
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 def import_command(organizations: list[str], force, no_web_ui):
     """
@@ -467,17 +463,15 @@ def import_command(organizations: list[str], force, no_web_ui):
     """
     from otterdog.operations.import_configuration import ImportOperation
 
-    _execute_operation(organizations, ImportOperation(force_processing=force, no_web_ui=no_web_ui))
+    _execute_operation(organizations, ImportOperation(force_processing=force, no_web_ui=_resolve_no_web_ui(no_web_ui)))
 
 
 @cli.command(cls=StdCommand, short_help="Show changes to live configuration on GitHub.")
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 @click.option(
     "-r",
@@ -525,7 +519,7 @@ def plan(
     _execute_operation(
         organizations,
         PlanOperation(
-            no_web_ui=no_web_ui,
+            no_web_ui=_resolve_no_web_ui(no_web_ui),
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
@@ -538,11 +532,9 @@ def plan(
 @cli.command(cls=StdCommand, short_help="Check for sync with live configuration on GitHub.")
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 @click.option(
     "-r",
@@ -567,7 +559,7 @@ def check_status(organizations: list[str], no_web_ui, repo_filter, json):
     _execute_operation(
         organizations,
         CheckStatusOperation(
-            no_web_ui=no_web_ui,
+            no_web_ui=_resolve_no_web_ui(no_web_ui),
             repo_filter=repo_filter,
             output_json=json,
         ),
@@ -649,11 +641,9 @@ def local_plan(
 )
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 @click.option(
     "-r",
@@ -717,7 +707,7 @@ def apply(
         organizations,
         ApplyOperation(
             force_processing=force,
-            no_web_ui=no_web_ui,
+            no_web_ui=_resolve_no_web_ui(no_web_ui),
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
@@ -746,11 +736,9 @@ def apply(
 )
 @click.option(
     "-n",
-    "--no-web-ui",
-    is_flag=True,
-    show_default=True,
-    default=False,
-    help="skip settings retrieved via web ui",
+    "--no-web-ui/--web-ui",
+    default=None,
+    help="skip settings retrieved via web ui, defaults to the 'no_web_ui' setting of the otterdog configuration",
 )
 @click.option(
     "-r",
@@ -816,7 +804,7 @@ def local_apply(
         LocalApplyOperation(
             suffix=suffix,
             force_processing=force,
-            no_web_ui=no_web_ui,
+            no_web_ui=_resolve_no_web_ui(no_web_ui),
             repo_filter=repo_filter,
             update_webhooks=update_webhooks,
             update_secrets=update_secrets,
@@ -1014,6 +1002,11 @@ def install_deps():
 
     if status != 0:
         print_error(f"could not install required dependencies: {status}")
+
+
+def _resolve_no_web_ui(no_web_ui: bool | None) -> bool:
+    # an explicit --no-web-ui / --web-ui wins over the default of the otterdog configuration
+    return unwrap(_CONFIG).default_no_web_ui if no_web_ui is None else no_web_ui
 
 
 def _execute_operation(organizations: list[str], operation: Operation):
