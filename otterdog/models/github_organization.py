@@ -1216,13 +1216,10 @@ class GitHubOrganization:
             #        for now this is the same for organization settings, but there might be cases where it is different.
             default_settings = jsonnet_config.default_org_config["settings"]
             included_keys = set(default_settings.keys())
-            workflow_included_keys: set[str] | None
-            if expected_org is None:
-                # no expected config to compare against (e.g. import): fetch everything
-                workflow_included_keys = None
-            else:
-                default_workflows = default_settings.get("workflows") or {}
-                workflow_included_keys = {k for k, v in default_workflows.items() if v is not None}
+            # only the workflow settings defined by the default config, or configured explicitly, are retrieved
+            default_workflows = default_settings.get("workflows") or {}
+            workflow_included_keys = {k for k, v in default_workflows.items() if v is not None}
+            if expected_org is not None:
                 workflow_included_keys.update(_configured_keys(expected_org.settings.workflows))
             github_settings = await provider.get_org_settings(github_id, included_keys, no_web_ui)
 
@@ -1667,15 +1664,11 @@ async def _process_single_repo(
 
     is_private = github_repo_data.get("private", False)
     expected_repo = expected_org.get_repository_by_name_or_alias(repo_name) if expected_org is not None else None
-    workflow_included_keys: set[str] | None
-    if expected_org is None:
-        # no expected config to compare against (e.g. import): fetch everything
-        workflow_included_keys = None
-    else:
-        default_repo_workflows = jsonnet_config.default_repo_config.get("workflows") or {}
-        workflow_included_keys = {k for k, v in default_repo_workflows.items() if v is not None}
-        if expected_repo is not None:
-            workflow_included_keys.update(_configured_keys(expected_repo.workflows))
+    # only the workflow settings defined by the default config, or configured explicitly, are retrieved
+    default_repo_workflows = (jsonnet_config.default_repo_config or {}).get("workflows") or {}
+    workflow_included_keys = {k for k, v in default_repo_workflows.items() if v is not None}
+    if expected_repo is not None:
+        workflow_included_keys.update(_configured_keys(expected_repo.workflows))
     github_repo_workflow_data = await rest_api.repo.get_workflow_settings(
         github_id, repo_name, is_private=is_private, included_keys=workflow_included_keys
     )
