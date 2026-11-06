@@ -14,7 +14,7 @@ from otterdog.models import ModelObject
 from otterdog.models.custom_property import CustomProperty
 from otterdog.utils import Change
 
-from . import ModelTest
+from . import ModelTest, evaluate_generated_jsonnet
 
 
 class CustomPropertyTest(ModelTest):
@@ -149,3 +149,17 @@ class CustomPropertyTest(ModelTest):
 
         assert len(diff) == 1
         assert diff["default_value"] == Change("Java", "Python")
+
+
+def test_generated_jsonnet_of_a_default_value_list_replaces_the_null_default():
+    # the template has no default value, so a list cannot be appended to it
+    evaluated = evaluate_generated_jsonnet(
+        CustomProperty,
+        "newCustomProperty('cp')",
+        value_type="multi_select",
+        allowed_values=["a", "b"],
+        default_value=["a"],
+    )
+
+    assert evaluated["default_value"] == ["a"]
+    assert evaluated["allowed_values"] == ["a", "b"]

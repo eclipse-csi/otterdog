@@ -147,7 +147,10 @@ class OrganizationCodeSecurityConfiguration(ModelObject):
     secret_scanning: str
     secret_scanning_push_protection: str
     secret_scanning_delegated_bypass: str
-    secret_scanning_delegated_bypass_reviewers: list[str] | None
+    # the default value of the template is null, a list can only replace it
+    secret_scanning_delegated_bypass_reviewers: list[str] | None = dataclasses.field(
+        metadata={"replace_on_patch": True}
+    )
     secret_scanning_validity_checks: str
     secret_scanning_non_provider_patterns: str
     secret_scanning_generic_secrets: str | None

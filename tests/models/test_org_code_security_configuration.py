@@ -29,7 +29,7 @@ from otterdog.models.organization_code_security_configuration import (
 from otterdog.models.repository import Repository
 from otterdog.utils import UNSET, Change, jsonnet_evaluate_snippet, unwrap
 
-from . import _EXAMPLE_CONFIG, ModelTest
+from . import _EXAMPLE_CONFIG, ModelTest, evaluate_generated_jsonnet
 
 
 def default_configuration(**overrides: Any) -> OrganizationCodeSecurityConfiguration:
@@ -1514,3 +1514,17 @@ def test_effective_private_repository():
     assert effective.dependabot_alerts_enabled is False
     # the configuration does not enable private vulnerability reporting on a private repository
     assert effective.private_vulnerability_reporting_enabled is False
+
+
+def test_generated_jsonnet_of_bypass_reviewers_replaces_the_null_default():
+    # the template does not manage the bypass reviewers, so a list cannot be appended to it
+    evaluated = evaluate_generated_jsonnet(
+        OrganizationCodeSecurityConfiguration,
+        "newOrgCodeSecurityConfiguration('baseline')",
+        secret_scanning_delegated_bypass_reviewers=["#OrganizationAdmin", "@OtterdogTest/security-team"],
+    )
+
+    assert evaluated["secret_scanning_delegated_bypass_reviewers"] == [
+        "#OrganizationAdmin",
+        "@OtterdogTest/security-team",
+    ]
