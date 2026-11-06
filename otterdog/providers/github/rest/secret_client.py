@@ -33,6 +33,23 @@ class SecretScope(Enum):
     ENVIRONMENT = "environment"
 
 
+# scopes for which GitHub answers 404 if the feature is not available, instead of an empty list
+_OPTIONAL_SCOPES = {SecretScope.ORGANIZATION_CODESPACES, SecretScope.REPOSITORY_CODESPACES}
+
+
+class SecretsNotAvailableError(RuntimeError):
+    """The secrets of a scope cannot be listed as GitHub reports the endpoint as not found."""
+
+    def __init__(self, scope: SecretScope, path: str, cause: GitHubException):
+        super().__init__(
+            f"failed retrieving {scope.value} secrets from '{path}':\n{cause}\n"
+            f"GitHub reports the endpoint as not found, {scope.value} secrets might not be available for this "
+            f"organization, e.g. if Codespaces is not enabled for it."
+        )
+        self.scope = scope
+        self.path = path
+
+
 class SecretClient(RestClient):
     """Scope-aware client for GitHub's encrypted secret APIs.
 
@@ -104,12 +121,20 @@ class SecretClient(RestClient):
         the response ``Link`` header, so callers receive a complete collection.
         Failed reads must propagate: treating unreadable secrets or repository
         selections as empty would let imports discard existing configuration.
+        The only exception is a 404 for Codespaces secrets, which is raised as
+        ``SecretsNotAvailableError`` so that callers can decide to skip them.
         """
         path = self._path(scope, org_id, repo_name, environment_name)
         _logger.debug("retrieving %s secrets from '%s'", scope.value, path)
 
         try:
             secrets = await self.requester.request_paged_json("GET", path, entries_key="secrets")
+        except GitHubException as ex:
+            if ex.status == 404 and scope in _OPTIONAL_SCOPES:
+                raise SecretsNotAvailableError(scope, path, ex) from ex
+            raise RuntimeError(f"failed retrieving {scope.value} secrets from '{path}':\n{ex}") from ex
+
+        try:
             if self._is_organization_scope(scope):
                 for secret in secrets:
                     if secret.get("visibility") == "selected":
