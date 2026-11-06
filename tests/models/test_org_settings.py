@@ -180,3 +180,37 @@ class OrganizationSettingsTest(ModelTest):
 
                 failure_types = [t for t, message in context.validation_failures if "immutable_releases" in message]
                 assert failure_types == expected_failure_types
+
+
+def _settings_with_untrusted_private_pages(live_value: Any) -> tuple[OrganizationSettings, OrganizationSettings]:
+    """The expected settings, and the live settings of a free organization for which GitHub reports a value."""
+    expected_data = ModelTest.load_json_resource("otterdog-org-settings.json")
+    expected = OrganizationSettings.from_model_data({**expected_data, "members_can_create_private_pages": False})
+
+    provider_data = ModelTest.load_json_resource("github-org-settings.json")
+    provider_data.pop("members_can_create_private_pages", None)
+    if live_value is not UNSET:
+        provider_data["members_can_create_private_pages"] = live_value
+    current = OrganizationSettings.from_provider_data("OtterdogTest", provider_data)
+
+    return expected, current
+
+
+def test_private_pages_not_reported_for_a_free_organization_are_not_compared():
+    expected, current = _settings_with_untrusted_private_pages(UNSET)
+
+    assert current.members_can_create_private_pages is UNSET
+    assert "members_can_create_private_pages" not in expected.get_difference_from(current)
+
+
+def test_private_pages_reported_by_github_would_always_differ():
+    # why the client leaves the setting unset for plans other than enterprise
+    expected, current = _settings_with_untrusted_private_pages(True)
+
+    assert expected.get_difference_from(current)["members_can_create_private_pages"] == Change(True, False)
+
+
+def test_private_pages_not_reported_for_a_free_organization_are_not_imported():
+    expected, current = _settings_with_untrusted_private_pages(UNSET)
+
+    assert "members_can_create_private_pages" not in current.get_patch_to(expected)
