@@ -698,8 +698,23 @@ class RepoClient(RestClient):
                 config["languages"] = [lang for lang in config["languages"] if lang != "javascript-typescript"]
             repo_data["code_scanning_default_config"] = config
 
+    @staticmethod
+    def _to_default_setup_update_languages(languages: list[str]) -> list[str]:
+        # GitHub reports 'javascript' and 'typescript' separately for the default setup, but the
+        # update only accepts the combined value 'javascript-typescript', as CodeQL analyzes them together.
+        update_languages: list[str] = []
+        for language in languages:
+            update_language = "javascript-typescript" if language in ("javascript", "typescript") else language
+            if update_language not in update_languages:
+                update_languages.append(update_language)
+        return update_languages
+
     async def _update_code_scanning_config(self, org_id: str, repo_name: str, code_scanning: dict[str, Any]) -> None:
         _logger.debug("updating code scanning config for '%s/%s'", org_id, repo_name)
+
+        languages = code_scanning.get("languages")
+        if isinstance(languages, list):
+            code_scanning = {**code_scanning, "languages": self._to_default_setup_update_languages(languages)}
 
         try:
             await self.requester.request_json(
