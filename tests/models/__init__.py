@@ -11,13 +11,34 @@ import os
 import unittest
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from io import StringIO
 from typing import Any
 from unittest.mock import MagicMock
 
 from otterdog.models import ModelObject
-from otterdog.utils import jsonnet_evaluate_snippet
+from otterdog.utils import IndentingPrinter, jsonnet_evaluate_snippet, write_patch_object_as_json
 
 _EXAMPLE_CONFIG = "./otterdog/resources/defaults/otterdog-defaults.libsonnet"
+
+
+def evaluate_generated_jsonnet(model_class: type[ModelObject], template_call: str, **overrides: Any) -> dict[str, Any]:
+    """
+    Writes the jsonnet of a model object that differs from its template default in the given values,
+    like the import operation does, and evaluates it against the template.
+    """
+    default_data = jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').{template_call}")
+    default_object = model_class.from_model_data(default_data)
+    model_object = model_class.from_model_data({**default_data, **overrides})
+
+    output = StringIO()
+    write_patch_object_as_json(
+        model_object.get_patch_to(default_object),
+        IndentingPrinter(output),
+        replace_keys=model_object.replace_on_patch_keys(),
+    )
+    generated = output.getvalue().rstrip().rstrip(",")
+
+    return jsonnet_evaluate_snippet(f"(import '{_EXAMPLE_CONFIG}').{template_call}{generated}")
 
 
 class ModelTest(ABC, unittest.IsolatedAsyncioTestCase):

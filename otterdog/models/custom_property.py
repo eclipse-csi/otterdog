@@ -40,7 +40,8 @@ class CustomProperty(ModelObject):
     name: str = dataclasses.field(metadata={"key": True})
     value_type: str
     required: bool
-    default_value: str | list[str] | None
+    # the default value of the template is null, a list can only replace it
+    default_value: str | list[str] | None = dataclasses.field(metadata={"replace_on_patch": True})
     description: str | None
     allowed_values: list[str] | None
     values_editable_by: str | None
