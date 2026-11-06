@@ -1713,7 +1713,7 @@
         "members_can_create_private_pages": {
           "type": "boolean",
           "description": "If members can create private GitHub Pages sites in this organization. Required for configuring GitHub Pages visibility on private repositories.",
-          "notes": "Only available for organizations with `enterprise` plan"
+          "notes": "Only available for organizations with `enterprise` plan, for other plans the value reported by GitHub is ignored"
         },
         "members_can_create_public_repositories": {
           "type": "boolean",
