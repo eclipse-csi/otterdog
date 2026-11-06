@@ -421,8 +421,8 @@ A Bitwarden reference `<item id>@<field>` is matched against its item id, each i
 A reference must consist of segments separated by `/` that only contain letters, digits, `.`, `_`, `@`, `+` and `-`.
 Segments `.` and `..` are not allowed, so that a reference can not leave the allowed paths.
 
-The policy is checked when validating a configuration, including the validation of pull requests by the WebApp, and
-before resolving each secret during `apply`.
+The policy is checked when validating a configuration, including the validation of pull requests and the playground
+of a project in the WebApp, and before resolving each secret during `apply`.
 
 ### Environment variables
 

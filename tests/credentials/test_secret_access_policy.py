@@ -95,7 +95,16 @@ def test_invalid_references_are_denied(secret_data: str):
     assert "is not a valid reference" in (_policy().check(secret_data) or "")
 
 
-@pytest.mark.parametrize("secret_data", [f"bitwarden:{_BITWARDEN_ITEM}", "bitwarden:@api_token", "bitwarden:id@"])
+@pytest.mark.parametrize(
+    "secret_data",
+    [
+        f"bitwarden:{_BITWARDEN_ITEM}",
+        "bitwarden:@api_token",
+        "bitwarden:id@",
+        # the provider expects a single '@'
+        f"bitwarden:{_BITWARDEN_ITEM}@api_token@extra",
+    ],
+)
 def test_bitwarden_references_need_an_item_and_a_field(secret_data: str):
     assert "is not a valid bitwarden reference" in (_policy().check(secret_data) or "")
 
@@ -138,6 +147,15 @@ def test_values_not_read_from_a_secret_store_are_not_restricted(secret_data: str
 )
 def test_wildcards_and_placeholders(pattern: str, reference: str, allowed: bool):
     assert (_policy({"pass": [pattern]}).check(f"pass:{reference}") is None) is allowed
+
+
+def test_long_references_are_matched_in_linear_time():
+    # each '**' does not retry every remaining suffix: a reference posted in a pull request can not stall the validation
+    policy = _policy({"pass": ["shared/**/{org_name}/**/{org_name}/**/token"]})
+    segments = ["technology.apoapsis"] * 5000
+
+    assert policy.check("pass:shared/" + "/".join(segments) + "/other") is not None
+    assert policy.check("pass:shared/" + "/".join(segments) + "/token") is None
 
 
 def test_the_denial_shows_the_allowed_references_of_the_organization():
@@ -216,6 +234,22 @@ def test_the_default_policy_uses_the_values_of_the_organization(tmp_path):
     assert apoapsis.check("pass:bots/technology.other/key_id") is not None
     assert other.check("pass:bots/technology.other/key_id") is None
     assert other.check("pass:bots/technology.apoapsis/key_id") is not None
+
+
+def test_the_policy_of_an_organization_is_found_by_its_github_id(tmp_path):
+    """The name of an organization can be the github_id of another one."""
+    config = _config(
+        tmp_path,
+        None,
+        _organization({"allowed_references": {"pass": ["bots/{org_name}/**"]}}, name="project-a", github_id="a"),
+        _organization(name="a", github_id="b"),
+    )
+
+    policy = config.get_secret_access_policy(config.get_organization_config("project-a"))
+
+    assert policy is not None and policy.is_enforced
+    assert policy.check("pass:bots/project-a/token") is None
+    assert policy.check("pass:bots/a/token") is not None
 
 
 def test_the_mode_can_be_warn(tmp_path):

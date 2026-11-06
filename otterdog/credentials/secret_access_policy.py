@@ -104,24 +104,27 @@ class _Pattern:
         return re.escape(literal)
 
     def matches(self, segments: Sequence[str]) -> bool:
-        return self._matches(0, segments, 0)
+        # the positions in the segments reachable after matching the segments of the pattern seen so far, each
+        # segment being matched at most once per segment of the pattern, whatever the number of '**'
+        positions = {0}
+        last_index = len(self._segments) - 1
 
-    def _matches(self, pattern_index: int, segments: Sequence[str], segment_index: int) -> bool:
-        if pattern_index == len(self._segments):
-            return segment_index == len(segments)
+        for index, pattern_segment in enumerate(self._segments):
+            if len(positions) == 0:
+                return False
 
-        pattern_segment = self._segments[pattern_index]
-        if pattern_segment is None:
-            # '**' ending the pattern matches at least one segment, e.g. 'bots/{org_name}/**' not 'bots/{org_name}'
-            is_last = pattern_index == len(self._segments) - 1
-            first = segment_index + 1 if is_last else segment_index
-            return any(self._matches(pattern_index + 1, segments, i) for i in range(first, len(segments) + 1))
+            if pattern_segment is None:
+                # '**' ending the pattern matches at least one segment, e.g. 'bots/{org_name}/**' not 'bots/{org_name}'
+                first = min(positions) + (1 if index == last_index else 0)
+                positions = set(range(first, len(segments) + 1))
+            else:
+                positions = {
+                    position + 1
+                    for position in positions
+                    if position < len(segments) and pattern_segment.fullmatch(segments[position]) is not None
+                }
 
-        return (
-            segment_index < len(segments)
-            and pattern_segment.fullmatch(segments[segment_index]) is not None
-            and self._matches(pattern_index + 1, segments, segment_index + 1)
-        )
+        return len(segments) in positions
 
     def __str__(self) -> str:
         return self._displayed
@@ -165,9 +168,9 @@ class SecretAccessPolicy:
             return None
 
         if provider_type == "bitwarden":
-            # 'item_id@field': access is granted per item
+            # 'item_id@field': access is granted per item, the provider expects a single '@'
             subject, separator, field = reference.partition("@")
-            if not separator or not subject or not field:
+            if not separator or not subject or not field or "@" in field:
                 return f"'{reference}' is not a valid bitwarden reference, expected '<item id>@<field>'"
         else:
             subject = reference

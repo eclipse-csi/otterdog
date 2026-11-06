@@ -99,6 +99,10 @@ class ApplyOperation(PlanOperation):
     async def handle_finish(self, result: DiffResult) -> int:
         self.printer.println()
 
+        # nothing was planned, see handle_validation_status
+        if result.validation_status.errors > 0:
+            return result.validation_status.errors
+
         if result.diff_status.total_changes(self._delete_resources) == 0:
             self.printer.println("No changes required.")
             if not self._delete_resources and result.diff_status.deletions > 0:

@@ -77,12 +77,15 @@ def _initialize_operation(
     current_org=None,
     exclude_teams_pattern=None,
     secret_access_policy=None,
+    validation_status: ValidationStatus | None = None,
+    mock_validation: bool = True,
 ):
     """
     Initialize an operation while replacing only GitHub and validation boundaries.
     """
     monkeypatch.setattr(operation, "setup_github_client", lambda org_config: client)
-    monkeypatch.setattr(operation, "validate", AsyncMock(return_value=ValidationStatus()))
+    if mock_validation:
+        monkeypatch.setattr(operation, "validate", AsyncMock(return_value=validation_status or ValidationStatus()))
     if current_org is not None:
         monkeypatch.setattr(operation, "load_current_org", AsyncMock(return_value=current_org))
 
@@ -305,30 +308,47 @@ async def test_apply_processes_a_non_empty_plan(tmp_path, monkeypatch):
     update_repo.assert_awaited_once()
 
 
-async def test_apply_never_reads_a_secret_the_organization_is_not_allowed_to_use(tmp_path, monkeypatch):
+def _org_config_with_secret(tmp_path: Path, secret_value: str) -> tuple[OrganizationConfig, GitHubOrganization]:
     """
-    Apply aborts before reading from the credential provider a secret outside of the allowed references.
+    Returns an organization config whose desired configuration adds a repository secret, and the current organization.
     """
     org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
     config_file = Path(org_config.jsonnet_config.org_config_file)
     current_org = GitHubOrganization.load_from_file(org_config.github_id, f"{config_file}-BASE")
     expected_data = json.loads(config_file.read_text(encoding="utf-8"))
-    expected_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": "pass:bots/other-project/token"}]
+    expected_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": secret_value}]
     config_file.write_text(json.dumps(expected_data), encoding="utf-8")
+    return org_config, current_org
 
-    credential_provider = MagicMock()
-    monkeypatch.setattr(
-        "otterdog.config.CredentialProvider.create", lambda provider_type, defaults: credential_provider
-    )
-    policy = SecretAccessPolicy(
+
+def _pass_policy(org_config: OrganizationConfig) -> SecretAccessPolicy:
+    return SecretAccessPolicy(
         SecretAccessMode.ENFORCE,
         {"pass": ["bots/{org_name}/**"]},
         CredentialPlaceHolders(org_name=org_config.name, github_id=org_config.github_id),
     )
+
+
+def _credential_provider(monkeypatch) -> MagicMock:
+    credential_provider = MagicMock()
+    monkeypatch.setattr(
+        "otterdog.config.CredentialProvider.create", lambda provider_type, defaults: credential_provider
+    )
+    return credential_provider
+
+
+async def test_apply_never_reads_a_secret_the_organization_is_not_allowed_to_use(tmp_path, monkeypatch):
+    """
+    Apply aborts before reading from the credential provider a secret outside of the allowed references.
+    """
+    org_config, current_org = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    credential_provider = _credential_provider(monkeypatch)
     output = StringIO()
     operation = ApplyOperation(True, True, "*", False, False, False, "", False)
     client = pretend.stub(close=AsyncMock())
-    _initialize_operation(operation, monkeypatch, output, client, current_org, secret_access_policy=policy)
+    _initialize_operation(
+        operation, monkeypatch, output, client, current_org, secret_access_policy=_pass_policy(org_config)
+    )
 
     result = await operation.execute(org_config)
 
@@ -337,6 +357,84 @@ async def test_apply_never_reads_a_secret_the_organization_is_not_allowed_to_use
         " ".join(output.getvalue().split())
     )
     credential_provider.get_secret.assert_not_called()
+
+
+async def test_apply_fails_on_a_secret_rejected_by_the_validation(tmp_path, monkeypatch):
+    """
+    The validation of otterdog rejects a secret outside of the allowed references, and apply fails without applying
+    or resolving anything.
+    """
+    org_config, current_org = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    monkeypatch.setattr(
+        org_config.jsonnet_config,
+        "default_org_config_for_org_id",
+        lambda project_name, github_id: {"project_name": project_name, "github_id": github_id, "settings": {}},
+    )
+    credential_provider = _credential_provider(monkeypatch)
+    output = StringIO()
+    operation = ApplyOperation(True, True, "*", False, False, False, "", False)
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(
+        operation,
+        monkeypatch,
+        output,
+        client,
+        current_org,
+        secret_access_policy=_pass_policy(org_config),
+        mock_validation=False,
+    )
+
+    result = await operation.execute(org_config)
+
+    printed = " ".join(output.getvalue().split())
+    assert result == 1
+    assert "references secret 'pass:bots/other-project/token' that the organization is not allowed to use" in printed
+    assert "Planning aborted due to validation errors." in printed
+    assert "No changes required." not in printed
+    credential_provider.get_secret.assert_not_called()
+
+
+async def test_a_diff_generated_without_execute_validates_with_the_policy_of_the_organization(tmp_path, monkeypatch):
+    """
+    push-config and open-pull-request call generate_diff directly, without execute.
+    """
+    org_config, _ = _org_config_with_secret(tmp_path, "pass:bots/other-project/token")
+    monkeypatch.setattr(
+        org_config.jsonnet_config,
+        "default_org_config_for_org_id",
+        lambda project_name, github_id: {"project_name": project_name, "github_id": github_id, "settings": {}},
+    )
+    output = StringIO()
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(
+        operation, monkeypatch, output, client, secret_access_policy=_pass_policy(org_config), mock_validation=False
+    )
+
+    result = await operation.generate_diff(org_config)
+
+    assert result == 1
+    assert "references secret 'pass:bots/other-project/token' that the organization is not allowed to use" in (
+        " ".join(output.getvalue().split())
+    )
+
+
+async def test_apply_fails_when_the_validation_fails(tmp_path, monkeypatch):
+    """
+    Apply reports validation errors as a failure, not as an organization without changes.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    validation_status = ValidationStatus()
+    validation_status.errors = 2
+    output = StringIO()
+    operation = ApplyOperation(True, True, "*", False, False, False, "", False)
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(operation, monkeypatch, output, client, validation_status=validation_status)
+
+    result = await operation.execute(org_config)
+
+    assert result == 2
+    assert "No changes required." not in output.getvalue()
 
 
 async def test_check_status_reports_the_status_of_matching_configurations(tmp_path, monkeypatch):

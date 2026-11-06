@@ -317,6 +317,8 @@ class OtterdogConfig:
     _default_allowed_secret_references: Mapping[str, tuple[str, ...]] = dataclasses.field(init=False)
 
     _organizations_map: dict[str, OrganizationConfig] = dataclasses.field(init=False, default_factory=dict)
+    # unlike _organizations_map, never overwritten by an organization whose name is the github_id of another one
+    _organizations_by_github_id: dict[str, OrganizationConfig] = dataclasses.field(init=False, default_factory=dict)
     _organizations: list[OrganizationConfig] = dataclasses.field(init=False, default_factory=list)
 
     def __post_init__(self):
@@ -343,6 +345,7 @@ class OtterdogConfig:
             self._organizations.append(org_config)
             self._organizations_map[org_config.name.lower()] = org_config
             self._organizations_map[org_config.github_id.lower()] = org_config
+            self._organizations_by_github_id[org_config.github_id.lower()] = org_config
 
     def _init_secret_access_defaults(self) -> None:
         secrets = query_json("defaults.secrets", self.configuration)
@@ -378,11 +381,8 @@ class OtterdogConfig:
         organization are looked up by its github_id, as the WebApp does not build its organization configurations
         from this configuration.
         """
-        configured_org = self._get_organization_config(org_config.github_id)
-        if configured_org is not None and configured_org.github_id.lower() == org_config.github_id.lower():
-            org_references = configured_org.allowed_secret_references
-        else:
-            org_references = None
+        configured_org = self._organizations_by_github_id.get(org_config.github_id.lower())
+        org_references = configured_org.allowed_secret_references if configured_org is not None else None
 
         if self._secret_access_mode is None and org_references is None:
             return None
