@@ -312,45 +312,6 @@ class TestOrgClientImmutableReleases:
         assert result == {"billing_email": "billing@example.com"}
 
 
-class TestOrgClientUntrustedSettings:
-    @staticmethod
-    def _org_client(org_data):
-        async def mock_request_json(method, url):
-            assert (method, url) == ("GET", "/orgs/org")
-            return org_data
-
-        return OrgClient(pretend.stub(requester=pretend.stub(request_json=mock_request_json)))
-
-    @pytest.mark.parametrize("plan", ["free", "team", "pro", None])
-    async def test_get_settings_leaves_enterprise_only_settings_unset(self, plan):
-        # GitHub reports 'true' for organizations that cannot use the feature, it is greyed out in the web UI
-        org_data = {"members_can_create_private_pages": True, "billing_email": "billing@example.com"}
-        if plan is not None:
-            org_data["plan"] = {"name": plan}
-
-        result = await self._org_client(org_data).get_settings(
-            "org", {"billing_email", "plan", "members_can_create_private_pages"}
-        )
-
-        assert "members_can_create_private_pages" not in result
-        assert result["billing_email"] == "billing@example.com"
-
-    @pytest.mark.parametrize("value", [True, False])
-    async def test_get_settings_keeps_enterprise_only_settings_of_enterprise_plan(self, value):
-        org_data = {"members_can_create_private_pages": value, "plan": {"name": "enterprise"}}
-
-        result = await self._org_client(org_data).get_settings("org", {"plan", "members_can_create_private_pages"})
-
-        assert result["members_can_create_private_pages"] is value
-
-    async def test_get_settings_without_the_enterprise_only_setting(self):
-        result = await self._org_client({"plan": {"name": "free"}}).get_settings(
-            "org", {"plan", "members_can_create_private_pages"}
-        )
-
-        assert "members_can_create_private_pages" not in result
-
-
 class TestOrgClientForkPrApprovalPolicy:
     async def test_get_fork_pr_approval_policy_success(self):
         expected_policy = {"approval_policy": "first_time_contributors"}

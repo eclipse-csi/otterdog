@@ -49,8 +49,6 @@ class OrgClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving settings for org '{org_id}':\n{ex}") from ex
 
-        self._drop_untrusted_settings(org_id, settings)
-
         if "security_managers" in included_keys:
             security_manager_role_id = await self.get_role_id(org_id, "security_manager")
             # handle gracefully if the role does not exist
@@ -78,26 +76,6 @@ class OrgClient(RestClient):
                 _logger.trace(f"retrieved setting for '{k}' = '{v}'")
 
         return result
-
-    # settings only available with an enterprise plan, GitHub reports a value for other plans as well, while
-    # the setting is greyed out in the web UI and cannot be changed
-    _ENTERPRISE_ONLY_SETTINGS = ("members_can_create_private_pages",)
-
-    @classmethod
-    def _drop_untrusted_settings(cls, org_id: str, settings: dict[str, Any]) -> None:
-        """Leaves the settings that GitHub reports unreliably for the plan of the organization unset."""
-        plan = (settings.get("plan") or {}).get("name")
-        if plan == "enterprise":
-            return
-
-        for key in cls._ENTERPRISE_ONLY_SETTINGS:
-            if settings.pop(key, None) is not None:
-                _logger.debug(
-                    "ignoring setting '%s' of org '%s', it is only available with an enterprise plan (plan=%s)",
-                    key,
-                    org_id,
-                    plan,
-                )
 
     async def update_settings(self, org_id: str, data: dict[str, Any]) -> None:
         _logger.debug("updating settings for org '%s'", org_id)
