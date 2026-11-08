@@ -211,6 +211,13 @@ class OrganizationSettings(ModelObject):
 
         mapping["plan"] = OptionalS("plan", "name", default=UNSET)
 
+        # GitHub reports this setting for every organization, usually as true, while it is greyed out in the web UI
+        # and cannot be changed without an enterprise plan: leave it unset so that it is neither compared nor
+        # imported. The plan is only provided to the owners of the organization, keep the value if it is unknown.
+        plan = (data.get("plan") or {}).get("name")
+        if plan is not None and plan != "enterprise":
+            mapping["members_can_create_private_pages"] = K(UNSET)
+
         if "workflows" in data:
             workflow_data = data["workflows"]
             mapping["workflows"] = K(OrganizationWorkflowSettings.from_provider_data(org_id, workflow_data))

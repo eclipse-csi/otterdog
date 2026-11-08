@@ -9,6 +9,8 @@
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
+
 from otterdog.credentials.inmemory_provider import InMemoryVault
 from otterdog.jsonnet import JsonnetConfig
 from otterdog.models import FailureType, ModelObject, ValidationContext
@@ -91,7 +93,8 @@ class OrganizationSettingsTest(ModelTest):
         assert settings.members_can_fork_private_repositories is True
         assert settings.deploy_keys_enabled_for_repositories is True
         assert settings.members_can_create_public_pages is True
-        assert settings.members_can_create_private_pages is False
+        # the fixture is an organization with a free plan, for which the setting is not available
+        assert settings.members_can_create_private_pages is UNSET
         assert settings.members_can_change_repo_visibility is False
         assert settings.members_can_delete_repositories is True
         assert settings.members_can_delete_issues is False
@@ -180,3 +183,44 @@ class OrganizationSettingsTest(ModelTest):
 
                 failure_types = [t for t, message in context.validation_failures if "immutable_releases" in message]
                 assert failure_types == expected_failure_types
+
+
+def _private_pages_settings(plan: str | None, live_value: bool) -> tuple[OrganizationSettings, OrganizationSettings]:
+    """The expected settings, and the live settings of an organization of the given plan."""
+    expected_data = ModelTest.load_json_resource("otterdog-org-settings.json")
+    expected = OrganizationSettings.from_model_data({**expected_data, "members_can_create_private_pages": False})
+
+    provider_data = ModelTest.load_json_resource("github-org-settings.json")
+    provider_data["members_can_create_private_pages"] = live_value
+    if plan is None:
+        provider_data.pop("plan", None)
+    else:
+        provider_data["plan"] = {"name": plan}
+    current = OrganizationSettings.from_provider_data("OtterdogTest", provider_data)
+
+    return expected, current
+
+
+@pytest.mark.parametrize("plan", ["free", "team", "pro"])
+def test_private_pages_reported_for_a_non_enterprise_plan_are_ignored(plan):
+    # GitHub reports 'true' for these organizations, although the setting is greyed out in the web UI
+    expected, current = _private_pages_settings(plan, True)
+
+    assert current.members_can_create_private_pages is UNSET
+    assert "members_can_create_private_pages" not in expected.get_difference_from(current)
+    assert "members_can_create_private_pages" not in current.get_patch_to(expected)
+
+
+@pytest.mark.parametrize("live_value", [True, False])
+def test_private_pages_of_an_enterprise_plan_are_compared(live_value):
+    expected, current = _private_pages_settings("enterprise", live_value)
+
+    assert current.members_can_create_private_pages is live_value
+    assert ("members_can_create_private_pages" in expected.get_difference_from(current)) is live_value
+
+
+def test_private_pages_are_kept_if_the_plan_is_unknown():
+    # the plan is only provided to the owners of the organization
+    _, current = _private_pages_settings(None, True)
+
+    assert current.members_can_create_private_pages is True
