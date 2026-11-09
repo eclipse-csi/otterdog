@@ -8,6 +8,8 @@
 
 import os
 from asyncio import Lock, Task, create_task, shield, to_thread
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
 from shutil import ignore_patterns
@@ -25,6 +27,24 @@ _template_updates: set[Task] = set()
 # the base templates referencing a branch that have been reported, to warn once per process instead of on every use
 _reported_branch_templates: set[tuple[str, str]] = set()
 _logger = get_logger(__name__)
+
+
+@contextmanager
+def _lock_across_processes(lock_file: str) -> Iterator[None]:
+    """Holds an exclusive lock on a file, waiting until the other processes holding it release it."""
+
+    try:
+        import fcntl
+    except ImportError:
+        # not available on Windows, the processes are not synchronized there
+        yield
+        return
+
+    os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+    with open(lock_file, "a") as file:
+        # released when the file is closed, also when the process is killed
+        fcntl.flock(file, fcntl.LOCK_EX)
+        yield
 
 
 class JsonnetConfig:
@@ -610,22 +630,25 @@ class JsonnetConfig:
 
         import git
 
-        if not os.path.exists(f"{template_dir}/.git"):
-            _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
-            with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
-                repo.git.checkout(self._base_template_ref)
-                references_branch = not repo.head.is_detached
-        else:
-            with git.Repo(template_dir) as repo:
-                # a tag or a commit is checked out as a detached head and never pulled again
-                references_branch = not repo.head.is_detached
-                if references_branch:
-                    _logger.debug(
-                        "pulling changes from base template url '%s' with ref '%s'",
-                        self._base_template_repo_url,
-                        repo.head.ref,
-                    )
-                    repo.remotes.origin.pull()
+        # _template_lock only holds within this process: other otterdog processes using the same directory, e.g. several
+        # otterdog plan run in parallel, would clone the template or pull its changes at the same time and fail
+        with _lock_across_processes(f"{template_dir}.lock"):
+            if not os.path.exists(f"{template_dir}/.git"):
+                _logger.debug("cloning base template from url '%s'", self._base_template_repo_url)
+                with git.Repo.clone_from(self._base_template_repo_url, template_dir) as repo:
+                    repo.git.checkout(self._base_template_ref)
+                    references_branch = not repo.head.is_detached
+            else:
+                with git.Repo(template_dir) as repo:
+                    # a tag or a commit is checked out as a detached head and never pulled again
+                    references_branch = not repo.head.is_detached
+                    if references_branch:
+                        _logger.debug(
+                            "pulling changes from base template url '%s' with ref '%s'",
+                            self._base_template_repo_url,
+                            repo.head.ref,
+                        )
+                        repo.remotes.origin.pull()
 
         if references_branch:
             self._warn_about_branch_reference()
