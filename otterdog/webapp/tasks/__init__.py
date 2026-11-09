@@ -34,7 +34,7 @@ from otterdog.webapp.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterable
+    from collections.abc import AsyncIterator, Collection, Iterable
 
     from otterdog.providers.github import GitHubProvider
     from otterdog.providers.github.graphql import GraphQLClient
@@ -288,14 +288,33 @@ class InstallationBasedTask(Protocol):
 async def get_organization_config(
     org_model: InstallationModel, token: str, base_dir: str, work_dir: str
 ) -> OrganizationConfig:
+    from otterdog.webapp.utils import get_otterdog_config
+
+    project_name = unwrap(org_model.project_name)
+
+    # the settings and resources that are not managed are defined in the otterdog config of the instance, a failure
+    # to retrieve it must not be mistaken for a project without any: they would be managed, which cannot be undone
+    otterdog_config = await get_otterdog_config()
+
+    unmanaged: Collection[str] = ()
+    unmanaged_error = None
+    if otterdog_config.get_project_name(project_name) is not None:
+        jsonnet_config = otterdog_config.get_organization_config(project_name).jsonnet_config
+        unmanaged, unmanaged_error = jsonnet_config.unmanaged, jsonnet_config.unmanaged_error
+    else:
+        # the project is not defined (anymore) in the otterdog config
+        getLogger(__name__).debug("no otterdog config for project '%s', nothing is unmanaged", project_name)
+
     return OrganizationConfig.of(
-        unwrap(org_model.project_name),
+        project_name,
         org_model.github_id,
         unwrap(org_model.config_repo),
         unwrap(org_model.base_template),
         {"provider": "inmemory", "api_token": token},
         base_dir,
         work_dir,
+        unmanaged,
+        unmanaged_error,
     )
 
 

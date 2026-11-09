@@ -28,7 +28,7 @@ from otterdog.operations.local_apply import LocalApplyOperation
 from otterdog.operations.local_plan import LocalPlanOperation
 from otterdog.operations.plan import PlanOperation
 from otterdog.operations.validate import ValidationStatus
-from otterdog.utils import ExclusionPatterns, IndentingPrinter, LogLevel, unwrap
+from otterdog.utils import UNSET, ExclusionPatterns, IndentingPrinter, LogLevel, unwrap
 
 _BASE_TEMPLATE = "https://github.com/otterdog/test-defaults#test-defaults.libsonnet@main"
 
@@ -111,6 +111,89 @@ async def test_local_plan_reports_changes_for_a_configuration_difference(tmp_pat
 
     assert result == 0
     assert "1 to change" in output.getvalue()
+
+
+async def test_local_plan_ignores_differences_of_unmanaged_settings(tmp_path, monkeypatch):
+    """
+    A setting listed as unmanaged is not compared, the repository description is the only difference.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    org_config.jsonnet_config._unmanaged = frozenset({"repository.description"})
+    output = StringIO()
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+    client = pretend.stub(close=AsyncMock())
+    _initialize_operation(operation, monkeypatch, output, client)
+
+    result = await operation.execute(org_config)
+
+    assert result == 0
+    assert "0 to change" in output.getvalue()
+    assert "1 to change" not in output.getvalue()
+
+
+async def test_unmanaged_settings_are_removed_before_loading_the_current_organization(tmp_path, monkeypatch):
+    """
+    The settings to retrieve also depend on the expected organization, an unmanaged setting must not be in it.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True)
+    org_config.jsonnet_config._unmanaged = frozenset({"repository.description"})
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+    _initialize_operation(operation, monkeypatch, StringIO(), pretend.stub(close=AsyncMock()))
+
+    descriptions = []
+    load_current_org = operation.load_current_org
+
+    async def recording_load_current_org(project_name, github_id, jsonnet_config, expected_org=None):
+        descriptions.extend(repository.description for repository in expected_org.repositories)
+        return await load_current_org(project_name, github_id, jsonnet_config, expected_org)
+
+    monkeypatch.setattr(operation, "load_current_org", recording_load_current_org)
+
+    await operation.execute(org_config)
+
+    assert descriptions
+    assert all(description is UNSET for description in descriptions)
+
+
+@pytest.mark.parametrize(
+    "unmanaged,expected_removals",
+    [(frozenset(), "1 to delete"), (frozenset({"repository.secrets"}), "0 to delete")],
+)
+async def test_local_plan_ignores_unmanaged_resources_of_the_baseline_file(
+    tmp_path, monkeypatch, unmanaged, expected_removals
+):
+    """
+    The current organization of a local plan is loaded from a file, its unmanaged resources are not removed.
+    """
+    org_config = _create_org_config(tmp_path, with_config_files=True, base_differs=False)
+    org_config.jsonnet_config._unmanaged = unmanaged
+
+    base_file = Path(f"{org_config.jsonnet_config.org_config_file}-BASE")
+    base_data = json.loads(base_file.read_text(encoding="utf-8"))
+    base_data["repositories"][0]["secrets"] = [{"name": "TOKEN", "value": "pass:token"}]
+    base_file.write_text(json.dumps(base_data), encoding="utf-8")
+
+    output = StringIO()
+    operation = LocalPlanOperation("-BASE", "*", False, False, False, "")
+    _initialize_operation(operation, monkeypatch, output, pretend.stub(close=AsyncMock()))
+
+    result = await operation.execute(org_config)
+
+    assert result == 0
+    assert expected_removals in output.getvalue()
+
+
+def test_the_github_client_does_not_retrieve_unmanaged_settings_of_created_repositories(tmp_path, monkeypatch):
+    org_config = _create_org_config(tmp_path, with_config_files=False)
+    org_config.jsonnet_config._unmanaged = frozenset(
+        {"repository.topics", "repository.workflows.max_cache_size_gb", "repository.codespaces_secrets"}
+    )
+    operation = PlanOperation(False, "*", False, False, False, "*")
+    monkeypatch.setattr(operation, "get_credentials", lambda *args, **kwargs: None)
+
+    client = operation.setup_github_client(org_config)
+
+    assert client.unmanaged_repository_settings == frozenset({"topics"})
 
 
 async def test_local_plan_returns_failure_when_the_configuration_is_missing(tmp_path, monkeypatch):

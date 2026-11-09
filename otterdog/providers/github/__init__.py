@@ -59,6 +59,8 @@ class GitHubProvider:
         # and the organizations all of whose repositories have their patches skipped
         self._skipped_repositories: dict[tuple[str, str], str] = {}
         self._skipped_organizations: dict[str, str] = {}
+        # the settings of repositories that are not managed, they are not retrieved from a repository created by apply
+        self.unmanaged_repository_settings: frozenset[str] = frozenset()
 
         if credentials is not None:
             self._init_clients()
@@ -418,6 +420,7 @@ class GitHubProvider:
             fork_default_branch_only,
             auto_init_repo,
             code_security_configuration,
+            self.unmanaged_repository_settings,
         )
 
     async def delete_repo(self, org_id: str, repo_name: str) -> None:

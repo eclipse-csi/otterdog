@@ -189,3 +189,85 @@ ignored again and remains on GitHub unmanaged.
     The `import` operation has no configuration to compare against and therefore always skips excluded environments.
     When importing into an existing configuration, add the declarations of excluded environments you want to manage
     again afterwards.
+
+## Features an organization cannot use
+
+The default configuration decides what otterdog reads from GitHub and compares: a setting is retrieved if its key is
+present in it, and a resource such as the secrets of repositories is managed if the template defines the function
+that creates it. An organization may not be able to use a feature the default configuration includes, e.g. because of
+its plan: GitHub then answers the request with an error, or reports a value that cannot be changed.
+
+Instead of copying the default configuration to remove the feature, list it in `unmanaged` in the `defaults.github`
+section of the `otterdog.json` file, or in the entry of an organization. Both lists are combined for an organization:
+
+``` json
+{
+  "defaults": {
+    "github": {
+      "unmanaged": [
+        "repository.workflows.max_cache_size_gb"
+      ]
+    }
+  },
+  "organizations": [
+    {
+      "name": "tinygears",
+      "github_id": "TinyGearsOrg",
+      "unmanaged": [
+        "organization.settings.workflows.max_cache_size_gb",
+        "organization.codespaces_secrets",
+        "repository.codespaces_secrets",
+        "team.team_sync",
+        "team.external_group_id"
+      ]
+    }
+  ]
+}
+```
+
+Everything listed is not managed for the organization:
+
+- A setting is not retrieved if it is read with a request of its own, e.g. the topics or the custom properties of a
+  repository, also not from a repository that `apply` creates. It is not compared with the configuration, not written to the configuration by `import`, not sent to
+  GitHub, e.g. when creating a repository, and not validated. Its value in the configuration of the organization is
+  ignored.
+- A resource is not read from GitHub, so it is neither compared nor deleted. If the configuration of the organization
+  declares resources of this type, `validate` reports an error, as nothing would be done with them.
+
+| Path                                      | Unmanaged                                                                            |
+|-------------------------------------------|--------------------------------------------------------------------------------------|
+| `organization.settings.<setting>`         | a setting of the [organization](../reference/organization/settings.md)               |
+| `organization.settings.workflows.<setting>` | a workflow setting of the organization                                             |
+| `repository.<setting>`                    | a setting of all [repositories](../reference/organization/repository/index.md)      |
+| `repository.workflows.<setting>`          | a workflow setting of all repositories                                               |
+| `team.<setting>`                          | a setting of all teams, e.g. `team.external_group_id`                                |
+| `organization.<resources>`                | `roles`, `teams`, `webhooks`, `secrets`, `dependabot_secrets`, `codespaces_secrets`, `variables`, `rulesets` or `code_security_configurations` of the organization |
+| `repository.<resources>`                  | `webhooks`, `secrets`, `dependabot_secrets`, `codespaces_secrets`, `variables`, `branch_protection_rules`, `rulesets` or `environments` of all repositories |
+| `team.team_sync`                          | the identity provider groups of all teams                                            |
+
+`unmanaged` must be a list of paths. An invalid list, e.g. a path that does not exist, is reported when an operation
+uses the organization, with the closest valid paths. The configuration is still loaded and the other organizations are
+not affected. Settings that decide how others are compared or sent cannot be unmanaged, the error explains why:
+
+- the workflow settings of the organization that restrict its repositories: `enabled_repositories`,
+  `selected_repositories`, `allowed_actions`, `default_workflow_permissions` and
+  `actions_can_approve_pull_request_reviews`, and `repository.workflows.enabled` and
+  `repository.workflows.allowed_actions`,
+- the immutable release policy of the organization, the discussions (`has_discussions` and
+  `discussion_source_repository`) and its custom properties,
+- `repository.private` and `repository.archived`, the GitHub Pages build type and custom domain
+  (`repository.gh_pages_build_type` and `repository.gh_pages_cname`) and
+  `repository.code_scanning_default_setup_enabled`.
+
+!!! note
+
+    `show-default` displays what the functions of the template define, without the entries of `unmanaged`.
+
+    The list is meant to set up otterdog for an organization without defining a default configuration of your own.
+    The webapp uses it for the validation of pull requests and the apply of merged ones, but not yet in its dashboard.
+
+!!! warning
+
+    The members of a team connected to an external group are provisioned by the identity provider and not
+    compared. `team.external_group_id` is meant for organizations that cannot use external groups: `validate` reports
+    an error if a team declares one while it is unmanaged, as its members would be compared.

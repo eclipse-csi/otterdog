@@ -17,8 +17,10 @@ import pretend
 from otterdog.config import OtterdogConfig
 from otterdog.models import Change, FailureType, LivePatch, LivePatchContext
 from otterdog.models.github_organization import GitHubOrganization
+from otterdog.models.organization_codespaces_secret import OrganizationCodespacesSecret
 from otterdog.models.organization_ruleset import OrganizationRuleset
 from otterdog.models.repository import Repository
+from otterdog.models.team import Team
 from otterdog.utils import jsonnet_evaluate_file
 
 
@@ -129,6 +131,104 @@ class GitHubOrganizationTest(unittest.IsolatedAsyncioTestCase):
             )
 
         return context, repository, get_languages_calls
+
+    async def test_validate_reports_declared_resources_that_are_unmanaged(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        organization.codespaces_secrets = [
+            OrganizationCodespacesSecret.from_model_data(
+                {"name": "TOKEN", "value": "pass:test", "visibility": "private", "selected_repositories": []}
+            )
+        ]
+
+        async def validate(unmanaged):
+            with (
+                patch.object(self.jsonnet_config, "_unmanaged", frozenset(unmanaged)),
+                patch.object(
+                    self.jsonnet_config,
+                    "default_org_config_for_org_id",
+                    return_value=jsonnet_evaluate_file(self.jsonnet_config.org_config_file),
+                ),
+            ):
+                return await organization.validate(
+                    self.otterdog_config,
+                    self.jsonnet_config,
+                    pretend.stub(is_supported_secret_provider=lambda _provider: False, get_secret=lambda value: value),
+                    None,
+                )
+
+        context = await validate(["organization.codespaces_secrets"])
+        messages = [m for t, m in context.validation_failures if t == FailureType.ERROR and "unmanaged" in m]
+        assert len(messages) == 1
+        assert "declares 1 resource(s) of 'organization.codespaces_secrets'" in messages[0]
+
+        # nothing is reported if they are managed, or if other resources are unmanaged
+        for unmanaged in ([], ["repository.codespaces_secrets"]):
+            context = await validate(unmanaged)
+            assert not [m for _, m in context.validation_failures if "unmanaged" in m]
+
+    async def test_validate_ignores_unmanaged_settings(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        organization.settings.plan = "free"
+        organization.settings.members_can_create_private_pages = True
+
+        async def failures(unmanaged):
+            with (
+                patch.object(self.jsonnet_config, "_unmanaged", frozenset(unmanaged)),
+                patch.object(
+                    self.jsonnet_config,
+                    "default_org_config_for_org_id",
+                    return_value=jsonnet_evaluate_file(self.jsonnet_config.org_config_file),
+                ),
+            ):
+                context = await organization.validate(
+                    self.otterdog_config,
+                    self.jsonnet_config,
+                    pretend.stub(is_supported_secret_provider=lambda _provider: False, get_secret=lambda value: value),
+                    None,
+                )
+            return [m for t, m in context.validation_failures if t == FailureType.ERROR and "private_pages" in m]
+
+        # the value is rejected for a plan that does not support it, unless the setting is not managed
+        assert len(await failures([])) == 1
+        assert await failures(["organization.settings.members_can_create_private_pages"]) == []
+
+    async def test_validate_reports_external_groups_of_teams_if_unmanaged(self):
+        organization = GitHubOrganization.load_from_file(self.TEST_ORG, self.jsonnet_config.org_config_file)
+        organization.teams = [
+            Team.from_model_data(
+                {
+                    "name": "idp-team",
+                    "privacy": "visible",
+                    "notifications": True,
+                    "description": "managed by the identity provider",
+                    "members": [],
+                    "external_group_id": 42,
+                }
+            )
+        ]
+
+        async def failures(unmanaged):
+            with (
+                patch.object(self.jsonnet_config, "_unmanaged", frozenset(unmanaged)),
+                patch.object(
+                    self.jsonnet_config,
+                    "default_org_config_for_org_id",
+                    return_value=jsonnet_evaluate_file(self.jsonnet_config.org_config_file),
+                ),
+            ):
+                context = await organization.validate(
+                    self.otterdog_config,
+                    self.jsonnet_config,
+                    pretend.stub(is_supported_secret_provider=lambda _provider: False, get_secret=lambda value: value),
+                    None,
+                )
+            return [m for t, m in context.validation_failures if t == FailureType.ERROR and "unmanaged" in m]
+
+        messages = await failures(["team.external_group_id"])
+        assert len(messages) == 1
+        assert "declares 'team.external_group_id' for 1 team(s)" in messages[0]
+        assert await failures([]) == []
+        assert await failures(["team.description"]) == []
 
     async def test_validate_reports_code_scanning_for_missing_repository(self):
         async def get_repos(_github_id, _repository_name):

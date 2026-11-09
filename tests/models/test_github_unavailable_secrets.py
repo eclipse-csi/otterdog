@@ -55,6 +55,8 @@ def test_declared_secrets_that_are_not_available_are_an_error():
 
 def minimal_config():
     return SimpleNamespace(
+        unmanaged=frozenset(),
+        default_repo_webhook_config=None,
         default_repo_config={},
         default_branch_protection_rule_config=None,
         default_repo_ruleset_config=None,

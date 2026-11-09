@@ -648,3 +648,101 @@ class TestRepoClientActivities:
         with pytest.raises(RuntimeError, match="failed retrieving activities of type 'pr_merge'"):
             async for _ in repo_client.get_activities("test-org", "test-repo", "refs/heads/main", "pr_merge"):
                 pass
+
+
+_SEPARATELY_RETRIEVED_SETTINGS = {
+    "dependabot_alerts_enabled": "_fill_vulnerability_alerts",
+    "private_vulnerability_reporting_enabled": "_fill_private_vulnerability_reporting",
+    "immutable_releases_enabled": "_fill_immutable_releases",
+    "topics": "_fill_topics",
+    "custom_properties": "_fill_custom_properties",
+}
+
+
+class TestRepoClientUnmanagedSettings:
+    @staticmethod
+    async def _get_repo_data(unmanaged):
+        from unittest.mock import AsyncMock, patch
+
+        repo_client = RepoClient(pretend.stub())
+        fills = (
+            "_fill_vulnerability_alerts",
+            "_fill_private_vulnerability_reporting",
+            "_fill_immutable_releases",
+            "_fill_github_pages_config",
+            "_fill_topics",
+            "_fill_code_scanning_config",
+            "_fill_custom_properties",
+        )
+        mocks = {name: AsyncMock() for name in fills}
+
+        with (
+            patch.object(repo_client, "get_simple_repo_data", AsyncMock(return_value={"archived": False})),
+            patch.multiple(repo_client, **mocks),
+        ):
+            await repo_client.get_repo_data("org", "repo", unmanaged)
+
+        return {name for name, mock in mocks.items() if mock.await_count > 0}
+
+    async def test_all_settings_are_retrieved_by_default(self):
+        assert len(await self._get_repo_data(())) == 7
+
+    @pytest.mark.parametrize("setting,fill", sorted(_SEPARATELY_RETRIEVED_SETTINGS.items()))
+    async def test_a_setting_with_a_request_of_its_own_is_skipped_if_unmanaged(self, setting, fill):
+        called = await self._get_repo_data([setting])
+
+        assert fill not in called
+        assert len(called) == 6
+
+    async def test_a_request_providing_several_settings_is_only_skipped_if_none_is_managed(self):
+        pages = ["gh_pages_build_type", "gh_pages_source_branch", "gh_pages_source_path"]
+        all_pages = [*pages, "gh_pages_visibility", "gh_pages_cname", "gh_pages_https_enforced"]
+
+        assert "_fill_github_pages_config" in await self._get_repo_data(pages)
+        assert "_fill_github_pages_config" not in await self._get_repo_data(all_pages)
+
+        scanning = ["code_scanning_default_setup_enabled", "code_scanning_default_query_suite"]
+        assert "_fill_code_scanning_config" in await self._get_repo_data(scanning)
+        assert "_fill_code_scanning_config" not in await self._get_repo_data(
+            [*scanning, "code_scanning_default_languages"]
+        )
+
+
+class TestRepoClientWorkflowSettingsIncludedKeys:
+    @staticmethod
+    async def _requests(included_keys):
+        from unittest.mock import AsyncMock, patch
+
+        permissions = {"enabled_repositories": "all", "enabled": True, "allowed_actions": "selected"}
+        client = RepoClient(pretend.stub(requester=pretend.stub(request_json=AsyncMock(return_value=permissions))))
+        names = (
+            "_get_selected_actions_for_workflow_settings",
+            "_get_default_workflow_permissions",
+            "_get_fork_pr_approval_policy",
+            "_get_max_cache_size_gb",
+        )
+        mocks = {name: AsyncMock(return_value={}) for name in names}
+
+        with patch.multiple(client, **mocks):
+            await client.get_workflow_settings("org", "repo", included_keys=included_keys)
+
+        return {name for name, mock in mocks.items() if mock.await_count > 0}
+
+    async def test_everything_is_requested_without_included_keys(self):
+        assert len(await self._requests(None)) == 4
+
+    @pytest.mark.parametrize(
+        "key,request_name",
+        [
+            ("fork_pr_approval_policy", "_get_fork_pr_approval_policy"),
+            ("max_cache_size_gb", "_get_max_cache_size_gb"),
+            ("allow_action_patterns", "_get_selected_actions_for_workflow_settings"),
+            ("default_workflow_permissions", "_get_default_workflow_permissions"),
+            ("actions_can_approve_pull_request_reviews", "_get_default_workflow_permissions"),
+        ],
+    )
+    async def test_a_dedicated_request_is_only_made_if_one_of_its_settings_is_included(self, key, request_name):
+        assert await self._requests({key}) == {request_name}
+
+    async def test_nothing_dedicated_is_requested_if_no_setting_of_it_is_included(self):
+        assert await self._requests({"enabled", "allowed_actions"}) == set()

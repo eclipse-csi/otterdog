@@ -13,7 +13,7 @@ import pathlib
 import re
 import tempfile
 import zipfile
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Collection
 from typing import Any
 
 import aiofiles
@@ -30,6 +30,26 @@ from otterdog.utils import (
 )
 
 _logger = get_logger(__name__)
+
+
+# the workflow settings that are retrieved with a request of their own
+_SELECTED_ACTIONS_SETTINGS = ("allow_github_owned_actions", "allow_verified_creator_actions", "allow_action_patterns")
+_DEFAULT_PERMISSIONS_SETTINGS = ("default_workflow_permissions", "actions_can_approve_pull_request_reviews")
+
+# the settings of a repository that are retrieved with a request of their own
+_GH_PAGES_SETTINGS = (
+    "gh_pages_build_type",
+    "gh_pages_source_branch",
+    "gh_pages_source_path",
+    "gh_pages_visibility",
+    "gh_pages_cname",
+    "gh_pages_https_enforced",
+)
+_CODE_SCANNING_SETTINGS = (
+    "code_scanning_default_setup_enabled",
+    "code_scanning_default_query_suite",
+    "code_scanning_default_languages",
+)
 
 
 class RepoClient(RestClient):
@@ -101,25 +121,42 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed renaming branch '{branch}' in repo '{org_id}/{repo_name}':\n{ex}") from ex
 
-    async def get_repo_data(self, org_id: str, repo_name: str) -> dict[str, Any]:
+    async def get_repo_data(
+        self, org_id: str, repo_name: str, unmanaged_settings: Collection[str] = ()
+    ) -> dict[str, Any]:
+        """
+        Retrieves the data of a repository. Some of its settings are retrieved with requests of their own,
+        which are skipped if all the settings they provide are unmanaged, e.g. as the plan does not support them.
+        """
         _logger.debug("retrieving repo data for '%s/%s'", org_id, repo_name)
+
+        unmanaged = frozenset(unmanaged_settings)
+
+        def is_managed(*settings: str) -> bool:
+            return not unmanaged.issuperset(settings)
 
         try:
             repo_data = await self.get_simple_repo_data(org_id, repo_name)
 
             archived = repo_data.get("archived", False)
             if not archived:
-                await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
+                if is_managed("dependabot_alerts_enabled"):
+                    await self._fill_vulnerability_alerts(org_id, repo_name, repo_data)
 
                 private = repo_data.get("private", False)
-                if not private:
+                if not private and is_managed("private_vulnerability_reporting_enabled"):
                     await self._fill_private_vulnerability_reporting(org_id, repo_name, repo_data)
 
-            await self._fill_immutable_releases(org_id, repo_name, repo_data)
-            await self._fill_github_pages_config(org_id, repo_name, repo_data)
-            await self._fill_topics(org_id, repo_name, repo_data)
-            await self._fill_code_scanning_config(org_id, repo_name, repo_data)
-            await self._fill_custom_properties(org_id, repo_name, repo_data)
+            if is_managed("immutable_releases_enabled"):
+                await self._fill_immutable_releases(org_id, repo_name, repo_data)
+            if is_managed(*_GH_PAGES_SETTINGS):
+                await self._fill_github_pages_config(org_id, repo_name, repo_data)
+            if is_managed("topics"):
+                await self._fill_topics(org_id, repo_name, repo_data)
+            if is_managed(*_CODE_SCANNING_SETTINGS):
+                await self._fill_code_scanning_config(org_id, repo_name, repo_data)
+            if is_managed("custom_properties"):
+                await self._fill_custom_properties(org_id, repo_name, repo_data)
 
             return repo_data
         except GitHubException as ex:
@@ -200,6 +237,7 @@ class RepoClient(RestClient):
         fork_default_branch_only: bool,
         auto_init_repo: bool,
         code_security_configuration: str | None = None,
+        unmanaged_settings: Collection[str] = (),
     ) -> None:
         repo_name = data["name"]
 
@@ -223,7 +261,7 @@ class RepoClient(RestClient):
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
-                current_data = await self.get_repo_data(org_id, repo_name)
+                current_data = await self.get_repo_data(org_id, repo_name, unmanaged_settings)
                 self._remove_already_active_settings(data, current_data)
                 await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)
@@ -256,7 +294,7 @@ class RepoClient(RestClient):
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
-                current_data = await self.get_repo_data(org_id, repo_name)
+                current_data = await self.get_repo_data(org_id, repo_name, unmanaged_settings)
                 self._remove_already_active_settings(data, current_data)
                 await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)
@@ -1189,17 +1227,21 @@ class RepoClient(RestClient):
         except GitHubException as ex:
             raise RuntimeError(f"failed retrieving workflow settings for repo '{org_id}/{repo_name}':\n{ex}") from ex
 
+        def is_included(*keys: str) -> bool:
+            # the settings that are provided by a request of their own are only retrieved if included
+            return included_keys is None or any(key in included_keys for key in keys)
+
         allowed_actions = permissions.get("allowed_actions", "none")
-        if allowed_actions == "selected":
+        if allowed_actions == "selected" and is_included(*_SELECTED_ACTIONS_SETTINGS):
             workflow_settings.update(await self._get_selected_actions_for_workflow_settings(org_id, repo_name))
 
-        if permissions.get("enabled", False) is not False:
+        if permissions.get("enabled", False) is not False and is_included(*_DEFAULT_PERMISSIONS_SETTINGS):
             workflow_settings.update(await self._get_default_workflow_permissions(org_id, repo_name))
 
-        if not is_private:
+        if not is_private and is_included("fork_pr_approval_policy"):
             workflow_settings.update(await self._get_fork_pr_approval_policy(org_id, repo_name))
 
-        if included_keys is None or "max_cache_size_gb" in included_keys:
+        if is_included("max_cache_size_gb"):
             workflow_settings.update(await self._get_max_cache_size_gb(org_id, repo_name))
 
         return workflow_settings

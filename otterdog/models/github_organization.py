@@ -61,6 +61,12 @@ from otterdog.models.repository import Repository
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
 from otterdog.providers.github.rest.secret_client import SecretScope, SecretsNotAvailableError
+from otterdog.unmanaged import (
+    declared_unmanaged_resources,
+    declared_unmanaged_settings,
+    drop_unmanaged,
+    unmanaged_repository_settings,
+)
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -518,6 +524,26 @@ class GitHubOrganization:
             provider=provider,
             secret_access_policy=secret_access_policy,
         )
+        # resources that are not managed cannot be compared with GitHub, nothing would be done with them
+        for path, count in declared_unmanaged_resources(self, jsonnet_config.unmanaged).items():
+            context.add_failure(
+                FailureType.ERROR,
+                f"organization '{self.github_id}' declares {count} resource(s) of '{path}', which is listed in the "
+                f"'unmanaged' list of the otterdog configuration, remove them or the entry of the list.",
+            )
+
+        for path, count in declared_unmanaged_settings(self, jsonnet_config.unmanaged).items():
+            context.add_failure(
+                FailureType.ERROR,
+                f"organization '{self.github_id}' declares '{path}' for {count} team(s), which is listed in the "
+                f"'unmanaged' list of the otterdog configuration: the members of such teams are provisioned by the "
+                f"identity provider and would be compared, remove the entry of the list or the external groups.",
+            )
+
+        # everything unmanaged is ignored, including the checks that depend on it, it is removed from the
+        # organization as it is no longer compared
+        drop_unmanaged(self, jsonnet_config.unmanaged)
+
         self.settings.validate(context, self)
 
         enterprise_plan = self.settings.plan == "enterprise"
@@ -1276,8 +1302,9 @@ class GitHubOrganization:
                         and default_org.get_team(team_name) is None
                     ):
                         continue
-                    team_members = await provider.get_org_team_members(github_id, team_slug)
-                    team["members"] = team_members
+                    # the members are not retrieved if they are not managed, they are unset when loaded
+                    if "team.members" not in jsonnet_config.unmanaged:
+                        team["members"] = await provider.get_org_team_members(github_id, team_slug)
 
                     await idp_group_loader.add_external_groups(team_slug, team)
 
@@ -1408,6 +1435,9 @@ class GitHubOrganization:
         # without any configuration, repositories are known to have none attached
         if jsonnet_config.default_org_code_security_configuration_config is not None:
             await _load_code_security_configuration_attachments(org, github_id, provider)
+
+        # settings that are not managed are neither compared nor imported
+        drop_unmanaged(org, jsonnet_config.unmanaged)
 
         return org
 
@@ -1662,7 +1692,9 @@ async def _process_single_repo(
     rest_api = gh_client.rest_api
 
     # get repo data
-    github_repo_data = await rest_api.repo.get_repo_data(github_id, repo_name)
+    github_repo_data = await rest_api.repo.get_repo_data(
+        github_id, repo_name, unmanaged_repository_settings(jsonnet_config.unmanaged)
+    )
     repo = Repository.from_provider_data(github_id, github_repo_data)
 
     is_private = github_repo_data.get("private", False)
@@ -1736,7 +1768,7 @@ async def _process_single_repo(
     else:
         _logger.debug("not reading repo rulesets, no default config available")
 
-    if jsonnet_config.default_org_webhook_config is not None:
+    if jsonnet_config.default_repo_webhook_config is not None:
         # get webhooks of the repo
         webhooks = await rest_api.repo.get_webhooks(github_id, repo_name)
         for github_webhook in webhooks:
@@ -1869,7 +1901,10 @@ async def _load_repos_from_provider(
     if repo_filter is not None:
         repo_names = fnmatch.filter(repo_names, repo_filter)
 
-    teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
+    # the teams are only needed to resolve the bypass actors of repository rulesets
+    teams: dict[str, str] = {}
+    if jsonnet_config.default_repo_ruleset_config is not None:
+        teams = {str(team["id"]): f"{github_id}/{team['slug']}" for team in await provider.get_org_teams(github_id)}
 
     default_org_repo = Repository.from_model_data(jsonnet_config.default_repo_config)
     if is_set_and_present(default_org_repo.team_permissions):
