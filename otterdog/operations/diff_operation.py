@@ -18,7 +18,7 @@ from rich.markup import escape
 from otterdog.models import LivePatch, LivePatchContext, LivePatchType
 from otterdog.models.github_organization import GitHubOrganization
 from otterdog.providers.github import GitHubProvider
-from otterdog.unmanaged import drop_unmanaged
+from otterdog.unmanaged import drop_unmanaged, unmanaged_repository_settings
 from otterdog.utils import Change, IndentingPrinter, unwrap
 
 from . import Operation
@@ -151,7 +151,9 @@ class DiffOperation(Operation):
                 await self._gh_client.close()
 
     def setup_github_client(self, org_config: OrganizationConfig) -> GitHubProvider:
-        return GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui))
+        provider = GitHubProvider(self.get_credentials(org_config, only_token=self.no_web_ui))
+        provider.unmanaged_repository_settings = unmanaged_repository_settings(org_config.jsonnet_config.unmanaged)
+        return provider
 
     @property
     def gh_client(self) -> GitHubProvider:

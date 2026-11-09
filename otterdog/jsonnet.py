@@ -80,6 +80,7 @@ class JsonnetConfig:
         local_only: bool,
         org_dir: str | None = None,
         unmanaged: Collection[str] = (),
+        unmanaged_error: str | None = None,
     ):
         self._org_id = org_id
         self._base_dir = base_dir
@@ -110,6 +111,8 @@ class JsonnetConfig:
 
         # settings and resources of the default config that are not managed, see otterdog.unmanaged
         self._unmanaged = frozenset(unmanaged)
+        # the description of an invalid list of unmanaged paths, it is reported by the first operation of the org
+        self._unmanaged_error = unmanaged_error
         for name in unavailable_default_configs(self._unmanaged):
             # replaces the cached value of the property, the default config of an unmanaged resource is not available
             self.__dict__[name] = None
@@ -155,9 +158,16 @@ class JsonnetConfig:
     def unmanaged(self) -> frozenset[str]:
         return self._unmanaged
 
+    @property
+    def unmanaged_error(self) -> str | None:
+        return self._unmanaged_error
+
     async def init_template(self) -> None:
         if self._initialized is True:
             return
+
+        if self._unmanaged_error is not None:
+            raise RuntimeError(self._unmanaged_error)
 
         if self._base_template_local_dir is not None:
             # nothing to fetch, so also done in local mode

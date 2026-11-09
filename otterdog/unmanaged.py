@@ -26,7 +26,7 @@ import dataclasses
 import difflib
 from typing import TYPE_CHECKING, Any
 
-from otterdog.utils import UNSET
+from otterdog.utils import UNSET, is_set_and_present
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -150,6 +150,34 @@ def validate_paths(paths: Iterable[Any], source: str) -> frozenset[str]:
     return frozenset(result)
 
 
+def parse_lists(sources: Iterable[tuple[str, Any]]) -> tuple[frozenset[str], str | None]:
+    """
+    Combines the lists of paths of the given sources, e.g. the otterdog configuration and the organization.
+
+    Returns the paths, or the description of the invalid ones, so that an invalid list can be reported when the
+    organization is used, instead of failing the loading of the configuration of all organizations.
+    """
+    paths: set[str] = set()
+    errors = []
+    for source, value in sources:
+        if value is None:
+            continue
+
+        if not isinstance(value, list):
+            errors.append(f"invalid 'unmanaged' of {source}: it must be a list of paths, not '{value}'")
+            continue
+
+        try:
+            paths.update(validate_paths(value, source))
+        except RuntimeError as ex:
+            errors.append(str(ex))
+
+    if errors:
+        return frozenset(), "\n".join(errors)
+
+    return frozenset(paths), None
+
+
 def unavailable_default_configs(unmanaged: Collection[str]) -> set[str]:
     """The names of the default configurations of the unmanaged resources, which are not available."""
     return {name for path in unmanaged for name in RESOURCES.get(path, ())}
@@ -257,6 +285,21 @@ def unmanaged_repository_settings(unmanaged: Collection[str]) -> frozenset[str]:
         for path in unmanaged
         if path.startswith(prefix) and path not in RESOURCES and "." not in path.removeprefix(prefix)
     )
+
+
+def declared_unmanaged_settings(organization: GitHubOrganization, unmanaged: Collection[str]) -> dict[str, int]:
+    """
+    The number of declarations of settings that are unmanaged, but change how others are handled: the members of a
+    team connected to an external group are provisioned by the identity provider and not compared.
+    """
+    declared: dict[str, int] = {}
+
+    if "team.external_group_id" in unmanaged:
+        count = sum(1 for team in organization.teams if is_set_and_present(team.external_group_id))
+        if count > 0:
+            declared["team.external_group_id"] = count
+
+    return declared
 
 
 def declared_unmanaged_resources(organization: GitHubOrganization, unmanaged: Collection[str]) -> dict[str, int]:

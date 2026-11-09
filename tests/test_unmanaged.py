@@ -21,6 +21,7 @@ from otterdog.unmanaged import (
     RESOURCES,
     clear_unmanaged_resources,
     declared_unmanaged_resources,
+    declared_unmanaged_settings,
     drop_unmanaged,
     unmanaged_repository_settings,
     unset_unmanaged_settings,
@@ -104,9 +105,79 @@ def test_the_global_and_the_organization_list_are_combined(tmp_path):
     )
 
 
-def test_an_invalid_entry_fails_the_loading_of_the_configuration(tmp_path):
-    with pytest.raises(RuntimeError, match="invalid 'unmanaged' of organization 'my-org'"):
-        _otterdog_config(tmp_path, [], ["repository.workflows.max_cache"])
+_ABSENT = object()
+
+
+def _two_organizations(tmp_path, global_unmanaged=_ABSENT, org_unmanaged=_ABSENT) -> OtterdogConfig:
+    github = {} if global_unmanaged is _ABSENT else {"unmanaged": global_unmanaged}
+    second = {"name": "b", "github_id": "b", "credentials": {"provider": "plain"}}
+    if org_unmanaged is not _ABSENT:
+        second["unmanaged"] = org_unmanaged
+
+    return OtterdogConfig.from_dict(
+        {
+            "defaults": {"github": github, "jsonnet": {"base_template": str(_DEFAULTS)}},
+            "organizations": [{"name": "a", "github_id": "a", "credentials": {"provider": "plain"}}, second],
+        },
+        False,
+        str(tmp_path),
+    )
+
+
+async def test_an_invalid_entry_fails_only_the_organization_using_it(tmp_path):
+    config = _two_organizations(tmp_path, org_unmanaged=["repository.workflows.max_cache"])
+
+    # the configuration of all organizations is loaded, the other organization works
+    first, second = (config.get_organization_config(name).jsonnet_config for name in "ab")
+    await first.init_template()
+    assert first.unmanaged_error is None
+
+    with pytest.raises(RuntimeError, match=r"invalid 'unmanaged' of organization 'b'.*max_cache_size_gb"):
+        await second.init_template()
+    assert second.unmanaged == frozenset()
+
+
+async def test_an_invalid_entry_of_the_defaults_is_reported_as_such(tmp_path):
+    config = _two_organizations(tmp_path, global_unmanaged=["repository.nope"])
+
+    for name in "ab":
+        jsonnet_config = config.get_organization_config(name).jsonnet_config
+        with pytest.raises(RuntimeError, match=r"invalid 'unmanaged' of defaults\.github: 'repository\.nope'"):
+            await jsonnet_config.init_template()
+
+
+@pytest.mark.parametrize("value", ["repository.topics", {"repository.topics": False}, 42, [["repository.topics"]]])
+def test_a_list_of_paths_is_required(tmp_path, value):
+    for config in (
+        _two_organizations(tmp_path, org_unmanaged=value),
+        _two_organizations(tmp_path, global_unmanaged=value),
+    ):
+        errors = [config.get_organization_config(name).jsonnet_config.unmanaged_error for name in "ab"]
+
+        assert any(error is not None for error in errors)
+        # an entry is never split into its characters or taken from the keys of a dict
+        assert all("'r' is not" not in (error or "") for error in errors)
+
+
+@pytest.mark.parametrize("global_unmanaged,org_unmanaged", [(None, _ABSENT), (_ABSENT, None), (None, None)])
+def test_a_null_list_is_empty(tmp_path, global_unmanaged, org_unmanaged):
+    config = _two_organizations(tmp_path, global_unmanaged, org_unmanaged)
+
+    for name in "ab":
+        jsonnet_config = config.get_organization_config(name).jsonnet_config
+        assert jsonnet_config.unmanaged == frozenset()
+        assert jsonnet_config.unmanaged_error is None
+
+
+def test_the_organization_config_of_the_webapp_gets_the_unmanaged_paths(tmp_path):
+    from otterdog.config import OrganizationConfig
+
+    org_config = OrganizationConfig.of(
+        "p", "o", ".otterdog", str(_DEFAULTS), {}, str(tmp_path), str(tmp_path), ["team.team_sync"], "an error"
+    )
+
+    assert org_config.jsonnet_config.unmanaged == frozenset({"team.team_sync"})
+    assert org_config.jsonnet_config.unmanaged_error == "an error"
 
 
 def test_nothing_is_unmanaged_by_default(tmp_path):
@@ -518,3 +589,13 @@ def test_unmanaging_a_team_setting_adds_no_change_unless_known(path):
         added = changed(expected, current, [path]) - changed(expected, current, [])
 
         assert added <= allowed, f"unmanaging '{path}' adds changes of {sorted(added - allowed)}"
+
+
+def test_declared_external_groups_of_teams_are_reported_if_unmanaged():
+    organization = _organization()
+    organization.teams.extend([stub(external_group_id=42), stub(external_group_id=None), stub(external_group_id=UNSET)])
+
+    assert declared_unmanaged_settings(organization, ["team.external_group_id"]) == {"team.external_group_id": 1}
+    # nothing is reported if they are managed
+    assert declared_unmanaged_settings(organization, ["team.description"]) == {}
+    assert declared_unmanaged_settings(organization, []) == {}

@@ -61,7 +61,12 @@ from otterdog.models.repository import Repository
 from otterdog.models.team import Team
 from otterdog.models.team_sync import TeamSync
 from otterdog.providers.github.rest.secret_client import SecretScope, SecretsNotAvailableError
-from otterdog.unmanaged import declared_unmanaged_resources, drop_unmanaged, unmanaged_repository_settings
+from otterdog.unmanaged import (
+    declared_unmanaged_resources,
+    declared_unmanaged_settings,
+    drop_unmanaged,
+    unmanaged_repository_settings,
+)
 from otterdog.utils import (
     IndentingPrinter,
     associate_by_key,
@@ -525,6 +530,14 @@ class GitHubOrganization:
                 FailureType.ERROR,
                 f"organization '{self.github_id}' declares {count} resource(s) of '{path}', which is listed in the "
                 f"'unmanaged' list of the otterdog configuration, remove them or the entry of the list.",
+            )
+
+        for path, count in declared_unmanaged_settings(self, jsonnet_config.unmanaged).items():
+            context.add_failure(
+                FailureType.ERROR,
+                f"organization '{self.github_id}' declares '{path}' for {count} team(s), which is listed in the "
+                f"'unmanaged' list of the otterdog configuration: the members of such teams are provisioned by the "
+                f"identity provider and would be compared, remove the entry of the list or the external groups.",
             )
 
         # everything unmanaged is ignored, including the checks that depend on it, it is removed from the
@@ -1289,8 +1302,9 @@ class GitHubOrganization:
                         and default_org.get_team(team_name) is None
                     ):
                         continue
-                    team_members = await provider.get_org_team_members(github_id, team_slug)
-                    team["members"] = team_members
+                    # the members are not retrieved if they are not managed, they are unset when loaded
+                    if "team.members" not in jsonnet_config.unmanaged:
+                        team["members"] = await provider.get_org_team_members(github_id, team_slug)
 
                     await idp_group_loader.add_external_groups(team_slug, team)
 

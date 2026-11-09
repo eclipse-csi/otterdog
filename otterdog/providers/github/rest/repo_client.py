@@ -233,6 +233,7 @@ class RepoClient(RestClient):
         fork_default_branch_only: bool,
         auto_init_repo: bool,
         code_security_configuration: str | None = None,
+        unmanaged_settings: Collection[str] = (),
     ) -> None:
         repo_name = data["name"]
 
@@ -256,7 +257,7 @@ class RepoClient(RestClient):
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
-                current_data = await self.get_repo_data(org_id, repo_name)
+                current_data = await self.get_repo_data(org_id, repo_name, unmanaged_settings)
                 self._remove_already_active_settings(data, current_data)
                 await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)
@@ -289,7 +290,7 @@ class RepoClient(RestClient):
 
                 # get all the data for the created repo to avoid setting values that can not be changed due
                 # to defaults from the organization (like web_commit_signoff_required)
-                current_data = await self.get_repo_data(org_id, repo_name)
+                current_data = await self.get_repo_data(org_id, repo_name, unmanaged_settings)
                 self._remove_already_active_settings(data, current_data)
                 await self._remove_not_configured_code_scanning(org_id, repo_name, data, current_data)
                 await self.update_repo(org_id, repo_name, data)

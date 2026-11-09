@@ -25,11 +25,11 @@ from otterdog.models import CostPolicy
 
 from .jsonnet import JsonnetConfig
 from .logging import get_logger, print_warn
-from .unmanaged import validate_paths as validate_unmanaged_paths
+from .unmanaged import parse_lists as parse_unmanaged_lists
 from .utils import ExclusionPatterns, deep_merge_dict, is_local_template, jsonnet_evaluate_file, query_json
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Collection, Mapping
 
     from otterdog.credentials import Credentials
 
@@ -142,8 +142,9 @@ class OrganizationConfig:
 
         # the settings and resources of the default config that are not managed, the global list and the one
         # of the organization are combined
-        unmanaged = validate_unmanaged_paths(
-            [*otterdog_config.default_unmanaged, *(data.get("unmanaged") or [])], f"organization '{name}'"
+        # an invalid list is reported when the organization is used, the other organizations are not affected
+        unmanaged, unmanaged_error = parse_unmanaged_lists(
+            [("defaults.github", otterdog_config.default_unmanaged), (f"organization '{name}'", data.get("unmanaged"))]
         )
 
         jsonnet_config = JsonnetConfig(
@@ -152,6 +153,7 @@ class OrganizationConfig:
             base_template,
             otterdog_config.local_mode,
             unmanaged=unmanaged,
+            unmanaged_error=unmanaged_error,
         )
 
         credentials = data.get("credentials", {})
@@ -212,6 +214,8 @@ class OrganizationConfig:
         credential_data: dict[str, Any],
         base_dir: str,
         work_dir: str,
+        unmanaged: Collection[str] = (),
+        unmanaged_error: str | None = None,
     ) -> OrganizationConfig:
         jsonnet_config = JsonnetConfig(
             github_id,
@@ -219,6 +223,8 @@ class OrganizationConfig:
             base_template,
             False,
             work_dir,
+            unmanaged=unmanaged,
+            unmanaged_error=unmanaged_error,
         )
 
         return cls(project_name, github_id, config_repo, base_template, jsonnet_config, credential_data)
@@ -428,8 +434,8 @@ class OtterdogConfig:
         return bool(self._github_config.get("no_web_ui", False))
 
     @property
-    def default_unmanaged(self) -> list[str]:
-        return self._github_config.get("unmanaged", [])
+    def default_unmanaged(self) -> Any:
+        return self._github_config.get("unmanaged")
 
     @property
     def default_team_exclusions(self) -> list[str]:

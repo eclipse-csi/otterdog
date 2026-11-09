@@ -228,7 +228,7 @@ section of the `otterdog.json` file, or in the entry of an organization. Both li
 Everything listed is not managed for the organization:
 
 - A setting is not retrieved if it is read with a request of its own, e.g. the topics or the custom properties of a
-  repository. It is not compared with the configuration, not written to the configuration by `import`, not sent to
+  repository, also not from a repository that `apply` creates. It is not compared with the configuration, not written to the configuration by `import`, not sent to
   GitHub, e.g. when creating a repository, and not validated. Its value in the configuration of the organization is
   ignored.
 - A resource is not read from GitHub, so it is neither compared nor deleted. If the configuration of the organization
@@ -245,8 +245,9 @@ Everything listed is not managed for the organization:
 | `repository.<resources>`                  | `webhooks`, `secrets`, `dependabot_secrets`, `codespaces_secrets`, `variables`, `branch_protection_rules`, `rulesets` or `environments` of all repositories |
 | `team.team_sync`                          | the identity provider groups of all teams                                            |
 
-An entry that is not a valid path stops otterdog when loading the configuration, and the error suggests the closest
-valid paths. Settings that decide how others are compared or sent cannot be unmanaged, the error explains why:
+`unmanaged` must be a list of paths. An invalid list, e.g. a path that does not exist, is reported when an operation
+uses the organization, with the closest valid paths. The configuration is still loaded and the other organizations are
+not affected. Settings that decide how others are compared or sent cannot be unmanaged, the error explains why:
 `repository.private`, `repository.archived`, `repository.gh_pages_build_type`,
 `repository.code_scanning_default_setup_enabled`, `organization.settings.has_discussions`,
 `organization.settings.custom_properties` and `organization.settings.workflows.selected_repositories`.
@@ -255,12 +256,11 @@ valid paths. Settings that decide how others are compared or sent cannot be unma
 
     `show-default` displays what the functions of the template define, without the entries of `unmanaged`.
 
-    The list is meant to set up otterdog for an organization with the command line, without defining a default
-    configuration of your own. It is not used by the webapp yet: its tasks, e.g. the validation of pull requests and
-    the apply of merged ones, as well as its dashboard, ignore it.
+    The list is meant to set up otterdog for an organization without defining a default configuration of your own.
+    The webapp uses it for the validation of pull requests and the apply of merged ones, but not yet in its dashboard.
 
 !!! warning
 
     The members of a team connected to an external group are provisioned by the identity provider and not
-    compared. If `team.external_group_id` is unmanaged, the members of such a team are compared, only use it for
-    organizations that do not use external groups.
+    compared. `team.external_group_id` is meant for organizations that cannot use external groups: `validate` reports
+    an error if a team declares one while it is unmanaged, as its members would be compared.

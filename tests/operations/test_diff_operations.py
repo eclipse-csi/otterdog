@@ -183,6 +183,19 @@ async def test_local_plan_ignores_unmanaged_resources_of_the_baseline_file(
     assert expected_removals in output.getvalue()
 
 
+def test_the_github_client_does_not_retrieve_unmanaged_settings_of_created_repositories(tmp_path, monkeypatch):
+    org_config = _create_org_config(tmp_path, with_config_files=False)
+    org_config.jsonnet_config._unmanaged = frozenset(
+        {"repository.topics", "repository.workflows.max_cache_size_gb", "repository.codespaces_secrets"}
+    )
+    operation = PlanOperation(False, "*", False, False, False, "*")
+    monkeypatch.setattr(operation, "get_credentials", lambda *args, **kwargs: None)
+
+    client = operation.setup_github_client(org_config)
+
+    assert client.unmanaged_repository_settings == frozenset({"topics"})
+
+
 async def test_local_plan_returns_failure_when_the_configuration_is_missing(tmp_path, monkeypatch):
     """
     A local plan returns failure and explains when the desired configuration is absent.

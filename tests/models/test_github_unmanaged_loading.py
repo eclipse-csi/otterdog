@@ -103,3 +103,47 @@ async def test_nothing_is_skipped_if_no_repository_setting_is_unmanaged():
     get_repo_data, _ = await load_repo(minimal_config())
 
     assert get_repo_data.await_args.args[2] == frozenset()
+
+
+async def load_teams(unmanaged):
+    from otterdog.models.github_organization import GitHubOrganization
+
+    from . import ModelTest
+    from .test_github_ruleset_loading import minimal_config as organization_config
+    from .test_github_ruleset_loading import organization_provider
+
+    team = ModelTest.load_json_resource("github-team.json")
+    provider = organization_provider([])
+    provider.get_org_teams = AsyncMock(return_value=[team])
+    provider.get_org_team_members = AsyncMock(return_value=[{"login": "alice"}])
+    config = organization_config(
+        default_org_ruleset_config=None,
+        default_team_config={"name": "default"},
+        default_team_sync_config=None,
+        unmanaged=frozenset(unmanaged),
+        default_org_config_for_org_id=lambda project_name, org_id: {
+            "project_name": project_name,
+            "github_id": org_id,
+            "settings": {},
+        },
+    )
+
+    with patch("otterdog.models.github_organization.OrganizationSettings.from_provider_data") as settings_model:
+        settings_model.return_value = SimpleNamespace(plan="free")
+        organization = await GitHubOrganization.load_from_provider("project", "acme", config, provider)
+
+    return organization, provider
+
+
+async def test_the_members_of_teams_are_retrieved_unless_unmanaged():
+    from otterdog.utils import UNSET
+
+    organization, provider = await load_teams([])
+
+    provider.get_org_team_members.assert_awaited_once()
+    assert organization.teams[0].members == ["alice"]
+
+    organization, provider = await load_teams(["team.members"])
+
+    provider.get_org_team_members.assert_not_awaited()
+    assert organization.teams[0].members is UNSET
